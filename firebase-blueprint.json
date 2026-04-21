@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A student's improvement project",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "currentPhase": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerUid", "currentPhase", "createdAt"]
+    },
+    "ProjectData": {
+      "title": "Project Data",
+      "description": "Tool-specific data for a project",
+      "type": "object",
+      "properties": {
+        "toolType": { "type": "string" },
+        "content": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["toolType", "content", "updatedAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "A course or category for organizing knowledge",
+      "type": "object",
+      "properties": {
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["createdAt"]
+    },
+    "Playlist": {
+      "title": "Playlist",
+      "description": "A playlist within a course",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["courseId", "createdAt"]
+    },
+    "KnowledgeItem": {
+      "title": "Knowledge Item",
+      "description": "A video or article learned and saved to the knowledge base",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "course": { "type": "string" },
+        "playlist": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "sourceUrl", "course", "playlist", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/courses/{courseId}": { "schema": "Course" },
+    "/playlists/{playlistId}": { "schema": "Playlist" },
+    "/knowledge_base/{itemId}": { "schema": "KnowledgeItem" },
+    "/projects/{projectId}": { "schema": "Project" },
+    "/projects/{projectId}/data/{dataId}": { "schema": "ProjectData" }
+  }
+}
