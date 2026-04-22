@@ -67,6 +67,7 @@ import ImprovementProjectIdea from './ImprovementProjectIdea';
 
 import ProjectCharterPMI from './ProjectCharterPMI';
 import ToolWrapper from './ToolWrapper';
+import { getUserProfile } from '../UserProfile';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema', component: ProjectBrief, defaultPhase: 'Define' },
@@ -151,6 +152,17 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
   const [isDeleting, setIsDeleting] = useState(false);
   const [toolVersion, setToolVersion] = useState(0);
   const [completedTools, setCompletedTools] = useState<string[]>(project.completedTools || []);
+
+  const userProfile = getUserProfile();
+  const enrichedProjectData = useMemo(() => ({
+    ...projectData,
+    userProfile: {
+      name: userProfile.name,
+      email: userProfile.email,
+      company: userProfile.company,
+      role: userProfile.role
+    }
+  }), [projectData, userProfile]);
 
   const handleGenerateReport = async () => {
     if (!reportType) return;
@@ -382,7 +394,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
     }
   };
 
-  const handleSaveTool = async (storageKey: string, data: any, toolId: string) => {
+  const handleSaveTool = async (storageKey: string, data: any, toolId: string, options?: { silent?: boolean }) => {
     try {
       let updatedProjectData = { ...projectData, [storageKey]: data };
       setProjectData(updatedProjectData);
@@ -392,13 +404,17 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
       await markToolAsCompleted(projectId, toolId);
       setCompletedTools(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
       
-      toast.success("Alterações salvas com sucesso!", {
-        description: "Seu progresso foi registrado no banco de dados.",
-        duration: 3000,
-      });
+      if (!options?.silent) {
+        toast.success("Alterações salvas com sucesso!", {
+          description: "Seu progresso foi registrado no banco de dados.",
+          duration: 3000,
+        });
+      }
       if (onPhaseChange) onPhaseChange(currentPhase);
     } catch (error) {
-      toast.error("Erro ao salvar alterações.");
+      if (!options?.silent) {
+        toast.error("Erro ao salvar alterações.");
+      }
       console.error(error);
     }
   };
@@ -883,7 +899,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
                   }
                 : projectData[storageKey]
             }
-            onSave={(data) => handleSaveTool(storageKey, data, activeTool.id)}
+            onSave={(data, options) => handleSaveTool(storageKey, data, activeTool.id, options)}
             project={project}
             availableTools={AVAILABLE_TOOLS}
             phases={phases}
@@ -891,7 +907,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
             initiativeConfigs={initiativeConfigs}
             previousToolData={previousToolData}
             previousToolName={previousToolName}
-            allProjectData={projectData}
+            allProjectData={enrichedProjectData}
             showAIPrompt={
               activeTool.id === 'processMap' ? false :
               (['brief', 'rab', 'gut'].includes(activeTool.id) && isLeanSixSigma) ? !!projectData.improvementIdea : 

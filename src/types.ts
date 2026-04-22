@@ -3,11 +3,15 @@ export type DMAICPhase = 'Define' | 'Measure' | 'Analyze' | 'Improve' | 'Control
 export interface Project {
   id: string;
   name: string;
+  description?: string;
   problem?: string;
   goal?: string;
   scope?: string;
   currentPhase: string;
   initiativeId?: string; // New field to link project to an initiative
+  ownerUid?: string;
+  ownerEmail?: string;
+  createdAt?: any;
   updatedAt?: string;
   completedTools?: string[];
 }

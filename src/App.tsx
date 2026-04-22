@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   MessageSquare, 
@@ -30,6 +30,7 @@ import LearningView from './components/LearningView';
 import KnowledgeManagerView from './components/KnowledgeManagerView';
 import ProjectToolsConfig from './components/ProjectToolsConfig';
 import ToolCreator from './components/ToolCreator';
+import UserProfile, { getUserProfile } from './components/UserProfile';
 
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
@@ -100,6 +101,12 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                 <button onClick={onLogout} className="text-xs text-gray-400 hover:text-white flex items-center gap-1">
                   <LogOut size={12} /> Sair
                 </button>
+                <Link
+                  to="/profile"
+                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1 mt-1"
+                >
+                  <UserIcon size={12} /> Meu Perfil
+                </Link>
               </div>
             )}
           </div>
@@ -119,9 +126,15 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+const ProfileView = () => {
+  const navigate = useNavigate();
+  return <UserProfile onClose={() => navigate('/')} />;
+};
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
   const inatividadeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const deslogar = useCallback(() => {
@@ -217,6 +230,7 @@ export default function App() {
             <Route path="/projects" element={<ProjectManagement />} />
             <Route path="/learning" element={<KnowledgeManagerView />} />
             <Route path="/education" element={<LearningView />} />
+            <Route path="/profile" element={<ProfileView />} />
             <Route path="/config" element={<ProjectToolsConfig />} />
             <Route path="/tool-creator" element={<ToolCreator />} />
             <Route path="*" element={<Navigate to="/" replace />} />

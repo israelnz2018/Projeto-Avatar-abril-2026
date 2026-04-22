@@ -867,6 +867,7 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
 
       <div className="p-6 bg-white border-t border-[#eee] flex justify-end">
         <button
+          data-save-trigger
           onClick={handleSave}
           className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-md"
         >

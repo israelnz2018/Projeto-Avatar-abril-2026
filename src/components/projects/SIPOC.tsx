@@ -167,15 +167,16 @@ export default function SIPOC({ onSave, initialData }: SIPOCProps) {
           </p>
         </div>
 
-        <div className="flex justify-end pt-6 mt-8 border-t border-[#eee]">
-          <button
-            onClick={() => onSave(data)}
-            className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-md"
-          >
-            <CheckCircle2 size={18} className="mr-2" />
-            Salvar SIPOC
-          </button>
-        </div>
+      <div className="flex justify-end pt-6 border-t border-[#eee]">
+        <button
+          data-save-trigger
+          onClick={() => onSave(data)}
+          className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-lg"
+        >
+          <CheckCircle2 size={18} className="mr-2" />
+          Salvar SIPOC
+        </button>
+      </div>
       </div>
     </div>
   );

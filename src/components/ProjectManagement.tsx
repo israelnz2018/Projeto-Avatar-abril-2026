@@ -10,9 +10,9 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { getUserProjects, createProject, deleteProject, Project, updateProjectPhase } from '../services/projectService';
+import { getUserProjects, createProject, deleteProject, updateProjectPhase } from '../services/projectService';
 import { getInitiatives } from '../services/configService';
-import { Initiative } from '../types';
+import { Initiative, Project } from '../types';
 import { toast } from 'sonner';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
@@ -25,6 +25,8 @@ const getInitiativeIcon = (name: string) => {
   if (n.includes('implementação') || n.includes('projeto')) return <Settings size={24} />;
   return <Briefcase size={24} />;
 };
+
+import { chatWithMentor, getMentorSuggestions } from '../services/aiService';
 
 export default function ProjectManagement() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -45,6 +47,28 @@ export default function ProjectManagement() {
   // Mentor State
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([]);
+  const [isGeneratingMentor, setIsGeneratingMentor] = useState(false);
+
+  // Fetch dynamic suggestions when phase or project changes
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (selectedProject) {
+        try {
+          const suggestions = await getMentorSuggestions(
+            currentPhase, 
+            null, 
+            selectedProject.completedTools || [], 
+            {} // projectData
+          );
+          setDynamicSuggestions(suggestions);
+        } catch (error) {
+          console.error("Error fetching mentor suggestions:", error);
+        }
+      }
+    };
+    fetchSuggestions();
+  }, [selectedProject?.id, currentPhase]);
 
   const fetchProjects = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -178,17 +202,31 @@ export default function ProjectManagement() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || !selectedProject || isGeneratingMentor) return;
     
     const userMsg = inputMessage;
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    const currentHistory = [...messages, { role: 'user' as const, content: userMsg }];
+    setMessages(currentHistory);
     setInputMessage('');
+    setIsGeneratingMentor(true);
 
-    // Simulated response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'assistant', content: `Como seu Mentor LBW${currentPhase ? ` na fase de ${currentPhase}` : ''}, sugiro focar em: ${getMentorSuggestions(currentPhase)[0]}. Como posso te ajudar mais com isso?` }]);
-    }, 1000);
+    try {
+      const response = await chatWithMentor(
+        currentPhase,
+        null,
+        {}, 
+        { name: selectedProject.name, description: selectedProject.description },
+        currentHistory
+      );
+      
+      setMessages([...currentHistory, { role: 'assistant', content: response }]);
+    } catch (error) {
+      console.error("Error chatting with mentor:", error);
+      setMessages([...currentHistory, { role: 'assistant', content: "Desculpe, tive um problema ao processar sua pergunta. Pode tentar novamente?" }]);
+    } finally {
+      setIsGeneratingMentor(false);
+    }
   };
 
   return (
@@ -406,7 +444,7 @@ export default function ProjectManagement() {
           inputMessage={inputMessage}
           onInputChange={setInputMessage}
           onSendMessage={handleSendMessage}
-          suggestions={getMentorSuggestions(currentPhase)}
+          suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
           mentorMessage={getMentorMessage(currentPhase)}
         />
       </div>
@@ -535,7 +573,7 @@ function getMentorMessage(phase: string | null): string {
   }
 }
 
-function getMentorSuggestions(phase: string | null): string[] {
+function getMentorStaticSuggestions(phase: string | null): string[] {
   if (!phase) return [
     'Como começar um novo projeto?',
     'Quais ferramentas usar no DMAIC?',

@@ -300,6 +300,7 @@ export default function ActionPlan5W2H({ onSave, initialData }: ActionPlan5W2HPr
         </button>
 
         <button
+          data-save-trigger
           onClick={() => onSave({ columns, actions })}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-2.5 bg-[#10b981] text-white text-[13px] font-bold rounded-[4px] hover:bg-green-600 transition-all border-none cursor-pointer shadow-md active:scale-95"
         >

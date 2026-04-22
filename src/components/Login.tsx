@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
@@ -38,6 +39,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setMessage({ text: '🔄 Verificando...', color: '#444' });
     setLoading(true);
 
+    console.log('Tentando login com:', email);
+    console.log('Firebase projectId:', import.meta.env.VITE_FIREBASE_PROJECT_ID);
+    console.log('Firebase apiKey primeiros 10 chars:', import.meta.env.VITE_FIREBASE_API_KEY?.substring(0, 10));
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       setMessage({ text: `✅ Bem-vindo, ${userCredential.user.email}!`, color: 'green' });
@@ -51,7 +56,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }, tempoSpinnerLogin);
     } catch (error: any) {
       console.error("Erro no login:", error);
-      setMessage({ text: "❌ Erro ao fazer login: " + error.message, color: 'red' });
+      let errorMessage = "Erro ao fazer login: " + error.message;
+      
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = "❌ E-mail ou senha incorretos. Por favor, verifique seus dados ou use 'Esqueci minha senha'.";
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = "❌ Usuário não encontrado.";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "❌ Senha incorreta.";
+      }
+      
+      setMessage({ text: errorMessage, color: 'red' });
       setLoading(false);
     }
   };

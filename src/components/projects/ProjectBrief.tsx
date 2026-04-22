@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle } from 'lucide-react';
+import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, FileDown } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
 import { cn } from '@/src/lib/utils';
 
 interface ProjectBriefProps {
-  onSave: (data: any) => void;
+  onSave: (data: any, options?: { silent?: boolean }) => void;
   initialData?: any;
   previousToolData?: any;
   project?: any;
@@ -28,10 +29,7 @@ export default function ProjectBrief({
   });
   
   const [images, setImages] = useState<string[]>(initialData?.images || []);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [showSixSigmaWarning, setShowSixSigmaWarning] = useState(false);
-
-  const projectIdeas = previousToolData?.generatedProjects || [];
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -50,40 +48,7 @@ export default function ProjectBrief({
   const handleAnswerChange = (q: string, value: string) => {
     const newAnswers = { ...answers, [q]: value };
     setAnswers(newAnswers);
-    onSave({ answers: newAnswers, images });
-  };
-
-  const handleProjectSelect = (projectTitle: string) => {
-    setSelectedProjectId(projectTitle);
-    const selectedProject = projectIdeas.find((p: any) => p.title === projectTitle);
-    
-    if (selectedProject) {
-      // Simple Six Sigma validation (can be improved)
-      const title = selectedProject.title.toLowerCase();
-      const isSixSigmaCandidate = 
-        title.includes('redução') || 
-        title.includes('aumento') || 
-        title.includes('otimização') || 
-        title.includes('variabilidade') ||
-        title.includes('defeito') ||
-        title.includes('erro') ||
-        title.includes('custo') ||
-        title.includes('tempo') ||
-        title.includes('lead time');
-      
-      setShowSixSigmaWarning(!isSixSigmaCandidate);
-    } else {
-      setShowSixSigmaWarning(false);
-    }
-  };
-
-  const handleGenerateClick = async () => {
-    if (!selectedProjectId || !onGenerateAI) return;
-    
-    const selectedProject = projectIdeas.find((p: any) => p.title === selectedProjectId);
-    if (selectedProject) {
-      await onGenerateAI(selectedProject);
-    }
+    onSave({ answers: newAnswers, images }, { silent: true });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,7 +63,7 @@ export default function ProjectBrief({
         const result = reader.result as string;
         newImages.push(result);
         setImages([...newImages]);
-        onSave({ answers, images: [...newImages] });
+        onSave({ answers, images: [...newImages] }, { silent: true });
       };
       reader.readAsDataURL(file);
     });
@@ -107,7 +72,7 @@ export default function ProjectBrief({
   const removeImage = (index: number) => {
     const newImages = images.filter((_, i) => i !== index);
     setImages(newImages);
-    onSave({ answers, images: newImages });
+    onSave({ answers, images: newImages }, { silent: true });
   };
 
   const questions = [
@@ -130,69 +95,59 @@ export default function ProjectBrief({
     onSave({ answers, images });
   };
 
+  const handleGeneratePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `
+Você é um consultor sênior de Lean Six Sigma. Com base nos dados abaixo do formulário "Entendendo o Problema", gere um relatório executivo profissional em HTML com design moderno e bonito.
+
+DADOS DO FORMULÁRIO:
+${JSON.stringify(answers, null, 2)}
+
+INSTRUÇÕES DE CONTEÚDO:
+- Melhore e expanda cada resposta com linguagem técnica e executiva
+- Organize em seções claras: Contexto do Projeto, Problema Central, Impacto no Negócio, Metas e Objetivos, Próximos Passos Recomendados
+- Seja conciso mas completo — máximo 1 página A4
+
+INSTRUÇÕES DE DESIGN (HTML):
+- Use fonte Inter ou Roboto do Google Fonts
+- Cabeçalho com fundo azul escuro (#1e3a5f) e texto branco com o título "Entendendo o Problema — Relatório Executivo"
+- Cada seção com título em azul (#2563eb) e linha separadora sutil
+- Cards com borda esquerda colorida para destacar informações importantes
+- Rodapé com "LBW Copilot — Formação em Gestão de Projetos de Melhoria"
+- Layout limpo tipo consultoria profissional
+- Retorne APENAS o HTML completo, sem explicações
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
+
+      const html = response.text || "";
+      const cleanedHtml = html.replace(/```html|```/g, "").trim();
+
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(cleanedHtml);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const filledFieldsCount = Object.values(answers).filter(val => typeof val === 'string' && val.trim().length > 0).length;
+
   return (
     <div className="space-y-8">
-      {/* Lean Six Sigma Project Selection */}
-      {isLeanSixSigma && projectIdeas.length > 0 && (
-        <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-4">
-          <div className="flex items-center gap-3 text-blue-700">
-            <Sparkles size={20} className="text-blue-500" />
-            <h3 className="text-sm font-black uppercase tracking-wider">Selecione um Projeto da IDEIA DE PROJETOS DE MELHORIA</h3>
-          </div>
-          <p className="text-xs text-blue-800 font-medium">
-            Escolha uma das ideias de projeto geradas na ferramenta anterior para preencher automaticamente esta etapa.
-          </p>
-          
-          <div className="flex flex-col md:flex-row gap-4 items-start">
-            <select
-              value={selectedProjectId}
-              onChange={(e) => handleProjectSelect(e.target.value)}
-              className="flex-1 w-full px-4 py-3 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            >
-              <option value="">Selecione um projeto...</option>
-              {projectIdeas.map((p: any, idx: number) => (
-                <option key={idx} value={p.title}>{p.title}</option>
-              ))}
-            </select>
-            
-            <button
-              onClick={handleGenerateClick}
-              disabled={isGeneratingAI || !selectedProjectId}
-              className={cn(
-                "h-[46px] px-6 rounded-lg font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2 shadow-md",
-                isGeneratingAI || !selectedProjectId
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
-              )}
-            >
-              {isGeneratingAI ? (
-                <Loader2 className="animate-spin" size={16} />
-              ) : (
-                <Sparkles size={16} />
-              )}
-              {isGeneratingAI ? "Gerando..." : "Gerar com IA"}
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {showSixSigmaWarning && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-start gap-3"
-              >
-                <AlertTriangle className="text-amber-600 shrink-0" size={18} />
-                <p className="text-[11px] text-amber-800 font-bold leading-relaxed">
-                  Aviso: Este título não parece ser um projeto Lean Six Sigma típico. 
-                  Projetos Six Sigma geralmente focam em redução de variabilidade, defeitos ou otimização de métricas quantitativas.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
       <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8">
         <div className="flex items-center justify-between border-b border-[#eee] pb-4">
           <div className="flex items-center gap-3">
@@ -272,8 +227,32 @@ export default function ProjectBrief({
           </div>
         </div>
 
-        <div className="flex justify-end pt-6 border-t border-[#eee]">
+        <div className="flex justify-end items-center gap-4 pt-6 border-t border-[#eee]">
           <button
+            onClick={handleGeneratePDF}
+            disabled={isGeneratingPDF || filledFieldsCount < 3}
+            className={cn(
+              "px-8 py-3 rounded-[4px] font-bold flex items-center transition-all border-none cursor-pointer shadow-md",
+              isGeneratingPDF || filledFieldsCount < 3
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            )}
+          >
+            {isGeneratingPDF ? (
+              <>
+                <Loader2 size={18} className="mr-2 animate-spin" />
+                Gerando relatório...
+              </>
+            ) : (
+              <>
+                <FileDown size={18} className="mr-2" />
+                Gerar PDF Executivo
+              </>
+            )}
+          </button>
+
+          <button
+            data-save-trigger
             onClick={handleSave}
             className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-md"
           >

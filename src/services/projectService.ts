@@ -14,19 +14,9 @@ import {
   arrayUnion
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { Project } from '../types';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
-
-export interface Project {
-  id: string;
-  name: string;
-  ownerUid: string;
-  currentPhase: string;
-  initiativeId?: string;
-  createdAt: any;
-  completedTools?: string[];
-  ownerEmail?: string;
-}
 
 export const createProject = async (name: string, initiativeId?: string, currentPhase: string = 'Define') => {
   const user = auth.currentUser;
@@ -143,9 +133,17 @@ export const getAllProjectToolData = async (projectId: string) => {
   try {
     const querySnapshot = await getDocs(collection(db, 'projects', projectId, 'data'));
     const data: Record<string, any> = {};
+    const metadata: Record<string, number> = {};
     querySnapshot.forEach((doc) => {
       data[doc.id] = doc.data().content;
+      const timeObj = doc.data().updatedAt;
+      let ms = 0;
+      if (timeObj) {
+        ms = timeObj.toMillis ? timeObj.toMillis() : (timeObj.seconds * 1000 || 0);
+      }
+      metadata[doc.id] = ms;
     });
+    Object.defineProperty(data, '__metadata', { value: metadata, enumerable: false });
     return data;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);

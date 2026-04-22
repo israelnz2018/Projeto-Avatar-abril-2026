@@ -9,6 +9,12 @@ export default defineConfig(({mode}) => {
     plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'import.meta.env.VITE_FIREBASE_API_KEY': JSON.stringify("AIzaSyB9LDdd9E6wZOb5LQ1oLfU3BP5_69rLmvE"),
+      'import.meta.env.VITE_FIREBASE_AUTH_DOMAIN': JSON.stringify("senha-92ce1.firebaseapp.com"),
+      'import.meta.env.VITE_FIREBASE_PROJECT_ID': JSON.stringify("senha-92ce1"),
+      'import.meta.env.VITE_FIREBASE_STORAGE_BUCKET': JSON.stringify("senha-92ce1.firebasestorage.app"),
+      'import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID': JSON.stringify("359510043151"),
+      'import.meta.env.VITE_FIREBASE_APP_ID': JSON.stringify("1:359510043151:web:d4346ea1dc9865c65cd17a"),
     },
     resolve: {
       alias: {

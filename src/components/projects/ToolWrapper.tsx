@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings } from 'lucide-react';
+import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search } from 'lucide-react';
 import { generateAIToolReport, generateToolData } from '@/src/services/aiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { cn } from '@/src/lib/utils';
@@ -15,9 +15,9 @@ interface ToolWrapperProps {
   toolName: string;
   projectName: string;
   initialData: any;
-  onSave: (data: any) => void;
+  onSave: (data: any, options?: { silent?: boolean }) => void;
   children: (props: { 
-    onSave: (data: any) => void; 
+    onSave: (data: any, options?: { silent?: boolean }) => void; 
     initialData: any;
     onGenerateAI?: (customContext?: any) => Promise<void>;
     isGeneratingAI?: boolean;
@@ -283,6 +283,46 @@ const FishboneDiagram = ({
   );
 };
 
+interface AIPromptCardProps {
+  toolId: string;
+  toolName: string;
+  previousToolName: string;
+  onAction: (customContext?: any) => Promise<void>;
+  isGenerating: boolean;
+  hasPreviousData: boolean;
+  previousToolData?: any;
+  allProjectData?: any;
+  customTitle?: string;
+  customDescription?: string;
+}
+
+// Helper to find tool data regardless of phase prefix
+const getToolDataByPrefix = (allData: any, toolKey: string) => {
+  if (!allData) return null;
+  
+  const matchingKeys = Object.keys(allData).filter(k => k === toolKey || k.endsWith(`_${toolKey}`));
+  if (matchingKeys.length === 0) return null;
+  
+  const metadata = allData.__metadata;
+  if (metadata) {
+    let latestKey = matchingKeys[0];
+    let maxTime = metadata[latestKey] || 0;
+    for (const key of matchingKeys) {
+      const time = metadata[key] || 0;
+      if (time > maxTime) {
+        maxTime = time;
+        latestKey = key;
+      }
+    }
+    return allData[latestKey];
+  }
+
+  // Fallback for missing metadata
+  if (allData[toolKey]) return allData[toolKey];
+  
+  return allData[matchingKeys[0]];
+};
+
 export const AIPromptCard = ({ 
   toolId,
   toolName, 
@@ -291,23 +331,59 @@ export const AIPromptCard = ({
   isGenerating,
   hasPreviousData,
   previousToolData,
-  allProjectData
-}: { 
-  toolId: string;
-  toolName: string; 
-  previousToolName: string; 
-  onAction: (customContext?: any) => void; 
-  isGenerating: boolean;
-  hasPreviousData: boolean;
-  previousToolData?: any;
-  allProjectData?: any;
-}) => {
+  allProjectData,
+  customTitle,
+  customDescription
+}: AIPromptCardProps) => {
   const [selectedProjectIndex, setSelectedProjectIndex] = useState<string>("");
   const [projectStartDate, setProjectStartDate] = useState<string>("");
 
-  const projects = toolId === 'brief' && (previousToolData?.generatedProjects || previousToolData?.toolData?.generatedProjects)
-    ? (previousToolData?.generatedProjects || previousToolData?.toolData?.generatedProjects)
-    : [];
+  const [extractedProjects, setExtractedProjects] = useState<any[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
+
+  // We explicitly removed the old JS-based 'projects' logic, letting the AI generate it instead.
+
+  const handleExtractProjectsAI = async () => {
+    setIsExtracting(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Você é um assistente de extração de dados analíticos. 
+Sua missão é analisar os dados brutos de ferramentas anteriores de um projeto e extrair uma lista de TÍTULOS de projetos disponíveis.
+
+DADOS BRUTOS:
+${JSON.stringify({
+  improvementIdea: getToolDataByPrefix(allProjectData, 'improvementIdea'),
+  gut: getToolDataByPrefix(allProjectData, 'gut'),
+  rab: getToolDataByPrefix(allProjectData, 'rab')
+}, null, 2)}
+
+INSTRUÇÕES:
+1. Extraia projetos da chave "improvementIdea" (os projetos gerados).
+2. Se a chave "improvementIdea" estiver vazia ou não tiver projetos, busque em "gut", e em último caso, "rab".
+3. Localize os títulos e outras propriedades úteis (descrição, etc) de cada projeto.
+4. Remova títulos duplicados.
+5. Retorne APENAS um JSON Array contendo objetos com a propriedade "title" (contendo o título limpo) e demais dados relacionados ("description", etc).
+
+NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        }
+      });
+
+      const extracted = JSON.parse(response.text || "[]");
+      setExtractedProjects(extracted);
+      toast.success("Títulos puxados com sucesso pela IA!");
+    } catch (error) {
+      console.error("Erro ao extrair com IA:", error);
+      toast.error("Erro ao puxar dados das fases anteriores.");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const handleAction = () => {
     if (toolId === 'brief') {
@@ -315,7 +391,7 @@ export const AIPromptCard = ({
         toast.error("Por favor, selecione um título de projeto no dropdown antes de gerar.");
         return;
       }
-      const selectedProject = projects[parseInt(selectedProjectIndex)];
+      const selectedProject = extractedProjects[parseInt(selectedProjectIndex)];
       onAction(selectedProject);
     } else if (toolId === 'timeline') {
       if (projectStartDate === "") {
@@ -324,7 +400,7 @@ export const AIPromptCard = ({
       }
       onAction({ projectStartDate });
     } else if (toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') {
-      const charterData = allProjectData?.charter || allProjectData?.projectCharterPMI;
+      const charterData = getToolDataByPrefix(allProjectData, 'charter') || getToolDataByPrefix(allProjectData, 'projectCharterPMI');
       if (!charterData) {
         toast.error("Para usar esta função, você precisa primeiro preencher e salvar o Project Charter (DMAIC ou PMI).");
         return;
@@ -337,6 +413,10 @@ export const AIPromptCard = ({
     }
   };
 
+  const hasCharterData = useMemo(() => {
+    return !!(getToolDataByPrefix(allProjectData, 'charter') || getToolDataByPrefix(allProjectData, 'projectCharterPMI'));
+  }, [allProjectData]);
+
   return (
     <div className="bg-[#f0f7ff] p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden group">
       {/* Decorative background element */}
@@ -346,22 +426,12 @@ export const AIPromptCard = ({
         <div className="space-y-3 flex-1">
           <div className="flex items-center gap-3 text-blue-700 font-black uppercase tracking-[0.2em] text-xs">
             <Wand2 size={20} className="text-blue-500" />
-            <span>Gerar {toolName} com IA</span>
+            <p className="text-xs font-black text-blue-700 uppercase tracking-widest mb-2">
+              {customTitle || `Gerar ${toolName} com IA`}
+            </p>
           </div>
-          <p className="text-[14px] text-blue-800 font-medium leading-relaxed max-w-2xl">
-            {toolId === 'timeline' ? (
-              <>O cronograma macro pode ser calculado automaticamente. Informe a data de início do projeto abaixo para gerar o planejamento sugerido das fases do DMAIC.</>
-            ) : toolId === 'improvementPlan' ? (
-              <>Deseja carregar um plano de atividades sugerido para seu projeto de melhoria? A IA utilizará as datas do seu Cronograma Macro para estruturar as atividades.</>
-            ) : (toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') ? (
-              <>A IA pode buscar automaticamente os nomes e funções dos stakeholders definidos no seu <strong className="text-blue-900">Project Charter</strong> para iniciar sua análise de engajamento.</>
-            ) : toolId === 'effortImpact' ? (
-              <>A IA buscará as ideias listadas no seu <strong className="text-blue-900">Brainstorming</strong> para preencher a matriz de priorização automaticamente.</>
-            ) : previousToolName ? (
-              <>A IA analisará os dados da ferramenta <strong className="text-blue-900">"{previousToolName}"</strong> para gerar {toolName.toLowerCase()} técnicos e específicos para este projeto.</>
-            ) : (
-              <>A IA analisará o contexto do seu projeto para sugerir um preenchimento inicial de {toolName.toLowerCase()} técnico e estruturado.</>
-            )}
+          <p className="text-sm text-gray-600 leading-relaxed">
+            {customDescription || `A IA analisará os dados da ferramenta "${previousToolName}" para gerar ${toolName} técnico e específico para este projeto.`}
           </p>
 
           {toolId === 'timeline' && (
@@ -378,18 +448,26 @@ export const AIPromptCard = ({
             </div>
           )}
 
-          {toolId === 'brief' && projects.length > 0 && (
+          {toolId === 'brief' && (
             <div className="mt-4 space-y-2">
               <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">
-                Selecione o Título do Projeto Gerado:
+                Selecione um Projeto para Trabalhar:
               </label>
+              <p className="text-xs text-blue-800 font-medium opacity-80 mb-2">
+                Clique no botão "1. Puxar Títulos" para que a IA extraia os projetos disponíveis das fases anteriores.
+              </p>
               <select
                 value={selectedProjectIndex}
                 onChange={(e) => setSelectedProjectIndex(e.target.value)}
                 className="w-full p-3 bg-white border border-blue-200 rounded-xl text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                disabled={extractedProjects.length === 0}
               >
-                <option value="">-- Escolha um projeto da lista --</option>
-                {projects.map((p: any, idx: number) => (
+                <option value="">
+                  {extractedProjects.length === 0 
+                    ? "-- Puxe os títulos primeiro --" 
+                    : "-- Escolha um projeto da lista --"}
+                </option>
+                {extractedProjects.map((p: any, idx: number) => (
                   <option key={idx} value={idx}>{p.title}</option>
                 ))}
               </select>
@@ -406,35 +484,157 @@ export const AIPromptCard = ({
           </p>
         </div>
 
-        <button
-          onClick={handleAction}
-          disabled={isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !allProjectData?.charter && !allProjectData?.projectCharterPMI)}
-          className={cn(
-            "w-full md:w-auto min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
-            isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !allProjectData?.charter && !allProjectData?.projectCharterPMI)
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-              : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+        <div className="flex flex-col gap-3">
+          {toolId === 'brief' && (
+            <button
+              onClick={handleExtractProjectsAI}
+              disabled={isExtracting || isGenerating}
+              className={cn(
+                "w-full md:w-auto min-w-[240px] h-12 flex items-center justify-center gap-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md border border-blue-600 cursor-pointer active:scale-95",
+                isExtracting || isGenerating
+                  ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed shadow-none"
+                  : "bg-white text-blue-600 hover:bg-blue-50"
+              )}
+            >
+              {isExtracting ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  <span>Extraindo...</span>
+                </>
+              ) : (
+                <>
+                  <Search size={16} />
+                  <span>1. Puxar Títulos</span>
+                </>
+              )}
+            </button>
           )}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="animate-spin" size={20} />
-              <span>{toolId === 'timeline' ? 'Calculando...' : toolId === 'improvementPlan' ? 'Carregando...' : 'Analisando Dados...'}</span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={20} />
-              <span>
-                {toolId === 'timeline' ? 'Gerar Cronograma' : 
-                 toolId === 'improvementPlan' ? 'Carregar Sugestões' : 
-                 (toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') ? 'Puxar do Charter' : 'Gerar com IA'}
-              </span>
-            </>
-          )}
-        </button>
+
+          <button
+            onClick={handleAction}
+            disabled={isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !hasCharterData)}
+            className={cn(
+              "w-full md:w-auto min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
+              isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !hasCharterData)
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+            )}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>{toolId === 'timeline' ? 'Calculando...' : toolId === 'improvementPlan' ? 'Carregando...' : 'Analisando Dados...'}</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={20} />
+                <span>
+                  {toolId === 'timeline' ? 'Gerar Cronograma' : 
+                   toolId === 'improvementPlan' ? 'Carregar Sugestões' : 
+                   (toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') ? 'Puxar do Charter' : 
+                   toolId === 'brief' ? '2. Gerar com IA' : 'Gerar com IA'}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
+};
+
+const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; source: string }> = {
+  // PRÉ-DEFINIR
+  gut: {
+    title: "Gerar Matriz GUT com IA",
+    description: "A IA vai pontuar cada projeto com critério técnico baseado nas ideias geradas na ferramenta anterior.",
+    source: "Ideia de Projeto de Melhoria"
+  },
+  rab: {
+    title: "Gerar Matriz RAB com IA",
+    description: "A IA vai avaliar Rapidez, Autonomia e Benefício de cada projeto identificado.",
+    source: "Ideia de Projeto de Melhoria"
+  },
+  // DEFINIR
+  brief: {
+    title: "Gerar Entendendo o Problema com IA",
+    description: "A IA vai estruturar o problema com base no projeto priorizado nas matrizes anteriores.",
+    source: "Matriz GUT e Matriz RAB"
+  },
+  charter: {
+    title: "Gerar Project Charter com IA",
+    description: "A IA vai gerar o contrato do projeto com meta SMART, escopo e stakeholders baseados no problema definido.",
+    source: "Entendendo o Problema"
+  },
+  sipoc: {
+    title: "Gerar SIPOC com IA",
+    description: "A IA vai mapear fornecedores, entradas, processo, saídas e clientes baseados no Charter.",
+    source: "Project Charter"
+  },
+  stakeholders: {
+    title: "Gerar Stakeholders com IA",
+    description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
+    source: "Project Charter"
+  },
+  improvementPlan: {
+    title: "Gerar Plano do Projeto com IA",
+    description: "A IA vai criar as atividades de cada fase usando as datas e título do Cronograma Macro.",
+    source: "Cronograma Macro"
+  },
+  // MEDIR
+  brainstorming: {
+    title: "Gerar Brainstorming com IA",
+    description: "A IA vai levantar causas técnicas baseadas no problema, processo e SIPOC do projeto.",
+    source: "Entendendo o Problema e SIPOC"
+  },
+  measureIshikawa: {
+    title: "Gerar Espinha de Peixe com IA",
+    description: "A IA vai distribuir automaticamente todas as causas do Brainstorming nos 6Ms.",
+    source: "Brainstorming"
+  },
+  dataCollection: {
+    title: "Gerar Plano de Coleta com IA",
+    description: "A IA vai definir o plano de coleta baseado nas causas priorizadas na Matriz Causa e Efeito.",
+    source: "Matriz Causa e Efeito"
+  },
+  dataNature: {
+    title: "Gerar Natureza dos Dados com IA",
+    description: "A IA vai recomendar as análises estatísticas certas para cada variável do plano de coleta.",
+    source: "Plano de Coleta de Dados"
+  },
+  // ANALISAR
+  measureMatrix: {
+    title: "Gerar Matriz Causa e Efeito com IA",
+    description: "A IA vai cruzar as causas da Espinha de Peixe com os KPIs definidos no Project Charter.",
+    source: "Espinha de Peixe e Project Charter"
+  },
+  fiveWhys: {
+    title: "Gerar 5 Porquês com IA",
+    description: "A IA vai aprofundar a investigação das causas mais críticas identificadas na Espinha de Peixe.",
+    source: "Espinha de Peixe"
+  },
+  // MELHORAR
+  effortImpact: {
+    title: "Gerar Esforço x Impacto com IA",
+    description: "A IA vai pontuar cada ideia do Brainstorming por nível de esforço e impacto esperado.",
+    source: "Brainstorming"
+  },
+  fmea: {
+    title: "Gerar FMEA com IA",
+    description: "A IA vai gerar os modos de falha e RPN baseados nas causas identificadas e no processo mapeado.",
+    source: "Espinha de Peixe e SIPOC"
+  },
+  plan5w2h: {
+    title: "Gerar Plano de Ação 5W2H com IA",
+    description: "A IA vai criar as ações com responsáveis e prazos baseados nas causas confirmadas e no Charter.",
+    source: "FMEA e Project Charter"
+  },
+  // CONTROLAR
+  sop: {
+    title: "Gerar POP com IA",
+    description: "A IA vai gerar o procedimento operacional baseado nas ações implementadas no Plano de Ação.",
+    source: "Plano de Ação 5W2H"
+  },
 };
 
 export default function ToolWrapper({
@@ -465,6 +665,9 @@ export default function ToolWrapper({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearKey, setClearKey] = useState(0);
   const fishboneRef = useRef<HTMLDivElement>(null);
+  const [isSaved, setIsSaved] = useState<boolean>(
+    !!initialData && Object.keys(initialData).length > 0
+  );
 
   useEffect(() => {
     setLocalData(initialData?.toolData || initialData);
@@ -474,15 +677,17 @@ export default function ToolWrapper({
     setError(null);
   }, [initialData]);
 
-  const handleToolSave = (data: any) => {
+  const handleToolSave = (data: any, options?: { silent?: boolean }) => {
+    setIsSaved(true);
     setLocalData(data);
     onSave({
       toolData: data,
       aiReport: toolId === 'charter' ? '' : aiReport
-    });
+    }, options);
   };
 
   const handleClearData = () => {
+    setIsSaved(false);
     setShowClearConfirm(true);
   };
 
@@ -657,8 +862,8 @@ export default function ToolWrapper({
       setIsGeneratingData(true);
       try {
         // Check both DMAIC Charter and PMI Charter
-        const dmaicCharterFull = allProjectData?.charter;
-        const pmiCharterFull = allProjectData?.projectCharterPMI;
+        const dmaicCharterFull = getToolDataByPrefix(allProjectData, 'charter');
+        const pmiCharterFull = getToolDataByPrefix(allProjectData, 'projectCharterPMI');
         
         const dmaicCharter = dmaicCharterFull?.toolData || dmaicCharterFull;
         const pmiCharter = pmiCharterFull?.toolData || pmiCharterFull;
@@ -725,7 +930,7 @@ export default function ToolWrapper({
     if (toolId === 'processMap' && customContext?.useSipocData) {
       setIsGeneratingData(true);
       try {
-        const sipocData = allProjectData?.sipoc;
+        const sipocData = getToolDataByPrefix(allProjectData, 'sipoc');
         const sipoc = sipocData?.toolData || sipocData;
 
         if (!sipoc || !sipoc.process || sipoc.process.length === 0) {
@@ -789,77 +994,95 @@ export default function ToolWrapper({
     try {
       let targetContext = customContext || previousToolData;
       
+      // Special handling for brief to provide the exact context the AI needs
+      if (toolId === 'brief' && allProjectData) {
+        const selectedProjectId = customContext?.title || customContext?.description || '';
+        const ideaData = getToolDataByPrefix(allProjectData, 'improvementIdea');
+        const gutDataObj = getToolDataByPrefix(allProjectData, 'gut');
+        const rabDataObj = getToolDataByPrefix(allProjectData, 'rab');
+        
+        targetContext = {
+          selectedProject: selectedProjectId,
+          title: selectedProjectId,
+          projectDetails: customContext || {},
+          generatedProjects: ideaData?.generatedProjects || ideaData?.toolData?.generatedProjects || [],
+          gutOpportunities: gutDataObj?.opportunities || gutDataObj?.toolData?.opportunities || [],
+          rabOpportunities: rabDataObj?.opportunities || rabDataObj?.toolData?.opportunities || [],
+          gutData: (gutDataObj?.opportunities || gutDataObj?.toolData?.opportunities || []).find(
+            (p: any) => p.description === selectedProjectId || p.title === selectedProjectId
+          ),
+          rabData: (rabDataObj?.opportunities || rabDataObj?.toolData?.opportunities || []).find(
+            (p: any) => p.description === selectedProjectId || p.title === selectedProjectId
+          ),
+        };
+      }
+
       // Special handling for brainstorming to pull exclusively from requested sources
       if (toolId === 'brainstorming' && allProjectData) {
         targetContext = {
-          brief: allProjectData.brief,
-          sipoc: allProjectData.sipoc,
-          processMap: allProjectData.processMap
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          sipoc: getToolDataByPrefix(allProjectData, 'sipoc'),
+          processMap: getToolDataByPrefix(allProjectData, 'processMap')
         };
       }
 
       if (toolId === 'effortImpact' && allProjectData) {
-        // Find the correct brainstorming storage key for the current phase
-        const brainstormDef = availableTools?.find((t: any) => t.id === 'brainstorming');
-        const brainstormKey = brainstormDef && brainstormDef.defaultPhase === currentPhaseId
-          ? 'brainstorming'
-          : (currentPhaseId ? `${currentPhaseId}_brainstorming` : 'brainstorming');
-        
-        console.log(`EffortImpact: Pulling brainstorming data from key: ${brainstormKey}`);
-        targetContext = allProjectData[brainstormKey] || allProjectData['brainstorming'];
+        // Find the correct brainstorming data regardless of phase
+        targetContext = getToolDataByPrefix(allProjectData, 'brainstorming');
       }
 
       if (toolId === 'measureMatrix' && allProjectData) {
         targetContext = {
-          brief: allProjectData.brief,
-          sipoc: allProjectData.sipoc,
-          processMap: allProjectData.processMap,
-          measureIshikawa: allProjectData.measureIshikawa
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          sipoc: getToolDataByPrefix(allProjectData, 'sipoc'),
+          processMap: getToolDataByPrefix(allProjectData, 'processMap'),
+          measureIshikawa: getToolDataByPrefix(allProjectData, 'measureIshikawa')
         };
       }
 
       if (toolId === 'dataCollection' && allProjectData) {
         // HARD FILTER: Only send items that are explicitly selected in the measureMatrix
+        const matrixData = getToolDataByPrefix(allProjectData, 'measureMatrix');
         const filteredMatrix = {
-          ...allProjectData.measureMatrix,
-          causes: (allProjectData.measureMatrix?.causes || []).filter((item: any) => item.selected === true)
+          ...matrixData,
+          causes: (matrixData?.causes || []).filter((item: any) => item.selected === true)
         };
 
         targetContext = {
-          brief: allProjectData.brief,
-          sipoc: allProjectData.sipoc,
-          processMap: allProjectData.processMap,
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          sipoc: getToolDataByPrefix(allProjectData, 'sipoc'),
+          processMap: getToolDataByPrefix(allProjectData, 'processMap'),
           measureMatrix: filteredMatrix
         };
       }
 
       if (toolId === 'statisticalAnalysis' && allProjectData) {
         targetContext = {
-          brief: allProjectData.brief,
-          dataCollection: allProjectData.dataCollection
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          dataCollection: getToolDataByPrefix(allProjectData, 'dataCollection')
         };
       }
 
       if (toolId === 'dataNature' && allProjectData) {
         targetContext = {
-          brief: allProjectData.brief,
-          dataCollection: allProjectData.dataCollection
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          dataCollection: getToolDataByPrefix(allProjectData, 'dataCollection')
         };
       }
 
       if (toolId === 'fiveWhys' && allProjectData) {
         targetContext = {
-          brief: allProjectData.brief,
-          measureIshikawa: allProjectData.measureIshikawa
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          measureIshikawa: getToolDataByPrefix(allProjectData, 'measureIshikawa')
         };
       }
 
       if (toolId === 'qualitativeAnalysis' && allProjectData) {
         targetContext = {
-          brief: allProjectData.brief,
-          sipoc: allProjectData.sipoc,
-          processMap: allProjectData.processMap,
-          measureMatrix: allProjectData.measureMatrix
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          sipoc: getToolDataByPrefix(allProjectData, 'sipoc'),
+          processMap: getToolDataByPrefix(allProjectData, 'processMap'),
+          measureMatrix: getToolDataByPrefix(allProjectData, 'measureMatrix')
         };
       }
 
@@ -868,7 +1091,8 @@ export default function ToolWrapper({
         toolName, 
         previousToolName || null, 
         targetContext,
-        { name: projectName, description: project.description }
+        { name: projectName, description: project.description },
+        allProjectData
       );
       setLocalData(generatedData);
       onSave({
@@ -932,6 +1156,10 @@ export default function ToolWrapper({
         if (keys.length === 0) return true;
         
         // Special logic for specific tools to ignore metadata/config fields
+        if (toolId === 'brief') {
+          return !data.answers || Object.values(data.answers).every((v: any) => !v);
+        }
+
         if (toolId === 'timeline') {
           return !data.projectStartDate;
         }
@@ -1197,36 +1425,71 @@ export default function ToolWrapper({
 
       {/* Step 1: Tool Content */}
       <div className="relative">
-        <div className="flex items-center justify-between absolute -top-3 left-0 right-0 z-10 px-3">
+        <div className="flex items-center justify-between px-3 mb-6">
+          
+          {/* Badge de fase */}
           <div className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase tracking-widest">
             Etapa 1: Preenchimento
           </div>
-          
-          {!isToolEmpty() && (
+
+          {/* Botões de ação do topo */}
+          <div className="flex items-center gap-2">
+            
+            {/* Botão Salvar */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClearData();
+              onClick={() => {
+                const saveBtn = document.querySelector('[data-save-trigger]') as HTMLButtonElement;
+                if (saveBtn) saveBtn.click();
               }}
-              className="bg-white text-red-500 hover:bg-red-50 text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-widest border-2 border-red-100 transition-all flex items-center gap-1.5 cursor-pointer pointer-events-auto hover:scale-105 active:scale-95 z-[50]"
+              className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-100 border-none cursor-pointer"
             >
-              <Trash2 size={12} />
-              Limpar Dados
+              <Save size={14} />
+              Salvar
             </button>
-          )}
+
+            {/* Botão Excluir — só aparece se salvo */}
+            {isSaved && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClearData();
+                }}
+                className="flex items-center gap-2 px-5 py-2 bg-white text-red-500 border-2 border-red-100 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95 cursor-pointer"
+              >
+                <Trash2 size={14} />
+                Excluir
+              </button>
+            )}
+
+            {/* Indicador de status */}
+            {isSaved ? (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
+                <CheckCircle2 size={13} className="text-green-500" />
+                <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">Salvo</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                <AlertTriangle size={13} className="text-gray-400" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Não salvo</span>
+              </div>
+            )}
+
+          </div>
         </div>
 
         {/* AI Prompt Card - Only show if tool is empty and NOT improvementIdea (which has custom placement) */}
-        {isToolEmpty() && toolId !== 'improvementIdea' && showAIPrompt && (
-          <AIPromptCard 
+        {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && showAIPrompt && (
+          <AIPromptCard
             toolId={toolId}
             toolName={toolName}
-            previousToolName={previousToolName || ''}
+            previousToolName={TOOLS_WITH_AI_BLOCK[toolId].source}
             onAction={(customContext) => handleGenerateData(customContext)}
             isGenerating={isGeneratingData}
             hasPreviousData={!!previousToolData}
             previousToolData={previousToolData}
             allProjectData={allProjectData}
+            customTitle={TOOLS_WITH_AI_BLOCK[toolId].title}
+            customDescription={TOOLS_WITH_AI_BLOCK[toolId].description}
           />
         )}
 
@@ -1240,58 +1503,110 @@ export default function ToolWrapper({
         </div>
       </div>
 
-      <div className="flex justify-center py-6 gap-4">
-        {toolId === 'brief' && localData && (
-          <button
-            onClick={handleGenerateAI}
-            disabled={isGenerating}
-            className={cn(
-              "px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl border-none cursor-pointer active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-100",
-              isGenerating && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-            {aiReport ? 'Atualizar Relatório IA' : 'Gerar Relatório com IA'}
-          </button>
-        )}
+      <div className="border-t border-gray-100 mt-6 pt-5 px-8 pb-6">
+        <div className="flex items-center justify-between">
+          
+          {/* Label */}
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            Exportar ferramenta:
+          </span>
 
-        {toolId === 'charter' && (
-          <div className="flex items-center gap-4">
+          {/* Botões de exportação */}
+          <div className="flex items-center gap-2">
+
+            {/* PDF */}
+            {toolId === 'brief' ? (
+              <button
+                onClick={handleGenerateAI}
+                disabled={!isSaved || isGenerating}
+                title={!isSaved ? "Salve primeiro para exportar" : "Gerar relatório PDF"}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
+                  !isSaved
+                    ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
+                )}
+              >
+                {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+                PDF
+              </button>
+            ) : (
+              <button
+                onClick={handlePrint}
+                disabled={!isSaved || isPrinting}
+                title={!isSaved ? "Salve primeiro para exportar" : "Imprimir / Gerar PDF"}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
+                  !isSaved
+                    ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
+                )}
+              >
+                {isPrinting ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
+                PDF
+              </button>
+            )}
+
+            {/* Word */}
             <button
               onClick={exportWord}
-              disabled={!localData}
+              disabled={!isSaved}
+              title={!isSaved ? "Salve primeiro para exportar" : "Gerar relatório Word"}
               className={cn(
-                "px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl border-none cursor-pointer active:scale-95",
-                !localData ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100"
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
+                !isSaved
+                  ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  : "bg-blue-700 text-white hover:bg-blue-800 shadow-lg shadow-blue-100 cursor-pointer"
               )}
             >
-              <FileDown size={20} />
-              Gerar Word
+              <FileDown size={15} />
+              Word
             </button>
+
+            {/* PPT */}
             <button
               onClick={exportPPT}
-              disabled={!localData}
+              disabled={!isSaved}
+              title={!isSaved ? "Salve primeiro para exportar" : "Gerar apresentação PowerPoint"}
               className={cn(
-                "px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl border-none cursor-pointer active:scale-95",
-                !localData ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-100"
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
+                !isSaved
+                  ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  : "bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-100 cursor-pointer"
               )}
             >
-              <Presentation size={20} />
-              Gerar PowerPoint
+              <Presentation size={15} />
+              PPT
             </button>
-            <button
-              onClick={exportExcel}
-              disabled={!localData}
-              className={cn(
-                "px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-xl border-none cursor-pointer active:scale-95",
-                !localData ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700 shadow-green-100"
-              )}
-            >
-              <FileSpreadsheet size={20} />
-              Gerar Excel
-            </button>
+
+            {/* Excel (Special case for Charter) */}
+            {toolId === 'charter' && (
+              <button
+                onClick={exportExcel}
+                disabled={!isSaved}
+                title={!isSaved ? "Salve primeiro para exportar" : "Gerar Excel"}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
+                  !isSaved
+                    ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    : "bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-100 cursor-pointer"
+                )}
+              >
+                <FileSpreadsheet size={15} />
+                Excel
+              </button>
+            )}
+
           </div>
+        </div>
+
+        {/* Dica quando não salvo */}
+        {!isSaved && (
+          <p className="text-[11px] text-gray-400 text-right mt-2 font-bold">
+            Salve a ferramenta para habilitar a exportação
+          </p>
         )}
+
       </div>
 
       {/* Step 3: AI Report & Export - Restored for 'brief' as requested */}

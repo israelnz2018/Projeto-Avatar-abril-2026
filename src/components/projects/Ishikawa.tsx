@@ -215,6 +215,7 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
 
       <div className="flex justify-end pt-6 border-t border-[#eee]">
         <button
+          data-save-trigger
           onClick={() => onSave({ causes, problem, categories })}
           className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-lg"
         >

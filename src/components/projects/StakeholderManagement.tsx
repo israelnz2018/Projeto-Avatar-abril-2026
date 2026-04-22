@@ -147,12 +147,6 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
               <p className="text-xs text-[#666]">Insira os dados para gerar a análise automaticamente.</p>
             </div>
           </div>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-[4px] text-xs font-bold hover:bg-green-700 transition-all"
-          >
-            <Save size={14} /> Salvar Análise
-          </button>
         </div>
 
         <div className="p-6 overflow-x-auto">
@@ -252,6 +246,16 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
             className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-[4px] text-sm font-bold hover:bg-blue-100 transition-colors border border-blue-200 border-dashed w-full justify-center"
           >
             <Plus size={16} /> Adicionar Stakeholder
+          </button>
+        </div>
+
+        <div className="p-6 bg-[#f8f9fa] border-t border-[#eee] flex justify-end">
+          <button
+            data-save-trigger
+            onClick={handleSave}
+            className="flex items-center gap-2 px-8 py-2.5 bg-green-600 text-white rounded-[4px] text-sm font-bold hover:bg-green-700 transition-all shadow-md active:scale-95"
+          >
+            <Save size={14} /> Salvar Análise de Stakeholders
           </button>
         </div>
       </div>

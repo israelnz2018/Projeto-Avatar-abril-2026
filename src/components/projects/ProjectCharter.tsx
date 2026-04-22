@@ -226,28 +226,15 @@ export default function ProjectCharter({
 
   return (
     <div className="space-y-6 max-w-[210mm] mx-auto">
-      {/* Action Bar */}
-      <div className="flex justify-between items-center bg-white p-4 border border-[#ccc] rounded-[4px] no-print">
-        <div className="flex items-center gap-2">
-          <Target className="text-blue-600" size={20} />
-          <span className="font-bold text-gray-700">Project Charter (Contrato do Projeto)</span>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handlePrint}
-            disabled={isPrinting}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-[4px] font-bold text-xs hover:bg-gray-200 transition-all border-none cursor-pointer disabled:opacity-50"
-          >
-            {isPrinting ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />} 
-            IMPRIMIR A4
-          </button>
-          <button
-            onClick={() => onSave(data)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-xs hover:bg-green-600 transition-all border-none cursor-pointer"
-          >
-            <CheckCircle2 size={16} /> SALVAR ALTERAÇÕES
-          </button>
-        </div>
+      <div className="flex justify-end pt-6 border-t border-[#eee] no-print">
+        <button
+          data-save-trigger
+          onClick={() => onSave(data)}
+          className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-lg"
+        >
+          <CheckCircle2 size={18} className="mr-2" />
+          Salvar Alterações
+        </button>
       </div>
 
       {/* Main Charter Container */}
