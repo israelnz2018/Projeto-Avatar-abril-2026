@@ -22,6 +22,18 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
   const [causes, setCauses] = useState<any[]>(initialData?.causes || []);
   const [view, setView] = useState<'matrix' | 'scatter' | 'pareto'>('matrix');
 
+  // Auto-resize textareas when causes or view change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const textareas = document.querySelectorAll('textarea');
+      textareas.forEach(ta => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [causes, view]);
+
   useEffect(() => {
     if (initialData?.outputs) {
       setOutputs(initialData.outputs);
@@ -193,13 +205,13 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-[#ccc]">
+              <table className="w-full border-collapse border border-[#ccc] tool-table" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-[#f5f5f5]">
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[60px]">ID</th>
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] min-w-[250px]">X's do Processo (Entradas)</th>
+                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[60px] whitespace-normal break-words">ID</th>
+                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] min-w-[250px] whitespace-normal break-words">X's do Processo (Entradas)</th>
                     {outputs.map((y, i) => (
-                      <th key={i} className="border border-[#ccc] p-0 min-w-[100px] relative group">
+                      <th key={i} className="border border-[#ccc] p-0 min-w-[100px] relative group whitespace-normal break-words">
                         <button 
                           onClick={() => removeOutput(i)}
                           className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm"
@@ -232,31 +244,43 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
                         </div>
                       </th>
                     ))}
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#003366] bg-[#e8f5e9] w-[80px]">TOTAL</th>
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[120px]">Esforço de Eliminação</th>
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[80px]">Score (1-8)</th>
-                    <th className="border border-[#ccc] p-3 w-[40px]"></th>
+                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#003366] bg-[#e8f5e9] w-[80px] whitespace-normal break-words">TOTAL</th>
+                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[120px] whitespace-normal break-words">Esforço de Eliminação</th>
+                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[80px] whitespace-normal break-words">Score (1-8)</th>
+                    <th className="border border-[#ccc] p-3 w-[40px] whitespace-normal break-words"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {causes.map((cause, cIdx) => (
-                    <tr key={cIdx} className="hover:bg-[#f9f9f9]">
-                      <td className="border border-[#ccc] p-3 text-center text-[12px] font-mono text-[#999]">{cause.id}</td>
-                      <td className="border border-[#ccc] p-3">
+                    <tr key={cIdx} className="hover:bg-[#f9f9f9]" style={{ minHeight: '52px' }}>
+                      <td className="border border-[#ccc] p-3 text-center text-[12px] font-mono text-[#999] whitespace-normal break-words align-top">{cause.id}</td>
+                      <td className="border border-[#ccc] p-3 whitespace-normal break-words align-top">
                         <textarea
-                          value={cause.name}
+                          value={cause.name || ''}
                           onChange={(e) => {
-                            const newCauses = [...causes];
-                            newCauses[cIdx].name = e.target.value;
-                            setCauses(newCauses);
+                            setCauses(prev => prev.map((c, i) =>
+                              i === cIdx ? { ...c, name: e.target.value } : c
+                            ));
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
                           }}
-                          placeholder="Descreva a variável de entrada..."
-                          className="w-full border-none focus:outline-none text-[13px] bg-transparent resize-none min-h-[40px]"
-                          rows={2}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                         />
                       </td>
                       {outputs.map((_, yIdx) => (
-                        <td key={yIdx} className="border border-[#ccc] p-3 text-center">
+                        <td key={yIdx} className="border border-[#ccc] p-3 text-center whitespace-normal break-words align-top">
                           <select
                             value={cause.scores[yIdx]}
                             onChange={(e) => updateScore(cIdx, yIdx, parseInt(e.target.value))}
@@ -271,7 +295,7 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
                           </select>
                         </td>
                       ))}
-                      <td className="border border-[#ccc] p-3 text-center font-bold text-[#003366] bg-[#e8f5e9] text-[15px]">
+                      <td className="border border-[#ccc] p-3 text-center font-bold text-[#003366] bg-[#e8f5e9] text-[15px] whitespace-normal break-words align-top">
                         {calculateTotal(cause)}
                       </td>
                       <td className="border border-[#ccc] p-3 text-center">

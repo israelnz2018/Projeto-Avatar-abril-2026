@@ -521,20 +521,30 @@ export default function ValueStreamMapping({ onSave, initialData }: ValueStreamM
                           </span>
                         )}
                       </div>
-                      <input
-                        type="text"
+                      <textarea
                         value={step.name}
                         onChange={(e) => updateStep(step.id, { name: e.target.value })}
-                        className="w-full px-3 py-2 border border-[#ccc] rounded-[4px] text-[14px] font-bold focus:outline-none focus:border-[#3b82f6]"
+                        className="w-full px-3 py-2 border border-[#ccc] rounded-[4px] text-[14px] font-bold focus:outline-none focus:border-[#3b82f6] resize-none bg-transparent whitespace-normal break-words"
+                        rows={1}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = `${target.scrollHeight}px`;
+                        }}
                       />
                     </div>
                     <div className="col-span-1 md:col-span-2 space-y-1">
                       <label className="text-[11px] font-bold text-[#666] uppercase">Descrição Breve</label>
-                      <input
-                        type="text"
+                      <textarea
                         value={step.description}
                         onChange={(e) => updateStep(step.id, { description: e.target.value })}
-                        className="w-full px-3 py-2 border border-[#ccc] rounded-[4px] text-[14px] focus:outline-none focus:border-[#3b82f6]"
+                        className="w-full px-3 py-2 border border-[#ccc] rounded-[4px] text-[14px] focus:outline-none focus:border-[#3b82f6] resize-none bg-transparent whitespace-normal break-words"
+                        rows={1}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = `${target.scrollHeight}px`;
+                        }}
                       />
                     </div>
                   </div>
@@ -550,20 +560,30 @@ export default function ValueStreamMapping({ onSave, initialData }: ValueStreamM
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pl-12">
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-[#666] uppercase">Entrada (Input)</label>
-                    <input
-                      type="text"
+                    <textarea
                       value={step.input}
                       onChange={(e) => updateStep(step.id, { input: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#eee] rounded-[4px] text-[13px] focus:outline-none focus:border-[#3b82f6]"
+                      className="w-full px-3 py-2 border border-[#eee] rounded-[4px] text-[13px] focus:outline-none focus:border-[#3b82f6] resize-none overflow-hidden bg-transparent"
+                      rows={1}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = `${target.scrollHeight}px`;
+                      }}
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-[#666] uppercase">Saída (Output)</label>
-                    <input
-                      type="text"
+                    <textarea
                       value={step.output}
                       onChange={(e) => updateStep(step.id, { output: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#eee] rounded-[4px] text-[13px] focus:outline-none focus:border-[#3b82f6]"
+                      className="w-full px-3 py-2 border border-[#eee] rounded-[4px] text-[13px] focus:outline-none focus:border-[#3b82f6] resize-none overflow-hidden bg-transparent"
+                      rows={1}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = `${target.scrollHeight}px`;
+                      }}
                     />
                   </div>
                   <div className="space-y-1">

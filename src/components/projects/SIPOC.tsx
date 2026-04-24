@@ -29,11 +29,26 @@ const Column = ({ title, icon: Icon, color, placeholder, items, onUpdate, onRemo
       {items.map((item: string, idx: number) => (
         <div key={idx} className="flex items-center gap-1 group relative">
           <textarea
-            value={item}
-            onChange={(e) => onUpdate(idx, e.target.value)}
+            value={item || ''}
+            onChange={(e) => {
+              onUpdate(idx, e.target.value);
+              // Auto resize
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+            }}
+            onFocus={(e) => {
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+            }}
             placeholder={placeholder}
-            className="flex-1 p-2 pr-8 text-[12px] border border-[#eee] rounded-[2px] focus:outline-none focus:border-blue-400 bg-white resize-none min-h-[64px]"
-            rows={3}
+            rows={1}
+            className="flex-1 resize-none bg-white border border-[#eee] focus:ring-2 focus:ring-blue-300 rounded-[2px] px-2 py-2 text-[12px] transition-all outline-none whitespace-normal break-words"
+            style={{ 
+              minHeight: '40px',
+              lineHeight: '1.5',
+              wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap'
+            }}
           />
           <button 
             onClick={() => onRemove(idx)}

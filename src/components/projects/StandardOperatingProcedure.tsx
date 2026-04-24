@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Save, Info, Plus, Trash2, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
+import { useA4Table } from '@/src/hooks/useA4Table';
+import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface SOPHeader {
   title: string;
@@ -119,6 +121,45 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
     risks: false, records: false, review: false, attachments: false
   });
 
+  const sopTable = useA4Table({
+    col1: 200,
+    col2: 600,
+    col3: 200
+  });
+
+  const revisionTable = useA4Table({
+    version: 100,
+    date: 150,
+    description: 500,
+    responsible: 200
+  });
+
+  const definitionsTable = useA4Table({
+    term: 300,
+    definition: 700
+  });
+
+  const responsibilitiesTable = useA4Table({
+    role: 300,
+    responsibility: 700
+  });
+
+  const controlPointsTable = useA4Table({
+    step: 300,
+    criteria: 700
+  });
+
+  const risksTable = useA4Table({
+    risk: 450,
+    control: 550
+  });
+
+  const recordsTable = useA4Table({
+    name: 300,
+    location: 300,
+    retention: 200
+  });
+
   useEffect(() => {
     if (initialData?.header) {
       setData(initialData);
@@ -217,8 +258,29 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6">
-        <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm overflow-hidden">
+      <div className="flex-1 space-y-6" style={{ maxWidth: '1123px' }}>
+        <div className="flex items-center justify-between mb-3 px-2 no-print">
+          <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
+            Procedimento Operacional
+          </span>
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  sopTable.totalWidth >= sopTable.A4_MAX_WIDTH - 50 
+                    ? 'bg-orange-500' 
+                    : 'bg-green-500'
+                }`}
+                style={{ width: `${(sopTable.totalWidth / sopTable.A4_MAX_WIDTH) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              {Math.round((sopTable.totalWidth / sopTable.A4_MAX_WIDTH) * 100)}% A4
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm overflow-hidden min-h-[297mm] print:border-none print:shadow-none">
           <div className="p-6 border-b border-[#eee] bg-gray-50 flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
@@ -288,21 +350,29 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
                   <table className="w-full text-left border-collapse mb-4">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[10%]">Versão</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[15%]">Data</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[50%]">Descrição da Mudança</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[20%]">Responsável</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[5%]"></th>
+                        <ResizableCell width={revisionTable.columnWidths.version} isHeader onColResize={(e) => revisionTable.startColResize(e, 'version')} className="text-xs font-bold text-gray-600">Versão</ResizableCell>
+                        <ResizableCell width={revisionTable.columnWidths.date} isHeader onColResize={(e) => revisionTable.startColResize(e, 'date')} className="text-xs font-bold text-gray-600">Data</ResizableCell>
+                        <ResizableCell width={revisionTable.columnWidths.description} isHeader onColResize={(e) => revisionTable.startColResize(e, 'description')} className="text-xs font-bold text-gray-600">Descrição da Mudança</ResizableCell>
+                        <ResizableCell width={revisionTable.columnWidths.responsible} isHeader onColResize={(e) => revisionTable.startColResize(e, 'responsible')} className="text-xs font-bold text-gray-600">Responsável</ResizableCell>
+                        <th className="p-2 border border-gray-200"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.revisions.map((rev) => (
                         <tr key={rev.id} className="border-b border-gray-100">
-                          <td className="p-2"><input type="text" value={rev.version} onChange={e => updateArrayItem('revisions', rev.id, 'version', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1 text-xs" /></td>
-                          <td className="p-2"><input type="date" value={rev.date} onChange={e => updateArrayItem('revisions', rev.id, 'date', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1 text-xs" /></td>
-                          <td className="p-2"><input type="text" value={rev.description} onChange={e => updateArrayItem('revisions', rev.id, 'description', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1 text-xs" /></td>
-                          <td className="p-2"><input type="text" value={rev.responsible} onChange={e => updateArrayItem('revisions', rev.id, 'responsible', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1 text-xs" /></td>
-                          <td className="p-2 text-center">
+                          <ResizableCell width={revisionTable.columnWidths.version} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
+                            <AutoGrowTextarea value={rev.version} onChange={v => updateArrayItem('revisions', rev.id, 'version', v)} className="text-xs" />
+                          </ResizableCell>
+                          <ResizableCell width={revisionTable.columnWidths.date} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
+                             <input type="date" value={rev.date} onChange={e => updateArrayItem('revisions', rev.id, 'date', e.target.value)} className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent" />
+                          </ResizableCell>
+                          <ResizableCell width={revisionTable.columnWidths.description} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
+                            <AutoGrowTextarea value={rev.description} onChange={v => updateArrayItem('revisions', rev.id, 'description', v)} className="text-xs" />
+                          </ResizableCell>
+                          <ResizableCell width={revisionTable.columnWidths.responsible} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
+                            <AutoGrowTextarea value={rev.responsible} onChange={v => updateArrayItem('revisions', rev.id, 'responsible', v)} className="text-xs" />
+                          </ResizableCell>
+                          <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('revisions', rev.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
                         </tr>
@@ -322,10 +392,10 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               {expandedSections.objective && (
                 <div className="p-6">
                   <p className="text-xs text-gray-500 mb-2">Descreva para que serve este procedimento e qual problema ele resolve.</p>
-                  <textarea 
+                  <AutoGrowTextarea 
                     value={data.objective} 
-                    onChange={e => updateField('objective', e.target.value)} 
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm min-h-[100px] focus:ring-1 focus:ring-blue-500 outline-none resize-y"
+                    onChange={v => updateField('objective', v)} 
+                    className="border border-gray-300 rounded p-2 text-sm"
                     placeholder="Este procedimento tem como objetivo padronizar a execução de..."
                   />
                 </div>
@@ -338,10 +408,10 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               {expandedSections.scope && (
                 <div className="p-6">
                   <p className="text-xs text-gray-500 mb-2">Onde se aplica, quem deve usar e quais os limites do procedimento.</p>
-                  <textarea 
+                  <AutoGrowTextarea 
                     value={data.scope} 
-                    onChange={e => updateField('scope', e.target.value)} 
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm min-h-[100px] focus:ring-1 focus:ring-blue-500 outline-none resize-y"
+                    onChange={v => updateField('scope', v)} 
+                    className="border border-gray-300 rounded p-2 text-sm"
                     placeholder="Aplica-se a todos os operadores da linha de montagem X..."
                   />
                 </div>
@@ -353,15 +423,30 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="definitions" title="Definições e Siglas" index={5} />
               {expandedSections.definitions && (
                 <div className="p-6">
-                  <div className="space-y-3 mb-4">
-                    {data.definitions.map((def) => (
-                      <div key={def.id} className="flex gap-3 items-start">
-                        <input type="text" value={def.term} onChange={e => updateArrayItem('definitions', def.id, 'term', e.target.value)} placeholder="Termo/Sigla" className="w-1/3 border border-gray-300 rounded px-3 py-2 text-sm" />
-                        <input type="text" value={def.definition} onChange={e => updateArrayItem('definitions', def.id, 'definition', e.target.value)} placeholder="Definição" className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
-                        <button onClick={() => removeArrayItem('definitions', def.id)} className="mt-2 text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
-                      </div>
-                    ))}
-                  </div>
+                  <table className="w-full text-left border-collapse mb-4">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <ResizableCell width={definitionsTable.columnWidths.term} isHeader onColResize={(e) => definitionsTable.startColResize(e, 'term')} className="text-xs font-bold text-gray-600">Termo / Sigla</ResizableCell>
+                        <ResizableCell width={definitionsTable.columnWidths.definition} isHeader onColResize={(e) => definitionsTable.startColResize(e, 'definition')} className="text-xs font-bold text-gray-600">Definição</ResizableCell>
+                        <th className="p-2 border border-gray-200"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.definitions.map((def) => (
+                        <tr key={def.id} className="border-b border-gray-100">
+                          <ResizableCell width={definitionsTable.columnWidths.term} onRowResize={(e) => definitionsTable.startRowResize(e, def.id)}>
+                            <AutoGrowTextarea value={def.term} onChange={v => updateArrayItem('definitions', def.id, 'term', v)} className="text-xs" />
+                          </ResizableCell>
+                          <ResizableCell width={definitionsTable.columnWidths.definition} onRowResize={(e) => definitionsTable.startRowResize(e, def.id)}>
+                            <AutoGrowTextarea value={def.definition} onChange={v => updateArrayItem('definitions', def.id, 'definition', v)} className="text-xs" />
+                          </ResizableCell>
+                          <td className="p-2 text-center border border-gray-200">
+                            <button onClick={() => removeArrayItem('definitions', def.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                   <button onClick={() => addArrayItem('definitions', { term: '', definition: '' })} className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
                     <Plus size={14} /> Adicionar Definição
                   </button>
@@ -374,15 +459,30 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="responsibilities" title="Responsabilidades" index={6} />
               {expandedSections.responsibilities && (
                 <div className="p-6">
-                  <div className="space-y-3 mb-4">
-                    {data.responsibilities.map((resp) => (
-                      <div key={resp.id} className="flex gap-3 items-start">
-                        <input type="text" value={resp.role} onChange={e => updateArrayItem('responsibilities', resp.id, 'role', e.target.value)} placeholder="Papel (Ex: Operador)" className="w-1/3 border border-gray-300 rounded px-3 py-2 text-sm font-medium" />
-                        <textarea value={resp.responsibility} onChange={e => updateArrayItem('responsibilities', resp.id, 'responsibility', e.target.value)} placeholder="O que esta pessoa deve fazer?" className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm min-h-[60px]" />
-                        <button onClick={() => removeArrayItem('responsibilities', resp.id)} className="mt-2 text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
-                      </div>
-                    ))}
-                  </div>
+                  <table className="w-full text-left border-collapse mb-4">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <ResizableCell width={responsibilitiesTable.columnWidths.role} isHeader onColResize={(e) => responsibilitiesTable.startColResize(e, 'role')} className="text-xs font-bold text-gray-600">Papel</ResizableCell>
+                        <ResizableCell width={responsibilitiesTable.columnWidths.responsibility} isHeader onColResize={(e) => responsibilitiesTable.startColResize(e, 'responsibility')} className="text-xs font-bold text-gray-600">Responsabilidade</ResizableCell>
+                        <th className="p-2 border border-gray-200"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.responsibilities.map((resp) => (
+                        <tr key={resp.id} className="border-b border-gray-100">
+                          <ResizableCell width={responsibilitiesTable.columnWidths.role} onRowResize={(e) => responsibilitiesTable.startRowResize(e, resp.id)}>
+                            <AutoGrowTextarea value={resp.role} onChange={v => updateArrayItem('responsibilities', resp.id, 'role', v)} className="text-xs font-medium" />
+                          </ResizableCell>
+                          <ResizableCell width={responsibilitiesTable.columnWidths.responsibility} onRowResize={(e) => responsibilitiesTable.startRowResize(e, resp.id)}>
+                            <AutoGrowTextarea value={resp.responsibility} onChange={v => updateArrayItem('responsibilities', resp.id, 'responsibility', v)} className="text-xs" />
+                          </ResizableCell>
+                          <td className="p-2 text-center border border-gray-200">
+                            <button onClick={() => removeArrayItem('responsibilities', resp.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                   <button onClick={() => addArrayItem('responsibilities', { role: '', responsibility: '' })} className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline">
                     <Plus size={14} /> Adicionar Responsabilidade
                   </button>
@@ -470,17 +570,21 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
                   <table className="w-full text-left border-collapse mb-4">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[30%]">Onde Validar (Etapa)</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[65%]">Critérios de Aceitação / Checkpoint</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[5%]"></th>
+                        <ResizableCell width={controlPointsTable.columnWidths.step} isHeader onColResize={(e) => controlPointsTable.startColResize(e, 'step')} className="text-xs font-bold text-gray-600">Onde Validar (Etapa)</ResizableCell>
+                        <ResizableCell width={controlPointsTable.columnWidths.criteria} isHeader onColResize={(e) => controlPointsTable.startColResize(e, 'criteria')} className="text-xs font-bold text-gray-600">Critérios de Aceitação / Checkpoint</ResizableCell>
+                        <th className="p-2 border border-gray-200"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.controlPoints.map((cp) => (
                         <tr key={cp.id} className="border-b border-gray-100">
-                          <td className="p-2"><input type="text" value={cp.step} onChange={e => updateArrayItem('controlPoints', cp.id, 'step', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: Após etapa 3" /></td>
-                          <td className="p-2"><input type="text" value={cp.criteria} onChange={e => updateArrayItem('controlPoints', cp.id, 'criteria', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: Temperatura deve estar entre 80-85°C" /></td>
-                          <td className="p-2 text-center">
+                          <ResizableCell width={controlPointsTable.columnWidths.step} onRowResize={(e) => controlPointsTable.startRowResize(e, cp.id)}>
+                            <AutoGrowTextarea value={cp.step} onChange={v => updateArrayItem('controlPoints', cp.id, 'step', v)} className="text-sm" placeholder="Ex: Após etapa 3" />
+                          </ResizableCell>
+                          <ResizableCell width={controlPointsTable.columnWidths.criteria} onRowResize={(e) => controlPointsTable.startRowResize(e, cp.id)}>
+                            <AutoGrowTextarea value={cp.criteria} onChange={v => updateArrayItem('controlPoints', cp.id, 'criteria', v)} className="text-sm" placeholder="Ex: Temperatura deve estar entre 80-85°C" />
+                          </ResizableCell>
+                          <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('controlPoints', cp.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
                         </tr>
@@ -502,17 +606,21 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
                   <table className="w-full text-left border-collapse mb-4">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[45%]">Risco / Possível Falha</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[50%]">Controle Preventivo / Mitigação</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[5%]"></th>
+                        <ResizableCell width={risksTable.columnWidths.risk} isHeader onColResize={(e) => risksTable.startColResize(e, 'risk')} className="text-xs font-bold text-gray-600">Risco / Possível Falha</ResizableCell>
+                        <ResizableCell width={risksTable.columnWidths.control} isHeader onColResize={(e) => risksTable.startColResize(e, 'control')} className="text-xs font-bold text-gray-600">Controle Preventivo / Mitigação</ResizableCell>
+                        <th className="p-2 border border-gray-200"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.risks.map((risk) => (
                         <tr key={risk.id} className="border-b border-gray-100">
-                          <td className="p-2"><input type="text" value={risk.risk} onChange={e => updateArrayItem('risks', risk.id, 'risk', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: Esquecer de calibrar a balança" /></td>
-                          <td className="p-2"><input type="text" value={risk.control} onChange={e => updateArrayItem('risks', risk.id, 'control', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: Checklist obrigatório no início do turno" /></td>
-                          <td className="p-2 text-center">
+                          <ResizableCell width={risksTable.columnWidths.risk} onRowResize={(e) => risksTable.startRowResize(e, risk.id)}>
+                            <AutoGrowTextarea value={risk.risk} onChange={v => updateArrayItem('risks', risk.id, 'risk', v)} className="text-sm" placeholder="Ex: Esquecer de calibrar a balança" />
+                          </ResizableCell>
+                          <ResizableCell width={risksTable.columnWidths.control} onRowResize={(e) => risksTable.startRowResize(e, risk.id)}>
+                            <AutoGrowTextarea value={risk.control} onChange={v => updateArrayItem('risks', risk.id, 'control', v)} className="text-sm" placeholder="Ex: Checklist obrigatório no início do turno" />
+                          </ResizableCell>
+                          <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('risks', risk.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
                         </tr>
@@ -534,19 +642,25 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
                   <table className="w-full text-left border-collapse mb-4">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[35%]">Nome do Registro</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[35%]">Local de Armazenamento</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[25%]">Tempo de Retenção</th>
-                        <th className="p-2 text-xs font-bold text-gray-600 w-[5%]"></th>
+                        <ResizableCell width={recordsTable.columnWidths.name} isHeader onColResize={(e) => recordsTable.startColResize(e, 'name')} className="text-xs font-bold text-gray-600">Nome do Registro</ResizableCell>
+                        <ResizableCell width={recordsTable.columnWidths.location} isHeader onColResize={(e) => recordsTable.startColResize(e, 'location')} className="text-xs font-bold text-gray-600">Local de Armazenamento</ResizableCell>
+                        <ResizableCell width={recordsTable.columnWidths.retention} isHeader onColResize={(e) => recordsTable.startColResize(e, 'retention')} className="text-xs font-bold text-gray-600">Tempo de Retenção</ResizableCell>
+                        <th className="p-2 border border-gray-200"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.records.map((rec) => (
                         <tr key={rec.id} className="border-b border-gray-100">
-                          <td className="p-2"><input type="text" value={rec.name} onChange={e => updateArrayItem('records', rec.id, 'name', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: Formulário de Inspeção" /></td>
-                          <td className="p-2"><input type="text" value={rec.location} onChange={e => updateArrayItem('records', rec.id, 'location', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: Pasta Compartilhada / ERP" /></td>
-                          <td className="p-2"><input type="text" value={rec.retention} onChange={e => updateArrayItem('records', rec.id, 'retention', e.target.value)} className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="Ex: 5 anos" /></td>
-                          <td className="p-2 text-center">
+                          <ResizableCell width={recordsTable.columnWidths.name} onRowResize={(e) => recordsTable.startRowResize(e, rec.id)}>
+                            <AutoGrowTextarea value={rec.name} onChange={v => updateArrayItem('records', rec.id, 'name', v)} className="text-sm" placeholder="Ex: Formulário de Inspeção" />
+                          </ResizableCell>
+                          <ResizableCell width={recordsTable.columnWidths.location} onRowResize={(e) => recordsTable.startRowResize(e, rec.id)}>
+                            <AutoGrowTextarea value={rec.location} onChange={v => updateArrayItem('records', rec.id, 'location', v)} className="text-sm" placeholder="Ex: Pasta Compartilhada / ERP" />
+                          </ResizableCell>
+                          <ResizableCell width={recordsTable.columnWidths.retention} onRowResize={(e) => recordsTable.startRowResize(e, rec.id)}>
+                            <AutoGrowTextarea value={rec.retention} onChange={v => updateArrayItem('records', rec.id, 'retention', v)} className="text-sm" placeholder="Ex: 5 anos" />
+                          </ResizableCell>
+                          <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('records', rec.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
                         </tr>

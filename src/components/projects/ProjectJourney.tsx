@@ -378,9 +378,13 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
       
       await deleteProjectToolData(projectId, storageKey);
       
-      const updatedProjectData = { ...projectData };
-      delete updatedProjectData[storageKey];
-      setProjectData(updatedProjectData);
+      setProjectData(prev => {
+        const updated = { ...prev };
+        delete updated[storageKey];
+        delete updated[activeToolId];
+        return updated;
+      });
+      
       setToolVersion(prev => prev + 1);
       setCompletedTools(prev => prev.filter(id => id !== activeToolId));
       
@@ -679,11 +683,42 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
     }
 
     const prevToolPhaseId = activeToolIndex > 0 ? phaseId : (filteredPhases[currentPhaseIndex - 1]?.id || phaseId);
-    const previousToolData = (activeTool?.id === 'rab' || activeTool?.id === 'gut' || activeTool?.id === 'brief') && projectData.improvementIdea 
-      ? projectData.improvementIdea 
-      : (previousTool ? projectData[getToolStorageKey(previousTool.id, prevToolPhaseId)] || projectData[previousTool.id] : null);
     
-    const previousToolName = (activeTool?.id === 'rab' || activeTool?.id === 'gut' || activeTool?.id === 'brief') && projectData.improvementIdea
+    const previousToolData = (() => {
+      if (activeTool?.id === 'brief') {
+        // Para o Brief, monta objeto com dados das três fontes DO PROJETO ATUAL
+        const ideaData = projectData['improvementIdea'];
+        const gutData = projectData['gut'];
+        const rabData = projectData['rab'];
+        
+        return {
+          // Projetos da Ideia de Projetos de Melhoria
+          generatedProjects: ideaData?.toolData?.generatedProjects 
+            || ideaData?.generatedProjects 
+            || [],
+          // Projetos da GUT
+          gutOpportunities: gutData?.toolData?.opportunities 
+            || gutData?.opportunities 
+            || [],
+          // Projetos da RAB
+          rabOpportunities: rabData?.toolData?.opportunities 
+            || rabData?.opportunities 
+            || [],
+        };
+      }
+      
+      if ((activeTool?.id === 'rab' || activeTool?.id === 'gut') && projectData.improvementIdea) {
+        return projectData.improvementIdea;
+      }
+      
+      return previousTool 
+        ? projectData[getToolStorageKey(previousTool.id, prevToolPhaseId)] || projectData[previousTool.id] 
+        : null;
+    })();
+
+    const previousToolName = activeTool?.id === 'brief'
+      ? 'Ideia de Projetos, Matriz GUT e Matriz RAB'
+      : (activeTool?.id === 'rab' || activeTool?.id === 'gut') && projectData.improvementIdea
       ? 'Ideia de Projeto de Melhoria'
       : (previousTool ? previousTool.name : null);
 
@@ -934,6 +969,21 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
                       isLeanSixSigma={isLeanSixSigma}
                       onGenerateAI={onGenerateAI}
                       isGeneratingAI={isGeneratingAI}
+                      ideaProjects={
+                        projectData['improvementIdea']?.toolData?.generatedProjects || 
+                        projectData['improvementIdea']?.generatedProjects || 
+                        []
+                      }
+                      gutProjects={
+                        projectData['gut']?.toolData?.opportunities || 
+                        projectData['gut']?.opportunities || 
+                        []
+                      }
+                      rabProjects={
+                        projectData['rab']?.toolData?.opportunities || 
+                        projectData['rab']?.opportunities || 
+                        []
+                      }
                     />
                   );
                 case 'charter':

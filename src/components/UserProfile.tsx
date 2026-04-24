@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Building2, Briefcase, Camera, FileDown, Presentation, CheckCircle2, X } from 'lucide-react';
+import { User, Building2, Briefcase, Camera, FileDown, Presentation, CheckCircle2, X, Palette } from 'lucide-react';
 import { auth } from '../lib/firebase';
 
 interface UserProfileData {
@@ -10,6 +10,9 @@ interface UserProfileData {
   photoUrl: string;
   wordTemplate: string;
   pptTemplate: string;
+  companyLogoUrl: string;
+  headerColor: string;
+  headerTextColor: string;
 }
 
 const PROFILE_KEY = 'lbw_user_profile';
@@ -26,7 +29,10 @@ export const getUserProfile = (): UserProfileData => {
     role: '',
     photoUrl: '',
     wordTemplate: 'default',
-    pptTemplate: 'default'
+    pptTemplate: 'default',
+    companyLogoUrl: '',
+    headerColor: '#1e3a5f',
+    headerTextColor: '#ffffff',
   };
 };
 
@@ -216,7 +222,6 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           </div>
         </div>
       </div>
-
       {/* Templates */}
       <div className="space-y-4 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
         <div className="flex items-center gap-2 text-blue-600 font-bold border-b border-gray-50 pb-2">
@@ -293,6 +298,155 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
+      {/* Identidade Visual */}
+      <div className="space-y-4 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-2 text-blue-600 font-bold border-b border-gray-50 pb-2">
+          <Palette size={16} />
+          <span className="text-xs uppercase tracking-wider">Identidade Visual</span>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Sua logo e cores aparecem nos cabeçalhos das ferramentas e nos relatórios gerados.
+        </p>
+
+        {/* Logo da Empresa */}
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase mb-2 block">
+            Logo da Empresa <span className="text-gray-400">(opcional)</span>
+          </label>
+          <div className="flex items-center gap-4">
+            <div className="w-24 h-16 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center overflow-hidden bg-gray-50">
+              {profile.companyLogoUrl ? (
+                <img
+                  src={profile.companyLogoUrl}
+                  alt="Logo"
+                  className="max-w-full max-h-full object-contain p-1"
+                />
+              ) : (
+                <div className="text-center">
+                  <Building2 size={20} className="text-gray-300 mx-auto" />
+                  <span className="text-[9px] text-gray-300 font-bold">LOGO</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-xs font-bold text-gray-600">
+                <Camera size={14} />
+                {profile.companyLogoUrl ? 'Trocar logo' : 'Fazer upload'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      alert('Logo muito grande. Máximo 2MB.');
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      handleChange('companyLogoUrl', reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+              {profile.companyLogoUrl && (
+                <button
+                  onClick={() => handleChange('companyLogoUrl', '')}
+                  className="flex items-center gap-1 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl text-xs font-bold transition-colors border-none bg-transparent cursor-pointer w-full"
+                >
+                  <X size={14} />
+                  Remover logo
+                </button>
+              )}
+              <p className="text-[10px] text-gray-400">PNG ou SVG recomendado — máx 2MB</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Cor do Cabeçalho */}
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase mb-2 block">
+            Cor do Cabeçalho
+          </label>
+
+          {/* Paleta de cores predefinidas */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {[
+              { color: '#1e3a5f', name: 'Azul Escuro' },
+              { color: '#2563eb', name: 'Azul' },
+              { color: '#0f766e', name: 'Verde Teal' },
+              { color: '#7c3aed', name: 'Roxo' },
+              { color: '#dc2626', name: 'Vermelho' },
+              { color: '#ea580c', name: 'Laranja' },
+              { color: '#374151', name: 'Cinza Escuro' },
+              { color: '#1f2937', name: 'Quase Preto' },
+            ].map(({ color, name }) => (
+              <button
+                key={color}
+                onClick={() => handleChange('headerColor', color)}
+                title={name}
+                className="w-8 h-8 rounded-lg border-2 transition-all cursor-pointer"
+                style={{
+                  backgroundColor: color,
+                  borderColor: profile.headerColor === color ? '#fff' : 'transparent',
+                  boxShadow: profile.headerColor === color ? `0 0 0 2px ${color}` : 'none',
+                  transform: profile.headerColor === color ? 'scale(1.15)' : 'scale(1)',
+                }}
+              />
+            ))}
+
+            {/* Color picker customizado */}
+            <label
+              className="w-8 h-8 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
+              title="Cor personalizada"
+            >
+              <span className="text-[10px] text-gray-400 font-bold">+</span>
+              <input
+                type="color"
+                value={profile.headerColor}
+                onChange={(e) => handleChange('headerColor', e.target.value)}
+                className="absolute opacity-0 w-0 h-0"
+              />
+            </label>
+          </div>
+
+          {/* Preview do cabeçalho */}
+          <div
+            className="rounded-xl p-4 flex items-center gap-3 transition-all"
+            style={{ backgroundColor: profile.headerColor }}
+          >
+            {profile.companyLogoUrl ? (
+              <img
+                src={profile.companyLogoUrl}
+                alt="Logo preview"
+                className="h-8 w-auto object-contain"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                <Building2 size={16} className="text-white opacity-60" />
+              </div>
+            )}
+            <div>
+              <p className="text-white font-bold text-sm">
+                {profile.company || 'Nome da Empresa'}
+              </p>
+              <p className="text-white text-xs opacity-70">
+                Ferramenta: Espinha de Peixe
+              </p>
+            </div>
+            <div className="ml-auto">
+              <span className="text-white text-[10px] opacity-60 font-bold uppercase tracking-widest">
+                LBW Copilot
+              </span>
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">Preview de como vai aparecer nas ferramentas</p>
+        </div>
+      </div>
+
       {/* Botão Salvar */}
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-gray-400">
@@ -310,7 +464,6 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           {saved ? 'Salvo!' : 'Salvar Perfil'}
         </button>
       </div>
-
     </div>
   );
 }

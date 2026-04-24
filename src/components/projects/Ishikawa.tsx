@@ -154,7 +154,7 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
               <textarea
                 value={problem}
                 onChange={(e) => setProblem(e.target.value)}
-                className="w-full text-center font-black text-[14px] border-none focus:outline-none resize-none bg-transparent text-gray-900 leading-tight overflow-hidden scrollbar-hide"
+                className="w-full text-center font-black text-[14px] border-none focus:outline-none resize-none bg-transparent text-gray-900 leading-tight scrollbar-hide whitespace-normal break-words"
                 rows={8}
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 placeholder="Qual o problema?"

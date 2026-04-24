@@ -7,6 +7,8 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useA4Table } from '@/src/hooks/useA4Table';
+import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface Activity {
   id: string;
@@ -48,6 +50,17 @@ const DEFAULT_STRUCTURE: PhaseActivities[] = [
 export default function ImprovementProjectPlan({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI }: ImprovementProjectPlanProps) {
   const [phases, setPhases] = useState<PhaseActivities[]>(initialData?.phases || DEFAULT_STRUCTURE);
   const [editingActivity, setEditingActivity] = useState<{ phaseId: string, activityId: string } | null>(null);
+
+  const planTable = useA4Table({
+    status: 120,
+    text: 400,
+    start: 90,
+    finish: 90,
+    weight: 50,
+    predecessor: 120,
+    owner: 100,
+    actions: 40
+  });
 
   const allActivities = useMemo(() => {
     return phases.flatMap(p => p.activities.map(a => ({ id: a.id, text: a.text, phaseName: p.name })));
@@ -179,17 +192,34 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
         </div>
       </div>
 
-      <div className="bg-white p-6 border border-[#ccc] rounded-[8px] shadow-sm flex justify-between items-center">
+      <div className="bg-white p-6 border border-[#ccc] rounded-[8px] shadow-sm flex justify-between items-center no-print">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Plano do Projeto de Melhoria</h2>
           <p className="text-sm text-gray-500">Planeje e acompanhe a execução das suas atividades.</p>
         </div>
-        <button onClick={() => onSave({ phases })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
-          Salvar Plano
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  planTable.totalWidth >= planTable.A4_MAX_WIDTH - 50 
+                    ? 'bg-orange-500' 
+                    : 'bg-green-500'
+                }`}
+                style={{ width: `${(planTable.totalWidth / planTable.A4_MAX_WIDTH) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              {Math.round((planTable.totalWidth / planTable.A4_MAX_WIDTH) * 100)}% A4
+            </span>
+          </div>
+          <button onClick={() => onSave({ phases })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
+            Salvar Plano
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4" style={{ maxWidth: '1123px' }}>
         {phases.map((phase) => (
           <div key={phase.id} className="bg-white border border-[#eee] rounded-[8px] shadow-sm overflow-hidden">
             <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50" onClick={() => togglePhase(phase.id)}>
@@ -257,16 +287,10 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                       </div>
                       
                       <div className="flex flex-col min-w-0">
-                        <textarea 
+                        <AutoGrowTextarea 
                           value={activity.text}
-                          onChange={(e) => updateActivity(phase.id, activity.id, { text: e.target.value })}
-                          rows={1}
-                          className="text-[11px] bg-transparent border-none focus:ring-0 text-gray-700 font-medium resize-none overflow-hidden leading-tight py-0"
-                          onInput={(e) => {
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = 'auto';
-                            target.style.height = target.scrollHeight + 'px';
-                          }}
+                          onChange={(v) => updateActivity(phase.id, activity.id, { text: v })}
+                          className="text-[11px] font-medium py-0"
                         />
                         {!isPredecessorDone && (
                           <span className="text-[8px] text-orange-600 flex items-center gap-1">

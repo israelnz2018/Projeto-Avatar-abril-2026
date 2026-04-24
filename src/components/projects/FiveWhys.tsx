@@ -103,12 +103,27 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
                   Problema / Efeito #{idx + 1}
                 </label>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={chain.problem}
-                    onChange={(e) => updateChain(chain.id, 'problem', e.target.value)}
+                  <textarea
+                    value={chain.problem || ''}
+                    onChange={(e) => {
+                      updateChain(chain.id, 'problem', e.target.value);
+                      // Auto resize
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
                     placeholder="Descreva o problema que deseja analisar..."
-                    className="w-full px-4 py-2 border border-[#ccc] rounded-[4px] text-[14px] focus:outline-none focus:border-[#3b82f6]"
+                    rows={1}
+                    className="w-full resize-none bg-white border border-[#ccc] focus:ring-2 focus:ring-blue-300 rounded-[4px] px-4 py-2 text-[14px] transition-all outline-none whitespace-normal break-words"
+                    style={{ 
+                      minHeight: '40px',
+                      lineHeight: '1.5',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap'
+                    }}
                   />
                 </div>
               </div>
@@ -139,12 +154,27 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
                       </button>
                     )}
                   </div>
-                  <input
-                    type="text"
-                    value={why}
-                    onChange={(e) => updateWhy(chain.id, wIdx, e.target.value)}
+                  <textarea
+                    value={why || ''}
+                    onChange={(e) => {
+                      updateWhy(chain.id, wIdx, e.target.value);
+                      // Auto resize
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    rows={1}
                     placeholder={`Resposta para o ${wIdx + 1}º porquê...`}
-                    className="w-full px-4 py-2 border-b border-[#eee] text-[13px] focus:outline-none focus:border-[#3b82f6] bg-transparent"
+                    className="w-full resize-none bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-2 py-1 transition-all whitespace-normal break-words"
+                    style={{ 
+                      minHeight: '32px',
+                      lineHeight: '1.5',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap'
+                    }}
                   />
                 </div>
               ))}
@@ -165,11 +195,26 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
                 <span className="text-[10px] text-blue-600 font-medium italic">Baseado na análise acima</span>
               </div>
               <textarea
-                value={chain.rootCause}
-                onChange={(e) => updateChain(chain.id, 'rootCause', e.target.value)}
+                value={chain.rootCause || ''}
+                onChange={(e) => {
+                  updateChain(chain.id, 'rootCause', e.target.value);
+                  // Auto resize
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                onFocus={(e) => {
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                rows={1}
                 placeholder="Qual é a causa fundamental?"
-                className="w-full px-4 py-2 border border-[#bfdbfe] rounded-[4px] text-[14px] focus:outline-none focus:border-[#1e40af] bg-white resize-none"
-                rows={2}
+                className="w-full resize-none bg-white border border-[#bfdbfe] focus:ring-2 focus:ring-blue-300 rounded-[4px] px-4 py-2 text-[14px] transition-all outline-none whitespace-normal break-words"
+                style={{ 
+                  minHeight: '40px',
+                  lineHeight: '1.5',
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap'
+                }}
               />
             </div>
           </div>

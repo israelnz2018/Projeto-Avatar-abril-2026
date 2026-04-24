@@ -306,11 +306,17 @@ export default function GPPlanPMI({ onSave, initialData }: GPPlanPMIProps) {
                           <textarea 
                             value={activity.text}
                             onChange={(e) => updateActivity(phase.id, activity.id, { text: e.target.value })}
-                            rows={2}
                             className={cn(
-                              "text-sm font-medium bg-transparent border-none focus:ring-0 resize-none p-0 w-full leading-tight",
+                              "text-sm font-medium bg-transparent border-none focus:ring-0 resize-none p-0 w-full h-full leading-tight whitespace-normal break-words",
                               activity.status === 'Completed' ? "text-gray-400 line-through" : "text-gray-700"
                             )}
+                            rows={1}
+                            onInput={(e) => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = 'auto';
+                              target.style.height = `${target.scrollHeight}px`;
+                            }}
+                            style={{ height: 'auto', minHeight: '1.2em' }}
                           />
                           {activity.notes && (
                             <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-1">

@@ -4,6 +4,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const GEMINI_MODEL = "gemini-3-flash-preview";
 
 async function callAI(systemPrompt: string, userPrompt: string, responseMimeType?: string): Promise<string> {
+  console.log('🤖 Chamando Claude API...');
+  console.log('ANTHROPIC_API_KEY existe:', !!import.meta.env.VITE_ANTHROPIC_API_KEY);
   try {
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
@@ -87,15 +89,15 @@ export const generateToolData = async (
   allProjectData?: any
 ): Promise<any> => {
   try {
-    const projectContext = allProjectData
+    const projectContext = previousToolData && Object.keys(previousToolData).length > 0
+      ? `DADOS DA(S) FERRAMENTA(S) ANTERIOR(ES):
+${JSON.stringify(previousToolData, null, 2)}`
+      : allProjectData
       ? `CONTEXTO COMPLETO DO PROJETO "${projectInfo?.name}":
 ${Object.entries(allProjectData)
   .filter(([, value]) => value && typeof value === "object")
   .map(([key, value]) => `### ${key}:\n${JSON.stringify(value, null, 2)}`)
   .join("\n")}`
-      : previousToolData
-      ? `DADOS DA FERRAMENTA ANTERIOR ("${previousToolName}"):
-${JSON.stringify(previousToolData, null, 2)}`
       : "";
 
     const systemPrompt = `

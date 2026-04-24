@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Target, CheckCircle2, Printer, Save, Info, Users, Calendar, AlertTriangle, DollarSign, Briefcase } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { useA4Table } from '@/src/hooks/useA4Table';
+import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface ProjectCharterPMIProps {
   onSave: (data: any) => void;
@@ -38,6 +40,11 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
       { name: '', role: 'Sponsor', date: '' },
       { name: '', role: 'Key Stakeholder', date: '' }
     ]
+  });
+
+  const pmiTable = useA4Table({
+    label: 260,
+    content: 540
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -88,8 +95,30 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
         </div>
       </div>
 
-      {/* A4 Document Container */}
-      <div className="bg-white border border-gray-300 shadow-2xl p-[15mm] min-h-[297mm] w-full print:p-0 print:shadow-none print:border-none font-sans text-black overflow-hidden">
+      <div style={{ maxWidth: '1123px', margin: '0 auto' }}>
+        <div className="flex items-center justify-between mb-3 px-2 no-print">
+          <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
+            Termo de Abertura (PMI)
+          </span>
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  pmiTable.totalWidth >= pmiTable.A4_MAX_WIDTH - 50 
+                    ? 'bg-orange-500' 
+                    : 'bg-green-500'
+                }`}
+                style={{ width: `${(pmiTable.totalWidth / pmiTable.A4_MAX_WIDTH) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              {Math.round((pmiTable.totalWidth / pmiTable.A4_MAX_WIDTH) * 100)}% A4
+            </span>
+          </div>
+        </div>
+
+        {/* A4 Document Container */}
+        <div className="bg-white border border-gray-300 shadow-2xl p-[15mm] min-h-[297mm] w-full print:p-0 print:shadow-none print:border-none font-sans text-black overflow-hidden">
         
         {/* Header Section */}
         <div className="flex items-center justify-between border-b-4 border-blue-600 pb-4 mb-6">
@@ -127,12 +156,10 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
             </div>
             <div className="col-span-2">
               <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Descrição Breve (O que será implementado/construído)</label>
-              <textarea 
-                name="description"
+              <AutoGrowTextarea 
                 value={data.description}
-                onChange={handleChange}
-                rows={2}
-                className="w-full text-sm border-b border-gray-200 focus:border-blue-600 focus:ring-0 p-1 outline-none resize-none"
+                onChange={(v) => setData((prev: any) => ({ ...prev, description: v }))}
+                className="text-sm border-b border-gray-200"
               />
             </div>
             <div>
@@ -184,22 +211,18 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
           <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">O que será entregue (produto, sistema, construção, etc.)</label>
-              <textarea 
-                name="objective"
+              <AutoGrowTextarea 
                 value={data.objective}
-                onChange={handleChange}
-                rows={2}
-                className="w-full text-sm border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded"
+                onChange={(v) => setData((prev: any) => ({ ...prev, objective: v }))}
+                className="text-sm border border-gray-100 bg-gray-50/30 p-2"
               />
             </div>
             <div>
               <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Resultado esperado do projeto</label>
-              <textarea 
-                name="expectedResult"
+              <AutoGrowTextarea 
                 value={data.expectedResult}
-                onChange={handleChange}
-                rows={2}
-                className="w-full text-sm border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded"
+                onChange={(v) => setData((prev: any) => ({ ...prev, expectedResult: v }))}
+                className="text-sm border border-gray-100 bg-gray-50/30 p-2"
               />
             </div>
           </div>
@@ -214,23 +237,19 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
           <div className="grid grid-cols-2 gap-4">
             <div className="border border-green-100 bg-green-50/20 p-3 rounded-lg">
               <label className="block text-[9px] font-black text-green-700 uppercase mb-1">Incluído (Principais Entregas)</label>
-              <textarea 
-                name="scopeIncluded"
+              <AutoGrowTextarea 
                 value={data.scopeIncluded}
-                onChange={handleChange}
-                rows={4}
-                className="w-full text-xs bg-transparent border-none focus:ring-0 p-0 outline-none resize-none"
+                onChange={(v) => setData((prev: any) => ({ ...prev, scopeIncluded: v }))}
+                className="text-xs"
                 placeholder="Liste o que faz parte do projeto..."
               />
             </div>
             <div className="border border-red-100 bg-red-50/20 p-3 rounded-lg">
               <label className="block text-[9px] font-black text-red-700 uppercase mb-1">Fora do Escopo (Exclusões)</label>
-              <textarea 
-                name="scopeExcluded"
+              <AutoGrowTextarea 
                 value={data.scopeExcluded}
-                onChange={handleChange}
-                rows={4}
-                className="w-full text-xs bg-transparent border-none focus:ring-0 p-0 outline-none resize-none"
+                onChange={(v) => setData((prev: any) => ({ ...prev, scopeExcluded: v }))}
+                className="text-xs"
                 placeholder="Liste o que NÃO faz parte do projeto..."
               />
             </div>
@@ -268,17 +287,29 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
             <div className="space-y-2">
               {data.stakeholders.map((item: any, idx: number) => (
                 <div key={idx} className="grid grid-cols-2 gap-2 border-b border-gray-100 pb-1">
-                  <input 
+                  <textarea 
                     value={item.name}
                     onChange={(e) => handleListItemChange('stakeholders', idx, 'name', e.target.value)}
-                    className="text-xs border-none focus:ring-0 p-0 outline-none font-bold"
+                    className="text-xs border-none focus:ring-0 p-0 outline-none font-bold bg-transparent resize-none whitespace-normal break-words"
                     placeholder="Nome"
+                    rows={1}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = `${target.scrollHeight}px`;
+                    }}
                   />
-                  <input 
+                  <textarea 
                     value={item.role}
                     onChange={(e) => handleListItemChange('stakeholders', idx, 'role', e.target.value)}
-                    className="text-xs border-none focus:ring-0 p-0 outline-none text-gray-500"
+                    className="text-xs border-none focus:ring-0 p-0 outline-none text-gray-500 bg-transparent resize-none whitespace-normal break-words"
                     placeholder="Função"
+                    rows={1}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = `${target.scrollHeight}px`;
+                    }}
                   />
                 </div>
               ))}
@@ -297,11 +328,17 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
             <div className="space-y-2">
               {data.schedule.map((item: any, idx: number) => (
                 <div key={idx} className="grid grid-cols-[1fr_80px] gap-2 border-b border-gray-100 pb-1">
-                  <input 
+                  <textarea 
                     value={item.milestone}
                     onChange={(e) => handleListItemChange('schedule', idx, 'milestone', e.target.value)}
-                    className="text-xs border-none focus:ring-0 p-0 outline-none"
+                    className="text-xs border-none focus:ring-0 p-0 outline-none bg-transparent resize-none whitespace-normal break-words"
                     placeholder="Fase / Marco"
+                    rows={1}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = `${target.scrollHeight}px`;
+                    }}
                   />
                   <input 
                     value={item.date}
@@ -324,8 +361,14 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
               name="resources"
               value={data.resources}
               onChange={handleChange}
-              rows={5}
-              className="w-full text-xs border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded"
+              rows={1}
+              className="w-full text-xs border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded resize-none whitespace-normal break-words"
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${target.scrollHeight}px`;
+              }}
+              style={{ minHeight: '100px' }}
               placeholder="Equipes, fornecedores, tecnologia, infraestrutura..."
             />
           </section>
@@ -342,8 +385,14 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
               name="risks"
               value={data.risks}
               onChange={handleChange}
-              rows={4}
-              className="w-full text-xs border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded"
+              rows={1}
+              className="w-full text-xs border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded resize-none whitespace-normal break-words"
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${target.scrollHeight}px`;
+              }}
+              style={{ minHeight: '80px' }}
               placeholder="Riscos de prazo, fornecedor, integração, orçamento..."
             />
           </section>
@@ -357,8 +406,14 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
               name="budget"
               value={data.budget}
               onChange={handleChange}
-              rows={4}
-              className="w-full text-xs border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded"
+              rows={1}
+              className="w-full text-xs border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded resize-none whitespace-normal break-words"
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${target.scrollHeight}px`;
+              }}
+              style={{ minHeight: '80px' }}
               placeholder="Estimativa inicial de custo..."
             />
           </section>
@@ -405,8 +460,9 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
           <div>Página 1 de 1</div>
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
+    </div>
+      
+    <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           body * {
             visibility: hidden;

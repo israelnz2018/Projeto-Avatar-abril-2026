@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Target, CheckCircle2, Printer, Download, Sparkles, Plus, Trash2, Image as ImageIcon, X, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toPng } from 'html-to-image';
+import { useA4Table } from '@/src/hooks/useA4Table';
+import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface ProjectCharterProps {
   onSave: (data: any) => void;
@@ -91,6 +93,23 @@ export default function ProjectCharter({
       }));
     }
   }, [initialData, briefData]);
+
+  const charterTable = useA4Table({
+    label: 260,
+    content: 540,
+    sideLabel: 110,
+    sideContent: 213,
+  });
+
+  const stakeholderTable = useA4Table({
+    role: 180,
+    name: 400,
+    raci_d: 80,
+    raci_m: 80,
+    raci_a: 80,
+    raci_i: 80,
+    raci_c: 80,
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -237,8 +256,30 @@ export default function ProjectCharter({
         </button>
       </div>
 
-      {/* Main Charter Container */}
-      <div id="project-charter-print" className="bg-white p-4 shadow-lg border border-gray-200 max-w-[210mm] mx-auto print:shadow-none print:p-0 print:m-0 print:border-none font-sans text-black">
+      <div style={{ maxWidth: '1123px', margin: '0 auto' }}>
+        <div className="flex items-center justify-between mb-3 px-2 no-print">
+          <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
+            Contrato do Projeto
+          </span>
+          <div className="flex items-center gap-2">
+            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all ${
+                  charterTable.totalWidth >= charterTable.A4_MAX_WIDTH - 50 
+                    ? 'bg-orange-500' 
+                    : 'bg-green-500'
+                }`}
+                style={{ width: `${(charterTable.totalWidth / charterTable.A4_MAX_WIDTH) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              {Math.round((charterTable.totalWidth / charterTable.A4_MAX_WIDTH) * 100)}% A4
+            </span>
+          </div>
+        </div>
+
+        {/* Main Charter Container */}
+        <div id="project-charter-print" className="bg-white p-4 shadow-lg border border-gray-200 max-w-[210mm] mx-auto print:shadow-none print:p-0 print:m-0 print:border-none font-sans text-black">
         
         {/* Header: Logo + Title */}
         <div className="flex border-2 border-black mb-1 h-16">
@@ -319,18 +360,36 @@ export default function ProjectCharter({
         </div>
 
         {/* Problem Definition */}
-        <div className="border-2 border-black border-t-0 mb-1">
-          <div className="bg-gray-100 text-center border-b-2 border-black py-0.5">
-            <h2 className="text-[9px] font-black uppercase">Definição Operacional do Problema</h2>
-          </div>
-          <textarea 
-            name="problemDefinition"
-            value={data.problemDefinition}
-            onChange={handleChange}
-            rows={3}
-            className="w-full text-[10px] p-2 border-none focus:ring-0 resize-none leading-tight"
-            placeholder="Descreva o problema de forma clara e objetiva..."
-          />
+        <div className="border border-gray-200 mb-1">
+          <table className="w-full border-collapse">
+            <tbody>
+              <tr>
+                <ResizableCell
+                  width={charterTable.columnWidths.label}
+                  minHeight={charterTable.rowHeights['problemDef'] || 60}
+                  onColResize={(e) => charterTable.startColResize(e, 'label')}
+                  onRowResize={(e) => charterTable.startRowResize(e, 'problemDef')}
+                  className="bg-gray-100"
+                  isHeader
+                >
+                  <label className="text-[9px] font-black uppercase text-center block">Definição Operacional do Problema</label>
+                </ResizableCell>
+                <ResizableCell
+                  width={charterTable.columnWidths.content}
+                  minHeight={charterTable.rowHeights['problemDef'] || 60}
+                  onColResize={(e) => charterTable.startColResize(e, 'content')}
+                  onRowResize={(e) => charterTable.startRowResize(e, 'problemDef')}
+                >
+                  <AutoGrowTextarea 
+                    value={data.problemDefinition}
+                    onChange={(v) => setData((prev: any) => ({ ...prev, problemDefinition: v }))}
+                    className="text-[10px]"
+                    placeholder="Descreva o problema de forma clara e objetiva..."
+                  />
+                </ResizableCell>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         {/* Problem History & Images */}
@@ -344,8 +403,14 @@ export default function ProjectCharter({
                 name="problemHistory"
                 value={data.problemHistory}
                 onChange={handleChange}
-                rows={8}
-                className="w-full h-full text-[10px] p-0 border-none focus:ring-0 resize-none leading-tight"
+                rows={1}
+                className="w-full h-full text-[10px] p-0 border-none focus:ring-0 bg-transparent resize-none leading-tight whitespace-normal break-words"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                style={{ minHeight: '160px' }}
                 placeholder="Dados históricos, tendências, frequência..."
               />
             </div>
@@ -400,8 +465,14 @@ export default function ProjectCharter({
               name="goalDefinition"
               value={data.goalDefinition}
               onChange={handleChange}
-              rows={2}
-              className="w-full text-[10px] p-2 border-none focus:ring-0 resize-none leading-tight"
+              rows={1}
+              className="w-full text-[10px] p-2 border-none focus:ring-0 bg-transparent resize-none leading-tight whitespace-normal break-words"
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${target.scrollHeight}px`;
+              }}
+              style={{ minHeight: '40px' }}
             />
           </div>
           <div className="w-1/2 border-2 border-black">
@@ -432,44 +503,65 @@ export default function ProjectCharter({
         </div>
 
         {/* Stakeholder Table (Compact) */}
-        <div className="border-2 border-black overflow-hidden">
-          <div className="bg-gray-100 text-center border-b-2 border-black py-0.5">
+        <div className="border border-black overflow-hidden">
+          <div className="bg-gray-100 text-center border-b border-black py-0.5">
             <h2 className="text-[9px] font-black uppercase">Equipe de Trabalho e Stakeholders</h2>
           </div>
           <table className="w-full text-[9px] border-collapse">
             <thead>
               <tr className="bg-gray-50">
-                <th className="border-r border-black p-1 w-[120px]">Função</th>
-                <th className="border-r border-black p-1">Nome</th>
-                <th className="border-r border-black p-1 w-8">D</th>
-                <th className="border-r border-black p-1 w-8">M</th>
-                <th className="border-r border-black p-1 w-8">A</th>
-                <th className="border-r border-black p-1 w-8">I</th>
-                <th className="border-r border-black p-1 w-8">C</th>
+                <ResizableCell 
+                  width={stakeholderTable.columnWidths.role} 
+                  isHeader 
+                  onColResize={(e) => stakeholderTable.startColResize(e, 'role')}
+                  className="font-black"
+                >
+                  Função
+                </ResizableCell>
+                <ResizableCell 
+                  width={stakeholderTable.columnWidths.name} 
+                  isHeader 
+                  onColResize={(e) => stakeholderTable.startColResize(e, 'name')}
+                  className="font-black"
+                >
+                  Nome
+                </ResizableCell>
+                <ResizableCell width={stakeholderTable.columnWidths.raci_d} isHeader onColResize={(e) => stakeholderTable.startColResize(e, 'raci_d')} className="font-black text-center">D</ResizableCell>
+                <ResizableCell width={stakeholderTable.columnWidths.raci_m} isHeader onColResize={(e) => stakeholderTable.startColResize(e, 'raci_m')} className="font-black text-center">M</ResizableCell>
+                <ResizableCell width={stakeholderTable.columnWidths.raci_a} isHeader onColResize={(e) => stakeholderTable.startColResize(e, 'raci_a')} className="font-black text-center">A</ResizableCell>
+                <ResizableCell width={stakeholderTable.columnWidths.raci_i} isHeader onColResize={(e) => stakeholderTable.startColResize(e, 'raci_i')} className="font-black text-center">I</ResizableCell>
+                <ResizableCell width={stakeholderTable.columnWidths.raci_c} isHeader onColResize={(e) => stakeholderTable.startColResize(e, 'raci_c')} className="font-black text-center">C</ResizableCell>
               </tr>
             </thead>
             <tbody>
               {data.stakeholders?.map((row: any, idx: number) => (
                 <tr key={idx} className="border-t border-black">
-                  <td className="border-r border-black p-0 bg-gray-50">
-                    <input 
+                  <ResizableCell
+                    width={stakeholderTable.columnWidths.role}
+                    onRowResize={(e) => stakeholderTable.startRowResize(e, `stakeholder-${idx}`)}
+                    className="bg-gray-50"
+                  >
+                    <AutoGrowTextarea 
                       value={row.role}
-                      onChange={(e) => handleStakeholderChange(idx, 'role', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px] font-bold bg-transparent" 
+                      onChange={(v) => handleStakeholderChange(idx, 'role', v)}
+                      className="text-[9px] font-bold"
                     />
-                  </td>
-                  <td className="border-r border-black p-0">
-                    <input 
+                  </ResizableCell>
+                  <ResizableCell
+                    width={stakeholderTable.columnWidths.name}
+                    onRowResize={(e) => stakeholderTable.startRowResize(e, `stakeholder-${idx}`)}
+                  >
+                    <AutoGrowTextarea 
                       value={row.name}
-                      onChange={(e) => handleStakeholderChange(idx, 'name', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px]" 
+                      onChange={(v) => handleStakeholderChange(idx, 'name', v)}
+                      className="text-[9px]"
                     />
-                  </td>
+                  </ResizableCell>
                   <td className="border-r border-black p-0 text-center">
                     <select
                       value={row.definition}
                       onChange={(e) => handleStakeholderChange(idx, 'definition', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px] text-center appearance-none cursor-pointer font-black"
+                      className="w-full p-1 border-none focus:ring-0 text-[10px] text-center appearance-none cursor-pointer font-black"
                     >
                       <option value=""></option>
                       <option value="A">A</option>
@@ -480,7 +572,7 @@ export default function ProjectCharter({
                     <select
                       value={row.measurement}
                       onChange={(e) => handleStakeholderChange(idx, 'measurement', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px] text-center appearance-none cursor-pointer font-black"
+                      className="w-full p-1 border-none focus:ring-0 text-[10px] text-center appearance-none cursor-pointer font-black"
                     >
                       <option value=""></option>
                       <option value="A">A</option>
@@ -491,7 +583,7 @@ export default function ProjectCharter({
                     <select
                       value={row.analysis}
                       onChange={(e) => handleStakeholderChange(idx, 'analysis', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px] text-center appearance-none cursor-pointer font-black"
+                      className="w-full p-1 border-none focus:ring-0 text-[10px] text-center appearance-none cursor-pointer font-black"
                     >
                       <option value=""></option>
                       <option value="A">A</option>
@@ -502,7 +594,7 @@ export default function ProjectCharter({
                     <select
                       value={row.improvement}
                       onChange={(e) => handleStakeholderChange(idx, 'improvement', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px] text-center appearance-none cursor-pointer font-black"
+                      className="w-full p-1 border-none focus:ring-0 text-[10px] text-center appearance-none cursor-pointer font-black"
                     >
                       <option value=""></option>
                       <option value="A">A</option>
@@ -513,7 +605,7 @@ export default function ProjectCharter({
                     <select
                       value={row.control}
                       onChange={(e) => handleStakeholderChange(idx, 'control', e.target.value)}
-                      className="w-full p-1 border-none focus:ring-0 text-[9px] text-center appearance-none cursor-pointer font-black"
+                      className="w-full p-1 border-none focus:ring-0 text-[10px] text-center appearance-none cursor-pointer font-black"
                     >
                       <option value=""></option>
                       <option value="A">A</option>
@@ -535,6 +627,7 @@ export default function ProjectCharter({
           </button>
         </div>
       </div>
+    </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {

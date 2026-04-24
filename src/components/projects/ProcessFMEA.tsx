@@ -117,6 +117,18 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
     }
   ]);
 
+  // Auto-resize textareas when rows or active tab change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const textareas = document.querySelectorAll('textarea');
+      textareas.forEach(ta => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [rows, activeTab]);
+
   useEffect(() => {
     if (initialData?.rows) {
       setRows(initialData.rows);
@@ -293,30 +305,30 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
       {activeTab === 'fmea' ? (
         <>
           <div className="p-0 overflow-x-auto">
-            <table className="w-full border-collapse" style={{ fontSize: `${fontSize}px` }}>
+            <table className="w-full border-collapse tool-table" style={{ fontSize: `${fontSize}px`, tableLayout: 'fixed' }}>
               <thead>
                 <tr className="bg-[#1f2937] text-white">
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px]">Processo</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px]">Falha</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px]">Efeito</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-red-900/30">S</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px]">Causa</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-orange-900/30">O</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px]">Controles</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-blue-900/30">D</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-gray-800">RPN</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[35px] bg-gray-800">AP</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-gray-800">S×O</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[35px] bg-gray-800">Risk</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[110px]">Ações Recomendadas</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[70px]">Resp.</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[70px]">Prazo</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center min-w-[70px]">Status</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30">S'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30">O'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30">D'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[50px] bg-gray-900">RPN'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[25px]"></th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Processo</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Falha</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Efeito</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-red-900/30 whitespace-normal break-words">S</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Causa</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-orange-900/30 whitespace-normal break-words">O</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Controles</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-blue-900/30 whitespace-normal break-words">D</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-gray-800 whitespace-normal break-words">RPN</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[35px] bg-gray-800 whitespace-normal break-words">AP</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-gray-800 whitespace-normal break-words">S×O</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[35px] bg-gray-800 whitespace-normal break-words">Risk</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[110px] whitespace-normal break-words">Ações Recomendadas</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[70px] whitespace-normal break-words">Resp.</th>
+                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[70px] whitespace-normal break-words">Prazo</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center min-w-[70px] whitespace-normal break-words">Status</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30 whitespace-normal break-words">S'</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30 whitespace-normal break-words">O'</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30 whitespace-normal break-words">D'</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[50px] bg-gray-900 whitespace-normal break-words">RPN'</th>
+                  <th className="p-1 border border-gray-700 font-bold text-center w-[25px] whitespace-normal break-words"></th>
                 </tr>
               </thead>
               <tbody>
@@ -338,31 +350,76 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
                       idx % 2 === 0 ? "bg-white" : "bg-gray-50", 
                       "hover:bg-blue-50/30 transition-all",
                       riskColor === 'red' && "bg-red-50/50"
-                    )}>
+                    )} style={{ minHeight: '52px' }}>
                       <td className="p-0 border border-[#eee]">
                         <textarea
-                          value={row.processStep}
-                          onChange={(e) => updateRow(row.id, { processStep: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] resize-none placeholder:text-gray-400/50"
-                          style={{ minHeight: `${lineHeight}px`, fontSize: 'inherit' }}
+                          value={row.processStep || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { processStep: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Etapa do processo..."
                         />
                       </td>
                       <td className="p-0 border border-[#eee]">
                         <textarea
-                          value={row.failureMode}
-                          onChange={(e) => updateRow(row.id, { failureMode: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] resize-none placeholder:text-gray-400/50"
-                          style={{ minHeight: `${lineHeight}px`, fontSize: 'inherit' }}
+                          value={row.failureMode || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { failureMode: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Modo de falha..."
                         />
                       </td>
                       <td className="p-0 border border-[#eee]">
                         <textarea
-                          value={row.failureEffect}
-                          onChange={(e) => updateRow(row.id, { failureEffect: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] resize-none placeholder:text-gray-400/50"
-                          style={{ minHeight: `${lineHeight}px`, fontSize: 'inherit' }}
+                          value={row.failureEffect || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { failureEffect: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Efeito da falha..."
                         />
                       </td>
@@ -383,10 +440,25 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
                       </td>
                       <td className="p-0 border border-[#eee]">
                         <textarea
-                          value={row.failureCause}
-                          onChange={(e) => updateRow(row.id, { failureCause: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] resize-none placeholder:text-gray-400/50"
-                          style={{ minHeight: `${lineHeight}px`, fontSize: 'inherit' }}
+                          value={row.failureCause || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { failureCause: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Causa da falha..."
                         />
                       </td>
@@ -404,10 +476,25 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
                       </td>
                       <td className="p-0 border border-[#eee]">
                         <textarea
-                          value={row.currentControls}
-                          onChange={(e) => updateRow(row.id, { currentControls: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] resize-none placeholder:text-gray-400/50"
-                          style={{ minHeight: `${lineHeight}px`, fontSize: 'inherit' }}
+                          value={row.currentControls || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { currentControls: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Controles atuais..."
                         />
                       </td>
@@ -424,24 +511,24 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
                         </select>
                       </td>
                       <td className={cn(
-                        "p-1 border border-[#eee] text-center font-bold bg-gray-50/50",
+                        "p-1 border border-[#eee] text-center font-bold bg-gray-50/50 whitespace-normal break-words align-top",
                         rpnStatus === 'red' ? "text-red-600" : rpnStatus === 'yellow' ? "text-yellow-600" : "text-green-600"
                       )}>
                         {rpn}
                       </td>
                       <td className={cn(
-                        "p-1 border border-[#eee] text-center font-bold bg-gray-50/50",
+                        "p-1 border border-[#eee] text-center font-bold bg-gray-50/50 whitespace-normal break-words align-top",
                         apStatus === 'red' ? "text-red-600" : apStatus === 'yellow' ? "text-yellow-600" : "text-green-600"
                       )}>
                         {ap.charAt(0)}
                       </td>
                       <td className={cn(
-                        "p-1 border border-[#eee] text-center font-bold bg-gray-50/50",
+                        "p-1 border border-[#eee] text-center font-bold bg-gray-50/50 whitespace-normal break-words align-top",
                         critStatus === 'red' ? "text-red-600" : critStatus === 'yellow' ? "text-yellow-600" : "text-green-600"
                       )}>
                         {criticality}
                       </td>
-                      <td className="p-1 border border-[#eee] text-center">
+                      <td className="p-1 border border-[#eee] text-center whitespace-normal break-words align-top">
                         <div className={cn(
                           "w-3 h-3 rounded-full mx-auto shadow-sm",
                           riskColor === 'red' ? "bg-red-600 animate-pulse" : riskColor === 'yellow' ? "bg-yellow-500" : "bg-green-500"
@@ -449,33 +536,76 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
                       </td>
                       <td className="p-0 border border-[#eee]">
                         <textarea
-                          value={row.recommendedActions}
-                          onChange={(e) => updateRow(row.id, { recommendedActions: e.target.value })}
+                          value={row.recommendedActions || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { recommendedActions: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
                           className={cn(
-                            "w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] resize-none placeholder:text-gray-400/50",
+                            "w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all",
                             riskColor === 'red' && "placeholder:text-red-400 placeholder:font-bold"
                           )}
-                          style={{ minHeight: `${lineHeight}px`, fontSize: 'inherit' }}
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder={riskColor === 'red' ? "AÇÃO MANDATÓRIA REQUERIDA!" : "Ações recomendadas..."}
                         />
                       </td>
                       <td className="p-0 border border-[#eee]">
-                        <input
-                          type="text"
-                          value={row.responsible}
-                          onChange={(e) => updateRow(row.id, { responsible: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] placeholder:text-gray-400/50"
-                          style={{ fontSize: 'inherit' }}
+                        <textarea
+                          value={row.responsible || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { responsible: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Responsável..."
                         />
                       </td>
                       <td className="p-0 border border-[#eee]">
-                        <input
-                          type="text"
-                          value={row.deadline}
-                          onChange={(e) => updateRow(row.id, { deadline: e.target.value })}
-                          className="w-full p-1 border-none bg-transparent focus:ring-1 focus:ring-blue-400 rounded-[2px] placeholder:text-gray-400/50"
-                          style={{ fontSize: 'inherit' }}
+                        <textarea
+                          value={row.deadline || ''}
+                          onChange={(e) => {
+                            updateRow(row.id, { deadline: e.target.value });
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
                           placeholder="Prazo..."
                         />
                       </td>

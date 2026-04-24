@@ -21,7 +21,8 @@ import {
   Clock,
   Briefcase,
   Share2,
-  Info
+  Info,
+  ChevronDown
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { cn } from '@/src/lib/utils';
@@ -72,13 +73,46 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     replicability: ''
   });
 
-  const [generatedProjects, setGeneratedProjects] = useState<any[]>(initialData?.generatedProjects || []);
+  const normalizeProjects = (projects: any[]) => {
+    return projects.map(p => {
+      // Prioritize the belt_level returned by the AI or stored
+      let belt = p.belt_level || p.beltLevel || '';
+      belt = belt.toString().toLowerCase();
+
+      // Precise mapping based on Belt Guide
+      if (belt.includes('ver') || belt.includes('agir')) {
+        p.belt_level = 'Ver e Agir';
+      } else if (belt.includes('yellow') || belt.includes('amarelo')) {
+        p.belt_level = 'Yellow Belt';
+      } else if (belt.includes('green') || belt.includes('verde')) {
+        p.belt_level = 'Green Belt';
+      } else if (belt.includes('black') || belt.includes('preto')) {
+        p.belt_level = 'Black Belt';
+      } else {
+        // Fallback for unexpected strings
+        if (belt.includes('quick') || belt.includes('kaizen')) {
+          p.belt_level = 'Ver e Agir';
+        } else if (belt.includes('simples')) {
+          p.belt_level = 'Yellow Belt';
+        } else {
+          p.belt_level = 'Green Belt'; // Mid-range default
+        }
+      }
+
+      p.priority_score = Number(p.priority_score) || 50;
+      return p;
+    });
+  };
+
+  const [generatedProjects, setGeneratedProjects] = useState<any[]>(initialData?.generatedProjects ? normalizeProjects(initialData.generatedProjects) : []);
+  const [beltFilter, setBeltFilter] = useState<string>('Todos');
+  const [showBeltGuide, setShowBeltGuide] = useState(false);
 
   useEffect(() => {
     if (initialData) {
       if (initialData.userProfile) setUserProfile(initialData.userProfile);
       if (initialData.formData) setFormData(initialData.formData);
-      if (initialData.generatedProjects) setGeneratedProjects(initialData.generatedProjects);
+      if (initialData.generatedProjects) setGeneratedProjects(normalizeProjects(initialData.generatedProjects));
     }
   }, [initialData]);
 
@@ -103,6 +137,18 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     }, { silent: true });
   };
 
+  const handleUpdateProject = (updatedProject: any) => {
+    const updatedProjects = generatedProjects.map(p => 
+      p.title === updatedProject.title ? updatedProject : p
+    );
+    setGeneratedProjects(updatedProjects);
+    onSave({
+      userProfile,
+      formData,
+      generatedProjects: updatedProjects
+    }, { silent: true });
+  };
+
   const handleSave = () => {
     onSave({
       userProfile,
@@ -115,33 +161,37 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     setLoading(true);
     try {
       const prompt = `
-Você é um Master Black Belt em Lean Six Sigma com 20 anos de experiência.
-Sua tarefa é analisar as informações coletadas e identificar EXCLUSIVAMENTE oportunidades de projetos Six Sigma com metodologia DMAIC.
+Você é um Master Black Belt com 20 anos de experiência.
 
-PERFIL DO USUÁRIO: ${userProfile}
+PERFIL: ${userProfile}
+DADOS: ${JSON.stringify(formData, null, 2)}
 
-DADOS COLETADOS:
-${JSON.stringify(formData, null, 2)}
+Gere entre 5 e 10 projetos ordenados por prioridade.
 
-REGRAS CRÍTICAS:
-1. Gere APENAS projetos que se encaixam no modelo DMAIC — com problema quantificável, causa raiz investigável e solução mensurável.
-2. NÃO gere projetos puramente Lean (5S, Kaizen rápido) — esses não precisam de DMAIC.
-3. Cada projeto DEVE ter um Y mensurável claro (ex: "reduzir o lead time de aprovação de 5 dias para 2 dias").
-4. Títulos SEMPRE começam com: Reduzir, Aumentar, Melhorar ou Otimizar — seguido do indicador e do processo.
-5. Gere entre 5 e 10 projetos ordenados por prioridade (impacto x viabilidade).
-6. Para cada projeto inclua: título, problema_central, y_do_projeto (indicador + baseline + meta), impacto_financeiro_estimado, complexidade (Verde/Amarelo/Vermelho), justificativa_six_sigma (por que precisa de DMAIC e não de outra abordagem).
+CLASSIFICAÇÃO — siga RIGOROSAMENTE esta matriz para o campo belt_level:
+1. "Ver e Agir": Solução óbvia, melhoria rápida, 1 pessoa, prazo < 30 dias, Sem estatística.
+2. "Yellow Belt": Problema simples, 1 área envolvida, 1 a 3 pessoas, prazo 1 a 2 meses, Estatística básica.
+3. "Green Belt": Requer análise de dados, 1 área envolvida, 2 a 5 pessoas, prazo 2 a 4 meses, Estatística intermediária.
+4. "Black Belt": Múltiplas áreas (transversal), alto impacto financeiro, 5+ pessoas, prazo 4 a 6 meses, Estatística avançada.
 
-FORMATO JSON:
-[{
-  "title": "...",
-  "problem": "...",
-  "y_metric": "De X para Y em Z meses",
-  "financial_impact": "...",
-  "complexity": "Verde/Amarelo/Vermelho",
-  "six_sigma_justification": "...",
-  "type": "Six Sigma DMAIC"
-}]
-      `;
+REGRAS:
+1. Título começa com Reduzir, Aumentar, Melhorar ou Otimizar — máximo 10 palavras
+2. y_indicator: APENAS o nome do indicador sem meta ou prazo. Ex: "Taxa de defeitos"
+3. priority_score: número de 0 a 100
+
+Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
+{
+  "projects": [{
+    "title": "...",
+    "problem": "descrição do problema em 1 frase",
+    "y_indicator": "nome do indicador apenas",
+    "financial_impact": "estimativa de impacto",
+    "belt_level": "Ver e Agir | Yellow Belt | Green Belt | Black Belt",
+    "priority_score": 85,
+    "justification": "Explicação técnica de por que este nível foi escolhido com base na Equipe, Prazo e Estatística necessária"
+  }]
+}
+`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -151,8 +201,11 @@ FORMATO JSON:
         }
       });
 
-      const projects = JSON.parse(response.text);
-      setGeneratedProjects(projects);
+      const jsonResponse = JSON.parse(response.text || '{}');
+      const projects = jsonResponse.projects || [];
+
+      const normalized = normalizeProjects(projects);
+      setGeneratedProjects(normalized);
       
       onSave({
         userProfile,
@@ -604,27 +657,110 @@ FORMATO JSON:
 
         {/* Results Section */}
         {generatedProjects.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8 pt-12 border-t-2 border-gray-200 border-dashed"
-          >
-            <div className="text-center space-y-4">
-              <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
-                <Target size={14} /> Oportunidades Identificadas
+          <div className="space-y-4 mt-8">
+            
+            {/* Título da seção */}
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-blue-100">
+                Oportunidades Identificadas
               </div>
-              <h2 className="text-3xl font-black text-gray-900">Carteira de Projetos Six Sigma</h2>
-              <p className="text-gray-500 font-medium max-w-2xl mx-auto italic">
-                Abaixo estão as propostas de projeto DMAIC que nossa IA estratégica identificou como as mais promissoras para sua realidade.
+              <h2 className="text-2xl font-black text-gray-900">Carteira de Projetos</h2>
+              <p className="text-sm text-gray-400">
+                Projetos identificados com base na sua realidade. Clique para ver os detalhes.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {generatedProjects.map((project, idx) => (
-                <ProjectResultCard key={idx} project={project} index={idx} />
-              ))}
+            {/* Filtros — APENAS estas 5 opções */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {['Todos', 'Ver e Agir', 'Yellow Belt', 'Green Belt', 'Black Belt'].map(level => {
+                const count = level === 'Todos' 
+                  ? generatedProjects.length 
+                  : generatedProjects.filter(p => p.belt_level === level).length;
+                const isActive = beltFilter === level;
+                const colors: Record<string, string> = {
+                  'Todos': 'bg-gray-800 text-white border-gray-800',
+                  'Ver e Agir': 'bg-lime-500 text-white border-lime-500',
+                  'Yellow Belt': 'bg-yellow-400 text-yellow-900 border-yellow-400',
+                  'Green Belt': 'bg-green-500 text-white border-green-500',
+                  'Black Belt': 'bg-gray-800 text-white border-gray-800',
+                };
+                return (
+                  <button
+                    key={level}
+                    onClick={() => setBeltFilter(level)}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border-2 cursor-pointer ${
+                      isActive ? colors[level] : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {level} ({count})
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
+
+            {/* Guia de Belt colapsável */}
+            <div className="border border-gray-100 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setShowBeltGuide(!showBeltGuide)}
+                className="w-full flex items-center justify-between px-5 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-none cursor-pointer text-left"
+              >
+                <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">
+                  Guia — Quando usar cada nível Belt?
+                </span>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${showBeltGuide ? 'rotate-180' : ''}`} />
+              </button>
+              {showBeltGuide && (
+                <div className="p-4 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        {['Nível', 'Quando usar', 'Equipe', 'Prazo', 'Estatística'].map(h => (
+                          <th key={h} className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { level: 'Ver e Agir', dot: 'bg-lime-500', when: 'Solução óbvia, melhoria rápida', team: '1 pessoa', time: '< 30 dias', stats: 'Não' },
+                        { level: 'Yellow Belt', dot: 'bg-yellow-400', when: 'Problema simples, 1 área', team: '1 a 3 pessoas', time: '1 a 2 meses', stats: 'Básica' },
+                        { level: 'Green Belt', dot: 'bg-green-500', when: 'Análise de dados, 1 área', team: '2 a 5 pessoas', time: '2 a 4 meses', stats: 'Intermediária' },
+                        { level: 'Black Belt', dot: 'bg-gray-800', when: 'Múltiplas áreas, alto impacto', team: '5+ pessoas', time: '4 a 6 meses', stats: 'Avançada' },
+                      ].map(row => (
+                        <tr key={row.level} className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full shrink-0 ${row.dot}`} />
+                               <span className="font-bold text-gray-800 whitespace-normal break-words">{row.level}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-gray-600">{row.when}</td>
+                          <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.team}</td>
+                          <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.time}</td>
+                          <td className="py-2.5 px-3 text-gray-600">{row.stats}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Cards de projetos */}
+            <div className="space-y-3">
+              {generatedProjects
+                .filter(p => beltFilter === 'Todos' || p.belt_level === beltFilter)
+                .map((project, idx) => (
+                  <ProjectResultCard 
+                    key={idx} 
+                    project={project} 
+                    index={idx} 
+                    onUpdateProject={handleUpdateProject}
+                  />
+                ))
+              }
+            </div>
+
+          </div>
         )}
       </div>
     </div>
@@ -688,13 +824,24 @@ function Input({ value, onChange, placeholder, type = 'text' }: { value: string,
 }
 
 function Textarea({ value, onChange, placeholder }: { value: string, onChange: (v: string) => void, placeholder?: string }) {
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [value]);
+
   return (
     <textarea 
-      rows={3}
+      ref={textareaRef}
+      rows={1}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full p-4 bg-[#f8fafc] border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-normal resize-none"
+      className="w-full p-4 bg-[#f8fafc] border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-normal resize-none bg-transparent whitespace-normal break-words"
+      style={{ height: 'auto', minHeight: '60px' }}
     />
   );
 }
@@ -714,67 +861,353 @@ function Select({ value, onChange, options }: { value: string, onChange: (v: str
   );
 }
 
-function ProjectResultCard({ project, index }: { project: any, index: number }) {
+function BeltReferenceTable() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mb-4 border border-gray-100 rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-5 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-none cursor-pointer text-left"
+      >
+        <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">
+          Guia de Níveis — Quando usar cada Belt?
+        </span>
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4">
+              <table className="w-full text-xs box-border">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">Nível</th>
+                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest hidden md:table-cell whitespace-normal break-words">Quando usar</th>
+                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">Equipe</th>
+                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">Prazo</th>
+                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest hidden lg:table-cell whitespace-normal break-words">Estatística</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    {
+                      level: 'Ver e Agir', dot: 'bg-lime-500',
+                      when: 'Solução óbvia, melhoria rápida',
+                      team: '1 pessoa', time: '< 30 dias', stats: 'Não'
+                    },
+                    {
+                      level: 'Yellow Belt', dot: 'bg-yellow-400',
+                      when: 'Problema simples, 1 área',
+                      team: '1 a 3 pessoas', time: '1 a 2 meses', stats: 'Básica'
+                    },
+                    {
+                      level: 'Green Belt', dot: 'bg-green-500',
+                      when: 'Análise de dados, 1 área',
+                      team: '2 a 5 pessoas', time: '2 a 4 meses', stats: 'Intermediária'
+                    },
+                    {
+                      level: 'Black Belt', dot: 'bg-gray-800',
+                      when: 'Múltiplas áreas, alto impacto',
+                      team: '5+ pessoas', time: '4 a 6 meses', stats: 'Avançada'
+                    },
+                    {
+                      level: 'Design for Six Sigma', dot: 'bg-blue-600',
+                      when: 'Criação de novo processo/produto',
+                      team: '3 a 6 pessoas', time: 'Múltiplos meses', stats: 'Variável'
+                    },
+                    {
+                      level: 'Matriz de Decisão', dot: 'bg-purple-600',
+                      when: 'Escolher entre soluções prontas',
+                      team: '1 a 3 pessoas', time: '< 1 mês', stats: 'Não'
+                    },
+                  ].map(row => (
+                    <tr key={row.level} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-2.5 px-3 whitespace-normal break-words align-top">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${row.dot} shrink-0`} />
+                          <span className="font-bold text-gray-800 whitespace-normal break-words">{row.level}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-gray-600 hidden md:table-cell whitespace-normal break-words align-top">{row.when}</td>
+                      <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.team}</td>
+                      <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.time}</td>
+                      <td className="py-2.5 px-3 text-gray-600 hidden lg:table-cell whitespace-normal break-words align-top">{row.stats}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ProjectResultCard({ project, index, onUpdateProject }: { project: any, index: number, onUpdateProject: (updatedProject: any) => void }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const beltConfig: Record<string, { 
+    color: string; 
+    bg: string; 
+    border: string; 
+    dot: string;
+    label: string;
+  }> = {
+    'Ver e Agir': { 
+      color: 'text-lime-700', bg: 'bg-lime-50', 
+      border: 'border-lime-200', dot: 'bg-lime-500',
+      label: 'Ver e Agir'
+    },
+    'Yellow Belt': { 
+      color: 'text-yellow-700', bg: 'bg-yellow-50', 
+      border: 'border-yellow-200', dot: 'bg-yellow-400',
+      label: 'Yellow Belt'
+    },
+    'Green Belt': { 
+      color: 'text-green-700', bg: 'bg-green-50', 
+      border: 'border-green-200', dot: 'bg-green-500',
+      label: 'Green Belt'
+    },
+    'Black Belt': { 
+      color: 'text-gray-700', bg: 'bg-gray-50', 
+      border: 'border-gray-300', dot: 'bg-gray-800',
+      label: 'Black Belt'
+    },
+    'Design for Six Sigma (DFSS)': {
+      color: 'text-blue-700', bg: 'bg-blue-50',
+      border: 'border-blue-200', dot: 'bg-blue-600',
+      label: 'DFSS'
+    },
+    'Matriz de Decisão (Pugh)': {
+      color: 'text-purple-700', bg: 'bg-purple-50',
+      border: 'border-purple-200', dot: 'bg-purple-600',
+      label: 'Matriz Decisão'
+    },
+    'Matriz de Decisão': {
+      color: 'text-purple-700', bg: 'bg-purple-50',
+      border: 'border-purple-200', dot: 'bg-purple-600',
+      label: 'Matriz Decisão'
+    },
+    'QFD': {
+      color: 'text-purple-700', bg: 'bg-purple-50',
+      border: 'border-purple-200', dot: 'bg-purple-600',
+      label: 'QFD'
+    }
+  };
+
+  const title = project.title || '';
+  const beltLevel = project.beltLevel || project.belt_level || project.type || 'Green Belt';
+  const priorityScore = project.priority_score || 0;
+
+  const [editForm, setEditForm] = useState({
+    title: project.title || '',
+    beltLevel: beltLevel,
+    what: project.what || project.problem || '',
+    why: project.why || project.justification || '',
+    where: project.where || '',
+    who: project.who || '',
+    when: project.when || '',
+    how: project.how || '',
+    howMuch: project.howMuch || project.financial_impact || '',
+    expectedImpact: project.expectedImpact || ''
+  });
+
+  useEffect(() => {
+    setEditForm({
+      title: project.title || '',
+      beltLevel: project.beltLevel || project.belt_level || project.type || 'Green Belt',
+      what: project.what || project.problem || '',
+      why: project.why || project.justification || '',
+      where: project.where || '',
+      who: project.who || '',
+      when: project.when || '',
+      how: project.how || '',
+      howMuch: project.howMuch || project.financial_impact || '',
+      expectedImpact: project.expectedImpact || ''
+    });
+  }, [project]);
+
+  const belt = beltConfig[beltLevel] || beltConfig['Green Belt'];
+  const priorityColor = priorityScore >= 80 ? 'bg-red-500' : priorityScore >= 60 ? 'bg-orange-400' : 'bg-blue-400';
+
+  const handleSave = () => {
+    onUpdateProject({ ...project, ...editForm });
+    setIsEditing(false);
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.1 }}
-      className="bg-white border-2 border-gray-100 rounded-3xl p-8 hover:border-blue-500 hover:shadow-2xl hover:shadow-blue-50 transition-all flex flex-col gap-6 relative group"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className={`bg-white border rounded-2xl overflow-hidden transition-all ${belt.border} hover:shadow-md`}
     >
-      <div className="flex items-start justify-between">
-        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl border border-blue-100">
+      {/* Header — sempre visível */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors cursor-pointer bg-transparent border-none"
+      >
+        {/* Número */}
+        <div className="w-7 h-7 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center font-black text-xs shrink-0">
           {index + 1}
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <span className="text-[9px] font-black px-3 py-1 bg-purple-100 text-purple-700 rounded-full uppercase tracking-widest border border-purple-200">
-            {project.type || "Six Sigma DMAIC"}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Complexidade:</span>
-            <div className={cn(
-              "w-2.5 h-2.5 rounded-full",
-              project.complexity.includes('Verde') ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" :
-              project.complexity.includes('Amarelo') ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" :
-              "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-            )} />
-          </div>
-        </div>
-      </div>
 
-      <div className="space-y-4">
-        <h3 className="text-xl font-black text-gray-900 leading-tight group-hover:text-blue-600 transition-colors">
-          {project.title}
-        </h3>
-        
-        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-          <div className="flex items-center gap-2 text-blue-700">
-            <BarChart3 size={16} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Y do Projeto (Métrica)</span>
-          </div>
-          <p className="text-lg font-black text-gray-800 tracking-tight">{project.y_metric}</p>
-        </div>
+        {/* Badge Belt */}
+        <span className={`text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-widest shrink-0 ${belt.bg} ${belt.color} border ${belt.border}`}>
+          {belt.label}
+        </span>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Problema Central</span>
-            <p className="text-[11px] text-gray-600 font-medium leading-relaxed line-clamp-3">{project.problem}</p>
-          </div>
-          <div className="space-y-1">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Impacto Financeiro</span>
-            <p className="text-[11px] text-gray-600 font-medium leading-relaxed">{project.financial_impact}</p>
-          </div>
-        </div>
+        {/* Título */}
+        <span className="flex-1 text-sm font-bold text-gray-900 text-left leading-tight">
+          {title}
+        </span>
 
-        <div className="pt-4 border-t border-gray-100 mt-2">
-          <div className="flex items-start gap-2 italic">
-            <Sparkles size={14} className="text-gray-300 mt-0.5 shrink-0" />
-            <p className="text-[11px] text-gray-500 leading-relaxed">
-              <span className="font-bold not-italic">Justificativa Six Sigma:</span> {project.six_sigma_justification}
-            </p>
-          </div>
-        </div>
-      </div>
+        {/* Expand icon */}
+        <ChevronDown 
+          size={16} 
+          className={`text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} 
+        />
+      </button>
+
+      {/* Detalhes — colapsável */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            {isEditing ? (
+              <div className={`px-4 sm:px-5 pb-5 pt-4 space-y-4 border-t ${belt.border} ${belt.bg}`}>
+                <Field label="Título">
+                  <Input value={editForm.title} onChange={(v) => setEditForm({...editForm, title: v})} />
+                </Field>
+
+                <Field label="Nível Belt">
+                    <Select value={editForm.beltLevel} onChange={(v) => setEditForm({...editForm, beltLevel: v})} options={[
+                        {label: 'Ver e Agir', value: 'Ver e Agir'},
+                        {label: 'Yellow Belt', value: 'Yellow Belt'},
+                        {label: 'Green Belt', value: 'Green Belt'},
+                        {label: 'Black Belt', value: 'Black Belt'},
+                        {label: 'Design for Six Sigma (DFSS)', value: 'Design for Six Sigma (DFSS)'},
+                        {label: 'Matriz de Decisão', value: 'Matriz de Decisão'}
+                    ]} />
+                </Field>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="O que será feito (What)">
+                    <Textarea value={editForm.what} onChange={(v) => setEditForm({...editForm, what: v})} />
+                  </Field>
+                  <Field label="Por que é importante (Why)">
+                    <Textarea value={editForm.why} onChange={(v) => setEditForm({...editForm, why: v})} />
+                  </Field>
+                  <Field label="Onde será implementado (Where)">
+                    <Input value={editForm.where} onChange={(v) => setEditForm({...editForm, where: v})} />
+                  </Field>
+                  <Field label="Quem são os envolvidos (Who)">
+                    <Input value={editForm.who} onChange={(v) => setEditForm({...editForm, who: v})} />
+                  </Field>
+                  <Field label="Como será feito (How)">
+                    <Textarea value={editForm.how} onChange={(v) => setEditForm({...editForm, how: v})} />
+                  </Field>
+                  <Field label="Quando será feito (When)">
+                    <Input value={editForm.when} onChange={(v) => setEditForm({...editForm, when: v})} />
+                  </Field>
+                  <Field label="Custo / Impacto Financeiro (How Much)">
+                    <Input value={editForm.howMuch} onChange={(v) => setEditForm({...editForm, howMuch: v})} />
+                  </Field>
+                  <Field label="Impacto Esperado Geral">
+                    <Input value={editForm.expectedImpact} onChange={(v) => setEditForm({...editForm, expectedImpact: v})} />
+                  </Field>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setIsEditing(false)}
+                    className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer bg-white text-gray-500 border border-gray-200 hover:bg-gray-50`}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleSave}
+                    className={`flex-[2] py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none cursor-pointer ${belt.bg} ${belt.color} border ${belt.border} hover:opacity-80`}
+                  >
+                    Salvar Alterações
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={`px-4 sm:px-5 pb-5 pt-2 space-y-4 border-t ${belt.border} ${belt.bg}`}>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className={`p-3 bg-white rounded-xl border ${belt.border}`}>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">O que (What)</span>
+                    <p className="text-sm font-medium text-gray-800">{editForm.what || '-'}</p>
+                  </div>
+                  <div className={`p-3 bg-white rounded-xl border ${belt.border}`}>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Por que (Why)</span>
+                    <p className="text-sm font-medium text-gray-800">{editForm.why || '-'}</p>
+                  </div>
+                  <div className={`p-3 bg-white rounded-xl border ${belt.border}`}>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Como (How)</span>
+                    <p className="text-sm font-medium text-gray-800">{editForm.how || '-'}</p>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                      <div className={`p-3 bg-white rounded-xl border ${belt.border}`}>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Onde / Quem / Quando</span>
+                        <p className="text-xs text-gray-600 mt-1"><strong>Onde:</strong> {editForm.where || '-'}</p>
+                        <p className="text-xs text-gray-600 mt-1"><strong>Quem:</strong> {editForm.who || '-'}</p>
+                        <p className="text-xs text-gray-600 mt-1"><strong>Quando:</strong> {editForm.when || '-'}</p>
+                      </div>
+                  </div>
+                  <div className={`p-3 bg-white rounded-xl border ${belt.border}`}>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Custo / Estimativa em $ (How Much)</span>
+                    <p className="text-sm font-bold text-gray-900">{editForm.howMuch || '-'}</p>
+                  </div>
+                  <div className={`p-3 bg-white rounded-xl border ${belt.border}`}>
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Impacto Esperado</span>
+                    <p className="text-sm font-bold text-gray-900">{editForm.expectedImpact || '-'}</p>
+                  </div>
+                </div>
+
+                {/* Ações */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer bg-white text-gray-600 border border-gray-200 hover:bg-gray-50`}
+                    onClick={() => setIsEditing(true)}
+                  >
+                    Editar Ideia
+                  </button>
+                  <button
+                    className={`flex-[2] py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none cursor-pointer ${belt.bg} ${belt.color} border ${belt.border} hover:opacity-80`}
+                    onClick={() => {
+                      // Salva o projeto selecionado para usar no Brief
+                      const event = new CustomEvent('selectProject', { 
+                        detail: { title: title, project: {...project, ...editForm} } 
+                      });
+                      window.dispatchEvent(event);
+                    }}
+                  >
+                    Selecionar este projeto →
+                  </button>
+                </div>
+
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

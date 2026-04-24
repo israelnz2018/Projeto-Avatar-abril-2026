@@ -46,6 +46,18 @@ const LEVELS: Level[] = ['Baixo', 'Médio', 'Alto'];
 export default function StakeholderManagement({ onSave, initialData }: StakeholderManagementProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>(initialData?.stakeholders || []);
 
+  // Auto-resize textareas when stakeholders change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const textareas = document.querySelectorAll('textarea');
+      textareas.forEach(ta => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [stakeholders]);
+
   useEffect(() => {
     if (initialData?.stakeholders) {
       // Migrate old data if necessary (influence -> power, etc)
@@ -150,44 +162,74 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
         </div>
 
         <div className="p-6 overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+          <table className="w-full text-left border-collapse min-w-[1000px] tool-table" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[20%]">Nome / Área</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[20%]">Função no Projeto</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%]">Poder</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%]">Interesse</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%]">Engajamento Atual</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[5%] text-center">Ações</th>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[20%] whitespace-normal break-words">Nome / Área</th>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[20%] whitespace-normal break-words">Função no Projeto</th>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%] whitespace-normal break-words">Poder</th>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%] whitespace-normal break-words">Interesse</th>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%] whitespace-normal break-words">Engajamento Atual</th>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[5%] text-center whitespace-normal break-words">Ações</th>
               </tr>
             </thead>
             <tbody>
               {stakeholders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500">
+                  <td colSpan={6} className="p-8 text-center text-gray-500 whitespace-normal break-words align-top">
                     Nenhum stakeholder cadastrado. Clique no botão abaixo para adicionar.
                   </td>
                 </tr>
               ) : (
                 stakeholders.map((stakeholder) => (
-                  <tr key={stakeholder.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                    <td className="p-3 align-top">
-                      <input
-                        type="text"
+                  <tr key={stakeholder.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors" style={{ minHeight: '52px' }}>
+                    <td className="p-3 align-top whitespace-normal break-words">
+                      <textarea
                         placeholder="Nome do Stakeholder"
-                        value={stakeholder.name}
-                        onChange={(e) => updateStakeholder(stakeholder.id, 'name', e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-2 focus:ring-1 focus:ring-blue-500 outline-none"
+                        value={stakeholder.name || ''}
+                        onChange={(e) => {
+                          updateStakeholder(stakeholder.id, 'name', e.target.value);
+                          // Auto resize
+                          e.target.style.height = 'auto';
+                          e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.height = 'auto';
+                          e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        rows={1}
+                        className="w-full resize-none bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all mb-2"
+                        style={{ 
+                          minHeight: '36px',
+                          lineHeight: '1.5',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap'
+                        }}
                       />
-                      <input
-                        type="text"
+                      <textarea
                         placeholder="Departamento / Área"
-                        value={stakeholder.area}
-                        onChange={(e) => updateStakeholder(stakeholder.id, 'area', e.target.value)}
-                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs text-gray-600 focus:ring-1 focus:ring-blue-500 outline-none"
+                        value={stakeholder.area || ''}
+                        onChange={(e) => {
+                          updateStakeholder(stakeholder.id, 'area', e.target.value);
+                          // Auto resize
+                          e.target.style.height = 'auto';
+                          e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.height = 'auto';
+                          e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        rows={1}
+                        className="w-full resize-none bg-transparent border-none outline-none text-xs text-gray-600 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                        style={{ 
+                          minHeight: '24px',
+                          lineHeight: '1.4',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap'
+                        }}
                       />
                     </td>
-                    <td className="p-3 align-top">
+                    <td className="p-3 align-top whitespace-normal break-words">
                       <select
                         value={stakeholder.role}
                         onChange={(e) => updateStakeholder(stakeholder.id, 'role', e.target.value)}
@@ -199,7 +241,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                         Engajamento Desejado: <strong className="text-blue-600">{ROLE_DESIRED_ENGAGEMENT[stakeholder.role]}</strong>
                       </div>
                     </td>
-                    <td className="p-3 align-top">
+                    <td className="p-3 align-top whitespace-normal break-words">
                       <select
                         value={stakeholder.power}
                         onChange={(e) => updateStakeholder(stakeholder.id, 'power', e.target.value)}
@@ -208,7 +250,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                         {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </td>
-                    <td className="p-3 align-top">
+                    <td className="p-3 align-top whitespace-normal break-words">
                       <select
                         value={stakeholder.interest}
                         onChange={(e) => updateStakeholder(stakeholder.id, 'interest', e.target.value)}
@@ -217,7 +259,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                         {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </td>
-                    <td className="p-3 align-top">
+                    <td className="p-3 align-top whitespace-normal break-words">
                       <select
                         value={stakeholder.currentEngagement}
                         onChange={(e) => updateStakeholder(stakeholder.id, 'currentEngagement', e.target.value)}
@@ -226,7 +268,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                         {ENGAGEMENT_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </td>
-                    <td className="p-3 align-top text-center">
+                    <td className="p-3 align-top text-center whitespace-normal break-words">
                       <button
                         onClick={() => removeStakeholder(stakeholder.id)}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors mt-1"
@@ -282,7 +324,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                   <span className="text-white font-bold text-xs text-center mb-2 drop-shadow-md">Manter Satisfeito</span>
                   <div className="flex flex-wrap gap-1 justify-center w-full">
                     {stakeholders.filter(s => (s.power === 'Alto' || s.power === 'Médio') && s.interest === 'Baixo').map(s => (
-                      <span key={s.id} className="bg-white/90 text-[#5b9bd5] text-[10px] px-1.5 py-0.5 rounded font-bold truncate max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
+                      <span key={s.id} className="bg-white/90 text-[#5b9bd5] text-[10px] px-1.5 py-0.5 rounded font-bold break-words whitespace-normal max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
                     ))}
                   </div>
                 </div>
@@ -291,7 +333,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                   <span className="text-white font-bold text-xs text-center mb-2 drop-shadow-md">Gerenciar de Perto</span>
                   <div className="flex flex-wrap gap-1 justify-center w-full">
                     {stakeholders.filter(s => (s.power === 'Alto' || s.power === 'Médio') && (s.interest === 'Alto' || s.interest === 'Médio')).map(s => (
-                      <span key={s.id} className="bg-white/90 text-[#ff0000] text-[10px] px-1.5 py-0.5 rounded font-bold truncate max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
+                      <span key={s.id} className="bg-white/90 text-[#ff0000] text-[10px] px-1.5 py-0.5 rounded font-bold break-words whitespace-normal max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
                     ))}
                   </div>
                 </div>
@@ -300,7 +342,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                   <span className="text-white font-bold text-xs text-center mb-2 drop-shadow-md">Monitorar</span>
                   <div className="flex flex-wrap gap-1 justify-center w-full">
                     {stakeholders.filter(s => s.power === 'Baixo' && s.interest === 'Baixo').map(s => (
-                      <span key={s.id} className="bg-white/90 text-[#7030a0] text-[10px] px-1.5 py-0.5 rounded font-bold truncate max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
+                      <span key={s.id} className="bg-white/90 text-[#7030a0] text-[10px] px-1.5 py-0.5 rounded font-bold break-words whitespace-normal max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
                     ))}
                   </div>
                 </div>
@@ -309,7 +351,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                   <span className="text-white font-bold text-xs text-center mb-2 drop-shadow-md">Manter Informado</span>
                   <div className="flex flex-wrap gap-1 justify-center w-full">
                     {stakeholders.filter(s => s.power === 'Baixo' && (s.interest === 'Alto' || s.interest === 'Médio')).map(s => (
-                      <span key={s.id} className="bg-white/90 text-[#4d7525] text-[10px] px-1.5 py-0.5 rounded font-bold truncate max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
+                      <span key={s.id} className="bg-white/90 text-[#4d7525] text-[10px] px-1.5 py-0.5 rounded font-bold break-words whitespace-normal max-w-full" title={s.name}>{s.name || 'Sem nome'}</span>
                     ))}
                   </div>
                 </div>
@@ -335,8 +377,8 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
             <table className="w-full text-sm border-collapse min-w-[500px]">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="border p-2 text-left text-xs text-gray-600 w-1/4">Stakeholder</th>
-                  {ENGAGEMENT_LEVELS.map(l => <th key={l} className="border p-2 text-center text-[10px] uppercase text-gray-500 w-[15%]">{l}</th>)}
+                  <th className="border p-2 text-left text-xs text-gray-600 w-1/4 whitespace-normal break-words">Stakeholder</th>
+                  {ENGAGEMENT_LEVELS.map(l => <th key={l} className="border p-2 text-center text-[10px] uppercase text-gray-500 w-[15%] whitespace-normal break-words">{l}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -347,7 +389,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                   
                   return (
                     <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="border p-2 font-bold text-gray-700 text-xs truncate max-w-[120px]" title={s.name}>
+                      <td className="border p-2 font-bold text-gray-700 text-xs break-words whitespace-normal max-w-[120px] align-top" title={s.name}>
                         {s.name || 'Sem nome'}
                       </td>
                       {ENGAGEMENT_LEVELS.map((level, idx) => {
@@ -357,7 +399,7 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                                        (currentIdx > desiredIdx && idx <= currentIdx && idx >= desiredIdx);
                         
                         return (
-                          <td key={level} className="border p-1 text-center relative h-10">
+                      <td key={level} className="border p-1 text-center relative h-10 whitespace-normal break-words align-top">
                             <div className="flex items-center justify-center w-full h-full relative">
                               {/* Linha de conexão */}
                               {currentIdx !== desiredIdx && isPath && (

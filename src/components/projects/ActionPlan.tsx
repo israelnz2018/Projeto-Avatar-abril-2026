@@ -167,7 +167,7 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
           <thead>
             <tr className="bg-[#1f2937] text-white">
               {columns.map((col) => (
-                <th key={col.id} className="p-3 border border-gray-700 font-bold text-left min-w-[160px] relative group">
+                <th key={col.id} className="p-3 border border-gray-700 font-bold text-left min-w-[160px] relative group whitespace-normal break-words">
                   {editingColumnId === col.id ? (
                     <div className="flex items-center gap-1">
                       <input
@@ -207,7 +207,7 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
                   )}
                 </th>
               ))}
-              <th className="p-2 border border-gray-700 w-[50px]"></th>
+              <th className="p-2 border border-gray-700 w-[50px] whitespace-normal break-words"></th>
             </tr>
           </thead>
           <tbody>
@@ -217,7 +217,7 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
                 "hover:bg-blue-50/30 transition-all group/row"
               )}>
                 {columns.map((col) => (
-                  <td key={col.id} className="p-1 border border-[#eee]">
+                  <td key={col.id} className="p-1 border border-[#eee] whitespace-normal break-words align-top">
                     {col.type === 'status' ? (
                       <div className="flex flex-col gap-1.5 p-1.5">
                         <div className="relative">
@@ -256,13 +256,25 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
                       <textarea
                         value={action[col.id] || ''}
                         onChange={(e) => updateActionValue(action.id, col.id, e.target.value)}
-                        className="w-full p-2.5 border-none bg-transparent focus:ring-2 focus:ring-blue-100 rounded-[4px] resize-none text-[12px] min-h-[70px] leading-relaxed transition-all"
+                        className="w-full h-full p-2.5 border-none bg-transparent focus:ring-2 focus:ring-blue-100 rounded-[4px] resize-none text-[12px] leading-relaxed transition-all whitespace-normal break-words"
                         placeholder={`Descreva ${col.title.toLowerCase()}...`}
+                        rows={1}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          const tr = target.closest('tr');
+                          if (tr && tr.style.height && tr.style.height !== 'auto') {
+                            target.style.height = '100%';
+                          } else {
+                            target.style.height = 'auto';
+                            target.style.height = `${target.scrollHeight}px`;
+                          }
+                        }}
+                        style={{ height: 'auto', minHeight: '1.5em' }}
                       />
                     )}
                   </td>
                 ))}
-                <td className="p-1 border border-[#eee] text-center">
+                <td className="p-1 border border-[#eee] text-center whitespace-normal break-words align-top">
                   <button
                     onClick={() => removeAction(action.id)}
                     className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all border-none bg-transparent cursor-pointer opacity-0 group-hover/row:opacity-100"

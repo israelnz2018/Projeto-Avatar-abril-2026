@@ -207,7 +207,7 @@ export default function StatisticalAnalysisForm({ onSave, initialData, allProjec
                   value={analysis.interpretation}
                   onChange={(e) => updateAnalysis(analysis.id, { interpretation: e.target.value })}
                   placeholder="O que esses dados dizem sobre o problema?"
-                  className="flex-1 w-full p-4 border border-[#ccc] rounded-[4px] text-[14px] focus:outline-none focus:border-[#8b5cf6] resize-none min-h-[250px]"
+                  className="flex-1 w-full p-4 border border-[#ccc] rounded-[4px] text-[14px] focus:outline-none focus:border-[#8b5cf6] resize-none min-h-[250px] whitespace-normal break-words"
                 />
               </div>
             </div>

@@ -106,6 +106,18 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline }:
   const [phases, setPhases] = useState<PhaseActivities[]>(initialData?.phases || DEFAULT_STRUCTURE);
   const [editingActivity, setEditingActivity] = useState<{ phaseId: string, activityId: string } | null>(null);
 
+  // Auto-resize textareas when phases or editing state change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const textareas = document.querySelectorAll('textarea');
+      textareas.forEach(ta => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [phases, editingActivity, activeTab]);
+
   const allActivities = useMemo(() => {
     return phases.flatMap(p => p.activities.map(a => ({ id: a.id, text: a.text, phaseName: p.name })));
   }, [phases]);
@@ -358,13 +370,19 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline }:
                             <textarea 
                               value={activity.text}
                               onChange={(e) => updateActivity(phase.id, activity.id, { text: e.target.value })}
+                              className="text-[11px] bg-transparent border-none focus:ring-0 text-gray-700 font-medium resize-none leading-tight py-0 w-full h-full whitespace-normal break-words"
                               rows={1}
-                              className="text-[11px] bg-transparent border-none focus:ring-0 text-gray-700 font-medium resize-none overflow-hidden leading-tight py-0"
                               onInput={(e) => {
                                 const target = e.target as HTMLTextAreaElement;
-                                target.style.height = 'auto';
-                                target.style.height = target.scrollHeight + 'px';
+                                const tr = target.closest('tr');
+                                if (tr && tr.style.height && tr.style.height !== 'auto') {
+                                  target.style.height = '100%';
+                                } else {
+                                  target.style.height = 'auto';
+                                  target.style.height = `${target.scrollHeight}px`;
+                                }
                               }}
+                              style={{ height: 'auto', minHeight: '1.2em' }}
                             />
                             {activity.status === 'Completed' && activity.actualFinish && (
                               <span className="text-[8px] text-green-600">Concluído em: {activity.actualFinish}</span>
@@ -443,7 +461,7 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline }:
                                 value={activity.notes || ''}
                                 onChange={(e) => updateActivity(phase.id, activity.id, { notes: e.target.value })}
                                 placeholder="Adicione observações sobre esta atividade..."
-                                className="w-full text-[10px] p-2 border border-blue-200 rounded bg-white focus:ring-1 focus:ring-blue-400 outline-none min-h-[50px]"
+                                className="w-full text-[10px] p-2 border border-blue-200 rounded bg-white focus:ring-1 focus:ring-blue-400 outline-none min-h-[50px] whitespace-normal break-words"
                               />
                             </div>
                           )}
@@ -514,19 +532,19 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline }:
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50/50">
-                  <th className="p-4">Fase</th>
-                  <th className="p-4">Status PMI</th>
-                  <th className="p-4">SPI</th>
-                  <th className="p-4">EV (Real)</th>
-                  <th className="p-4">PV (Plano)</th>
-                  <th className="p-4">Progresso</th>
+                  <th className="p-4 whitespace-normal break-words">Fase</th>
+                  <th className="p-4 whitespace-normal break-words">Status PMI</th>
+                  <th className="p-4 whitespace-normal break-words">SPI</th>
+                  <th className="p-4 whitespace-normal break-words">EV (Real)</th>
+                  <th className="p-4 whitespace-normal break-words">PV (Plano)</th>
+                  <th className="p-4 whitespace-normal break-words">Progresso</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {metrics.phases.map(p => (
                   <tr key={p.id} className="text-sm hover:bg-gray-50 transition-colors">
-                    <td className="p-4 font-bold text-gray-700">{p.name}</td>
-                    <td className="p-4">
+                    <td className="p-4 font-bold text-gray-700 whitespace-normal break-words align-top">{p.name}</td>
+                    <td className="p-4 whitespace-normal break-words align-top">
                       <span className={cn(
                         "px-2 py-1 rounded-full text-[10px] font-bold",
                         p.status === 'Delayed' ? "bg-red-100 text-red-700" : 
@@ -536,10 +554,10 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline }:
                         {p.status}
                       </span>
                     </td>
-                    <td className="p-4 font-mono font-bold">{p.spi.toFixed(2)}</td>
-                    <td className="p-4 text-green-600 font-bold">{p.ev}%</td>
-                    <td className="p-4 text-orange-600 font-bold">{p.pv}%</td>
-                    <td className="p-4">
+                    <td className="p-4 font-mono font-bold whitespace-normal break-words align-top">{p.spi.toFixed(2)}</td>
+                    <td className="p-4 text-green-600 font-bold whitespace-normal break-words align-top">{p.ev}%</td>
+                    <td className="p-4 text-orange-600 font-bold whitespace-normal break-words align-top">{p.pv}%</td>
+                    <td className="p-4 whitespace-normal break-words align-top">
                       <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500" style={{ width: `${p.progress}%` }} />
                       </div>

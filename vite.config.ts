@@ -14,7 +14,8 @@ export default defineConfig(({mode}) => {
       'import.meta.env.VITE_FIREBASE_PROJECT_ID': JSON.stringify("senha-92ce1"),
       'import.meta.env.VITE_FIREBASE_STORAGE_BUCKET': JSON.stringify("senha-92ce1.firebasestorage.app"),
       'import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID': JSON.stringify("359510043151"),
-      'import.meta.env.VITE_FIREBASE_APP_ID': JSON.stringify("1:359510043151:web:d4346ea1dc9865c65cd17a"),
+      'import.meta.env.VITE_FIREBASE_APP_ID': JSON.stringify("1:237722279968:web:39532cfa0433e180999c45"),
+      'import.meta.env.VITE_ANTHROPIC_API_KEY': JSON.stringify(env.VITE_ANTHROPIC_API_KEY),
     },
     resolve: {
       alias: {

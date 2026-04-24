@@ -52,3 +52,39 @@ body {
   line-height: 1.625;
   margin-bottom: 1rem;
 }
+
+/* Tabelas de ferramentas — texto sempre visível e suporte a redimensionamento */
+td, th {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: break-word !important;
+  vertical-align: top !important;
+}
+
+td > div, td > span, td > p,
+th > div, th > span, th > p {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: unset !important;
+  word-break: break-word !important;
+}
+
+/* Remove truncate global de dentro de tabelas */
+td .truncate, th .truncate,
+td .line-clamp-1, th .line-clamp-1,
+td .line-clamp-2, th .line-clamp-2,
+td .line-clamp-3, th .line-clamp-3,
+td .whitespace-nowrap, th .whitespace-nowrap {
+  overflow: visible !important;
+  text-overflow: unset !important;
+  -webkit-line-clamp: unset !important;
+  display: block !important;
+  white-space: normal !important;
+}
+
+/* Auto-resize de textareas em tabelas */
+td textarea, th textarea {
+  resize: none;
+  overflow: hidden;
+}

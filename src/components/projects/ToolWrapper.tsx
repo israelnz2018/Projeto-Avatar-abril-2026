@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search } from 'lucide-react';
 import { generateAIToolReport, generateToolData } from '@/src/services/aiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
-import { cn } from '@/src/lib/utils';
+import { useUserTheme } from '@/src/hooks/useUserTheme';
 import { toast } from 'sonner';
 import { GoogleGenAI, Type as SchemaType } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
+import { cn } from '@/src/lib/utils';
 
 interface ToolWrapperProps {
   toolId: string;
@@ -655,6 +656,7 @@ export default function ToolWrapper({
   showAIPrompt = true,
   currentPhaseId
 }: ToolWrapperProps) {
+  const { headerColor, headerTextColor, companyLogoUrl, companyName } = useUserTheme();
   const [localData, setLocalData] = useState(initialData?.toolData || initialData);
   const [aiReport, setAiReport] = useState(initialData?.aiReport || '');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -741,6 +743,7 @@ export default function ToolWrapper({
         };
 
         setLocalData(generatedData);
+        setClearKey(prev => prev + 1);
         onSave({
           toolData: generatedData,
           aiReport: aiReport
@@ -844,6 +847,7 @@ export default function ToolWrapper({
         };
 
         setLocalData(generatedData);
+        setClearKey(prev => prev + 1);
         onSave({
           toolData: generatedData,
           aiReport: aiReport
@@ -910,6 +914,7 @@ export default function ToolWrapper({
 
           const generatedData = { stakeholders: mappedStakeholders };
           setLocalData(generatedData);
+          setClearKey(prev => prev + 1);
           onSave({
             toolData: generatedData,
             aiReport: aiReport
@@ -975,6 +980,7 @@ export default function ToolWrapper({
         };
 
         setLocalData(generatedData);
+        setClearKey(prev => prev + 1);
         onSave({
           toolData: generatedData,
           aiReport: aiReport
@@ -994,6 +1000,14 @@ export default function ToolWrapper({
     try {
       let targetContext = customContext || previousToolData;
       
+      // Special handling for gut and rab to pull from improvementIdea
+      if ((toolId === 'gut' || toolId === 'rab') && allProjectData) {
+        const ideaData = getToolDataByPrefix(allProjectData, 'improvementIdea');
+        targetContext = {
+          improvementIdea: ideaData
+        };
+      }
+
       // Special handling for brief to provide the exact context the AI needs
       if (toolId === 'brief' && allProjectData) {
         const selectedProjectId = customContext?.title || customContext?.description || '';
@@ -1095,6 +1109,7 @@ export default function ToolWrapper({
         allProjectData
       );
       setLocalData(generatedData);
+      setClearKey(prev => prev + 1); // Force remount to pass down new generated data to internal useState
       onSave({
         toolData: generatedData,
         aiReport: aiReport
@@ -1425,23 +1440,30 @@ export default function ToolWrapper({
 
       {/* Step 1: Tool Content */}
       <div className="relative">
-        <div className="flex items-center justify-between px-3 mb-6">
-          
-          {/* Badge de fase */}
-          <div className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase tracking-widest">
-            Etapa 1: Preenchimento
+        <div 
+          className="flex items-center justify-between px-6 py-4 mb-6 rounded-2xl shadow-sm"
+          style={{ backgroundColor: headerColor, color: headerTextColor }}
+        >
+          <div className="flex items-center gap-4">
+            {companyLogoUrl && (
+              <img src={companyLogoUrl} alt="Logo Empresa" className="h-10 w-auto object-contain bg-white/10 rounded-lg p-1" />
+            )}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-80">
+                {companyName || 'Meu Projeto'}
+              </p>
+              <h2 className="text-lg font-black tracking-tight">{toolName}</h2>
+            </div>
           </div>
-
-          {/* Botões de ação do topo */}
-          <div className="flex items-center gap-2">
-            
+          
+          <div className="flex items-center gap-3">
             {/* Botão Salvar */}
             <button
               onClick={() => {
                 const saveBtn = document.querySelector('[data-save-trigger]') as HTMLButtonElement;
                 if (saveBtn) saveBtn.click();
               }}
-              className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-100 border-none cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2 bg-white text-blue-900 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-opacity-90 transition-all active:scale-95 border-none cursor-pointer"
             >
               <Save size={14} />
               Salvar
@@ -1454,7 +1476,7 @@ export default function ToolWrapper({
                   e.stopPropagation();
                   handleClearData();
                 }}
-                className="flex items-center gap-2 px-5 py-2 bg-white text-red-500 border-2 border-red-100 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95 cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2 bg-white/20 text-white border-2 border-white/20 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-white/30 transition-all active:scale-95 cursor-pointer"
               >
                 <Trash2 size={14} />
                 Excluir
@@ -1473,25 +1495,19 @@ export default function ToolWrapper({
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Não salvo</span>
               </div>
             )}
-
           </div>
         </div>
 
-        {/* AI Prompt Card - Only show if tool is empty and NOT improvementIdea (which has custom placement) */}
-        {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && showAIPrompt && (
-          <AIPromptCard
+      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && showAIPrompt && (
+        <AIPromptCard
             toolId={toolId}
             toolName={toolName}
             previousToolName={TOOLS_WITH_AI_BLOCK[toolId].source}
             onAction={(customContext) => handleGenerateData(customContext)}
             isGenerating={isGeneratingData}
             hasPreviousData={!!previousToolData}
-            previousToolData={previousToolData}
-            allProjectData={allProjectData}
-            customTitle={TOOLS_WITH_AI_BLOCK[toolId].title}
-            customDescription={TOOLS_WITH_AI_BLOCK[toolId].description}
-          />
-        )}
+        />
+      )}
 
         <div className="p-8" key={`${toolId}-${clearKey}`}>
           {children({ 

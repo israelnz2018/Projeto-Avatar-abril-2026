@@ -189,7 +189,7 @@ Dados Subjetivos: ${data.after.subj.join(', ')}`;
           <textarea 
             value={reportText}
             onChange={(e) => setReportText(e.target.value)}
-            className="w-full h-64 p-4 border border-[#ccc] rounded-[4px] text-[14px]"
+            className="w-full h-64 p-4 border border-[#ccc] rounded-[4px] text-[14px] whitespace-normal break-words"
           />
           <div className="flex gap-4">
             <button onClick={improveWithAI} className="bg-purple-600 text-white px-4 py-2 rounded flex items-center hover:bg-purple-700">

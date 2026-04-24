@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, BarChart2, Info, X } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { HelpCircle, X, GripVertical, CheckCircle2, BarChart2, Plus } from 'lucide-react';
+import { useResizableTable } from '@/src/hooks/useResizableTable';
+import { TableToolbar } from './TableToolbar';
 
 interface GUTProps {
   onSave: (data: any) => void;
@@ -13,223 +14,272 @@ interface Column {
   isScore: boolean;
 }
 
-interface Row {
-  id: string;
-  [key: string]: any;
-}
-
 export default function GUTTool({ onSave, initialData }: GUTProps) {
   const defaultColumns: Column[] = [
     { id: 'description', label: 'Problema / Oportunidade', isScore: false },
     { id: 'gravidade', label: 'Gravidade', isScore: true },
     { id: 'urgencia', label: 'Urgência', isScore: true },
     { id: 'tendencia', label: 'Tendência', isScore: true },
+    { id: 'resultado', label: 'Resultado (G x U x T)', isScore: false },
   ];
 
   const [columns, setColumns] = useState<Column[]>(initialData?.columns || defaultColumns);
-  const [rows, setRows] = useState<Row[]>(initialData?.opportunities || []);
-  const [newDesc, setNewDesc] = useState('');
+  const [rows, setRows] = useState<any[]>(initialData?.opportunities || []);
+  const [isSorted, setIsSorted] = useState(false);
 
+  // Auto-resize textareas when rows change
   useEffect(() => {
-    if (initialData?.columns) {
-      const scoringIds = ['gravidade', 'urgencia', 'tendencia'];
-      const updatedColumns = initialData.columns.map((col: any) => ({
-        ...col,
-        isScore: col.isScore ?? scoringIds.includes(col.id)
-      }));
-      setColumns(updatedColumns);
-    }
-    if (initialData?.opportunities) setRows(initialData.opportunities);
-  }, [initialData]);
+    const timer = setTimeout(() => {
+      const textareas = document.querySelectorAll('textarea');
+      textareas.forEach(ta => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [rows]);
 
-  const addColumn = () => {
-    const newId = `col_${Date.now()}`;
-    setColumns([...columns, { id: newId, label: 'Novo Critério', isScore: true }]);
-    setRows(rows.map(row => ({ ...row, [newId]: 1 })));
+  const {
+    columnWidths, rowHeights, columnOrder, setColumnOrder,
+    editingHeader, setEditingHeader,
+    draggedCol, dragOverCol,
+    startColResize, startRowResize,
+    handleColDragStart, handleColDragOver, handleColDrop,
+  } = useResizableTable({
+    description: 280,
+    gravidade: 140,
+    urgencia: 140,
+    tendencia: 140,
+    resultado: 120,
+  });
+
+  const TOOLTIPS: Record<string, string> = {
+    gravidade: 'Impacto do problema se ele acontecer ou continuar acontecendo',
+    urgencia: 'Necessidade de ação imediata — quanto tempo temos para resolver?',
+    tendencia: 'O problema vai piorar, estabilizar ou melhorar com o tempo?',
   };
 
-  const removeColumn = (id: string) => {
-    if (id === 'description') return;
-    setColumns(columns.filter(c => c.id !== id));
-    setRows(rows.map(row => {
-      const newRow = { ...row };
-      delete newRow[id];
-      return newRow;
-    }));
-  };
-
-  const updateColumnLabel = (id: string, label: string) => {
-    setColumns(columns.map(c => c.id === id ? { ...c, label } : c));
-  };
-
-  const addRow = () => {
-    if (!newDesc.trim()) return;
-    const newRow: Row = { id: Date.now().toString(), description: newDesc };
-    columns.forEach(col => {
-      if (col.isScore) newRow[col.id] = 1;
+  const handleSort = () => {
+    const sorted = [...rows].sort((a, b) => {
+      const scoreA = columns.filter(c => c.isScore).reduce((sum, c) => sum + (a[c.id] || 0), 0);
+      const scoreB = columns.filter(c => c.isScore).reduce((sum, c) => sum + (b[c.id] || 0), 0);
+      return scoreB - scoreA;
     });
-    setRows([...rows, newRow]);
-    setNewDesc('');
+    setRows(sorted);
+    setIsSorted(true);
   };
 
-  const updateRow = (id: string, field: string, value: any) => {
-    setRows(rows.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
+  const getRowTotal = (row: any) => 
+    columns.filter(c => c.isScore).reduce((sum, c) => sum + (row[c.id] || 0), 0);
 
-  const removeRow = (id: string) => {
-    setRows(rows.filter(r => r.id !== id));
-  };
+  const maxScore = Math.max(...rows.map(getRowTotal), 0);
 
-  const calculateScore = (row: Row) => {
-    return columns
-      .filter(c => c.isScore)
-      .reduce((acc, col) => {
-        const val = Number(row[col.id]);
-        return acc * (isNaN(val) ? 1 : val);
-      }, 1);
+  const handleAddColumn = (name: string) => {
+    const newId = `col_${Date.now()}`;
+    setColumns(prev => [...prev.filter(c => c.id !== 'resultado'), { id: newId, label: name, isScore: true }, { id: 'resultado', label: 'Resultado (G x U x T)', isScore: false }]);
+    setRows(prev => prev.map(row => ({ ...row, [newId]: 1 })));
+    setColumnOrder(prev => [...prev, newId, 'resultado']);
   };
 
   return (
-    <div className="space-y-8 bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm overflow-x-auto">
-      <div className="flex items-center justify-between border-b border-[#eee] pb-4">
-        <div className="flex items-center gap-3">
-          <BarChart2 className="text-purple-500" size={24} />
-          <div>
-            <h2 className="text-[1.25rem] font-bold text-[#333]">Matriz GUT (Gravidade, Urgência e Tendência)</h2>
-            <p className="text-[12px] text-[#666]">Priorize problemas com base no impacto e tempo</p>
-          </div>
+    <div className="space-y-4 bg-white p-6 border border-[#ccc] rounded-lg shadow-sm">
+      <div className="flex items-center gap-3 border-b border-[#eee] pb-4 mb-4">
+        <BarChart2 className="text-purple-500" size={24} />
+        <div>
+          <h2 className="text-lg font-bold text-[#333]">Matriz GUT</h2>
+          <p className="text-xs text-[#666]">Priorização de Problemas</p>
         </div>
-        <button 
-          onClick={addColumn}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-[4px] text-[12px] font-bold hover:bg-gray-200 transition-all border border-gray-200"
-        >
-          <Plus size={14} /> Adicionar Coluna
-        </button>
       </div>
 
-      <div className="flex gap-2">
-        <input 
-          value={newDesc}
-          onChange={(e) => setNewDesc(e.target.value)}
-          className="flex-1 p-3 border border-[#ccc] rounded-[4px] text-[13px]"
-          placeholder="Descreva o problema ou oportunidade..."
-          onKeyDown={(e) => e.key === 'Enter' && addRow()}
-        />
-        <button onClick={addRow} className="bg-purple-600 text-white px-6 py-2 rounded-[4px] font-bold flex items-center gap-2 hover:bg-purple-700 transition-all shadow-sm">
-          <Plus size={18}/> Adicionar
-        </button>
-      </div>
+      <TableToolbar
+        itemCount={rows.length}
+        onSort={handleSort}
+        onAddColumn={handleAddColumn}
+        isSorted={isSorted}
+      />
 
-      <div className="overflow-x-auto border border-[#eee] rounded-[4px]">
-        <table className="w-full text-left border-collapse min-w-[800px]">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse tool-table" style={{ tableLayout: 'fixed' }}>
           <thead>
-            <tr className="bg-gray-50 text-[11px] uppercase tracking-widest text-gray-500">
-              {columns.map((col, idx) => (
-                <th key={col.id} className="p-3 border group relative min-w-[150px]">
-                  <div className="flex items-center gap-2">
-                    <input 
-                      value={col.label}
-                      onChange={(e) => updateColumnLabel(col.id, e.target.value)}
-                      className="bg-transparent border-none focus:ring-1 focus:ring-purple-300 rounded p-1 w-full font-black text-gray-700 uppercase"
-                    />
-                    {idx > 0 && (
-                      <button 
-                        onClick={() => removeColumn(col.id)}
-                        className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
+            <tr>
+              {columns.map(col => (
+                <th
+                  key={col.id}
+                  draggable={col.id !== 'description'}
+                  onDragStart={() => handleColDragStart(col.id)}
+                  onDragOver={(e) => handleColDragOver(e, col.id)}
+                  onDrop={() => handleColDrop(col.id)}
+                  style={{
+                    width: columnWidths[col.id] || 150,
+                    position: 'relative',
+                    borderLeft: dragOverCol === col.id ? '2px solid #3b82f6' : undefined,
+                  }}
+                  className="px-3 py-3 text-left bg-gray-50 border-b-2 border-gray-200 select-none whitespace-normal break-words"
+                >
+                  <div className="flex items-center gap-1 group">
+                    {col.id !== 'description' && (
+                      <GripVertical size={12} className="text-gray-300 cursor-grab shrink-0" />
+                    )}
+
+                    {editingHeader === col.id ? (
+                      <input
+                        autoFocus
+                        defaultValue={col.label}
+                        className="text-[11px] font-black uppercase w-full bg-white border border-blue-300 rounded px-1 focus:outline-none"
+                        onBlur={(e) => {
+                          setColumns(prev => prev.map(c => 
+                            c.id === col.id ? { ...c, label: e.target.value } : c
+                          ));
+                          setEditingHeader(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                          if (e.key === 'Escape') setEditingHeader(null);
+                        }}
+                      />
+                    ) : (
+                      <span
+                        className="text-[11px] font-black text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
+                        onDoubleClick={() => setEditingHeader(col.id)}
+                        title="Clique duplo para editar o título"
                       >
-                        <X size={14} />
+                        {col.label}
+                      </span>
+                    )}
+
+                    {TOOLTIPS[col.id] && (
+                      <div className="relative group/tooltip">
+                        <HelpCircle size={12} className="text-gray-300 hover:text-blue-500 cursor-help shrink-0" />
+                        <div className="absolute bottom-full left-0 mb-1 w-48 bg-gray-800 text-white text-[10px] rounded-lg p-2 opacity-0 group-hover/tooltip:opacity-100 transition-opacity z-50 pointer-events-none">
+                          {TOOLTIPS[col.id]}
+                        </div>
+                      </div>
+                    )}
+
+                    {col.id !== 'description' && col.id !== 'resultado' && (
+                      <button
+                        onClick={() => {
+                          setColumns(prev => prev.filter(c => c.id !== col.id));
+                          setRows(prev => prev.map(row => {
+                            const newRow = { ...row };
+                            delete newRow[col.id];
+                            return newRow;
+                          }));
+                        }}
+                        className="opacity-0 group-hover:opacity-100 ml-auto p-0.5 hover:text-red-500 text-gray-300 transition-all border-none bg-transparent cursor-pointer shrink-0"
+                      >
+                        <X size={11} />
                       </button>
                     )}
                   </div>
+
+                  {col.id !== 'description' && (
+                    <div
+                      onMouseDown={(e) => startColResize(e, col.id)}
+                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-200 transition-colors z-10"
+                    />
+                  )}
                 </th>
               ))}
-              <th className="p-3 border text-center bg-purple-50 text-purple-800 font-black min-w-[120px]">
-                Resultado (G x U x T)
-              </th>
-              <th className="p-3 border w-12"></th>
             </tr>
           </thead>
+
           <tbody>
-            {rows.map(row => (
-              <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                {columns.map(col => (
-                  <td key={col.id} className="p-2 border">
-                    {col.id === 'description' ? (
-                      <input 
-                        value={row[col.id]} 
-                        onChange={(e) => updateRow(row.id, col.id, e.target.value)} 
-                        className="w-full p-2 bg-transparent border-none focus:ring-1 focus:ring-purple-100 rounded text-[13px]"
-                      />
-                    ) : (
-                      <div className="flex justify-center">
-                        <select 
-                          value={row[col.id] || 1} 
-                          onChange={(e) => updateRow(row.id, col.id, Number(e.target.value))} 
-                          className="p-2 border border-gray-200 rounded text-[13px] bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+            {rows.map((row, index) => {
+              const total = getRowTotal(row);
+              const isWinner = total === maxScore && maxScore > 0;
+              return (
+                <tr
+                  key={row.id || index}
+                  style={{ minHeight: '52px', position: 'relative' }}
+                  className={`border-b border-gray-100 transition-colors ${
+                    isWinner ? 'bg-green-50 border-l-4 border-l-green-400' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  {columns.map((col, colIndex) => (
+                    <td
+                      key={col.id}
+                      style={{ width: columnWidths[col.id] || 150 }}
+                      className={`px-3 py-2 whitespace-normal break-words align-top ${colIndex === 0 ? 'relative' : ''}`}
+                    >
+                      {col.id === 'description' ? (
+                        <textarea
+                          value={row[col.id] || ''}
+                          onChange={(e) => {
+                            setRows(prev => prev.map(r =>
+                              r.id === row.id ? { ...r, description: e.target.value } : r
+                            ));
+                            // Auto resize
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          rows={1}
+                          className="w-full resize-none bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          style={{ 
+                            minHeight: '36px',
+                            lineHeight: '1.5',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        />
+                      ) : col.id === 'resultado' ? (
+                        <span className={`font-black text-lg ${isWinner ? 'text-green-600' : 'text-purple-700'}`}>
+                          {total}
+                        </span>
+                      ) : col.isScore ? (
+                        <select
+                          value={row[col.id] || 1}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setRows(prev => prev.map(r => 
+                              r.id === row.id ? { ...r, [col.id]: val } : r
+                            ));
+                          }}
+                          className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
+                          <option value={1}>1 pt (Baixo)</option>
+                          <option value={3}>3 pts (Médio)</option>
                           <option value={5}>5 pts (Extremo)</option>
-                          <option value={3}>3 pts (Grave)</option>
-                          <option value={1}>1 pt (Leve)</option>
                         </select>
-                      </div>
-                    )}
-                  </td>
-                ))}
-                <td className="p-2 border text-center font-black text-[14px] bg-purple-50/50 text-purple-700">
-                  {calculateScore(row)}
-                </td>
-                <td className="p-2 border text-center">
-                  <button 
-                    onClick={() => removeRow(row.id)} 
-                    className="text-gray-300 hover:text-red-500 transition-all p-2 hover:bg-red-50 rounded-full"
-                  >
-                    <Trash2 size={16}/>
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={columns.length + 2} className="p-12 text-center text-gray-400 italic text-sm">
-                  Nenhum problema adicionado ainda.
-                </td>
-              </tr>
-            )}
+                      ) : (
+                        <div
+                          className="text-sm font-medium text-gray-800 break-words"
+                          style={{
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            lineHeight: '1.5',
+                            minHeight: '36px',
+                          }}
+                        >
+                          {row[col.id]}
+                        </div>
+                      )}
+                      
+                      {colIndex === 0 && (
+                        <div
+                          onMouseDown={(e) => startRowResize(e, row.id)}
+                          className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-blue-200 transition-colors z-10"
+                        />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      <div className="bg-purple-50 p-6 rounded-[8px] border border-purple-100 text-[12px] text-purple-800 space-y-4">
-        <h4 className="font-black flex items-center gap-2 uppercase tracking-widest text-purple-900">
-          <Info size={16} className="text-purple-500"/> Guia de Pontuação GUT (1, 3, 5)
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-1">
-            <strong className="text-purple-900 block uppercase text-[10px]">Gravidade:</strong>
-            <p>5: Extremamente Grave | 3: Grave | 1: Sem Gravidade</p>
-          </div>
-          <div className="space-y-1">
-            <strong className="text-purple-900 block uppercase text-[10px]">Urgência:</strong>
-            <p>5: Imediata | 3: O mais rápido possível | 1: Pode esperar</p>
-          </div>
-          <div className="space-y-1">
-            <strong className="text-purple-900 block uppercase text-[10px]">Tendência:</strong>
-            <p>5: Piorar rapidamente | 3: Irá piorar | 1: Não irá piorar</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-        <p className="text-[11px] text-gray-400 font-bold uppercase italic">
-          * O resultado é o produto da multiplicação de todos os critérios.
-        </p>
-        <button 
-          onClick={() => onSave({ opportunities: rows, columns })} 
-          className="bg-[#10b981] text-white px-10 py-4 rounded-[8px] font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-600 transition-all shadow-lg shadow-green-100"
-        >
-          <CheckCircle2 size={18} className="mr-2" /> Salvar Matriz GUT
-        </button>
-      </div>
+      <button 
+        onClick={() => onSave({ opportunities: rows, columns })} 
+        className="bg-green-600 text-white px-6 py-2 rounded-lg font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-700 transition-all ml-auto"
+      >
+        <CheckCircle2 size={16} className="mr-2" /> Salvar Matriz
+      </button>
     </div>
   );
 }
