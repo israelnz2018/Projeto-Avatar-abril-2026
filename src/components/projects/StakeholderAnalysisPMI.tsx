@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, Save, ArrowRight } from 'lucide-react';
+import { Users, Plus, Trash2, Save, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 type Level = 'Baixo' | 'Médio' | 'Alto';
@@ -20,6 +20,9 @@ interface Stakeholder {
 interface StakeholderAnalysisPMIProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: () => void;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const ROLE_DESIRED_ENGAGEMENT: Record<string, EngagementLevel> = {
@@ -37,8 +40,9 @@ const ROLES = Object.keys(ROLE_DESIRED_ENGAGEMENT);
 const ENGAGEMENT_LEVELS: EngagementLevel[] = ['Desconhece', 'Resistente', 'Neutro', 'Apoiador', 'Líder'];
 const LEVELS: Level[] = ['Baixo', 'Médio', 'Alto'];
 
-export default function StakeholderAnalysisPMI({ onSave, initialData }: StakeholderAnalysisPMIProps) {
+export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: StakeholderAnalysisPMIProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>(initialData?.stakeholders || []);
+  const isToolEmpty = stakeholders.length === 0;
 
   useEffect(() => {
     if (initialData?.stakeholders) {
@@ -129,6 +133,66 @@ export default function StakeholderAnalysisPMI({ onSave, initialData }: Stakehol
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Stakeholders com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Project Charter" para gerar
+                Análise de Stakeholders técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um mapeamento rigoroso e técnico.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       {/* Tabela de Entrada de Dados */}
       <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm overflow-hidden">
         <div className="p-6 border-b border-[#eee] bg-gray-50 flex items-center justify-between flex-wrap gap-4">

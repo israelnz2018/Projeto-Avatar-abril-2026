@@ -20,10 +20,14 @@ import {
   ArrowLeft,
   RefreshCw,
   Play,
-  GitBranch
+  GitBranch,
+  Sparkles,
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI, Type } from "@google/genai";
+import { cn } from '@/src/lib/utils';
 
 interface ModelingStep {
   id: string;
@@ -95,14 +99,19 @@ interface ProcessValidationProps {
   onSave: (data: any) => void;
   modelingData?: ModelingData;
   projectCharter?: any;
+  onGenerateAI?: () => void;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
-export default function ProcessValidation({ data, onSave, modelingData, projectCharter }: ProcessValidationProps) {
+export default function ProcessValidation({ data, onSave, modelingData, projectCharter, onGenerateAI, isGeneratingAI, onClearAIData }: ProcessValidationProps) {
   const [activeTab, setActiveTab] = useState<'ai' | 'raci' | 'sop' | 'approval'>('ai');
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(data?.validationResult || null);
+
   const [raciMatrix, setRaciMatrix] = useState<RACIEntry[]>(data?.raciMatrix || []);
   const [sop, setSop] = useState<SOPData | null>(data?.sop || null);
+  const isToolEmpty = !validationResult && raciMatrix.length === 0 && !sop;
   const [approval, setApproval] = useState<ApprovalData>(data?.approval || {
     status: 'Pending',
     approvedBy: '',
@@ -267,6 +276,64 @@ export default function ProcessValidation({ data, onSave, modelingData, projectC
 
   return (
     <div className="space-y-6">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Validar e Documentar Processo com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará o modelo de processo para realizar uma validação técnica de fluxo, gerar a Matriz RACI e criar o Procedimento Operacional Padrão (POP).
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A validação apontará possíveis falhas lógicas e gargalos antes da implementação oficial.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Analisando...</>
+                : <><Sparkles size={16} /> Validar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && data?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Validado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">

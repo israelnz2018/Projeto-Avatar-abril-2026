@@ -229,7 +229,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     { id: 6, filled: !!(formData.futureVision && formData.successIndicator) }
   ];
 
-  const canGenerate = sectionsStatus[0].filled && sectionsStatus[1].filled && sectionsStatus[2].filled;
+  const canGenerate = sectionsStatus[0].filled; // Only Section 1 required
   const progressPercent = (sectionsStatus.filter(s => s.filled).length / 6) * 100;
 
   if (!userProfile) {

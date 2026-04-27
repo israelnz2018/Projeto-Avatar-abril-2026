@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { 
   CheckCircle2, Circle, Plus, Trash2, AlertCircle, Clock, 
   ChevronDown, ChevronRight, Sparkles, X, Check, ListTodo, 
-  Target, Calendar, Info, Settings, AlertTriangle, TrendingUp
+  Target, Calendar, Info, Settings, AlertTriangle, TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { useA4Table } from '@/src/hooks/useA4Table';
-import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface Activity {
   id: string;
@@ -37,6 +36,7 @@ interface ImprovementProjectPlanProps {
   macroTimeline?: any;
   onGenerateAI?: (customContext?: any) => Promise<void>;
   isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const DEFAULT_STRUCTURE: PhaseActivities[] = [
@@ -47,30 +47,33 @@ const DEFAULT_STRUCTURE: PhaseActivities[] = [
   { id: 'control', name: 'Controlar', activities: [], isOpen: false, weight: 20 },
 ];
 
-export default function ImprovementProjectPlan({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI }: ImprovementProjectPlanProps) {
+export default function ImprovementProjectPlan({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI, onClearAIData }: ImprovementProjectPlanProps) {
   const [phases, setPhases] = useState<PhaseActivities[]>(initialData?.phases || DEFAULT_STRUCTURE);
+  const isToolEmpty = phases.every(p => p.activities.length === 0);
   const [editingActivity, setEditingActivity] = useState<{ phaseId: string, activityId: string } | null>(null);
-
-  const planTable = useA4Table({
-    status: 120,
-    text: 400,
-    start: 90,
-    finish: 90,
-    weight: 50,
-    predecessor: 120,
-    owner: 100,
-    actions: 40
-  });
 
   const allActivities = useMemo(() => {
     return phases.flatMap(p => p.activities.map(a => ({ id: a.id, text: a.text, phaseName: p.name })));
   }, [phases]);
 
   useEffect(() => {
-    if (initialData?.phases) {
-      setPhases(initialData.phases);
+    if (initialData) {
+      const data = initialData.toolData || initialData;
+      if (data.phases) {
+        setPhases(data.phases);
+      }
     }
   }, [initialData]);
+
+  useLayoutEffect(() => {
+    // Automatically adjust height of all textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach((t) => {
+      const el = t as HTMLTextAreaElement;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    });
+  }, [phases]);
 
   const updateActivity = (phaseId: string, activityId: string, updates: Partial<Activity>) => {
     setPhases(prev => prev.map(phase => {
@@ -152,7 +155,65 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
   }, [phases]);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto relative">
+    <div className="space-y-6 max-w-5xl mx-auto relative animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Plano do Projeto com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA vai criar as atividades de cada fase usando as datas e título do Cronograma Macro.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA sugerirá atividades padrão para cada fase do ciclo de vida DMAIC.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
@@ -197,29 +258,12 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
           <h2 className="text-xl font-bold text-gray-800">Plano do Projeto de Melhoria</h2>
           <p className="text-sm text-gray-500">Planeje e acompanhe a execução das suas atividades.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all ${
-                  planTable.totalWidth >= planTable.A4_MAX_WIDTH - 50 
-                    ? 'bg-orange-500' 
-                    : 'bg-green-500'
-                }`}
-                style={{ width: `${(planTable.totalWidth / planTable.A4_MAX_WIDTH) * 100}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              {Math.round((planTable.totalWidth / planTable.A4_MAX_WIDTH) * 100)}% A4
-            </span>
-          </div>
-          <button onClick={() => onSave({ phases })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
-            Salvar Plano
-          </button>
-        </div>
+        <button onClick={() => onSave({ phases })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
+          Salvar Plano
+        </button>
       </div>
 
-      <div className="space-y-4" style={{ maxWidth: '1123px' }}>
+      <div className="space-y-4">
         {phases.map((phase) => (
           <div key={phase.id} className="bg-white border border-[#eee] rounded-[8px] shadow-sm overflow-hidden">
             <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50" onClick={() => togglePhase(phase.id)}>
@@ -287,10 +331,16 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                       </div>
                       
                       <div className="flex flex-col min-w-0">
-                        <AutoGrowTextarea 
+                        <textarea 
                           value={activity.text}
-                          onChange={(v) => updateActivity(phase.id, activity.id, { text: v })}
-                          className="text-[11px] font-medium py-0"
+                          onChange={(e) => updateActivity(phase.id, activity.id, { text: e.target.value })}
+                          className="text-[11px] bg-transparent border-none focus:ring-0 text-gray-700 font-medium resize-none overflow-hidden leading-tight py-0"
+                          rows={1}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = target.scrollHeight + 'px';
+                          }}
                         />
                         {!isPredecessorDone && (
                           <span className="text-[8px] text-orange-600 flex items-center gap-1">

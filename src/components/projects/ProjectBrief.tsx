@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, FileDown } from 'lucide-react';
+import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, FileDown, Trash2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { cn } from '@/src/lib/utils';
 
@@ -15,6 +15,7 @@ interface ProjectBriefProps {
   ideaProjects?: any[];
   gutProjects?: any[];
   rabProjects?: any[];
+  onClearAIData?: () => void;
 }
 
 export default function ProjectBrief({ 
@@ -28,6 +29,7 @@ export default function ProjectBrief({
   ideaProjects = [],
   gutProjects = [],
   rabProjects = [],
+  onClearAIData
 }: ProjectBriefProps) {
   const [answers, setAnswers] = useState(initialData?.answers || {
     q1: '', q2: '', q3: '', q4: '', q5: '', q6: '',
@@ -40,6 +42,8 @@ export default function ProjectBrief({
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     initialData?.selectedProject || ''
   );
+
+  const isToolEmpty = Object.values(answers).every(val => !val) && images.length === 0;
 
   const getUniqueProjects = () => {
     const allTitles = new Set<string>();
@@ -267,7 +271,52 @@ INSTRUÇÕES DE DESIGN (HTML):
         </div>
       )}
 
-      <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Entendendo o Problema com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Matriz de Priorização" para gerar
+                Entendendo o Problema técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um relatório rigoroso e técnico.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8 animate-in fade-in duration-500">
         <div className="flex items-center justify-between border-b border-[#eee] pb-4">
           <div className="flex items-center gap-3">
             <FileText className="text-blue-600" size={24} />

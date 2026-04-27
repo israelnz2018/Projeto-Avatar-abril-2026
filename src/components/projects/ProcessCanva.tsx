@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Truck, Package, Settings, PackageCheck, UserCheck, Plus, Trash2, 
   CheckCircle2, Info, Layout, ClipboardList, Eye, ArrowRight, 
-  User, Users, Play, Square, GitBranch, Monitor, Target, Save, Edit3
+  User, Users, Play, Square, GitBranch, Monitor, Target, Save, Edit3, Sparkles, Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import SIPOC from './SIPOC';
@@ -10,6 +10,9 @@ import SIPOC from './SIPOC';
 interface ProcessCanvaProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: () => void;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 interface ProcessStep {
@@ -21,7 +24,7 @@ interface ProcessStep {
   noTarget?: string;
 }
 
-export default function ProcessCanva({ onSave, initialData }: ProcessCanvaProps) {
+export default function ProcessCanva({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ProcessCanvaProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState(initialData || {
     sipoc: {
@@ -45,6 +48,8 @@ export default function ProcessCanva({ onSave, initialData }: ProcessCanvaProps)
     },
     canvas: null
   });
+
+  const isToolEmpty = !data.form.processName && data.form.steps.length <= 1 && !data.form.processObjective;
 
   useEffect(() => {
     if (initialData) {
@@ -137,6 +142,64 @@ export default function ProcessCanva({ onSave, initialData }: ProcessCanvaProps)
 
   return (
     <div className="space-y-6">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Mapeamento de Processo (Canva) com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará o escopo do projeto para gerar um mapeamento completo (SIPOC, objetivo, gatilhos e fluxo de atividades) técnico e específico.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * O mapeamento gerado servirá como base para as fases de análise e melhoria do processo.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       {/* Navigation Header */}
       <div className="flex items-center justify-between bg-white p-4 border border-[#ccc] rounded-[4px] shadow-sm">
         <div className="flex items-center gap-8">

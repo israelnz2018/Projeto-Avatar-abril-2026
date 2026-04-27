@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Target, CheckCircle2, Printer, Save, Info, Users, Calendar, AlertTriangle, DollarSign, Briefcase } from 'lucide-react';
+import { Target, CheckCircle2, Printer, Save, Info, Users, Calendar, AlertTriangle, DollarSign, Briefcase, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { useA4Table } from '@/src/hooks/useA4Table';
-import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface ProjectCharterPMIProps {
   onSave: (data: any) => void;
   initialData?: any;
 }
 
-export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharterPMIProps) {
+export default function ProjectCharterPMI({ 
+  onSave, 
+  initialData,
+  onGenerateAI,
+  isGeneratingAI,
+  onClearAIData
+}: ProjectCharterPMIProps & { onGenerateAI?: () => void; isGeneratingAI?: boolean; onClearAIData?: () => void }) {
   const [data, setData] = useState(initialData || {
     projectName: '',
     description: '',
@@ -42,10 +46,7 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
     ]
   });
 
-  const pmiTable = useA4Table({
-    label: 260,
-    content: 540
-  });
+  const isToolEmpty = !data.projectName && !data.description && !data.projectManager;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -72,7 +73,67 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
   };
 
   return (
-    <div className="space-y-6 max-w-[210mm] mx-auto pb-20">
+    <div className="space-y-6 max-w-[210mm] mx-auto pb-20 animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6 no-print">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Project Charter com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Entendendo o Problema" para gerar
+                Project Charter técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um mapeamento rigoroso e técnico.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1 no-print">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       {/* Action Bar */}
       <div className="flex justify-between items-center bg-white p-4 border border-gray-200 rounded-xl shadow-sm no-print">
         <div className="flex items-center gap-2">
@@ -95,30 +156,8 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
         </div>
       </div>
 
-      <div style={{ maxWidth: '1123px', margin: '0 auto' }}>
-        <div className="flex items-center justify-between mb-3 px-2 no-print">
-          <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
-            Termo de Abertura (PMI)
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all ${
-                  pmiTable.totalWidth >= pmiTable.A4_MAX_WIDTH - 50 
-                    ? 'bg-orange-500' 
-                    : 'bg-green-500'
-                }`}
-                style={{ width: `${(pmiTable.totalWidth / pmiTable.A4_MAX_WIDTH) * 100}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              {Math.round((pmiTable.totalWidth / pmiTable.A4_MAX_WIDTH) * 100)}% A4
-            </span>
-          </div>
-        </div>
-
-        {/* A4 Document Container */}
-        <div className="bg-white border border-gray-300 shadow-2xl p-[15mm] min-h-[297mm] w-full print:p-0 print:shadow-none print:border-none font-sans text-black overflow-hidden">
+      {/* A4 Document Container */}
+      <div className="pmi-container bg-white border border-gray-300 shadow-2xl p-[15mm] min-h-[297mm] w-full print:p-0 print:shadow-none print:border-none font-sans text-black overflow-hidden">
         
         {/* Header Section */}
         <div className="flex items-center justify-between border-b-4 border-blue-600 pb-4 mb-6">
@@ -156,10 +195,18 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
             </div>
             <div className="col-span-2">
               <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Descrição Breve (O que será implementado/construído)</label>
-              <AutoGrowTextarea 
+              <textarea 
+                name="description"
                 value={data.description}
-                onChange={(v) => setData((prev: any) => ({ ...prev, description: v }))}
-                className="text-sm border-b border-gray-200"
+                onChange={handleChange}
+                rows={1}
+                className="w-full text-sm border-b border-gray-200 focus:border-blue-600 focus:ring-0 p-1 outline-none resize-none whitespace-normal break-words"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                style={{ minHeight: '40px' }}
               />
             </div>
             <div>
@@ -211,18 +258,34 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
           <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">O que será entregue (produto, sistema, construção, etc.)</label>
-              <AutoGrowTextarea 
+              <textarea 
+                name="objective"
                 value={data.objective}
-                onChange={(v) => setData((prev: any) => ({ ...prev, objective: v }))}
-                className="text-sm border border-gray-100 bg-gray-50/30 p-2"
+                onChange={handleChange}
+                rows={1}
+                className="w-full text-sm border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded resize-none whitespace-normal break-words"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                style={{ minHeight: '60px' }}
               />
             </div>
             <div>
               <label className="block text-[9px] font-black text-gray-400 uppercase mb-1">Resultado esperado do projeto</label>
-              <AutoGrowTextarea 
+              <textarea 
+                name="expectedResult"
                 value={data.expectedResult}
-                onChange={(v) => setData((prev: any) => ({ ...prev, expectedResult: v }))}
-                className="text-sm border border-gray-100 bg-gray-50/30 p-2"
+                onChange={handleChange}
+                rows={1}
+                className="w-full text-sm border border-gray-100 bg-gray-50/30 p-2 focus:border-blue-600 focus:ring-0 outline-none rounded resize-none whitespace-normal break-words"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                style={{ minHeight: '60px' }}
               />
             </div>
           </div>
@@ -237,19 +300,35 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
           <div className="grid grid-cols-2 gap-4">
             <div className="border border-green-100 bg-green-50/20 p-3 rounded-lg">
               <label className="block text-[9px] font-black text-green-700 uppercase mb-1">Incluído (Principais Entregas)</label>
-              <AutoGrowTextarea 
+              <textarea 
+                name="scopeIncluded"
                 value={data.scopeIncluded}
-                onChange={(v) => setData((prev: any) => ({ ...prev, scopeIncluded: v }))}
-                className="text-xs"
+                onChange={handleChange}
+                rows={1}
+                className="w-full text-xs bg-transparent border-none focus:ring-0 p-0 outline-none resize-none whitespace-normal break-words"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                style={{ minHeight: '80px' }}
                 placeholder="Liste o que faz parte do projeto..."
               />
             </div>
             <div className="border border-red-100 bg-red-50/20 p-3 rounded-lg">
               <label className="block text-[9px] font-black text-red-700 uppercase mb-1">Fora do Escopo (Exclusões)</label>
-              <AutoGrowTextarea 
+              <textarea 
+                name="scopeExcluded"
                 value={data.scopeExcluded}
-                onChange={(v) => setData((prev: any) => ({ ...prev, scopeExcluded: v }))}
-                className="text-xs"
+                onChange={handleChange}
+                rows={1}
+                className="w-full text-xs bg-transparent border-none focus:ring-0 p-0 outline-none resize-none whitespace-normal break-words"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+                style={{ minHeight: '80px' }}
                 placeholder="Liste o que NÃO faz parte do projeto..."
               />
             </div>
@@ -460,7 +539,6 @@ export default function ProjectCharterPMI({ onSave, initialData }: ProjectCharte
           <div>Página 1 de 1</div>
         </div>
       </div>
-    </div>
       
     <style dangerouslySetInnerHTML={{ __html: `
         @media print {

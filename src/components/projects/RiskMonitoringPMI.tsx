@@ -20,7 +20,9 @@ import {
   RefreshCw,
   Search,
   PlusCircle,
-  ArrowRight
+  ArrowRight,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -74,6 +76,9 @@ interface RiskAudit {
 interface RiskMonitoringPMIProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: () => void;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const STATUS_COLORS: Record<RiskStatus, string> = {
@@ -134,9 +139,11 @@ const INITIAL_AUDIT: RiskAudit[] = [
   { point: 'Efetividade dos planos de resposta', status: 'Não Conforme', observation: 'Plano R02 não foi suficiente para conter o impacto.' }
 ];
 
-export default function RiskMonitoringPMI({ onSave, initialData }: RiskMonitoringPMIProps) {
+export default function RiskMonitoringPMI({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: RiskMonitoringPMIProps) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'report' | 'register' | 'audit'>('dashboard');
   const [risks, setRisks] = useState<RiskMonitoring[]>(initialData?.risks || INITIAL_RISKS);
+
+  const isToolEmpty = risks.length === 0 || (risks.length === 3 && risks[0].id === 'R01' && risks[0].description === 'Atraso na entrega de equipamentos críticos');
   const [audit, setAudit] = useState<RiskAudit[]>(initialData?.audit || INITIAL_AUDIT);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>(initialData?.changeRequests || []);
   const [executiveSummary, setExecutiveSummary] = useState(initialData?.executiveSummary || 'O projeto apresenta um perfil de risco moderado, com atenção especial à disponibilidade de recursos técnicos (R02), que se tornou crítico. As ações de mitigação para riscos externos foram eficazes.');
@@ -204,6 +211,66 @@ export default function RiskMonitoringPMI({ onSave, initialData }: RiskMonitorin
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-20">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Monitorar Riscos com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Plano de Riscos" para gerar
+                Monitoramento de Riscos técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um mapeamento rigoroso e técnico.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Atualizando...</>
+                : <><Sparkles size={16} /> Monitorar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Monitorado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white p-6 border border-gray-200 rounded-xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">

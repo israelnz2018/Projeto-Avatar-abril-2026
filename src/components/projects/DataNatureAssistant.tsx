@@ -54,9 +54,11 @@ const TOOL_MATRIX: Record<string, string[]> = {
   'Discreto-Discreto': ['Histograma', 'Pareto', 'Chi Quadrado'],
 };
 
-export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI }: DataNatureAssistantProps) {
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [analyses, setAnalyses] = useState<AnalysisResult[]>(initialData?.analyses || []);
+export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: DataNatureAssistantProps & { onClearAIData?: () => void }) {
+  const d = initialData?.toolData || initialData;
+  const [description, setDescription] = useState(d?.description || '');
+  const [analyses, setAnalyses] = useState<AnalysisResult[]>(d?.analyses || []);
+  const isToolEmpty = analyses.length === 0;
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Helper to get tools based on current types
@@ -96,8 +98,9 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
 
   useEffect(() => {
     if (initialData) {
-      setDescription(initialData.description || '');
-      setAnalyses(initialData.analyses || []);
+      const toolData = initialData.toolData || initialData;
+      setDescription(toolData.description || '');
+      setAnalyses(toolData.analyses || []);
     }
   }, [initialData]);
 
@@ -186,6 +189,49 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Identificar Natureza dos Dados com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA vai analisar os dados coletados na ferramenta anterior para sugerir quais variáveis são Contínuas ou Discretas.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA analisará o plano de coleta para classificar as variáveis e sugerir ferramentas estatísticas.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm overflow-hidden">
         <div className="p-6 border-b border-[#eee] bg-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-3">

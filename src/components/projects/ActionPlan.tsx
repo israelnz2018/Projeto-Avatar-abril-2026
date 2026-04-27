@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Plus, Trash2, Settings, Edit2, Save, ChevronDown, Info } from 'lucide-react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { CheckCircle2, Plus, Trash2, Settings, Edit2, Save, ChevronDown, Info, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface Column {
@@ -17,9 +17,12 @@ interface Action {
 interface ActionPlanProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: () => void;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
-export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
+export default function ActionPlan({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ActionPlanProps) {
   const defaultColumns: Column[] = [
     { id: 'variable', title: 'Variável Estudada', type: 'text', isDefault: true },
     { id: 'what', title: 'O que?', type: 'text', isDefault: true },
@@ -44,6 +47,8 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
     ];
   });
   
+  const isToolEmpty = actions.length === 0 || (actions.length === 1 && !actions[0].variable && !actions[0].what);
+  
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [tempColumnTitle, setTempColumnTitle] = useState('');
 
@@ -63,6 +68,16 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
       ]);
     }
   }, [initialData]);
+
+  useLayoutEffect(() => {
+    // Automatically adjust height of all textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach((t) => {
+      const el = t as HTMLTextAreaElement;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    });
+  }, [actions, columns]);
 
   const addAction = () => {
     const newAction: Action = { id: crypto.randomUUID() };
@@ -131,7 +146,65 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
   };
 
   return (
-    <div className="bg-white border border-[#ccc] rounded-[4px] shadow-sm overflow-hidden w-full">
+    <div className="bg-white border border-[#ccc] rounded-[4px] shadow-sm overflow-hidden w-full animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 m-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Plano de Ação com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA vai analisar as causas raiz identificadas para sugerir ações corretivas e preventivas eficazes.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA analisará os 5 Porquês e o FMEA para sugerir as melhores ações de contramedida.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-2 px-6 pt-4">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-[#f8f9fa] border-b border-[#eee] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -256,7 +329,7 @@ export default function ActionPlan({ onSave, initialData }: ActionPlanProps) {
                       <textarea
                         value={action[col.id] || ''}
                         onChange={(e) => updateActionValue(action.id, col.id, e.target.value)}
-                        className="w-full h-full p-2.5 border-none bg-transparent focus:ring-2 focus:ring-blue-100 rounded-[4px] resize-none text-[12px] leading-relaxed transition-all whitespace-normal break-words"
+                        className="w-full h-full p-2.5 border-none bg-transparent focus:ring-2 focus:ring-blue-100 rounded-[4px] resize-none text-[12px] leading-relaxed transition-all whitespace-normal break-words overflow-hidden"
                         placeholder={`Descreva ${col.title.toLowerCase()}...`}
                         rows={1}
                         onInput={(e) => {

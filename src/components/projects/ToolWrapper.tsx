@@ -22,6 +22,7 @@ interface ToolWrapperProps {
     initialData: any;
     onGenerateAI?: (customContext?: any) => Promise<void>;
     isGeneratingAI?: boolean;
+    onClearAIData?: () => void;
   }) => React.ReactNode;
   project: any;
   availableTools: any[];
@@ -400,13 +401,6 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
         return;
       }
       onAction({ projectStartDate });
-    } else if (toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') {
-      const charterData = getToolDataByPrefix(allProjectData, 'charter') || getToolDataByPrefix(allProjectData, 'projectCharterPMI');
-      if (!charterData) {
-        toast.error("Para usar esta função, você precisa primeiro preencher e salvar o Project Charter (DMAIC ou PMI).");
-        return;
-      }
-      onAction({ useCharterData: true });
     } else if (toolId === 'improvementPlan') {
       onAction();
     } else {
@@ -532,7 +526,6 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
                 <span>
                   {toolId === 'timeline' ? 'Gerar Cronograma' : 
                    toolId === 'improvementPlan' ? 'Carregar Sugestões' : 
-                   (toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') ? 'Puxar do Charter' : 
                    toolId === 'brief' ? '2. Gerar com IA' : 'Gerar com IA'}
                 </span>
               </>
@@ -573,6 +566,16 @@ const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; 
     source: "Project Charter"
   },
   stakeholders: {
+    title: "Gerar Stakeholders com IA",
+    description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
+    source: "Project Charter"
+  },
+  projectCharterPMI: {
+    title: "Gerar Project Charter com IA",
+    description: "A IA vai gerar o contrato do projeto com meta SMART, escopo e stakeholders baseados no problema definido.",
+    source: "Entendendo o Problema"
+  },
+  stakeholderAnalysisPMI: {
     title: "Gerar Stakeholders com IA",
     description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
     source: "Project Charter"
@@ -666,6 +669,160 @@ export default function ToolWrapper({
   const [error, setError] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearKey, setClearKey] = useState(0);
+
+  const normalizeInitialData = (toolId: string, raw: any): any => {
+    if (!raw) return raw;
+    
+    // Extrai dados do toolData se existir
+    const d = raw.toolData || raw;
+    
+    // Campos que devem ser sempre arrays por ferramenta
+    const arrayFields: Record<string, string[]> = {
+      sipoc: ['suppliers', 'inputs', 'process', 'outputs', 'customers'],
+      brainstorming: ['ideas'],
+      gut: ['opportunities'],
+      rab: ['opportunities'],
+      fiveWhys: ['chains'],
+      fmea: ['items'],
+      plan5w2h: ['actions'],
+      stakeholders: ['stakeholders'],
+      dataCollection: ['items'],
+      effortImpact: ['actions'],
+      measureMatrix: ['outputs', 'causes'],
+      directObservation: ['observations'],
+      dataNature: ['analyses'],
+      improvementPlan: ['phases'],
+      sop: ['revisions', 'definitions', 'responsibilities', 'processSteps', 'flowchart', 'controlPoints', 'risks', 'records'],
+      charter: ['team', 'stakeholders', 'milestones'],
+      projectCharterPMI: ['team', 'stakeholders', 'milestones'],
+    };
+
+    const fields = arrayFields[toolId] || [];
+    const normalized = { ...d };
+
+    // Garante que campos esperados como array sejam arrays
+    fields.forEach(field => {
+      if (normalized[field] === undefined || normalized[field] === null) {
+        normalized[field] = [];
+      } else if (!Array.isArray(normalized[field])) {
+        normalized[field] = [normalized[field]];
+      }
+    });
+
+    // Normalização específica por ferramenta
+    if (toolId === 'sop') {
+      if (!normalized.header) {
+        normalized.header = {
+          title: '', code: '', version: '1.0', issueDate: '', revisionDate: '', author: '', approver: '', department: ''
+        };
+      }
+    }
+
+    if (toolId === 'charter' || toolId === 'projectCharterPMI') {
+      if (!normalized.scope) normalized.scope = { in: '', out: '' };
+      if (!normalized.impacts) normalized.impacts = { quality: '', financial: '', customer: '' };
+    }
+    if (toolId === 'measureIshikawa') {
+      if (!normalized.categories) {
+        normalized.categories = ['Método', 'Máquina', 'Medida', 'Meio Ambiente', 'Mão de Obra', 'Material'];
+      }
+      if (!normalized.causes || typeof normalized.causes !== 'object') {
+        normalized.causes = {};
+      }
+      normalized.categories.forEach((cat: string) => {
+        if (!Array.isArray(normalized.causes[cat])) {
+          normalized.causes[cat] = [];
+        }
+      });
+      if (!normalized.problem) normalized.problem = '';
+    }
+
+    if (toolId === 'brainstorming') {
+      normalized.ideas = (normalized.ideas || []).map((idea: any, idx: number) => ({
+        id: idea.id || String(idx + 1),
+        text: idea.text || idea.description || '',
+        category: idea.category || 'Método',
+        author: idea.author || 'IA LBW',
+        votes: typeof idea.votes === 'number' ? idea.votes : 0,
+      }));
+    }
+
+    if (toolId === 'fiveWhys') {
+      normalized.chains = (normalized.chains || []).map((chain: any, idx: number) => ({
+        id: chain.id || String(idx + 1),
+        problem: chain.problem || '',
+        whys: Array.isArray(chain.whys) ? chain.whys : ['', '', '', '', ''],
+        rootCause: chain.rootCause || '',
+      }));
+    }
+
+    if (toolId === 'gut' || toolId === 'rab') {
+      normalized.opportunities = (normalized.opportunities || []).map((opp: any, idx: number) => ({
+        id: opp.id || String(idx + 1),
+        description: opp.description || opp.title || '',
+        ...opp,
+      }));
+      if (!Array.isArray(normalized.columns)) {
+        normalized.columns = [];
+      }
+    }
+
+    if (toolId === 'fmea') {
+      normalized.items = (normalized.items || []).map((item: any, idx: number) => ({
+        id: item.id || String(idx + 1),
+        processStep: item.processStep || '',
+        failureMode: item.failureMode || '',
+        failureEffect: item.failureEffect || '',
+        severity: Number(item.severity) || 1,
+        causes: item.causes || '',
+        occurrence: Number(item.occurrence) || 1,
+        controls: item.controls || '',
+        detection: Number(item.detection) || 1,
+        actions: item.actions || '',
+      }));
+    }
+
+    if (toolId === 'plan5w2h') {
+      normalized.actions = (normalized.actions || []).map((action: any, idx: number) => ({
+        id: action.id || String(idx + 1),
+        variable: action.variable || '',
+        what: action.what || '',
+        why: action.why || '',
+        where: action.where || '',
+        when: action.when || '',
+        who: action.who || '',
+        how: action.how || '',
+        howMuch: action.howMuch || '',
+        status: action.status || { state: 'green', progress: '0%' },
+      }));
+    }
+
+    if (toolId === 'measureMatrix') {
+      normalized.outputs = (normalized.outputs || []).map((out: any) => ({
+        name: out.name || '',
+        importance: Number(out.importance) || 1,
+        ...out,
+      }));
+      normalized.causes = (normalized.causes || []).map((cause: any, idx: number) => ({
+        id: cause.id || `X${String(idx + 1).padStart(2, '0')}`,
+        name: cause.name || '',
+        scores: Array.isArray(cause.scores) ? cause.scores : normalized.outputs.map(() => 0),
+        effort: Number(cause.effort) || 1,
+        selected: Boolean(cause.selected),
+      }));
+    }
+
+    if (toolId === 'sipoc') {
+      normalized.suppliers = Array.isArray(normalized.suppliers) ? normalized.suppliers : [''];
+      normalized.inputs = Array.isArray(normalized.inputs) ? normalized.inputs : [''];
+      normalized.process = Array.isArray(normalized.process) ? normalized.process : ['', '', '', '', ''];
+      normalized.outputs = Array.isArray(normalized.outputs) ? normalized.outputs : [''];
+      normalized.customers = Array.isArray(normalized.customers) ? normalized.customers : [''];
+    }
+
+    return normalized;
+  };
+
   const fishboneRef = useRef<HTMLDivElement>(null);
   const [isSaved, setIsSaved] = useState<boolean>(
     !!initialData && Object.keys(initialData).length > 0
@@ -862,76 +1019,6 @@ export default function ToolWrapper({
       return;
     }
 
-    if ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && customContext?.useCharterData) {
-      setIsGeneratingData(true);
-      try {
-        // Check both DMAIC Charter and PMI Charter
-        const dmaicCharterFull = getToolDataByPrefix(allProjectData, 'charter');
-        const pmiCharterFull = getToolDataByPrefix(allProjectData, 'projectCharterPMI');
-        
-        const dmaicCharter = dmaicCharterFull?.toolData || dmaicCharterFull;
-        const pmiCharter = pmiCharterFull?.toolData || pmiCharterFull;
-        
-        console.log("DMAIC Charter found:", dmaicCharter);
-        console.log("PMI Charter found:", pmiCharter);
-
-        let stakeholdersToMap = [];
-        
-        // Try to find stakeholders in DMAIC Charter
-        if (dmaicCharter) {
-          if (Array.isArray(dmaicCharter.stakeholders) && dmaicCharter.stakeholders.length > 0) {
-            stakeholdersToMap = dmaicCharter.stakeholders;
-          } else if (Array.isArray(dmaicCharter.team) && dmaicCharter.team.length > 0) {
-            stakeholdersToMap = dmaicCharter.team;
-          }
-        }
-        
-        // If not found, try PMI Charter
-        if (stakeholdersToMap.length === 0 && pmiCharter) {
-          if (Array.isArray(pmiCharter.stakeholders) && pmiCharter.stakeholders.length > 0) {
-            stakeholdersToMap = pmiCharter.stakeholders;
-          }
-        }
-
-        if (stakeholdersToMap.length > 0) {
-          const mappedStakeholders = stakeholdersToMap
-            .filter((s: any) => s.name && s.name.trim() !== '')
-            .map((s: any) => ({
-              id: Math.random().toString(36).substr(2, 9),
-              name: s.name,
-              area: s.area || '',
-              role: s.role ? s.role.replace(':', '').trim() : 'Membro da Equipe',
-              power: 'Médio',
-              interest: 'Médio',
-              currentEngagement: 'Neutro',
-              notes: ''
-            }));
-
-          if (mappedStakeholders.length === 0) {
-            toast.error("Nenhum nome de stakeholder encontrado nos Charters. Certifique-se de preencher a coluna 'Nome'.");
-            return;
-          }
-
-          const generatedData = { stakeholders: mappedStakeholders };
-          setLocalData(generatedData);
-          setClearKey(prev => prev + 1);
-          onSave({
-            toolData: generatedData,
-            aiReport: aiReport
-          });
-          toast.success(`${mappedStakeholders.length} stakeholders importados do Project Charter!`);
-        } else {
-          toast.error("Nenhum Project Charter (DMAIC ou PMI) encontrado ou sem stakeholders definidos.");
-        }
-      } catch (error) {
-        console.error("Erro ao importar stakeholders:", error);
-        toast.error("Erro ao importar dados do Project Charter.");
-      } finally {
-        setIsGeneratingData(false);
-      }
-      return;
-    }
-
     if (toolId === 'processMap' && customContext?.useSipocData) {
       setIsGeneratingData(true);
       try {
@@ -1031,6 +1118,15 @@ export default function ToolWrapper({
         };
       }
 
+      // Special handling for stakeholders to pull from Charter or Brief
+      if ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && allProjectData) {
+        targetContext = {
+          charter: getToolDataByPrefix(allProjectData, 'charter'),
+          projectCharterPMI: getToolDataByPrefix(allProjectData, 'projectCharterPMI'),
+          brief: getToolDataByPrefix(allProjectData, 'brief')
+        };
+      }
+
       // Special handling for brainstorming to pull exclusively from requested sources
       if (toolId === 'brainstorming' && allProjectData) {
         targetContext = {
@@ -1108,11 +1204,13 @@ export default function ToolWrapper({
         { name: projectName, description: project.description },
         allProjectData
       );
-      setLocalData(generatedData);
+      const normalized = normalizeInitialData(toolId, generatedData);
+      setLocalData(normalized);
       setClearKey(prev => prev + 1); // Force remount to pass down new generated data to internal useState
       onSave({
-        toolData: generatedData,
-        aiReport: aiReport
+        toolData: normalized,
+        aiReport: aiReport,
+        isGenerated: true
       });
     } catch (error: any) {
       console.error("Erro ao gerar dados com IA:", error);
@@ -1506,15 +1604,17 @@ export default function ToolWrapper({
             onAction={(customContext) => handleGenerateData(customContext)}
             isGenerating={isGeneratingData}
             hasPreviousData={!!previousToolData}
+            allProjectData={allProjectData}
         />
       )}
 
         <div className="p-8" key={`${toolId}-${clearKey}`}>
           {children({ 
             onSave: handleToolSave, 
-            initialData: localData,
+            initialData: normalizeInitialData(toolId, localData),
             onGenerateAI: handleGenerateData,
-            isGeneratingAI: isGeneratingData
+            isGeneratingAI: isGeneratingData,
+            onClearAIData: handleClearData
           })}
         </div>
       </div>

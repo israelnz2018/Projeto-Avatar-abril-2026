@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, Save, Info, ArrowRight } from 'lucide-react';
+import { Users, Plus, Trash2, Save, Info, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 
@@ -20,31 +20,36 @@ interface Stakeholder {
 interface StakeholderManagementProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: (customContext?: any) => Promise<void>;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const ROLE_DESIRED_ENGAGEMENT: Record<string, EngagementLevel> = {
-  'Champion Executive': 'Apoiador',
-  'Champion': 'Apoiador',
+  'Champion Executive': 'Líder',
+  'Champion': 'Líder',
   'MBB': 'Líder',
-  'Money Belt': 'Neutro',
+  'Money Belt': 'Apoiador',
   'Black Belt': 'Líder',
   'Green Belt': 'Líder',
-  'Yellow Belt': 'Líder',
-  'White Belt': 'Neutro',
+  'Yellow Belt': 'Apoiador',
+  'White Belt': 'Apoiador',
   'Team Member': 'Apoiador',
-  'Process Owner': 'Apoiador',
-  'Sponsor': 'Neutro',
+  'Process Owner': 'Líder',
+  'Sponsor': 'Apoiador',
   'Focal Point': 'Apoiador',
-  'Customers': 'Desconhece',
-  'Outro': 'Neutro'
+  'Customers': 'Neutro',
+  'Outro': 'Apoiador'
 };
 
 const ROLES = Object.keys(ROLE_DESIRED_ENGAGEMENT);
 const ENGAGEMENT_LEVELS: EngagementLevel[] = ['Desconhece', 'Resistente', 'Neutro', 'Apoiador', 'Líder'];
 const LEVELS: Level[] = ['Baixo', 'Médio', 'Alto'];
 
-export default function StakeholderManagement({ onSave, initialData }: StakeholderManagementProps) {
-  const [stakeholders, setStakeholders] = useState<Stakeholder[]>(initialData?.stakeholders || []);
+export default function StakeholderManagement({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: StakeholderManagementProps) {
+  const d = initialData?.toolData || initialData;
+  const [stakeholders, setStakeholders] = useState<Stakeholder[]>(d?.stakeholders || []);
+  const isToolEmpty = stakeholders.length === 0;
 
   // Auto-resize textareas when stakeholders change
   useEffect(() => {
@@ -59,15 +64,18 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
   }, [stakeholders]);
 
   useEffect(() => {
-    if (initialData?.stakeholders) {
-      // Migrate old data if necessary (influence -> power, etc)
-      const migrated = initialData.stakeholders.map((s: any) => ({
-        ...s,
-        power: s.power || s.influence || 'Médio',
-        currentEngagement: s.currentEngagement || 'Neutro',
-        role: ROLES.includes(s.role) ? s.role : 'Outro'
-      }));
-      setStakeholders(migrated);
+    if (initialData) {
+      const data = initialData.toolData || initialData;
+      if (data.stakeholders) {
+        // Migrate old data if necessary (influence -> power, etc)
+        const migrated = data.stakeholders.map((s: any) => ({
+          ...s,
+          power: s.power || s.influence || 'Médio',
+          currentEngagement: s.currentEngagement || 'Neutro',
+          role: ROLES.includes(s.role) ? s.role : 'Outro'
+        }));
+        setStakeholders(migrated);
+      }
     }
   }, [initialData]);
 
@@ -107,46 +115,100 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
     return 'Monitorar';
   };
 
-  const getStrategyText = (classification: string) => {
+  const getStrategyText = (classification: string, name: string) => {
     switch (classification) {
-      case 'Gerenciar de Perto': return 'Reuniões frequentes, envolvimento direto nas decisões chave e comunicação proativa.';
-      case 'Manter Satisfeito': return 'Consultas periódicas, garantir que suas necessidades sejam atendidas sem sobrecarregar com detalhes.';
-      case 'Manter Informado': return 'Atualizações regulares de status, manter o interesse ativo através de comunicações claras.';
-      case 'Monitorar': return 'Acompanhamento mínimo, observar mudanças de atitude ou nível de poder ao longo do tempo.';
+      case 'Gerenciar de Perto':
+        return `Envolver ${name || 'este stakeholder'} nas decisões críticas do projeto. Reuniões semanais de alinhamento, antecipar preocupações e comunicar riscos antes que se tornem problemas.`;
+      case 'Manter Satisfeito':
+        return `Manter ${name || 'este stakeholder'} informado sobre marcos importantes sem sobrecarregar com detalhes operacionais. Foco em resultados financeiros e estratégicos.`;
+      case 'Manter Informado':
+        return `Enviar atualizações quinzenais de status para ${name || 'este stakeholder'}. Destacar como o projeto beneficia diretamente sua área de atuação.`;
+      case 'Monitorar':
+        return `Acompanhamento mínimo de ${name || 'este stakeholder'}. Observar mudanças de postura ao longo do projeto e acionar se houver sinais de resistência.`;
       default: return '';
     }
   };
 
-  const getActionPlan = (current: EngagementLevel, desired: EngagementLevel) => {
+  const getActionPlan = (current: EngagementLevel, desired: EngagementLevel, name: string, role: string) => {
     const currentIdx = ENGAGEMENT_LEVELS.indexOf(current);
     const desiredIdx = ENGAGEMENT_LEVELS.indexOf(desired);
+    const gap = desiredIdx - currentIdx;
 
-    if (currentIdx === desiredIdx) {
-      return 'O stakeholder já está no nível de engajamento ideal. Mantenha a estratégia de comunicação atual para sustentar este nível.';
-    }
-    
-    if (currentIdx > desiredIdx) {
-      return 'O stakeholder está mais engajado do que o estritamente necessário para sua função. Aproveite este engajamento positivo.';
-    }
+    if (gap === 0) return `${name || 'Stakeholder'} já está no nível ideal (${desired}). Mantenha a estratégia atual para sustentar este engajamento.`;
+    if (gap < 0) return `${name || 'Stakeholder'} está mais engajado do que o necessário para ${role}. Aproveite este engajamento — envolva em decisões relevantes para não perder o entusiasmo.`;
 
-    if (current === 'Desconhece') {
-      return 'Apresentar o projeto, seus objetivos e os benefícios esperados. Incluir em comunicações gerais de kick-off e alinhamento.';
-    }
-    if (current === 'Resistente') {
-      return 'Agendar reunião 1:1 para escuta ativa. Entender as raízes da resistência (medo de perda, falta de tempo, etc). Demonstrar como o projeto mitiga esses riscos.';
-    }
-    if (current === 'Neutro') {
-      return 'Identificar o que motiva este stakeholder (WIIFM - What is in it for me?). Mostrar os ganhos diretos para a área dele para movê-lo para Apoiador.';
-    }
-    if (current === 'Apoiador' && desired === 'Líder') {
-      return 'Dar protagonismo em entregas específicas. Convidar para co-liderar apresentações ou decisões importantes do projeto.';
-    }
+    const actions: Record<EngagementLevel, string> = {
+      'Desconhece': `Apresentar o projeto para ${name || 'este stakeholder'} com foco nos benefícios para sua área. Incluir no kick-off oficial e nas comunicações de início.`,
+      'Resistente': `Agendar conversa individual com ${name || 'este stakeholder'} para entender as preocupações reais. Escuta ativa antes de qualquer tentativa de persuasão. Mostrar como o projeto reduz — não aumenta — a carga de trabalho.`,
+      'Neutro': `Identificar o que motiva ${name || 'este stakeholder'} pessoalmente. Mostrar ganhos concretos para sua área. Convidar para participar de uma entrega específica para criar senso de pertencimento.`,
+      'Apoiador': `Dar protagonismo a ${name || 'este stakeholder'} em apresentações ou decisões importantes. Reconhecer publicamente sua contribuição para movê-lo a Líder.`,
+      'Líder': `${name || 'Stakeholder'} já é Líder. Mantenha o engajamento com responsabilidades claras e reconhecimento contínuo.`,
+    };
 
-    return 'Desenvolver plano de comunicação focado em demonstrar valor e construir confiança.';
+    return actions[current] || 'Desenvolver plano de comunicação personalizado.';
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Stakeholders com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Project Charter e Entendendo o Problema" para gerar
+                Stakeholders técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA vai mapear os prováveis stakeholders envolvidos no processo e sugerir estratégias de engajamento.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       {/* Tabela de Entrada de Dados */}
       <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm overflow-hidden">
         <div className="p-6 border-b border-[#eee] bg-gray-50 flex items-center justify-between flex-wrap gap-4">
@@ -441,6 +503,87 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
         </div>
       )}
 
+      {/* Mapa Visual Poder × Interesse */}
+      {stakeholders.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Users size={16} className="text-blue-600" />
+            </div>
+            <h3 className="font-bold text-gray-800">Mapa de Stakeholders — Poder × Interesse</h3>
+          </div>
+
+          <div className="relative border-2 border-gray-200 rounded-xl overflow-hidden" style={{ height: '320px' }}>
+            {/* Quadrantes */}
+            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
+              <div className="border-r border-b border-gray-200 bg-yellow-50 flex items-end justify-start p-2">
+                <span className="text-[10px] font-bold text-yellow-700 uppercase tracking-wider">Manter Satisfeito</span>
+              </div>
+              <div className="border-b border-gray-200 bg-green-50 flex items-end justify-end p-2">
+                <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Gerenciar de Perto</span>
+              </div>
+              <div className="border-r border-gray-200 bg-gray-50 flex items-start justify-start p-2">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Monitorar</span>
+              </div>
+              <div className="bg-blue-50 flex items-start justify-end p-2">
+                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Manter Informado</span>
+              </div>
+            </div>
+
+            {/* Eixos */}
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-[10px] font-black text-gray-400 uppercase tracking-widest" style={{ transformOrigin: 'center', marginLeft: '-28px' }}>
+              PODER
+            </div>
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+              INTERESSE →
+            </div>
+
+            {/* Stakeholders plotados */}
+            {stakeholders.map((s) => {
+              const x = s.interest === 'Alto' ? 75 : s.interest === 'Médio' ? 50 : 25;
+              const y = s.power === 'Alto' ? 25 : s.power === 'Médio' ? 50 : 75;
+              const colors: Record<string, string> = {
+                'Gerenciar de Perto': 'bg-green-500',
+                'Manter Satisfeito': 'bg-yellow-500',
+                'Manter Informado': 'bg-blue-500',
+                'Monitorar': 'bg-gray-400',
+              };
+              const classification = getClassification(s.power, s.interest);
+              return (
+                <div
+                  key={s.id}
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                >
+                  <div className={`w-8 h-8 rounded-full ${colors[classification]} flex items-center justify-center text-white text-[9px] font-black shadow-md border-2 border-white`}>
+                    {(s.name || '?').substring(0, 2).toUpperCase()}
+                  </div>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-800 text-white text-[10px] rounded-lg px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                    {s.name || 'Sem nome'} — {classification}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Legenda */}
+          <div className="flex flex-wrap gap-3 mt-3">
+            {[
+              { label: 'Gerenciar de Perto', color: 'bg-green-500' },
+              { label: 'Manter Satisfeito', color: 'bg-yellow-500' },
+              { label: 'Manter Informado', color: 'bg-blue-500' },
+              { label: 'Monitorar', color: 'bg-gray-400' },
+            ].map(item => (
+              <div key={item.label} className="flex items-center gap-1.5">
+                <div className={`w-3 h-3 rounded-full ${item.color}`} />
+                <span className="text-[10px] text-gray-600 font-medium">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Plano de Engajamento (Report) */}
       {stakeholders.length > 0 && (
         <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm p-6">
@@ -481,11 +624,11 @@ export default function StakeholderManagement({ onSave, initialData }: Stakehold
                     <div className="text-xs text-gray-700 space-y-2">
                       <p>
                         <strong className="text-gray-900">Estratégia Macro:</strong><br/>
-                        <span className="text-gray-600">{getStrategyText(classification)}</span>
+                        <span className="text-gray-600">{getStrategyText(classification, s.name)}</span>
                       </p>
                       <p>
                         <strong className="text-gray-900">Ação Recomendada (Gap):</strong><br/>
-                        <span className="text-gray-600">{getActionPlan(s.currentEngagement, desired)}</span>
+                        <span className="text-gray-600">{getActionPlan(s.currentEngagement, desired, s.name, s.role)}</span>
                       </p>
                     </div>
                   </div>

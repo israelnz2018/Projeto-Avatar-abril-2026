@@ -12,7 +12,9 @@ import {
   Settings,
   ShieldAlert,
   Activity,
-  TrendingUp
+  TrendingUp,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -44,6 +46,9 @@ interface Thresholds {
 interface ProcessFMEAProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: (customContext?: any) => Promise<void>;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const SEVERITY_TABLE = [
@@ -85,18 +90,19 @@ const DETECTION_TABLE = [
   { score: 1, title: "Quase Certa", desc: "Controle certamente detectará a falha." }
 ];
 
-export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
+export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ProcessFMEAProps) {
+  const d = initialData?.toolData || initialData;
   const [activeTab, setActiveTab] = useState<'fmea' | 'reference' | 'config' | 'explanation'>('fmea');
-  const [fontSize, setFontSize] = useState(initialData?.fontSize || 11);
-  const [lineHeight, setLineHeight] = useState(initialData?.lineHeight || 40);
+  const [fontSize, setFontSize] = useState(d?.fontSize || 11);
+  const [lineHeight, setLineHeight] = useState(d?.lineHeight || 40);
   
-  const [thresholds, setThresholds] = useState<Thresholds>(initialData?.thresholds || {
+  const [thresholds, setThresholds] = useState<Thresholds>(d?.thresholds || {
     rpn: { green: 80, yellow: 150 },
     severity: { green: 6, yellow: 8 },
     criticality: { green: 20, yellow: 40 },
   });
 
-  const [rows, setRows] = useState<FMEARow[]>(initialData?.rows || [
+  const [rows, setRows] = useState<FMEARow[]>(d?.rows || [
     {
       id: '1',
       processStep: '',
@@ -116,6 +122,7 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
       newDetection: 1
     }
   ]);
+  const isToolEmpty = rows.length === 0 || (rows.length === 1 && !rows[0].processStep && !rows[0].failureMode);
 
   // Auto-resize textareas when rows or active tab change
   useEffect(() => {
@@ -130,17 +137,20 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
   }, [rows, activeTab]);
 
   useEffect(() => {
-    if (initialData?.rows) {
-      setRows(initialData.rows);
-    }
-    if (initialData?.thresholds) {
-      setThresholds(initialData.thresholds);
-    }
-    if (initialData?.fontSize) {
-      setFontSize(initialData.fontSize);
-    }
-    if (initialData?.lineHeight) {
-      setLineHeight(initialData.lineHeight);
+    if (initialData) {
+      const data = initialData.toolData || initialData;
+      if (data.rows) {
+        setRows(data.rows);
+      }
+      if (data.thresholds) {
+        setThresholds(data.thresholds);
+      }
+      if (data.fontSize) {
+        setFontSize(data.fontSize);
+      }
+      if (data.lineHeight) {
+        setLineHeight(data.lineHeight);
+      }
     }
   }, [initialData]);
 
@@ -229,7 +239,68 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
   };
 
   return (
-    <div className="bg-white border border-[#ccc] rounded-[4px] shadow-sm overflow-hidden w-full">
+    <div className="space-y-8 w-full">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Process FMEA com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Mapa de Processo e Matriz Causa e Efeito" para gerar
+                Process FMEA técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                uma identificação rigorosa de riscos.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white border border-[#ccc] rounded-[4px] shadow-sm overflow-hidden w-full">
       {/* Header & Tabs */}
       <div className="bg-[#f8f9fa] border-b border-[#eee] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1006,5 +1077,6 @@ export default function ProcessFMEA({ onSave, initialData }: ProcessFMEAProps) {
         </button>
       </div>
     </div>
-  );
+  </div>
+);
 }

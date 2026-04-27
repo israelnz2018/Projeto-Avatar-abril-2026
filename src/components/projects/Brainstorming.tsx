@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpCircle, Target, Edit2, X as CloseIcon } from 'lucide-react';
+import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpCircle, Target, Edit2, X as CloseIcon, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface BrainstormingProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: (customContext?: any) => Promise<void>;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 interface Idea {
@@ -23,19 +26,22 @@ const BRAINSTORMING_TYPES = [
   'Identificação de riscos'
 ];
 
-export default function Brainstorming({ onSave, initialData }: BrainstormingProps) {
-  const [brainstormingType, setBrainstormingType] = useState(initialData?.brainstormingType || BRAINSTORMING_TYPES[0]);
-  const [brainstormingTopic, setBrainstormingTopic] = useState(initialData?.brainstormingTopic || '');
-  const [ideas, setIdeas] = useState<Idea[]>(initialData?.ideas || []);
+export default function Brainstorming({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: BrainstormingProps) {
+  const defaultData = initialData?.toolData || initialData;
+  const [brainstormingType, setBrainstormingType] = useState(defaultData?.brainstormingType || BRAINSTORMING_TYPES[0]);
+  const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || '');
+  const [ideas, setIdeas] = useState<Idea[]>(defaultData?.ideas || []);
+  const isToolEmpty = ideas.length === 0;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editAuthor, setEditAuthor] = useState('');
 
   useEffect(() => {
     if (initialData) {
-      if (initialData.ideas) setIdeas(initialData.ideas);
-      if (initialData.brainstormingType) setBrainstormingType(initialData.brainstormingType);
-      if (initialData.brainstormingTopic) setBrainstormingTopic(initialData.brainstormingTopic);
+      const d = initialData.toolData || initialData;
+      if (d.ideas) setIdeas(d.ideas);
+      if (d.brainstormingType) setBrainstormingType(d.brainstormingType);
+      if (d.brainstormingTopic) setBrainstormingTopic(d.brainstormingTopic);
     } else {
       // Reset to defaults if initialData is null/undefined
       setIdeas([]);
@@ -99,6 +105,66 @@ export default function Brainstorming({ onSave, initialData }: BrainstormingProp
 
   return (
     <div className="space-y-8">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Brainstorming com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Entendendo o Problema e SIPOC" para gerar
+                Brainstorming técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um Brainstorming rigoroso e técnico.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8">
         <div className="flex items-center gap-3 border-b border-[#eee] pb-4">
           <Lightbulb className="text-yellow-500" size={24} />

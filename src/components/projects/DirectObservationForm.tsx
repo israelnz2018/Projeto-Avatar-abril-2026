@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Sparkles,
   Search,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,6 +36,7 @@ interface DirectObservationFormProps {
   allProjectData?: any;
   onGenerateAI?: (prompt?: string) => void;
   isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const HeaderRow = ({ title, className, isCompleted }: { title: string; className?: string; isCompleted?: boolean }) => (
@@ -66,7 +68,8 @@ const HeaderRow = ({ title, className, isCompleted }: { title: string; className
   </div>
 );
 
-export default function DirectObservationForm({ onSave, initialData, allProjectData, onGenerateAI, isGeneratingAI }: DirectObservationFormProps) {
+export default function DirectObservationForm({ onSave, initialData, allProjectData, onGenerateAI, isGeneratingAI, onClearAIData }: DirectObservationFormProps) {
+  const d = initialData?.toolData || initialData;
   // Qualitative variables from Data Collection Plan
   const qualitativeOptions = React.useMemo(() => {
     const dcData = allProjectData?.dataCollection?.toolData || allProjectData?.dataCollection;
@@ -79,8 +82,8 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   }, [allProjectData?.dataCollection]);
 
   const [observations, setObservations] = useState<ObservationEntry[]>(() => {
-    if (initialData?.observations) {
-      return initialData.observations;
+    if (d?.observations) {
+      return d.observations;
     }
     return [
       {
@@ -94,34 +97,39 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
     ];
   });
 
+  const isToolEmpty = observations.length === 0 || (observations.length === 1 && !observations[0].variable && !observations[0].observationDescription);
+
   // Sync with initialData (important for AI generation and Clearing)
   useEffect(() => {
-    if (initialData?.observations && initialData.observations.length > 0) {
-      setObservations(initialData.observations);
-    } else if (initialData === null || (initialData?.observations && initialData.observations.length === 0)) {
-      // If we have qualitative variables, auto-populate them instead of showing prompt
-      if (qualitativeOptions.length > 0) {
-        const autoObservations: ObservationEntry[] = qualitativeOptions.map((opt: any) => ({
-          id: `auto-${Math.random().toString(36).substr(2, 9)}`,
-          variable: opt.variable || 'Variável sem nome',
-          operationalDefinition: opt.definition || '',
-          identifiedCause: false,
-          observationDescription: '',
-          images: []
-        }));
-        setObservations(autoObservations);
-      } else {
-        // EXPLICIT RESET when parent sends null (Clear Data button)
-        setObservations([
-          {
-            id: 'default-' + Date.now(),
-            variable: '',
-            operationalDefinition: '',
+    if (initialData) {
+      const toolData = initialData.toolData || initialData;
+      if (toolData.observations && toolData.observations.length > 0) {
+        setObservations(toolData.observations);
+      } else if (toolData === null || (toolData.observations && toolData.observations.length === 0)) {
+        // If we have qualitative variables, auto-populate them instead of showing prompt
+        if (qualitativeOptions.length > 0) {
+          const autoObservations: ObservationEntry[] = qualitativeOptions.map((opt: any) => ({
+            id: `auto-${Math.random().toString(36).substr(2, 9)}`,
+            variable: opt.variable || 'Variável sem nome',
+            operationalDefinition: opt.definition || '',
             identifiedCause: false,
             observationDescription: '',
             images: []
-          }
-        ]);
+          }));
+          setObservations(autoObservations);
+        } else {
+          // EXPLICIT RESET when parent sends null (Clear Data button)
+          setObservations([
+            {
+              id: 'default-' + Date.now(),
+              variable: '',
+              operationalDefinition: '',
+              identifiedCause: false,
+              observationDescription: '',
+              images: []
+            }
+          ]);
+        }
       }
     }
   }, [initialData, qualitativeOptions]);
@@ -206,7 +214,65 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   const isCompleted = observations.length > 0 && observations.every(o => o.observationDescription.trim() !== '');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Hipóteses de Observação com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA vai analisar as variáveis qualitativas para sugerir o que deve ser observado no Gemba (chão de fábrica).
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA sugerirá cenários reais de observação para cada variável qualitativa definida no plano de coleta.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <HeaderRow title="Observação Direta" isCompleted={isCompleted} className="flex-1" />
       </div>

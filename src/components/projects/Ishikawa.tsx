@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, HelpCircle, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface IshikawaProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: (customContext?: any) => Promise<void>;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
-export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
+export default function Ishikawa({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: IshikawaProps) {
+  const d = initialData?.toolData || initialData;
   const [categories, setCategories] = useState<string[]>(
-    initialData?.categories || ['Método', 'Máquina', 'Medida', 'Meio Ambiente', 'Mão de Obra', 'Material']
+    d?.categories || ['Método', 'Máquina', 'Medida', 'Meio Ambiente', 'Mão de Obra', 'Material']
   );
   const [causes, setCauses] = useState<Record<string, string[]>>(
-    initialData?.causes || {
+    d?.causes || {
       'Método': [],
       'Máquina': [],
       'Medida': [],
@@ -21,13 +25,16 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
       'Material': [],
     }
   );
-  const [problem, setProblem] = useState(initialData?.problem || "Efeito/Problema Principal");
+  const [problem, setProblem] = useState(d?.problem || "Efeito/Problema Principal");
+
+  const isToolEmpty = Object.values(causes).every(list => list.length === 0);
 
   useEffect(() => {
     if (initialData) {
-      if (initialData.categories) setCategories(initialData.categories);
-      if (initialData.causes) setCauses(initialData.causes);
-      if (initialData.problem) setProblem(initialData.problem);
+      const data = initialData.toolData || initialData;
+      if (data.categories) setCategories(data.categories);
+      if (data.causes) setCauses(data.causes);
+      if (data.problem) setProblem(data.problem);
     } else {
       // Reset to defaults
       setCategories(['Método', 'Máquina', 'Medida', 'Meio Ambiente', 'Mão de Obra', 'Material']);
@@ -84,7 +91,68 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
   };
 
   return (
-    <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8">
+    <div className="space-y-8">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Espinha de Peixe com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Brainstorming" para gerar
+                Espinha de Peixe técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um mapeamento rigoroso e técnico.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8">
       <div className="flex items-center gap-3 border-b border-[#eee] pb-4">
         <HelpCircle className="text-[#3b82f6]" size={24} />
         <h2 className="text-[1.25rem] font-bold text-[#333]">Diagrama de Ishikawa (Espinha de Peixe)</h2>
@@ -224,5 +292,6 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
         </button>
       </div>
     </div>
-  );
+  </div>
+);
 }

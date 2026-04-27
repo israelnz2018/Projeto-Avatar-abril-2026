@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Info, Plus, Trash2, HelpCircle, BarChart2 } from 'lucide-react';
+import { CheckCircle2, Info, Plus, Trash2, HelpCircle, BarChart2, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { 
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, 
@@ -11,15 +11,20 @@ interface CauseEffectMatrixProps {
   onSave: (data: any) => void;
   initialData?: any;
   title?: string;
+  onGenerateAI?: (customContext?: any) => Promise<void>;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
-export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz de Causa e Efeito" }: CauseEffectMatrixProps) {
-  const [outputs, setOutputs] = useState<any[]>(initialData?.outputs || [
+export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz de Causa e Efeito", onGenerateAI, isGeneratingAI, onClearAIData }: CauseEffectMatrixProps) {
+  const d = initialData?.toolData || initialData;
+  const [outputs, setOutputs] = useState<any[]>(d?.outputs || [
     { name: 'Produtividade', importance: 10 },
     { name: 'Defeitos', importance: 8 },
   ]);
   
-  const [causes, setCauses] = useState<any[]>(initialData?.causes || []);
+  const [causes, setCauses] = useState<any[]>(d?.causes || []);
+  const isToolEmpty = causes.length === 0;
   const [view, setView] = useState<'matrix' | 'scatter' | 'pareto'>('matrix');
 
   // Auto-resize textareas when causes or view change
@@ -35,16 +40,19 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
   }, [causes, view]);
 
   useEffect(() => {
-    if (initialData?.outputs) {
-      setOutputs(initialData.outputs);
-    }
-    if (initialData?.causes) {
-      // Ensure all causes have a selected property
-      const causesWithSelected = initialData.causes.map((c: any) => ({
-        ...c,
-        selected: c.selected || false
-      }));
-      setCauses(causesWithSelected);
+    if (initialData) {
+      const data = initialData.toolData || initialData;
+      if (data.outputs) {
+        setOutputs(data.outputs);
+      }
+      if (data.causes) {
+        // Ensure all causes have a selected property
+        const causesWithSelected = data.causes.map((c: any) => ({
+          ...c,
+          selected: c.selected || false
+        }));
+        setCauses(causesWithSelected);
+      }
     }
   }, [initialData]);
 
@@ -150,7 +158,68 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
     });
 
   return (
-    <div className="bg-white border border-[#ccc] rounded-[4px] shadow-sm overflow-hidden">
+    <div className="space-y-6">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar Matriz Causa e Efeito com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Espinha de Peixe e Project Charter" para gerar
+                Matriz Causa e Efeito técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
+                um cruzamento rigoroso e técnico.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white border border-[#ccc] rounded-[4px] shadow-sm overflow-hidden">
       {/* Header matching image style */}
       <div className="bg-[#f0f4f8] border-b border-[#ccc] p-6 text-center">
         <div className="flex justify-between items-center mb-2">
@@ -545,5 +614,6 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

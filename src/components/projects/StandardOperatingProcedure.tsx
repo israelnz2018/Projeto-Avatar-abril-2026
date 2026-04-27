@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Info, Plus, Trash2, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { Save, Info, Plus, Trash2, FileText, ChevronDown, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
-import { useA4Table } from '@/src/hooks/useA4Table';
-import { ResizableCell, AutoGrowTextarea } from './ResizableCell';
 
 interface SOPHeader {
   title: string;
@@ -85,6 +83,9 @@ interface SOPData {
 interface SOPProps {
   onSave: (data: any) => void;
   initialData?: any;
+  onGenerateAI?: (customContext?: any) => Promise<void>;
+  isGeneratingAI?: boolean;
+  onClearAIData?: () => void;
 }
 
 const DEFAULT_DATA: SOPData = {
@@ -113,58 +114,34 @@ const DEFAULT_DATA: SOPData = {
   attachments: ''
 };
 
-export default function StandardOperatingProcedure({ onSave, initialData }: SOPProps) {
-  const [data, setData] = useState<SOPData>(initialData?.header ? initialData : DEFAULT_DATA);
+export default function StandardOperatingProcedure({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: SOPProps) {
+  const d = initialData?.toolData || initialData;
+  const [data, setData] = useState<SOPData>(d?.header ? d : DEFAULT_DATA);
+  const isToolEmpty = !data.header.title && !data.objective && (data.processSteps.length <= 1 && !data.processSteps[0]?.description);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     header: true, revisions: false, objective: false, scope: false, definitions: false,
     responsibilities: false, processSteps: true, flowchart: false, controlPoints: false,
     risks: false, records: false, review: false, attachments: false
   });
 
-  const sopTable = useA4Table({
-    col1: 200,
-    col2: 600,
-    col3: 200
-  });
-
-  const revisionTable = useA4Table({
-    version: 100,
-    date: 150,
-    description: 500,
-    responsible: 200
-  });
-
-  const definitionsTable = useA4Table({
-    term: 300,
-    definition: 700
-  });
-
-  const responsibilitiesTable = useA4Table({
-    role: 300,
-    responsibility: 700
-  });
-
-  const controlPointsTable = useA4Table({
-    step: 300,
-    criteria: 700
-  });
-
-  const risksTable = useA4Table({
-    risk: 450,
-    control: 550
-  });
-
-  const recordsTable = useA4Table({
-    name: 300,
-    location: 300,
-    retention: 200
-  });
-
   useEffect(() => {
-    if (initialData?.header) {
-      setData(initialData);
+    if (initialData) {
+      const toolData = initialData.toolData || initialData;
+      if (toolData?.header) {
+        setData(toolData);
+      }
     }
   }, [initialData]);
+
+  useLayoutEffect(() => {
+    // Automatically adjust height of all textareas
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach((t) => {
+      const el = t as HTMLTextAreaElement;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    });
+  }, [data, expandedSections]);
 
   const handleSave = () => {
     onSave(data);
@@ -214,7 +191,67 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 flex items-start gap-6">
+    <div className="space-y-6">
+      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
+      {isToolEmpty && onGenerateAI && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar POP com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA analisará os dados da ferramenta "Mapa de Processo e Plano de Ação" para gerar
+                POP técnico e específico para este projeto.
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * A IA vai gerar um rascunho completo do POP (Objetivos, Escopo, Passo a passo e Responsabilidades) baseado no novo processo.
+              </p>
+            </div>
+            <button
+              onClick={() => onGenerateAI?.()}
+              disabled={isGeneratingAI}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGeneratingAI
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGeneratingAI
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Indicador de IA */}
+      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
+        <div className="flex items-center justify-between mb-4 px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
+                onClearAIData?.();
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <Trash2 size={13} />
+            Limpar dados da IA
+          </button>
+        </div>
+      )}
+
+      <div className="animate-in fade-in duration-500 flex items-start gap-6">
       
       {/* Sidebar Index */}
       <div className="w-64 shrink-0 sticky top-6 hidden lg:block">
@@ -258,28 +295,7 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6" style={{ maxWidth: '1123px' }}>
-        <div className="flex items-center justify-between mb-3 px-2 no-print">
-          <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
-            Procedimento Operacional
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all ${
-                  sopTable.totalWidth >= sopTable.A4_MAX_WIDTH - 50 
-                    ? 'bg-orange-500' 
-                    : 'bg-green-500'
-                }`}
-                style={{ width: `${(sopTable.totalWidth / sopTable.A4_MAX_WIDTH) * 100}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              {Math.round((sopTable.totalWidth / sopTable.A4_MAX_WIDTH) * 100)}% A4
-            </span>
-          </div>
-        </div>
-
+      <div className="flex-1 space-y-6">
         <div className="bg-white border border-[#ccc] rounded-[8px] shadow-sm overflow-hidden min-h-[297mm] print:border-none print:shadow-none">
           <div className="p-6 border-b border-[#eee] bg-gray-50 flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
@@ -347,31 +363,41 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="revisions" title="Controle de Versão" index={2} />
               {expandedSections.revisions && (
                 <div className="p-6">
-                  <table className="w-full text-left border-collapse mb-4">
+                  <table className="w-full text-left border-collapse mb-4 border border-gray-200">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <ResizableCell width={revisionTable.columnWidths.version} isHeader onColResize={(e) => revisionTable.startColResize(e, 'version')} className="text-xs font-bold text-gray-600">Versão</ResizableCell>
-                        <ResizableCell width={revisionTable.columnWidths.date} isHeader onColResize={(e) => revisionTable.startColResize(e, 'date')} className="text-xs font-bold text-gray-600">Data</ResizableCell>
-                        <ResizableCell width={revisionTable.columnWidths.description} isHeader onColResize={(e) => revisionTable.startColResize(e, 'description')} className="text-xs font-bold text-gray-600">Descrição da Mudança</ResizableCell>
-                        <ResizableCell width={revisionTable.columnWidths.responsible} isHeader onColResize={(e) => revisionTable.startColResize(e, 'responsible')} className="text-xs font-bold text-gray-600">Responsável</ResizableCell>
-                        <th className="p-2 border border-gray-200"></th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-24">Versão</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-32">Data</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600">Descrição da Mudança</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-40">Responsável</th>
+                        <th className="p-2 border border-gray-200 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.revisions.map((rev) => (
                         <tr key={rev.id} className="border-b border-gray-100">
-                          <ResizableCell width={revisionTable.columnWidths.version} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
-                            <AutoGrowTextarea value={rev.version} onChange={v => updateArrayItem('revisions', rev.id, 'version', v)} className="text-xs" />
-                          </ResizableCell>
-                          <ResizableCell width={revisionTable.columnWidths.date} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
+                          <td className="p-2 border border-gray-200">
+                            <input type="text" value={rev.version} onChange={e => updateArrayItem('revisions', rev.id, 'version', e.target.value)} className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent" />
+                          </td>
+                          <td className="p-2 border border-gray-200">
                              <input type="date" value={rev.date} onChange={e => updateArrayItem('revisions', rev.id, 'date', e.target.value)} className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent" />
-                          </ResizableCell>
-                          <ResizableCell width={revisionTable.columnWidths.description} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
-                            <AutoGrowTextarea value={rev.description} onChange={v => updateArrayItem('revisions', rev.id, 'description', v)} className="text-xs" />
-                          </ResizableCell>
-                          <ResizableCell width={revisionTable.columnWidths.responsible} onRowResize={(e) => revisionTable.startRowResize(e, rev.id)}>
-                            <AutoGrowTextarea value={rev.responsible} onChange={v => updateArrayItem('revisions', rev.id, 'responsible', v)} className="text-xs" />
-                          </ResizableCell>
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={rev.description} 
+                              onChange={e => updateArrayItem('revisions', rev.id, 'description', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent resize-none leading-tight overflow-hidden"
+                              onInput={(e) => {
+                                const target = e.target as HTMLTextAreaElement;
+                                target.style.height = 'auto';
+                                target.style.height = `${target.scrollHeight}px`;
+                              }}
+                              rows={1}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <input type="text" value={rev.responsible} onChange={e => updateArrayItem('revisions', rev.id, 'responsible', e.target.value)} className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent" />
+                          </td>
                           <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('revisions', rev.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
@@ -392,11 +418,17 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               {expandedSections.objective && (
                 <div className="p-6">
                   <p className="text-xs text-gray-500 mb-2">Descreva para que serve este procedimento e qual problema ele resolve.</p>
-                  <AutoGrowTextarea 
+                  <textarea 
                     value={data.objective} 
-                    onChange={v => updateField('objective', v)} 
-                    className="border border-gray-300 rounded p-2 text-sm"
+                    onChange={e => updateField('objective', e.target.value)} 
+                    className="w-full border border-gray-300 rounded p-2 text-sm resize-none"
                     placeholder="Este procedimento tem como objetivo padronizar a execução de..."
+                    rows={1}
+                    onInput={(e) => {
+                      const t = e.target as HTMLTextAreaElement;
+                      t.style.height = 'auto';
+                      t.style.height = t.scrollHeight + 'px';
+                    }}
                   />
                 </div>
               )}
@@ -408,11 +440,17 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               {expandedSections.scope && (
                 <div className="p-6">
                   <p className="text-xs text-gray-500 mb-2">Onde se aplica, quem deve usar e quais os limites do procedimento.</p>
-                  <AutoGrowTextarea 
+                  <textarea 
                     value={data.scope} 
-                    onChange={v => updateField('scope', v)} 
-                    className="border border-gray-300 rounded p-2 text-sm"
+                    onChange={e => updateField('scope', e.target.value)} 
+                    className="w-full border border-gray-300 rounded p-2 text-sm resize-none"
                     placeholder="Aplica-se a todos os operadores da linha de montagem X..."
+                    rows={1}
+                    onInput={(e) => {
+                      const t = e.target as HTMLTextAreaElement;
+                      t.style.height = 'auto';
+                      t.style.height = t.scrollHeight + 'px';
+                    }}
                   />
                 </div>
               )}
@@ -423,23 +461,43 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="definitions" title="Definições e Siglas" index={5} />
               {expandedSections.definitions && (
                 <div className="p-6">
-                  <table className="w-full text-left border-collapse mb-4">
+                  <table className="w-full text-left border-collapse mb-4 border border-gray-200">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <ResizableCell width={definitionsTable.columnWidths.term} isHeader onColResize={(e) => definitionsTable.startColResize(e, 'term')} className="text-xs font-bold text-gray-600">Termo / Sigla</ResizableCell>
-                        <ResizableCell width={definitionsTable.columnWidths.definition} isHeader onColResize={(e) => definitionsTable.startColResize(e, 'definition')} className="text-xs font-bold text-gray-600">Definição</ResizableCell>
-                        <th className="p-2 border border-gray-200"></th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-1/3">Termo / Sigla</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600">Definição</th>
+                        <th className="p-2 border border-gray-200 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.definitions.map((def) => (
                         <tr key={def.id} className="border-b border-gray-100">
-                          <ResizableCell width={definitionsTable.columnWidths.term} onRowResize={(e) => definitionsTable.startRowResize(e, def.id)}>
-                            <AutoGrowTextarea value={def.term} onChange={v => updateArrayItem('definitions', def.id, 'term', v)} className="text-xs" />
-                          </ResizableCell>
-                          <ResizableCell width={definitionsTable.columnWidths.definition} onRowResize={(e) => definitionsTable.startRowResize(e, def.id)}>
-                            <AutoGrowTextarea value={def.definition} onChange={v => updateArrayItem('definitions', def.id, 'definition', v)} className="text-xs" />
-                          </ResizableCell>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={def.term} 
+                              onChange={e => updateArrayItem('definitions', def.id, 'term', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent resize-none"
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={def.definition} 
+                              onChange={e => updateArrayItem('definitions', def.id, 'definition', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent resize-none"
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
                           <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('definitions', def.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
                           </td>
@@ -459,23 +517,43 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="responsibilities" title="Responsabilidades" index={6} />
               {expandedSections.responsibilities && (
                 <div className="p-6">
-                  <table className="w-full text-left border-collapse mb-4">
+                  <table className="w-full text-left border-collapse mb-4 border border-gray-200">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <ResizableCell width={responsibilitiesTable.columnWidths.role} isHeader onColResize={(e) => responsibilitiesTable.startColResize(e, 'role')} className="text-xs font-bold text-gray-600">Papel</ResizableCell>
-                        <ResizableCell width={responsibilitiesTable.columnWidths.responsibility} isHeader onColResize={(e) => responsibilitiesTable.startColResize(e, 'responsibility')} className="text-xs font-bold text-gray-600">Responsabilidade</ResizableCell>
-                        <th className="p-2 border border-gray-200"></th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-1/3">Papel</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600">Responsabilidade</th>
+                        <th className="p-2 border border-gray-200 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.responsibilities.map((resp) => (
                         <tr key={resp.id} className="border-b border-gray-100">
-                          <ResizableCell width={responsibilitiesTable.columnWidths.role} onRowResize={(e) => responsibilitiesTable.startRowResize(e, resp.id)}>
-                            <AutoGrowTextarea value={resp.role} onChange={v => updateArrayItem('responsibilities', resp.id, 'role', v)} className="text-xs font-medium" />
-                          </ResizableCell>
-                          <ResizableCell width={responsibilitiesTable.columnWidths.responsibility} onRowResize={(e) => responsibilitiesTable.startRowResize(e, resp.id)}>
-                            <AutoGrowTextarea value={resp.responsibility} onChange={v => updateArrayItem('responsibilities', resp.id, 'responsibility', v)} className="text-xs" />
-                          </ResizableCell>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={resp.role} 
+                              onChange={e => updateArrayItem('responsibilities', resp.id, 'role', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent font-medium resize-none overflow-hidden"
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={resp.responsibility} 
+                              onChange={e => updateArrayItem('responsibilities', resp.id, 'responsibility', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-xs bg-transparent resize-none"
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
                           <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('responsibilities', resp.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
                           </td>
@@ -506,7 +584,7 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
                           value={step.description} 
                           onChange={e => updateArrayItem('processSteps', step.id, 'description', e.target.value)} 
                           placeholder="Descreva a ação a ser executada..." 
-                          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm min-h-[60px] focus:ring-1 focus:ring-blue-500 outline-none" 
+                          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm min-h-[60px] focus:ring-1 focus:ring-blue-500 outline-none resize-none overflow-hidden" 
                         />
                         <button onClick={() => removeArrayItem('processSteps', step.id)} className="mt-2 text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16} /></button>
                       </div>
@@ -567,23 +645,45 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="controlPoints" title="Pontos de Controle" index={9} />
               {expandedSections.controlPoints && (
                 <div className="p-6">
-                  <table className="w-full text-left border-collapse mb-4">
+                  <table className="w-full text-left border-collapse mb-4 border border-gray-200">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <ResizableCell width={controlPointsTable.columnWidths.step} isHeader onColResize={(e) => controlPointsTable.startColResize(e, 'step')} className="text-xs font-bold text-gray-600">Onde Validar (Etapa)</ResizableCell>
-                        <ResizableCell width={controlPointsTable.columnWidths.criteria} isHeader onColResize={(e) => controlPointsTable.startColResize(e, 'criteria')} className="text-xs font-bold text-gray-600">Critérios de Aceitação / Checkpoint</ResizableCell>
-                        <th className="p-2 border border-gray-200"></th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-1/3">Onde Validar (Etapa)</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600">Critérios de Aceitação / Checkpoint</th>
+                        <th className="p-2 border border-gray-200 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.controlPoints.map((cp) => (
                         <tr key={cp.id} className="border-b border-gray-100">
-                          <ResizableCell width={controlPointsTable.columnWidths.step} onRowResize={(e) => controlPointsTable.startRowResize(e, cp.id)}>
-                            <AutoGrowTextarea value={cp.step} onChange={v => updateArrayItem('controlPoints', cp.id, 'step', v)} className="text-sm" placeholder="Ex: Após etapa 3" />
-                          </ResizableCell>
-                          <ResizableCell width={controlPointsTable.columnWidths.criteria} onRowResize={(e) => controlPointsTable.startRowResize(e, cp.id)}>
-                            <AutoGrowTextarea value={cp.criteria} onChange={v => updateArrayItem('controlPoints', cp.id, 'criteria', v)} className="text-sm" placeholder="Ex: Temperatura deve estar entre 80-85°C" />
-                          </ResizableCell>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={cp.step} 
+                              onChange={e => updateArrayItem('controlPoints', cp.id, 'step', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: Após etapa 3" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={cp.criteria} 
+                              onChange={e => updateArrayItem('controlPoints', cp.id, 'criteria', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: Temperatura deve estar entre 80-85°C" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
                           <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('controlPoints', cp.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
@@ -603,23 +703,45 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="risks" title="Riscos e Controles Preventivos" index={10} />
               {expandedSections.risks && (
                 <div className="p-6">
-                  <table className="w-full text-left border-collapse mb-4">
+                  <table className="w-full text-left border-collapse mb-4 border border-gray-200">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <ResizableCell width={risksTable.columnWidths.risk} isHeader onColResize={(e) => risksTable.startColResize(e, 'risk')} className="text-xs font-bold text-gray-600">Risco / Possível Falha</ResizableCell>
-                        <ResizableCell width={risksTable.columnWidths.control} isHeader onColResize={(e) => risksTable.startColResize(e, 'control')} className="text-xs font-bold text-gray-600">Controle Preventivo / Mitigação</ResizableCell>
-                        <th className="p-2 border border-gray-200"></th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-[45%]">Risco / Possível Falha</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600">Controle Preventivo / Mitigação</th>
+                        <th className="p-2 border border-gray-200 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.risks.map((risk) => (
                         <tr key={risk.id} className="border-b border-gray-100">
-                          <ResizableCell width={risksTable.columnWidths.risk} onRowResize={(e) => risksTable.startRowResize(e, risk.id)}>
-                            <AutoGrowTextarea value={risk.risk} onChange={v => updateArrayItem('risks', risk.id, 'risk', v)} className="text-sm" placeholder="Ex: Esquecer de calibrar a balança" />
-                          </ResizableCell>
-                          <ResizableCell width={risksTable.columnWidths.control} onRowResize={(e) => risksTable.startRowResize(e, risk.id)}>
-                            <AutoGrowTextarea value={risk.control} onChange={v => updateArrayItem('risks', risk.id, 'control', v)} className="text-sm" placeholder="Ex: Checklist obrigatório no início do turno" />
-                          </ResizableCell>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={risk.risk} 
+                              onChange={e => updateArrayItem('risks', risk.id, 'risk', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: Esquecer de calibrar a balança" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={risk.control} 
+                              onChange={e => updateArrayItem('risks', risk.id, 'control', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: Checklist obrigatório no início do turno" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
                           <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('risks', risk.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
@@ -639,27 +761,60 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
               <SectionHeader id="records" title="Registros e Documentos Gerados" index={11} />
               {expandedSections.records && (
                 <div className="p-6">
-                  <table className="w-full text-left border-collapse mb-4">
+                  <table className="w-full text-left border-collapse mb-4 border border-gray-200">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
-                        <ResizableCell width={recordsTable.columnWidths.name} isHeader onColResize={(e) => recordsTable.startColResize(e, 'name')} className="text-xs font-bold text-gray-600">Nome do Registro</ResizableCell>
-                        <ResizableCell width={recordsTable.columnWidths.location} isHeader onColResize={(e) => recordsTable.startColResize(e, 'location')} className="text-xs font-bold text-gray-600">Local de Armazenamento</ResizableCell>
-                        <ResizableCell width={recordsTable.columnWidths.retention} isHeader onColResize={(e) => recordsTable.startColResize(e, 'retention')} className="text-xs font-bold text-gray-600">Tempo de Retenção</ResizableCell>
-                        <th className="p-2 border border-gray-200"></th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-1/3">Nome do Registro</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600 w-1/3">Local de Armazenamento</th>
+                        <th className="p-2 border border-gray-200 text-xs font-bold text-gray-600">Tempo de Retenção</th>
+                        <th className="p-2 border border-gray-200 w-10"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.records.map((rec) => (
                         <tr key={rec.id} className="border-b border-gray-100">
-                          <ResizableCell width={recordsTable.columnWidths.name} onRowResize={(e) => recordsTable.startRowResize(e, rec.id)}>
-                            <AutoGrowTextarea value={rec.name} onChange={v => updateArrayItem('records', rec.id, 'name', v)} className="text-sm" placeholder="Ex: Formulário de Inspeção" />
-                          </ResizableCell>
-                          <ResizableCell width={recordsTable.columnWidths.location} onRowResize={(e) => recordsTable.startRowResize(e, rec.id)}>
-                            <AutoGrowTextarea value={rec.location} onChange={v => updateArrayItem('records', rec.id, 'location', v)} className="text-sm" placeholder="Ex: Pasta Compartilhada / ERP" />
-                          </ResizableCell>
-                          <ResizableCell width={recordsTable.columnWidths.retention} onRowResize={(e) => recordsTable.startRowResize(e, rec.id)}>
-                            <AutoGrowTextarea value={rec.retention} onChange={v => updateArrayItem('records', rec.id, 'retention', v)} className="text-sm" placeholder="Ex: 5 anos" />
-                          </ResizableCell>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={rec.name} 
+                              onChange={e => updateArrayItem('records', rec.id, 'name', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: Formulário de Inspeção" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={rec.location} 
+                              onChange={e => updateArrayItem('records', rec.id, 'location', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: Pasta Compartilhada / ERP" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
+                          <td className="p-2 border border-gray-200">
+                            <textarea 
+                              value={rec.retention} 
+                              onChange={e => updateArrayItem('records', rec.id, 'retention', e.target.value)} 
+                              className="w-full border-none focus:ring-0 p-0 text-sm bg-transparent resize-none"
+                              placeholder="Ex: 5 anos" 
+                              rows={1}
+                              onInput={(e) => {
+                                const t = e.target as HTMLTextAreaElement;
+                                t.style.height = 'auto';
+                                t.style.height = t.scrollHeight + 'px';
+                              }}
+                            />
+                          </td>
                           <td className="p-2 text-center border border-gray-200">
                             <button onClick={() => removeArrayItem('records', rec.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
                           </td>
@@ -720,5 +875,6 @@ export default function StandardOperatingProcedure({ onSave, initialData }: SOPP
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
