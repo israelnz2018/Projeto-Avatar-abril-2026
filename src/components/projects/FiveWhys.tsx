@@ -30,6 +30,10 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
       if (data.chains) {
         setChains(data.chains);
       }
+    } else {
+      setChains([
+        { id: '1', problem: '', whys: ['', '', '', '', ''], rootCause: '' }
+      ]);
     }
   }, [initialData]);
 

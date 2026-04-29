@@ -1039,31 +1039,38 @@ export default function ToolWrapper({
         const startX = 150;
         const laneId = 'lane-1';
 
-        const nodes = processSteps.map((step: string, index: number) => ({
-          id: `node-${index}`,
-          type: index === 0 ? 'start' : (index === processSteps.length - 1 ? 'start' : 'step'),
-          text: step,
-          laneId: laneId,
-          x: startX + index * (nodeWidth + spacing),
-          y: laneHeight / 2 - nodeHeight / 2,
-          width: nodeWidth,
-          height: nodeHeight,
-          fontSize: 11
-        }));
+        const nodes = processSteps.map((step: string, index: number) => {
+          const type = index === 0 ? 'start' : (index === processSteps.length - 1 ? 'end' : 'step');
+          const isEnd = type === 'end';
+          return {
+            id: `node-${index}`,
+            type,
+            position: { 
+              x: startX + index * (nodeWidth + spacing), 
+              y: laneHeight / 2 
+            },
+            data: { 
+              label: step, 
+              isEnd,
+              fontSize: 12 
+            }
+          };
+        });
 
-        const connections = [];
+        const edges = [];
         for (let i = 0; i < nodes.length - 1; i++) {
-          connections.push({
-            id: `conn-${i}`,
-            from: nodes[i].id,
-            to: nodes[i+1].id
+          edges.push({
+            id: `edge-${i}`,
+            source: nodes[i].id,
+            target: nodes[i+1].id,
+            type: 'smoothstep'
           });
         }
 
         const generatedData = { 
           nodes, 
-          connections,
-          lanes: [{ id: laneId, name: 'Processo Principal', height: laneHeight }]
+          edges,
+          isGenerated: true
         };
 
         setLocalData(generatedData);
@@ -1327,6 +1334,10 @@ export default function ToolWrapper({
           return observations.every((o: any) => !o.variable && !o.observationDescription);
         }
 
+        if (toolId === 'processMap' || toolId === 'processModeling') {
+          return !data.nodes || !Array.isArray(data.nodes) || data.nodes.length === 0;
+        }
+
         if (toolId === 'statisticalAnalysis') {
           const analyses = data.analyses || [];
           if (analyses.length === 0) return true;
@@ -1340,10 +1351,6 @@ export default function ToolWrapper({
             return !root.description || root.description.includes('Defina aqui o problema');
           }
           return false;
-        }
-
-        if (toolId === 'processMap') {
-          return !data.nodes || !Array.isArray(data.nodes) || data.nodes.length === 0;
         }
 
         if (toolId === 'dataCollection') {

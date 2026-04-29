@@ -47,6 +47,9 @@ export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGe
       const data = initialData.toolData || initialData;
       if (data.columns) setColumns(data.columns);
       if (data.actions) setActions(data.actions);
+    } else {
+      setColumns(defaultColumns);
+      setActions([{ id: crypto.randomUUID(), description: '', what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: { state: 'green', progress: '0%' } }]);
     }
   }, [initialData]);
 

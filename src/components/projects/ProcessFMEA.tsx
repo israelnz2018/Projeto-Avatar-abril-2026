@@ -151,6 +151,34 @@ export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGener
       if (data.lineHeight) {
         setLineHeight(data.lineHeight);
       }
+    } else {
+      setRows([
+        {
+          id: '1',
+          processStep: '',
+          failureMode: '',
+          failureEffect: '',
+          severity: 1,
+          failureCause: '',
+          occurrence: 1,
+          currentControls: '',
+          detection: 1,
+          recommendedActions: '',
+          responsible: '',
+          deadline: '',
+          status: 'yellow',
+          newSeverity: 1,
+          newOccurrence: 1,
+          newDetection: 1
+        }
+      ]);
+      setThresholds({
+        rpn: { green: 80, yellow: 150 },
+        severity: { green: 6, yellow: 8 },
+        criticality: { green: 20, yellow: 40 },
+      });
+      setFontSize(11);
+      setLineHeight(40);
     }
   }, [initialData]);
 

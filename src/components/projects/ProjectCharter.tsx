@@ -75,15 +75,45 @@ export default function ProjectCharter({
 
   useEffect(() => {
     if (initialData) {
-      const data = initialData.toolData || initialData;
+      const toolData = initialData.toolData || initialData;
       setData((prev: any) => ({
         ...prev,
-        ...data,
-        stakeholders: data.stakeholders || prev.stakeholders,
-        images: data.images || prev.images
+        ...toolData,
+        stakeholders: toolData.stakeholders || prev.stakeholders,
+        images: toolData.images || prev.images
       }));
+    } else {
+      // Se initialData for null, resetar para os valores padrão baseados no briefData
+      setData({
+        title: briefData?.answers?.q1 || '',
+        date: new Date().toLocaleDateString('pt-BR'),
+        rev: '00',
+        area: '',
+        leader: '',
+        champion: '',
+        problemDefinition: briefData?.answers?.q2 ? `${briefData.answers.q2}\n${briefData.answers.q4 || ''}` : '',
+        problemHistory: briefData?.answers?.q5 || '',
+        goalDefinition: briefData?.answers?.q7 || '',
+        kpi: '',
+        scope: briefData?.answers?.q6 || '',
+        businessContributions: briefData?.answers?.q8 || '',
+        images: briefData?.images || [] as string[],
+        stakeholders: (briefData?.stakeholders || [
+          { role: 'Líder:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+          { role: 'Patrocinador:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'A', control: 'I' },
+          { role: 'Dono do Processo:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
+          { role: 'Champion:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+          { role: 'Validação Técnica:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+          { role: 'Validação Financeira:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
+          { role: 'Membro da Equipe:', name: '', definition: '', measurement: 'A', analysis: '', improvement: '', control: '' },
+          { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: 'A', improvement: '', control: '' },
+          { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: 'A', control: '' },
+          { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: 'A' },
+          { role: 'Outros:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' },
+        ]) as StakeholderRow[]
+      });
     }
-  }, [initialData]);
+  }, [initialData, briefData]);
 
   useLayoutEffect(() => {
     // Automatically adjust height of all textareas

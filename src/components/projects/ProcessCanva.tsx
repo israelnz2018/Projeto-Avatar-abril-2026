@@ -54,6 +54,30 @@ export default function ProcessCanva({ onSave, initialData, onGenerateAI, isGene
   useEffect(() => {
     if (initialData) {
       setData(initialData);
+    } else {
+      setData({
+        sipoc: {
+          suppliers: ['Fornecedor A'],
+          inputs: ['Matéria Prima'],
+          process: ['Etapa 1', 'Etapa 2', 'Etapa 3', 'Etapa 4', 'Etapa 5'],
+          outputs: ['Produto Final'],
+          customers: ['Cliente Final']
+        },
+        form: {
+          processName: '',
+          processObjective: '',
+          startTrigger: '',
+          endCondition: '',
+          steps: [
+            { id: '1', name: 'Primeira Etapa', role: 'Operador', type: 'step' }
+          ],
+          processOwner: '',
+          participants: '',
+          systems: ''
+        },
+        canvas: null
+      });
+      setCurrentStep(1);
     }
   }, [initialData]);
 

@@ -108,6 +108,8 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
         outputs: Array.isArray(d.outputs) ? d.outputs : defaultData.outputs,
         customers: Array.isArray(d.customers) ? d.customers : defaultData.customers,
       });
+    } else {
+      setData(defaultData);
     }
   }, [initialData]);
 
