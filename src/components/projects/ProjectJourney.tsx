@@ -19,8 +19,6 @@ import {
   Clock,
   X,
   Youtube,
-  FileText,
-  Presentation,
   Download,
   Loader2,
   Printer,
@@ -114,11 +112,11 @@ import { getAllKnowledge, KnowledgeEntry } from '../../services/knowledgeService
 type Phase = 'Define' | 'Measure' | 'Analyze' | 'Improve' | 'Control';
 
 const DEFAULT_PHASES = [
-  { id: 'Define', name: 'Define', icon: Target, color: '#3b82f6', description: 'Defina o escopo, objetivos e equipe.' },
-  { id: 'Measure', name: 'Measure', icon: Ruler, color: '#8b5cf6', description: 'Mapeie o processo e colete dados da situação atual.' },
-  { id: 'Analyze', name: 'Analyze', icon: Search, color: '#ec4899', description: 'Identifique as causas raiz do problema.' },
-  { id: 'Improve', name: 'Improve', icon: Zap, color: '#10b981', description: 'Desenvolva e implemente soluções.' },
-  { id: 'Control', name: 'Control', icon: ShieldCheck, color: '#6366f1', description: 'Garanta que os ganhos sejam mantidos.' },
+  { id: 'Define', name: 'Definir', icon: Target, color: '#3b82f6', description: 'Defina o escopo, objetivos e equipe.' },
+  { id: 'Measure', name: 'Medir', icon: Ruler, color: '#8b5cf6', description: 'Mapeie o processo e colete dados da situação atual.' },
+  { id: 'Analyze', name: 'Analisar', icon: Search, color: '#ec4899', description: 'Identifique as causas raiz do problema.' },
+  { id: 'Improve', name: 'Melhorar', icon: Zap, color: '#10b981', description: 'Desenvolva e implemente soluções.' },
+  { id: 'Control', name: 'Controlar', icon: ShieldCheck, color: '#6366f1', description: 'Garanta que os ganhos sejam mantidos.' },
 ];
 
 import { useMemo } from 'react';
@@ -186,13 +184,24 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
   };
 
   const phases = useMemo(() => {
+    const translateName = (id: string, name: string) => {
+      const translations: Record<string, string> = {
+        'Define': 'Definir',
+        'Measure': 'Medir',
+        'Analyze': 'Analisar',
+        'Improve': 'Melhorar',
+        'Control': 'Controlar'
+      };
+      return translations[id] || translations[name] || name;
+    };
+
     if (project.initiativeId) {
       if (initiative?.phases && initiative.phases.length > 0) {
         return initiative.phases.map(p => {
           const defaultPhase = DEFAULT_PHASES.find(dp => dp.id === p.id);
           return {
             id: p.id,
-            name: p.name,
+            name: translateName(p.id, p.name),
             icon: defaultPhase?.icon || Lightbulb,
             color: defaultPhase?.color || '#6366f1',
             description: defaultPhase?.description || `Fase de ${p.name}`
@@ -344,15 +353,45 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
     return index === -1 ? 0 : index;
   }, [currentPhase, filteredPhases]);
 
+  const allEnabledTools = useMemo(() => {
+    return filteredPhases.flatMap(phase => {
+      let tools: typeof AVAILABLE_TOOLS = [];
+      const config = initiativeConfigs.find(c => c.phaseId === phase.id);
+      if (config) {
+        const expandedToolIds = config.toolIds.flatMap(id => {
+          if (id === 'qualitativeAnalysis') return ['directObservation', 'fiveWhys', 'fta'];
+          return [id];
+        });
+        const uniqueToolIds = Array.from(new Set(expandedToolIds));
+        tools = uniqueToolIds.map(id => AVAILABLE_TOOLS.find(t => t.id === id)).filter(Boolean) as any;
+      } else {
+        tools = AVAILABLE_TOOLS.filter(t => t.defaultPhase === phase.id);
+      }
+      return tools.map(t => ({ toolId: t.id, phaseId: phase.id }));
+    });
+  }, [filteredPhases, initiativeConfigs]);
+
+  const currentToolIndex = useMemo(() => {
+    return allEnabledTools.findIndex(t => t.toolId === activeToolId && t.phaseId === currentPhase);
+  }, [allEnabledTools, activeToolId, currentPhase]);
+
   const handleNext = () => {
-    if (currentPhaseIndex < filteredPhases.length - 1) {
-      setCurrentPhase(filteredPhases[currentPhaseIndex + 1].id);
+    if (currentToolIndex < allEnabledTools.length - 1) {
+      const next = allEnabledTools[currentToolIndex + 1];
+      if (next.phaseId !== currentPhase) {
+        setCurrentPhase(next.phaseId);
+      }
+      setActiveToolId(next.toolId);
     }
   };
 
   const handleBack = () => {
-    if (currentPhaseIndex > 0) {
-      setCurrentPhase(filteredPhases[currentPhaseIndex - 1].id);
+    if (currentToolIndex > 0) {
+      const prev = allEnabledTools[currentToolIndex - 1];
+      if (prev.phaseId !== currentPhase) {
+        setCurrentPhase(prev.phaseId);
+      }
+      setActiveToolId(prev.toolId);
     }
   };
 
@@ -735,35 +774,16 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
             </h3>
           </div>
 
-          {/* Report Generation Buttons - Visible if at least one tool is saved */}
-          {Object.keys(projectData).length > 0 && (
+          {/* Report Generation Buttons - Visible if tool is charter and saved */}
+          {Object.keys(projectData).length > 0 && activeToolId === 'charter' && (
             <div className="flex items-center gap-2">
-              {activeToolId === 'charter' ? (
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-bold rounded-md transition-all shadow-sm cursor-pointer"
-                >
-                  <Printer size={14} />
-                  Imprimir Contrato
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => { setReportType('word'); setShowReportConfirm(true); }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 text-[11px] font-bold rounded-md transition-all shadow-sm cursor-pointer"
-                  >
-                    <FileText size={14} />
-                    Gerar Word
-                  </button>
-                  <button
-                    onClick={() => { setReportType('ppt'); setShowReportConfirm(true); }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 text-[11px] font-bold rounded-md transition-all shadow-sm cursor-pointer"
-                  >
-                    <Presentation size={14} />
-                    Gerar PowerPoint
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-bold rounded-md transition-all shadow-sm cursor-pointer"
+              >
+                <Printer size={14} />
+                Imprimir Contrato
+              </button>
             </div>
           )}
         </div>
@@ -1145,7 +1165,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
         <div className="flex justify-between items-center pt-4">
           <button
             onClick={handleBack}
-            disabled={currentPhaseIndex === 0}
+            disabled={currentToolIndex <= 0}
             className="flex items-center px-6 py-2 text-[13px] font-bold text-[#666] hover:text-[#333] disabled:opacity-30 disabled:cursor-not-allowed bg-transparent border-none cursor-pointer"
           >
             <ChevronLeft size={18} className="mr-1" /> Voltar
@@ -1155,7 +1175,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
           </div>
           <button
             onClick={handleNext}
-            disabled={currentPhaseIndex === filteredPhases.length - 1}
+            disabled={currentToolIndex >= allEnabledTools.length - 1}
             className="flex items-center px-6 py-2 text-[13px] font-bold text-[#3b82f6] hover:text-[#2563eb] disabled:opacity-30 disabled:cursor-not-allowed bg-transparent border-none cursor-pointer"
           >
             Avançar <ChevronRight size={18} className="ml-1" />

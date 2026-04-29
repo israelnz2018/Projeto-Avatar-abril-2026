@@ -319,16 +319,8 @@ export default function ProjectCharter({
         </div>
       )}
 
-      <div className="flex justify-end pt-6 border-t border-[#eee] no-print">
-        <button
-          data-save-trigger
-          onClick={() => onSave(data)}
-          className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-lg"
-        >
-          <CheckCircle2 size={18} className="mr-2" />
-          Salvar Alterações
-        </button>
-      </div>
+      {/* Hidden save trigger for ToolWrapper */}
+      <button data-save-trigger onClick={() => onSave(data)} className="hidden" />
 
       <div id="project-charter-print" className="bg-white p-4 shadow-lg border border-gray-200 max-w-[210mm] mx-auto print:shadow-none print:p-0 print:m-0 print:border-none font-sans text-black">
         

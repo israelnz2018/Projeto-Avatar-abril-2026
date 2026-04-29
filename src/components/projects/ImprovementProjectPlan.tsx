@@ -8,6 +8,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useResizableTable } from '@/src/hooks/useResizableTable';
 
 interface Activity {
   id: string;
@@ -48,6 +49,32 @@ const DEFAULT_STRUCTURE: PhaseActivities[] = [
 ];
 
 export default function ImprovementProjectPlan({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI, onClearAIData }: ImprovementProjectPlanProps) {
+  const initialWidths = initialData?.columnWidths || {
+    status: 120,
+    activity: 280,
+    plannedStart: 95,
+    plannedFinish: 95,
+    weight: 60,
+    predecessorId: 130,
+    owner: 120,
+    actions: 50
+  };
+
+  const { columnWidths, startColResize } = useResizableTable(initialWidths);
+
+  const gridTemplateColumns = useMemo(() => {
+    return [
+      `${columnWidths.status}px`,
+      `${columnWidths.activity}px`,
+      `${columnWidths.plannedStart}px`,
+      `${columnWidths.plannedFinish}px`,
+      `${columnWidths.weight}px`,
+      `${columnWidths.predecessorId}px`,
+      `${columnWidths.owner}px`,
+      `${columnWidths.actions}px`
+    ].join(' ');
+  }, [columnWidths]);
+
   const [phases, setPhases] = useState<PhaseActivities[]>(initialData?.phases || DEFAULT_STRUCTURE);
   const isToolEmpty = phases.every(p => p.activities.length === 0);
   const [editingActivity, setEditingActivity] = useState<{ phaseId: string, activityId: string } | null>(null);
@@ -258,7 +285,7 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
           <h2 className="text-xl font-bold text-gray-800">Plano do Projeto de Melhoria</h2>
           <p className="text-sm text-gray-500">Planeje e acompanhe a execução das suas atividades.</p>
         </div>
-        <button onClick={() => onSave({ phases })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
+        <button onClick={() => onSave({ phases, columnWidths })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
           Salvar Plano
         </button>
       </div>
@@ -294,16 +321,42 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
             </div>
 
             {phase.isOpen && (
-              <div className="p-4 bg-gray-50/30 border-t border-[#eee] space-y-3">
-                <div className="grid grid-cols-[120px_1fr_90px_90px_50px_120px_100px_40px] gap-2 px-4 mb-2 text-[9px] font-bold text-gray-400 uppercase">
-                  <span>Status</span>
-                  <span>Atividade</span>
-                  <span>Início</span>
-                  <span>Fim</span>
-                  <span>Peso</span>
-                  <span>Predecessora</span>
-                  <span>Responsável</span>
-                  <span></span>
+              <div className="p-4 bg-gray-50/30 border-t border-[#eee] space-y-3 overflow-x-auto">
+                <div 
+                  className="grid gap-2 px-4 mb-2 text-[9px] font-bold text-gray-400 uppercase select-none w-max"
+                  style={{ gridTemplateColumns }}
+                >
+                  <div className="relative group/header">
+                    <span>Status</span>
+                    <div onMouseDown={(e) => startColResize(e, 'status')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative group/header">
+                    <span>Atividade</span>
+                    <div onMouseDown={(e) => startColResize(e, 'activity')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative group/header">
+                    <span>Início</span>
+                    <div onMouseDown={(e) => startColResize(e, 'plannedStart')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative group/header">
+                    <span>Fim</span>
+                    <div onMouseDown={(e) => startColResize(e, 'plannedFinish')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative group/header text-center">
+                    <span>Peso</span>
+                    <div onMouseDown={(e) => startColResize(e, 'weight')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative group/header">
+                    <span>Predecessora</span>
+                    <div onMouseDown={(e) => startColResize(e, 'predecessorId')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative group/header">
+                    <span>Responsável</span>
+                    <div onMouseDown={(e) => startColResize(e, 'owner')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
+                  </div>
+                  <div className="relative">
+                    <span></span>
+                  </div>
                 </div>
                 {phase.activities.map((activity) => {
                   const statusInfo = getActivityStatus(activity);
@@ -312,7 +365,11 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                     phases.flatMap(p => p.activities).find(a => a.id === activity.predecessorId)?.status === 'Completed';
 
                   return (
-                    <div key={activity.id} className="grid grid-cols-[120px_1fr_90px_90px_50px_120px_100px_40px] gap-2 items-center bg-white p-2 rounded border border-gray-100 group hover:border-blue-200 transition-all">
+                    <div 
+                      key={activity.id} 
+                      className="grid gap-2 items-center bg-white p-2 rounded border border-gray-100 group hover:border-blue-200 transition-all w-max"
+                      style={{ gridTemplateColumns }}
+                    >
                       <div className="flex items-center gap-2">
                         <select 
                           value={activity.status}

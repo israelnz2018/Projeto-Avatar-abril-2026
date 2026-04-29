@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Trash2, CheckCircle2, HelpCircle, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -26,6 +26,62 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
     }
   );
   const [problem, setProblem] = useState(d?.problem || "Efeito/Problema Principal");
+  const [headWidth, setHeadWidth] = useState(d?.headWidth || 180);
+  const [headHeight, setHeadHeight] = useState(d?.headHeight || 120);
+
+  const isResizing = useRef<{ width: boolean, height: boolean } | null>(null);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing.current) return;
+    const container = document.getElementById('ishikawa-container');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    
+    if (isResizing.current.width) {
+      const newWidth = rect.right - e.clientX;
+      if (newWidth > 120 && newWidth < 600) {
+        setHeadWidth(newWidth);
+      }
+    }
+    
+    if (isResizing.current.height) {
+      const headElement = document.getElementById('ishikawa-head');
+      if (headElement) {
+        const headRect = headElement.getBoundingClientRect();
+        const newHeight = e.clientY - headRect.top;
+        if (newHeight > 80 && newHeight < 400) {
+          setHeadHeight(newHeight);
+        }
+      }
+    }
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    isResizing.current = null;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', stopResizing);
+  }, [handleMouseMove]);
+
+  const startResizingWidth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = { width: true, height: false };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', stopResizing);
+  };
+
+  const startResizingHeight = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = { width: false, height: true };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', stopResizing);
+  };
+
+  const startResizingBoth = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = { width: true, height: true };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', stopResizing);
+  };
 
   const isToolEmpty = Object.values(causes).every(list => list.length === 0);
 
@@ -35,6 +91,8 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
       if (data.categories) setCategories(data.categories);
       if (data.causes) setCauses(data.causes);
       if (data.problem) setProblem(data.problem);
+      if (data.headWidth) setHeadWidth(data.headWidth);
+      if (data.headHeight) setHeadHeight(data.headHeight);
     } else {
       // Reset to defaults
       setCategories(['Método', 'Máquina', 'Medida', 'Meio Ambiente', 'Mão de Obra', 'Material']);
@@ -47,6 +105,8 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
         'Material': [],
       });
       setProblem("Efeito/Problema Principal");
+      setHeadWidth(180);
+      setHeadHeight(120);
     }
   }, [initialData]);
 
@@ -158,10 +218,10 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
         <h2 className="text-[1.25rem] font-bold text-[#333]">Diagrama de Ishikawa (Espinha de Peixe)</h2>
       </div>
 
-      <div className="relative bg-white p-4 md:p-8 rounded-[8px] border border-[#eee] min-h-[850px] flex flex-col overflow-x-auto">
+      <div id="ishikawa-container" className="relative bg-white p-4 md:p-8 rounded-[8px] border border-[#eee] min-h-[850px] flex flex-col overflow-x-auto">
         
         {/* Top Labels and Bones */}
-        <div className="grid grid-cols-3 gap-x-24 pr-[280px] mb-0 relative z-10">
+        <div className="grid grid-cols-3 gap-x-24 mb-0 relative z-10" style={{ paddingRight: headWidth + 40 }}>
           {categories.slice(0, 3).map((cat, idx) => (
             <div key={`${cat}-${idx}`} className="flex flex-col items-start relative min-w-[220px]">
               <input
@@ -213,10 +273,39 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
         {/* Main Spine and Head */}
         <div className="relative h-[10px] flex items-center w-full my-4">
           {/* The "Spine" */}
-          <div className="absolute left-0 right-[250px] h-[10px] bg-gray-800 rounded-full shadow-lg" />
+          <div className="absolute left-0 h-[10px] bg-gray-800 rounded-full shadow-lg" style={{ right: headWidth + 10 }} />
           
           {/* The "Head" */}
-          <div className="absolute right-0 w-[240px] min-h-[120px] bg-white border-4 border-gray-800 flex items-center justify-center p-4 rounded-[8px] shadow-2xl z-20">
+          <div 
+            id="ishikawa-head"
+            className="absolute right-0 bg-white border-4 border-gray-800 flex items-center justify-center p-4 rounded-[8px] shadow-2xl z-20 group/head"
+            style={{ width: headWidth, minHeight: headHeight }}
+          >
+            {/* Resize Handles */}
+            {/* Left handle (Width) */}
+            <div 
+              onMouseDown={startResizingWidth}
+              className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-blue-500/20 active:bg-blue-500/40 transition-colors z-30 flex items-center justify-center"
+            >
+               <div className="w-0.5 h-8 bg-gray-300 group-hover/head:bg-blue-400" />
+            </div>
+
+            {/* Bottom handle (Height) */}
+            <div 
+              onMouseDown={startResizingHeight}
+              className="absolute left-0 right-0 bottom-0 h-2 cursor-ns-resize hover:bg-blue-500/20 active:bg-blue-500/40 transition-colors z-30 flex items-center justify-center"
+            >
+               <div className="h-0.5 w-8 bg-gray-300 group-hover/head:bg-blue-400" />
+            </div>
+
+            {/* Corner handle (Both) */}
+            <div 
+              onMouseDown={startResizingBoth}
+              className="absolute left-0 bottom-0 w-3 h-3 cursor-nwse-resize z-40 bg-gray-200 hover:bg-blue-500 transition-colors rounded-tr-sm rounded-bl-sm flex items-center justify-center"
+            >
+              <div className="w-1 h-1 bg-gray-400 rounded-full" />
+            </div>
+
             <div className="w-full text-center">
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Efeito / Problema</label>
               <textarea
@@ -232,7 +321,7 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
         </div>
 
         {/* Bottom Labels and Bones */}
-        <div className="grid grid-cols-3 gap-x-24 pr-[280px] mt-0 relative z-10">
+        <div className="grid grid-cols-3 gap-x-24 mt-0 relative z-10" style={{ paddingRight: headWidth + 40 }}>
           {categories.slice(3, 6).map((cat, idx) => (
             <div key={`${cat}-${idx+3}`} className="flex flex-col items-start relative min-w-[220px]">
               <div className="w-full space-y-3 min-h-[300px] flex flex-col pt-4 pl-14">
@@ -284,7 +373,7 @@ export default function Ishikawa({ onSave, initialData, onGenerateAI, isGenerati
       <div className="flex justify-end pt-6 border-t border-[#eee]">
         <button
           data-save-trigger
-          onClick={() => onSave({ causes, problem, categories })}
+          onClick={() => onSave({ causes, problem, categories, headWidth, headHeight })}
           className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-lg"
         >
           <CheckCircle2 size={18} className="mr-2" />

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, FileDown, Trash2 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface ProjectBriefProps {
@@ -37,7 +36,6 @@ export default function ProjectBrief({
   });
   
   const [images, setImages] = useState<string[]>(initialData?.images || []);
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     initialData?.selectedProject || ''
@@ -152,55 +150,6 @@ export default function ProjectBrief({
 
   const handleSave = () => {
     onSave({ answers, images });
-  };
-
-  const handleGeneratePDF = async () => {
-    setIsGeneratingPDF(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `
-Você é um consultor sênior de Lean Six Sigma. Com base nos dados abaixo do formulário "Entendendo o Problema", gere um relatório executivo profissional em HTML com design moderno e bonito.
-
-DADOS DO FORMULÁRIO:
-${JSON.stringify(answers, null, 2)}
-
-INSTRUÇÕES DE CONTEÚDO:
-- Melhore e expanda cada resposta com linguagem técnica e executiva
-- Organize em seções claras: Contexto do Projeto, Problema Central, Impacto no Negócio, Metas e Objetivos, Próximos Passos Recomendados
-- Seja conciso mas completo — máximo 1 página A4
-
-INSTRUÇÕES DE DESIGN (HTML):
-- Use fonte Inter ou Roboto do Google Fonts
-- Cabeçalho com fundo azul escuro (#1e3a5f) e texto branco com o título "Entendendo o Problema — Relatório Executivo"
-- Cada seção com título em azul (#2563eb) e linha separadora sutil
-- Cards com borda esquerda colorida para destacar informações importantes
-- Rodapé com "LBW Copilot — Formação em Gestão de Projetos de Melhoria"
-- Layout limpo tipo consultoria profissional
-- Retorne APENAS o HTML completo, sem explicações
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-      });
-
-      const html = response.text || "";
-      const cleanedHtml = html.replace(/```html|```/g, "").trim();
-
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(cleanedHtml);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
-      }
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-    } finally {
-      setIsGeneratingPDF(false);
-    }
   };
 
   const filledFieldsCount = Object.values(answers).filter(val => typeof val === 'string' && val.trim().length > 0).length;
@@ -397,29 +346,6 @@ INSTRUÇÕES DE DESIGN (HTML):
         </div>
 
         <div className="flex justify-end items-center gap-4 pt-6 border-t border-[#eee]">
-          <button
-            onClick={handleGeneratePDF}
-            disabled={isGeneratingPDF || filledFieldsCount < 3}
-            className={cn(
-              "px-8 py-3 rounded-[4px] font-bold flex items-center transition-all border-none cursor-pointer shadow-md",
-              isGeneratingPDF || filledFieldsCount < 3
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700"
-            )}
-          >
-            {isGeneratingPDF ? (
-              <>
-                <Loader2 size={18} className="mr-2 animate-spin" />
-                Gerando relatório...
-              </>
-            ) : (
-              <>
-                <FileDown size={18} className="mr-2" />
-                Gerar PDF Executivo
-              </>
-            )}
-          </button>
-
           <button
             data-save-trigger
             onClick={handleSave}

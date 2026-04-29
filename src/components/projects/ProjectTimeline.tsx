@@ -23,23 +23,39 @@ interface ProjectTimelineProps {
 }
 
 const DEFAULT_PHASES: PhaseTimeline[] = [
-  { id: 'define', name: 'Define', startDate: '', endDate: '', color: 'bg-blue-500' },
-  { id: 'measure', name: 'Measure', startDate: '', endDate: '', color: 'bg-blue-500' },
-  { id: 'analyze', name: 'Analyze', startDate: '', endDate: '', color: 'bg-blue-500' },
-  { id: 'improve', name: 'Improve', startDate: '', endDate: '', color: 'bg-blue-500' },
-  { id: 'control', name: 'Control', startDate: '', endDate: '', color: 'bg-blue-500' },
+  { id: 'define', name: 'Definir', startDate: '', endDate: '', color: 'bg-blue-500' },
+  { id: 'measure', name: 'Medir', startDate: '', endDate: '', color: 'bg-blue-500' },
+  { id: 'analyze', name: 'Analisar', startDate: '', endDate: '', color: 'bg-blue-500' },
+  { id: 'improve', name: 'Melhorar', startDate: '', endDate: '', color: 'bg-blue-500' },
+  { id: 'control', name: 'Controlar', startDate: '', endDate: '', color: 'bg-blue-500' },
 ];
 
 export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ProjectTimelineProps) {
+  const translatePhaseName = (name: string) => {
+    const translations: Record<string, string> = {
+      'Define': 'Definir',
+      'Measure': 'Medir',
+      'Analyze': 'Analisar',
+      'Improve': 'Melhorar',
+      'Control': 'Controlar'
+    };
+    return translations[name] || name;
+  };
+
   const [projectStartDate, setProjectStartDate] = useState<string>(initialData?.projectStartDate || '');
-  const [phases, setPhases] = useState<PhaseTimeline[]>(initialData?.phases || DEFAULT_PHASES);
+  const [phases, setPhases] = useState<PhaseTimeline[]>(() => {
+    const p = initialData?.phases || DEFAULT_PHASES;
+    return p.map((f: any) => ({ ...f, name: translatePhaseName(f.name) }));
+  });
 
   const isToolEmpty = !projectStartDate && phases.every(p => !p.startDate && !p.endDate);
   const [showRecommendationPrompt, setShowRecommendationPrompt] = useState(false);
   const [pendingStartDate, setPendingStartDate] = useState('');
 
   useEffect(() => {
-    if (initialData?.phases) setPhases(initialData.phases);
+    if (initialData?.phases) {
+      setPhases(initialData.phases.map((p: any) => ({ ...p, name: translatePhaseName(p.name) })));
+    }
     if (initialData?.projectStartDate) setProjectStartDate(initialData.projectStartDate);
   }, [initialData]);
 
@@ -120,7 +136,10 @@ export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isG
     
     for (let i = 0; i < 6; i++) {
       const monthDate = new Date(start.getFullYear(), start.getMonth() + i, 1);
-      const monthName = monthDate.toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+      // Hardcoded English month names to ensure it follows the requested format regardless of browser locale
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const monthName = `${monthNames[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
+      
       headers.push({
         month: monthName,
         q1: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1),
@@ -302,7 +321,7 @@ export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isG
           <div className="min-w-[1000px]">
             {/* Timeline Header */}
             <div className="flex mb-4">
-              <div className="w-[300px] shrink-0 font-bold text-sm text-gray-700 flex items-end pb-2 border-b-2 border-gray-200">
+              <div className="w-[300px] shrink-0 font-bold text-sm text-gray-700 flex items-end pb-2 border-b-2 border-gray-200 uppercase tracking-widest">
                 Fases do Projeto
               </div>
               <div className="flex-1 border-b-2 border-gray-200 flex">
@@ -365,13 +384,13 @@ export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isG
                       </div>
                     </div>
                     
-                    <div className="flex-1 relative h-10 bg-gray-50/50 rounded flex items-center">
+                    <div className="flex-1 relative h-10 bg-gray-50/50 flex items-center">
                       {barStyle.show && (
                         <div 
-                          className={cn("absolute h-6 rounded-full shadow-sm transition-all duration-300 flex items-center px-3 overflow-hidden", phase.color)}
+                          className={cn("absolute h-6 rounded-sm shadow-sm transition-all duration-300 flex items-center px-3 overflow-hidden", phase.color)}
                           style={{ left: barStyle.left, width: barStyle.width }}
                         >
-                          <span className="text-white text-xs font-bold truncate">
+                          <span className="text-white text-[9px] font-bold truncate uppercase tracking-tighter">
                             {phase.name}
                           </span>
                         </div>

@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, CheckCircle2, GripVertical, X, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, CheckCircle2, X, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { useResizableTable } from '@/src/hooks/useResizableTable';
 import { TableToolbar } from './TableToolbar';
 
 interface Column {
@@ -39,12 +38,56 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
 
   const [columns, setColumns] = useState<Column[]>(d?.columns || defaultColumns);
   const [items, setItems] = useState<DataCollectionItem[]>(d?.items || [{ id: '1', data: defaultColumns.reduce((acc, col) => ({ ...acc, [col.id]: '' }), {}) }]);
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    const initialWidths: Record<string, number> = {};
+    const sourceColumns = d?.columns || defaultColumns;
+    sourceColumns.forEach((col: Column) => {
+      initialWidths[col.id] = parseInt(col.width || '150');
+    });
+    return initialWidths;
+  });
+
+  const resizingCol = useRef<{ id: string, startX: number, startWidth: number } | null>(null);
+
+  const onResizeMouseDown = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingCol.current = { id, startX: e.clientX, startWidth: colWidths[id] || 150 };
+    document.addEventListener('mousemove', onResizeMouseMove);
+    document.addEventListener('mouseup', onResizeMouseUp);
+  };
+
+  const onResizeMouseMove = useCallback((e: MouseEvent) => {
+    if (!resizingCol.current) return;
+    const { id, startX, startWidth } = resizingCol.current;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(60, startWidth + delta);
+    
+    setColWidths(prev => ({
+      ...prev,
+      [id]: newWidth
+    }));
+  }, []);
+
+  const onResizeMouseUp = useCallback(() => {
+    resizingCol.current = null;
+    document.removeEventListener('mousemove', onResizeMouseMove);
+    document.removeEventListener('mouseup', onResizeMouseUp);
+  }, [onResizeMouseMove]);
+
   const isToolEmpty = items.length === 0 || (items.length === 1 && Object.values(items[0].data).every(v => v === ''));
 
   useEffect(() => {
     if (initialData) {
       const data = initialData.toolData || initialData;
-      if (data.columns) setColumns(data.columns);
+      if (data.columns) {
+        setColumns(data.columns);
+        const newWidths: Record<string, number> = {};
+        data.columns.forEach((col: Column) => {
+          newWidths[col.id] = parseInt(col.width || '150');
+        });
+        setColWidths(newWidths);
+      }
       if (data.items) setItems(data.items);
     }
   }, [initialData]);
@@ -61,11 +104,7 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
     return () => clearTimeout(timer);
   }, [items, columns]);
 
-  const {
-      columnWidths, editingHeader, setEditingHeader,
-      dragOverCol, startColResize,
-      handleColDragStart, handleColDragOver, handleColDrop,
-    } = useResizableTable(Object.fromEntries(columns.map(c => [c.id, parseInt(c.width || '150')])));
+  const [editingHeader, setEditingHeader] = useState<string | null>(null);
 
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), data: columns.reduce((acc, col) => ({ ...acc, [col.id]: '' }), {}) }]);
@@ -82,6 +121,7 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
   const addColumn = (name: string) => {
     const newId = `col_${Date.now()}`;
     setColumns([...columns, { id: newId, label: name, width: '150px' }]);
+    setColWidths(prev => ({ ...prev, [newId]: 150 }));
     setItems(items.map(item => ({ ...item, data: { ...item.data, [newId]: '' } })));
   };
 
@@ -162,19 +202,13 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
               {columns.map(col => (
                 <th
                   key={col.id}
-                  draggable={true}
-                  onDragStart={() => handleColDragStart(col.id)}
-                  onDragOver={(e) => handleColDragOver(e, col.id)}
-                  onDrop={() => handleColDrop(col.id)}
                   style={{
-                    width: columnWidths[col.id] || 150,
+                    width: colWidths[col.id] || 150,
                     position: 'relative',
-                    borderLeft: dragOverCol === col.id ? '2px solid #3b82f6' : undefined,
                   }}
-                  className="px-3 py-3 text-left border-b border-[#ccc] select-none text-[11px] font-black uppercase text-gray-500 whitespace-normal break-words"
+                  className="px-3 py-3 text-left border-b border-[#ccc] select-none text-[11px] font-black uppercase text-gray-500 whitespace-normal break-words group"
                 >
-                  <div className="flex items-center gap-2 group">
-                      <GripVertical size={12} className="text-gray-300 cursor-grab" />
+                  <div className="flex items-center gap-2">
                     {editingHeader === col.id ? (
                         <input
                             autoFocus
@@ -194,13 +228,14 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
                             setColumns(columns.filter(c => c.id !== col.id));
                             setItems(items.map(item => { const newData = {...item.data}; delete newData[col.id]; return {...item, data: newData}; }));
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 transition-opacity"
                     >
                         <X size={12} />
                     </button>
+                    {/* Resize handle */}
                     <div
-                      onMouseDown={(e) => startColResize(e, col.id)}
-                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize z-10"
+                      onMouseDown={(e) => onResizeMouseDown(col.id, e)}
+                      className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400 active:bg-blue-600 transition-colors z-20 group-hover:bg-blue-200/50"
                     />
                   </div>
                 </th>
@@ -249,7 +284,13 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
           <Plus size={16} /> Adicionar Linha
         </button>
         <button
-          onClick={() => onSave({ items, columns })}
+          onClick={() => {
+            const columnsWithWidths = columns.map(col => ({
+              ...col,
+              width: `${colWidths[col.id] || 150}px`
+            }));
+            onSave({ items, columns: columnsWithWidths });
+          }}
           className="flex items-center gap-2 px-8 py-2.5 bg-[#10b981] text-white text-sm font-bold rounded-lg hover:bg-green-600 border-none cursor-pointer"
         >
           <CheckCircle2 size={16} /> Salvar Plano

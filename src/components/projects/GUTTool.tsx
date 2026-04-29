@@ -53,19 +53,21 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
     return () => clearTimeout(timer);
   }, [rows]);
 
+  const initialWidths = d?.columnWidths || {
+    description: 280,
+    gravidade: 140,
+    urgencia: 140,
+    tendencia: 140,
+    resultado: 120,
+  };
+
   const {
     columnWidths, rowHeights, columnOrder, setColumnOrder,
     editingHeader, setEditingHeader,
     draggedCol, dragOverCol,
     startColResize, startRowResize,
     handleColDragStart, handleColDragOver, handleColDrop,
-  } = useResizableTable({
-    description: 280,
-    gravidade: 140,
-    urgencia: 140,
-    tendencia: 140,
-    resultado: 120,
-  });
+  } = useResizableTable(initialWidths);
 
   const TOOLTIPS: Record<string, string> = {
     gravidade: 'Impacto do problema se ele acontecer ou continuar acontecendo',
@@ -84,7 +86,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
   };
 
   const getRowTotal = (row: any) => 
-    columns.filter(c => c.isScore).reduce((sum, c) => sum + (row[c.id] || 0), 0);
+    columns.filter(c => c.isScore).reduce((prod, c) => prod * (row[c.id] || 1), 1);
 
   const maxScore = Math.max(...rows.map(getRowTotal), 0);
 
@@ -161,8 +163,8 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
         <div className="flex items-center gap-3 border-b border-[#eee] pb-4 mb-4">
         <BarChart2 className="text-purple-500" size={24} />
         <div>
-          <h2 className="text-lg font-bold text-[#333]">Matriz GUT</h2>
-          <p className="text-xs text-[#666]">Priorização de Problemas</p>
+          <h2 className="text-lg font-bold text-[#333]">Matriz de Priorização GUT</h2>
+          <p className="text-xs text-[#666]">Priorize os maiores problemas.</p>
         </div>
       </div>
 
@@ -189,7 +191,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                     position: 'relative',
                     borderLeft: dragOverCol === col.id ? '2px solid #3b82f6' : undefined,
                   }}
-                  className="px-3 py-3 text-left bg-gray-50 border-b-2 border-gray-200 select-none whitespace-normal break-words"
+                  className="px-3 py-3 text-left bg-gray-50 border-b-2 border-gray-200 select-none whitespace-normal break-words group"
                 >
                   <div className="flex items-center gap-1 group">
                     {col.id !== 'description' && (
@@ -248,12 +250,11 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                     )}
                   </div>
 
-                  {col.id !== 'description' && (
-                    <div
-                      onMouseDown={(e) => startColResize(e, col.id)}
-                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-200 transition-colors z-10"
-                    />
-                  )}
+                  {/* Resize handle */}
+                  <div
+                    onMouseDown={(e) => startColResize(e, col.id)}
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400 active:bg-blue-600 transition-colors z-20 group-hover:bg-blue-200/50"
+                  />
                 </th>
               ))}
             </tr>
@@ -350,7 +351,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
       </div>
 
       <button 
-        onClick={() => onSave({ opportunities: rows, columns })} 
+        onClick={() => onSave({ opportunities: rows, columns, columnWidths })} 
         className="bg-green-600 text-white px-6 py-2 rounded-lg font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-700 transition-all ml-auto"
       >
         <CheckCircle2 size={16} className="mr-2" /> Salvar Matriz

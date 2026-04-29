@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckCircle2, Info, Plus, Trash2, HelpCircle, BarChart2, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { 
@@ -26,6 +26,45 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
   const [causes, setCauses] = useState<any[]>(d?.causes || []);
   const isToolEmpty = causes.length === 0;
   const [view, setView] = useState<'matrix' | 'scatter' | 'pareto'>('matrix');
+  const [colWidths, setColWidths] = useState<Record<string, number>>(d?.colWidths || {
+    id: 60,
+    name: 300,
+    outputs: 120,
+    total: 80,
+    effortLabel: 120,
+    effortScore: 80
+  });
+
+  const resizingCol = useRef<{ key: string, startX: number, startWidth: number, index?: number } | null>(null);
+
+  const onResizeMouseDown = (key: string, e: React.MouseEvent, index?: number) => {
+    e.preventDefault();
+    const startWidth = key === 'output' && index !== undefined 
+      ? (colWidths[`output_${index}`] || colWidths.outputs) 
+      : colWidths[key];
+    
+    resizingCol.current = { key, startX: e.clientX, startWidth, index };
+    document.addEventListener('mousemove', onResizeMouseMove);
+    document.addEventListener('mouseup', onResizeMouseUp);
+  };
+
+  const onResizeMouseMove = useCallback((e: MouseEvent) => {
+    if (!resizingCol.current) return;
+    const { key, startX, startWidth, index } = resizingCol.current;
+    const delta = e.clientX - startX;
+    const newWidth = Math.max(40, startWidth + delta);
+    
+    setColWidths(prev => ({
+      ...prev,
+      [index !== undefined ? `output_${index}` : key]: newWidth
+    }));
+  }, []);
+
+  const onResizeMouseUp = useCallback(() => {
+    resizingCol.current = null;
+    document.removeEventListener('mousemove', onResizeMouseMove);
+    document.removeEventListener('mouseup', onResizeMouseUp);
+  }, [onResizeMouseMove]);
 
   // Auto-resize textareas when causes or view change
   useEffect(() => {
@@ -44,6 +83,9 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
       const data = initialData.toolData || initialData;
       if (data.outputs) {
         setOutputs(data.outputs);
+      }
+      if (data.colWidths) {
+        setColWidths(data.colWidths);
       }
       if (data.causes) {
         // Ensure all causes have a selected property
@@ -277,10 +319,36 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
               <table className="w-full border-collapse border border-[#ccc] tool-table" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="bg-[#f5f5f5]">
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[60px] whitespace-normal break-words">ID</th>
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] min-w-[250px] whitespace-normal break-words">X's do Processo (Entradas)</th>
+                    <th 
+                      className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] whitespace-normal break-words relative group"
+                      style={{ width: colWidths.id }}
+                    >
+                      ID
+                      <div 
+                        onMouseDown={(e) => onResizeMouseDown('id', e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-200/50 transition-colors z-20"
+                      />
+                    </th>
+                    <th 
+                      className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] whitespace-normal break-words relative group"
+                      style={{ width: colWidths.name }}
+                    >
+                      X's do Processo (Entradas)
+                      <div 
+                        onMouseDown={(e) => onResizeMouseDown('name', e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-200/50 transition-colors z-20"
+                      />
+                    </th>
                     {outputs.map((y, i) => (
-                      <th key={i} className="border border-[#ccc] p-0 min-w-[100px] relative group whitespace-normal break-words">
+                      <th 
+                        key={i} 
+                        className="border border-[#ccc] p-0 relative group whitespace-normal break-words"
+                        style={{ width: colWidths[`output_${i}`] || colWidths.outputs }}
+                      >
+                        <div 
+                          onMouseDown={(e) => onResizeMouseDown('output', e, i)}
+                          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-200/50 transition-colors z-20"
+                        />
                         <button 
                           onClick={() => removeOutput(i)}
                           className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm"
@@ -289,15 +357,27 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
                           <Trash2 size={10} />
                         </button>
                         <div className="p-2 border-b border-[#ccc] bg-[#e3f2fd]">
-                          <input 
-                            type="text"
+                          <textarea 
                             value={y.name}
                             onChange={(e) => {
                               const newOutputs = [...outputs];
                               newOutputs[i].name = e.target.value;
                               setOutputs(newOutputs);
+                              // Auto resize
+                              e.target.style.height = 'auto';
+                              e.target.style.height = e.target.scrollHeight + 'px';
                             }}
-                            className="w-full text-center bg-transparent font-bold text-[11px] uppercase focus:outline-none"
+                            onFocus={(e) => {
+                              e.target.style.height = 'auto';
+                              e.target.style.height = e.target.scrollHeight + 'px';
+                            }}
+                            rows={1}
+                            className="w-full text-center bg-transparent font-bold text-[10px] uppercase focus:outline-none resize-none overflow-hidden leading-tight"
+                            style={{ 
+                              minHeight: '32px',
+                              wordBreak: 'break-word',
+                              whiteSpace: 'pre-wrap'
+                            }}
                           />
                         </div>
                         <div className="p-2 flex flex-col items-center gap-1">
@@ -313,9 +393,36 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
                         </div>
                       </th>
                     ))}
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#003366] bg-[#e8f5e9] w-[80px] whitespace-normal break-words">TOTAL</th>
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[120px] whitespace-normal break-words">Esforço de Eliminação</th>
-                    <th className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] w-[80px] whitespace-normal break-words">Score (1-8)</th>
+                    <th 
+                      className="border border-[#ccc] p-3 text-[12px] font-bold text-[#003366] bg-[#e8f5e9] whitespace-normal break-words relative group"
+                      style={{ width: colWidths.total }}
+                    >
+                      TOTAL
+                      <div 
+                        onMouseDown={(e) => onResizeMouseDown('total', e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-200/50 transition-colors z-20"
+                      />
+                    </th>
+                    <th 
+                      className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] whitespace-normal break-words relative group"
+                      style={{ width: colWidths.effortLabel }}
+                    >
+                      Esforço de Eliminação
+                      <div 
+                        onMouseDown={(e) => onResizeMouseDown('effortLabel', e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-200/50 transition-colors z-20"
+                      />
+                    </th>
+                    <th 
+                      className="border border-[#ccc] p-3 text-[12px] font-bold text-[#333] whitespace-normal break-words relative group"
+                      style={{ width: colWidths.effortScore }}
+                    >
+                      Score (1-8)
+                      <div 
+                        onMouseDown={(e) => onResizeMouseDown('effortScore', e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 group-hover:bg-blue-200/50 transition-colors z-20"
+                      />
+                    </th>
                     <th className="border border-[#ccc] p-3 w-[40px] whitespace-normal break-words"></th>
                   </tr>
                 </thead>
@@ -605,7 +712,7 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
 
         <div className="flex justify-end pt-6 border-t border-[#eee]">
           <button
-            onClick={() => onSave({ causes, outputs })}
+            onClick={() => onSave({ causes, outputs, colWidths })}
             className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-md"
           >
             <CheckCircle2 size={18} className="mr-2" />
