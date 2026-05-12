@@ -139,6 +139,7 @@ export default function ActionPlan({ onSave, initialData, onGenerateAI, isGenera
   const getStatusColor = (state: string) => {
     switch (state) {
       case 'green': return 'bg-green-500';
+      case 'blue': return 'bg-blue-500';
       case 'yellow': return 'bg-yellow-500';
       case 'red': return 'bg-red-500';
       default: return 'bg-gray-300';
@@ -300,13 +301,15 @@ export default function ActionPlan({ onSave, initialData, onGenerateAI, isGenera
                             className={cn(
                               "w-full p-2 pl-8 text-[11px] font-bold rounded-[4px] border border-[#ddd] appearance-none cursor-pointer focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm",
                               action[col.id]?.state === 'green' ? "text-green-700 bg-green-50 border-green-200" :
+                              action[col.id]?.state === 'blue' ? "text-blue-700 bg-blue-50 border-blue-200" :
                               action[col.id]?.state === 'yellow' ? "text-yellow-700 bg-yellow-50 border-yellow-200" :
                               "text-red-700 bg-red-50 border-red-200"
                             )}
                           >
-                            <option value="green">Realizado no prazo</option>
-                            <option value="yellow">Em andamento com atraso</option>
-                            <option value="red">Risco de não ser realizado</option>
+                            <option value="green">Concluído</option>
+                            <option value="blue">Em andamento</option>
+                            <option value="yellow">Atrasado</option>
+                            <option value="red">Cancelado</option>
                           </select>
                           <div className={cn(
                             "absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full shadow-inner",
@@ -371,12 +374,7 @@ export default function ActionPlan({ onSave, initialData, onGenerateAI, isGenera
           <Plus size={18} /> Adicionar Nova Ação
         </button>
 
-        <button
-          onClick={() => onSave({ columns, actions })}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-2.5 bg-[#10b981] text-white text-[13px] font-bold rounded-[4px] hover:bg-green-600 transition-all border-none cursor-pointer shadow-md active:scale-95"
-        >
-          <CheckCircle2 size={18} /> Salvar Plano de Ação Completo
-        </button>
+        <button data-save-trigger onClick={() => onSave({ columns, actions })} className="hidden" />
       </div>
     </div>
   );

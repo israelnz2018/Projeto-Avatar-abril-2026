@@ -16,7 +16,10 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Edit3,
+  Volume2,
+  FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,6 +35,8 @@ import {
   restoreDefaultMethodologies
 } from '../services/configService';
 import { Initiative, InitiativePhaseConfig } from '../types';
+import MentorContextEditor from './projects/MentorContextEditor';
+import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
 
 const DEFAULT_PHASES = [
   { id: 'Define', name: 'Definir' },
@@ -44,7 +49,12 @@ const DEFAULT_PHASES = [
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema', phase: 'Define' },
   { id: 'charter', name: 'Project Charter', phase: 'Define' },
+  { id: 'stakeholderAdkar', name: 'Stakeholder & ADKAR', phase: 'Define' },
   { id: 'projectCharterPMI', name: 'Project Charter - PMI', phase: 'Define' },
+  { id: 'measureAdkar', name: 'Stakeholder & ADKAR — Medir (Desire)', phase: 'Measure' },
+  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)', phase: 'Analyze' },
+  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)', phase: 'Improve' },
+  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)', phase: 'Control' },
   { id: 'sipoc', name: 'SIPOC', phase: 'Define' },
   { id: 'timeline', name: 'Cronograma Macro', phase: 'Define' },
   { id: 'wbs', name: 'WBS (EAP)', phase: 'Define' },
@@ -57,6 +67,7 @@ const AVAILABLE_TOOLS = [
   { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', phase: 'Define' },
   { id: 'processMap', name: 'Mapeamento de Processo', phase: 'Measure' },
   { id: 'brainstorming', name: 'Brainstorming', phase: 'Measure' },
+  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', phase: 'Improve' },
   { id: 'measureIshikawa', name: 'Espinha de Peixe (Medir)', phase: 'Measure' },
   { id: 'measureMatrix', name: 'Matriz Causa e Efeito', phase: 'Measure' },
   { id: 'beforeAfter', name: 'Antes x Depois', phase: 'Measure' },
@@ -74,6 +85,7 @@ const AVAILABLE_TOOLS = [
   { id: 'plan5w2h', name: 'Plano de Ação 5W2H', phase: 'Improve' },
   { id: 'actionPlan', name: 'Plano de Ação', phase: 'Improve' },
   { id: 'sop', name: 'POP (Procedimento Operacional Padrão)', phase: 'Improve' },
+  { id: 'controlPlan', name: 'Plano de Controle', phase: 'Control' },
   { id: 'processCanva', name: 'Canva', phase: 'Measure' },
   { id: 'processModeling', name: 'Modelagem de Processo', phase: 'Measure' },
   { id: 'processValidation', name: 'Validação de Processo', phase: 'Measure' },
@@ -81,6 +93,19 @@ const AVAILABLE_TOOLS = [
 ];
 
 export default function ProjectToolsConfig() {
+  const [editingToolId, setEditingToolId] = useState<string | null>(null);
+  const [editingToolName, setEditingToolName] = useState<string>('');
+  const [mentorContexts, setMentorContexts] = useState<Record<string, MentorToolContext>>({});
+
+  useEffect(() => {
+    getAllToolContexts().then(data => setMentorContexts(data));
+  }, []);
+
+  const refreshContexts = async () => {
+    const data = await getAllToolContexts();
+    setMentorContexts(data);
+  };
+
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
   const [configs, setConfigs] = useState<InitiativePhaseConfig[]>([]);
@@ -88,6 +113,7 @@ export default function ProjectToolsConfig() {
   const [isCreating, setIsCreating] = useState(false);
   const [newInitiativeName, setNewInitiativeName] = useState('');
   const [newInitiativeParentId, setNewInitiativeParentId] = useState('');
+  const [newInitiativeIsFree, setNewInitiativeIsFree] = useState<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [editedPhases, setEditedPhases] = useState<{id: string, name: string}[]>([]);
   const [activeConfigPhaseId, setActiveConfigPhaseId] = useState<string | null>(null);
@@ -170,11 +196,13 @@ export default function ProjectToolsConfig() {
   const [isEditingInitiative, setIsEditingInitiative] = useState(false);
   const [editingInitiativeName, setEditingInitiativeName] = useState('');
   const [editingInitiativeParentId, setEditingInitiativeParentId] = useState<string>('');
+  const [editIsFree, setEditIsFree] = useState<boolean>(false);
 
   const handleOpenEditInitiative = () => {
     if (!selectedInitiative) return;
     setEditingInitiativeName(selectedInitiative.name);
     setEditingInitiativeParentId(selectedInitiative.parentId || '');
+    setEditIsFree(selectedInitiative.isFree || false);
     setIsEditingInitiative(true);
   };
 
@@ -182,7 +210,10 @@ export default function ProjectToolsConfig() {
     if (!selectedInitiative || !editingInitiativeName.trim()) return;
     
     try {
-      const updates: any = { name: editingInitiativeName };
+      const updates: any = { 
+        name: editingInitiativeName,
+        isFree: editIsFree
+      };
       if (editingInitiativeParentId) {
         updates.parentId = editingInitiativeParentId;
       } else {
@@ -226,10 +257,11 @@ export default function ProjectToolsConfig() {
     }
 
     try {
-      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined);
+      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined, newInitiativeIsFree);
       setInitiatives(prev => [...prev, initiative]);
       setNewInitiativeName('');
       setNewInitiativeParentId('');
+      setNewInitiativeIsFree(false);
       setIsCreating(false);
       
       // Select the new initiative and clear configs (it's new)
@@ -364,6 +396,22 @@ export default function ProjectToolsConfig() {
                       ))}
                   </select>
                 </div>
+
+                {editingInitiativeParentId && (
+                  <div className="w-full">
+                    <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={editIsFree}
+                        onChange={(e) => setEditIsFree(e.target.checked)}
+                        className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-bold text-blue-700">
+                        Curso gratuito (acessível para todos os alunos)
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
@@ -549,6 +597,7 @@ export default function ProjectToolsConfig() {
                         ))}
                     </select>
                   </div>
+
                   <div className="flex gap-2 w-full md:w-auto">
                     <button 
                       onClick={handleCreateInitiative}
@@ -561,6 +610,7 @@ export default function ProjectToolsConfig() {
                         setIsCreating(false);
                         setNewInitiativeParentId('');
                         setNewInitiativeName('');
+                        setNewInitiativeIsFree(false);
                       }}
                       className="flex-1 md:flex-none bg-white text-gray-500 px-8 py-3 rounded-lg border border-gray-200 font-black text-xs hover:bg-gray-50 uppercase tracking-wider"
                     >
@@ -568,6 +618,22 @@ export default function ProjectToolsConfig() {
                     </button>
                   </div>
                 </div>
+
+                {newInitiativeParentId && (
+                  <div className="w-full mt-4">
+                    <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={newInitiativeIsFree}
+                        onChange={(e) => setNewInitiativeIsFree(e.target.checked)}
+                        className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-bold text-blue-700">
+                        Curso gratuito (acessível para todos os alunos)
+                      </span>
+                    </label>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -631,7 +697,7 @@ export default function ProjectToolsConfig() {
                 ))}
                 
                 <button
-                  onClick={() => setEditedPhases([...editedPhases, { id: Math.random().toString(36).substr(2, 9), name: 'Nova Fase' }])}
+                  onClick={() => setEditedPhases([...editedPhases, { id: crypto.randomUUID(), name: 'Nova Fase' }])}
                   className="w-full py-3 border-2 border-dashed border-gray-100 rounded-xl text-xs font-black text-gray-400 hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/30 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
                 >
                   <Plus size={16} />
@@ -768,37 +834,68 @@ export default function ProjectToolsConfig() {
                               Catálogo de Ferramentas (Clique para adicionar/remover)
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {AVAILABLE_TOOLS.map((tool) => {
+                              {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map((tool) => {
                                 const isSelected = config.toolIds.includes(tool.id);
+                                const ctx = mentorContexts[tool.id];
+                                const hasMentorContent = ctx && (
+                                  (ctx.responseMode === 'text' && ctx.responseText?.trim()) ||
+                                  (ctx.responseMode === 'audio' && ctx.audioUrl)
+                                );
                                 return (
-                                  <button
+                                  <div
                                     key={tool.id}
-                                    onClick={() => toggleTool(phase.id, tool.id)}
                                     className={cn(
-                                      "flex items-center justify-between p-4 rounded-xl border text-left transition-all group",
+                                      "flex items-center justify-between p-4 rounded-xl border text-left transition-all group relative",
                                       isSelected
                                         ? "bg-blue-600 border-blue-600 shadow-md ring-2 ring-blue-100"
                                         : "bg-white border-gray-100 hover:border-blue-200"
                                     )}
                                   >
-                                    <div className="flex items-center gap-3">
+                                    <button
+                                      onClick={() => toggleTool(phase.id, tool.id)}
+                                      className="flex items-center gap-3 flex-1 text-left bg-transparent border-none cursor-pointer p-0"
+                                    >
                                       <div className={cn(
                                         "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
                                         isSelected ? "bg-white/20 text-white" : "bg-gray-50 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600"
                                       )}>
                                         <Wrench size={16} />
                                       </div>
-                                      <div>
+                                      <div className="flex-1">
                                         <div className={cn("text-xs font-black uppercase tracking-tight", isSelected ? "text-white" : "text-gray-500")}>
                                           {tool.name}
                                         </div>
-                                        <div className={cn("text-[9px] font-bold uppercase mt-0.5", isSelected ? "text-blue-100" : "text-gray-400")}>
-                                          Sugestão: {tool.phase}
-                                        </div>
+                                        {hasMentorContent && (
+                                          <div className={cn(
+                                            "text-[9px] uppercase tracking-wider font-bold mt-0.5 flex items-center gap-1",
+                                            isSelected ? "text-blue-100" : "text-green-600"
+                                          )}>
+                                            {ctx?.responseMode === 'audio' ? <Volume2 size={9} /> : <FileText size={9} />}
+                                            Mentor configurado
+                                          </div>
+                                        )}
                                       </div>
+                                    </button>
+                                    <div className="flex items-center gap-1 ml-2">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingToolId(tool.id);
+                                          setEditingToolName(tool.name);
+                                        }}
+                                        className={cn(
+                                          "p-1.5 rounded-lg transition-all cursor-pointer border-none",
+                                          isSelected
+                                            ? "bg-white/20 text-white hover:bg-white/30"
+                                            : "bg-gray-50 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+                                        )}
+                                        title="Configurar Mentor LBW"
+                                      >
+                                        <Edit3 size={13} />
+                                      </button>
+                                      {isSelected && <CheckCircle2 size={18} className="text-white" />}
                                     </div>
-                                    {isSelected && <CheckCircle2 size={18} className="text-white" />}
-                                  </button>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -853,6 +950,14 @@ export default function ProjectToolsConfig() {
           Restaurar Metodologias Padrão (Limpar Tudo)
         </button>
       </div>
+      {editingToolId && (
+        <MentorContextEditor
+          toolId={editingToolId}
+          toolName={editingToolName}
+          onClose={() => setEditingToolId(null)}
+          onSaved={() => refreshContexts()}
+        />
+      )}
     </div>
   );
 }

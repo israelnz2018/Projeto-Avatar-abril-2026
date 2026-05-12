@@ -99,44 +99,6 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Matriz GUT com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Ishikawa e Brainstorming" para gerar
-                Matriz GUT técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
-                um mapeamento rigoroso e técnico.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
@@ -191,9 +153,9 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                     position: 'relative',
                     borderLeft: dragOverCol === col.id ? '2px solid #3b82f6' : undefined,
                   }}
-                  className="px-3 py-3 text-left bg-gray-50 border-b-2 border-gray-200 select-none whitespace-normal break-words group"
+                  className={`px-3 py-3 bg-gray-50 border-b-2 border-gray-200 select-none whitespace-normal break-words group ${col.id === 'resultado' ? 'text-center' : 'text-left'}`}
                 >
-                  <div className="flex items-center gap-1 group">
+                  <div className={`flex items-center gap-1 group ${col.id === 'resultado' ? 'justify-center' : ''}`}>
                     {col.id !== 'description' && (
                       <GripVertical size={12} className="text-gray-300 cursor-grab shrink-0" />
                     )}
@@ -257,6 +219,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                   />
                 </th>
               ))}
+              <th className="px-3 py-3 w-12 text-center bg-gray-50 border-b-2 border-gray-200"></th>
             </tr>
           </thead>
 
@@ -303,9 +266,11 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                           }}
                         />
                       ) : col.id === 'resultado' ? (
-                        <span className={`font-black text-lg ${isWinner ? 'text-green-600' : 'text-purple-700'}`}>
-                          {total}
-                        </span>
+                        <div className="flex justify-center flex-col h-[34px]">
+                          <span className={`font-black text-center text-lg ${isWinner ? 'text-green-600' : 'text-purple-700'}`}>
+                            {total}
+                          </span>
+                        </div>
                       ) : col.isScore ? (
                         <select
                           value={row[col.id] || 1}
@@ -343,6 +308,15 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                       )}
                     </td>
                   ))}
+                  <td className="px-3 py-2 align-middle text-center">
+                    <button
+                      onClick={() => setRows(prev => prev.filter(r => r.id !== row.id))}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer inline-flex items-center justify-center"
+                      title="Excluir item"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -350,12 +324,26 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
         </table>
       </div>
 
-      <button 
-        onClick={() => onSave({ opportunities: rows, columns, columnWidths })} 
-        className="bg-green-600 text-white px-6 py-2 rounded-lg font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-700 transition-all ml-auto"
-      >
-        <CheckCircle2 size={16} className="mr-2" /> Salvar Matriz
-      </button>
+      <div className="flex justify-between items-center mt-4">
+        <button
+          onClick={() => {
+            const newRow: any = { id: `row_${Date.now()}`, description: '' };
+            columns.filter(c => c.isScore).forEach(c => newRow[c.id] = 1);
+            setRows(prev => [...prev, newRow]);
+          }}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border-none cursor-pointer"
+        >
+          <Plus size={16} />
+          Adicionar Item
+        </button>
+
+        <button 
+          onClick={() => onSave({ opportunities: rows, columns, columnWidths })} 
+          className="bg-green-600 text-white px-6 py-2 rounded-lg font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-700 transition-all ml-auto"
+        >
+          <CheckCircle2 size={16} className="mr-2" /> Salvar Matriz
+        </button>
+      </div>
     </div>
   </div>
 );

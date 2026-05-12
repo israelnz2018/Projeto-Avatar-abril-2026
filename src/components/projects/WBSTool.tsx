@@ -124,7 +124,7 @@ export default function WBSTool({ onSave, initialData, onGenerateAI, isGeneratin
 
   const addItem = (parentId: string) => {
     const newItem: WBSItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       name: 'Nova Entrega',
       code: '',
       children: [],

@@ -13,7 +13,10 @@ import { db, auth } from '../lib/firebase';
 import { getUserProjects, createProject, deleteProject, updateProjectPhase } from '../services/projectService';
 import { getInitiatives } from '../services/configService';
 import { Initiative, Project } from '../types';
-import { toast } from 'sonner';
+import { Toaster, toast } from 'sonner';
+import { useUserAccess } from '../hooks/useUserAccess';
+import { LockedToolPopup } from './LockedToolPopup';
+import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
@@ -27,8 +30,10 @@ const getInitiativeIcon = (name: string) => {
 };
 
 import { chatWithMentor, getMentorSuggestions } from '../services/aiService';
+import { useProject } from '../contexts/ProjectContext';
 
 export default function ProjectManagement() {
+  const { setProjetoAtivo } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -40,7 +45,12 @@ export default function ProjectManagement() {
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string>('');
   const [selectedParentInitiativeId, setSelectedParentInitiativeId] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
+  const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [activeToolLabel, setActiveToolLabel] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+
+  const { canUseInitiative } = useUserAccess();
 
   const isAdmin = auth.currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
 
@@ -266,6 +276,7 @@ export default function ProjectManagement() {
                       onClick={() => {
                         setSelectedProject(project);
                         setCurrentPhase(project.currentPhase);
+                        setProjetoAtivo(project);
                       }}
                       className={cn(
                         "flex items-center justify-between p-4 border-b border-gray-50 last:border-0 cursor-pointer transition-all hover:bg-blue-50/30 group",
@@ -331,7 +342,11 @@ export default function ProjectManagement() {
                 <ProjectJourney 
                   projectId={selectedProject.id}
                   project={selectedProject}
-                  onPhaseChange={handlePhaseChange} 
+                  onPhaseChange={handlePhaseChange}
+                  onActiveToolChange={(toolId, toolLabel) => {
+                    setActiveToolId(toolId);
+                    setActiveToolLabel(toolLabel);
+                  }}
                 />
               </motion.div>
             ) : (
@@ -409,21 +424,23 @@ export default function ProjectManagement() {
                                 exit={{ opacity: 0, y: -10 }}
                                 className="bg-white border border-blue-100 rounded-2xl p-2 shadow-lg space-y-1"
                               >
-                                {children.map(child => (
-                                  <button
-                                    key={child.id}
-                                    onClick={() => {
-                                      setSelectedInitiativeId(child.id);
-                                      setIsCreating(true);
-                                    }}
-                                    className="w-full p-3 text-left hover:bg-blue-50 rounded-xl transition-all flex items-center justify-between group"
-                                  >
-                                    <span className="text-[10px] font-black text-gray-700 uppercase tracking-tight group-hover:text-blue-600">
-                                      {child.name}
-                                    </span>
-                                    <ChevronRight size={12} className="text-gray-300 group-hover:text-blue-600" />
-                                  </button>
-                                ))}
+                                {children.map(child => {
+                                  return (
+                                    <button
+                                      key={child.id}
+                                      onClick={() => {
+                                        setSelectedInitiativeId(child.id);
+                                        setIsCreating(true);
+                                      }}
+                                      className="w-full p-3 text-left hover:bg-blue-50 rounded-xl transition-all flex items-center justify-between group relative"
+                                    >
+                                      <span className="text-[10px] font-black text-gray-700 uppercase tracking-tight group-hover:text-blue-600">
+                                        {child.name}
+                                      </span>
+                                      <ChevronRight size={12} className="text-gray-300 group-hover:text-blue-600" />
+                                    </button>
+                                  );
+                                })}
                               </motion.div>
                             )}
                           </AnimatePresence>
@@ -440,13 +457,13 @@ export default function ProjectManagement() {
       <div className="hidden lg:block sticky top-0 h-full shrink-0">
         <MentorSidebar 
           currentPhase={currentPhase}
-          messages={messages}
-          inputMessage={inputMessage}
-          onInputChange={setInputMessage}
-          onSendMessage={handleSendMessage}
           suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
           mentorMessage={getMentorMessage(currentPhase)}
-        />
+          activeToolId={activeToolId}
+          activeToolLabel={activeToolLabel}
+          projectId={selectedProject?.id || null}
+          projectName={selectedProject?.name || null}
+       />
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -560,6 +577,7 @@ export default function ProjectManagement() {
           </div>
         )}
       </AnimatePresence>
+      <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
     </div>
   );
 }

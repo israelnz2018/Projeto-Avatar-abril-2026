@@ -36,24 +36,137 @@ import {
 } from '../services/knowledgeService';
 
 const AVAILABLE_TOOLS = [
-  { id: 'brief', name: 'Entendendo o Problema', phase: 'Define' },
-  { id: 'charter', name: 'Project Charter', phase: 'Define' },
-  { id: 'sipoc', name: 'SIPOC', phase: 'Define' },
-  { id: 'timeline', name: 'Cronograma', phase: 'Define' },
-  { id: 'detailedTimeline', name: 'Atividades do Projeto', phase: 'Define' },
-  { id: 'stakeholders', name: 'Stakeholders', phase: 'Define' },
-  { id: 'processMap', name: 'Mapeamento de Processo', phase: 'Measure' },
-  { id: 'brainstorming', name: 'Brainstorming', phase: 'Measure' },
-  { id: 'measureIshikawa', name: 'Espinha de Peixe (Ishikawa)', phase: 'Measure' },
-  { id: 'measureMatrix', name: 'Matriz Causa e Efeito', phase: 'Measure' },
-  { id: 'dataCollection', name: 'Plano de Coleta de Dados', phase: 'Measure' },
-  { id: 'vsm', name: 'Mapeamento de Valor (VSM)', phase: 'Analyze' },
-  { id: 'qualitativeAnalysis', name: 'Análise Qualitativa', phase: 'Analyze' },
-  { id: 'statisticalAnalysis', name: 'Análise Estatística', phase: 'Analyze' },
-  { id: 'dataNature', name: 'Natureza dos Dados (AI)', phase: 'Analyze' },
-  { id: 'fmea', name: 'FMEA de Processo', phase: 'Improve' },
-  { id: 'plan5w2h', name: 'Plano de Ação (5W2H)', phase: 'Improve' },
-  { id: 'sop', name: 'Procedimento Operacional Padrão (POP)', phase: 'Improve' }
+  { id: 'brief', name: 'Entendendo o Problema' },
+  { id: 'charter', name: 'Project Charter' },
+  { id: 'stakeholderAdkar', name: 'Stakeholder & ADKAR' },
+  { id: 'projectCharterPMI', name: 'Project Charter - PMI' },
+  { id: 'measureAdkar', name: 'Stakeholder & ADKAR — Medir (Desire)' },
+  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)' },
+  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)' },
+  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)' },
+  { id: 'sipoc', name: 'SIPOC' },
+  { id: 'timeline', name: 'Cronograma Macro' },
+  { id: 'wbs', name: 'WBS (EAP)' },
+  { id: 'gpPlanPMI', name: 'Plano do GP - PMI' },
+  { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI' },
+  { id: 'riskManagementPMI', name: 'Plano de Riscos PMI' },
+  { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI' },
+  { id: 'detailedTimeline', name: 'Atividades Detalhadas' },
+  { id: 'improvementPlan', name: 'Plano do Projeto de Melhoria' },
+  { id: 'stakeholders', name: 'Stakeholders' },
+  { id: 'processMap', name: 'Mapeamento de Processo' },
+  { id: 'brainstorming', name: 'Brainstorming' },
+  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções' },
+  { id: 'measureIshikawa', name: 'Espinha de Peixe' },
+  { id: 'measureMatrix', name: 'Matriz Causa e Efeito' },
+  { id: 'beforeAfter', name: 'Antes x Depois' },
+  { id: 'rab', name: 'Matriz RAB' },
+  { id: 'gut', name: 'Matriz GUT' },
+  { id: 'effortImpact', name: 'Esforço x Impacto' },
+  { id: 'dataCollection', name: 'Plano de Coleta de Dados' },
+  { id: 'vsm', name: 'VSM (Value Stream Map)' },
+  { id: 'directObservation', name: 'Observação Direta (Gemba)' },
+  { id: 'fiveWhys', name: '5 Porquês' },
+  { id: 'fta', name: 'Árvore de Falhas (FTA)' },
+  { id: 'statisticalAnalysis', name: 'Análise Estatística' },
+  { id: 'dataNature', name: 'Natureza dos Dados' },
+  { id: 'fmea', name: 'FMEA' },
+  { id: 'plan5w2h', name: 'Plano de Ação 5W2H' },
+  { id: 'actionPlan', name: 'Plano de Ação' },
+  { id: 'sop', name: 'POP (Procedimento Operacional Padrão)' },
+  { id: 'processCanva', name: 'Canva' },
+  { id: 'processModeling', name: 'Modelagem de Processo' },
+  { id: 'processValidation', name: 'Validação de Processo' },
+  { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria' },
+  { id: 'controlPlan', name: 'Plano de Controle' }
+];
+
+const AVAILABLE_ANALYSES = [
+  // Análise Exploratória
+  { id: 'graficoSumario', name: 'Gráfico Sumario' },
+  { id: 'analiseOutliers', name: 'Análise de outliers' },
+  { id: 'correlacaoPearson', name: 'Correlação de Pearson' },
+  { id: 'matrixDispersao', name: 'Matrix de dispersão' },
+  { id: 'analiseEstabilidade', name: 'Análise de estabilidade' },
+  { id: 'analiseLimpezaDados', name: 'Análise de limpeza dos dados' },
+  { id: 'analiseCluster', name: 'Análise de cluster' },
+  // Análise Descritiva (Gráficos)
+  { id: 'histograma', name: 'Histograma' },
+  { id: 'pareto', name: 'Pareto' },
+  { id: 'pizza', name: 'Setores (Pizza)' },
+  { id: 'barras', name: 'Barras' },
+  { id: 'boxplot', name: 'BoxPlot' },
+  { id: 'dispersao', name: 'Dispersão' },
+  { id: 'tendencia', name: 'Tendência' },
+  { id: 'bolhas3D', name: 'Bolhas - 3D' },
+  { id: 'superficie3D', name: 'Superfície - 3D' },
+  { id: 'dispersao3D', name: 'Dispersão 3D' },
+  { id: 'intervalo', name: 'Intervalo' },
+  // Análise Inferencial - Médias
+  { id: 't1Sample', name: '1 Sample T' },
+  { id: 't2Sample', name: '2 Sample T' },
+  { id: 't2Paired', name: '2 Paired Test' },
+  { id: 'anova1way', name: 'One way ANOVA' },
+  { id: 'intervaloConfianca1', name: '1 Intervalo de Confiança' },
+  // Análise Inferencial - Medianas
+  { id: 'wilcoxon1', name: '1 Wilcoxon' },
+  { id: 'mannWhitney', name: '2 Mann-Whitney' },
+  { id: 'wilcoxonPaired', name: '2 Wilcoxon Paired' },
+  { id: 'kruskalWallis', name: 'Kruskal-Wallis' },
+  { id: 'friedmanPareado', name: 'Friedman Pareado' },
+  { id: 'intervaloInterquartilico', name: '1 Intervalo Interquartílico' },
+  // Análise Inferencial - Variâncias
+  { id: 'variancas2', name: '2 Variâncias' },
+  { id: 'variancasBF', name: '2 Variâncias Brown-Forsythe' },
+  { id: 'bartlett', name: 'Bartlett' },
+  { id: 'brownForsythe', name: 'Brown-Forsythe' },
+  { id: 'intervaloConfiancaVar', name: '1 Intervalo de Confiança Variância' },
+  // Análise Inferencial - Proporção
+  { id: 'proporcao1', name: '1 Proporção' },
+  { id: 'proporcoes2', name: '2 Proporções' },
+  { id: 'proporcoesK', name: 'K Proporções' },
+  // Análise Inferencial - Independência
+  { id: 'quiQuadradoAssociacao', name: 'Qui-quadrado de Associação' },
+  { id: 'quiQuadradoAjuste', name: 'Qui-quadrado de Ajuste' },
+  // MSA - Dados Contínuos
+  { id: 'gageRR', name: 'Gage R&R' },
+  { id: 'bias', name: 'Vício (Bias)' },
+  { id: 'linearidade', name: 'Linearidade' },
+  { id: 'msaEstabilidade', name: 'Estabilidade (MSA)' },
+  // MSA - Dados Discretos
+  { id: 'concordanciaAtributos', name: 'Concordância de Atributos' },
+  { id: 'metodoAnalitico', name: 'Método Analítico' },
+  // Análise Preditiva
+  { id: 'tipoModeloRegressao', name: 'Tipo de modelo de regressão' },
+  { id: 'regressaoLinear', name: 'Regressão Linear' },
+  { id: 'regressaoQuadratica', name: 'Regressão Quadrática' },
+  { id: 'regressaoCubica', name: 'Regressão Cúbica' },
+  { id: 'regressaoLinearMultipla', name: 'Regressão Linear Múltipla' },
+  { id: 'regressaoBinaria', name: 'Regressão Binária' },
+  { id: 'regressaoOrdinal', name: 'Regressão Ordinal' },
+  { id: 'regressaoNominal', name: 'Regressão Nominal' },
+  { id: 'arvoreDecisao', name: 'Árvore de Decisão - CART' },
+  { id: 'randomForest', name: 'Random Forest' },
+  { id: 'serieTemporal', name: 'Série Temporal' },
+  // Controle de Processo
+  { id: 'cartaIMR', name: 'Carta I-MR' },
+  { id: 'cartaXBarraR', name: 'Carta X-Barra R' },
+  { id: 'cartaXBarraS', name: 'Carta X-Barra S' },
+  { id: 'cartaP', name: 'Carta P' },
+  { id: 'cartaNP', name: 'Carta NP' },
+  { id: 'cartaC', name: 'Carta C' },
+  { id: 'cartaU', name: 'Carta U' },
+  { id: 'cartaEWMA', name: 'Carta EWMA' },
+  // Capabilidade
+  { id: 'testeNormalidade', name: 'Teste de normalidade' },
+  { id: 'analiseEstabilidadeCap', name: 'Análise de estabilidade (Capab.)' },
+  { id: 'analiseDistribuicao', name: 'Análise de distribuição estatística' },
+  { id: 'capabilidadeNormal', name: 'Capabilidade - dados normais' },
+  { id: 'capabilidadeOutras', name: 'Capabilidade - outras distribuições' },
+  { id: 'capabilidadeTransformados', name: 'Capabilidade - dados transformados' },
+  { id: 'capabilidadeDiscretizados', name: 'Capabilidade - dados discretizados' },
+  // Diversas
+  { id: 'calculoProbabilidade', name: 'Cálculo de probabilidade' },
 ];
 
 type ModalConfig = {
@@ -77,7 +190,8 @@ export default function KnowledgeManagerView() {
     playlistUrl: '',
     course: '',
     playlist: '',
-    associatedTools: [] as string[]
+    associatedTools: [] as string[],
+    associatedAnalyses: [] as string[]
   });
 
   const [newCourse, setNewCourse] = useState('');
@@ -85,17 +199,20 @@ export default function KnowledgeManagerView() {
   const [isSaving, setIsSaving] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState<string | null>(null);
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
+  const [isAnalysesDropdownOpen, setIsAnalysesDropdownOpen] = useState(false);
 
   const [editVideoData, setEditVideoData] = useState({
     id: '',
     title: '',
     course: '',
     playlist: '',
-    associatedTools: [] as string[]
+    associatedTools: [] as string[],
+    associatedAnalyses: [] as string[]
   });
   const [editNewCourse, setEditNewCourse] = useState('');
   const [editNewPlaylist, setEditNewPlaylist] = useState('');
   const [isEditToolsDropdownOpen, setIsEditToolsDropdownOpen] = useState(false);
+  const [isEditAnalysesDropdownOpen, setIsEditAnalysesDropdownOpen] = useState(false);
 
   const [modalConfig, setModalConfig] = useState<ModalConfig>({ isOpen: false, type: 'editCourse' });
   const [rawTranscriptText, setRawTranscriptText] = useState('');
@@ -159,12 +276,30 @@ export default function KnowledgeManagerView() {
     }));
   };
 
+  const toggleAnalysis = (analysisId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      associatedAnalyses: prev.associatedAnalyses.includes(analysisId)
+        ? prev.associatedAnalyses.filter(id => id !== analysisId)
+        : [...prev.associatedAnalyses, analysisId]
+    }));
+  };
+
   const toggleEditTool = (toolId: string) => {
     setEditVideoData(prev => ({
       ...prev,
       associatedTools: prev.associatedTools.includes(toolId)
         ? prev.associatedTools.filter(id => id !== toolId)
         : [...prev.associatedTools, toolId]
+    }));
+  };
+
+  const toggleEditAnalysis = (analysisId: string) => {
+    setEditVideoData(prev => ({
+      ...prev,
+      associatedAnalyses: prev.associatedAnalyses.includes(analysisId)
+        ? prev.associatedAnalyses.filter(id => id !== analysisId)
+        : [...prev.associatedAnalyses, analysisId]
     }));
   };
 
@@ -221,37 +356,56 @@ export default function KnowledgeManagerView() {
         } catch (error: any) {
           alert(error.message || "Erro ao extrair fase.");
         } finally {
-          setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [] });
+          setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [], associatedAnalyses: [] });
           setNewCourse('');
           setNewPlaylist('');
           setIsAdding(false);
           setIsToolsDropdownOpen(false);
+          setIsAnalysesDropdownOpen(false);
           setIsSaving(false);
         }
       } else {
         const title = await fetchYoutubeTitle(formData.sourceUrl);
-        
-        // Generate summary using Gemini AI
-        const { generateVideoSummary } = await import('../lib/gemini');
-        const { summary, transcript } = await generateVideoSummary(formData.sourceUrl);
 
-        await saveKnowledge({
+        // Salva imediatamente sem summary (rapido)
+        const savedDocId = await saveKnowledge({
           title,
           content: '',
           sourceUrl: formData.sourceUrl,
           course: finalCourse,
           playlist: finalPlaylist,
-          summary: summary || [],
-          transcript: transcript || '',
-          associatedTools: formData.associatedTools
+          summary: [],
+          transcript: '',
+          associatedTools: formData.associatedTools,
+          associatedAnalyses: formData.associatedAnalyses
         });
+
+        // Gera summary em segundo plano (nao bloqueia)
+        (async () => {
+          try {
+            const { generateVideoSummary } = await import('../lib/gemini');
+            const { summary, transcript } = await generateVideoSummary(formData.sourceUrl);
+            if (savedDocId) {
+              const { doc, updateDoc } = await import('firebase/firestore');
+              const { db } = await import('../lib/firebase');
+              await updateDoc(doc(db, KNOWLEDGE_COLLECTION, savedDocId), {
+                summary: summary || [],
+                transcript: transcript || ''
+              });
+              fetchItems();
+            }
+          } catch (e) {
+            console.error('[summary background]', e);
+          }
+        })();
       }
       
-      setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [] });
+      setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [], associatedAnalyses: [] });
       setNewCourse('');
       setNewPlaylist('');
       setIsAdding(false);
       setIsToolsDropdownOpen(false);
+      setIsAnalysesDropdownOpen(false);
       fetchItems();
     } catch (error) {
       alert("Erro ao salvar item.");
@@ -399,7 +553,8 @@ export default function KnowledgeManagerView() {
           title: editVideoData.title,
           course: finalCourse,
           playlist: finalPlaylist,
-          associatedTools: editVideoData.associatedTools
+          associatedTools: editVideoData.associatedTools,
+          associatedAnalyses: editVideoData.associatedAnalyses
         });
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
         await deleteCourse(modalConfig.targetCourse);
@@ -654,26 +809,63 @@ export default function KnowledgeManagerView() {
                 
                 {isToolsDropdownOpen && (
                   <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-[4px] shadow-lg max-h-60 overflow-y-auto">
-                    {['Define', 'Measure', 'Analyze', 'Improve'].map(phase => (
-                      <div key={phase}>
-                        <div className="bg-gray-50 px-3 py-1 text-xs font-bold text-gray-500 uppercase sticky top-0 border-y border-[#eee]">{phase}</div>
-                        {AVAILABLE_TOOLS.filter(t => t.phase === phase).map(tool => (
-                          <label key={tool.id} className="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm">
-                            <input 
-                              type="checkbox" 
-                              checked={formData.associatedTools.includes(tool.id)}
-                              onChange={() => toggleTool(tool.id)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            {tool.name}
-                          </label>
-                        ))}
-                      </div>
+                    {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(tool => (
+                      <label key={tool.id} className="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.associatedTools.includes(tool.id)}
+                          onChange={() => toggleTool(tool.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        {tool.name}
+                      </label>
                     ))}
                     <div className="sticky bottom-0 bg-white border-t border-[#eee] p-2">
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setIsToolsDropdownOpen(false); }}
+                        className="w-full bg-blue-50 text-blue-600 font-bold py-2 rounded hover:bg-blue-100 transition-colors text-sm cursor-pointer border-none"
+                      >
+                        Confirmar Seleção
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Análises Associadas (Opcional)</label>
+              <div className="relative">
+                <div 
+                  className="w-full p-2 border border-[#ccc] rounded-[4px] bg-white cursor-pointer flex justify-between items-center text-sm min-h-[38px]"
+                  onClick={() => setIsAnalysesDropdownOpen(!isAnalysesDropdownOpen)}
+                >
+                  <span className="text-gray-700 truncate">
+                    {formData.associatedAnalyses.length === 0 
+                      ? "Selecione as análises..." 
+                      : `${formData.associatedAnalyses.length} análise(s) selecionada(s)`}
+                  </span>
+                  <ChevronDown size={16} className="text-gray-400" />
+                </div>
+                
+                {isAnalysesDropdownOpen && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#ccc] rounded-[4px] shadow-lg max-h-60 overflow-y-auto">
+                    {[...AVAILABLE_ANALYSES].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(analysis => (
+                      <label key={analysis.id} className="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.associatedAnalyses.includes(analysis.id)}
+                          onChange={() => toggleAnalysis(analysis.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        {analysis.name}
+                      </label>
+                    ))}
+                    <div className="sticky bottom-0 bg-white border-t border-[#eee] p-2">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setIsAnalysesDropdownOpen(false); }}
                         className="w-full bg-blue-50 text-blue-600 font-bold py-2 rounded hover:bg-blue-100 transition-colors text-sm cursor-pointer border-none"
                       >
                         Confirmar Seleção
@@ -933,7 +1125,8 @@ export default function KnowledgeManagerView() {
                                         title: item.title,
                                         course: item.course,
                                         playlist: item.playlist,
-                                        associatedTools: item.associatedTools || []
+                                        associatedTools: item.associatedTools || [],
+                                        associatedAnalyses: item.associatedAnalyses || []
                                       });
                                       setEditNewCourse('');
                                       setEditNewPlaylist('');
@@ -1179,26 +1372,63 @@ export default function KnowledgeManagerView() {
                         
                         {isEditToolsDropdownOpen && (
                           <div className="absolute z-10 bottom-full mb-1 left-0 right-0 bg-white border border-[#ccc] rounded-[4px] shadow-lg max-h-48 overflow-y-auto">
-                            {['Define', 'Measure', 'Analyze', 'Improve'].map(phase => (
-                              <div key={phase}>
-                                <div className="bg-gray-50 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase sticky top-0 border-y border-[#eee]">{phase}</div>
-                                {AVAILABLE_TOOLS.filter(t => t.phase === phase).map(tool => (
-                                  <label key={tool.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50 cursor-pointer">
-                                    <input 
-                                      type="checkbox" 
-                                      checked={editVideoData.associatedTools.includes(tool.id)}
-                                      onChange={() => toggleEditTool(tool.id)}
-                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    {tool.name}
-                                  </label>
-                                ))}
-                              </div>
+                            {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(tool => (
+                              <label key={tool.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={editVideoData.associatedTools.includes(tool.id)}
+                                  onChange={() => toggleEditTool(tool.id)}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                {tool.name}
+                              </label>
                             ))}
                             <div className="sticky bottom-0 bg-white border-t border-[#eee] p-2">
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); setIsEditToolsDropdownOpen(false); }}
+                                className="w-full bg-blue-50 text-blue-600 font-bold py-1.5 rounded hover:bg-blue-100 transition-colors cursor-pointer border-none"
+                              >
+                                Confirmar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Análises Associadas</label>
+                      <div className="relative">
+                        <div 
+                          className="w-full p-2 border border-[#ccc] rounded-[4px] bg-white cursor-pointer flex justify-between items-center min-h-[38px]"
+                          onClick={() => setIsEditAnalysesDropdownOpen(!isEditAnalysesDropdownOpen)}
+                        >
+                          <span className="text-gray-700 truncate">
+                            {editVideoData.associatedAnalyses.length === 0 
+                              ? "Selecione..." 
+                              : `${editVideoData.associatedAnalyses.length} selecionada(s)`}
+                          </span>
+                          <ChevronDown size={16} className="text-gray-400" />
+                        </div>
+                        
+                        {isEditAnalysesDropdownOpen && (
+                          <div className="absolute z-10 bottom-full mb-1 left-0 right-0 bg-white border border-[#ccc] rounded-[4px] shadow-lg max-h-48 overflow-y-auto">
+                            {[...AVAILABLE_ANALYSES].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(analysis => (
+                              <label key={analysis.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={editVideoData.associatedAnalyses.includes(analysis.id)}
+                                  onChange={() => toggleEditAnalysis(analysis.id)}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                {analysis.name}
+                              </label>
+                            ))}
+                            <div className="sticky bottom-0 bg-white border-t border-[#eee] p-2">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setIsEditAnalysesDropdownOpen(false); }}
                                 className="w-full bg-blue-50 text-blue-600 font-bold py-1.5 rounded hover:bg-blue-100 transition-colors cursor-pointer border-none"
                               >
                                 Confirmar

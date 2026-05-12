@@ -29,12 +29,16 @@ import ProjectManagement from './components/ProjectManagement';
 import LearningView from './components/LearningView';
 import KnowledgeManagerView from './components/KnowledgeManagerView';
 import ProjectToolsConfig from './components/ProjectToolsConfig';
+import AIAssistantConfig from './components/AIAssistantConfig';
 import ToolCreator from './components/ToolCreator';
 import UserProfile, { getUserProfile } from './components/UserProfile';
+import { ensureUserDocument } from './services/userService';
 
+import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { projetoAtivo } = useProject();
 
   const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
   const isAdmin = user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false;
@@ -48,7 +52,8 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
     ...(isAdmin ? [
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
-      { name: 'Criar Nova Ferramenta', path: '/tool-creator', icon: Sparkles }
+      { name: 'Criar Nova Ferramenta', path: '/tool-creator', icon: Sparkles },
+      { name: 'AI Assistant Config', path: '/ai-config', icon: Settings },
     ] : []),
   ];
 
@@ -71,6 +76,24 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           </button>
         </div>
 
+        {isSidebarOpen && (
+          <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50">
+            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+              <span>📁</span>
+              <span>Projeto Ativo:</span>
+            </div>
+            {projetoAtivo ? (
+              <p className="text-sm font-bold text-white truncate" title={projetoAtivo.name}>
+                {projetoAtivo.name}
+              </p>
+            ) : (
+              <p className="text-sm italic text-gray-500">
+                Nenhum projeto selecionado
+              </p>
+            )}
+          </div>
+        )}
+
         <nav className="flex-1 p-4 space-y-2">
           {menuItems.map((item) => (
             <Link
@@ -88,25 +111,36 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         </nav>
 
         <div className="p-4 border-t border-gray-700">
-          <div className={cn("flex items-center gap-3 p-3", !isSidebarOpen && "justify-center")}>
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-              {user?.email?.[0].toUpperCase()}
-            </div>
-            {isSidebarOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
-                <p className="text-[10px] font-bold text-blue-400 uppercase">
-                  {user?.email?.toLowerCase() === 'israelnz2018@hotmail.com' ? 'Administrador' : 'Aluno'}
-                </p>
-                <button onClick={onLogout} className="text-xs text-gray-400 hover:text-white flex items-center gap-1">
-                  <LogOut size={12} /> Sair
-                </button>
-                <Link
-                  to="/profile"
-                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1 mt-1"
-                >
-                  <UserIcon size={12} /> Meu Perfil
-                </Link>
+          <div className={cn("flex items-center justify-between gap-2 p-3", !isSidebarOpen && "justify-center")}>
+            {isSidebarOpen ? (
+              <>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
+                    {user?.email?.[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
+                    <p className="text-[10px] font-bold text-blue-400 uppercase">
+                      {user?.email?.toLowerCase() === 'israelnz2018@hotmail.com' ? 'Administrador' : 'Aluno'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link to="/profile" title="Meu Perfil">
+                    <UserIcon size={16} className="text-gray-400 hover:text-white transition-colors" />
+                  </Link>
+                  <button
+                    onClick={onLogout}
+                    title="Sair"
+                    className="border-none bg-transparent cursor-pointer p-0 flex items-center"
+                  >
+                    <LogOut size={16} className="text-gray-400 hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
+                {user?.email?.[0].toUpperCase()}
               </div>
             )}
           </div>
@@ -125,6 +159,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
 
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ProjectProvider } from './contexts/ProjectContext';
 
 const ProfileView = () => {
   const navigate = useNavigate();
@@ -135,16 +170,24 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const inatividadeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const deslogar = useCallback(() => {
-    if (window.confirm("⚠️ Já vai nos deixar? So aperte OK depois de ter salvo suas análises e gráficos.")) {
-      signOut(auth).then(() => {
-        localStorage.removeItem('sessaoAtiva');
-        localStorage.removeItem('usuarioEmail');
-        localStorage.removeItem('usuarioNome');
-        setUser(null);
-      }).catch((error) => console.error("Erro ao deslogar:", error));
+  const pedirConfirmacaoLogout = useCallback(() => {
+    setShowLogoutConfirm(true);
+  }, []);
+
+  const confirmarLogout = useCallback(async () => {
+    setShowLogoutConfirm(false);
+    try {
+      await signOut(auth);
+      localStorage.removeItem('sessaoAtiva');
+      localStorage.removeItem('usuarioEmail');
+      localStorage.removeItem('usuarioNome');
+      setUser(null);
+    } catch (error) {
+      console.error('[Logout] Erro:', error);
+      alert('Erro ao deslogar. Tente novamente.');
     }
   }, []);
 
@@ -176,14 +219,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        try {
+          await ensureUserDocument(currentUser);
+        } catch (err) {
+          console.error('Erro ao garantir documento do usuário:', err);
+        }
         localStorage.setItem('sessaoAtiva', 'true');
         localStorage.setItem('usuarioEmail', currentUser.email || '');
       }
+      setUser(currentUser);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -220,23 +267,59 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <Toaster position="top-right" richColors />
-      <Router>
-        <Layout user={user} onLogout={deslogar}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/chat" element={<ChatAssistant />} />
-            <Route path="/analysis" element={<DataAnalysis />} />
-            <Route path="/projects" element={<ProjectManagement />} />
-            <Route path="/learning" element={<KnowledgeManagerView />} />
-            <Route path="/education" element={<LearningView />} />
-            <Route path="/profile" element={<ProfileView />} />
-            <Route path="/config" element={<ProjectToolsConfig />} />
-            <Route path="/tool-creator" element={<ToolCreator />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </Router>
+      <ProjectProvider>
+        <Toaster position="top-right" richColors />
+        <Router>
+          <Layout user={user} onLogout={pedirConfirmacaoLogout}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/chat" element={<ChatAssistant />} />
+              <Route path="/analysis" element={<DataAnalysis />} />
+              <Route path="/projects" element={<ProjectManagement />} />
+              <Route path="/learning" element={<KnowledgeManagerView />} />
+              <Route path="/education" element={<LearningView />} />
+              <Route path="/profile" element={<ProfileView />} />
+              <Route path="/config" element={<ProjectToolsConfig />} />
+              <Route path="/tool-creator" element={<ToolCreator />} />
+              <Route path="/ai-config" element={<AIAssistantConfig />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Layout>
+        </Router>
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-2xl">
+                    ⚠️
+                  </div>
+                  <h2 className="text-xl font-black text-gray-800">
+                    Sair da plataforma?
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Antes de sair, certifique-se de que salvou suas análises e gráficos. Trabalhos não salvos serão perdidos.
+                </p>
+              </div>
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="px-5 py-2 text-sm font-black text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-xl"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={confirmarLogout}
+                  className="px-5 py-2 text-sm font-black text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-lg"
+                >
+                  SAIR
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </ProjectProvider>
     </ErrorBoundary>
   );
 }

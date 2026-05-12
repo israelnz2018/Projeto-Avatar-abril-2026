@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Users, Plus, Trash2, Save, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -39,6 +39,57 @@ const ROLE_DESIRED_ENGAGEMENT: Record<string, EngagementLevel> = {
 const ROLES = Object.keys(ROLE_DESIRED_ENGAGEMENT);
 const ENGAGEMENT_LEVELS: EngagementLevel[] = ['Desconhece', 'Resistente', 'Neutro', 'Apoiador', 'Líder'];
 const LEVELS: Level[] = ['Baixo', 'Médio', 'Alto'];
+
+const ResizableHeader = ({ children, initialWidth, minWidth, className }: { children: React.ReactNode, initialWidth: number, minWidth?: number, className?: string }) => {
+  const [width, setWidth] = useState(initialWidth);
+  const [isResizing, setIsResizing] = useState(false);
+  const headerRef = useRef<HTMLTableCellElement>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !headerRef.current) return;
+      
+      const newWidth = e.clientX - headerRef.current.getBoundingClientRect().left;
+      setWidth(Math.max(minWidth || 50, newWidth));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, minWidth]);
+
+  return (
+    <th 
+      ref={headerRef} 
+      className={cn("px-4 py-3 relative select-none", className)}
+      style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
+    >
+      {children}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400/50 z-10 transition-colors"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsResizing(true);
+        }}
+      />
+    </th>
+  );
+};
 
 export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: StakeholderAnalysisPMIProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>(initialData?.stakeholders || []);
@@ -84,8 +135,9 @@ export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerate
   };
 
   const getClassification = (power: Level, interest: Level) => {
-    const isHighPower = power === 'Alto' || power === 'Médio';
-    const isHighInterest = interest === 'Alto' || interest === 'Médio';
+    // Apenas "Alto" será considerado no quadrante superior
+    const isHighPower = power === 'Alto';
+    const isHighInterest = interest === 'Alto';
 
     if (isHighPower && isHighInterest) return 'Gerenciar de Perto';
     if (isHighPower && !isHighInterest) return 'Manter Satisfeito';
@@ -133,45 +185,6 @@ export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerate
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Stakeholders com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Project Charter" para gerar
-                Análise de Stakeholders técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
-                um mapeamento rigoroso e técnico.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1">
@@ -217,12 +230,12 @@ export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerate
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[20%]">Nome / Área</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[20%]">Função no Projeto</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%]">Poder</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%]">Interesse</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[15%]">Engajamento Atual</th>
-                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[5%] text-center">Ações</th>
+                <ResizableHeader initialWidth={250} minWidth={150} className="p-3 text-xs font-bold text-gray-600 uppercase">Nome / Área</ResizableHeader>
+                <ResizableHeader initialWidth={200} minWidth={150} className="p-3 text-xs font-bold text-gray-600 uppercase">Função no Projeto</ResizableHeader>
+                <ResizableHeader initialWidth={120} minWidth={100} className="p-3 text-xs font-bold text-gray-600 uppercase">Poder</ResizableHeader>
+                <ResizableHeader initialWidth={120} minWidth={100} className="p-3 text-xs font-bold text-gray-600 uppercase">Interesse</ResizableHeader>
+                <ResizableHeader initialWidth={180} minWidth={120} className="p-3 text-xs font-bold text-gray-600 uppercase">Engajamento Atual</ResizableHeader>
+                <th className="p-3 text-xs font-bold text-gray-600 uppercase w-[80px] text-center">Ações</th>
               </tr>
             </thead>
             <tbody>

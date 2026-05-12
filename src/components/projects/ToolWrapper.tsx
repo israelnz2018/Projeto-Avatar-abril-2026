@@ -1,8 +1,27 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search } from 'lucide-react';
+import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search, ArrowDownToLine } from 'lucide-react';
 import { generateAIToolReport, generateToolData } from '@/src/services/aiService';
+import { generateWithClaude, shouldUseClaude } from '@/src/services/claudeService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
+import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
+import { exportCharterSlide } from '@/src/services/charterSlideExporter';
+import { exportStakeholderAdkarSlide } from '@/src/services/stakeholderAdkarSlideExporter';
+import { exportMeasureAdkarSlide } from '@/src/services/measureAdkarSlideExporter';
+import { exportAnalyzeAdkarSlide } from '@/src/services/analyzeAdkarSlideExporter';
+import { exportImproveAdkarSlide } from '@/src/services/improveAdkarSlideExporter';
+import { exportControlAdkarSlide } from '@/src/services/controlAdkarSlideExporter';
+import { exportSipocSlide } from '@/src/services/sipocSlideExporter';
+import { exportProjectTimelineSlide } from '@/src/services/projectTimelineSlideExporter';
+import { exportImprovementPlanSlide } from '@/src/services/improvementPlanSlideExporter';
+import { exportProcessMapSlide } from '@/src/services/processMapSlideExporter';
+import { exportDataCollectionPlanSlide } from '@/src/services/dataCollectionPlanSlideExporter';
+import { exportBrainstormingSlide } from '@/src/services/brainstormingSlideExporter';
+import { exportCauseEffectMatrixSlide } from '@/src/services/causeEffectMatrixSlideExporter';
+import { exportDirectObservationSlide } from '@/src/services/directObservationSlideExporter';
+import { routeExportPPT } from '@/src/services/exportPPTRouter';
+import { InlinePresentationShell } from './InlinePresentationShell';
+import { IshikawaSlide } from './presentations/IshikawaSlide';
 import { useUserTheme } from '@/src/hooks/useUserTheme';
 import { toast } from 'sonner';
 import { GoogleGenAI, Type as SchemaType } from "@google/genai";
@@ -23,6 +42,7 @@ interface ToolWrapperProps {
     onGenerateAI?: (customContext?: any) => Promise<void>;
     isGeneratingAI?: boolean;
     onClearAIData?: () => void;
+    allProjectData?: any;
   }) => React.ReactNode;
   project: any;
   availableTools: any[];
@@ -422,26 +442,12 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
           <div className="flex items-center gap-3 text-blue-700 font-black uppercase tracking-[0.2em] text-xs">
             <Wand2 size={20} className="text-blue-500" />
             <p className="text-xs font-black text-blue-700 uppercase tracking-widest mb-2">
-              {customTitle || `Gerar ${toolName} com IA`}
+              {customTitle || `Gerar ${toolName}`}
             </p>
           </div>
           <p className="text-sm text-gray-600 leading-relaxed">
-            {customDescription || `A IA analisará os dados da ferramenta "${previousToolName}" para gerar ${toolName} técnico e específico para este projeto.`}
+            {customDescription || (previousToolName ? <>Obter os dados de <strong>{previousToolName}</strong> e gerar {toolName}.</> : `Gerar ${toolName} para este projeto.`)}
           </p>
-
-          {toolId === 'timeline' && (
-            <div className="mt-4 space-y-2">
-              <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">
-                Data de Início do Projeto:
-              </label>
-              <input 
-                type="date"
-                value={projectStartDate}
-                onChange={(e) => setProjectStartDate(e.target.value)}
-                className="w-full p-3 bg-white border border-blue-200 rounded-xl text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              />
-            </div>
-          )}
 
           {toolId === 'brief' && (
             <div className="mt-4 space-y-2">
@@ -468,15 +474,6 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
               </select>
             </div>
           )}
-
-          <p className="text-[11px] text-blue-400 font-bold italic flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
-            {previousToolName ? (
-              <>* A IA utiliza os fatos e dados coletados na fase anterior para garantir um {toolName.toLowerCase()} rigoroso e técnico.</>
-            ) : (
-              <>* A IA utiliza as melhores práticas de consultoria para propor um {toolName.toLowerCase()} alinhado aos seus objetivos.</>
-            )}
-          </p>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -507,7 +504,7 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
 
           <button
             onClick={handleAction}
-            disabled={isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !hasCharterData)}
+            disabled={isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI' || toolId === 'stakeholderAdkar' || toolId === 'measureAdkar') && !hasCharterData)}
             className={cn(
               "w-full md:w-auto min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
               isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !hasCharterData)
@@ -525,9 +522,66 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
                 <Sparkles size={20} />
                 <span>
                   {toolId === 'timeline' ? 'Gerar Cronograma' : 
-                   toolId === 'improvementPlan' ? 'Carregar Sugestões' : 
-                   toolId === 'brief' ? '2. Gerar com IA' : 'Gerar com IA'}
+                   toolId === 'improvementPlan' ? 'Carregar' : 
+                   toolId === 'brief' ? '2. Gerar' : 'Gerar'}
                 </span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface MigratePromptCardProps {
+  toolId?: string;
+  toolName: string;
+  sourceName: string;
+  onMigrate: () => void;
+  isMigrating: boolean;
+  hasSourceData: boolean;
+}
+
+const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigrating, hasSourceData }: MigratePromptCardProps) => {
+  return (
+    <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-10 shadow-sm relative overflow-hidden">
+      <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="space-y-3 flex-1">
+          <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
+            <ArrowDownToLine size={20} className="text-emerald-500" />
+            <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">
+              Migrar dados de {sourceName}
+            </p>
+          </div>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            {toolId === 'improvementPlan'
+              ? <>Obter as datas de <strong>Cronograma Macro</strong> e carregar as atividades sugeridas por fase.</>
+              : <>Obter os dados de <strong>{sourceName}</strong> e migrar para {toolName}.</>
+            }
+          </p>
+        </div>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onMigrate}
+            disabled={isMigrating || !hasSourceData}
+            className={cn(
+              "w-full md:w-auto min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
+              isMigrating || !hasSourceData
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200"
+            )}
+          >
+            {isMigrating ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Migrando...</span>
+              </>
+            ) : (
+              <>
+                <ArrowDownToLine size={20} />
+                <span>Migrar</span>
               </>
             )}
           </button>
@@ -539,16 +593,6 @@ NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
 
 const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; source: string }> = {
   // PRÉ-DEFINIR
-  gut: {
-    title: "Gerar Matriz GUT com IA",
-    description: "A IA vai pontuar cada projeto com critério técnico baseado nas ideias geradas na ferramenta anterior.",
-    source: "Ideia de Projeto de Melhoria"
-  },
-  rab: {
-    title: "Gerar Matriz RAB com IA",
-    description: "A IA vai avaliar Rapidez, Autonomia e Benefício de cada projeto identificado.",
-    source: "Ideia de Projeto de Melhoria"
-  },
   // DEFINIR
   brief: {
     title: "Gerar Entendendo o Problema com IA",
@@ -580,16 +624,21 @@ const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; 
     description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
     source: "Project Charter"
   },
-  improvementPlan: {
-    title: "Gerar Plano do Projeto com IA",
-    description: "A IA vai criar as atividades de cada fase usando as datas e título do Cronograma Macro.",
-    source: "Cronograma Macro"
+  stakeholderAdkar: {
+    title: "Mapear Stakeholders com IA",
+    description: "A IA vai identificar os principais stakeholders e sugerir o nível ADKAR inicial baseado no Charter.",
+    source: "Project Charter"
   },
   // MEDIR
   brainstorming: {
     title: "Gerar Brainstorming com IA",
     description: "A IA vai levantar causas técnicas baseadas no problema, processo e SIPOC do projeto.",
     source: "Entendendo o Problema e SIPOC"
+  },
+  brainstormingImprove: {
+    title: 'Gerar Brainstorming de Soluções',
+    description: 'Obter os dados de Observação Direta e Análise Estatística e gerar Brainstorming de Soluções.',
+    source: 'Observação Direta e Análise Estatística'
   },
   measureIshikawa: {
     title: "Gerar Espinha de Peixe com IA",
@@ -602,9 +651,9 @@ const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; 
     source: "Matriz Causa e Efeito"
   },
   dataNature: {
-    title: "Gerar Natureza dos Dados com IA",
-    description: "A IA vai recomendar as análises estatísticas certas para cada variável do plano de coleta.",
-    source: "Plano de Coleta de Dados"
+    title: 'Gerar Natureza dos Dados',
+    description: 'Obter os dados de Plano de Coleta de Dados e gerar a Natureza dos Dados.',
+    source: 'Plano de Coleta de Dados'
   },
   // ANALISAR
   measureMatrix: {
@@ -612,33 +661,27 @@ const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; 
     description: "A IA vai cruzar as causas da Espinha de Peixe com os KPIs definidos no Project Charter.",
     source: "Espinha de Peixe e Project Charter"
   },
-  fiveWhys: {
-    title: "Gerar 5 Porquês com IA",
-    description: "A IA vai aprofundar a investigação das causas mais críticas identificadas na Espinha de Peixe.",
-    source: "Espinha de Peixe"
-  },
   // MELHORAR
-  effortImpact: {
-    title: "Gerar Esforço x Impacto com IA",
-    description: "A IA vai pontuar cada ideia do Brainstorming por nível de esforço e impacto esperado.",
-    source: "Brainstorming"
-  },
-  fmea: {
-    title: "Gerar FMEA com IA",
-    description: "A IA vai gerar os modos de falha e RPN baseados nas causas identificadas e no processo mapeado.",
-    source: "Espinha de Peixe e SIPOC"
-  },
   plan5w2h: {
     title: "Gerar Plano de Ação 5W2H com IA",
     description: "A IA vai criar as ações com responsáveis e prazos baseados nas causas confirmadas e no Charter.",
     source: "FMEA e Project Charter"
   },
   // CONTROLAR
-  sop: {
-    title: "Gerar POP com IA",
-    description: "A IA vai gerar o procedimento operacional baseado nas ações implementadas no Plano de Ação.",
-    source: "Plano de Ação 5W2H"
-  },
+};
+
+const TOOLS_WITH_MIGRATE_BLOCK: Record<string, { source: string; sourceToolId: string }> = {
+  improvementPlan: { source: "Cronograma Macro", sourceToolId: "timeline" },
+  gut: { source: "Ideia de Projeto", sourceToolId: "improvementIdea" },
+  rab: { source: "Ideia de Projeto", sourceToolId: "improvementIdea" },
+  effortImpact: { source: "Brainstorming de Soluções", sourceToolId: "brainstormingImprove" },
+  measureAdkar: { source: "ADKAR Definir", sourceToolId: "stakeholderAdkar" },
+  analyzeAdkar: { source: "ADKAR Medir", sourceToolId: "measureAdkar" },
+  improveAdkar: { source: "ADKAR Analisar", sourceToolId: "analyzeAdkar" },
+  controlAdkar: { source: "ADKAR Melhorar", sourceToolId: "improveAdkar" },
+  directObservation: { source: "Plano de Coleta de Dados", sourceToolId: "dataCollection" },
+  statisticalAnalysis: { source: "Natureza dos Dados", sourceToolId: "dataNature" },
+  controlPlan: { source: "Plano de Ação 5W2H", sourceToolId: "plan5w2h" },
 };
 
 export default function ToolWrapper({
@@ -669,6 +712,11 @@ export default function ToolWrapper({
   const [error, setError] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearKey, setClearKey] = useState(0);
+  const [showInlinePresentation, setShowInlinePresentation] = useState(false);
+
+  // Estados especificos do Brief (Entendendo o Problema)
+  const [briefTitlesPulled, setBriefTitlesPulled] = useState<Array<{ title: string; problem?: string; y_indicator?: string; financial_impact?: string; belt_level?: string; justification?: string }>>([]);
+  const [briefSelectedTitle, setBriefSelectedTitle] = useState<string>('');
 
   const normalizeInitialData = (toolId: string, raw: any): any => {
     if (!raw) return raw;
@@ -686,6 +734,10 @@ export default function ToolWrapper({
       fmea: ['items'],
       plan5w2h: ['actions'],
       stakeholders: ['stakeholders'],
+      desireCheck: ['actions'],
+      knowledgeCheck: ['coreTeam', 'stakeholders'],
+      abilityCheck: ['solutionValidation', 'planApproval', 'implementation'],
+      reinforcementCheck: ['sustainability'],
       dataCollection: ['items'],
       effortImpact: ['actions'],
       measureMatrix: ['outputs', 'causes'],
@@ -699,6 +751,26 @@ export default function ToolWrapper({
 
     const fields = arrayFields[toolId] || [];
     const normalized = { ...d };
+
+    // Limpa o campo 'area' se for dado gerado ou se estiver em branco
+    if (toolId === 'stakeholders' || toolId === 'stakeholderAdkar' || toolId === 'measureAdkar') {
+      if (Array.isArray(normalized.stakeholders)) {
+        normalized.stakeholders = normalized.stakeholders.map((s: any) => ({
+          ...s,
+          // Se for dado novo/gerado ou se for Pintura Automotiva (por precaução), limpa
+          area: s.area === 'Pintura Automotiva' ? '' : (s.area || '')
+        }));
+      }
+    }
+
+    if (toolId === 'charter' || toolId === 'projectCharterPMI') {
+      if (normalized.area === 'Pintura Automotiva') {
+        normalized.area = '';
+      }
+      if (normalized.department === 'Pintura Automotiva') {
+        normalized.department = '';
+      }
+    }
 
     // Garante que campos esperados como array sejam arrays
     fields.forEach(field => {
@@ -837,7 +909,13 @@ export default function ToolWrapper({
   }, [initialData]);
 
   const handleToolSave = (data: any, options?: { silent?: boolean }) => {
-    setIsSaved(true);
+    // Se for auto-save silencioso (mudança em campo), marca como NÃO salvo (tem alterações pendentes)
+    // Se for save explícito (botão Salvar), marca como salvo de verdade
+    if (options?.silent) {
+      setIsSaved(false);
+    } else {
+      setIsSaved(true);
+    }
     setLocalData(data);
     onSave({
       toolData: data,
@@ -857,6 +935,222 @@ export default function ToolWrapper({
     onSave(null);
     setShowClearConfirm(false);
     toast.success("Dados limpos com sucesso!");
+  };
+
+  // Handler do botao verde do Brief: puxa os titulos do improvementIdea (sem IA)
+  const handleBriefPullTitles = () => {
+    const ideaData = getToolDataByPrefix(allProjectData, 'improvementIdea');
+    const data = ideaData?.toolData || ideaData;
+    const projects = data?.generatedProjects || [];
+    
+    if (projects.length === 0) {
+      toast.error("Nenhuma ideia de projeto encontrada. Preencha a ferramenta 'Ideia de Projeto' primeiro.");
+      return;
+    }
+    
+    setBriefTitlesPulled(projects);
+    setBriefSelectedTitle('');
+    toast.success(`${projects.length} titulo(s) carregado(s)!`);
+  };
+
+  // Handler do botao azul do Brief: envia o projeto selecionado pra Claude
+  const handleBriefGenerate = async () => {
+    if (!briefSelectedTitle) {
+      toast.error("Selecione um projeto antes de gerar.");
+      return;
+    }
+    
+    const selectedProject = briefTitlesPulled.find(p => p.title === briefSelectedTitle);
+    if (!selectedProject) {
+      toast.error("Projeto selecionado nao encontrado.");
+      return;
+    }
+    
+    setIsGeneratingData(true);
+    try {
+      // Usa o caminho Claude (rota /generate) com contexto do projeto selecionado
+      const generatedData = await generateWithClaude('brief', selectedProject, projectName);
+      const normalized = normalizeInitialData('brief', generatedData);
+      handleToolSave(normalized);
+      setClearKey(prev => prev + 1);
+      toast.success("Brief gerado com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao gerar brief com Claude:", error);
+      toast.error(error.message || "Erro ao gerar brief.");
+    } finally {
+      setIsGeneratingData(false);
+    }
+  };
+
+  const handleMigrateData = async (sourceToolId: string) => {
+    setIsGeneratingData(true);
+    try {
+      const sourceData = getToolDataByPrefix(allProjectData, sourceToolId);
+      if (!sourceData) {
+        toast.error(`Nenhum dado encontrado em ${sourceToolId}. Preencha a ferramenta de origem primeiro.`);
+        return;
+      }
+
+      let migratedData: any = {};
+
+      console.log('🔄 handleMigrateData:', { sourceToolId, sourceData, toolId });
+      
+      // Helper para acessar dados que podem estar em sourceData direto ou dentro de sourceData.toolData
+      const getField = (field: string) => sourceData?.[field] ?? sourceData?.toolData?.[field];
+
+      if (toolId === 'improvementPlan') {
+        setIsGeneratingData(false);
+        await handleGenerateData();
+        return;
+      }
+
+      if (toolId === 'directObservation') {
+        const items = getField('items') || [];
+        const qualitative = items.filter((item: any) =>
+          item.data?.method?.toLowerCase().includes('qualitativa')
+        );
+        console.log('🔬 Variaveis qualitativas encontradas:', qualitative.length);
+        migratedData = { observations: qualitative.map((item: any, idx: number) => ({
+          id: crypto.randomUUID(),
+          variable: item.data?.variable || '',
+          observationDescription: '',
+          shiftObservations: [],
+        }))};
+        if (qualitative.length === 0) {
+          toast.error('Nenhuma variavel qualitativa encontrada no Plano de Coleta. Verifique se o metodo esta marcado como "Qualitativa".');
+          setIsGeneratingData(false);
+          return;
+        }
+      }
+      
+      if (toolId === 'directObservation') {
+        const items = getField('items') || [];
+        const qualitative = items.filter((item: any) =>
+          item.data?.method?.toLowerCase().includes('qualitativa')
+        );
+        console.log('🔬 Variaveis qualitativas encontradas:', qualitative.length);
+        migratedData = { observations: qualitative.map((item: any, idx: number) => ({
+          id: crypto.randomUUID(),
+          variable: item.data?.variable || '',
+          observationDescription: '',
+          shiftObservations: [],
+        }))};
+        if (qualitative.length === 0) {
+          toast.error('Nenhuma variavel qualitativa encontrada no Plano de Coleta. Verifique se o metodo esta marcado como "Qualitativa".');
+          setIsGeneratingData(false);
+          return;
+        }
+      }
+
+      if (toolId === 'statisticalAnalysis') {
+        const dnAnalyses = getField('analyses') || [];
+        if (dnAnalyses.length === 0) {
+          toast.error('Nenhuma analise encontrada na Natureza dos Dados. Preencha aquela ferramenta primeiro.');
+          setIsGeneratingData(false);
+          return;
+        }
+        migratedData = {
+          analyses: dnAnalyses.map((a: any) => ({
+            id: crypto.randomUUID(),
+            variable: a.variableX?.name || '',
+            analysisType: (a.recommendedTools && a.recommendedTools[0]) || 'Histograma / Boxplot',
+            graphImage: '',
+            interpretation: '',
+          }))
+        };
+      }
+
+      if (toolId === 'controlPlan') {
+        const sourceActions = getField('actions') || [];
+        if (sourceActions.length === 0) {
+          toast.error('Nenhuma ação encontrada no Plano de Ação 5W2H. Preencha aquela ferramenta primeiro.');
+          setIsGeneratingData(false);
+          return;
+        }
+        const items = sourceActions
+          .filter((a: any) => (a.description || '').toString().trim())
+          .map((a: any) => ({
+            id: crypto.randomUUID(),
+            data: {
+              process: a.description || '',
+              processStep: '',
+              isOutput: '',
+              isInput: '',
+              specifications: '',
+              measurementTechnique: '',
+              msaResult: '',
+              sampleSize: '',
+              sampleFrequency: '',
+              controlMethod: '',
+              responsible: '',
+              reactionPlan: '',
+            },
+          }));
+        if (items.length === 0) {
+          toast.error('Nenhuma ação válida no Plano de Ação 5W2H para migrar.');
+          setIsGeneratingData(false);
+          return;
+        }
+        migratedData = { items };
+      }
+
+      if (toolId === 'gut' || toolId === 'rab') {
+        const projects = getField('generatedProjects') || [];
+        console.log('📋 Projetos encontrados:', projects.length);
+        const opportunities = projects.map((p: any, idx: number) => ({
+          id: String(idx + 1),
+          description: p.title || p.description || '',
+        }));
+        
+        // Colunas padrao por ferramenta (sem isso a tabela nao renderiza)
+        const defaultColumns = toolId === 'gut' ? [
+          { id: 'description', label: 'Problema / Oportunidade', isScore: false },
+          { id: 'gravidade', label: 'Gravidade', isScore: true },
+          { id: 'urgencia', label: 'Urgência', isScore: true },
+          { id: 'tendencia', label: 'Tendência', isScore: true },
+          { id: 'resultado', label: 'Resultado Final', isScore: false },
+        ] : [
+          { id: 'description', label: 'Problema / Oportunidade', isScore: false },
+          { id: 'rapidez', label: 'Rapidez', isScore: true },
+          { id: 'autonomia', label: 'Autonomia', isScore: true },
+          { id: 'beneficio', label: 'Benefício', isScore: true },
+          { id: 'resultado', label: 'Resultado Final', isScore: false },
+        ];
+        
+        migratedData = { opportunities, columns: defaultColumns };
+      } else if (toolId === 'effortImpact') {
+        const ideas = getField('ideas') || [];
+        console.log('💡 Ideias encontradas:', ideas.length);
+        migratedData = {
+          actions: ideas.map((idea: any, idx: number) => ({
+            id: String(idx + 1),
+            label: `X${idx + 1}`,
+            description: idea.text || '',
+            effort: 3,
+            impact: 3,
+          }))
+        };
+      } else if (['measureAdkar', 'analyzeAdkar', 'improveAdkar', 'controlAdkar'].includes(toolId)) {
+        const stakeholders = getField('stakeholders') || [];
+        console.log('👥 Stakeholders encontrados:', stakeholders.length);
+        migratedData = { stakeholders };
+      }
+      
+      console.log('✅ Dados migrados:', migratedData);
+
+      const normalized = normalizeInitialData(toolId, migratedData);
+      console.log('💾 Salvando dados migrados:', normalized);
+      
+      handleToolSave(normalized);
+      setClearKey(prev => prev + 1);
+      
+      toast.success("Dados migrados com sucesso!");
+    } catch (error: any) {
+      console.error("Erro ao migrar dados:", error);
+      toast.error(error.message || "Erro ao migrar dados.");
+    } finally {
+      setIsGeneratingData(false);
+    }
   };
 
   const handleGenerateData = async (customContext?: any) => {
@@ -990,7 +1284,7 @@ export default function ToolWrapper({
             return {
               ...phase,
               activities: (SUGGESTED_ACTIVITIES[phase.id] || []).map(text => ({
-                id: Math.random().toString(36).substr(2, 9),
+                id: crypto.randomUUID(),
                 text,
                 status: 'Not Started' as const,
                 plannedStart: macroPhase?.startDate || '',
@@ -1126,10 +1420,12 @@ export default function ToolWrapper({
       }
 
       // Special handling for stakeholders to pull from Charter or Brief
-      if ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && allProjectData) {
+      if ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI' || toolId === 'stakeholderAdkar' || toolId === 'measureAdkar') && allProjectData) {
         targetContext = {
           charter: getToolDataByPrefix(allProjectData, 'charter'),
           projectCharterPMI: getToolDataByPrefix(allProjectData, 'projectCharterPMI'),
+          stakeholderAdkar: getToolDataByPrefix(allProjectData, 'stakeholderAdkar'),
+          measureAdkar: getToolDataByPrefix(allProjectData, 'measureAdkar'),
           brief: getToolDataByPrefix(allProjectData, 'brief')
         };
       }
@@ -1180,10 +1476,35 @@ export default function ToolWrapper({
         };
       }
 
-      if (toolId === 'dataNature' && allProjectData) {
+      if (toolId === 'brainstormingImprove' && allProjectData) {
         targetContext = {
           brief: getToolDataByPrefix(allProjectData, 'brief'),
-          dataCollection: getToolDataByPrefix(allProjectData, 'dataCollection')
+          directObservation: getToolDataByPrefix(allProjectData, 'directObservation'),
+          statisticalAnalysis: getToolDataByPrefix(allProjectData, 'statisticalAnalysis')
+        };
+      }
+
+      if (toolId === 'dataNature' && allProjectData) {
+        const dcData = getToolDataByPrefix(allProjectData, 'dataCollection');
+        const dcItems = dcData?.items || dcData?.toolData?.items || [];
+        const quantitativeOnly = dcItems.filter((item: any) =>
+          item.data?.method === 'Quantitativa'
+        );
+        targetContext = {
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          dataCollection: {
+            items: quantitativeOnly
+          }
+        };
+      }
+
+      if (toolId === 'plan5w2h' && allProjectData) {
+        targetContext = {
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          fmea: getToolDataByPrefix(allProjectData, 'fmea'),
+          effortImpact: getToolDataByPrefix(allProjectData, 'effortImpact'),
+          fiveWhys: getToolDataByPrefix(allProjectData, 'fiveWhys'),
+          improveAdkar: getToolDataByPrefix(allProjectData, 'improveAdkar'),
         };
       }
 
@@ -1203,14 +1524,22 @@ export default function ToolWrapper({
         };
       }
 
-      const generatedData = await generateToolData(
-        toolId, 
-        toolName, 
-        previousToolName || null, 
-        targetContext,
-        { name: projectName, description: project.description },
-        allProjectData
-      );
+      // Se a ferramenta esta configurada em aiPrompts.ts, usa Claude API.
+      // Caso contrario, continua usando Gemini (comportamento atual).
+      let generatedData;
+      if (shouldUseClaude(toolId)) {
+        const contextForClaude = targetContext || allProjectData || {};
+        generatedData = await generateWithClaude(toolId, contextForClaude, projectName);
+      } else {
+        generatedData = await generateToolData(
+          toolId, 
+          toolName, 
+          previousToolName || null, 
+          targetContext,
+          { name: projectName, description: project.description },
+          allProjectData
+        );
+      }
       const normalized = normalizeInitialData(toolId, generatedData);
       setLocalData(normalized);
       setClearKey(prev => prev + 1); // Force remount to pass down new generated data to internal useState
@@ -1416,41 +1745,17 @@ export default function ToolWrapper({
   };
 
   const exportPPT = async () => {
-    let toolImages: Record<string, string> = {};
-    
-    if ((toolId === 'measureIshikawa' || toolId === 'charter' || toolId === 'processMap') && (fishboneRef.current || document.getElementById('project-charter-print') || document.getElementById('process-mapper-canvas'))) {
-      try {
-        let element = null;
-        if (toolId === 'measureIshikawa') element = fishboneRef.current;
-        else if (toolId === 'charter') element = document.getElementById('project-charter-print');
-        else if (toolId === 'processMap') element = document.getElementById('process-mapper-canvas');
-
-        if (element) {
-          const dataUrl = await toPng(element, { 
-            backgroundColor: '#ffffff',
-            quality: 1.0,
-            pixelRatio: 2,
-            filter: (node: any) => {
-              if (node.tagName === 'LINK' && node.rel === 'stylesheet') {
-                return node.href.startsWith(window.location.origin);
-              }
-              return true;
-            }
-          });
-          toolImages[toolId] = dataUrl;
-        }
-      } catch (err) {
-        console.error("Erro ao capturar ferramenta", err);
-      }
-    }
-
-    const tempProjectData = {
-      [toolId]: {
-        toolData: localData,
-        aiReport: aiReport
-      }
-    };
-    await generateFullPPTReport(project, tempProjectData, availableTools, phases, initiativeName, initiativeConfigs, toolImages);
+    await routeExportPPT({
+      toolId,
+      project,
+      localData,
+      aiReport,
+      availableTools,
+      phases,
+      initiativeName,
+      initiativeConfigs,
+      fishboneRef,
+    });
   };
 
   const exportExcel = async () => {
@@ -1462,6 +1767,11 @@ export default function ToolWrapper({
   const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = async () => {
+    const PRESENTATION_ENABLED = ['measureIshikawa'];
+    if (PRESENTATION_ENABLED.includes(toolId)) {
+      setShowInlinePresentation(true);
+      return;
+    }
     const element = document.getElementById('report-content');
     if (!element) {
       window.print();
@@ -1574,19 +1884,17 @@ export default function ToolWrapper({
               Salvar
             </button>
 
-            {/* Botão Excluir — só aparece se salvo */}
-            {isSaved && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClearData();
-                }}
-                className="flex items-center gap-2 px-5 py-2 bg-white/20 text-white border-2 border-white/20 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-white/30 transition-all active:scale-95 cursor-pointer"
-              >
-                <Trash2 size={14} />
-                Excluir
-              </button>
-            )}
+            {/* Botão Excluir */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClearData();
+              }}
+              className="flex items-center gap-2 px-5 py-2 bg-white/20 text-white border-2 border-white/20 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-white/30 transition-all active:scale-95 cursor-pointer"
+            >
+              <Trash2 size={14} />
+              Excluir
+            </button>
 
             {/* Indicador de status */}
             {isSaved ? (
@@ -1603,7 +1911,7 @@ export default function ToolWrapper({
           </div>
         </div>
 
-      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && showAIPrompt && (
+      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}
@@ -1615,13 +1923,108 @@ export default function ToolWrapper({
         />
       )}
 
+      {isToolEmpty() && TOOLS_WITH_MIGRATE_BLOCK[toolId] && showAIPrompt && (
+        <MigratePromptCard
+          toolId={toolId}
+          toolName={toolName}
+          sourceName={TOOLS_WITH_MIGRATE_BLOCK[toolId].source}
+          onMigrate={() => handleMigrateData(TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)}
+          isMigrating={isGeneratingData}
+          hasSourceData={!!getToolDataByPrefix(allProjectData, TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)}
+        />
+      )}
+
+      {isToolEmpty() && toolId === 'brief' && showAIPrompt && (
+        <>
+          {/* Card 1 - VERDE: Puxar titulos */}
+          <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-6 shadow-sm relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
+            <div className="relative z-10 flex flex-col gap-5">
+              <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
+                <ArrowDownToLine size={20} className="text-emerald-500" />
+                <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">
+                  Puxar Titulos da Ideia de Projeto
+                </p>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Obter os titulos de <strong>Ideia de Projeto</strong>.
+              </p>
+              {briefTitlesPulled.length > 0 && (
+                <select
+                  value={briefSelectedTitle}
+                  onChange={(e) => setBriefSelectedTitle(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="">-- Escolha um projeto --</option>
+                  {briefTitlesPulled.map((p, idx) => (
+                    <option key={idx} value={p.title}>{p.title}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex justify-end">
+                <button
+                  onClick={handleBriefPullTitles}
+                  className="min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200"
+                >
+                  <ArrowDownToLine size={20} />
+                  <span>Puxar Titulos</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2 - AZUL: Gerar */}
+          <div className="bg-blue-50 p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-100/50 rounded-full blur-3xl"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="space-y-3 flex-1">
+                <div className="flex items-center gap-3 text-blue-700 font-black uppercase tracking-[0.2em] text-xs">
+                  <Sparkles size={20} className="text-blue-500" />
+                  <p className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                    Gerar Entendendo o Problema
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Obter os dados de <strong>Ideia de Projeto</strong> e gerar Entendendo o Problema.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleBriefGenerate}
+                  disabled={isGeneratingData || !briefSelectedTitle}
+                  className={cn(
+                    "min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
+                    isGeneratingData || !briefSelectedTitle
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
+                      : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+                  )}
+                >
+                  {isGeneratingData ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      <span>Gerando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={20} />
+                      <span>Gerar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
         <div className="p-8" key={`${toolId}-${clearKey}`}>
           {children({ 
             onSave: handleToolSave, 
             initialData: normalizeInitialData(toolId, localData),
             onGenerateAI: handleGenerateData,
             isGeneratingAI: isGeneratingData,
-            onClearAIData: handleClearData
+            onClearAIData: handleClearData,
+            allProjectData: allProjectData
           })}
         </div>
       </div>
@@ -1638,7 +2041,7 @@ export default function ToolWrapper({
           <div className="flex items-center gap-2">
 
             {/* PDF */}
-            {toolId === 'brief' ? (
+            {false && (toolId === 'brief' ? (
               <button
                 onClick={handleGenerateAI}
                 disabled={!isSaved || isGenerating}
@@ -1654,37 +2057,41 @@ export default function ToolWrapper({
                 PDF
               </button>
             ) : (
+              toolId !== 'sop' && (
+                <button
+                  onClick={handlePrint}
+                  disabled={!isSaved || isPrinting}
+                  title={!isSaved ? "Salve primeiro para exportar" : "Imprimir / Gerar PDF"}
+                  className={cn(
+                    "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
+                    !isSaved
+                      ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                      : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
+                  )}
+                >
+                  {isPrinting ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
+                  PDF
+                </button>
+              )
+            ))}
+
+            {/* Word */}
+            {false && (
               <button
-                onClick={handlePrint}
-                disabled={!isSaved || isPrinting}
-                title={!isSaved ? "Salve primeiro para exportar" : "Imprimir / Gerar PDF"}
+                onClick={exportWord}
+                disabled={!isSaved}
+                title={!isSaved ? "Salve primeiro para exportar" : "Gerar relatório Word"}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
                   !isSaved
                     ? "bg-gray-100 text-gray-300 cursor-not-allowed"
-                    : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
+                    : "bg-blue-700 text-white hover:bg-blue-800 shadow-lg shadow-blue-100 cursor-pointer"
                 )}
               >
-                {isPrinting ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
-                PDF
+                <FileDown size={15} />
+                Word
               </button>
             )}
-
-            {/* Word */}
-            <button
-              onClick={exportWord}
-              disabled={!isSaved}
-              title={!isSaved ? "Salve primeiro para exportar" : "Gerar relatório Word"}
-              className={cn(
-                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
-                !isSaved
-                  ? "bg-gray-100 text-gray-300 cursor-not-allowed"
-                  : "bg-blue-700 text-white hover:bg-blue-800 shadow-lg shadow-blue-100 cursor-pointer"
-              )}
-            >
-              <FileDown size={15} />
-              Word
-            </button>
 
             {/* PPT */}
             <button
@@ -1703,7 +2110,7 @@ export default function ToolWrapper({
             </button>
 
             {/* Excel (Special case for Charter) */}
-            {toolId === 'charter' && (
+            {false && toolId === 'charter' && (
               <button
                 onClick={exportExcel}
                 disabled={!isSaved}
@@ -1791,19 +2198,23 @@ export default function ToolWrapper({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <button
-                      onClick={handlePrint}
-                      disabled={isPrinting}
-                      className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-700 hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-100 bg-white cursor-pointer disabled:opacity-50"
-                    >
-                      {isPrinting ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />} Imprimir
-                    </button>
-                    <button
-                      onClick={exportWord}
-                      className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-700 hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-100 bg-white cursor-pointer"
-                    >
-                      <FileDown size={16} /> Word
-                    </button>
+                    {false && (
+                      <button
+                        onClick={handlePrint}
+                        disabled={isPrinting}
+                        className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-700 hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-100 bg-white cursor-pointer disabled:opacity-50"
+                      >
+                        {isPrinting ? <Loader2 size={16} className="animate-spin" /> : <Printer size={16} />} Imprimir
+                      </button>
+                    )}
+                    {false && (
+                      <button
+                        onClick={exportWord}
+                        className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-700 hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-100 bg-white cursor-pointer"
+                      >
+                        <FileDown size={16} /> Word
+                      </button>
+                    )}
                     <button
                       onClick={exportPPT}
                       className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-700 hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-100 bg-white cursor-pointer"
@@ -1888,6 +2299,22 @@ export default function ToolWrapper({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showInlinePresentation && toolId === 'measureIshikawa' && (
+        <InlinePresentationShell
+          project={project}
+          toolId={toolId}
+          toolData={localData}
+          toolTitle="Análise de causa raiz — Diagrama de Ishikawa"
+          toolPhase="Analyze"
+          initialAnalysis={localData?.aiExecutiveAnalysis || ''}
+          onAnalysisChange={(text) => setLocalData({ ...localData, aiExecutiveAnalysis: text })}
+          onClose={() => setShowInlinePresentation(false)}
+        >
+          <IshikawaSlide toolData={localData} />
+        </InlinePresentationShell>
+      )}
+
       {/* Confirmation Modal */}
       {showClearConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

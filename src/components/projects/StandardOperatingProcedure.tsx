@@ -192,43 +192,6 @@ export default function StandardOperatingProcedure({ onSave, initialData, onGene
 
   return (
     <div className="space-y-6">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar POP com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Mapa de Processo e Plano de Ação" para gerar
-                POP técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA vai gerar um rascunho completo do POP (Objetivos, Escopo, Passo a passo e Responsabilidades) baseado no novo processo.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
@@ -307,12 +270,7 @@ export default function StandardOperatingProcedure({ onSave, initialData, onGene
                 <p className="text-xs text-[#666]">Documente o processo melhorado para garantir a padronização.</p>
               </div>
             </div>
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-[4px] text-xs font-bold hover:bg-green-700 transition-all"
-            >
-              <Save size={14} /> Salvar POP
-            </button>
+            <button data-save-trigger onClick={handleSave} className="hidden" />
           </div>
 
           <div className="divide-y divide-gray-200">

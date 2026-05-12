@@ -1,20 +1,17 @@
 
-const RAILWAY_URL = "https://analises-production.up.railway.app";
+import { GoogleGenAI, Type } from "@google/genai";
 
-async function callClaude(systemPrompt: string, userPrompt: string, max_tokens: number = 4096): Promise<string> {
-  const response = await fetch(`${RAILWAY_URL}/claude/report`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      toolName: "internal",
-      toolData: { system: systemPrompt, user: userPrompt },
-      projectName: "internal"
-    }),
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    config: {
+      systemInstruction: systemPrompt
+    }
   });
-  if (!response.ok) throw new Error(`Railway error: ${response.statusText}`);
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error);
-  return data.report;
+  return response.text;
 }
 
 const MENTOR_SYSTEM_PROMPT = `
@@ -31,6 +28,8 @@ export const sanitizeToolData = (toolId: string, data: any): any => {
 
   // Garante arrays onde arrays são esperados
   const arrayFields: Record<string, string[]> = {
+    stakeholderAdkar: ['stakeholders'],
+    measureAdkar: ['stakeholders'],
     sipoc: ['suppliers', 'inputs', 'process', 'outputs', 'customers'],
     brainstorming: ['ideas'],
     measureIshikawa: [],
@@ -57,6 +56,22 @@ export const sanitizeToolData = (toolId: string, data: any): any => {
       data[field] = data[field] ? [data[field]] : [];
     }
   });
+
+  // Limpa o campo 'area' de stakeholders conforme solicitado pelo usuário
+  if (toolId === 'stakeholders' || toolId === 'stakeholderAdkar') {
+    if (Array.isArray(data.stakeholders)) {
+      data.stakeholders = data.stakeholders.map((s: any) => ({
+        ...s,
+        area: '' // Sempre deixa a área em branco por padrão
+      }));
+    }
+  }
+
+  // Limpa o campo 'area' do projeto no Charter conforme solicitado
+  if (toolId === 'charter' || toolId === 'projectCharterPMI') {
+    data.area = '';
+    data.department = ''; // Algumas versões usam department
+  }
 
   // Garante estrutura do SOP
   if (toolId === 'sop') {
@@ -122,18 +137,31 @@ export const generateAIToolReport = async (
   projectName: string
 ): Promise<string> => {
   try {
-    const response = await fetch(`${RAILWAY_URL}/claude/report`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ toolName, toolData, projectName }),
+    const systemPrompt = `
+Você é o Mentor LBW. Sua tarefa é gerar um relatório técnico e executivo sobre a ferramenta "${toolName}" do projeto "${projectName}".
+Use os dados fornecidos para criar uma análise profunda, identificando riscos, oportunidades e próximos passos.
+Use formatação Markdown elegante.
+`;
+
+    const userPrompt = `
+Projeto: ${projectName}
+Ferramenta: ${toolName}
+Dados: ${JSON.stringify(toolData)}
+
+Gere o relatório agora. Responda em Português do Brasil.
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }
+      ]
     });
-    if (!response.ok) throw new Error(`Railway error: ${response.statusText}`);
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error);
-    return data.report;
+
+    return response.text;
   } catch (error: any) {
-    console.error("Erro ao gerar relatório:", error);
-    throw new Error("Erro ao gerar relatório. Tente novamente.");
+    console.error("Erro detalhado ao gerar relatório com Gemini:", error);
+    throw new Error(error.message || "Erro ao gerar relatório. Tente novamente.");
   }
 };
 
@@ -145,30 +173,45 @@ export const generateToolData = async (
   projectInfo?: { name: string; description?: string },
   allProjectData?: any
 ): Promise<any> => {
-  console.log('🚀 generateToolData chamado - toolId:', toolId);
-  console.log('🚀 Chamando Railway:', RAILWAY_URL + '/claude/tool-data');
+  console.log('🚀 generateToolData chamado via Gemini - toolId:', toolId);
   try {
-    const response = await fetch(`${RAILWAY_URL}/claude/tool-data`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        toolId,
-        toolName,
-        previousToolName,
-        previousToolData,
-        projectInfo,
-        allProjectData,
-      }),
+    const systemPrompt = `
+Você é o Mentor LBW, um consultor sênior Master Black Belt especializado em Lean Six Sigma e Gestão de Projetos.
+Sua tarefa é gerar dados estruturados para a ferramenta "${toolName}" (ID: ${toolId}) de um projeto DMAIC.
+
+${projectInfo ? `Projeto: ${projectInfo.name}\nDescrição: ${projectInfo.description || 'Não informada'}` : ''}
+
+${previousToolName ? `Contexto anterior (${previousToolName}): ${JSON.stringify(previousToolData)}` : ''}
+
+Diretrizes:
+1. Gere dados realistas, técnicos e úteis para um projeto de melhoria real.
+2. Siga rigorosamente a estrutura esperada para este toolId.
+3. Se houver dados de outras ferramentas (allProjectData), use-os para garantir consistência.
+4. Responda APENAS com o objeto JSON puro, sem explicações ou blocos de código markdown.
+`;
+
+    const userPrompt = `
+Gere os dados para a ferramenta ${toolName}.
+Dados de todas as ferramentas disponíveis: ${JSON.stringify(allProjectData || {})}
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }
+      ],
+      config: {
+        responseMimeType: "application/json"
+      }
     });
-    console.log('🚀 Railway status:', response.status);
-    if (!response.ok) throw new Error(`Railway error: ${response.statusText}`);
-    const result = await response.json();
-    console.log('🚀 Railway resposta:', JSON.stringify(result).substring(0, 200));
-    if (!result.success) throw new Error(result.error);
-    return sanitizeToolData(toolId, result.data);
+
+    const resultText = response.text;
+    const resultData = JSON.parse(resultText);
+    
+    return sanitizeToolData(toolId, resultData);
   } catch (error: any) {
-    console.error("Erro ao gerar dados com Claude:", error);
-    throw new Error("Erro ao gerar dados. Tente novamente.");
+    console.error("Erro detalhado ao gerar dados com Gemini:", error);
+    throw new Error(error.message || "Erro ao gerar dados. Tente novamente.");
   }
 };
 
@@ -180,24 +223,44 @@ export const chatWithMentor = async (
   history: Array<{ role: "user" | "assistant"; content: string }> = []
 ): Promise<string> => {
   try {
-    const response = await fetch(`${RAILWAY_URL}/claude/mentor`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        currentPhase,
-        currentTool,
-        projectData,
-        history,
-      }),
+    const systemPrompt = `
+${MENTOR_SYSTEM_PROMPT}
+
+Contexto do Projeto Atual:
+Fase: ${currentPhase}
+Ferramenta: ${currentTool}
+Dados do Projeto: ${JSON.stringify(projectData)}
+
+Instruções:
+1. Use os dados acima para dar respostas personalizadas.
+2. Seja mentor, desafie o usuário a pensar criticamente.
+3. Se o usuário perguntar algo fora de contexto Lean Six Sigma, tente trazer de volta para a metodologia.
+`;
+
+    // Map history to Gemini format
+    const contents = history.map(h => ({
+      role: h.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: h.content }]
+    }));
+
+    // Add current message
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
     });
-    if (!response.ok) throw new Error(`Railway error: ${response.statusText}`);
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error);
-    return data.message;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents,
+      config: {
+        systemInstruction: systemPrompt
+      }
+    });
+
+    return response.text;
   } catch (error: any) {
-    console.error("Erro no Mentor LBW:", error);
-    throw new Error("O Mentor LBW está temporariamente indisponível.");
+    console.error("Erro detalhado no Mentor LBW com Gemini:", error);
+    throw new Error(error.message || "O Mentor LBW está temporariamente indisponível.");
   }
 };
 
@@ -227,7 +290,7 @@ Contexto: ${JSON.stringify(projectData, null, 2)}
 Gere as 3 sugestões agora.
     `;
 
-    const result = await callClaude(systemPrompt, userPrompt);
+    const result = await callGemini(systemPrompt, userPrompt);
     const cleaned = result.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     return JSON.parse(cleaned);
   } catch {

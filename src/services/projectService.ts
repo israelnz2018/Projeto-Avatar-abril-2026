@@ -104,9 +104,10 @@ export const saveProjectToolData = async (projectId: string, toolType: string, c
   const path = `projects/${projectId}/data/${toolType}`;
   try {
     const dataRef = doc(db, 'projects', projectId, 'data', toolType);
+    const sanitizedContent = JSON.parse(JSON.stringify(content));
     await setDoc(dataRef, {
       toolType,
-      content,
+      content: sanitizedContent,
       updatedAt: serverTimestamp()
     });
   } catch (error) {

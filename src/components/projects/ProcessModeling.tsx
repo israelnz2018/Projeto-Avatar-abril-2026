@@ -122,7 +122,7 @@ export default function ProcessModeling({ data, onSave, canvaData, onGenerateAI,
   };
 
   const addStep = (afterId: string) => {
-    const newId = `step-${Math.random().toString(36).substr(2, 9)}`;
+    const newId = crypto.randomUUID();
     const afterStep = modelingData.steps.find(s => s.id === afterId);
     
     const newStep: ModelingStep = {

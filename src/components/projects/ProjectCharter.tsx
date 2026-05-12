@@ -21,6 +21,24 @@ type StakeholderRow = {
   control: string;
 };
 
+const PROJECT_ROLES = [
+  'Patrocinador / Sponsor',
+  'Champion Executive',
+  'Champion',
+  'Process Owner',
+  'Master Black Belt (MBB)',
+  'Black Belt',
+  'Green Belt',
+  'Yellow Belt',
+  'White Belt',
+  'Team Member / SME',
+  'Gestor de Área Impactada',
+  'Operador / Frontline',
+  'Cliente / Usuário Final',
+  'Fornecedor / Suporte',
+  'Outro'
+];
+
 export default function ProjectCharter({ 
   onSave, 
   initialData, 
@@ -46,17 +64,17 @@ export default function ProjectCharter({
       businessContributions: briefData?.answers?.q8 || '',
       images: briefData?.images || [] as string[],
       stakeholders: (briefData?.stakeholders || [
-        { role: 'Líder:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
-        { role: 'Patrocinador:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'A', control: 'I' },
-        { role: 'Dono do Processo:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
-        { role: 'Champion:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
-        { role: 'Validação Técnica:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
-        { role: 'Validação Financeira:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
-        { role: 'Membro da Equipe:', name: '', definition: '', measurement: 'A', analysis: '', improvement: '', control: '' },
-        { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: 'A', improvement: '', control: '' },
-        { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: 'A', control: '' },
-        { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: 'A' },
-        { role: 'Outros:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' },
+        { role: 'Black Belt', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+        { role: 'Patrocinador / Sponsor', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'A', control: 'I' },
+        { role: 'Process Owner', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
+        { role: 'Champion', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+        { role: 'Master Black Belt (MBB)', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+        { role: 'Champion Executive', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
+        { role: 'Team Member / SME', name: '', definition: '', measurement: 'A', analysis: '', improvement: '', control: '' },
+        { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: 'A', improvement: '', control: '' },
+        { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: '', improvement: 'A', control: '' },
+        { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: 'A' },
+        { role: 'Outro', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' },
       ]) as StakeholderRow[]
     };
 
@@ -99,17 +117,17 @@ export default function ProjectCharter({
         businessContributions: briefData?.answers?.q8 || '',
         images: briefData?.images || [] as string[],
         stakeholders: (briefData?.stakeholders || [
-          { role: 'Líder:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
-          { role: 'Patrocinador:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'A', control: 'I' },
-          { role: 'Dono do Processo:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
-          { role: 'Champion:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
-          { role: 'Validação Técnica:', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
-          { role: 'Validação Financeira:', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
-          { role: 'Membro da Equipe:', name: '', definition: '', measurement: 'A', analysis: '', improvement: '', control: '' },
-          { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: 'A', improvement: '', control: '' },
-          { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: 'A', control: '' },
-          { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: 'A' },
-          { role: 'Outros:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' },
+          { role: 'Black Belt', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+          { role: 'Patrocinador / Sponsor', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'A', control: 'I' },
+          { role: 'Process Owner', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
+          { role: 'Champion', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+          { role: 'Master Black Belt (MBB)', name: '', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+          { role: 'Champion Executive', name: '', definition: 'A', measurement: 'I', analysis: 'I', improvement: 'I', control: 'A' },
+          { role: 'Team Member / SME', name: '', definition: '', measurement: 'A', analysis: '', improvement: '', control: '' },
+          { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: 'A', improvement: '', control: '' },
+          { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: '', improvement: 'A', control: '' },
+          { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: 'A' },
+          { role: 'Outro', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' },
         ]) as StakeholderRow[]
       });
     }
@@ -141,7 +159,7 @@ export default function ProjectCharter({
       ...prev,
       stakeholders: [
         ...prev.stakeholders,
-        { role: 'Membro da Equipe:', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' }
+        { role: 'Team Member / SME', name: '', definition: '', measurement: '', analysis: '', improvement: '', control: '' }
       ]
     }));
   };
@@ -259,45 +277,6 @@ export default function ProjectCharter({
 
   return (
     <div className="space-y-6 max-w-[210mm] mx-auto animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6 no-print">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Charter com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Entendendo o Problema" para gerar
-                Charter técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
-                um mapeamento rigoroso e técnico.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1 no-print">
@@ -592,19 +571,17 @@ export default function ProjectCharter({
             <tbody>
               {data.stakeholders?.map((row: any, idx: number) => (
                 <tr key={idx} className="border-b border-black group">
-                  <td className="border-r-2 border-black p-1 bg-gray-50">
-                    <textarea
+                  <td className="border-r-2 border-black p-0 bg-gray-50">
+                    <select
                       value={row.role}
                       onChange={(e) => handleStakeholderChange(idx, 'role', e.target.value)}
-                      rows={1}
-                      className="w-full text-[9px] font-bold p-0 border-none focus:ring-0 resize-none overflow-hidden bg-transparent"
-                      style={{ minHeight: '20px' }}
-                      onInput={(e) => {
-                        const t = e.target as HTMLTextAreaElement;
-                        t.style.height = 'auto';
-                        t.style.height = t.scrollHeight + 'px';
-                      }}
-                    />
+                      className="w-full text-[9px] font-bold p-1 border-none focus:ring-0 bg-transparent appearance-none cursor-pointer"
+                    >
+                      <option value="">Selecione...</option>
+                      {PROJECT_ROLES.map(role => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="border-r-2 border-black p-1">
                     <textarea

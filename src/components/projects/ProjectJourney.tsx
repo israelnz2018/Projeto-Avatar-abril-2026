@@ -22,11 +22,17 @@ import {
   Download,
   Loader2,
   Printer,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '../../services/reportService';
 import ProjectCharter from './ProjectCharter';
+import StakeholderAdkar from './StakeholderAdkar';
+import AnalyzeAdkar from './AnalyzeAdkar';
+import ImproveAdkar from './ImproveAdkar';
+import ControlAdkar from './ControlAdkar';
+import MeasureAdkar from './MeasureAdkar';
 import ProjectBrief from './ProjectBrief';
 import SIPOC from './SIPOC';
 import ProcessMapper from './ProcessMapper';
@@ -47,6 +53,7 @@ import ProjectTimeline from './ProjectTimeline';
 import DetailedTimeline from './DetailedTimeline';
 import StakeholderManagement from './StakeholderManagement';
 import StandardOperatingProcedure from './StandardOperatingProcedure';
+import ControlPlan from './ControlPlan';
 import FaultTreeAnalysis from './FaultTreeAnalysis';
 import BeforeAfterTool from './BeforeAfterTool';
 import RABTool from './RABTool';
@@ -62,7 +69,6 @@ import ProcessCanva from './ProcessCanva';
 import ProcessModeling from './ProcessModeling';
 import ProcessValidation from './ProcessValidation';
 import ImprovementProjectIdea from './ImprovementProjectIdea';
-
 import ProjectCharterPMI from './ProjectCharterPMI';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
@@ -70,7 +76,12 @@ import { getUserProfile } from '../UserProfile';
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema', component: ProjectBrief, defaultPhase: 'Define' },
   { id: 'charter', name: 'Project Charter', component: ProjectCharter, defaultPhase: 'Define' },
+  { id: 'stakeholderAdkar', name: 'Stakeholder & ADKAR', component: StakeholderAdkar, defaultPhase: 'Define' },
   { id: 'projectCharterPMI', name: 'Project Charter - PMI', component: ProjectCharterPMI, defaultPhase: 'Define' },
+  { id: 'measureAdkar', name: 'Stakeholder & ADKAR — Medir (Desire)', component: MeasureAdkar, defaultPhase: 'Measure' },
+  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)', component: AnalyzeAdkar, defaultPhase: 'Analyze' },
+  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)', component: ImproveAdkar, defaultPhase: 'Improve' },
+  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)', component: ControlAdkar, defaultPhase: 'Control' },
   { id: 'sipoc', name: 'SIPOC', component: SIPOC, defaultPhase: 'Define' },
   { id: 'timeline', name: 'Cronograma Macro', component: ProjectTimeline, defaultPhase: 'Define' },
   { id: 'wbs', name: 'WBS (EAP)', component: WBSTool, defaultPhase: 'Planejamento' },
@@ -83,6 +94,7 @@ const AVAILABLE_TOOLS = [
   { id: 'stakeholders', name: 'Stakeholders', component: StakeholderManagement, defaultPhase: 'Define' },
   { id: 'processMap', name: 'Mapeamento de Processo', component: ProcessMapper, defaultPhase: 'Measure' },
   { id: 'brainstorming', name: 'Brainstorming', component: Brainstorming, defaultPhase: 'Measure' },
+  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', component: Brainstorming, defaultPhase: 'Improve' },
   { id: 'measureIshikawa', name: 'Espinha de Peixe', component: Ishikawa, defaultPhase: 'Measure' },
   { id: 'measureMatrix', name: 'Matriz Causa e Efeito', component: CauseEffectMatrix, defaultPhase: 'Measure' },
   { id: 'beforeAfter', name: 'Antes x Depois', component: BeforeAfterTool, defaultPhase: 'Measure' },
@@ -104,6 +116,7 @@ const AVAILABLE_TOOLS = [
   { id: 'processModeling', name: 'Modelagem de Processo', component: ProcessModeling, defaultPhase: 'Measure' },
   { id: 'processValidation', name: 'Validação de Processo', component: ProcessValidation, defaultPhase: 'Measure' },
   { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', component: ImprovementProjectIdea, defaultPhase: 'PreDefinir' },
+  { id: 'controlPlan', name: 'Plano de Controle', component: ControlPlan, defaultPhase: 'Control' },
 ];
 
 import { toast } from 'sonner';
@@ -119,6 +132,8 @@ const DEFAULT_PHASES = [
   { id: 'Control', name: 'Controlar', icon: ShieldCheck, color: '#6366f1', description: 'Garanta que os ganhos sejam mantidos.' },
 ];
 
+import { useUserAccess } from '../../hooks/useUserAccess';
+import { LockedToolPopup } from '../LockedToolPopup';
 import { useMemo } from 'react';
 import { saveProjectToolData, getProjectToolData, updateProjectPhase, markToolAsCompleted, deleteProjectToolData, getAllProjectToolData } from '../../services/projectService';
 import { getInitiativeConfigs, getInitiative, saveInitiativeConfig } from '../../services/configService';
@@ -128,9 +143,10 @@ interface ProjectJourneyProps {
   projectId: string;
   project: Project;
   onPhaseChange?: (phase: string) => void;
+  onActiveToolChange?: (toolId: string | null, toolLabel: string | null) => void;
 }
 
-export default function ProjectJourney({ projectId, project, onPhaseChange }: ProjectJourneyProps) {
+export default function ProjectJourney({ projectId, project, onPhaseChange, onActiveToolChange }: ProjectJourneyProps) {
   const [currentPhase, setCurrentPhase] = useState<string>(project.currentPhase || 'Define');
   const [projectData, setProjectData] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -138,6 +154,13 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
   const [initiative, setInitiative] = useState<Initiative | null>(null);
   
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
+
+useEffect(() => {
+  if (onActiveToolChange) {
+    const toolLabel = activeToolId ? (AVAILABLE_TOOLS.find(t => t.id === activeToolId)?.name || null) : null;
+    onActiveToolChange(activeToolId, toolLabel);
+  }
+}, [activeToolId, onActiveToolChange]);
   
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeEntry[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<KnowledgeEntry | null>(null);
@@ -150,6 +173,9 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
   const [isDeleting, setIsDeleting] = useState(false);
   const [toolVersion, setToolVersion] = useState(0);
   const [completedTools, setCompletedTools] = useState<string[]>(project.completedTools || []);
+  const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+
+  const { canUseTool } = useUserAccess();
 
   const userProfile = getUserProfile();
   const enrichedProjectData = useMemo(() => ({
@@ -365,7 +391,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
         const uniqueToolIds = Array.from(new Set(expandedToolIds));
         tools = uniqueToolIds.map(id => AVAILABLE_TOOLS.find(t => t.id === id)).filter(Boolean) as any;
       } else {
-        tools = AVAILABLE_TOOLS.filter(t => t.defaultPhase === phase.id);
+        tools = [];
       }
       return tools.map(t => ({ toolId: t.id, phaseId: phase.id }));
     });
@@ -489,9 +515,12 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
     'fta': 'fta',
     'beforeAfter': 'beforeAfter',
     'rab': 'rab',
+    'analyzeAdkar': 'analyzeAdkar',
+    'improveAdkar': 'improveAdkar',
+    'controlAdkar': 'controlAdkar',
     'processModeling': 'processModeling',
     'processCanva': 'processCanva',
-    'processValidation': 'processValidation'
+    'processValidation': 'processValidation',
   };
 
   const isToolCompleted = (toolId: string) => {
@@ -654,34 +683,21 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
     const phase = filteredPhases[currentPhaseIndex];
     if (!phase) return null;
 
-    let toolsToRender: typeof AVAILABLE_TOOLS = [];
-    
+    // Mostra exatamente as ferramentas configuradas na iniciativa para esta fase
+    let configuredToolIds: string[] = [];
     if (initiativeConfigs.length > 0) {
-      const config = initiativeConfigs.find(c => {
-        // Precise matching by phase ID
-        return c.phaseId === phase.id;
-      });
-
+      const config = initiativeConfigs.find(c => c.phaseId === phase.id);
       if (config) {
-        // Expand qualitativeAnalysis to individual tools for compatibility with old configs
-        const expandedToolIds = config.toolIds.flatMap(id => {
-          if (id === 'qualitativeAnalysis') {
-            return ['directObservation', 'fiveWhys', 'fta'];
-          }
+        configuredToolIds = config.toolIds.flatMap(id => {
+          if (id === 'qualitativeAnalysis') return ['directObservation', 'fiveWhys', 'fta'];
           return [id];
         });
-        
-        // Map to tool definitions and ensure unique entries if expansion caused overlaps
-        const uniqueToolIds = Array.from(new Set(expandedToolIds));
-        toolsToRender = uniqueToolIds.map(id => AVAILABLE_TOOLS.find(t => t.id === id)).filter(Boolean) as any;
-      } else {
-        // If config exists for other phases but not this one, use defaults for this phase
-        toolsToRender = AVAILABLE_TOOLS.filter(t => t.defaultPhase === phase.id);
       }
-    } else {
-      // Initial loading fallback or no initiative: show defaults based on defaultPhase
-      toolsToRender = AVAILABLE_TOOLS.filter(t => t.defaultPhase === phase.id);
     }
+
+    const toolsToRender = Array.from(new Set(configuredToolIds))
+      .map(id => AVAILABLE_TOOLS.find(t => t.id === id))
+      .filter(Boolean) as typeof AVAILABLE_TOOLS;
 
     if (toolsToRender.length === 0) {
       return (
@@ -850,11 +866,27 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
         <div className="flex items-center gap-4 mb-4 flex-wrap">
           {toolsToRender.map((tool, index) => {
             const isSaved = !!projectData[tool.id];
+            const hasAccess = canUseTool(tool.id);
+
             return (
-              <div key={tool.id} className="flex items-center gap-1">
+              <div key={tool.id} className="flex items-center gap-1 relative">
+                {!hasAccess && (
+                  <div className="absolute top-1 right-1 bg-white rounded-full p-1 shadow-sm z-10 pointer-events-none">
+                    <Lock size={10} className="text-gray-600" />
+                  </div>
+                )}
                 <button 
-                  onClick={() => setActiveToolId(tool.id)}
-                  className={getToolButtonClass(tool.id, activeTool?.id || '')}
+                  onClick={() => {
+                    if (hasAccess) {
+                      setActiveToolId(tool.id);
+                    } else {
+                      setLockedPopupOpen(true);
+                    }
+                  }}
+                  className={cn(
+                    getToolButtonClass(tool.id, activeTool?.id || ''),
+                    !hasAccess && "opacity-75"
+                  )}
                 >
                   {isToolCompleted(tool.id) && <CheckCircle2 size={14} />}
                   {index + 1}. {tool.name}
@@ -969,15 +1001,19 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
               true
             }
           >
-            {({ onSave, initialData, onGenerateAI, isGeneratingAI }) => {
+            {({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData: wrapperAllProjectData }) => {
               const Component = ActiveComponent as any;
               const commonProps = {
                 onSave,
-                initialData: initialData?.toolData || initialData,
+                initialData: initialData && typeof initialData === 'object' && 'toolData' in initialData 
+                  ? initialData.toolData 
+                  : initialData,
                 previousToolData,
                 previousToolName,
                 onGenerateAI,
-                isGeneratingAI
+                isGeneratingAI,
+                onClearAIData,
+                allProjectData: wrapperAllProjectData
               };
 
               switch (activeTool.id) {
@@ -1087,6 +1123,39 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
                       projectCharter={projectData.charter}
                     />
                   );
+                case 'stakeholderAdkar':
+                case 'measureAdkar':
+                  return (
+                    <Component 
+                      {...commonProps}
+                      allProjectData={projectData}
+                      stakeholderAdkarData={projectData?.stakeholderAdkar}
+                    />
+                  );
+                case 'analyzeAdkar':
+                  return (
+                    <Component 
+                      {...commonProps}
+                      allProjectData={projectData}
+                      measureAdkarData={projectData?.measureAdkar}
+                    />
+                  );
+                case 'improveAdkar':
+                  return (
+                    <Component 
+                      {...commonProps}
+                      allProjectData={projectData}
+                      analyzeAdkarData={projectData?.analyzeAdkar}
+                    />
+                  );
+                case 'controlAdkar':
+                  return (
+                    <Component 
+                      {...commonProps}
+                      allProjectData={projectData}
+                      improveAdkarData={projectData?.improveAdkar}
+                    />
+                  );
                 default:
                   return (
                     <Component 
@@ -1182,6 +1251,7 @@ export default function ProjectJourney({ projectId, project, onPhaseChange }: Pr
           </button>
         </div>
       </div>
+      <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
     </div>
   );
 }

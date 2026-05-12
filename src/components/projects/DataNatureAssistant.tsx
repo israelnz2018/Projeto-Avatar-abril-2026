@@ -18,7 +18,6 @@ import {
   Trash2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { GoogleGenAI, Type } from "@google/genai";
 import { toast } from 'sonner';
 
 interface DataNatureAssistantProps {
@@ -113,70 +112,6 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       toast.error("Por favor, descreva o que você quer analisar.");
       return;
     }
-
-    setIsAnalyzing(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Analise a seguinte descrição de um problema ou análise de dados de um projeto Lean Six Sigma: "${description}"
-        
-        Identifique a Variável Resposta (Y) e a Fonte de Variação (X).
-        Determine se cada uma é Contínua ou Discreta (Atributo).
-        
-        Use a seguinte matriz de decisão:
-        - Se Y é Contínuo e X é Contínuo: Quadrante "Y Contínuo / X Contínuo". Ferramentas: Diagrama de Dispersão, Gráfico de tendência, Regressão simples, Regressão múltipla.
-        - Se Y é Contínuo e X é Discreto: Quadrante "Y Contínuo / X Discreto". Ferramentas: Box Plot, Teste de Hipótese, ANOVA.
-        - Se Y é Discreto e X é Contínuo: Quadrante "Y Discreto / X Contínuo". Ferramentas: Regressão Logística (Binária/Ordinal/Nominal).
-        - Se Y é Discreto e X é Discreto: Quadrante "Y Discreto / X Discreto". Ferramentas: Histograma, Pareto, Chi Quadrado.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              variableY: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ["Contínuo", "Discreto"] },
-                  description: { type: Type.STRING }
-                },
-                required: ["name", "type", "description"]
-              },
-              variableX: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ["Contínuo", "Discreto"] },
-                  description: { type: Type.STRING }
-                },
-                required: ["name", "type", "description"]
-              },
-              quadrant: { type: Type.STRING },
-              recommendedTools: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              explanation: { type: Type.STRING }
-            },
-            required: ["variableY", "variableX", "quadrant", "recommendedTools", "explanation"]
-          }
-        }
-      });
-
-      const analysis = JSON.parse(response.text || '{}');
-      analysis.id = Date.now().toString();
-      analysis.variableY.originalType = analysis.variableY.type;
-      analysis.variableX.originalType = analysis.variableX.type;
-      
-      setAnalyses([analysis]);
-      toast.success("Análise concluída com sucesso!");
-    } catch (error) {
-      console.error("Erro na análise da IA:", error);
-      toast.error("Erro ao analisar os dados. Tente novamente.");
-    } finally {
-      setIsAnalyzing(false);
-    }
   };
 
   const handleSave = () => {
@@ -189,28 +124,6 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Identificar Natureza dos Dados com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA vai analisar os dados coletados na ferramenta anterior para sugerir quais variáveis são Contínuas ou Discretas.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA analisará o plano de coleta para classificar as variáveis e sugerir ferramentas estatísticas.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1">
@@ -245,9 +158,9 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
           </div>
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-[4px] text-xs font-bold hover:bg-green-700 transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#ccc] text-[#1f2937] rounded-[4px] text-xs font-bold hover:bg-gray-100 transition-all"
           >
-            <Save size={14} /> Salvar Progresso
+            <Save size={14} /> Salvar
           </button>
         </div>
 

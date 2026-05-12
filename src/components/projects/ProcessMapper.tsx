@@ -239,7 +239,7 @@ const LaneNode = ({ id, data, selected }: any) => {
   return (
     <div className={cn(
       "relative w-full h-full border-2 rounded-xl transition-all duration-200",
-      selected ? "border-blue-500 bg-blue-50/10" : "border-slate-200 bg-slate-50/5"
+      selected ? "border-blue-500 bg-blue-50/50" : "border-slate-300 bg-slate-100/50"
     )}>
       {/* Resizer primeiro para garantir que as alças fiquem por cima */}
       <NodeResizer 
@@ -291,7 +291,8 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
   const [edgeLabelInput, setEdgeLabelInput] = useState('');
 
   const isToolEmpty = nodes.length === 0;
-  const selectedNode = nodes.find(n => n.selected);
+  const selectedNodes = nodes.filter(n => n.selected);
+  const selectedNode = selectedNodes[0];
 
   // Use refs to keep functions stable and avoid infinite loops
   const nodesRef = useRef(nodes);
@@ -323,7 +324,7 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
         // Normalização para garantir formato ReactFlow
         const normalizedNodes = data.nodes.map((n: any) => ({
           ...n,
-          id: n.id || `node-${Math.random()}`,
+          id: n.id || crypto.randomUUID(),
           type: n.type || 'step',
           position: n.position || { x: n.x || 0, y: n.y || 0 },
           data: {
@@ -337,7 +338,8 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
         }));
 
         const normalizedEdges = (data.edges || data.connections || []).map((e: any) => ({
-          id: e.id || `edge-${Math.random()}`,
+          ...e,
+          id: e.id || crypto.randomUUID(),
           source: e.source || e.from || '',
           target: e.target || e.to || e.targetNode || '',
           type: 'smoothstep'
@@ -401,7 +403,7 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
 
   const addNodeByType = useCallback((type: 'step' | 'decision' | 'start' | 'end') => {
     takeSnapshot();
-    const id = `node-${Date.now()}`;
+    const id = crypto.randomUUID();
     const nodeLabels: Record<string, string> = { step: 'Nova atividade', decision: 'Decisão?', start: 'Início', end: 'Fim' };
     
     // Add node at a visible position in the center of the current view if possible, or just a fixedOffset
@@ -425,7 +427,7 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
 
   const addLane = useCallback(() => {
     takeSnapshot();
-    const id = `lane-${Date.now()}`;
+    const id = crypto.randomUUID();
     setNodes(nds => [{ 
       id, 
       type: 'lane', 
@@ -455,6 +457,19 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
     setEdges([]);
     setAiGenerated(false);
   }, [setNodes, setEdges, onClearAIData]);
+
+  const alignNodes = useCallback((type: 'x' | 'y') => {
+    const selected = nodes.filter(n => n.selected);
+    if (selected.length < 2) return;
+    takeSnapshot();
+    if (type === 'x') {
+      const centerX = selected.reduce((s, n) => s + (n.position.x + (n.style?.width as number || 150) / 2), 0) / selected.length;
+      setNodes(nds => nds.map(n => n.selected ? { ...n, position: { ...n.position, x: centerX - (n.style?.width as number || 150) / 2 } } : n));
+    } else {
+      const centerY = selected.reduce((s, n) => s + (n.position.y + (n.style?.height as number || 80) / 2), 0) / selected.length;
+      setNodes(nds => nds.map(n => n.selected ? { ...n, position: { ...n.position, y: centerY - (n.style?.height as number || 80) / 2 } } : n));
+    }
+  }, [nodes, setNodes, takeSnapshot]);
 
   const changeFontSize = useCallback((delta: number) => {
     if (!selectedNode) return;
@@ -559,7 +574,7 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
             + Raia
           </button>
 
-          {selectedNode && (
+          {selectedNodes.length > 0 && (
             <>
               <div className="w-px h-6 bg-slate-200 mx-1" />
               <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
@@ -567,33 +582,23 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
                 <span className="text-[10px] font-bold text-slate-400 w-5 text-center leading-none">{selectedNode.data?.fontSize || 12}</span>
                 <button onClick={() => changeFontSize(1)} className="p-1 hover:bg-slate-50 rounded text-slate-500 transition-colors">A+</button>
               </div>
-              <button onClick={deleteSelected} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 border border-red-100">
-                <Trash2 size={13} />
-                Remover
-              </button>
+              
+              {selectedNodes.length > 1 && (
+                <div className="flex items-center gap-1 ml-2">
+                  <button onClick={() => alignNodes('x')} className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-blue-300">
+                    ↔️
+                  </button>
+                  <button onClick={() => alignNodes('y')} className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-blue-300">
+                    ↕️
+                  </button>
+                </div>
+              )}
             </>
           )}
 
           <div className="flex-1" />
 
-          {onGenerateAI && nodes.length > 0 && (
-            <button
-              onClick={handleGenerateAI}
-              disabled={isGeneratingAI}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-100 text-blue-600 hover:bg-blue-50 transition-all disabled:opacity-50"
-            >
-              {isGeneratingAI ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-              Regerar com IA
-            </button>
-          )}
-
-          <button onClick={clearAll} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-            Limpar Tudo
-          </button>
-
-          <button onClick={handleSave} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-md shadow-blue-100 transition-all border-none">
-            Salvar
-          </button>
+          <button data-save-trigger onClick={handleSave} className="hidden" />
         </div>
 
         {/* Dica de uso */}
@@ -677,7 +682,6 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
           >
             <Background color="#e2e8f0" gap={16} />
             <Controls />
-            <MiniMap nodeStrokeWidth={3} zoomable pannable />
           </ReactFlow>
         </div>
       </div>

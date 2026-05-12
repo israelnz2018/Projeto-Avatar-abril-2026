@@ -97,43 +97,6 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Matriz Esforço x Impacto com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Plano de Ação 5W2H" para gerar
-                Matriz Esforço x Impacto técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA vai sugerir o esforço e impacto de cada ação planejada para ajudar na priorização.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
@@ -165,7 +128,7 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         {/* Table Side */}
         <div className="space-y-6">
           <div className="flex gap-2">
@@ -319,14 +282,7 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
         </div>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-gray-100">
-        <button 
-          onClick={() => onSave({ actions })} 
-          className="bg-[#10b981] text-white px-10 py-4 rounded-[8px] font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-600 transition-all shadow-lg shadow-green-100"
-        >
-          <CheckCircle2 size={18} className="mr-2" /> Salvar Matriz Esforço x Impacto
-        </button>
-      </div>
+      <button data-save-trigger onClick={() => onSave({ actions })} className="hidden" />
     </div>
   </div>
 );

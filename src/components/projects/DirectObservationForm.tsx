@@ -73,12 +73,14 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   // Qualitative variables from Data Collection Plan
   const qualitativeOptions = React.useMemo(() => {
     const dcData = allProjectData?.dataCollection?.toolData || allProjectData?.dataCollection;
-    return dcData?.items
-      ?.filter((item: any) => item.data?.method?.toLowerCase() === "qualitativa")
-      ?.map((item: any) => ({
-        variable: item.data.variable,
-        definition: item.data.operationalDefinition
-      })) || [];
+    if (!dcData?.items || !Array.isArray(dcData.items)) return [];
+    
+    return dcData.items
+      .filter((item: any) => item?.data?.method?.toLowerCase() === "qualitativa")
+      .map((item: any) => ({
+        variable: item?.data?.variable || '',
+        definition: item?.data?.operationalDefinition || ''
+      }));
   }, [allProjectData?.dataCollection]);
 
   const [observations, setObservations] = useState<ObservationEntry[]>(() => {
@@ -109,7 +111,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
         // If we have qualitative variables, auto-populate them instead of showing prompt
         if (qualitativeOptions.length > 0) {
           const autoObservations: ObservationEntry[] = qualitativeOptions.map((opt: any) => ({
-            id: `auto-${Math.random().toString(36).substr(2, 9)}`,
+            id: `auto-${crypto.randomUUID()}`,
             variable: opt.variable || 'Variável sem nome',
             operationalDefinition: opt.definition || '',
             identifiedCause: false,
@@ -121,7 +123,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
           // EXPLICIT RESET when parent sends null (Clear Data button)
           setObservations([
             {
-              id: 'default-' + Date.now(),
+              id: 'default-' + crypto.randomUUID(),
               variable: '',
               operationalDefinition: '',
               identifiedCause: false,
@@ -138,7 +140,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
     if (qualitativeOptions.length === 0) return;
 
     const newObservations: ObservationEntry[] = qualitativeOptions.map((opt: any) => ({
-      id: `import-${Math.random().toString(36).substr(2, 9)}`,
+      id: `import-${crypto.randomUUID()}`,
       variable: opt.variable || 'Variável sem nome',
       operationalDefinition: opt.definition || '',
       identifiedCause: false,
@@ -158,7 +160,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
     setObservations(prev => [
       ...prev,
       {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         variable: '',
         operationalDefinition: '',
         identifiedCause: false,
@@ -189,7 +191,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
 
       Promise.all(readers).then(newImages => {
         setObservations(prev => prev.map(obs => 
-          obs.id === id ? { ...obs, images: [...obs.images, ...newImages] } : obs
+          obs.id === id ? { ...obs, images: [...(obs.images || []), ...newImages] } : obs
         ));
       });
     }
@@ -198,7 +200,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   const removeImage = (id: string, index: number) => {
     setObservations(prev => prev.map(obs => {
       if (obs.id === id) {
-        const newImages = [...obs.images];
+        const newImages = [...(obs.images || [])];
         newImages.splice(index, 1);
         return { ...obs, images: newImages };
       }
@@ -215,42 +217,6 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Hipóteses de Observação com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA vai analisar as variáveis qualitativas para sugerir o que deve ser observado no Gemba (chão de fábrica).
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA sugerirá cenários reais de observação para cada variável qualitativa definida no plano de coleta.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
@@ -275,6 +241,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
 
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <HeaderRow title="Observação Direta" isCompleted={isCompleted} className="flex-1" />
+        <button data-save-trigger onClick={handleSave} className="hidden" />
       </div>
 
       {isGeneratingAI && (
@@ -404,7 +371,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
                     <Camera size={14} className="text-blue-500" /> Registro Fotográfico
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    {obs.images.map((img, i) => (
+                    {(obs.images || []).map((img, i) => (
                       <div key={i} className="relative aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-sm group/img">
                         <img src={img} className="w-full h-full object-cover" alt={`Evidência ${i+1}`} referrerPolicy="no-referrer" />
                         <button
@@ -440,14 +407,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
         </button>
       </div>
 
-      <div className="flex justify-end pt-10">
-        <button
-          onClick={handleSave}
-          className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-slate-800 shadow-2xl shadow-slate-200 transition-all border-none cursor-pointer active:scale-95"
-        >
-          <Save size={18} />
-          Salvar Análise de Observação
-        </button>
+      <div className="pt-10">
       </div>
     </div>
   );

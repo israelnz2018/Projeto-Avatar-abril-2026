@@ -142,26 +142,34 @@ Use markdown for formatting.
 `;
 
 export async function chatWithAI(message: string, history: any[] = []) {
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: [
-      ...history,
-      { role: "user", parts: [{ text: message }] }
-    ],
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      tools: tools,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
-    }
-  });
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        ...history,
+        { role: "user", parts: [{ text: message }] }
+      ],
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        tools: tools,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      }
+    });
 
-  return response;
+    return response;
+  } catch (error: any) {
+    console.error("Error in chatWithAI:", error);
+    if (error?.status === 429 || error?.message?.includes('429')) {
+      throw new Error("Quota da AI excedida. Por favor, tente novamente em 1 minuto.");
+    }
+    throw error;
+  }
 }
 
 export async function generateVideoSummary(url: string) {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: `Acesse o vídeo do YouTube: ${url}
       
       Sua tarefa é gerar um resumo completo do vídeo do início ao fim.
@@ -180,6 +188,7 @@ export async function generateVideoSummary(url: string) {
         tools: [{ urlContext: {} }],
         responseMimeType: "application/json",
         maxOutputTokens: 8192,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -202,8 +211,11 @@ export async function generateVideoSummary(url: string) {
     });
 
     return JSON.parse(response.text || "{}");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating video summary:", error);
+    if (error?.status === 429 || error?.message?.includes('429')) {
+      throw new Error("Quota da AI excedida. Por favor, tente novamente em 1 minuto.");
+    }
     return { summary: [], transcript: "" };
   }
 }
@@ -211,7 +223,7 @@ export async function generateVideoSummary(url: string) {
 export async function generateSummaryFromRawTranscript(url: string, rawTranscript: string) {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: `Acesse o vídeo do YouTube (se precisar de contexto visual): ${url}
       
       O usuário forneceu a TRANSCRIÇÃO COMPLETA E ORIGINAL deste vídeo, com os tempos:
@@ -231,6 +243,7 @@ export async function generateSummaryFromRawTranscript(url: string, rawTranscrip
         tools: [{ urlContext: {} }],
         responseMimeType: "application/json",
         maxOutputTokens: 8192,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -253,8 +266,11 @@ export async function generateSummaryFromRawTranscript(url: string, rawTranscrip
     });
 
     return JSON.parse(response.text || "{}");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating summary from raw transcript:", error);
+    if (error?.status === 429 || error?.message?.includes('429')) {
+      throw new Error("Quota da AI excedida. Por favor, tente novamente em 1 minuto.");
+    }
     return { summary: [], transcript: "" };
   }
 }

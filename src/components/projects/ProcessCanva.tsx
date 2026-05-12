@@ -104,7 +104,7 @@ export default function ProcessCanva({ onSave, initialData, onGenerateAI, isGene
 
   const addStep = () => {
     const newStep: ProcessStep = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       name: '',
       role: '',
       type: 'step'
@@ -120,7 +120,7 @@ export default function ProcessCanva({ onSave, initialData, onGenerateAI, isGene
 
   const addDecision = () => {
     const newStep: ProcessStep = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       name: 'Decisão?',
       role: '',
       type: 'decision'

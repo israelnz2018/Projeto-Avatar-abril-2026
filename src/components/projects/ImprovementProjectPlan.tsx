@@ -18,9 +18,7 @@ interface Activity {
   plannedFinish?: string;
   actualFinish?: string;
   weight: number; // 1 to 10
-  owner?: string;
   notes?: string;
-  predecessorId?: string;
 }
 
 interface PhaseActivities {
@@ -51,12 +49,10 @@ const DEFAULT_STRUCTURE: PhaseActivities[] = [
 export default function ImprovementProjectPlan({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI, onClearAIData }: ImprovementProjectPlanProps) {
   const initialWidths = initialData?.columnWidths || {
     status: 120,
-    activity: 280,
+    activity: 530,
     plannedStart: 95,
     plannedFinish: 95,
     weight: 60,
-    predecessorId: 130,
-    owner: 120,
     actions: 50
   };
 
@@ -65,12 +61,10 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
   const gridTemplateColumns = useMemo(() => {
     return [
       `${columnWidths.status}px`,
-      `${columnWidths.activity}px`,
+      `minmax(${columnWidths.activity}px, 1fr)`,
       `${columnWidths.plannedStart}px`,
       `${columnWidths.plannedFinish}px`,
       `${columnWidths.weight}px`,
-      `${columnWidths.predecessorId}px`,
-      `${columnWidths.owner}px`,
       `${columnWidths.actions}px`
     ].join(' ');
   }, [columnWidths]);
@@ -128,7 +122,7 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
   const addActivity = (phaseId: string) => {
     const macroPhase = macroTimeline?.phases?.find((p: any) => p.id === phaseId);
     const newActivity: Activity = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       text: 'Nova atividade',
       status: 'Not Started',
       plannedStart: macroPhase?.startDate || '',
@@ -183,43 +177,6 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto relative animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Plano do Projeto com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA vai criar as atividades de cada fase usando as datas e título do Cronograma Macro.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA sugerirá atividades padrão para cada fase do ciclo de vida DMAIC.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1">
@@ -285,7 +242,7 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
           <h2 className="text-xl font-bold text-gray-800">Plano do Projeto de Melhoria</h2>
           <p className="text-sm text-gray-500">Planeje e acompanhe a execução das suas atividades.</p>
         </div>
-        <button onClick={() => onSave({ phases, columnWidths })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
+        <button onClick={() => onSave({ phases, columnWidths })} className="hidden" data-save-trigger>
           Salvar Plano
         </button>
       </div>
@@ -323,7 +280,7 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
             {phase.isOpen && (
               <div className="p-4 bg-gray-50/30 border-t border-[#eee] space-y-3 overflow-x-auto">
                 <div 
-                  className="grid gap-2 px-4 mb-2 text-[9px] font-bold text-gray-400 uppercase select-none w-max"
+                  className="grid gap-2 px-4 mb-2 text-[9px] font-bold text-gray-400 uppercase select-none w-full min-w-max"
                   style={{ gridTemplateColumns }}
                 >
                   <div className="relative group/header">
@@ -346,14 +303,6 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                     <span>Peso</span>
                     <div onMouseDown={(e) => startColResize(e, 'weight')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
                   </div>
-                  <div className="relative group/header">
-                    <span>Predecessora</span>
-                    <div onMouseDown={(e) => startColResize(e, 'predecessorId')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
-                  </div>
-                  <div className="relative group/header">
-                    <span>Responsável</span>
-                    <div onMouseDown={(e) => startColResize(e, 'owner')} className="absolute -right-1 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/50 z-10" />
-                  </div>
                   <div className="relative">
                     <span></span>
                   </div>
@@ -361,13 +310,11 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                 {phase.activities.map((activity) => {
                   const statusInfo = getActivityStatus(activity);
                   const StatusIcon = statusInfo.icon;
-                  const isPredecessorDone = !activity.predecessorId || 
-                    phases.flatMap(p => p.activities).find(a => a.id === activity.predecessorId)?.status === 'Completed';
 
                   return (
                     <div 
                       key={activity.id} 
-                      className="grid gap-2 items-center bg-white p-2 rounded border border-gray-100 group hover:border-blue-200 transition-all w-max"
+                      className="grid gap-2 items-center bg-white p-2 rounded border border-gray-100 group hover:border-blue-200 transition-all w-full min-w-max"
                       style={{ gridTemplateColumns }}
                     >
                       <div className="flex items-center gap-2">
@@ -399,11 +346,6 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                             target.style.height = target.scrollHeight + 'px';
                           }}
                         />
-                        {!isPredecessorDone && (
-                          <span className="text-[8px] text-orange-600 flex items-center gap-1">
-                            <AlertCircle size={8} /> Aguardando predecessora
-                          </span>
-                        )}
                       </div>
 
                       <input 
@@ -433,33 +375,10 @@ export default function ImprovementProjectPlan({ onSave, initialData, macroTimel
                         title="Peso (1-10)"
                       />
 
-                      <select
-                        value={activity.predecessorId || ''}
-                        onChange={(e) => updateActivity(phase.id, activity.id, { predecessorId: e.target.value || undefined })}
-                        className="text-[9px] border-gray-100 rounded p-1 focus:border-blue-300 outline-none bg-gray-50/50 truncate max-w-[120px]"
-                      >
-                        <option value="">Nenhuma</option>
-                        {allActivities
-                          .filter(a => a.id !== activity.id)
-                          .map(a => (
-                            <option key={a.id} value={a.id}>
-                              [{a.phaseName}] {a.text.substring(0, 20)}...
-                            </option>
-                          ))
-                        }
-                      </select>
-
-                      <input 
-                        placeholder="Responsável"
-                        value={activity.owner}
-                        onChange={(e) => updateActivity(phase.id, activity.id, { owner: e.target.value })}
-                        className="text-[10px] border-gray-100 rounded p-1 focus:border-blue-300 outline-none bg-gray-50/50"
-                      />
-
                       <div className="flex items-center gap-0.5">
                         <button 
                           onClick={() => setEditingActivity(editingActivity?.activityId === activity.id ? null : { phaseId: phase.id, activityId: activity.id })}
-                          className={cn("p-1 rounded hover:bg-gray-100 transition-colors", editingActivity?.activityId === activity.id ? "text-blue-600" : "text-gray-400")}
+                          className={cn("p-1 rounded hover:bg-gray-100 transition-colors", editingActivity?.activityId === activity.id || activity.notes ? "text-blue-600" : "text-gray-400")}
                         >
                           <Info size={12} />
                         </button>

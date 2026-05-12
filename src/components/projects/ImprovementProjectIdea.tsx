@@ -22,7 +22,9 @@ import {
   Briefcase,
   Share2,
   Info,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { cn } from '@/src/lib/utils';
@@ -39,7 +41,7 @@ type UserProfile = 'Analista' | 'Gestor' | 'Black Belt' | null;
 export default function ImprovementProjectIdea({ onSave, initialData }: ImprovementProjectIdeaProps) {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile>(initialData?.userProfile || null);
-  const [formData, setFormData] = useState(initialData?.formData || {
+  const [formData, setFormData] = useState(initialData?.formData || initialData?.toolData || {
     // SEÇÃO 1
     sector: '',
     area: '',
@@ -111,7 +113,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
   useEffect(() => {
     if (initialData) {
       if (initialData.userProfile) setUserProfile(initialData.userProfile);
-      if (initialData.formData) setFormData(initialData.formData);
+      if (initialData.formData || initialData.toolData) setFormData(initialData.formData || initialData.toolData);
       if (initialData.generatedProjects) setGeneratedProjects(normalizeProjects(initialData.generatedProjects));
     }
   }, [initialData]);
@@ -137,17 +139,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     }, { silent: true });
   };
 
-  const handleUpdateProject = (updatedProject: any) => {
-    const updatedProjects = generatedProjects.map(p => 
-      p.title === updatedProject.title ? updatedProject : p
-    );
-    setGeneratedProjects(updatedProjects);
-    onSave({
-      userProfile,
-      formData,
-      generatedProjects: updatedProjects
-    }, { silent: true });
-  };
+
 
   const handleSave = () => {
     onSave({
@@ -636,7 +628,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               ) : (
                 <Sparkles size={24} />
               )}
-              {loading ? "Processando..." : "Gerar Ideias de Projeto"}
+              {loading ? "Processando..." : (generatedProjects.length > 0 ? "Regenerar Ideias de Projeto" : "Gerar Ideias de Projeto")}
             </button>
             
             {!canGenerate && (
@@ -749,15 +741,55 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
             <div className="space-y-3">
               {generatedProjects
                 .filter(p => beltFilter === 'Todos' || p.belt_level === beltFilter)
-                .map((project, idx) => (
+                .map((project, idx) => {
+                  // Precisamos do indice original para passar corretamente para o remove
+                  const originalIndex = generatedProjects.indexOf(project);
+                  return (
                   <ProjectResultCard 
-                    key={idx} 
+                    key={originalIndex} 
                     project={project} 
-                    index={idx} 
-                    onUpdateProject={handleUpdateProject}
+                    index={originalIndex} 
+                    onUpdateProject={(updatedProject) => {
+                        const updatedProjects = [...generatedProjects];
+                        updatedProjects[originalIndex] = updatedProject;
+                        setGeneratedProjects(updatedProjects);
+                        onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
+                    }}
+                    onRemoveProject={() => {
+                        const updatedProjects = generatedProjects.filter((_, i) => i !== originalIndex);
+                        setGeneratedProjects(updatedProjects);
+                        onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
+                    }}
                   />
-                ))
+                  );
+                })
               }
+              
+              <div className="flex justify-center pt-4">
+                <button
+                  onClick={() => {
+                    const newProject = {
+                      title: 'Nova Ideia de Projeto',
+                      beltLevel: 'Ver e Agir',
+                      what: '',
+                      why: '',
+                      where: '',
+                      who: '',
+                      how: '',
+                      when: '',
+                      howMuch: '',
+                      expectedImpact: ''
+                    };
+                    const updatedProjects = [...generatedProjects, newProject];
+                    setGeneratedProjects(updatedProjects);
+                    setBeltFilter('Todos');
+                    onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-blue-600 border-2 border-blue-100 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-50 transition-all cursor-pointer"
+                >
+                  <Plus size={16} /> Adicionar Nova Ideia
+                </button>
+              </div>
             </div>
 
           </div>
@@ -951,7 +983,7 @@ function BeltReferenceTable() {
   );
 }
 
-function ProjectResultCard({ project, index, onUpdateProject }: { project: any, index: number, onUpdateProject: (updatedProject: any) => void }) {
+function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }: { project: any, index: number, onUpdateProject: (updatedProject: any) => void, onRemoveProject?: () => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -1099,9 +1131,7 @@ function ProjectResultCard({ project, index, onUpdateProject }: { project: any, 
                         {label: 'Ver e Agir', value: 'Ver e Agir'},
                         {label: 'Yellow Belt', value: 'Yellow Belt'},
                         {label: 'Green Belt', value: 'Green Belt'},
-                        {label: 'Black Belt', value: 'Black Belt'},
-                        {label: 'Design for Six Sigma (DFSS)', value: 'Design for Six Sigma (DFSS)'},
-                        {label: 'Matriz de Decisão', value: 'Matriz de Decisão'}
+                        {label: 'Black Belt', value: 'Black Belt'}
                     ]} />
                 </Field>
 
@@ -1183,6 +1213,19 @@ function ProjectResultCard({ project, index, onUpdateProject }: { project: any, 
 
                 {/* Ações */}
                 <div className="flex gap-3 pt-2">
+                  {onRemoveProject && (
+                    <button
+                      className="p-3 rounded-xl font-black text-gray-400 bg-white border border-gray-200 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all cursor-pointer flex-shrink-0 flex items-center justify-center"
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          if(onRemoveProject) onRemoveProject();
+                      }}
+                      title="Remover Ideia"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                   <button
                     className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer bg-white text-gray-600 border border-gray-200 hover:bg-gray-50`}
                     onClick={() => setIsEditing(true)}

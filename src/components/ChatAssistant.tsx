@@ -1,173 +1,944 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Send, Bot, User, Sparkles, PlayCircle, ArrowRight, Loader2 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
-import { Message } from '@/src/types';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import {
+  Send, ArrowRight, Sparkles, Clock, HelpCircle,
+  TrendingUp, BarChart3, Activity, Play, ChevronRight, Compass,
+  X, FolderTree, BookOpen, Wand2,
+} from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
+import { doc, getDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
+import { db } from '@/src/lib/firebase';
+import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedVideo, LeafAction } from './AIAssistantConfig';
+
+const LBW = { navy: '#1E2D6E', blue: '#0033CC', light: '#F0F2FA', ink: '#2A2F3A', white: '#FFFFFF' };
+
+type ProjectType = 'DMAIC' | 'Lean' | 'ADKAR' | 'PMI' | 'QuickWin';
+const TYPE_PALETTE: Record<ProjectType, any> = {
+  DMAIC:    { label: 'Seis Sigma DMAIC',  tag: 'Estratégico', glow: 'rgba(0,51,204,0.42)',  from: '#1E2D6E', to: '#0033CC', ring: '#0033CC', soft: '#E6EAFB', ink: '#0F1A52' },
+  Lean:     { label: 'Lean / Kaizen',     tag: 'Operacional', glow: 'rgba(15,110,86,0.40)', from: '#0F6E56', to: '#1E2D6E', ring: '#0F6E56', soft: '#DDEEE8', ink: '#06453A' },
+  ADKAR:    { label: 'Gestão de Mudança', tag: 'Pessoas',     glow: 'rgba(0,51,204,0.40)',  from: '#0033CC', to: '#6699FF', ring: '#0033CC', soft: '#E2EBFF', ink: '#0F1A52' },
+  PMI:      { label: 'Gestão de Projeto', tag: 'Estrutura',   glow: 'rgba(30,45,110,0.42)', from: '#1E2D6E', to: '#2A2F3A', ring: '#1E2D6E', soft: '#E6E9F2', ink: '#0F1A52' },
+  QuickWin: { label: 'Quick Win',         tag: 'Imediato',    glow: 'rgba(160,120,0,0.40)', from: '#A07800', to: '#0033CC', ring: '#A07800', soft: '#FFF1D8', ink: '#5B3A06' },
+};
+
+const CATEGORY_ICONS: Record<string, any> = { projects: TrendingUp, data: BarChart3, stats: Activity };
+const CATEGORY_TYPES: Record<string, ProjectType> = { projects: 'DMAIC', data: 'PMI', stats: 'DMAIC' };
+const CATEGORY_TAGS: Record<string, string> = { projects: 'Mais usado', data: 'Insights', stats: 'Pontual' };
+const CATEGORY_VARIANTS: Record<string, 'light' | 'outlined' | 'dark'> = { projects: 'light', data: 'outlined', stats: 'dark' };
+const LANGS = [{ code: 'pt-BR', flag: '🇧🇷', label: 'PT' }, { code: 'en-US', flag: '🇺🇸', label: 'EN' }, { code: 'es-ES', flag: '🇪🇸', label: 'ES' }];
+
+const ISRAEL_PHOTO = '/avatar-israel.png';
+
+interface ClassificationData { type: ProjectType; duration: string; justification: string; question: string; }
+interface ChatMessage { id: string; role: 'user' | 'ai'; text?: string; classification?: ClassificationData; }
+
+function getYoutubeId(url: string): string | null {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function normalizeNode(n: any): TreeNode {
+  return {
+    id: n?.id || '',
+    title: n?.title || '',
+    fields: Array.isArray(n?.fields) ? n.fields : [],
+    videos: Array.isArray(n?.videos) ? n.videos : [],
+    children: Array.isArray(n?.children) ? n.children.map(normalizeNode) : [],
+    actionType: n?.actionType,
+  };
+}
+
+function normalizeConfig(data: any): AIConfig {
+  return {
+    mentorRules: data?.mentorRules || DEFAULT_CONFIG.mentorRules,
+    categories: (Array.isArray(data?.categories) ? data.categories : DEFAULT_CONFIG.categories).map((c: any) => ({
+      id: c?.id || '', title: c?.title || '', subtitle: c?.subtitle || '', colorIndex: c?.colorIndex,
+      items: (() => {
+        if (Array.isArray(c?.items)) return c.items.map(normalizeNode);
+        if (Array.isArray(c?.subcategories)) {
+          return c.subcategories.map((sub: any) => ({
+            id: sub?.id || '', title: sub?.title || '',
+            fields: Array.isArray(sub?.fields) ? sub.fields : [],
+            videos: Array.isArray(sub?.videos) ? sub.videos : [],
+            children: Array.isArray(sub?.children) ? sub.children.map(normalizeNode) : [],
+            actionType: sub?.actionType,
+          }));
+        }
+        return [];
+      })(),
+    })),
+  };
+}
+
+function MentorOrb({ size = 56, showHalo = true, isSpeaking = false, online = true, crop = 'head' }: {
+  size?: number; showHalo?: boolean; isSpeaking?: boolean; online?: boolean; crop?: 'head' | 'bust';
+}) {
+  const reduce = useReducedMotion();
+  const halo = size * 1.55;
+  const ringW = Math.max(2, size * 0.06);
+  const dot = Math.max(8, size * 0.22);
+  const isBust = crop === 'bust';
+  const imgScale = isBust ? 1.15 : 1.85;
+  const imgTopShift = isBust ? '-50%' : '-54%';
+  const showFaceFx = !reduce && size >= 44 && isSpeaking && !isBust;
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      {showHalo && (
+        <motion.div aria-hidden className="absolute rounded-full"
+          style={{
+            width: halo, height: halo, top: (size - halo)/2, left: (size - halo)/2,
+            background: `radial-gradient(closest-side, ${LBW.blue}55, ${LBW.navy}22 50%, transparent 72%)`,
+            filter: 'blur(8px)',
+          }}
+          animate={reduce ? {} : {
+            scale: isSpeaking ? [1, 1.22, 1] : [1, 1.10, 1],
+            opacity: isSpeaking ? [0.7, 1, 0.7] : [0.55, 0.85, 0.55],
+          }}
+          transition={{ duration: isSpeaking ? 1.1 : 3.4, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+      <motion.div aria-hidden className="absolute rounded-full"
+        style={{
+          inset: -ringW,
+          background: `conic-gradient(from 0deg, ${LBW.blue}, ${LBW.navy}, #6699FF, ${LBW.blue})`,
+          filter: isSpeaking ? 'saturate(1.25) brightness(1.18)' : 'none',
+        }}
+        animate={reduce ? {} : { rotate: 360 }}
+        transition={{ duration: isSpeaking ? 3.2 : 9, repeat: Infinity, ease: 'linear' }}
+      />
+      <div aria-hidden className="absolute rounded-full" style={{ inset: 0, background: LBW.white }} />
+      <motion.div className="absolute rounded-full overflow-hidden"
+        style={{
+          inset: 1.5,
+          boxShadow: isSpeaking
+            ? `0 0 0 ${ringW*0.5}px ${LBW.white}, 0 10px 28px -8px ${LBW.blue}99`
+            : `0 0 0 ${ringW*0.5}px ${LBW.white}, 0 6px 20px -10px ${LBW.navy}66`,
+          background: `linear-gradient(180deg, ${LBW.light}, ${LBW.white})`,
+        }}
+        animate={reduce ? {} : (isSpeaking ? { rotate: [-1.2, 1.2, -1.2] } : { rotate: 0 })}
+        transition={{ duration: 0.9, repeat: isSpeaking ? Infinity : 0, ease: 'easeInOut' }}
+      >
+        <img src={ISRAEL_PHOTO} alt="Israel · Mentor LBW" draggable={false} className="absolute object-cover"
+          style={{
+            width: `${imgScale*100}%`, height: `${imgScale*100}%`,
+            left: '50%', top: '50%', transform: `translate(-50%, ${imgTopShift})`,
+          }}
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            img.style.background = `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`;
+            img.removeAttribute('src');
+          }}
+        />
+        {showFaceFx && (
+          <>
+            <motion.div aria-hidden className="absolute"
+              style={{ left: '50%', top: '66%', width: size * 0.17, height: 2, translate: '-50% -50%', background: '#3A1410', borderRadius: size * 0.04, mixBlendMode: 'multiply' }}
+              animate={{ height: [2, size*0.075, 2, size*0.05, 2] }}
+              transition={{ duration: 0.55, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.div aria-hidden className="absolute"
+              style={{ left: '22%', right: '22%', top: '44%', height: Math.max(3, size * 0.045), background: '#E4B59B', borderRadius: 4, opacity: 0 }}
+              animate={{ opacity: [0, 0, 0.9, 0, 0] }}
+              transition={{ duration: 4, times: [0, 0.45, 0.5, 0.55, 1], repeat: Infinity }}
+            />
+          </>
+        )}
+      </motion.div>
+      {online && size >= 28 && (
+        <span aria-hidden className="absolute rounded-full ring-2 ring-white"
+          style={{ width: dot, height: dot, right: -dot*0.1, bottom: -dot*0.1, background: '#22C55E', boxShadow: '0 0 0 2px rgba(34,197,94,0.20)' }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MeshBackground() {
+  const reduce = useReducedMotion();
+  const blobs = useMemo(() => ([
+    { c: '#C7D2FF', x: '8%',  y: '14%', s: 520 },
+    { c: '#A8B6FF', x: '78%', y: '8%',  s: 480 },
+    { c: '#D4DCFF', x: '62%', y: '78%', s: 540 },
+    { c: '#E2E8FF', x: '12%', y: '82%', s: 460 },
+  ]), []);
+  return (
+    <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none">
+      {blobs.map((b, i) => (
+        <motion.div key={i} className="absolute rounded-full"
+          style={{ left: b.x, top: b.y, width: b.s, height: b.s, background: `radial-gradient(closest-side, ${b.c}, transparent 70%)`, filter: 'blur(60px)', opacity: 0.55 }}
+          animate={reduce ? {} : { x: [0, 30, -20, 0], y: [0, -25, 15, 0] }}
+          transition={{ duration: 20 + i*3, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ))}
+      <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${LBW.light}33, ${LBW.light}99)` }} />
+    </div>
+  );
+}
+
+function HeroCard({ cat, type, tag, variant, icon: Icon, i, onClick }: {
+  cat: NavCategory; type: ProjectType; tag: string; variant: 'light' | 'outlined' | 'dark';
+  icon: any; i: number; onClick: () => void;
+}) {
+  const pal = TYPE_PALETTE[type];
+  const isDark = variant === 'dark';
+  const isOutlined = variant === 'outlined';
+  const cardBg = isDark ? LBW.navy : (isOutlined ? LBW.white : LBW.light);
+  const cardBorder = isDark ? 'transparent' : (isOutlined ? LBW.blue : 'rgba(30,45,110,0.08)');
+  const titleColor = isDark ? LBW.white : (isOutlined ? LBW.ink : LBW.navy);
+  const subColor = isDark ? 'rgba(255,255,255,0.72)' : '#52596B';
+  const tagColor = isDark ? '#9EB6FF' : LBW.blue;
+  const iconBg = isDark ? 'rgba(255,255,255,0.12)' : (isOutlined ? `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})` : `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`);
+  const arrowBg = isDark ? LBW.white : LBW.blue;
+  const arrowColor = isDark ? LBW.navy : LBW.white;
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 18, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.18 + i*0.07, type: 'spring', stiffness: 220, damping: 18 }}
+      whileHover="hover" whileTap={{ scale: 0.98 }} onClick={onClick}
+      className="group relative text-left rounded-[24px] p-6 overflow-hidden flex flex-col gap-5 cursor-pointer min-h-[260px]"
+      style={{
+        background: cardBg, border: `1px solid ${cardBorder}`,
+        boxShadow: isDark ? `0 18px 50px -22px ${LBW.navy}90` : (isOutlined ? `0 0 0 1px ${LBW.blue}22 inset, 0 12px 36px -20px ${LBW.navy}30` : `0 1px 0 rgba(255,255,255,0.7) inset, 0 14px 40px -16px ${LBW.navy}33`),
+      }}
+    >
+      <motion.div aria-hidden className="absolute -inset-[40%] rounded-full pointer-events-none"
+        style={{ background: isDark ? `radial-gradient(closest-side, #6699FF55, transparent 70%)` : `radial-gradient(closest-side, ${LBW.blue}26, transparent 70%)`, top: '-30%', right: '-30%', left: 'auto', width: 420, height: 420 }}
+        variants={{ hover: { scale: 1.15, opacity: 1 } }} initial={{ opacity: 0.85 }}
+      />
+      <motion.div className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
+        style={{ background: iconBg, color: LBW.white, boxShadow: isDark ? `0 8px 22px -8px ${LBW.blue}` : `0 10px 24px -8px ${pal.glow}`, border: isDark ? '1px solid rgba(255,255,255,0.18)' : 'none' }}
+        variants={{ hover: { y: -2, scale: 1.06, rotate: -3 } }}
+      >
+        <Icon size={24} strokeWidth={2.2} />
+      </motion.div>
+      <div className="relative flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ color: tagColor }}>{tag}</span>
+        </div>
+        <h3 className="text-[22px] font-semibold leading-[1.1] tracking-tight mb-2" style={{ color: titleColor }}>{cat.title}</h3>
+        <p className="text-[14px] leading-relaxed" style={{ color: subColor }}>{cat.subtitle}</p>
+      </div>
+      <div className="relative flex items-center justify-between">
+        <span className="text-[12px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#6B7180' }}>Começar</span>
+        <motion.div className="w-9 h-9 rounded-full flex items-center justify-center"
+          style={{ background: arrowBg, color: arrowColor }} variants={{ hover: { x: 4 } }}>
+          <ArrowRight size={15} />
+        </motion.div>
+      </div>
+    </motion.button>
+  );
+}
+
+function TreeCard({ item, type, i, onClick }: { item: TreeNode; type: ProjectType; i: number; onClick: () => void }) {
+  const pal = TYPE_PALETTE[type];
+  const hasChildren = (item.children || []).length > 0;
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 14, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.05 + i*0.06, type: 'spring', stiffness: 240, damping: 20 }}
+      whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }} onClick={onClick}
+      className="group relative text-left rounded-[20px] p-5 bg-white/85 backdrop-blur border border-black/[0.06] overflow-hidden cursor-pointer"
+      style={{ boxShadow: '0 6px 24px -14px rgba(40,30,80,0.22)' }}
+    >
+      <motion.div aria-hidden className="absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-70"
+        style={{ background: `radial-gradient(closest-side, ${pal.from}33, transparent 70%)` }} whileHover={{ scale: 1.2 }}
+      />
+      <div className="relative flex items-start justify-between gap-3 mb-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+          style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+          <FolderTree size={16} />
+        </div>
+        {hasChildren && (
+          <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-1 rounded-full"
+            style={{ background: pal.soft, color: pal.ink }}>{item.children.length} opções</span>
+        )}
+      </div>
+      <h4 className="relative text-[16px] font-semibold text-stone-900 leading-snug tracking-tight mb-1.5">{item.title}</h4>
+      <div className="relative flex items-center gap-1.5 text-[12px] font-medium mt-3" style={{ color: pal.ring }}>
+        {hasChildren ? 'Explorar' : 'Continuar'} <ChevronRight size={14} />
+      </div>
+    </motion.button>
+  );
+}
+
+function Breadcrumbs({ crumbs, onBack, color }: { crumbs: string[]; onBack: () => void; color: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <motion.button onClick={onBack} whileHover={{ x: -2 }} whileTap={{ scale: 0.96 }}
+        className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase" style={{ color }}>
+        ← Voltar
+      </motion.button>
+      <span className="text-stone-300">·</span>
+      <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-stone-500 flex-wrap">
+        {crumbs.map((c, i) => (
+          <span key={i} className="flex items-center gap-1.5">
+            {i > 0 && <ChevronRight size={11} className="text-stone-400" />}{c}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DetectionCard({ d }: { d: ClassificationData }) {
+  const pal = TYPE_PALETTE[d.type] || TYPE_PALETTE.DMAIC;
+  return (
+    <motion.div initial={{ opacity: 0, y: 12, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+      className="relative rounded-[20px] p-5 overflow-hidden"
+      style={{ background: `linear-gradient(135deg, ${pal.soft}, white)`, border: `1px solid ${pal.ring}33`, boxShadow: `0 20px 50px -25px ${pal.glow}` }}
+    >
+      <div aria-hidden className="absolute -top-20 -right-20 w-60 h-60 rounded-full"
+        style={{ background: `radial-gradient(closest-side, ${pal.ring}33, transparent 70%)` }} />
+      <div className="relative flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
+            style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+            <Sparkles size={14} />
+          </div>
+          <span className="text-[10px] font-bold tracking-[0.18em] uppercase" style={{ color: pal.ring }}>Projeto detectado</span>
+        </div>
+        <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full"
+          style={{ background: pal.ring + '22', color: pal.ink }}>{pal.tag}</span>
+      </div>
+      <h3 className="text-[28px] font-semibold tracking-tight leading-tight mb-2" style={{ color: pal.ink }}>{pal.label}</h3>
+      <div className="flex items-center gap-2 mb-4" style={{ color: pal.ring }}>
+        <Clock size={13} />
+        <span className="text-[13px] font-medium">Duração estimada: {d.duration}</span>
+      </div>
+      <div className="border-t pt-4 mb-3" style={{ borderColor: pal.ring + '22' }}>
+        <p className="text-[10px] font-bold tracking-wider uppercase mb-2" style={{ color: pal.ring }}>Por que esse caminho</p>
+        <p className="text-[14px] leading-relaxed m-0" style={{ color: pal.ink }}>{d.justification}</p>
+      </div>
+      <div className="rounded-xl p-3 flex items-start gap-2.5"
+        style={{ background: pal.ring + '11', border: `1px solid ${pal.ring}22` }}>
+        <HelpCircle size={15} className="mt-0.5 flex-shrink-0" style={{ color: pal.ring }} />
+        <p className="text-[14px] font-semibold leading-relaxed m-0" style={{ color: pal.ink }}>{d.question}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex items-end gap-2.5">
+      <MentorOrb size={30} showHalo={false} online={false} />
+      <div className="bg-white rounded-[18px] rounded-bl-[6px] border border-stone-200/60 px-4 py-3 flex items-center gap-1.5">
+        {[0,1,2].map(i => (
+          <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
+            style={{ background: LBW.blue }}
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 0.6, repeat: Infinity, delay: i*0.15, ease: 'easeInOut' }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HeroComposer({ value, setValue, onSend }: { value: string; setValue: (v: string) => void; onSend: () => void }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.55 }}
+      className="max-w-3xl mx-auto w-full rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.06] overflow-hidden"
+      style={{ boxShadow: `0 18px 50px -22px ${LBW.navy}33` }}
+    >
+      <textarea value={value} rows={3}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (value.trim().length >= 10) onSend(); } }}
+        placeholder="Descreva seu problema em texto livre — quanto mais detalhes, melhor o diagnóstico."
+        className="w-full p-5 text-[14px] resize-none outline-none placeholder:text-stone-400 bg-transparent leading-relaxed max-h-[160px]"
+        style={{ color: LBW.ink }}
+      />
+      <div className="flex items-center justify-between px-5 py-3 border-t border-stone-200/60 bg-white/50">
+        <span className="text-[11px] text-stone-500">
+          {value.trim().length > 0 ? `${value.trim().length} caracteres` : 'Mínimo 30 caracteres para análise'}
+        </span>
+        <motion.button onClick={onSend} disabled={value.trim().length < 10}
+          whileHover={value.trim().length >= 10 ? { scale: 1.03 } : {}}
+          whileTap={value.trim().length >= 10 ? { scale: 0.97 } : {}}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, boxShadow: value.trim().length >= 10 ? `0 8px 20px -8px ${LBW.blue}88` : 'none' }}
+        >
+          Enviar <Send size={12} />
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function ChatAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hello Israel! I'm your Continuous Improvement Copilot. How can I help you today? We can analyze data, update your DMAIC project, or learn a new concept.",
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+  const navigate = useNavigate();
+  const userName = (localStorage.getItem('usuarioEmail')?.split('@')[0] || 'aluno').split('.')[0];
+  const userInitial = userName.charAt(0).toUpperCase();
+
+  const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  const [navPath, setNavPath] = useState<string[]>([]);
+  const [view, setView] = useState<'hero' | 'tree' | 'leaf' | 'chat'>('hero');
+  const [dir, setDir] = useState<1 | -1>(1);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [showAiTyping, setShowAiTyping] = useState(false);
+  const [lang, setLang] = useState('pt-BR');
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      createdAt: new Date().toISOString(),
+    const load = async () => {
+      try {
+        const ref = doc(db, AI_CONFIG_DOC.collection, AI_CONFIG_DOC.id);
+        const snap = await getDoc(ref);
+        if (snap.exists()) setConfig(normalizeConfig(snap.data()));
+      } catch (e) { console.error('[ChatAssistant]', e); }
+      finally { setConfigLoaded(true); }
     };
+    load();
+  }, []);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [chat, showAiTyping, view]);
 
-    // Simulate AI Response
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `### 1. Diagnosis
-Based on your question about regression analysis, it seems you're trying to understand the relationship between your independent variables and the output.
+  useEffect(() => {
+    return () => { try { window.speechSynthesis?.cancel(); } catch {} };
+  }, []);
 
-### 2. Recommended Action
-I suggest running a **Multiple Linear Regression** on your 'Temperature' and 'Pressure' columns to see which one has a higher impact on 'Defect Rate'.
+  const currentCategoryIdx = navPath.length > 0 ? config.categories.findIndex(c => c.id === navPath[0]) : -1;
+  const currentCategory: NavCategory | null = currentCategoryIdx >= 0 ? config.categories[currentCategoryIdx] : null;
+  const currentType: ProjectType = currentCategory ? (CATEGORY_TYPES[currentCategory.id] || 'DMAIC') : 'DMAIC';
 
-### 3. Execution
-I've prepared the analysis tool for you. Would you like me to run it now?
+  let currentItems: TreeNode[] = currentCategory?.items || [];
+  let currentNode: TreeNode | null = null;
+  const breadcrumbs: string[] = [];
+  if (currentCategory) {
+    breadcrumbs.push(currentCategory.title);
+    let cursor: TreeNode | null = null;
+    for (let i = 1; i < navPath.length; i++) {
+      const id = navPath[i];
+      const list = cursor ? (cursor.children || []) : currentItems;
+      const found = list.find(n => n.id === id) || null;
+      if (!found) break;
+      cursor = found;
+      breadcrumbs.push(found.title);
+    }
+    if (cursor) { currentNode = cursor; currentItems = cursor.children || []; }
+  }
 
-### 4. Business Interpretation
-Understanding this relationship will allow you to set tighter control limits on the production line, potentially reducing waste by 15%.
+  const go = (next: 'hero' | 'tree' | 'leaf' | 'chat', direction: 1 | -1 = 1) => { setDir(direction); setView(next); };
 
-### 5. Learning Recommendation
-I recommend watching this video on "Interpreting P-values in Regression".`,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1500);
+  const callGemini = async (prompt: string, json = false) => {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      ...(json ? { config: { responseMimeType: 'application/json' } } : {}),
+    });
+    return response.text || '';
   };
 
+  const handleCategoryClick = (catId: string) => {
+    const cat = config.categories.find(c => c.id === catId);
+    if (!cat) return;
+    setNavPath([catId]);
+    if ((cat.items || []).length > 0) go('tree', 1);
+    else go('chat', 1);
+  };
+
+  const handleNodeClick = (node: TreeNode) => {
+    const newPath = [...navPath, node.id];
+    setNavPath(newPath);
+    if ((node.children || []).length > 0) go('tree', 1);
+    else {
+      setActiveVideoId((node.videos || [])[0]?.id || null);
+      go('leaf', 1);
+    }
+  };
+
+  const handleFinalAction = () => {
+    const action: LeafAction = currentNode?.actionType || 'home';
+    if (action === 'projects') navigate('/projects');
+    else if (action === 'data') navigate('/analysis');
+    else resetToHero();
+  };
+
+  const finalActionLabel = (() => {
+    const a = currentNode?.actionType || 'home';
+    if (a === 'projects') return 'Ir para os Projetos';
+    if (a === 'data') return 'Ir para Análise de Dados';
+    return 'Voltar para a tela inicial';
+  })();
+
+  const goBack = () => {
+    if (navPath.length <= 1) { resetToHero(); return; }
+    setNavPath(navPath.slice(0, -1));
+    setActiveVideoId(null);
+    go('tree', -1);
+  };
+
+  const resetToHero = () => {
+    setView('hero'); setNavPath([]); setActiveVideoId(null); setChat([]); setInput('');
+  };
+
+  const speakMessage = (m: ChatMessage) => {
+    try {
+      if (!window.speechSynthesis) return;
+      if (speakingId === m.id) { window.speechSynthesis.cancel(); setSpeakingId(null); return; }
+      window.speechSynthesis.cancel();
+      const txt = m.text || (m.classification ? `Projeto detectado: ${TYPE_PALETTE[m.classification.type].label}. ${m.classification.justification} ${m.classification.question}` : '');
+      if (!txt) return;
+      const u = new SpeechSynthesisUtterance(txt);
+      u.lang = lang; u.rate = 1.0; u.pitch = 1.0;
+      u.onend = () => setSpeakingId(cur => cur === m.id ? null : cur);
+      u.onerror = () => setSpeakingId(cur => cur === m.id ? null : cur);
+      setSpeakingId(m.id);
+      window.speechSynthesis.speak(u);
+    } catch { setSpeakingId(null); }
+  };
+
+  const sendFromHero = async () => {
+    if (input.trim().length < 10) return;
+    const txt = input.trim();
+    setInput('');
+    setChat([{ id: String(Date.now()), role: 'user', text: txt }]);
+    go('chat', 1);
+    setShowAiTyping(true);
+    try {
+      const raw = await callGemini(
+        `Você é o Mentor LBW. O aluno descreveu: "${txt}". Retorne APENAS JSON válido:\n{"type":"DMAIC","duration":"3 a 4 meses","justification":"2-3 frases","question":"Uma pergunta"}\ntype deve ser exatamente um destes: DMAIC, Lean, ADKAR, PMI, QuickWin.`,
+        true
+      );
+      let classification: ClassificationData | null = null;
+      try {
+        const p = JSON.parse(raw);
+        if (p.type && p.duration && p.justification && p.question) classification = p;
+      } catch {}
+      setChat(c => [...c, {
+        id: String(Date.now()+1), role: 'ai',
+        text: classification ? '' : 'Pode me dar mais detalhes do problema?',
+        classification: classification || undefined,
+      }]);
+    } catch {
+      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar. Tente novamente.' }]);
+    } finally { setShowAiTyping(false); }
+  };
+
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const txt = chatInput.trim();
+    setChat(c => [...c, { id: String(Date.now()), role: 'user', text: txt }]);
+    setChatInput('');
+    setShowAiTyping(true);
+    try {
+      const reply = await callGemini(`${config.mentorRules}\n\nO aluno disse: "${txt}"\n\nResponda agora em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`);
+      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: reply }]);
+    } catch {
+      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar.' }]);
+    } finally { setShowAiTyping(false); }
+  };
+
+  if (!configLoaded) return (
+    <div className="h-[calc(100vh-10rem)] flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-stone-200 border-t-blue-600 rounded-full animate-spin" />
+    </div>
+  );
+
+  const activeVideo: LinkedVideo | null = currentNode
+    ? (currentNode.videos.find(v => v.id === activeVideoId) || currentNode.videos[0] || null)
+    : null;
+
   return (
-    <div className="h-[calc(100vh-10rem)] flex flex-col bg-white border border-[#ccc] rounded-[4px] overflow-hidden shadow-sm">
-      {/* Header */}
-      <div className="p-[15px] border-b border-[#ccc] bg-[#1f2937] text-white flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-[35px] h-[35px] bg-white/10 rounded-[4px] flex items-center justify-center">
-            <Sparkles size={18} className="text-white" />
-          </div>
-          <div>
-            <h2 className="font-bold text-[14px] m-0">AI Copilot</h2>
-            <p className="text-[10px] text-white/60 m-0 uppercase font-bold tracking-wider">Especialista DMAIC • Ativo</p>
-          </div>
+    <div className="relative h-[calc(100vh-10rem)] w-full overflow-hidden antialiased"
+      style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif", background: LBW.light, color: LBW.ink }}>
+      <MeshBackground />
+
+      <div className="absolute top-6 right-6 z-30 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-black/[0.06] rounded-2xl pl-2 pr-4 py-2"
+        style={{ boxShadow: `0 14px 36px -14px ${LBW.navy}55` }}>
+        <MentorOrb size={56} showHalo={true} isSpeaking={!!speakingId} crop="bust" />
+        <div className="flex flex-col leading-tight">
+          <span className="text-[12px] font-semibold tracking-tight" style={{ color: LBW.ink }}>Israel</span>
+          <span className="text-[10px] font-semibold tracking-wide" style={{ color: '#6B7180' }}>Mentor LBW · <span style={{ color: '#16A34A' }}>ativo</span></span>
         </div>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-auto p-[20px] space-y-6 scroll-smooth bg-[#f9f9f9]">
-        <AnimatePresence initial={false}>
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "flex w-full",
-                msg.role === 'user' ? "justify-end" : "justify-start"
-              )}
-            >
-              <div className={cn(
-                "flex max-w-[85%] space-x-3",
-                msg.role === 'user' ? "flex-row-reverse space-x-reverse" : "flex-row"
-              )}>
-                <div className={cn(
-                  "w-[32px] h-[32px] rounded-[4px] flex items-center justify-center flex-shrink-0 mt-1",
-                  msg.role === 'user' ? "bg-[#1f2937]" : "bg-[#e5e7eb]"
-                )}>
-                  {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} />}
+      <AnimatePresence mode="wait" custom={dir}>
+        {view === 'hero' && (
+          <motion.div key="hero" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }} className="absolute inset-0 overflow-y-auto"
+          >
+            <div className="min-h-full flex flex-col px-6 md:px-10 py-14">
+              <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col">
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 }} className="flex items-center gap-2 mb-7">
+                  <Compass size={14} className="text-stone-500" />
+                  <span className="text-[11px] font-bold tracking-[0.22em] uppercase text-stone-500">
+                    Mentor LBW · seu copiloto em Lean Six Sigma
+                  </span>
+                </motion.div>
+
+                <div className="mb-10">
+                  <motion.h1
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
+                    className="text-[52px] md:text-[64px] leading-[1.02] tracking-[-0.025em] font-semibold text-stone-900"
+                  >
+                    Olá,{' '}
+                    <span className="relative inline-block">
+                      <span className="italic font-normal pr-1"
+                        style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, color: LBW.blue }}>
+                        {userName}
+                      </span>
+                    </span>.
+                  </motion.h1>
+                  <motion.h2
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.12, ease: [0.2, 0.7, 0.2, 1] }}
+                    className="text-[42px] md:text-[52px] leading-[1.02] tracking-[-0.025em] font-light text-stone-700"
+                  >
+                    Como posso te <span style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 600 }}>ajudar</span> hoje?
+                  </motion.h2>
                 </div>
-                <div className={cn(
-                  "p-[15px] rounded-[4px] leading-relaxed text-[13px] border shadow-sm",
-                  msg.role === 'user' 
-                    ? "bg-[#1f2937] text-white border-[#1f2937]" 
-                    : "bg-white text-[#333] border-[#ccc]"
-                )}>
-                  <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                    {msg.content}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+                  {config.categories.map((c, i) => {
+                    const Icon = CATEGORY_ICONS[c.id] || TrendingUp;
+                    const type = CATEGORY_TYPES[c.id] || 'DMAIC';
+                    const tag = CATEGORY_TAGS[c.id] || 'Área';
+                    const variant = CATEGORY_VARIANTS[c.id] || (i === 0 ? 'light' : i === 1 ? 'outlined' : 'dark');
+                    return (
+                      <HeroCard key={c.id} cat={c} type={type} tag={tag} variant={variant}
+                        icon={Icon} i={i} onClick={() => handleCategoryClick(c.id)} />
+                    );
+                  })}
+                </div>
+
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }} className="flex items-center gap-3 mb-6 max-w-3xl mx-auto w-full">
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
+                  <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-stone-500 whitespace-nowrap">
+                    Ou prefere escrever em texto livre
+                  </span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
+                </motion.div>
+
+                <HeroComposer value={input} setValue={setInput} onSend={sendFromHero} />
+                <div className="h-12" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {view === 'tree' && currentCategory && (
+          <motion.div key={`tree-${navPath.join('-')}`} custom={dir}
+            initial={{ opacity: 0, x: dir === 1 ? 60 : -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dir === 1 ? -60 : 60 }}
+            transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+            className="absolute inset-0 overflow-y-auto"
+          >
+            <div className="min-h-full px-6 md:px-10 py-12">
+              <div className="max-w-5xl mx-auto w-full">
+                <Breadcrumbs crumbs={breadcrumbs} onBack={goBack} color={TYPE_PALETTE[currentType].ring} />
+                <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08 }}
+                  className="text-[36px] md:text-[44px] font-semibold tracking-[-0.025em] text-stone-900 leading-[1.05] mb-2"
+                >
+                  {currentNode ? currentNode.title : 'Como você quer começar?'}
+                </motion.h2>
+                <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.14 }}
+                  className="text-[16px] text-stone-600 mb-10 max-w-2xl"
+                >
+                  Escolha uma opção abaixo para continuar.
+                </motion.p>
+                <div className={`grid gap-4 ${
+                  currentItems.length <= 2 ? 'grid-cols-1 md:grid-cols-2' :
+                  currentItems.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
+                  'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                }`}>
+                  {currentItems.map((it, i) => (
+                    <TreeCard key={it.id} item={it} type={currentType} i={i} onClick={() => handleNodeClick(it)} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {view === 'leaf' && currentNode && (
+          <motion.div key={`leaf-${navPath.join('-')}`} custom={dir}
+            initial={{ opacity: 0, x: dir === 1 ? 60 : -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dir === 1 ? -60 : 60 }}
+            transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
+            className="absolute inset-0 overflow-y-auto"
+          >
+            <div className="min-h-full px-6 md:px-10 py-12">
+              <div className="max-w-6xl mx-auto w-full">
+                <Breadcrumbs crumbs={breadcrumbs} onBack={goBack} color={TYPE_PALETTE[currentType].ring} />
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08 }} className="mb-8 flex items-end gap-4 flex-wrap">
+                  <h2 className="text-[44px] md:text-[52px] font-semibold tracking-[-0.025em] text-stone-900 leading-[1] m-0">
+                    {currentNode.title}
+                  </h2>
+                  {currentNode.fields.length > 0 && (
+                    <span className="text-[12px] font-semibold tracking-wider uppercase px-3 py-1.5 rounded-full mb-2"
+                      style={{ background: TYPE_PALETTE[currentType].soft, color: TYPE_PALETTE[currentType].ink }}>
+                      <BookOpen size={11} className="inline-block mr-1 -mt-0.5" /> Conteúdo de aprendizado
+                    </span>
+                  )}
+                </motion.div>
+                <div className={`grid grid-cols-1 ${currentNode.videos.length > 0 ? 'lg:grid-cols-[1fr_400px]' : ''} gap-6 mb-8`}>
+                  <div className="flex flex-col gap-4">
+                    {currentNode.fields.map((f, i) => (
+                      <motion.div key={f.id}
+                        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 + i * 0.07 }}
+                        className="relative rounded-[20px] bg-white/90 backdrop-blur border border-black/[0.06] p-6 overflow-hidden"
+                        style={{ boxShadow: '0 8px 28px -18px rgba(40,30,80,0.18)' }}
+                      >
+                        <div aria-hidden className="absolute left-0 top-0 bottom-0 w-1"
+                          style={{ background: `linear-gradient(180deg, ${TYPE_PALETTE[currentType].from}, ${TYPE_PALETTE[currentType].to})` }} />
+                        <p className="text-[10px] font-bold tracking-[0.18em] uppercase mb-3" style={{ color: TYPE_PALETTE[currentType].ring }}>
+                          {f.label}
+                        </p>
+                        <p className="text-[15px] leading-[1.65] text-stone-700 whitespace-pre-wrap m-0">{f.content}</p>
+                      </motion.div>
+                    ))}
+
+                    {currentNode.fields.length === 0 && currentNode.videos.length === 0 && (
+                      <div className="rounded-[20px] bg-white/90 p-6 text-center text-stone-400 text-[14px]">
+                        Conteúdo desta opção ainda não foi configurado.
+                      </div>
+                    )}
+
+                    {currentNode.actionType !== 'none' && (
+                      <motion.button
+                        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        whileHover={{ scale: 1.01, y: -2 }} whileTap={{ scale: 0.99 }}
+                        onClick={handleFinalAction}
+                        className="group relative mt-2 rounded-[18px] py-5 px-6 text-white font-semibold text-[15px] flex items-center justify-between overflow-hidden"
+                        style={{
+                          background: `linear-gradient(135deg, ${TYPE_PALETTE[currentType].from}, ${TYPE_PALETTE[currentType].to})`,
+                          boxShadow: `0 18px 38px -16px ${TYPE_PALETTE[currentType].glow}`,
+                        }}
+                      >
+                        <motion.span aria-hidden className="absolute inset-0"
+                          style={{ background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%)', backgroundSize: '200% 100%' }}
+                          animate={{ backgroundPosition: ['-200% 0', '200% 0'] }}
+                          transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
+                        />
+                        <span className="relative flex items-center gap-2.5">
+                          <Wand2 size={17} />
+                          {finalActionLabel}
+                        </span>
+                        <span className="relative"><ArrowRight size={18} /></span>
+                      </motion.button>
+                    )}
                   </div>
-                  {msg.role === 'assistant' && msg.content.includes('Learning Recommendation') && (
-                    <div className="mt-4 p-[10px] bg-[#f0f2f5] rounded-[4px] border border-[#ccc] flex items-center justify-between group cursor-pointer hover:border-[#3b82f6] transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <PlayCircle size={20} className="text-red-600" />
-                        <div>
-                          <p className="text-[12px] font-bold m-0">Regression Analysis Basics</p>
-                          <p className="text-[10px] text-[#666] m-0">YouTube • 4:20</p>
+
+                  {currentNode.videos.length > 0 && activeVideo && (
+                    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.22 }} className="flex flex-col gap-4">
+                      <div className="relative rounded-[20px] overflow-hidden bg-stone-900 border border-black/[0.08]"
+                        style={{ boxShadow: `0 24px 60px -28px ${TYPE_PALETTE[currentType].glow}` }}>
+                        <div className="relative" style={{ paddingBottom: '56.25%' }}>
+                          {getYoutubeId(activeVideo.sourceUrl) ? (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${getYoutubeId(activeVideo.sourceUrl)}?rel=0`}
+                              title={activeVideo.title}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen className="absolute inset-0 w-full h-full" style={{ border: 'none' }}
+                            />
+                          ) : (<div className="absolute inset-0 bg-stone-800" />)}
                         </div>
                       </div>
-                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                    </div>
+                      <div className="rounded-[18px] bg-white/85 backdrop-blur border border-black/[0.06] overflow-hidden"
+                        style={{ boxShadow: '0 6px 24px -16px rgba(40,30,80,0.18)' }}>
+                        <div className="px-4 py-3 flex items-center justify-between border-b border-stone-100">
+                          <p className="text-[11px] font-bold tracking-wider uppercase text-stone-600 m-0">Vídeos relacionados</p>
+                          <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full"
+                            style={{ background: TYPE_PALETTE[currentType].soft, color: TYPE_PALETTE[currentType].ink }}>
+                            {currentNode.videos.length} aulas
+                          </span>
+                        </div>
+                        <div className="flex flex-col max-h-[400px] overflow-y-auto">
+                          {currentNode.videos.map((v) => {
+                            const active = v.id === activeVideo.id;
+                            const ytId = getYoutubeId(v.sourceUrl);
+                            return (
+                              <button key={v.id} onClick={() => setActiveVideoId(v.id)}
+                                className="flex items-center gap-3 px-3 py-2.5 border-b border-stone-100 last:border-b-0 text-left transition-colors"
+                                style={active ? { background: TYPE_PALETTE[currentType].soft } : { background: 'transparent' }}
+                              >
+                                <div className="relative flex-shrink-0">
+                                  {ytId ? (
+                                    <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt=""
+                                      className="w-[88px] h-[50px] object-cover rounded-md" />
+                                  ) : (<div className="w-[88px] h-[50px] bg-stone-200 rounded-md" />)}
+                                  {active && (
+                                    <div className="absolute inset-0 rounded-md flex items-center justify-center"
+                                      style={{ background: `${TYPE_PALETTE[currentType].from}66` }}>
+                                      <Play size={14} className="text-white" fill="white" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-[12.5px] leading-tight m-0 line-clamp-2 ${active ? 'font-semibold' : 'font-medium'}`}
+                                    style={{ color: active ? TYPE_PALETTE[currentType].ink : '#3F3A35' }}>
+                                    {v.title}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
                   )}
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-[#ccc] p-[10px] rounded-[4px] flex items-center space-x-2 shadow-sm">
-              <Loader2 size={14} className="animate-spin text-[#3b82f6]" />
-              <span className="text-[12px] font-bold text-[#666]">Pensando...</span>
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
 
-      {/* Input */}
-      <div className="p-[15px] border-t border-[#ccc] bg-white">
-        <div className="relative max-w-4xl mx-auto">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Pergunte qualquer coisa sobre seu projeto ou dados..."
-            className="w-full bg-[#f9f9f9] border border-[#ccc] rounded-[4px] px-[15px] py-[12px] pr-[50px] focus:outline-none focus:border-[#3b82f6] transition-all text-[13px]"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="absolute right-[5px] top-1/2 -translate-y-1/2 p-[8px] bg-[#3b82f6] text-white rounded-[4px] hover:bg-blue-700 transition-all disabled:opacity-50 border-none cursor-pointer"
+        {view === 'chat' && (
+          <motion.div key="chat" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.35 }} className="absolute inset-0 flex flex-col px-6 md:px-10 py-8"
           >
-            <Send size={18} />
-          </button>
-        </div>
-        <div className="mt-3 flex justify-center space-x-2">
-          {['Analisar dados', 'Atualizar projeto', 'Aprender DMAIC'].map((suggestion) => (
-            <button
-              key={suggestion}
-              onClick={() => setInput(suggestion)}
-              className="text-[10px] font-bold uppercase tracking-wider px-[10px] py-[5px] rounded-[4px] border border-[#ccc] bg-white hover:bg-[#f0f2f5] transition-all cursor-pointer text-[#666]"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      </div>
+            <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col rounded-[28px] bg-white/85 backdrop-blur-xl border border-black/[0.06] overflow-hidden min-h-0"
+              style={{ boxShadow: `0 30px 80px -40px ${LBW.navy}55` }}>
+              <div className="relative flex items-center gap-3 px-5 py-4 border-b border-stone-200/60 bg-white/60 flex-shrink-0">
+                <MentorOrb size={64} isSpeaking={!!speakingId} crop="bust" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold leading-tight m-0" style={{ color: LBW.ink }}>
+                    Israel · <span style={{ color: LBW.blue }}>Mentor LBW</span>
+                  </p>
+                  <p className="text-[11px] m-0 mt-0.5" style={{ color: '#6B7180' }}>Lean Six Sigma Expert · Online</p>
+                </div>
+                <div className="flex items-center gap-0.5 bg-stone-100/80 rounded-full p-0.5 border border-stone-200/70">
+                  {LANGS.map(l => {
+                    const active = l.code === lang;
+                    return (
+                      <button key={l.code} onClick={() => setLang(l.code)}
+                        className="relative px-2 py-1 rounded-full text-[11px] font-semibold transition-colors"
+                        style={{ color: active ? LBW.white : '#52596B' }}
+                      >
+                        {active && (
+                          <motion.span layoutId="lang-pill" className="absolute inset-0 rounded-full"
+                            style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})` }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                          />
+                        )}
+                        <span className="relative flex items-center gap-1">
+                          <span style={{ fontSize: 11 }}>{l.flag}</span>{l.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={resetToHero}
+                  className="ml-1 w-8 h-8 rounded-full flex items-center justify-center text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-5 min-h-0"
+                style={{ background: `linear-gradient(180deg, ${LBW.light}80, ${LBW.light}40)` }}>
+                <AnimatePresence initial={false}>
+                  {chat.map((m) => (
+                    <motion.div key={m.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+                      className={`flex items-end gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
+                    >
+                      {m.role === 'ai' ? (
+                        <MentorOrb size={30} showHalo={false} online={false} isSpeaking={speakingId === m.id} />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0"
+                          style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.ink})` }}>
+                          {userInitial}
+                        </div>
+                      )}
+                      <div className={`max-w-[80%] ${m.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-2`}>
+                        {m.classification && <DetectionCard d={m.classification} />}
+                        {m.text && (
+                          <div className="group/bubble relative">
+                            <div className="px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap"
+                              style={
+                                m.role === 'user'
+                                  ? { background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`, color: 'white', borderRadius: '20px 20px 6px 20px', boxShadow: `0 8px 20px -10px ${LBW.blue}99` }
+                                  : { background: 'white', color: LBW.ink, border: '1px solid rgba(30,45,110,0.10)', borderRadius: '20px 20px 20px 6px', boxShadow: `0 4px 14px -10px ${LBW.navy}33` }
+                              }
+                            >
+                              {m.text}
+                            </div>
+                            {m.role === 'ai' && (
+                              <button onClick={() => speakMessage(m)} title="Ouvir mensagem"
+                                className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full border border-stone-200 flex items-center justify-center transition-all opacity-70 hover:opacity-100"
+                                style={{
+                                  background: speakingId === m.id ? `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})` : 'white',
+                                  color: speakingId === m.id ? LBW.white : LBW.blue,
+                                  boxShadow: speakingId === m.id
+                                    ? `0 0 0 4px ${LBW.blue}22, 0 6px 14px -6px ${LBW.blue}88`
+                                    : `0 2px 8px -4px ${LBW.navy}33`,
+                                }}
+                              >
+                                {speakingId === m.id ? <span style={{ fontSize: 11 }}>⏸</span> : <span style={{ fontSize: 12 }}>🔊</span>}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {showAiTyping && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                    <TypingIndicator />
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="px-4 py-3 border-t border-stone-200/60 bg-white/70 flex-shrink-0">
+                <div className="flex items-end gap-2 bg-white border border-stone-200 rounded-2xl px-4 py-2.5">
+                  <textarea value={chatInput} rows={1}
+                    placeholder="Responda ao Mentor…"
+                    onChange={(e) => {
+                      setChatInput(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                    className="flex-1 bg-transparent outline-none resize-none text-[14px] leading-relaxed max-h-[120px] py-1"
+                    style={{ color: LBW.ink }}
+                  />
+                  <motion.button
+                    whileHover={chatInput.trim() ? { scale: 1.05 } : {}}
+                    whileTap={chatInput.trim() ? { scale: 0.95 } : {}}
+                    onClick={sendChat} disabled={!chatInput.trim()}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, boxShadow: `0 8px 18px -6px ${LBW.blue}77` }}
+                  >
+                    <Send size={14} />
+                  </motion.button>
+                </div>
+                <p className="text-[10.5px] text-stone-400 mt-2 text-center">Enter envia · Shift+Enter quebra linha</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

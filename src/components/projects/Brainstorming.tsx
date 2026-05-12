@@ -60,7 +60,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
       id: Date.now().toString(),
       text: newIdea,
       category: 'Mão de Obra',
-      author: author || 'Anônimo',
+      author: author || '',
       votes: 0
     };
     
@@ -105,45 +105,6 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
 
   return (
     <div className="space-y-8">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Brainstorming com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Entendendo o Problema e SIPOC" para gerar
-                Brainstorming técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
-                um Brainstorming rigoroso e técnico.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1">
@@ -260,10 +221,9 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-[#eee]">
-                  <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[8%] text-center">ID</th>
-                  <th className={cn("p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest", showCategories ? "w-[42%]" : "w-[62%]")}>Ideia</th>
+                  <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] text-center">ID</th>
+                  <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[62%]">Ideia</th>
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%]">Autor</th>
-                  {showCategories && <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] text-center">Categoria (6M)</th>}
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[10%] text-center">Ações</th>
                 </tr>
               </thead>
@@ -285,7 +245,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
                           autoFocus
                         />
                       ) : (
-                        idea.text
+                        idea.text.replace(/X\d+[:-]\s*/i, '')
                       )}
                     </td>
                     <td className="p-4 text-[12px] text-gray-500">
@@ -297,20 +257,9 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
                           className="w-full p-1 border border-blue-300 rounded text-[12px] focus:outline-none"
                         />
                       ) : (
-                        idea.author
+                        idea.author === 'IA LBW' || idea.author === 'IA' ? '' : idea.author
                       )}
                     </td>
-                    {showCategories && (
-                      <td className="p-4">
-                        <select 
-                          value={idea.category}
-                          onChange={(e) => updateIdeaCategory(idea.id, e.target.value)}
-                          className="w-full p-1.5 border border-[#eee] rounded-[4px] text-[12px] focus:outline-none focus:border-blue-500 bg-white"
-                        >
-                          {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                        </select>
-                      </td>
-                    )}
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-3">
                         {editingId === idea.id ? (
@@ -354,7 +303,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
                 ))}
                 {ideas.length === 0 && (
                   <tr>
-                    <td colSpan={showCategories ? 5 : 4} className="p-12 text-center">
+                    <td colSpan={4} className="p-12 text-center">
                       <Lightbulb className="mx-auto text-[#ccc] mb-2" size={32} />
                       <p className="text-[#999] text-[13px]">Nenhuma ideia coletada ainda. Comece a brainstormar!</p>
                     </td>
@@ -365,16 +314,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
           </div>
         </div>
 
-        <div className="flex justify-end pt-6 border-t border-[#eee]">
-          <button
-            data-save-trigger
-            onClick={handleSave}
-            className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-md"
-          >
-            <CheckCircle2 size={18} className="mr-2" />
-            Salvar e Prosseguir
-          </button>
-        </div>
+        <button data-save-trigger onClick={handleSave} className="hidden" />
       </div>
     </div>
   );

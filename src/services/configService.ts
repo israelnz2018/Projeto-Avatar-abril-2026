@@ -29,8 +29,13 @@ export const getInitiative = async (id: string): Promise<Initiative | null> => {
   return null;
 };
 
-export const createInitiative = async (name: string, description?: string, parentId?: string): Promise<Initiative> => {
-  const id = Math.random().toString(36).substr(2, 9);
+export const createInitiative = async (
+  name: string, 
+  description?: string, 
+  parentId?: string,
+  isFree?: boolean
+): Promise<Initiative> => {
+  const id = crypto.randomUUID();
   const initiative: Initiative = {
     id,
     name,
@@ -41,6 +46,9 @@ export const createInitiative = async (name: string, description?: string, paren
   }
   if (parentId) {
     initiative.parentId = parentId;
+  }
+  if (isFree !== undefined) {
+    initiative.isFree = isFree;
   }
   await setDoc(doc(db, INITIATIVES_COLLECTION, id), initiative);
   return initiative;
@@ -129,7 +137,7 @@ export const seedDefaultInitiative = async (availableTools: any[]): Promise<void
   // Assign DMAIC tools explicitly
   const dmaicConfigs = [
     { phaseId: 'PreDefinir', toolIds: ['improvementIdea'] },
-    { phaseId: 'Define', toolIds: ['brief', 'charter', 'sipoc', 'timeline', 'detailedTimeline', 'stakeholders', 'improvementPlan'] },
+    { phaseId: 'Define', toolIds: ['brief', 'charter', 'stakeholderAdkar', 'sipoc', 'timeline', 'detailedTimeline', 'stakeholders', 'improvementPlan'] },
     { phaseId: 'Measure', toolIds: ['processMap', 'brainstorming', 'measureIshikawa', 'measureMatrix', 'beforeAfter', 'rab', 'gut', 'effortImpact', 'dataCollection', 'processCanva', 'processModeling', 'processValidation', 'riskManagementPMI'] },
     { phaseId: 'Analyze', toolIds: ['vsm', 'directObservation', 'fiveWhys', 'fta', 'statisticalAnalysis', 'dataNature'] },
     { phaseId: 'Improve', toolIds: ['fmea', 'plan5w2h', 'actionPlan'] },

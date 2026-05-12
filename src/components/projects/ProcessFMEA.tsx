@@ -268,44 +268,6 @@ export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGener
 
   return (
     <div className="space-y-8 w-full">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Process FMEA com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados da ferramenta "Mapa de Processo e Matriz Causa e Efeito" para gerar
-                Process FMEA técnico e específico para este projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA utiliza os fatos e dados coletados na fase anterior para garantir
-                uma identificação rigorosa de riscos.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
@@ -404,30 +366,30 @@ export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGener
       {activeTab === 'fmea' ? (
         <>
           <div className="p-0 overflow-x-auto">
-            <table className="w-full border-collapse tool-table" style={{ fontSize: `${fontSize}px`, tableLayout: 'fixed' }}>
+            <table className="border-collapse tool-table" style={{ fontSize: `${fontSize}px`, tableLayout: 'fixed', minWidth: '1800px', width: 'max-content' }}>
               <thead>
-                <tr className="bg-[#1f2937] text-white">
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Processo</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Falha</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Efeito</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-red-900/30 whitespace-normal break-words">S</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Causa</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-orange-900/30 whitespace-normal break-words">O</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[90px] whitespace-normal break-words">Controles</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-blue-900/30 whitespace-normal break-words">D</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-gray-800 whitespace-normal break-words">RPN</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[35px] bg-gray-800 whitespace-normal break-words">AP</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-gray-800 whitespace-normal break-words">S×O</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[35px] bg-gray-800 whitespace-normal break-words">Risk</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[110px] whitespace-normal break-words">Ações Recomendadas</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[70px] whitespace-normal break-words">Resp.</th>
-                  <th className="p-1 border border-gray-700 font-bold text-left min-w-[70px] whitespace-normal break-words">Prazo</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center min-w-[70px] whitespace-normal break-words">Status</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30 whitespace-normal break-words">S'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30 whitespace-normal break-words">O'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[45px] bg-green-900/30 whitespace-normal break-words">D'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[50px] bg-gray-900 whitespace-normal break-words">RPN'</th>
-                  <th className="p-1 border border-gray-700 font-bold text-center w-[25px] whitespace-normal break-words"></th>
+                <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #1E293B' }}>
+                  <th className="px-2 py-3 font-bold text-left min-w-[90px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Processo</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[90px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Falha</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[90px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Efeito</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#991B1B', background: '#FEE2E2' }}>S</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[90px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Causa</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#9A3412', background: '#FED7AA' }}>O</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[90px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Controles</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#1E40AF', background: '#DBEAFE' }}>D</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>RPN</th>
+                  <th className="px-2 py-3 font-bold text-center w-[35px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>AP</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>S×O</th>
+                  <th className="px-2 py-3 font-bold text-center w-[35px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>Risk</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[110px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Ações Recomendadas</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[70px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Resp.</th>
+                  <th className="px-2 py-3 font-bold text-left min-w-[70px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Prazo</th>
+                  <th className="px-2 py-3 font-bold text-center min-w-[70px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Status</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>S'</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>O'</th>
+                  <th className="px-2 py-3 font-bold text-center w-[45px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>D'</th>
+                  <th className="px-2 py-3 font-bold text-center w-[50px] whitespace-normal break-words text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>RPN'</th>
+                  <th className="px-2 py-3 font-bold text-center w-[25px] whitespace-normal break-words"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1094,16 +1056,7 @@ export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGener
         </div>
       )}
 
-      <div className="p-6 bg-white border-t border-[#eee] flex justify-end">
-        <button
-          data-save-trigger
-          onClick={handleSave}
-          className="bg-[#10b981] text-white px-8 py-3 rounded-[4px] font-bold flex items-center hover:bg-green-600 transition-all border-none cursor-pointer shadow-md"
-        >
-          <CheckCircle2 size={18} className="mr-2" />
-          Salvar FMEA
-        </button>
-      </div>
+      <button data-save-trigger onClick={handleSave} className="hidden" />
     </div>
   </div>
 );

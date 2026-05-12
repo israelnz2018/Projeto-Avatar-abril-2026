@@ -139,7 +139,7 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline, o
       return {
         ...phase,
         activities: (SUGGESTED_ACTIVITIES[phase.id] || []).map(text => ({
-          id: Math.random().toString(36).substr(2, 9),
+          id: crypto.randomUUID(),
           text,
           status: 'Not Started' as const,
           plannedStart: macroPhase?.startDate || '',
@@ -181,7 +181,7 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline, o
   const addActivity = (phaseId: string) => {
     const macroPhase = macroTimeline?.phases?.find((p: any) => p.id === phaseId);
     const newActivity: Activity = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       text: 'Nova atividade',
       status: 'Not Started',
       plannedStart: macroPhase?.startDate || '',

@@ -82,7 +82,7 @@ export default function FaultTreeAnalysis({ onSave, initialData, onGenerateAI, i
 
   const addNode = (parentId: string) => {
     const newNode: FTANode = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       parentId,
       name: 'Nova Causa',
       description: '',

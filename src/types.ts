@@ -22,6 +22,7 @@ export interface Initiative {
   description?: string;
   parentId?: string;
   phases?: { id: string, name: string }[];
+  isFree?: boolean;
   createdAt: string;
 }
 

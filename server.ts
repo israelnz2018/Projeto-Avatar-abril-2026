@@ -57,28 +57,36 @@ async function startServer() {
 
   // AI Chat Endpoint
   app.post("/api/chat", async (req, res) => {
-    const { message, history } = req.body;
-    
-    // In a real app, this would call the AI Orchestrator
-    // For this MVP foundation, we'll simulate the AI's tool calling and response structure
-    res.json({
-      content: `### 1. Diagnosis
-I see you've uploaded the 'Production_Line_A' dataset. Based on the initial look, you have 12 columns including 'Temperature' and 'Defect_Rate'.
+    const { message } = req.body;
 
-### 2. Recommended Action
-I recommend running a **Correlation Analysis** between 'Temperature' and 'Defect_Rate' to see if heat is a primary driver of your defects.
+    const prompt = `Você é o Mentor LBW, consultor Master Black Belt em Lean Six Sigma com 20 anos de experiência.
 
-### 3. Execution
-I've initialized the correlation tool. Ready to run when you are.
+O aluno descreveu este problema:
+"${message}"
 
-### 4. Business Interpretation
-If we find a correlation, we can implement targeted cooling, which is much cheaper than replacing the entire line.
+Responda em português, como um consultor sênior direto e técnico:
+1. Em 1 frase: qual é o tipo de projeto (Seis Sigma DMAIC, Lean/Kaizen, Gestão de Mudança ADKAR, Gestão de Projeto PMI ou Quick Win).
+2. Em 2 a 3 frases: por que você chegou a essa conclusão.
+3. Em 1 frase: sugira o nível (Yellow Belt, Green Belt ou Black Belt) e duração estimada.
+4. Faça UMA pergunta curta de confirmação.
 
-### 5. Learning Recommendation
-Check out this video on "Root Cause Analysis using Correlation" for more details.`,
-      role: 'assistant',
-      createdAt: new Date().toISOString()
-    });
+Máximo 150 palavras. Seja direto.`;
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+      res.json({
+        content: response.text || 'Não consegui processar.',
+        role: 'assistant',
+        createdAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('[/api/chat] Erro Gemini:', err);
+      res.status(500).json({ content: 'Erro ao conectar com a IA. Tente novamente.' });
+    }
   });
 
   // Vite middleware for development
