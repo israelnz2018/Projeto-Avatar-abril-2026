@@ -7,7 +7,8 @@ const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
 export async function exportSipocSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
 
@@ -17,8 +18,8 @@ export async function exportSipocSlide(
   const outputs: string[]   = (toolData?.outputs   || []).filter((s: string) => s && s.trim());
   const customers: string[] = (toolData?.customers || []).filter((s: string) => s && s.trim());
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project, 'SIPOC — Visão Macro do Processo', 'Define', aiAnalysis);
 
   const TX = TOOL_AREA.x;
@@ -96,7 +97,7 @@ export async function exportSipocSlide(
   slide.addText('MACRO PROCESSO', {
     x: TX, y: MP_Y, w: TW, h: MP_LABEL_H,
     fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY,
-    charSpacing: 1, transparency: 30,
+    charSpacing: 1,
   });
 
   const steps = process.length > 0 ? process : ['(etapas não preenchidas)'];
@@ -120,7 +121,7 @@ export async function exportSipocSlide(
     slide.addText(String(i + 1).padStart(2, '0'), {
       x: bx + 0.06, y: by + 0.04, w: 0.40, h: 0.18,
       fontFace: 'Calibri', fontSize: 6, bold: true,
-      color: THEME.BLUE, transparency: 30,
+      color: '4D70D6',
     });
 
     // Texto da etapa
@@ -149,5 +150,5 @@ export async function exportSipocSlide(
   });
 
   const fileName = `SIPOC_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

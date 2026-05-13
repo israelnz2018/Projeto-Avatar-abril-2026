@@ -22,11 +22,11 @@ function addBlock(
   slide.addText(label, {
     x: x + 0.14, y: y + 0.10, w: w - 0.20, h: 0.20,
     fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY,
-    charSpacing: 2, transparency: 30,
+    charSpacing: 2,
   });
   slide.addShape('line', {
     x: x + 0.14, y: y + 0.32, w: w - 0.24, h: 0,
-    line: { color: THEME.NAVY, width: 0.3, transparency: 80 },
+    line: { color: 'D1D5E8', width: 0.3 },
   });
 
   if (opts?.subLabel1) {
@@ -35,17 +35,17 @@ function addBlock(
 
     slide.addText(opts.subLabel1, {
       x: x + 0.14, y: y + 0.38, w: w - 0.20, h: 0.18,
-      fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.BLUE, transparency: 20,
+      fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.BLUE,
     });
     slide.addText(opts.text1 || '(não preenchido)', {
       x: x + 0.14, y: y + 0.56, w: w - 0.20, h: halfH - 0.24,
       fontFace: 'Calibri', fontSize: 9, color: opts.text1 ? THEME.INK : THEME.MUTED,
-      italic: !opts.text1, shrinkText: true, autoFit: true, valign: 'top',
+      italic: !opts.text1, shrinkText: true, valign: 'top',
     });
 
     slide.addShape('line', {
       x: x + 0.14, y: midY, w: w - 0.24, h: 0,
-      line: { color: THEME.NAVY, width: 0.3, transparency: 85 },
+      line: { color: 'D1D5E8', width: 0.3 },
     });
     slide.addText(opts.subLabel2 || '', {
       x: x + 0.14, y: midY + 0.06, w: w - 0.20, h: 0.18,
@@ -54,13 +54,13 @@ function addBlock(
     slide.addText(opts.text2 || '(não preenchido)', {
       x: x + 0.14, y: midY + 0.24, w: w - 0.20, h: halfH - 0.24,
       fontFace: 'Calibri', fontSize: 9, color: opts.text2 ? THEME.INK : THEME.MUTED,
-      italic: !opts.text2, shrinkText: true, autoFit: true, valign: 'top',
+      italic: !opts.text2, shrinkText: true, valign: 'top',
     });
   } else {
     slide.addText(text || '(não preenchido)', {
       x: x + 0.14, y: y + 0.40, w: w - 0.20, h: h - 0.50,
       fontFace: 'Calibri', fontSize: 9, color: text ? THEME.INK : THEME.MUTED,
-      italic: !text, shrinkText: true, autoFit: true, valign: 'top',
+      italic: !text, shrinkText: true, valign: 'top',
     });
   }
 }
@@ -68,11 +68,12 @@ function addBlock(
 export async function exportCharterSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   const slide = createSlide(pres, project, 'Contrato do Projeto — Project Charter', 'Define', aiAnalysis);
 
@@ -123,11 +124,11 @@ export async function exportCharterSlide(
   slide.addText('IMAGEM / FOTO DO PROBLEMA', {
     x: COL2_X + 0.14, y: Y3 + 0.10, w: COL_W - 0.20, h: 0.20,
     fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY,
-    charSpacing: 2, transparency: 30,
+    charSpacing: 2,
   });
   slide.addShape('line', {
     x: COL2_X + 0.14, y: Y3 + 0.32, w: COL_W - 0.24, h: 0,
-    line: { color: THEME.NAVY, width: 0.3, transparency: 80 },
+    line: { color: 'D1D5E8', width: 0.3 },
   });
 
   const images: string[] = toolData?.images || [];
@@ -147,5 +148,5 @@ export async function exportCharterSlide(
   }
 
   const fileName = `Contrato_do_Projeto_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

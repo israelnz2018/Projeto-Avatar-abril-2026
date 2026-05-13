@@ -122,7 +122,8 @@ function fmtSPI(spi: number, hasData: boolean): string {
 export async function exportImprovementPlanSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const phases: Phase[] = (toolData?.phases || []) as Phase[];
@@ -202,8 +203,8 @@ export async function exportImprovementPlanSlide(
     .sort((a: any, b: any) => a.sortKey - b.sortKey)
     .slice(0, 3);
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(
     pres, project, 'Plano de Melhoria — Visão Executiva',
     phaseToBadge[currentPhaseName] || 'Improve', aiAnalysis
@@ -239,7 +240,7 @@ export async function exportImprovementPlanSlide(
   const SECTION_LABEL_Y = TY + KPI_H + 0.10;
   slide.addText('SAÚDE POR FASE — PLANO vs REAL', {
     x: TX, y: SECTION_LABEL_Y, w: TW, h: 0.18,
-    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY, charSpacing: 1, transparency: 30,
+    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY, charSpacing: 1,
   });
 
   const PHASE_CARDS_Y = SECTION_LABEL_Y + 0.20;
@@ -327,7 +328,7 @@ export async function exportImprovementPlanSlide(
   const ACTION_LABEL_Y = PHASE_CARDS_Y + PCARD_H + 0.12;
   slide.addText('AÇÕES CRÍTICAS', {
     x: TX, y: ACTION_LABEL_Y, w: TW, h: 0.16,
-    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY, charSpacing: 1, transparency: 30,
+    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY, charSpacing: 1,
   });
 
   const TBL_Y = ACTION_LABEL_Y + 0.18;
@@ -406,5 +407,5 @@ export async function exportImprovementPlanSlide(
   );
 
   const fileName = `Plano_de_Melhoria_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

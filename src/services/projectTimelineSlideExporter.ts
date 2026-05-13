@@ -28,7 +28,8 @@ function monthLabel(d: Date): string {
 export async function exportProjectTimelineSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
 
@@ -56,8 +57,8 @@ export async function exportProjectTimelineSlide(
   const totalWeeks = Math.round(totalDays / 7);
   const totalMonths = Math.round(totalDays / 30);
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project, 'Cronograma Macro — DMAIC', 'Define', aiAnalysis);
 
   const TX = TOOL_AREA.x;
@@ -91,8 +92,8 @@ export async function exportProjectTimelineSlide(
   // Header com label "FASE"
   slide.addText('FASE', {
     x: TX, y: TY, w: LABEL_W, h: HEADER_H,
-    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY,
-    transparency: 50, valign: 'middle',
+    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.MUTED,
+    valign: 'middle',
   });
 
   // Labels dos meses
@@ -100,8 +101,8 @@ export async function exportProjectTimelineSlide(
     const mx = dateToX(m);
     slide.addText(monthLabel(m), {
       x: mx, y: TY, w: 0.60, h: HEADER_H,
-      fontFace: 'Calibri', fontSize: 8, bold: true, color: THEME.NAVY,
-      transparency: 40, valign: 'middle',
+      fontFace: 'Calibri', fontSize: 8, bold: true, color: '6B7280',
+      valign: 'middle',
     });
     // Linha de grade
     slide.addShape('line', {
@@ -169,5 +170,5 @@ export async function exportProjectTimelineSlide(
   );
 
   const fileName = `Cronograma_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

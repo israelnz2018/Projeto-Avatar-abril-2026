@@ -44,7 +44,7 @@ function addAgendaSlide(
   });
   slide.addText(`Projeto: ${project.name || ''}`, {
     x: 0.40, y: 0.46, w: 12.50, h: 0.25,
-    fontFace: 'Calibri', fontSize: 9, color: 'FFFFFF', transparency: 45,
+    fontFace: 'Calibri', fontSize: 9, color: '8AA0E5',
   });
 
   const totalPhases = phaseLabels.length;
@@ -96,7 +96,7 @@ function addAgendaSlide(
   });
   slide.addText('LBW · Continuous Improvement Copilot — Agenda da Apresentação', {
     x: 0.20, y: 7.24, w: 12.00, h: 0.22,
-    fontFace: 'Calibri', fontSize: 7.5, color: THEME.NAVY, transparency: 55,
+    fontFace: 'Calibri', fontSize: 7.5, color: THEME.MUTED,
   });
 }
 
@@ -123,14 +123,19 @@ function addPhaseDividerSlide(pres: pptxgen, project: Project, phaseLabel: strin
 
   slide.addText(project.name || '', {
     x: 0.50, y: 4.70, w: 12.33, h: 0.40,
-    fontFace: 'Calibri', fontSize: 14, color: 'FFFFFF',
-    align: 'center', transparency: 35,
+    fontFace: 'Calibri', fontSize: 14, color: 'C7D2FF',
+    align: 'center',
   });
 }
 
 const ALIAS_MAP: Record<string, string> = {
   qualitativeAnalysis: 'fiveWhys',
   actionPlan5w2h: 'plan5w2h',
+};
+
+// Some tools persist data under a different Firestore doc id than the toolId.
+const DATA_DOC_MAP: Record<string, string> = {
+  statisticalAnalysis: 'dataAnalysis',
 };
 
 function resolveHandlerKey(toolId: string): string | null {
@@ -141,7 +146,8 @@ function resolveHandlerKey(toolId: string): string | null {
 }
 
 function getToolData(projectData: any, toolId: string): { localData: any; aiReport: any } | null {
-  const raw = projectData[toolId];
+  const docKey = DATA_DOC_MAP[toolId] || toolId;
+  const raw = projectData[docKey];
   if (!raw) return null;
   const localData = raw.toolData || raw;
   return { localData, aiReport: raw.aiReport };
