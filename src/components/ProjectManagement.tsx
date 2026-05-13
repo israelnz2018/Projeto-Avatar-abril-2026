@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen } from 'lucide-react';
+import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { generateFullProjectPresentation } from '../services/fullProjectPresentationExporter';
+import { getUserProfile } from './UserProfile';
 import ProjectJourney from './projects/ProjectJourney';
 import MentorSidebar from './projects/MentorSidebar';
 import { 
@@ -233,6 +235,7 @@ export default function ProjectManagement() {
   const [activeToolLabel, setActiveToolLabel] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+  const [generatingPPTId, setGeneratingPPTId] = useState<string | null>(null);
 
   const { canUseInitiative } = useUserAccess();
 
@@ -394,6 +397,31 @@ export default function ProjectManagement() {
     }
   };
 
+  const handleGeneratePPT = async (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingPPTId) return;
+    setGeneratingPPTId(project.id);
+    try {
+      const userProfile = getUserProfile();
+      const result = await generateFullProjectPresentation(project, {
+        userName: userProfile?.name || project.ownerEmail || '',
+      });
+      if (result.toolsExported === 0) {
+        toast.error('Nenhuma ferramenta com slide disponível foi encontrada neste projeto.');
+      } else {
+        const skippedMsg = result.toolsSkipped.length > 0
+          ? ` (${result.toolsSkipped.length} ferramenta(s) ignorada(s) sem slide)`
+          : '';
+        toast.success(`Apresentação gerada com ${result.toolsExported} ferramenta(s)${skippedMsg}.`);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar apresentação completa:', error);
+      toast.error('Erro ao gerar a apresentação. Tente novamente.');
+    } finally {
+      setGeneratingPPTId(null);
+    }
+  };
+
   const handleEditProject = async (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -540,6 +568,16 @@ export default function ProjectManagement() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1 ml-3">
+                              <button
+                                onClick={(e) => handleGeneratePPT(project, e)}
+                                disabled={!!generatingPPTId}
+                                className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Gerar apresentação PowerPoint completa do projeto"
+                              >
+                                {generatingPPTId === project.id
+                                  ? <Loader2 size={12} className="animate-spin text-blue-600" />
+                                  : <Presentation size={12} />}
+                              </button>
                               <button
                                 onClick={(e) => handleEditProject(project, e)}
                                 className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent"
