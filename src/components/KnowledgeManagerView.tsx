@@ -21,9 +21,9 @@ import {
 import { cn } from '@/src/lib/utils';
 import { db } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
-import { 
-  saveKnowledge, 
-  getRecentKnowledge, 
+import {
+  saveKnowledge,
+  getRecentKnowledge,
   getAllKnowledge,
   KnowledgeEntry,
   deleteKnowledge,
@@ -32,8 +32,10 @@ import {
   updateCourseName,
   deletePlaylist,
   updatePlaylistName,
+  migrateAllCourses,
   KNOWLEDGE_COLLECTION
 } from '../services/knowledgeService';
+import { getInitiatives } from '../services/configService';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -222,8 +224,16 @@ export default function KnowledgeManagerView() {
   const [seekTime, setSeekTime] = useState<number>(0);
   const [isMoving, setIsMoving] = useState<string | null>(null);
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
+  const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
+
+  const MIGRATION_COURSE = '1.1 Introdução a Gestão de Projetos de Melhoria (Lean Six Sigma Yellow Belt)';
 
   useEffect(() => {
+    getInitiatives().then(list => {
+      const names = list.map(i => i.name).filter(Boolean);
+      setInitiativeNames(names);
+    }).catch(console.error);
+    migrateAllCourses(MIGRATION_COURSE).catch(console.error);
     fetchItems();
   }, []);
 
@@ -307,7 +317,7 @@ export default function KnowledgeManagerView() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const finalCourse = formData.course === 'NEW' ? newCourse : formData.course;
+      const finalCourse = formData.course;
       const finalPlaylist = formData.playlist === 'NEW' ? newPlaylist : formData.playlist;
       
       if (importMode === 'playlist') {
@@ -736,30 +746,14 @@ export default function KnowledgeManagerView() {
                 <select
                   required
                   value={formData.course}
-                  onChange={(e) => {
-                    setFormData({...formData, course: e.target.value, playlist: ''});
-                  }}
+                  onChange={(e) => setFormData({...formData, course: e.target.value, playlist: ''})}
                   className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
                 >
                   <option value="" disabled>Selecione um curso...</option>
-                  {uniqueCourses.map(c => (
+                  {initiativeNames.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                  <option value="NEW">+ Cadastrar novo curso</option>
                 </select>
-                
-                {formData.course === 'NEW' && (
-                  <motion.input
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    required
-                    type="text"
-                    value={newCourse}
-                    onChange={(e) => setNewCourse(e.target.value)}
-                    className="w-full p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-blue-50"
-                    placeholder="Nome do novo curso"
-                  />
-                )}
               </div>
 
               <div className="space-y-3">
