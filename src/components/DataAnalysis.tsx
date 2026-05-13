@@ -26,6 +26,8 @@ import {
   PlanilhaInfo,
 } from '../services/analysisDataService';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
+import { useUserAccess } from '../hooks/useUserAccess';
+import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 
@@ -322,6 +324,8 @@ function getYoutubeId(url: string): string | null {
 
 export default function DataAnalysis() {
   const { projetoAtivo } = useProject();
+  const { plano, isAdmin } = useUserAccess();
+  const [lockedAnalisePopupOpen, setLockedAnalisePopupOpen] = useState(false);
   const [planilhaProjeto, setPlanilhaProjeto] = useState<PlanilhaInfo | null>(null);
   const [salvandoTudo, setSalvandoTudo] = useState(false);
   const [modalSubstituirPlanilha, setModalSubstituirPlanilha] = useState(false);
@@ -602,6 +606,11 @@ export default function DataAnalysis() {
   };
 
   const handleRunAnalysis = async () => {
+    if (!isAdmin && plano === 'gratuito' && !GRAFICOS_LIST.includes(ferramentaAtual)) {
+      setLockedAnalisePopupOpen(true);
+      return;
+    }
+
     if (ferramentaAtual === "Gage R&R" && modoGageRR === "gerar") {
       exibirModalErro("⚠ Para gerar a planilha, use o botão 'Gerar Planilha'. Para analisar, escolha o modo 'Analisar Planilha Preenchida'.");
       return;
@@ -1259,6 +1268,7 @@ export default function DataAnalysis() {
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] text-[#000] font-sans" style={{ fontFamily: '"Segoe UI", Tahoma, sans-serif', fontSize: '13px' }}>
+      <LockedToolPopup isOpen={lockedAnalisePopupOpen} onClose={() => setLockedAnalisePopupOpen(false)} />
       {/* Header & Navigation Combined (Internal Workspace Header) */}
       <header className="bg-[#1f2937] text-white px-[20px] py-[10px] flex justify-between items-center border-b border-[#ccc] -mx-8 -mt-8 mb-8">
         <div className="flex items-center gap-[20px]">
