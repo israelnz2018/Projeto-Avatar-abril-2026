@@ -230,7 +230,7 @@ export default function KnowledgeManagerView() {
 
   useEffect(() => {
     getInitiatives().then(list => {
-      const names = list.map(i => i.name).filter(Boolean);
+      const names = list.filter(i => !!i.parentId).map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
     }).catch(console.error);
     migrateAllCourses(MIGRATION_COURSE).catch(console.error);
