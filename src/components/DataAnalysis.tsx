@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
+import {
   ChevronDown,
   AlertCircle,
   BarChart2,
@@ -9,7 +9,8 @@ import {
   Play,
   X,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
@@ -1298,48 +1299,67 @@ export default function DataAnalysis() {
                         className="relative group/nested"
                         onMouseEnter={() => item.subitens && setActiveNestedMenu(item.nome)}
                       >
-                        {item.subitens ? (
-                          <>
-                            <div className="flex justify-between items-center px-[12px] py-[4px] text-[0.80rem] bg-[#f9f9f9] text-[#000] hover:bg-gray-200 cursor-pointer transition-colors border-none">
-                              {item.nome}
-                            </div>
-                            <ul className={cn(
-                              "absolute left-full top-0 bg-[#f9f9f9] border border-[#ccc] rounded-none shadow-lg min-w-[195px]",
-                              activeNestedMenu === item.nome ? "block" : "hidden"
-                            )}>
-                              {item.subitens.map((sub: string) => (
-                                <li key={sub}>
-                                  <button
-                                    onClick={() => {
-                                      setFerramentaAtual(sub);
-                                      setToolParams({});
-                                      setActiveSubmenu(null);
-                                      setActiveNestedMenu(null);
-                                      setSelectedAnalysisVideo(null);
-                                      setShowAllVideos(false);
-                                    }}
-                                    className="w-full text-left px-[12px] py-[4px] text-[0.80rem] bg-[#f9f9f9] text-[#000] hover:bg-gray-200 transition-colors border-none cursor-pointer no-underline font-sans"
-                                  >
-                                    {sub}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setFerramentaAtual(item.nome);
-                              setToolParams({});
-                              setActiveSubmenu(null);
-                              setSelectedAnalysisVideo(null);
-                              setShowAllVideos(false);
-                            }}
-                            className="w-full text-left px-[12px] py-[4px] text-[0.80rem] bg-[#f9f9f9] text-[#000] hover:bg-gray-200 transition-colors border-none cursor-pointer no-underline font-sans"
-                          >
-                            {item.nome}
-                          </button>
-                        )}
+                        {item.subitens ? (() => {
+                          const allSubLocked = !isAdmin && plano === 'gratuito' && item.subitens.every((sub: string) => !GRAFICOS_LIST.includes(sub));
+                          return (
+                            <>
+                              <div
+                                className="flex justify-between items-center px-[12px] py-[4px] text-[0.80rem] bg-[#f9f9f9] text-[#000] hover:bg-gray-200 cursor-pointer transition-colors border-none"
+                                onClick={allSubLocked ? () => { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); setActiveNestedMenu(null); } : undefined}
+                              >
+                                <span>{item.nome}</span>
+                                {allSubLocked && <Lock size={10} className="text-gray-400 ml-1 flex-shrink-0" />}
+                              </div>
+                              {!allSubLocked && (
+                                <ul className={cn(
+                                  "absolute left-full top-0 bg-[#f9f9f9] border border-[#ccc] rounded-none shadow-lg min-w-[195px]",
+                                  activeNestedMenu === item.nome ? "block" : "hidden"
+                                )}>
+                                  {item.subitens.map((sub: string) => {
+                                    const subLocked = !isAdmin && plano === 'gratuito' && !GRAFICOS_LIST.includes(sub);
+                                    return (
+                                      <li key={sub}>
+                                        <button
+                                          onClick={() => {
+                                            if (subLocked) { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); setActiveNestedMenu(null); return; }
+                                            setFerramentaAtual(sub);
+                                            setToolParams({});
+                                            setActiveSubmenu(null);
+                                            setActiveNestedMenu(null);
+                                            setSelectedAnalysisVideo(null);
+                                            setShowAllVideos(false);
+                                          }}
+                                          className="w-full text-left px-[12px] py-[4px] text-[0.80rem] bg-[#f9f9f9] text-[#000] hover:bg-gray-200 transition-colors border-none cursor-pointer no-underline font-sans flex items-center justify-between"
+                                        >
+                                          <span>{sub}</span>
+                                          {subLocked && <Lock size={10} className="text-gray-400 ml-1 flex-shrink-0" />}
+                                        </button>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                            </>
+                          );
+                        })() : (() => {
+                          const itemLocked = !isAdmin && plano === 'gratuito' && !GRAFICOS_LIST.includes(item.nome);
+                          return (
+                            <button
+                              onClick={() => {
+                                if (itemLocked) { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); return; }
+                                setFerramentaAtual(item.nome);
+                                setToolParams({});
+                                setActiveSubmenu(null);
+                                setSelectedAnalysisVideo(null);
+                                setShowAllVideos(false);
+                              }}
+                              className="w-full text-left px-[12px] py-[4px] text-[0.80rem] bg-[#f9f9f9] text-[#000] hover:bg-gray-200 transition-colors border-none cursor-pointer no-underline font-sans flex items-center justify-between"
+                            >
+                              <span>{item.nome}</span>
+                              {itemLocked && <Lock size={10} className="text-gray-400 ml-1 flex-shrink-0" />}
+                            </button>
+                          );
+                        })()}
                       </li>
                     ))}
                   </ul>
