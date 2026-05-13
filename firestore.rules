@@ -97,5 +97,25 @@ service cloud.firestore {
     match /test/{docId} {
       allow read: if true;
     }
+
+    // Mentor Conversations
+    match /mentor_conversations/{conversationId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Pending Questions
+    match /pending_questions/{questionId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Mentor Tool Context
+    match /mentor_tool_context/{toolId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }

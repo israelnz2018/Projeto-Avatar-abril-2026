@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import ProjectJourney from './projects/ProjectJourney';
 import MentorSidebar from './projects/MentorSidebar';
@@ -20,13 +20,197 @@ import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
+// LBW Brand Palette
+const LBW = {
+  navy: '#1E2D6E',
+  blue: '#0033CC',
+  blueLight: '#6699FF',
+  light: '#F0F2FA',
+  ink: '#2A2F3A',
+  white: '#FFFFFF',
+};
+
+// Mesh Background animado (4 blobs azuis em loop)
+function MeshBackground() {
+  const reduce = useReducedMotion();
+  const blobs = useMemo(() => ([
+    { c: '#C7D2FF', x: '8%',  y: '14%', s: 320 },
+    { c: '#A8B6FF', x: '78%', y: '8%',  s: 280 },
+    { c: '#D4DCFF', x: '62%', y: '78%', s: 340 },
+    { c: '#E2E8FF', x: '12%', y: '82%', s: 260 },
+  ]), []);
+  return (
+    <div aria-hidden className="absolute inset-0 overflow-hidden pointer-events-none rounded-[24px]">
+      {blobs.map((b, i) => (
+        <motion.div key={i} className="absolute rounded-full"
+          style={{ left: b.x, top: b.y, width: b.s, height: b.s, background: `radial-gradient(closest-side, ${b.c}, transparent 70%)`, filter: 'blur(40px)', opacity: 0.55 }}
+          animate={reduce ? {} : { x: [0, 30, -20, 0], y: [0, -25, 15, 0] }}
+          transition={{ duration: 20 + i*3, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// HeroInitiativeCard com 3 variantes (dark, outlined, light)
+function HeroInitiativeCard({ initiative, variant, icon: Icon, index, isSelected, hasOtherSelected, onClick }: {
+  initiative: Initiative;
+  variant: 'dark' | 'outlined' | 'light';
+  icon: React.ReactNode;
+  index: number;
+  isSelected: boolean;
+  hasOtherSelected: boolean;
+  onClick: () => void;
+}) {
+  const isDark = variant === 'dark';
+  const isOutlined = variant === 'outlined';
+
+  const cardBg = isDark ? LBW.navy : (isOutlined ? LBW.white : LBW.light);
+  const cardBorder = isSelected ? LBW.blueLight : (isDark ? 'transparent' : (isOutlined ? LBW.blue : 'rgba(30,45,110,0.08)'));
+  const titleColor = isDark ? LBW.white : LBW.navy;
+  const subColor = isDark ? 'rgba(255,255,255,0.72)' : '#52596B';
+  const tagColor = isDark ? LBW.blueLight : LBW.blue;
+  const iconBg = isDark ? 'rgba(255,255,255,0.12)' : `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`;
+  const iconBorder = isDark ? '1px solid rgba(255,255,255,0.18)' : 'none';
+  const arrowBg = isDark ? LBW.white : LBW.blue;
+  const arrowColor = isDark ? LBW.navy : LBW.white;
+  const beganColor = isDark ? 'rgba(255,255,255,0.7)' : '#6B7180';
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 18, scale: 0.92 }}
+      animate={{
+        opacity: hasOtherSelected ? 0.5 : 1,
+        y: isSelected ? -4 : 0,
+        scale: 1
+      }}
+      transition={{ delay: 0.18 + index*0.07, type: 'spring', stiffness: 220, damping: 18 }}
+      whileHover="hover"
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="group relative text-left rounded-[24px] p-6 overflow-hidden flex flex-col gap-4 cursor-pointer min-h-[220px] w-full"
+      style={{
+        background: cardBg,
+        border: `${isSelected ? '2px' : '1px'} solid ${cardBorder}`,
+        boxShadow: isSelected
+          ? `0 24px 60px -20px ${LBW.blue}99`
+          : (isDark ? `0 18px 50px -22px ${LBW.navy}90` : (isOutlined ? `0 0 0 1px ${LBW.blue}22 inset, 0 12px 36px -20px ${LBW.navy}30` : `0 1px 0 rgba(255,255,255,0.7) inset, 0 14px 40px -16px ${LBW.navy}33`)),
+      }}
+    >
+      {/* Glow radial no canto superior direito */}
+      <motion.div aria-hidden className="absolute rounded-full pointer-events-none"
+        style={{
+          background: isDark ? `radial-gradient(closest-side, #6699FF55, transparent 70%)` : `radial-gradient(closest-side, ${LBW.blue}26, transparent 70%)`,
+          top: '-30%', right: '-30%', width: 320, height: 320,
+          opacity: isSelected ? 1 : 0.85
+        }}
+        variants={{ hover: { scale: 1.15, opacity: 1 } }}
+      />
+
+      {/* Ícone */}
+      <motion.div
+        className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
+        style={{
+          background: iconBg,
+          color: LBW.white,
+          boxShadow: isDark ? `0 8px 22px -8px ${LBW.blue}` : `0 10px 24px -8px ${LBW.blue}66`,
+          border: iconBorder
+        }}
+        variants={{ hover: { y: -2, scale: 1.06, rotate: -3 } }}
+      >
+        {Icon}
+      </motion.div>
+
+      {/* Conteúdo */}
+      <div className="relative flex-1">
+        <span className="text-[10px] font-semibold tracking-[0.14em] uppercase block mb-2" style={{ color: tagColor }}>
+          {variant === 'dark' ? 'Melhoria' : (variant === 'light' ? 'Estatística' : 'Análise')}
+        </span>
+        <h3 className="text-[18px] font-semibold leading-[1.1] tracking-tight mb-2" style={{ color: titleColor }}>
+          {initiative.name}
+        </h3>
+        <p className="text-[12px] leading-relaxed" style={{ color: subColor }}>
+          {initiative.description || 'Selecione para ver subcategorias.'}
+        </p>
+
+        {isSelected && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg mt-3"
+            style={{
+              background: isDark ? 'rgba(255,255,255,0.15)' : `${LBW.blue}15`,
+              color: isDark ? LBW.white : LBW.blue,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.25)' : `${LBW.blue}33`}`
+            }}
+          >
+            <CheckCircle2 size={11} />
+            <span className="text-[9px] font-semibold tracking-[0.06em] uppercase">Selecionado</span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Rodapé com seta */}
+      <div className="relative flex items-center justify-between">
+        <span className="text-[12px] font-medium" style={{ color: beganColor }}>
+          {isSelected ? 'Escolha sua trilha →' : 'Começar'}
+        </span>
+        <motion.div
+          className="w-9 h-9 rounded-full flex items-center justify-center"
+          style={{ background: arrowBg, color: arrowColor }}
+          variants={{ hover: { x: 4 } }}
+        >
+          <ArrowRight size={15} />
+        </motion.div>
+      </div>
+    </motion.button>
+  );
+}
+
+// Card de sub-iniciativa (trilha)
+function SubInitiativeCard({ child, index, onClick }: { child: Initiative; index: number; onClick: () => void }) {
+  // Tenta extrair número da trilha (ex: "1.1", "1.2") - se não tiver, mostra os primeiros caracteres
+  const numMatch = child.name.match(/^([\d.]+)/);
+  const num = numMatch ? numMatch[1] : '';
+  const title = numMatch ? child.name.replace(/^[\d.]+\s*[-—]?\s*/, '') : child.name;
+
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, type: 'spring', stiffness: 220, damping: 18 }}
+      whileHover={{ x: 4 }}
+      onClick={onClick}
+      className="w-full bg-white/95 backdrop-blur hover:bg-white border border-blue-100 hover:border-blue-500 rounded-[14px] p-3 flex items-start justify-between transition-all cursor-pointer group min-h-[64px]"
+      style={{ boxShadow: '0 4px 12px -4px rgba(30, 45, 110, 0.1)' }}
+    >
+      <div className="flex items-start gap-3 flex-1 min-w-0">
+        {num && (
+          <div className="w-8 h-8 rounded-[10px] flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-0.5"
+            style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})` }}>
+            {num}
+          </div>
+        )}
+        <div className="text-left flex-1 min-w-0">
+          <div className="text-[12px] font-bold uppercase tracking-tight leading-snug" style={{ color: LBW.navy, letterSpacing: '-0.01em' }}>
+            {title}
+          </div>
+        </div>
+      </div>
+      <ChevronRight size={16} className="text-blue-500 shrink-0 ml-2 mt-1 transition-transform group-hover:translate-x-1" />
+    </motion.button>
+  );
+}
+
 const getInitiativeIcon = (name: string) => {
   const n = name.toLowerCase();
-  if (n.includes('pequenas') || n.includes('melhoria')) return <Zap size={24} />;
+  if (n.includes('gerenciamento') || n.includes('gestão') || n.includes('gestao') || n.includes('projetos de melhoria')) return <Zap size={24} />;
+  if (n.includes('análise de dados') || n.includes('analise de dados') || n.includes('negócios') || n.includes('negocios')) return <Briefcase size={24} />;
+  if (n.includes('análise técnica') || n.includes('analise tecnica') || n.includes('técnica de dados') || n.includes('tecnica de dados') || n.includes('estatística') || n.includes('estatistica')) return <BarChart3 size={24} />;
   if (n.includes('lean') || n.includes('sigma') || n.includes('six')) return <Target size={24} />;
   if (n.includes('bpm') || n.includes('processo')) return <BarChart3 size={24} />;
   if (n.includes('implementação') || n.includes('projeto')) return <Settings size={24} />;
-  return <Briefcase size={24} />;
+  return <Folder size={24} />;
 };
 
 import { chatWithMentor, getMentorSuggestions } from '../services/aiService';
@@ -59,6 +243,21 @@ export default function ProjectManagement() {
   const [inputMessage, setInputMessage] = useState('');
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([]);
   const [isGeneratingMentor, setIsGeneratingMentor] = useState(false);
+
+  // Dropdown "Meus Projetos Ativos"
+  const [isProjectsListOpen, setIsProjectsListOpen] = useState(false);
+
+  // Trilhas (sub-iniciativas) da iniciativa selecionada
+  const children = useMemo(() => {
+    if (!selectedParentInitiativeId) return [];
+    return initiatives
+      .filter(i => i.parentId === selectedParentInitiativeId)
+      .sort((ca, cb) => {
+        const numA = parseInt(ca.name.split('.')[1] || ca.name) || 0;
+        const numB = parseInt(cb.name.split('.')[1] || cb.name) || 0;
+        return numA - numB;
+      });
+  }, [initiatives, selectedParentInitiativeId]);
 
   // Fetch dynamic suggestions when phase or project changes
   useEffect(() => {
@@ -241,95 +440,139 @@ export default function ProjectManagement() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-6">
-        {/* Top Section: My Projects */}
-        <div className="shrink-0 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Meus Projetos Ativos</h2>
-            {selectedProject && (
-              <button 
-                onClick={() => setSelectedProject(null)}
-                className="text-[10px] font-black text-blue-600 hover:text-blue-700 flex items-center gap-1 uppercase tracking-wider"
-              >
-                <Plus size={12} /> Novo Projeto
-              </button>
-            )}
-          </div>
-          
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4">
+        {/* Top Section: Meus Projetos Ativos (DROPDOWN) */}
+        <div className="shrink-0">
           {loading ? (
-            <div className="flex items-center gap-3 py-4 text-gray-400 text-xs italic bg-white rounded-xl border border-gray-100 justify-center">
+            <div className="flex items-center gap-3 py-4 text-gray-400 text-xs italic bg-white rounded-2xl border border-gray-100 justify-center">
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               Carregando...
             </div>
           ) : projects.length === 0 ? (
-            <div className="text-center py-6 bg-white rounded-xl border border-dashed border-gray-200">
-              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Nenhum projeto ativo</p>
+            <div className="text-center py-4 bg-white rounded-2xl border border-dashed border-gray-200">
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Nenhum projeto ativo · crie seu primeiro abaixo</p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-              <div className="max-h-[180px] overflow-y-auto">
-                {projects.map((project) => {
-                  const initiative = initiatives.find(i => i.id === project.initiativeId);
-                  return (
-                    <div
-                      key={project.id}
-                      onClick={() => {
-                        setSelectedProject(project);
-                        setCurrentPhase(project.currentPhase);
-                        setProjetoAtivo(project);
-                      }}
-                      className={cn(
-                        "flex items-center justify-between p-4 border-b border-gray-50 last:border-0 cursor-pointer transition-all hover:bg-blue-50/30 group",
-                        selectedProject?.id === project.id && "bg-blue-50/50 border-l-4 border-l-blue-600"
-                      )}
-                    >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                          selectedProject?.id === project.id ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600"
-                        )}>
-                          {getInitiativeIcon(initiative?.name || '')}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-gray-800 text-sm truncate uppercase tracking-tight">
-                            {project.name}
-                          </h3>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest">
-                              {initiative?.name || 'Geral'}
-                            </span>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                              <div className="w-1 h-1 rounded-full bg-gray-300" />
-                              Fase: {initiative?.phases?.find(p => p.id === project.currentPhase)?.name || project.currentPhase || 'Definir'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 ml-4">
-                        <button 
-                          onClick={(e) => handleEditProject(project, e)}
-                          className="p-2 text-gray-300 hover:text-blue-600 transition-all"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button 
-                          onClick={(e) => handleDeleteProject(project.id, e)}
-                          className="p-2 text-gray-300 hover:text-red-600 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+            <div>
+              {/* Header do dropdown (sempre visível) */}
+              <button
+                onClick={() => setIsProjectsListOpen(!isProjectsListOpen)}
+                className="w-full bg-white border border-gray-100 hover:border-blue-200 rounded-2xl px-5 py-3 flex items-center justify-between cursor-pointer transition-all group"
+                style={{ boxShadow: '0 4px 12px -4px rgba(30, 45, 110, 0.1)' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
+                    style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})` }}>
+                    <FolderOpen size={16} />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ color: LBW.blueLight }}>
+                      Meus projetos ativos
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="text-[13px] font-semibold" style={{ color: LBW.navy }}>
+                      {projects.length} {projects.length === 1 ? 'projeto' : 'projetos'} · clique para {isProjectsListOpen ? 'recolher' : 'expandir'}
+                    </div>
+                  </div>
+                </div>
+                {selectedProject && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSelectedProject(null); }}
+                    className="text-[10px] font-black text-blue-600 hover:text-blue-700 flex items-center gap-1 uppercase tracking-wider px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all border-none bg-transparent cursor-pointer mr-2"
+                  >
+                    <Plus size={12} /> Novo
+                  </button>
+                )}
+                <motion.div
+                  animate={{ rotate: isProjectsListOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown size={18} style={{ color: LBW.blue }} />
+                </motion.div>
+              </button>
+
+              {/* Lista expandida */}
+              <AnimatePresence>
+                {isProjectsListOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden mt-2"
+                  >
+                    <div className="bg-white border border-blue-100 rounded-2xl p-3 space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar"
+                      style={{ boxShadow: '0 18px 40px -20px rgba(30, 45, 110, 0.25)' }}>
+                      {projects.map((project, idx) => {
+                        const initiative = initiatives.find(i => i.id === project.initiativeId);
+                        const isCurrentSelected = selectedProject?.id === project.id;
+                        return (
+                          <motion.div
+                            key={project.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.04 }}
+                            onClick={() => {
+                              setSelectedProject(project);
+                              setCurrentPhase(project.currentPhase);
+                              setProjetoAtivo(project);
+                              setIsProjectsListOpen(false);
+                            }}
+                            className={cn(
+                              "rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all group",
+                              isCurrentSelected
+                                ? "bg-blue-50"
+                                : "bg-[#F0F2FA] hover:bg-blue-50"
+                            )}
+                            style={{
+                              borderLeft: `3px solid ${isCurrentSelected ? LBW.blue : `${LBW.blue}66`}`
+                            }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[13px] font-bold uppercase truncate" style={{ color: LBW.navy, letterSpacing: '-0.01em' }}>
+                                {project.name}
+                              </div>
+                              <div className="text-[10px] mt-1 flex items-center gap-2" style={{ color: '#52596B' }}>
+                                <span className="font-semibold">{initiative?.name || 'Geral'}</span>
+                                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                <span className="font-semibold" style={{ color: LBW.blue }}>
+                                  Fase: {initiative?.phases?.find(p => p.id === project.currentPhase)?.name || project.currentPhase || 'Definir'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 ml-3">
+                              <button
+                                onClick={(e) => handleEditProject(project, e)}
+                                className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteProject(project.id, e)}
+                                className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600 transition-all border border-gray-200 hover:border-red-300 cursor-pointer bg-transparent"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2 lbw-sleek-scrollbar">
+          <style>{`
+            .lbw-sleek-scrollbar::-webkit-scrollbar { width: 6px; }
+            .lbw-sleek-scrollbar::-webkit-scrollbar-track { background: transparent; }
+            .lbw-sleek-scrollbar::-webkit-scrollbar-thumb { background: rgba(30, 45, 110, 0.15); border-radius: 3px; transition: background 0.2s; }
+            .lbw-sleek-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(30, 45, 110, 0.35); }
+            .lbw-sleek-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(30, 45, 110, 0.15) transparent; }
+          `}</style>
           <AnimatePresence mode="wait">
             {selectedProject ? (
               <motion.div
@@ -350,103 +593,163 @@ export default function ProjectManagement() {
                 />
               </motion.div>
             ) : (
-              /* New Project Selection Flow */
+              /* New Project Selection Flow — LBW Design v2 */
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="space-y-8"
+                className="space-y-6"
               >
-                <div className="text-center max-w-xl mx-auto pt-4">
-                  <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tighter mb-2">
-                    O que vamos <span className="text-blue-600">melhorar</span> hoje?
-                  </h1>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    Selecione uma iniciativa para iniciar sua jornada
-                  </p>
-                </div>
+                {/* Container com Mesh Background animado */}
+                <div className="relative rounded-[24px] overflow-hidden" style={{ background: LBW.light, padding: '32px 24px' }}>
+                  <MeshBackground />
 
-                {/* Step 1: Root Initiatives with Integrated Sub-initiatives */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {initiatives
-                    .filter(i => !i.parentId)
-                    .sort((a, b) => {
-                      const numA = parseInt(a.name) || 0;
-                      const numB = parseInt(b.name) || 0;
-                      if (numA !== numB) return numA - numB;
-                      return a.name.localeCompare(b.name);
-                    })
-                    .map((initiative) => {
-                      const isSelected = selectedParentInitiativeId === initiative.id;
-                      const children = initiatives
-                        .filter(i => i.parentId === initiative.id)
-                        .sort((ca, cb) => {
-                          const numA = parseInt(ca.name.split('.')[1] || ca.name) || 0;
-                          const numB = parseInt(cb.name.split('.')[1] || cb.name) || 0;
-                          return numA - numB;
-                        });
+                  {/* Header */}
+                  <div className="relative text-center max-w-xl mx-auto mb-8">
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-[11px] font-semibold tracking-[0.18em] uppercase mb-2"
+                      style={{ color: LBW.blue }}
+                    >
+                      {selectedParentInitiativeId ? 'Você selecionou' : 'Nova jornada'}
+                    </motion.div>
+                    <motion.h1
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 }}
+                      className="text-[32px] font-bold leading-tight tracking-tight mb-2"
+                      style={{ color: LBW.navy, letterSpacing: '-0.02em' }}
+                    >
+                      {selectedParentInitiativeId ? (
+                        <>Escolha sua <span style={{ color: LBW.blue }}>trilha</span></>
+                      ) : (
+                        <>O que vamos <span style={{ color: LBW.blue }}>melhorar</span> hoje?</>
+                      )}
+                    </motion.h1>
+                    <motion.p
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="text-[12px] tracking-wide"
+                      style={{ color: '#52596B' }}
+                    >
+                      {selectedParentInitiativeId
+                        ? 'Selecione uma trilha para criar o projeto'
+                        : 'Selecione uma iniciativa para iniciar sua jornada'}
+                    </motion.p>
+                  </div>
 
-                      return (
-                        <div key={initiative.id} className="flex flex-col gap-2">
-                          <motion.button
-                            whileHover={{ y: -4 }}
-                            onClick={() => {
-                              setSelectedParentInitiativeId(isSelected ? null : initiative.id);
-                              setSelectedInitiativeId('');
-                            }}
-                            className={cn(
-                              "p-6 rounded-2xl border-2 text-left transition-all relative overflow-hidden group h-full flex flex-col",
-                              isSelected
-                                ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-100"
-                                : "bg-white border-gray-100 hover:border-blue-200 shadow-sm"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors",
-                              isSelected ? "bg-white/20" : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
-                            )}>
-                              {getInitiativeIcon(initiative.name)}
+                  {/* Hero Cards */}
+                  {(() => {
+                    const rootCount = initiatives.filter(i => !i.parentId).length;
+                    const gridCols = rootCount === 1 ? 'lg:grid-cols-1'
+                      : rootCount === 2 ? 'lg:grid-cols-2'
+                      : rootCount === 3 ? 'lg:grid-cols-3'
+                      : 'lg:grid-cols-4';
+                    return (
+                      <div className={cn("relative grid grid-cols-1 md:grid-cols-2 gap-4 mb-2", gridCols)}>
+                        {initiatives
+                          .filter(i => !i.parentId)
+                          .sort((a, b) => {
+                            const numA = parseInt(a.name) || 0;
+                            const numB = parseInt(b.name) || 0;
+                            if (numA !== numB) return numA - numB;
+                            return a.name.localeCompare(b.name);
+                          })
+                          .map((initiative, index) => {
+                            const isSelected = selectedParentInitiativeId === initiative.id;
+                            const hasOtherSelected = selectedParentInitiativeId !== null && !isSelected;
+                            // Primeiro card sempre dark (destaque), demais alternam outlined/light
+                            const variant: 'dark' | 'outlined' | 'light' =
+                              index === 0 ? 'dark' : (index % 2 === 1 ? 'outlined' : 'light');
+                            return (
+                              <HeroInitiativeCard
+                                key={initiative.id}
+                                initiative={initiative}
+                                variant={variant}
+                                icon={getInitiativeIcon(initiative.name)}
+                                index={index}
+                                isSelected={isSelected}
+                                hasOtherSelected={hasOtherSelected}
+                                onClick={() => {
+                                  setSelectedParentInitiativeId(isSelected ? null : initiative.id);
+                                  setSelectedInitiativeId('');
+                                }}
+                              />
+                            );
+                          })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Painel de sub-iniciativas (trilhas) - desce abaixo dos cards */}
+                  <AnimatePresence mode="wait">
+                    {selectedParentInitiativeId && initiatives.filter(i => i.parentId === selectedParentInitiativeId).length > 0 && (
+                      <motion.div
+                        key={selectedParentInitiativeId}
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.25 }}
+                        className="relative mt-4"
+                      >
+                          <div className="bg-white rounded-[20px] p-5 border border-blue-100 relative"
+                            style={{ boxShadow: '0 24px 60px -20px rgba(30, 45, 110, 0.25)' }}>
+                            {/* Conector visual saindo do card selecionado */}
+                            {(() => {
+                              const rootInitiatives = initiatives.filter(i => !i.parentId).sort((a, b) => {
+                                const numA = parseInt(a.name) || 0;
+                                const numB = parseInt(b.name) || 0;
+                                if (numA !== numB) return numA - numB;
+                                return a.name.localeCompare(b.name);
+                              });
+                              const totalRoots = rootInitiatives.length;
+                              const selectedIdx = rootInitiatives.findIndex(i => i.id === selectedParentInitiativeId);
+                              if (selectedIdx < 0 || totalRoots === 0) return null;
+                              const leftPercent = ((selectedIdx + 0.5) / totalRoots) * 100;
+                              return (
+                                <>
+                                  <div className="absolute -top-3 w-px h-3"
+                                    style={{ left: `${leftPercent}%`, background: LBW.blueLight }} />
+                                  <div className="absolute -top-[7px] w-3 h-3 rotate-45 border-l border-t border-blue-200 bg-white"
+                                    style={{ left: `calc(${leftPercent}% - 6px)` }} />
+                                </>
+                              );
+                            })()}
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-[3px] h-[14px] rounded-full" style={{ background: LBW.blue }} />
+                              <div className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: LBW.navy }}>
+                                Trilhas Disponíveis
+                              </div>
+                              <div className="flex-1 h-px bg-blue-100" />
+                              <div className="text-[10px] font-semibold" style={{ color: '#6B7180' }}>
+                                {children.length} {children.length === 1 ? 'trilha' : 'trilhas'}
+                              </div>
                             </div>
-                            <h3 className="text-sm font-black uppercase tracking-tight mb-1">{initiative.name}</h3>
-                            <p className={cn(
-                              "text-[10px] font-bold leading-tight",
-                              isSelected ? "text-blue-100" : "text-gray-400"
-                            )}>
-                              {initiative.description || 'Selecione para ver subcategorias.'}
-                            </p>
-                          </motion.button>
-
-                          {/* Sub-initiatives inside/below the box */}
-                          <AnimatePresence>
-                            {isSelected && children.length > 0 && (
-                              <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="bg-white border border-blue-100 rounded-2xl p-2 shadow-lg space-y-1"
-                              >
-                                {children.map(child => {
-                                  return (
-                                    <button
-                                      key={child.id}
-                                      onClick={() => {
-                                        setSelectedInitiativeId(child.id);
-                                        setIsCreating(true);
-                                      }}
-                                      className="w-full p-3 text-left hover:bg-blue-50 rounded-xl transition-all flex items-center justify-between group relative"
-                                    >
-                                      <span className="text-[10px] font-black text-gray-700 uppercase tracking-tight group-hover:text-blue-600">
-                                        {child.name}
-                                      </span>
-                                      <ChevronRight size={12} className="text-gray-300 group-hover:text-blue-600" />
-                                    </button>
-                                  );
-                                })}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {initiatives
+                                .filter(i => i.parentId === selectedParentInitiativeId)
+                                .sort((ca, cb) => {
+                                  const numA = parseInt(ca.name.split('.')[1] || ca.name) || 0;
+                                  const numB = parseInt(cb.name.split('.')[1] || cb.name) || 0;
+                                  return numA - numB;
+                                })
+                                .map((child, idx) => (
+                                  <SubInitiativeCard
+                                    key={child.id}
+                                    child={child}
+                                    index={idx}
+                                    onClick={() => {
+                                      setSelectedInitiativeId(child.id);
+                                      setIsCreating(true);
+                                    }}
+                                  />
+                                ))}
+                            </div>
+                          </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}
@@ -611,3 +914,4 @@ function getMentorStaticSuggestions(phase: string | null): string[] {
     default: return ['Próximos passos', 'Ver ferramentas recomendadas'];
   }
 }
+

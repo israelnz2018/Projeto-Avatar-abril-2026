@@ -1,4 +1,4 @@
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, getDocs, query, orderBy, where, deleteDoc, doc } from 'firebase/firestore';
 
 export const MENTOR_CONVERSATIONS_COLLECTION = 'mentor_conversations';
@@ -29,7 +29,7 @@ export async function saveMentorConversation(
     });
     return docRef.id;
   } catch (error) {
-    console.error('[mentorConversations] Erro ao salvar:', error);
+    handleFirestoreError(error, OperationType.WRITE, MENTOR_CONVERSATIONS_COLLECTION);
     return null;
   }
 }
@@ -51,7 +51,7 @@ export async function getConversationsByProject(projectId: string): Promise<Ment
       } as MentorConversation;
     });
   } catch (error) {
-    console.error('[mentorConversations] Erro ao buscar por projeto:', error);
+    handleFirestoreError(error, OperationType.GET, MENTOR_CONVERSATIONS_COLLECTION);
     return [];
   }
 }
@@ -73,7 +73,7 @@ export async function getConversationsByUser(userId: string): Promise<MentorConv
       } as MentorConversation;
     });
   } catch (error) {
-    console.error('[mentorConversations] Erro ao buscar por usuário:', error);
+    handleFirestoreError(error, OperationType.GET, MENTOR_CONVERSATIONS_COLLECTION);
     return [];
   }
 }
@@ -94,7 +94,7 @@ export async function getAllConversations(): Promise<MentorConversation[]> {
       } as MentorConversation;
     });
   } catch (error) {
-    console.error('[mentorConversations] Erro ao buscar todas:', error);
+    handleFirestoreError(error, OperationType.GET, MENTOR_CONVERSATIONS_COLLECTION);
     return [];
   }
 }
@@ -112,7 +112,7 @@ export async function clearProjectConversations(projectId: string): Promise<bool
     );
     return true;
   } catch (error) {
-    console.error('[mentorConversations] Erro ao limpar projeto:', error);
+    handleFirestoreError(error, OperationType.DELETE, MENTOR_CONVERSATIONS_COLLECTION);
     return false;
   }
 }

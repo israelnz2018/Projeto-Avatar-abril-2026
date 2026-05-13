@@ -1,4 +1,4 @@
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, getDocs, query, orderBy, where, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
 export const PENDING_QUESTIONS_COLLECTION = 'pending_questions';
@@ -32,7 +32,7 @@ export async function savePendingQuestion(
     });
     return docRef.id;
   } catch (error) {
-    console.error('[pendingQuestions] Erro ao salvar:', error);
+    handleFirestoreError(error, OperationType.WRITE, PENDING_QUESTIONS_COLLECTION);
     return null;
   }
 }
@@ -54,7 +54,7 @@ export async function getPendingQuestions(): Promise<PendingQuestion[]> {
       } as PendingQuestion;
     });
   } catch (error) {
-    console.error('[pendingQuestions] Erro ao buscar:', error);
+    handleFirestoreError(error, OperationType.GET, PENDING_QUESTIONS_COLLECTION);
     return [];
   }
 }
@@ -79,7 +79,7 @@ export async function getPendingQuestionsByStatus(
       } as PendingQuestion;
     });
   } catch (error) {
-    console.error('[pendingQuestions] Erro ao buscar por status:', error);
+    handleFirestoreError(error, OperationType.GET, PENDING_QUESTIONS_COLLECTION);
     return [];
   }
 }
@@ -96,7 +96,7 @@ export async function answerPendingQuestion(
     });
     return true;
   } catch (error) {
-    console.error('[pendingQuestions] Erro ao responder:', error);
+    handleFirestoreError(error, OperationType.WRITE, PENDING_QUESTIONS_COLLECTION);
     return false;
   }
 }
@@ -108,7 +108,7 @@ export async function ignorePendingQuestion(questionId: string): Promise<boolean
     });
     return true;
   } catch (error) {
-    console.error('[pendingQuestions] Erro ao ignorar:', error);
+    handleFirestoreError(error, OperationType.WRITE, PENDING_QUESTIONS_COLLECTION);
     return false;
   }
 }
@@ -118,7 +118,7 @@ export async function deletePendingQuestion(questionId: string): Promise<boolean
     await deleteDoc(doc(db, PENDING_QUESTIONS_COLLECTION, questionId));
     return true;
   } catch (error) {
-    console.error('[pendingQuestions] Erro ao deletar:', error);
+    handleFirestoreError(error, OperationType.DELETE, PENDING_QUESTIONS_COLLECTION);
     return false;
   }
 }

@@ -1,4 +1,4 @@
-import { db, storage } from '../lib/firebase';
+import { db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -35,7 +35,7 @@ export async function getToolContext(toolId: string): Promise<MentorToolContext 
       updatedAt: data.updatedAt?.toDate?.() || undefined
     };
   } catch (error) {
-    console.error('[mentorContext] Erro ao buscar:', error);
+    handleFirestoreError(error, OperationType.GET, MENTOR_TOOL_CONTEXT_COLLECTION);
     return null;
   }
 }
@@ -58,7 +58,7 @@ export async function getAllToolContexts(): Promise<Record<string, MentorToolCon
     });
     return result;
   } catch (error) {
-    console.error('[mentorContext] Erro ao buscar todos:', error);
+    handleFirestoreError(error, OperationType.GET, MENTOR_TOOL_CONTEXT_COLLECTION);
     return {};
   }
 }
@@ -75,7 +75,7 @@ export async function saveToolContext(ctx: MentorToolContext): Promise<boolean> 
     });
     return true;
   } catch (error) {
-    console.error('[mentorContext] Erro ao salvar:', error);
+    handleFirestoreError(error, OperationType.WRITE, MENTOR_TOOL_CONTEXT_COLLECTION);
     return false;
   }
 }
@@ -94,7 +94,7 @@ export async function deleteToolContext(toolId: string): Promise<boolean> {
     await deleteDoc(doc(db, MENTOR_TOOL_CONTEXT_COLLECTION, toolId));
     return true;
   } catch (error) {
-    console.error('[mentorContext] Erro ao deletar:', error);
+    handleFirestoreError(error, OperationType.DELETE, MENTOR_TOOL_CONTEXT_COLLECTION);
     return false;
   }
 }

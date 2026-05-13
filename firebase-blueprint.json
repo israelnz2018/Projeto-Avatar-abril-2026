@@ -55,6 +55,62 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "content", "sourceUrl", "course", "playlist", "createdAt"]
+    },
+    "MentorConversation": {
+      "title": "Mentor Conversation",
+      "description": "Conversation history between student and Mentor AI",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "toolId": { "type": "string" },
+        "toolLabel": { "type": "string" },
+        "question": { "type": "string" },
+        "answer": { "type": "string" },
+        "level": { "type": "number", "enum": [1, 2, 3] },
+        "confidence": { "type": "number" },
+        "videoSourceIds": { "type": "array", "items": { "type": "string" } },
+        "videoSourceTitles": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "userId", "question", "answer", "level", "timestamp"]
+    },
+    "PendingQuestion": {
+      "title": "Pending Question",
+      "description": "A question that needs a manual answer from the mentor",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectName": { "type": "string" },
+        "question": { "type": "string" },
+        "aiAnswer": { "type": "string" },
+        "contextType": { "type": "string", "enum": ["tool", "analysis", "aiAssistant", "free"] },
+        "contextId": { "type": "string" },
+        "contextLabel": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "answered", "ignored"] },
+        "israelAnswer": { "type": "string" },
+        "answeredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "userEmail", "question", "contextType", "timestamp", "status"]
+    },
+    "MentorToolContext": {
+      "title": "Mentor Tool Context",
+      "description": "Configured context for a specific tool in the mentor",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string" },
+        "responseMode": { "type": "string", "enum": ["text", "audio", "none"] },
+        "responseText": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "audioPath": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["responseMode"]
     }
   },
   "firestore": {
@@ -62,6 +118,9 @@
     "/playlists/{playlistId}": { "schema": "Playlist" },
     "/knowledge_base/{itemId}": { "schema": "KnowledgeItem" },
     "/projects/{projectId}": { "schema": "Project" },
-    "/projects/{projectId}/data/{dataId}": { "schema": "ProjectData" }
+    "/projects/{projectId}/data/{dataId}": { "schema": "ProjectData" },
+    "/mentor_conversations/{conversationId}": { "schema": "MentorConversation" },
+    "/pending_questions/{questionId}": { "schema": "PendingQuestion" },
+    "/mentor_tool_context/{toolId}": { "schema": "MentorToolContext" }
   }
 }

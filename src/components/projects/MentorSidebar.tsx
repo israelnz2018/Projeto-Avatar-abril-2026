@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Play, X, ExternalLink, Send, Loader2, CheckCircle2, Trash2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Play, X, ExternalLink, Send, Loader2, CheckCircle2, Trash2, Volume2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../lib/firebase';
 import { askMentor, MentorResponse, VideoSource } from '../../services/contextualAIService';
 import { savePendingQuestion } from '../../services/pendingQuestionsService';
+import { getToolContext, MentorToolContext } from '../../services/mentorContextService';
 import {
   saveMentorConversation,
   getConversationsByProject,
@@ -54,7 +55,30 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const [isThinking, setIsThinking] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<VideoSource | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [toolContext, setToolContext] = useState<MentorToolContext | null>(null);
+  const [isContextExpanded, setIsContextExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Carrega o contexto (pergunta + resposta) cadastrado para a ferramenta ativa
+  useEffect(() => {
+    if (!activeToolId) {
+      setToolContext(null);
+      return;
+    }
+    getToolContext(activeToolId).then(ctx => {
+      // Só considera "tem conteúdo" se tiver pergunta OU resposta preenchida
+      const hasContent = ctx && (
+        ctx.question?.trim() ||
+        (ctx.responseMode === 'text' && ctx.responseText?.trim()) ||
+        (ctx.responseMode === 'audio' && ctx.audioUrl)
+      );
+      setToolContext(hasContent ? ctx : null);
+      setIsContextExpanded(true); // sempre abre quando muda de ferramenta
+    }).catch(err => {
+      console.error('Erro ao carregar contexto da ferramenta:', err);
+      setToolContext(null);
+    });
+  }, [activeToolId]);
 
   // Carrega histórico ao mudar de projeto
   useEffect(() => {
@@ -237,6 +261,72 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Card de contexto da ferramenta (pergunta + texto/áudio cadastrado) */}
+        {toolContext && (
+          <div className="px-6 py-3 bg-gradient-to-b from-blue-500/10 to-transparent border-b border-blue-500/20">
+            <button
+              onClick={() => setIsContextExpanded(!isContextExpanded)}
+              className="w-full flex items-center justify-between text-left mb-2 bg-transparent border-none cursor-pointer p-0"
+            >
+              <span className="text-[9px] font-black uppercase tracking-widest text-blue-300 flex items-center gap-1">
+                {toolContext.responseMode === 'audio' ? <Volume2 size={9} /> : <FileText size={9} />}
+                Israel explica
+              </span>
+              {isContextExpanded ? (
+                <ChevronUp size={12} className="text-blue-300" />
+              ) : (
+                <ChevronDown size={12} className="text-blue-300" />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isContextExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  {/* Pergunta-chave */}
+                  {toolContext.question && (
+                    <div className="mb-2 p-2 bg-white/5 rounded border border-white/10">
+                      <p className="text-[12px] font-bold text-white leading-snug">
+                        ❓ {toolContext.question}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Resposta em texto */}
+                  {toolContext.responseMode === 'text' && toolContext.responseText && (
+                    <div className="p-3 bg-gray-800/30 rounded border border-gray-700/40">
+                      <p className="text-[12px] leading-relaxed text-gray-300 whitespace-pre-wrap">
+                        {toolContext.responseText}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Resposta em áudio */}
+                  {toolContext.responseMode === 'audio' && toolContext.audioUrl && (
+                    <div className="p-3 bg-gray-800/30 rounded border border-gray-700/40">
+                      <audio
+                        controls
+                        controlsList="nodownload noplaybackrate"
+                        src={toolContext.audioUrl}
+                        className="w-full h-9"
+                        onContextMenu={(e) => e.preventDefault()}
+                        preload="none"
+                      />
+                      <p className="text-[9px] text-gray-500 mt-1.5 text-center">
+                        🎙️ Áudio gravado pelo Israel
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Aviso LGPD compacto */}
         {messages.length === 0 && (
@@ -465,4 +555,5 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
 };
 
 export default MentorSidebar;
+
 

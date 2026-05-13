@@ -556,8 +556,12 @@ export default function ChatAssistant() {
     : null;
 
   return (
-    <div className="relative h-[calc(100vh-10rem)] w-full overflow-hidden antialiased"
+    <div className="relative h-[calc(100vh-10rem)] w-full overflow-hidden antialiased lbw-chat-scope"
       style={{ fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif", background: LBW.light, color: LBW.ink }}>
+      <style>{`
+        .lbw-chat-scope ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+        .lbw-chat-scope * { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
       <MeshBackground />
 
       <div className="absolute top-6 right-6 z-30 flex items-center gap-3 bg-white/90 backdrop-blur-md border border-black/[0.06] rounded-2xl pl-2 pr-4 py-2"
@@ -576,19 +580,11 @@ export default function ChatAssistant() {
           >
             <div className="min-h-full flex flex-col px-6 md:px-10 py-14">
               <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col">
-                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 }} className="flex items-center gap-2 mb-7">
-                  <Compass size={14} className="text-stone-500" />
-                  <span className="text-[11px] font-bold tracking-[0.22em] uppercase text-stone-500">
-                    Mentor LBW · seu copiloto em Lean Six Sigma
-                  </span>
-                </motion.div>
-
-                <div className="mb-10">
+                <div className="mb-5">
                   <motion.h1
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-                    className="text-[52px] md:text-[64px] leading-[1.02] tracking-[-0.025em] font-semibold text-stone-900"
+                    className="text-[32px] md:text-[40px] leading-[1.05] tracking-[-0.025em] font-semibold text-stone-900"
                   >
                     Olá,{' '}
                     <span className="relative inline-block">
@@ -601,13 +597,13 @@ export default function ChatAssistant() {
                   <motion.h2
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.12, ease: [0.2, 0.7, 0.2, 1] }}
-                    className="text-[42px] md:text-[52px] leading-[1.02] tracking-[-0.025em] font-light text-stone-700"
+                    className="text-[22px] md:text-[28px] leading-[1.05] tracking-[-0.025em] font-light text-stone-700"
                   >
                     Como posso te <span style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 600 }}>ajudar</span> hoje?
                   </motion.h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
                   {config.categories.map((c, i) => {
                     const Icon = CATEGORY_ICONS[c.id] || TrendingUp;
                     const type = CATEGORY_TYPES[c.id] || 'DMAIC';
@@ -621,7 +617,7 @@ export default function ChatAssistant() {
                 </div>
 
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }} className="flex items-center gap-3 mb-6 max-w-3xl mx-auto w-full">
+                  transition={{ delay: 0.5 }} className="flex items-center gap-3 mb-3 max-w-3xl mx-auto w-full">
                   <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
                   <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-stone-500 whitespace-nowrap">
                     Ou prefere escrever em texto livre
@@ -630,7 +626,6 @@ export default function ChatAssistant() {
                 </motion.div>
 
                 <HeroComposer value={input} setValue={setInput} onSend={sendFromHero} />
-                <div className="h-12" />
               </div>
             </div>
           </motion.div>
