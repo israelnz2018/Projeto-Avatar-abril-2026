@@ -47,7 +47,7 @@ interface ToolHandler {
   exporterOptions?: any;
 }
 
-const TOOL_HANDLERS: Record<string, ToolHandler> = {
+export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   measureIshikawa: {
     exporter: exportIshikawaSlide,
     successMsg: 'Slide da Espinha de Peixe gerado!',
