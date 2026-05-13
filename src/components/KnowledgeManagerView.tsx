@@ -557,7 +557,7 @@ export default function KnowledgeManagerView() {
       if (modalConfig.type === 'deleteVideo' && modalConfig.targetId) {
         await deleteKnowledge(modalConfig.targetId);
       } else if (modalConfig.type === 'editVideo' && editVideoData.id) {
-        const finalCourse = editVideoData.course === 'NEW' ? editNewCourse : editVideoData.course;
+        const finalCourse = editVideoData.course;
         const finalPlaylist = editVideoData.playlist === 'NEW' ? editNewPlaylist : editVideoData.playlist;
         await updateKnowledge(editVideoData.id, { 
           title: editVideoData.title,
@@ -1309,18 +1309,8 @@ export default function KnowledgeManagerView() {
                           className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white"
                         >
                           <option value="" disabled>Selecione...</option>
-                          {uniqueCourses.map(c => <option key={c} value={c}>{c}</option>)}
-                          <option value="NEW">+ Novo curso</option>
+                          {initiativeNames.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        {editVideoData.course === 'NEW' && (
-                          <input
-                            type="text"
-                            value={editNewCourse}
-                            onChange={(e) => setEditNewCourse(e.target.value)}
-                            className="w-full mt-2 p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 bg-blue-50"
-                            placeholder="Novo curso"
-                          />
-                        )}
                       </div>
                       <div>
                         <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Playlist</label>
@@ -1330,7 +1320,7 @@ export default function KnowledgeManagerView() {
                           className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white"
                         >
                           <option value="" disabled>Selecione...</option>
-                          {editVideoData.course && editVideoData.course !== 'NEW' && 
+                          {editVideoData.course &&
                             Array.from(new Set(items.filter(i => i.course === editVideoData.course).map(i => i.playlist).filter(Boolean))).map(p => (
                               <option key={p} value={p}>{p}</option>
                             ))
