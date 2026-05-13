@@ -87,7 +87,8 @@ function buildOrthogonalPath(src: NodeRect, tgt: NodeRect): Pt[] {
 export async function exportProcessMapSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
 
@@ -95,8 +96,8 @@ export async function exportProcessMapSlide(
   const nodes: any[] = rawData?.nodes || [];
   const edges: any[] = rawData?.edges || [];
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project, 'Mapa do Processo', 'Analyze', aiAnalysis);
 
   const TX = TOOL_AREA.x;
@@ -115,7 +116,7 @@ export async function exportProcessMapSlide(
       fontFace: 'Calibri', fontSize: 10, color: THEME.MUTED, italic: true, align: 'center',
     });
     const fileName = `Mapa_do_Processo_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-    await pres.writeFile({ fileName });
+    if (!options.pres) await pres.writeFile({ fileName });
     return;
   }
 
@@ -325,5 +326,5 @@ export async function exportProcessMapSlide(
   slide.addText('Fluxo', { x: lx + 0.34, y: legY, w: 0.55, h: LEGEND_H, fontFace: 'Calibri', fontSize: 7, color: THEME.NAVY, valign: 'middle' });
 
   const fileName = `Mapa_do_Processo_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

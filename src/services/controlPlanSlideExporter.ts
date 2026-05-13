@@ -241,7 +241,8 @@ function drawControlPlanSlide(
 export async function exportControlPlanSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -257,8 +258,8 @@ export async function exportControlPlanSlide(
     ? data.columns.filter((c: Column) => c && c.id)
     : DEFAULT_COLUMNS;
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   if (items.length === 0) {
     const slide = createSlide(pres, project, 'Plano de Controle', 'Control', aiAnalysis);
@@ -276,5 +277,5 @@ export async function exportControlPlanSlide(
   }
 
   const fileName = `Plano_de_Controle_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

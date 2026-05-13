@@ -10,13 +10,14 @@ const normalize = (s: string) =>
 export async function exportIshikawaSlide(
   project: Project,
   toolData: { problem?: string; causes?: Record<string, string[]> },
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const causes = toolData.causes || {};
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project,
     'Análise de Causa Raiz — Diagrama de Ishikawa', 'Analyze', aiAnalysis);
 
@@ -146,5 +147,5 @@ export async function exportIshikawaSlide(
   BOT_ROW.forEach(c => drawBone(c, false));
 
   const fileName = `Espinha_de_Peixe_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

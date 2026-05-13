@@ -114,7 +114,8 @@ const STATUS_LABEL: Record<string, string> = {
 export async function exportControlAdkarSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const stakeholders: any[] = toolData?.stakeholders || [];
@@ -125,8 +126,8 @@ export async function exportControlAdkarSlide(
   const corePct = calcPct(core);
   const impactedPct = calcPct(impacted);
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project,
     'Stakeholders — ADKAR e Plano de Comunicação', 'Control', aiAnalysis);
 
@@ -135,7 +136,8 @@ export async function exportControlAdkarSlide(
   const TW = TOOL_AREA.w;
 
   const CARD_W = (TW - 0.30) / 4;
-  const CARD_H = 1.10;
+  const TH = TOOL_AREA.h;
+  const CARD_H = Math.min(TH * 0.22, 1.24);
   const kpis = [
     { label: 'MAPEADOS',          sub: 'Total de stakeholders',     value: String(stakeholders.length), color: THEME.NAVY },
     { label: 'GERAL VERDE',       sub: '% do total alinhado',       value: `${generalPct}%`,  color: kpiColor(generalPct) },
@@ -150,9 +152,13 @@ export async function exportControlAdkarSlide(
     slide.addText(k.value, { x: cx + 0.14, y: TY + 0.54, w: CARD_W - 0.28, h: 0.50, fontFace: 'Calibri', fontSize: 28, bold: true, color: k.color });
   });
 
-  const tableY = TY + CARD_H + 0.18;
   const HEADER_H = 0.28;
-  const ROW_H = 0.52;
+  const NOTE_H = 0.28;
+  const nRows = Math.max(stakeholders.length, 1);
+  const nSections = (core.length > 0 ? 1 : 0) + (impacted.length > 0 ? 1 : 0);
+  const availForRows = TH - CARD_H - 0.18 - HEADER_H - nSections * 0.22 - NOTE_H - 0.10;
+  const ROW_H = Math.min(Math.max(availForRows / nRows, 0.44), 0.76);
+  const tableY = TY + CARD_H + 0.18;
 
   const C = {
     name:    TX,
@@ -256,5 +262,5 @@ export async function exportControlAdkarSlide(
   }
 
   const fileName = `Stakeholder_ADKAR_Control_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

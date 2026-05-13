@@ -157,7 +157,8 @@ function drawObservationCard(
 export async function exportDirectObservationSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -170,8 +171,8 @@ export async function exportDirectObservationSlide(
 
   const confirmedCount = observations.filter(o => o.identifiedCause).length;
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   // Paginação: cada slide tem até 4 cards (2x2)
   const pages = observations.length === 0 ? [[]] : chunk(observations, CARDS_PER_SLIDE);
@@ -232,5 +233,5 @@ export async function exportDirectObservationSlide(
   });
 
   const fileName = `Observacao_Gemba_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

@@ -70,15 +70,16 @@ function getColumnWeight(col: Column): number {
 export async function exportDataCollectionPlanSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
   const columns: Column[] = Array.isArray(data.columns) ? data.columns.filter((c: any) => c && c.id) : [];
   const items: Item[] = Array.isArray(data.items) ? data.items.filter((i: any) => i && i.data) : [];
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project, 'Plano de Coleta de Dados', 'Measure', aiAnalysis);
 
   const TX = TOOL_AREA.x;
@@ -227,5 +228,5 @@ export async function exportDataCollectionPlanSlide(
 
 
   const fileName = `Plano_de_Coleta_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

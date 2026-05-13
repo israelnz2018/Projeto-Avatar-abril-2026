@@ -41,7 +41,7 @@ export async function exportEffortImpactSlide(
   project: Project,
   toolData: any,
   aiAnalysis: string = '',
-  options: { title?: string; phase?: 'Define' | 'Measure' | 'Analyze' | 'Improve' | 'Control' } = {}
+  options: { title?: string; phase?: 'Define' | 'Measure' | 'Analyze' | 'Improve' | 'Control'; pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -50,8 +50,8 @@ export async function exportEffortImpactSlide(
 
   const quickWinCount = actions.filter(a => getQuadrant(a.effort, a.impact) === 'quickwin').length;
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   const slideTitle = options.title || 'Esforço × Impacto';
   const slidePhase = options.phase || 'Improve';
@@ -287,5 +287,5 @@ export async function exportEffortImpactSlide(
   }
 
   const fileName = `Esforco_x_Impacto_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

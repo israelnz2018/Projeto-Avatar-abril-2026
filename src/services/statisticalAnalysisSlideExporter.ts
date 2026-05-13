@@ -278,20 +278,23 @@ function drawGraphicsOnly(pres: any, project: Project, item: AnaliseSalva, idx: 
 export async function exportStatisticalAnalysisSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
 
   const allAnalyses: AnaliseSalva[] = Array.isArray(data.analyses)
     ? data.analyses
-    : (Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []));
+    : (Array.isArray(data.analises)
+      ? data.analises
+      : (Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : [])));
 
   // Filtra: ignora itens sem conteúdo relevante
   const items = allAnalyses.filter(it => classifyItem(it) !== 'skip');
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   if (items.length === 0) {
     const slide = createSlide(pres, project, 'Análise Gráfica e Estatística', 'Analyze', aiAnalysis);
@@ -331,5 +334,5 @@ export async function exportStatisticalAnalysisSlide(
   }
 
   const fileName = `Analise_Estatistica_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

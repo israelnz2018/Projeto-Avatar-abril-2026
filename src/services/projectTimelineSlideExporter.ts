@@ -65,14 +65,20 @@ export async function exportProjectTimelineSlide(
   const TY = TOOL_AREA.y;
   const TW = TOOL_AREA.w;
 
-  // Layout interno
-  const LABEL_W  = 1.20;  // largura da coluna de label da fase
-  const CHART_X  = TX + LABEL_W + 0.10;
-  const CHART_W  = TW - LABEL_W - 0.10;
-  const HEADER_H = 0.28;
-  const ROW_H    = 0.52;
-  const ROW_GAP  = 0.10;
-  const BAR_H    = 0.34;
+  // Layout interno — ROW_H dinâmico para preencher TOOL_AREA
+  const LABEL_W   = 1.20;
+  const CHART_X   = TX + LABEL_W + 0.10;
+  const CHART_W   = TW - LABEL_W - 0.10;
+  const TH        = TOOL_AREA.h;
+  const HEADER_H  = 0.28;
+  const SUMMARY_H = 0.28;
+  const ROW_GAP   = 0.08;
+  const nPhases   = Math.max(phases.length, 1);
+  const ROW_H     = Math.min(
+    Math.max((TH - HEADER_H - SUMMARY_H - 0.20) / nPhases - ROW_GAP, 0.34),
+    0.90,
+  );
+  const BAR_H = ROW_H * 0.64;
 
   // Gera lista de meses entre projectStart e projectEnd
   const months: Date[] = [];

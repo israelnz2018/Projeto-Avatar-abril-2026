@@ -77,14 +77,15 @@ export async function exportCharterSlide(
 
   const slide = createSlide(pres, project, 'Contrato do Projeto — Project Charter', 'Define', aiAnalysis);
 
+  const TH   = TOOL_AREA.h;
   const COL_W = (TOOL_AREA.w - 0.10) / 2;
   const COL1_X = TOOL_AREA.x;
   const COL2_X = TOOL_AREA.x + COL_W + 0.10;
   const GAP = 0.08;
   const Y1 = TOOL_AREA.y + 0.04;
-  const H1 = 1.30;
+  const H1 = TH * 0.32;
   const Y2 = Y1 + H1 + GAP;
-  const H2 = 1.00;
+  const H2 = TH * 0.22;
   const Y3 = Y2 + H2 + GAP;
   const H3 = TOOL_AREA.h - H1 - H2 - GAP * 2 - 0.04;
 

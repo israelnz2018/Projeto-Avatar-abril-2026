@@ -248,7 +248,8 @@ function drawMatrix(
 export async function exportDataNatureSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -261,8 +262,8 @@ export async function exportDataNatureSlide(
     usedQuadrants.add(getQuadrantKey(a.variableY.type, a.variableX.type));
   });
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project, 'Natureza dos Dados', 'Analyze', aiAnalysis);
 
   const TX = TOOL_AREA.x;
@@ -327,5 +328,5 @@ export async function exportDataNatureSlide(
   drawMatrix(slide, RIGHT_X, MAIN_Y, RIGHT_W, MAIN_H, usedQuadrants);
 
   const fileName = `Natureza_dos_Dados_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

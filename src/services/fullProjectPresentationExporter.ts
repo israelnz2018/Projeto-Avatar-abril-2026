@@ -7,6 +7,7 @@ import { getInitiative, getInitiativeConfigs } from './configService';
 import { THEME } from './slideTemplate';
 
 const DEFAULT_PHASE_ORDER = ['Define', 'Measure', 'Analyze', 'Improve', 'Control'];
+const DMAIC_LETTERS = ['D', 'M', 'A', 'I', 'C'];
 
 const PHASE_LABELS: Record<string, string> = {
   Define: 'Definir',
@@ -26,105 +27,166 @@ function addAgendaSlide(
   const slide = pres.addSlide();
   slide.background = { color: 'FFFFFF' };
 
+  // Header fino — consistente com o novo template padrão
   slide.addShape('rect', {
-    x: 0, y: 0, w: 0.07, h: 7.5,
-    fill: { color: THEME.BLUE }, line: { type: 'none' },
-  });
-  slide.addShape('rect', {
-    x: 0, y: 0, w: 13.33, h: 0.88,
+    x: 0, y: 0, w: 13.33, h: 0.55,
     fill: { color: THEME.NAVY }, line: { type: 'none' },
   });
-  slide.addShape('rect', {
-    x: 0, y: 0.81, w: 13.33, h: 0.07,
-    fill: { color: THEME.BLUE }, line: { type: 'none' },
+  slide.addText('LBW', {
+    x: 0.20, y: 0, w: 0.82, h: 0.55,
+    fontFace: 'Calibri', fontSize: 14, bold: true, color: 'FFFFFF',
+    align: 'center', valign: 'middle', charSpacing: 3,
   });
-  slide.addText('AGENDA', {
-    x: 0.40, y: 0.10, w: 8.00, h: 0.38,
-    fontFace: 'Calibri', fontSize: 16, bold: true, color: 'FFFFFF',
+  slide.addShape('line', {
+    x: 1.08, y: 0.12, w: 0, h: 0.30,
+    line: { color: '8AA0E5', width: 0.5 },
   });
-  slide.addText(`Projeto: ${project.name || ''}`, {
-    x: 0.40, y: 0.46, w: 12.50, h: 0.25,
-    fontFace: 'Calibri', fontSize: 9, color: '8AA0E5',
+  slide.addText(project.name || '', {
+    x: 1.18, y: 0, w: 9.60, h: 0.55,
+    fontFace: 'Calibri', fontSize: 10, color: 'C7D2FF', valign: 'middle',
   });
 
-  const totalPhases = phaseLabels.length;
-  const colW = totalPhases > 0 ? Math.min(2.40, 11.80 / totalPhases) : 2.40;
-  const startX = 0.50;
-  const topY = 1.40;
+  // Título "Agenda" abaixo do header
+  slide.addText('Agenda — Conteúdo da Apresentação', {
+    x: 0.33, y: 0.63, w: 12.67, h: 0.30,
+    fontFace: 'Calibri', fontSize: 18, bold: true, color: THEME.NAVY,
+  });
+
+  // Colunas de fases
+  const totalPhases = Math.max(phaseLabels.length, 1);
+  const startX = 0.33;
+  const endX = 13.00;
+  const arrowW = 0.16;
+  const totalW = endX - startX;
+  const colW = (totalW - (totalPhases - 1) * arrowW) / totalPhases;
+  const topY = 1.04;
+  const colH = 6.04;
 
   phaseLabels.forEach((p, i) => {
-    const x = startX + i * (colW + 0.18);
-    slide.addShape('rect', {
-      x, y: topY, w: colW, h: 0.50,
-      fill: { color: THEME.BLUE }, line: { type: 'none' }, rectRadius: 0.06,
-    });
-    slide.addText(p.label.toUpperCase(), {
-      x, y: topY, w: colW, h: 0.50,
-      fontFace: 'Calibri', fontSize: 11, bold: true, color: 'FFFFFF',
+    const x = startX + i * (colW + arrowW);
+    const phaseNum = String(i + 1).padStart(2, '0');
+
+    // Número da fase (01, 02...)
+    slide.addText(phaseNum, {
+      x, y: topY, w: colW, h: 0.28,
+      fontFace: 'Calibri', fontSize: 11, bold: true, color: THEME.BLUE,
       align: 'center', valign: 'middle', charSpacing: 2,
     });
 
+    // Chip com nome da fase
     slide.addShape('rect', {
-      x, y: topY + 0.60, w: colW, h: 4.40,
+      x, y: topY + 0.30, w: colW, h: 0.42,
+      fill: { color: THEME.NAVY }, line: { type: 'none' }, rectRadius: 0.06,
+    });
+    slide.addText(p.label.toUpperCase(), {
+      x, y: topY + 0.30, w: colW, h: 0.42,
+      fontFace: 'Calibri', fontSize: 10, bold: true, color: 'FFFFFF',
+      align: 'center', valign: 'middle', charSpacing: 2,
+    });
+
+    // Caixa de ferramentas
+    const listY = topY + 0.76;
+    const listH = colH - 0.76;
+    slide.addShape('rect', {
+      x, y: listY, w: colW, h: listH,
       fill: { color: THEME.LIGHT }, line: { color: THEME.CHIP_BD, width: 0.5 },
       rectRadius: 0.06,
     });
 
     if (p.tools.length === 0) {
-      slide.addText('Sem ferramentas preenchidas nesta fase.', {
-        x: x + 0.10, y: topY + 0.80, w: colW - 0.20, h: 0.60,
-        fontFace: 'Calibri', fontSize: 9, color: THEME.MUTED, italic: true,
-        align: 'center', valign: 'top',
+      slide.addText('—', {
+        x: x + 0.10, y: listY, w: colW - 0.20, h: listH,
+        fontFace: 'Calibri', fontSize: 18, color: THEME.MUTED,
+        align: 'center', valign: 'middle',
       });
     } else {
       const items = p.tools.map(t => ({ text: t, options: { bullet: { code: '2022' } } }));
       slide.addText(items, {
-        x: x + 0.14, y: topY + 0.74, w: colW - 0.28, h: 4.16,
-        fontFace: 'Calibri', fontSize: 9.5, color: THEME.INK,
-        paraSpaceAfter: 4, valign: 'top', shrinkText: true,
+        x: x + 0.14, y: listY + 0.12, w: colW - 0.28, h: listH - 0.24,
+        fontFace: 'Calibri', fontSize: 10.5, color: THEME.INK,
+        paraSpaceAfter: 5, valign: 'top', shrinkText: true,
+      });
+    }
+
+    // Seta entre colunas (exceto a última)
+    if (i < totalPhases - 1) {
+      slide.addText('›', {
+        x: x + colW + 0.02, y: topY + 0.30, w: arrowW - 0.04, h: 0.42,
+        fontFace: 'Calibri', fontSize: 14, color: '8AA0E5',
+        align: 'center', valign: 'middle',
       });
     }
   });
 
-  slide.addShape('rect', {
-    x: 0, y: 7.22, w: 13.33, h: 0.28,
-    fill: { color: THEME.LIGHT }, line: { type: 'none' },
-  });
-  slide.addShape('rect', {
-    x: 0, y: 7.22, w: 0.07, h: 0.28,
-    fill: { color: THEME.BLUE }, line: { type: 'none' },
-  });
+  // Rodapé
   slide.addText('LBW · Continuous Improvement Copilot — Agenda da Apresentação', {
-    x: 0.20, y: 7.24, w: 12.00, h: 0.22,
+    x: 0.22, y: 7.30, w: 13.00, h: 0.18,
     fontFace: 'Calibri', fontSize: 7.5, color: THEME.MUTED,
   });
 }
 
-function addPhaseDividerSlide(pres: pptxgen, project: Project, phaseLabel: string): void {
+function addPhaseDividerSlide(
+  pres: pptxgen,
+  project: Project,
+  phaseLabel: string,
+  phaseIdx: number = 0,
+  totalPhases: number = 5,
+): void {
   const slide = pres.addSlide();
   slide.background = { color: THEME.NAVY };
 
-  slide.addShape('rect', {
-    x: 0, y: 3.10, w: 13.33, h: 0.06,
-    fill: { color: THEME.BLUE }, line: { type: 'none' },
+  // Número grande da fase (marca d'água sutil — levemente mais claro que NAVY)
+  const phaseNum = String(phaseIdx + 1).padStart(2, '0');
+  slide.addText(phaseNum, {
+    x: -1.20, y: 0.60, w: 9.00, h: 6.00,
+    fontFace: 'Calibri', fontSize: 240, bold: true, color: '253585',
+    align: 'left', valign: 'middle',
   });
 
+  // Eyebrow "FASE"
   slide.addText('FASE', {
     x: 0.50, y: 2.55, w: 12.33, h: 0.36,
     fontFace: 'Calibri', fontSize: 14, bold: true, color: THEME.BLUE,
     align: 'center', charSpacing: 6,
   });
 
+  // Nome da fase
   slide.addText(phaseLabel.toUpperCase(), {
-    x: 0.50, y: 3.30, w: 12.33, h: 1.20,
+    x: 0.50, y: 3.10, w: 12.33, h: 1.20,
     fontFace: 'Calibri', fontSize: 54, bold: true, color: 'FFFFFF',
     align: 'center', valign: 'middle', charSpacing: 4,
   });
 
+  // Nome do projeto
   slide.addText(project.name || '', {
-    x: 0.50, y: 4.70, w: 12.33, h: 0.40,
+    x: 0.50, y: 4.50, w: 12.33, h: 0.40,
     fontFace: 'Calibri', fontSize: 14, color: 'C7D2FF',
     align: 'center',
+  });
+
+  // Stepper DMAIC
+  const dotSize = 0.22;
+  const dotGap = 0.18;
+  const effectiveTotal = Math.min(totalPhases, DMAIC_LETTERS.length);
+  const stepperW = effectiveTotal * dotSize + (effectiveTotal - 1) * dotGap;
+  const startX = (13.33 - stepperW) / 2;
+
+  DMAIC_LETTERS.slice(0, effectiveTotal).forEach((letter, i) => {
+    const cx = startX + i * (dotSize + dotGap);
+    const isCurrent = i === phaseIdx;
+
+    slide.addShape('rect', {
+      x: cx, y: 6.32, w: dotSize, h: dotSize,
+      fill: { color: isCurrent ? THEME.BLUE : THEME.NAVY },
+      line: { color: isCurrent ? THEME.BLUE : '5A6A9A', width: 0.75 },
+      rectRadius: dotSize / 2,
+    });
+    slide.addText(letter, {
+      x: cx - 0.06, y: 6.60, w: dotSize + 0.12, h: 0.18,
+      fontFace: 'Calibri', fontSize: 7, bold: isCurrent,
+      color: isCurrent ? '8AA0E5' : '4D6080',
+      align: 'center',
+    });
   });
 }
 
@@ -215,7 +277,8 @@ export async function generateFullProjectPresentation(
     const phaseToolsWithData = phase.toolIds.filter(tid => projectData[tid]);
     if (phaseToolsWithData.length === 0) continue;
 
-    addPhaseDividerSlide(pres, project, phase.label);
+    const phaseIdx = DEFAULT_PHASE_ORDER.indexOf(phase.id);
+    addPhaseDividerSlide(pres, project, phase.label, phaseIdx, phaseList.length);
 
     for (const toolId of phaseToolsWithData) {
       const handlerKey = resolveHandlerKey(toolId);

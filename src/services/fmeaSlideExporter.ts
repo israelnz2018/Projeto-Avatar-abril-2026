@@ -383,7 +383,8 @@ function drawFmeaSlide(
 export async function exportFmeaSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -393,8 +394,8 @@ export async function exportFmeaSlide(
 
   const thresholds: Thresholds = data.thresholds || DEFAULT_THRESHOLDS;
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   if (rows.length === 0) {
     const slide = createSlide(pres, project, 'FMEA — Análise de Modos de Falha', 'Improve', aiAnalysis);
@@ -412,5 +413,5 @@ export async function exportFmeaSlide(
   }
 
   const fileName = `FMEA_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

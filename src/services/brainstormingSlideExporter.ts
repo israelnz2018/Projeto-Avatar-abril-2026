@@ -142,7 +142,8 @@ function buildSlots(
 export async function exportBrainstormingSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -154,8 +155,8 @@ export async function exportBrainstormingSlide(
 
   const centerLabel = TYPE_TO_CENTER_LABEL[brainstormingType] || 'TÓPICO';
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project, 'Brainstorming', 'Improve', aiAnalysis);
 
   const TX = TOOL_AREA.x;
@@ -279,5 +280,5 @@ export async function exportBrainstormingSlide(
   }
 
   const fileName = `Brainstorming_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

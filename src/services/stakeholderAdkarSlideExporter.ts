@@ -112,7 +112,8 @@ const STATUS_LABEL: Record<string, string> = {
 export async function exportStakeholderAdkarSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const stakeholders: any[] = toolData?.stakeholders || [];
@@ -123,8 +124,8 @@ export async function exportStakeholderAdkarSlide(
   const corePct     = calcPct(core);
   const impactedPct = calcPct(impacted);
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project,
     'Stakeholders — ADKAR e Plano de Comunicação', 'Define', aiAnalysis);
 
@@ -134,7 +135,8 @@ export async function exportStakeholderAdkarSlide(
 
   // ── KPI CARDS — 4 em linha, largura total ─────────────
   const CARD_W = (TW - 0.30) / 4;
-  const CARD_H = 1.10;
+  const TH = TOOL_AREA.h;
+  const CARD_H = Math.min(TH * 0.22, 1.24);
   const kpis = [
     { label: 'MAPEADOS',          sub: 'Total de stakeholders',     value: String(stakeholders.length), color: THEME.NAVY },
     { label: 'GERAL VERDE',       sub: '% do total alinhado',       value: `${generalPct}%`,  color: kpiColor(generalPct) },
@@ -150,9 +152,13 @@ export async function exportStakeholderAdkarSlide(
   });
 
   // ── TABELA ÚNICA ──────────────────────────────────────
-  const tableY = TY + CARD_H + 0.18;
   const HEADER_H = 0.28;
-  const ROW_H = 0.52;
+  const NOTE_H = 0.28;
+  const nRows = Math.max(stakeholders.length, 1);
+  const nSections = (core.length > 0 ? 1 : 0) + (impacted.length > 0 ? 1 : 0);
+  const availForRows = TH - CARD_H - 0.18 - HEADER_H - nSections * 0.22 - NOTE_H - 0.10;
+  const ROW_H = Math.min(Math.max(availForRows / nRows, 0.44), 0.76);
+  const tableY = TY + CARD_H + 0.18;
 
   // Colunas em polegadas. Total = 12.63"
   // NOME 1.80 | PAPEL 1.50 | ADKAR 1.55 | ATUAL→DESEJ 2.30 | CLASSIF 1.80 | AÇÃO 2.50 | STATUS 1.18
@@ -261,5 +267,5 @@ export async function exportStakeholderAdkarSlide(
   }
 
   const fileName = `Stakeholder_ADKAR_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

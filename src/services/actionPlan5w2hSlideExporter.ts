@@ -258,7 +258,8 @@ function drawActionPlanSlide(
 export async function exportActionPlan5w2hSlide(
   project: Project,
   toolData: any,
-  aiAnalysis: string = ''
+  aiAnalysis: string = '',
+  options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
@@ -273,8 +274,8 @@ export async function exportActionPlan5w2hSlide(
     ? data.columns.filter((c: Column) => c && c.id)
     : DEFAULT_COLUMNS;
 
-  const pres = new pptxgen();
-  pres.layout = 'LAYOUT_WIDE';
+  const pres = options.pres || new pptxgen();
+  if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
   if (actions.length === 0) {
     const slide = createSlide(pres, project, 'Plano de Ação 5W2H', 'Improve', aiAnalysis);
@@ -292,5 +293,5 @@ export async function exportActionPlan5w2hSlide(
   }
 
   const fileName = `Plano_de_Acao_5W2H_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
-  await pres.writeFile({ fileName });
+  if (!options.pres) await pres.writeFile({ fileName });
 }

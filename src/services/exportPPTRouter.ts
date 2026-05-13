@@ -25,6 +25,7 @@ import { exportEffortImpactSlide } from './effortImpactSlideExporter';
 import { exportFmeaSlide } from './fmeaSlideExporter';
 import { exportActionPlan5w2hSlide } from './actionPlan5w2hSlideExporter';
 import { exportControlPlanSlide } from './controlPlanSlideExporter';
+import { exportStatisticalAnalysisSlide } from './statisticalAnalysisSlideExporter';
 
 import { generateFullPPTReport } from './reportService';
 
@@ -143,6 +144,10 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   controlPlan: {
     exporter: exportControlPlanSlide,
     successMsg: 'Slide do Plano de Controle gerado!',
+  },
+  statisticalAnalysis: {
+    exporter: exportStatisticalAnalysisSlide,
+    successMsg: 'Slides da Análise Gráfica e Estatística gerados!',
   },
 };
 

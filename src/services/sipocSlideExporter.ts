@@ -25,9 +25,12 @@ export async function exportSipocSlide(
   const TX = TOOL_AREA.x;
   const TY = TOOL_AREA.y;
   const TW = TOOL_AREA.w;
+  const TH = TOOL_AREA.h;
 
-  // ── TABELA SIPOC ─────────────────────────────────────
-  const TABLE_H = 2.60;
+  // ── TABELA SIPOC — ocupa a maior parte da área disponível ────
+  const MP_SECTION_H = 0.96; // macro processo: label(0.18) + gap(0.06) + blocos(0.72)
+  const SIPOC_GAP    = 0.16;
+  const TABLE_H = TH - MP_SECTION_H - SIPOC_GAP;
   const COL_W = (TW - 0.08) / 5;
   const COL_GAP = 0.02;
 
@@ -90,9 +93,9 @@ export async function exportSipocSlide(
   });
 
   // ── MACRO PROCESSO ────────────────────────────────────
-  const MP_Y = TY + TABLE_H + 0.20;
-  const MP_LABEL_H = 0.20;
-  const MP_H = 0.62;
+  const MP_Y = TY + TABLE_H + SIPOC_GAP;
+  const MP_LABEL_H = 0.18;
+  const MP_H = MP_SECTION_H - MP_LABEL_H - 0.06;
 
   slide.addText('MACRO PROCESSO', {
     x: TX, y: MP_Y, w: TW, h: MP_LABEL_H,
