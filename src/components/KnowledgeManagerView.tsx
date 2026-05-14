@@ -15,7 +15,6 @@ import {
   ChevronRight,
   Sparkles,
   GripVertical,
-  Layers,
   PlusCircle
 } from 'lucide-react';
 import {
@@ -209,18 +208,15 @@ interface SortableVideoRowProps {
   setExpandedId: (id: string | null) => void;
   setSeekTime: (time: number) => void;
   setEditVideoData: React.Dispatch<React.SetStateAction<any>>;
-  setEditNewCourse: (s: string) => void;
-  setEditNewPlaylist: (s: string) => void;
-  setEditSiblings: (siblings: KnowledgeEntry[]) => void;
-  setEditExtraPlacements: (placements: Array<{ course: string; playlist: string; newPlaylistName: string }>) => void;
+  setEditPlacements: (placements: Array<{ id?: string; course: string; playlist: string; newPlaylistName: string }>) => void;
+  setEditOriginalIds: (ids: string[]) => void;
 }
 
 function SortableVideoRow({
   item, items, expandedId, seekTime, isReprocessing,
   getYoutubeId, parseTimeToSeconds, handleRegenerateIndex,
   setModalConfig, setExpandedId, setSeekTime,
-  setEditVideoData, setEditNewCourse, setEditNewPlaylist,
-  setEditSiblings, setEditExtraPlacements,
+  setEditVideoData, setEditPlacements, setEditOriginalIds,
 }: SortableVideoRowProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -331,11 +327,11 @@ function SortableVideoRow({
             </button>
             <button
               onClick={() => {
-                setEditVideoData({ id: item.id!, title: item.title, course: item.course, playlist: item.playlist, associatedTools: item.associatedTools || [], associatedAnalyses: item.associatedAnalyses || [] });
-                setEditNewCourse('');
-                setEditNewPlaylist('');
-                setEditSiblings(items.filter(i => i.sourceUrl === item.sourceUrl && i.id !== item.id));
-                setEditExtraPlacements([]);
+                setEditVideoData({ id: item.id!, title: item.title, associatedTools: item.associatedTools || [], associatedAnalyses: item.associatedAnalyses || [] });
+                const allSiblings = items.filter(i => i.sourceUrl === item.sourceUrl);
+                const ordered = [item, ...allSiblings.filter(s => s.id !== item.id)];
+                setEditPlacements(ordered.map(s => ({ id: s.id, course: s.course, playlist: s.playlist, newPlaylistName: '' })));
+                setEditOriginalIds(allSiblings.map(s => s.id!).filter(Boolean));
                 setModalConfig({ isOpen: true, type: 'editVideo', targetId: item.id });
               }}
               className="p-2 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
@@ -519,16 +515,11 @@ export default function KnowledgeManagerView() {
   const [editVideoData, setEditVideoData] = useState({
     id: '',
     title: '',
-    course: '',
-    playlist: '',
     associatedTools: [] as string[],
     associatedAnalyses: [] as string[]
   });
-  const [editNewCourse, setEditNewCourse] = useState('');
-  const [editNewPlaylist, setEditNewPlaylist] = useState('');
-  const [editSiblings, setEditSiblings] = useState<KnowledgeEntry[]>([]);
-  const [editExtraPlacements, setEditExtraPlacements] = useState<Array<{ course: string; playlist: string; newPlaylistName: string }>>([]);
-  const [editSiblingsToDelete, setEditSiblingsToDelete] = useState<Set<string>>(new Set());
+  const [editPlacements, setEditPlacements] = useState<Array<{ id?: string; course: string; playlist: string; newPlaylistName: string }>>([]);
+  const [editOriginalIds, setEditOriginalIds] = useState<string[]>([]);
   const [isEditToolsDropdownOpen, setIsEditToolsDropdownOpen] = useState(false);
   const [isEditAnalysesDropdownOpen, setIsEditAnalysesDropdownOpen] = useState(false);
 
@@ -550,12 +541,6 @@ export default function KnowledgeManagerView() {
     migrateAllCourses(MIGRATION_COURSE).catch(console.error);
     fetchItems();
   }, []);
-
-  useEffect(() => {
-    if (modalConfig.isOpen && modalConfig.type === 'editVideo') {
-      setEditSiblingsToDelete(new Set());
-    }
-  }, [modalConfig.isOpen, modalConfig.type]);
 
   useEffect(() => {
     if (modalConfig.isOpen && modalConfig.type === 'importTranscript' && modalConfig.targetId) {
@@ -827,26 +812,34 @@ export default function KnowledgeManagerView() {
       if (modalConfig.type === 'deleteVideo' && modalConfig.targetId) {
         await deleteKnowledge(modalConfig.targetId);
       } else if (modalConfig.type === 'editVideo' && editVideoData.id) {
-        const finalCourse = editVideoData.course;
-        const finalPlaylist = editVideoData.playlist === 'NEW' ? editNewPlaylist : editVideoData.playlist;
-        await updateKnowledge(editVideoData.id, {
-          title: editVideoData.title,
-          course: finalCourse,
-          playlist: finalPlaylist,
-          associatedTools: editVideoData.associatedTools,
-          associatedAnalyses: editVideoData.associatedAnalyses
-        });
         const currentItem = items.find(i => i.id === editVideoData.id);
-        if (currentItem && editExtraPlacements.length > 0) {
-          for (const ep of editExtraPlacements) {
-            const epPlaylist = ep.playlist === 'NEW' ? ep.newPlaylistName.trim() : ep.playlist;
-            if (!ep.course || !epPlaylist) continue;
+        if (!currentItem) {
+          throw new Error('Vídeo não encontrado.');
+        }
+        const keptIds = new Set(editPlacements.filter(p => p.id).map(p => p.id!));
+        for (const oid of editOriginalIds) {
+          if (!keptIds.has(oid)) {
+            await deleteKnowledge(oid);
+          }
+        }
+        for (const p of editPlacements) {
+          const finalPlaylist = p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist;
+          if (!p.course || !finalPlaylist) continue;
+          if (p.id) {
+            await updateKnowledge(p.id, {
+              title: editVideoData.title,
+              course: p.course,
+              playlist: finalPlaylist,
+              associatedTools: editVideoData.associatedTools,
+              associatedAnalyses: editVideoData.associatedAnalyses
+            });
+          } else {
             await saveKnowledge({
               title: editVideoData.title,
               content: currentItem.content || '',
               sourceUrl: currentItem.sourceUrl,
-              course: ep.course,
-              playlist: epPlaylist,
+              course: p.course,
+              playlist: finalPlaylist,
               rawTranscript: currentItem.rawTranscript || '',
               summary: currentItem.summary || [],
               transcript: currentItem.transcript || '',
@@ -854,9 +847,6 @@ export default function KnowledgeManagerView() {
               associatedAnalyses: editVideoData.associatedAnalyses
             });
           }
-        }
-        for (const sibId of editSiblingsToDelete) {
-          await deleteKnowledge(sibId);
         }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
         await deleteCourse(modalConfig.targetCourse);
@@ -1328,10 +1318,8 @@ export default function KnowledgeManagerView() {
                               setExpandedId={setExpandedId}
                               setSeekTime={setSeekTime}
                               setEditVideoData={setEditVideoData}
-                              setEditNewCourse={setEditNewCourse}
-                              setEditNewPlaylist={setEditNewPlaylist}
-                              setEditSiblings={setEditSiblings}
-                              setEditExtraPlacements={setEditExtraPlacements}
+                              setEditPlacements={setEditPlacements}
+                              setEditOriginalIds={setEditOriginalIds}
                             />
                           ))}
                         </tbody>
@@ -1405,138 +1393,61 @@ export default function KnowledgeManagerView() {
                       />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Curso</label>
-                        <select
-                          value={editVideoData.course}
-                          onChange={(e) => setEditVideoData({...editVideoData, course: e.target.value, playlist: ''})}
-                          className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white"
-                        >
-                          <option value="" disabled>Selecione...</option>
-                          {initiativeNames.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Playlist</label>
-                        <select
-                          value={editVideoData.playlist}
-                          onChange={(e) => setEditVideoData({...editVideoData, playlist: e.target.value})}
-                          className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white"
-                        >
-                          <option value="" disabled>Selecione...</option>
-                          {editVideoData.course &&
-                            Array.from(new Set(items.filter(i => i.course === editVideoData.course).map(i => i.playlist).filter(Boolean))).map(p => (
-                              <option key={p} value={p}>{p}</option>
-                            ))
-                          }
-                          <option value="NEW">+ Nova playlist</option>
-                        </select>
-                        {editVideoData.playlist === 'NEW' && (
-                          <input
-                            type="text"
-                            value={editNewPlaylist}
-                            onChange={(e) => setEditNewPlaylist(e.target.value)}
-                            className="w-full mt-2 p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 bg-blue-50"
-                            placeholder="Nova playlist"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {editSiblings.length > 0 && (
-                      <div>
-                        <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Também disponível em</label>
-                        <div className="space-y-1">
-                          {editSiblings.map(s => {
-                            const markedForDelete = editSiblingsToDelete.has(s.id!);
-                            return (
-                              <div key={s.id} className={cn(
-                                "flex items-center gap-2 text-xs px-3 py-2 rounded-[4px] border transition-colors",
-                                markedForDelete
-                                  ? "bg-red-50 border-red-200 text-red-400 line-through"
-                                  : "bg-gray-50 border-gray-200 text-gray-600"
-                              )}>
-                                <Layers size={12} className="flex-shrink-0" />
-                                <span className="font-medium flex-1">{s.course}</span>
-                                <span className="opacity-50">/</span>
-                                <span className="flex-1">{s.playlist}</span>
-                                <button
-                                  type="button"
-                                  title={markedForDelete ? "Desfazer remoção" : "Remover deste curso"}
-                                  onClick={() => setEditSiblingsToDelete(prev => {
-                                    const next = new Set(prev);
-                                    if (next.has(s.id!)) next.delete(s.id!); else next.add(s.id!);
-                                    return next;
-                                  })}
-                                  className={cn(
-                                    "border-none bg-transparent cursor-pointer p-0.5 rounded transition-colors flex-shrink-0",
-                                    markedForDelete ? "text-red-400 hover:text-red-600" : "text-gray-300 hover:text-red-500"
-                                  )}
-                                >
-                                  <X size={13} />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {editSiblingsToDelete.size > 0 && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {editSiblingsToDelete.size} placement(s) serão removidos ao confirmar.
-                          </p>
-                        )}
-                      </div>
-                    )}
-
                     <div>
-                      <label className="font-bold text-xs uppercase text-gray-500 block mb-2">Adicionar em outro curso</label>
-                      {editExtraPlacements.map((ep, idx) => (
-                        <div key={idx} className="mb-2 space-y-1">
-                          <div className="grid grid-cols-2 gap-2">
-                            <select
-                              value={ep.course}
-                              onChange={e => setEditExtraPlacements(prev => prev.map((p, i) => i === idx ? { ...p, course: e.target.value, playlist: '' } : p))}
-                              className="p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
-                            >
-                              <option value="" disabled>Curso...</option>
-                              {initiativeNames.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <div className="flex gap-1">
+                      <label className="font-bold text-xs uppercase text-gray-500 block mb-2">Cursos onde este vídeo aparece</label>
+                      <div className="space-y-2">
+                        {editPlacements.map((p, idx) => {
+                          const availPlaylists = playlistsForCourse(p.course);
+                          return (
+                            <div key={p.id || `new-${idx}`} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
                               <select
-                                value={ep.playlist}
-                                onChange={e => setEditExtraPlacements(prev => prev.map((p, i) => i === idx ? { ...p, playlist: e.target.value } : p))}
-                                className="flex-1 p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                value={p.course}
+                                onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, course: e.target.value, playlist: '', newPlaylistName: '' } : pp))}
+                                className="p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
                               >
-                                <option value="" disabled>Playlist...</option>
-                                {ep.course && Array.from(new Set(items.filter(i => i.course === ep.course).map(i => i.playlist).filter(Boolean))).map(p => (
-                                  <option key={p} value={p}>{p}</option>
-                                ))}
-                                <option value="NEW">+ Nova playlist</option>
+                                <option value="" disabled>Selecione um curso...</option>
+                                {initiativeNames.map(c => <option key={c} value={c}>{c}</option>)}
                               </select>
+                              <div className="space-y-1">
+                                <select
+                                  value={p.playlist}
+                                  onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, playlist: e.target.value } : pp))}
+                                  className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                >
+                                  <option value="" disabled>Selecione uma playlist...</option>
+                                  {availPlaylists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                                  <option value="NEW">+ Nova playlist</option>
+                                </select>
+                                {p.playlist === 'NEW' && (
+                                  <input
+                                    type="text"
+                                    value={p.newPlaylistName}
+                                    onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, newPlaylistName: e.target.value } : pp))}
+                                    className="w-full p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 bg-blue-50 text-sm"
+                                    placeholder="Nome da nova playlist"
+                                  />
+                                )}
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => setEditExtraPlacements(prev => prev.filter((_, i) => i !== idx))}
-                                className="p-2 text-red-400 hover:text-red-600 border-none bg-transparent cursor-pointer"
+                                onClick={() => setEditPlacements(prev => prev.filter((_, i) => i !== idx))}
+                                disabled={editPlacements.length === 1}
+                                title={editPlacements.length === 1 ? "Use o botão de remover do vídeo (lixeira) para excluir o último placement" : "Remover deste curso"}
+                                className={cn(
+                                  "p-2 border-none bg-transparent self-start",
+                                  editPlacements.length === 1 ? "text-gray-200 cursor-not-allowed" : "text-gray-400 hover:text-red-600 cursor-pointer"
+                                )}
                               >
-                                <X size={14} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
-                          </div>
-                          {ep.playlist === 'NEW' && (
-                            <input
-                              type="text"
-                              value={ep.newPlaylistName}
-                              onChange={e => setEditExtraPlacements(prev => prev.map((p, i) => i === idx ? { ...p, newPlaylistName: e.target.value } : p))}
-                              className="w-full p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 bg-blue-50 text-sm"
-                              placeholder="Nome da nova playlist"
-                            />
-                          )}
-                        </div>
-                      ))}
+                          );
+                        })}
+                      </div>
                       <button
                         type="button"
-                        onClick={() => setEditExtraPlacements(prev => [...prev, { course: '', playlist: '', newPlaylistName: '' }])}
-                        className="text-xs font-bold text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer flex items-center gap-1 py-1"
+                        onClick={() => setEditPlacements(prev => [...prev, { course: '', playlist: '', newPlaylistName: '' }])}
+                        className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer pt-2"
                       >
                         <PlusCircle size={14} /> Adicionar em outro curso
                       </button>
