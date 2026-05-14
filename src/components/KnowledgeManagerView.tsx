@@ -262,42 +262,42 @@ function SortableVideoRow({
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
-                {((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0) && (
-                  <span className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                    ✓ IA
-                  </span>
-                )}
-                {item.rawTranscript && (
-                  <span className="text-[10px] text-teal-700 font-bold bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                    Transcrição
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 mt-1">
+              <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">
                   Acessar no YouTube
                 </a>
                 <button
                   onClick={() => handleReprocess(item)}
                   disabled={isReprocessing === item.id}
-                  className={`text-xs flex items-center gap-1 disabled:opacity-50 border-none bg-transparent cursor-pointer font-bold ${
-                    (item.summary && item.summary.length > 0) || (item.transcript && item.transcript.length > 0)
-                      ? 'text-purple-600 hover:text-purple-800'
-                      : 'text-green-600 hover:text-green-800'
-                  }`}
+                  className={cn(
+                    "text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-full font-bold border transition-colors disabled:opacity-50 cursor-pointer",
+                    ((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0)
+                      ? "bg-purple-600 border-purple-600 text-white hover:bg-purple-700"
+                      : "bg-white border-green-500 text-green-600 hover:bg-green-50"
+                  )}
+                  title={((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0) ? 'Reprocessar com IA' : 'Gerar índice e resumo com IA'}
                 >
                   <Sparkles size={12} />
-                  {isReprocessing === item.id ? 'Processando...' : ((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0 ? 'Reprocessar IA' : 'Processar IA')}
+                  {isReprocessing === item.id
+                    ? 'Processando...'
+                    : ((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0)
+                      ? 'IA ✓'
+                      : 'Processar IA'}
                 </button>
                 <button
                   onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })}
                   disabled={isReprocessing === item.id}
-                  className="text-xs flex items-center gap-1 disabled:opacity-50 border-none bg-transparent cursor-pointer font-bold text-teal-600 hover:text-teal-800"
+                  className={cn(
+                    "text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-full font-bold border transition-colors disabled:opacity-50 cursor-pointer",
+                    item.rawTranscript
+                      ? "bg-teal-600 border-teal-600 text-white hover:bg-teal-700"
+                      : "bg-white border-blue-500 text-blue-600 hover:bg-blue-50"
+                  )}
+                  title={item.rawTranscript ? 'Re-importar transcrição completa' : 'Colar transcrição completa do YouTube'}
                 >
                   <ListVideo size={12} />
-                  Transcrição Completa
+                  {item.rawTranscript ? 'Transcrição ✓' : 'Importar Transcrição'}
                 </button>
               </div>
               {item.associatedTools && item.associatedTools.length > 0 && (
@@ -378,12 +378,12 @@ function SortableVideoRow({
                   <div className="flex items-center gap-4 mb-4 border-b border-gray-100 pb-2">
                     <button onClick={() => setActiveTab('summary')}
                       className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'summary' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
-                      <Sparkles size={16} /> Resumo IA
+                      <Sparkles size={16} /> Índice IA
                     </button>
                     {item.rawTranscript && (
                       <button onClick={() => setActiveTab('raw')}
                         className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'raw' ? 'text-teal-600 border-teal-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
-                        <ListVideo size={16} /> Transcrição Original
+                        <ListVideo size={16} /> Transcrição completa
                       </button>
                     )}
                   </div>
