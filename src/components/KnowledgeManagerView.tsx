@@ -460,6 +460,13 @@ export default function KnowledgeManagerView() {
     fetchItems();
   }, []);
 
+  useEffect(() => {
+    if (modalConfig.isOpen && modalConfig.type === 'importTranscript' && modalConfig.targetId) {
+      const item = items.find(i => i.id === modalConfig.targetId);
+      setRawTranscriptText(item?.rawTranscript || '');
+    }
+  }, [modalConfig.isOpen, modalConfig.type, modalConfig.targetId, items]);
+
   const fetchItems = async () => {
     setLoading(true);
     const data = await getAllKnowledge();
