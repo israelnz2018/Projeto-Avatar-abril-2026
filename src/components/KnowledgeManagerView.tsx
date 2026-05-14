@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ChevronRight,
   Sparkles,
-  GripVertical
+  GripVertical,
+  Layers,
+  PlusCircle
 } from 'lucide-react';
 import {
   DndContext,
@@ -328,6 +330,8 @@ function SortableVideoRow({
                 setEditVideoData({ id: item.id!, title: item.title, course: item.course, playlist: item.playlist, associatedTools: item.associatedTools || [], associatedAnalyses: item.associatedAnalyses || [] });
                 setEditNewCourse('');
                 setEditNewPlaylist('');
+                setEditSiblings(items.filter(i => i.sourceUrl === item.sourceUrl && i.id !== item.id));
+                setEditExtraPlacements([]);
                 setModalConfig({ isOpen: true, type: 'editVideo', targetId: item.id });
               }}
               className="p-2 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
@@ -518,6 +522,8 @@ export default function KnowledgeManagerView() {
   });
   const [editNewCourse, setEditNewCourse] = useState('');
   const [editNewPlaylist, setEditNewPlaylist] = useState('');
+  const [editSiblings, setEditSiblings] = useState<KnowledgeEntry[]>([]);
+  const [editExtraPlacements, setEditExtraPlacements] = useState<Array<{ course: string; playlist: string; newPlaylistName: string }>>([]);
   const [isEditToolsDropdownOpen, setIsEditToolsDropdownOpen] = useState(false);
   const [isEditAnalysesDropdownOpen, setIsEditAnalysesDropdownOpen] = useState(false);
 
@@ -812,13 +818,32 @@ export default function KnowledgeManagerView() {
       } else if (modalConfig.type === 'editVideo' && editVideoData.id) {
         const finalCourse = editVideoData.course;
         const finalPlaylist = editVideoData.playlist === 'NEW' ? editNewPlaylist : editVideoData.playlist;
-        await updateKnowledge(editVideoData.id, { 
+        await updateKnowledge(editVideoData.id, {
           title: editVideoData.title,
           course: finalCourse,
           playlist: finalPlaylist,
           associatedTools: editVideoData.associatedTools,
           associatedAnalyses: editVideoData.associatedAnalyses
         });
+        const currentItem = items.find(i => i.id === editVideoData.id);
+        if (currentItem && editExtraPlacements.length > 0) {
+          for (const ep of editExtraPlacements) {
+            const epPlaylist = ep.playlist === 'NEW' ? ep.newPlaylistName.trim() : ep.playlist;
+            if (!ep.course || !epPlaylist) continue;
+            await saveKnowledge({
+              title: editVideoData.title,
+              content: currentItem.content || '',
+              sourceUrl: currentItem.sourceUrl,
+              course: ep.course,
+              playlist: epPlaylist,
+              rawTranscript: currentItem.rawTranscript || '',
+              summary: currentItem.summary || [],
+              transcript: currentItem.transcript || '',
+              associatedTools: editVideoData.associatedTools,
+              associatedAnalyses: editVideoData.associatedAnalyses
+            });
+          }
+        }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
         await deleteCourse(modalConfig.targetCourse);
       } else if (modalConfig.type === 'editCourse' && modalConfig.targetCourse && modalConfig.inputValue) {
@@ -1402,10 +1427,80 @@ export default function KnowledgeManagerView() {
                       </div>
                     </div>
 
+                    {editSiblings.length > 0 && (
+                      <div>
+                        <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Também disponível em</label>
+                        <div className="space-y-1">
+                          {editSiblings.map(s => (
+                            <div key={s.id} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 border border-gray-200 px-3 py-2 rounded-[4px]">
+                              <Layers size={12} className="text-gray-400 flex-shrink-0" />
+                              <span className="font-medium">{s.course}</span>
+                              <span className="text-gray-400">/</span>
+                              <span>{s.playlist}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="font-bold text-xs uppercase text-gray-500 block mb-2">Adicionar em outro curso</label>
+                      {editExtraPlacements.map((ep, idx) => (
+                        <div key={idx} className="mb-2 space-y-1">
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              value={ep.course}
+                              onChange={e => setEditExtraPlacements(prev => prev.map((p, i) => i === idx ? { ...p, course: e.target.value, playlist: '' } : p))}
+                              className="p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
+                            >
+                              <option value="" disabled>Curso...</option>
+                              {initiativeNames.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <div className="flex gap-1">
+                              <select
+                                value={ep.playlist}
+                                onChange={e => setEditExtraPlacements(prev => prev.map((p, i) => i === idx ? { ...p, playlist: e.target.value } : p))}
+                                className="flex-1 p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
+                              >
+                                <option value="" disabled>Playlist...</option>
+                                {ep.course && Array.from(new Set(items.filter(i => i.course === ep.course).map(i => i.playlist).filter(Boolean))).map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                                <option value="NEW">+ Nova playlist</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => setEditExtraPlacements(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-2 text-red-400 hover:text-red-600 border-none bg-transparent cursor-pointer"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          {ep.playlist === 'NEW' && (
+                            <input
+                              type="text"
+                              value={ep.newPlaylistName}
+                              onChange={e => setEditExtraPlacements(prev => prev.map((p, i) => i === idx ? { ...p, newPlaylistName: e.target.value } : p))}
+                              className="w-full p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 bg-blue-50 text-sm"
+                              placeholder="Nome da nova playlist"
+                            />
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setEditExtraPlacements(prev => [...prev, { course: '', playlist: '', newPlaylistName: '' }])}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer flex items-center gap-1 py-1"
+                      >
+                        <PlusCircle size={14} /> Adicionar em outro curso
+                      </button>
+                    </div>
+
                     <div>
                       <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Ferramentas Associadas</label>
                       <div className="relative">
-                        <div 
+                        <div
                           className="w-full p-2 border border-[#ccc] rounded-[4px] bg-white cursor-pointer flex justify-between items-center min-h-[38px]"
                           onClick={() => setIsEditToolsDropdownOpen(!isEditToolsDropdownOpen)}
                         >
