@@ -198,6 +198,7 @@ type ModalConfig = {
 
 interface SortableVideoRowProps {
   item: KnowledgeEntry;
+  items: KnowledgeEntry[];
   expandedId: string | null;
   seekTime: number;
   isReprocessing: string | null;
@@ -210,13 +211,16 @@ interface SortableVideoRowProps {
   setEditVideoData: React.Dispatch<React.SetStateAction<any>>;
   setEditNewCourse: (s: string) => void;
   setEditNewPlaylist: (s: string) => void;
+  setEditSiblings: (siblings: KnowledgeEntry[]) => void;
+  setEditExtraPlacements: (placements: Array<{ course: string; playlist: string; newPlaylistName: string }>) => void;
 }
 
 function SortableVideoRow({
-  item, expandedId, seekTime, isReprocessing,
+  item, items, expandedId, seekTime, isReprocessing,
   getYoutubeId, parseTimeToSeconds, handleRegenerateIndex,
   setModalConfig, setExpandedId, setSeekTime,
   setEditVideoData, setEditNewCourse, setEditNewPlaylist,
+  setEditSiblings, setEditExtraPlacements,
 }: SortableVideoRowProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -1303,6 +1307,7 @@ export default function KnowledgeManagerView() {
                             <SortableVideoRow
                               key={item.id}
                               item={item}
+                              items={items}
                               expandedId={expandedId}
                               seekTime={seekTime}
                               isReprocessing={isReprocessing}
@@ -1315,6 +1320,8 @@ export default function KnowledgeManagerView() {
                               setEditVideoData={setEditVideoData}
                               setEditNewCourse={setEditNewCourse}
                               setEditNewPlaylist={setEditNewPlaylist}
+                              setEditSiblings={setEditSiblings}
+                              setEditExtraPlacements={setEditExtraPlacements}
                             />
                           ))}
                         </tbody>
