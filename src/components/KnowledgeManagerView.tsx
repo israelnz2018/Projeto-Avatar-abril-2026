@@ -226,7 +226,7 @@ export default function KnowledgeManagerView() {
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
 
-  const MIGRATION_COURSE = '1.1 Introdução a Gestão de Projetos de Melhoria (Lean Six Sigma Yellow Belt)';
+  const MIGRATION_COURSE = '1.2 - Formação em Gestão de Projetos de Melhoria (Lean Six Sigma Black Belt)';
 
   useEffect(() => {
     getInitiatives().then(list => {
