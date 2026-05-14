@@ -1399,7 +1399,7 @@ export default function KnowledgeManagerView() {
                         {editPlacements.map((p, idx) => {
                           const availPlaylists = playlistsForCourse(p.course);
                           return (
-                            <div key={p.id || `new-${idx}`} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start">
+                            <div key={p.id || `new-${idx}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-start">
                               <select
                                 value={p.course}
                                 onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, course: e.target.value, playlist: '', newPlaylistName: '' } : pp))}
