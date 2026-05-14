@@ -1187,7 +1187,7 @@ export default function KnowledgeManagerView() {
                         </span>
                       </button>
                       
-                      <div className="flex items-center ml-1 opacity-0 group-hover/playlist:opacity-100 transition-opacity">
+                      <div className="flex items-center ml-1">
                         <button
                           disabled={pIdx === 0 || isMoving !== null}
                           onClick={() => handleMovePlaylist(course.name, playlist.name, 'left', allPlaylists.map(p => p.name))}
@@ -1204,16 +1204,16 @@ export default function KnowledgeManagerView() {
                         >
                           <ChevronRight size={14} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
-                          className="p-1 text-gray-300 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer" 
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
                           title="Editar nome da fase"
                         >
                           <Edit2 size={14} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
-                          className="p-1 text-gray-300 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer" 
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer"
                           title="Excluir fase e seus vídeos"
                         >
                           <Trash2 size={14} />
