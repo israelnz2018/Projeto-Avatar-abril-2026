@@ -12,7 +12,6 @@ import {
   Edit2,
   ListVideo,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   Sparkles,
   GripVertical
@@ -30,6 +29,7 @@ import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/src/lib/utils';
@@ -412,6 +412,60 @@ function SortableVideoRow({
   );
 }
 
+interface SortablePlaylistTabProps {
+  playlist: { name: string; videos: KnowledgeEntry[]; order: number };
+  isActive: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete }: SortablePlaylistTabProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: playlist.name });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 'auto' as any,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center">
+      <button
+        {...attributes}
+        {...listeners}
+        onClick={onSelect}
+        className={cn(
+          "px-4 py-2 rounded-[4px] text-xs font-bold transition-colors whitespace-nowrap border flex items-center gap-2 cursor-grab active:cursor-grabbing",
+          isActive
+            ? "bg-[#1f2937] text-white border-[#1f2937]"
+            : "bg-white border-[#ccc] text-gray-600 hover:bg-gray-50"
+        )}
+        title="Arrastar para reordenar — clique para abrir"
+      >
+        <ListVideo size={14} className={isActive ? "text-purple-400" : "text-purple-500"} />
+        {playlist.name}
+        <span className="text-[10px] ml-1 text-gray-400">({playlist.videos.length})</span>
+      </button>
+      <div className="flex items-center ml-1">
+        <button
+          onClick={onEdit}
+          className="p-1 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
+          title="Editar nome da fase"
+        >
+          <Edit2 size={14} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-1 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer"
+          title="Excluir fase e seus vídeos"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function KnowledgeManagerView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -453,7 +507,6 @@ export default function KnowledgeManagerView() {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [seekTime, setSeekTime] = useState<number>(0);
-  const [isMoving, setIsMoving] = useState<string | null>(null);
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
 
@@ -689,87 +742,32 @@ export default function KnowledgeManagerView() {
     }
   };
 
-  const handleMove = async (item: KnowledgeEntry, direction: 'up' | 'down', playlistItems: KnowledgeEntry[]) => {
-    const currentIndex = playlistItems.findIndex(i => i.id === item.id);
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  const makePlaylistDragEnd = (courseName: string, playlistNames: string[]) => async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = playlistNames.indexOf(String(active.id));
+    const newIdx = playlistNames.indexOf(String(over.id));
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(playlistNames, oldIdx, newIdx);
 
-    if (targetIndex < 0 || targetIndex >= playlistItems.length) return;
+    setItems(prev => prev.map(item => {
+      if (item.course !== courseName) return item;
+      const newOrder = reordered.indexOf(item.playlist);
+      return newOrder === -1 ? item : { ...item, playlistOrder: newOrder };
+    }));
 
-    const targetItem = playlistItems[targetIndex];
-    if (!item.id || !targetItem.id) return;
-
-    setIsMoving(item.id);
     try {
-      // If order is missing, we need to assign it based on the current position in the list
-      // The list is already sorted by order (asc) and timestamp (desc)
-      let currentOrder = item.order;
-      let targetOrder = targetItem.order;
-
-      // If both are missing or equal, we need to re-order the whole playlist to be safe
-      // or at least these two.
-      if (currentOrder === undefined || targetOrder === undefined || currentOrder === targetOrder) {
-        // Assign orders to all items in this playlist based on their current visual position
-        // but we only need to swap these two.
-        // Let's just use the index as a base for order if missing.
-        currentOrder = currentIndex;
-        targetOrder = targetIndex;
-        
-        // To avoid collisions with other playlists, we could use a large offset or just accept it's per-collection
-        // Actually, let's just update these two with swapped indices as orders
-        await updateKnowledge(item.id, { order: targetOrder });
-        await updateKnowledge(targetItem.id, { order: currentOrder });
-      } else {
-        await updateKnowledge(item.id, { order: targetOrder });
-        await updateKnowledge(targetItem.id, { order: currentOrder });
-      }
-      
-      fetchItems();
-    } catch (error) {
-      console.error("Erro ao mover item:", error);
-    } finally {
-      setIsMoving(null);
-    }
-  };
-
-  const handleMovePlaylist = async (courseName: string, playlistName: string, direction: 'left' | 'right', allPlaylists: string[]) => {
-    const currentIndex = allPlaylists.indexOf(playlistName);
-    const targetIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
-
-    if (targetIndex < 0 || targetIndex >= allPlaylists.length) return;
-
-    const targetPlaylistName = allPlaylists[targetIndex];
-    
-    setIsMoving(`playlist-${playlistName}`);
-    try {
-      // Get all items for both playlists in this course
-      const currentPlaylistItems = items.filter(i => i.course === courseName && i.playlist === playlistName);
-      const targetPlaylistItems = items.filter(i => i.course === courseName && i.playlist === targetPlaylistName);
-
-      // We need to swap their playlistOrder
-      // Use the indices directly to ensure a stable order
-      const currentPOrder = currentIndex;
-      const targetPOrder = targetIndex;
-
       const batch = writeBatch(db);
-      
-      currentPlaylistItems.forEach(item => {
-        if (item.id) {
-          batch.update(doc(db, KNOWLEDGE_COLLECTION, item.id), { playlistOrder: targetPOrder });
-        }
+      reordered.forEach((playlistName, idx) => {
+        const playlistVideos = items.filter(i => i.course === courseName && i.playlist === playlistName);
+        playlistVideos.forEach(video => {
+          if (video.id) batch.update(doc(db, KNOWLEDGE_COLLECTION, video.id), { playlistOrder: idx });
+        });
       });
-
-      targetPlaylistItems.forEach(item => {
-        if (item.id) {
-          batch.update(doc(db, KNOWLEDGE_COLLECTION, item.id), { playlistOrder: currentPOrder });
-        }
-      });
-
       await batch.commit();
-      fetchItems();
     } catch (error) {
-      console.error("Erro ao mover playlist:", error);
-    } finally {
-      setIsMoving(null);
+      console.error('Erro ao salvar ordem das playlists:', error);
+      alert('Erro ao salvar a ordem das playlists. Recarregue a página.');
     }
   };
 
@@ -1182,61 +1180,27 @@ export default function KnowledgeManagerView() {
               {/* Playlists Tabs */}
               <div className="bg-white border-b border-[#eee] px-4 pt-4">
                 <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide">
-                  {course.playlists.map((playlist, pIdx, allPlaylists) => (
-                    <div key={playlist.name} className="flex items-center group/playlist">
-                      <button
-                        onClick={() => setActivePlaylists(prev => ({ ...prev, [course.name]: playlist.name }))}
-                        className={cn(
-                          "px-4 py-2 rounded-[4px] text-xs font-bold transition-all cursor-pointer whitespace-nowrap border flex items-center gap-2",
-                          activePlaylists[course.name] === playlist.name
-                            ? "bg-[#1f2937] text-white border-[#1f2937]"
-                            : "bg-white border-[#ccc] text-gray-600 hover:bg-gray-50"
-                        )}
-                      >
-                        <ListVideo size={14} className={activePlaylists[course.name] === playlist.name ? "text-purple-400" : "text-purple-500"} />
-                        {playlist.name}
-                        <span className={cn(
-                          "text-[10px] ml-1",
-                          activePlaylists[course.name] === playlist.name ? "text-gray-400" : "text-gray-400"
-                        )}>
-                          ({playlist.videos.length})
-                        </span>
-                      </button>
-                      
-                      <div className="flex items-center ml-1">
-                        <button
-                          disabled={pIdx === 0 || isMoving !== null}
-                          onClick={() => handleMovePlaylist(course.name, playlist.name, 'left', allPlaylists.map(p => p.name))}
-                          className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30 border-none bg-transparent cursor-pointer"
-                          title="Mover fase para esquerda"
-                        >
-                          <ChevronLeft size={14} />
-                        </button>
-                        <button
-                          disabled={pIdx === allPlaylists.length - 1 || isMoving !== null}
-                          onClick={() => handleMovePlaylist(course.name, playlist.name, 'right', allPlaylists.map(p => p.name))}
-                          className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30 border-none bg-transparent cursor-pointer"
-                          title="Mover fase para direita"
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                        <button
-                          onClick={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
-                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
-                          title="Editar nome da fase"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
-                          className="p-1 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer"
-                          title="Excluir fase e seus vídeos"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={makePlaylistDragEnd(course.name, course.playlists.map(p => p.name))}
+                  >
+                    <SortableContext
+                      items={course.playlists.map(p => p.name)}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      {course.playlists.map((playlist) => (
+                        <SortablePlaylistTab
+                          key={playlist.name}
+                          playlist={playlist}
+                          isActive={activePlaylists[course.name] === playlist.name}
+                          onSelect={() => setActivePlaylists(prev => ({ ...prev, [course.name]: playlist.name }))}
+                          onEdit={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
+                          onDelete={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
 
