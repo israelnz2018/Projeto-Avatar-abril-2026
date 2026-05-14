@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
   GripVertical
 } from 'lucide-react';
 import {
@@ -200,6 +201,7 @@ interface SortableVideoRowProps {
   isReprocessing: string | null;
   getYoutubeId: (url: string) => string | null;
   parseTimeToSeconds: (timeStr: string) => number;
+  handleRegenerateIndex: (item: KnowledgeEntry) => void;
   setModalConfig: React.Dispatch<React.SetStateAction<ModalConfig>>;
   setExpandedId: (id: string | null) => void;
   setSeekTime: (time: number) => void;
@@ -210,7 +212,7 @@ interface SortableVideoRowProps {
 
 function SortableVideoRow({
   item, expandedId, seekTime, isReprocessing,
-  getYoutubeId, parseTimeToSeconds,
+  getYoutubeId, parseTimeToSeconds, handleRegenerateIndex,
   setModalConfig, setExpandedId, setSeekTime,
   setEditVideoData, setEditNewCourse, setEditNewPlaylist,
 }: SortableVideoRowProps) {
@@ -348,27 +350,37 @@ function SortableVideoRow({
           <td colSpan={4} className="p-0 border-b border-[#eee] bg-[#f8fafc]">
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
               <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 bg-white p-4 rounded-lg border border-gray-200 h-[450px] flex flex-col shadow-sm">
+                <div className="bg-white p-4 rounded-lg border border-gray-200 h-[450px] flex flex-col shadow-sm">
                   <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                     <ListVideo size={18} className="text-blue-600" /> Índice do Vídeo
                   </h4>
-                  {(item.summary?.length || 0) > 0 && !item.rawTranscript && (
-                    <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800 flex items-start gap-2">
-                      <span className="flex-shrink-0">⚠️</span>
-                      <span>Este índice foi gerado sem a transcrição. <button onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })} className="font-bold underline hover:text-amber-900 border-none bg-transparent cursor-pointer p-0">Importar transcrição</button> para regenerá-lo com precisão.</span>
-                    </div>
-                  )}
-                  <div className="overflow-y-auto flex-1 pr-2 space-y-2">
-                    {item.summary && item.summary.length > 0 ? item.summary.map((s, i) => (
+                  <div className="overflow-y-auto flex-1 pr-2 space-y-2 flex flex-col">
+                    {!item.rawTranscript ? (
+                      <div className="flex-1 flex items-center justify-center text-center p-4">
+                        <p className="text-sm text-gray-500 italic">Importe a transcrição completa pra gerar o índice.</p>
+                      </div>
+                    ) : (item.summary?.length || 0) === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-4 gap-3">
+                        <p className="text-sm text-gray-500">A transcrição está salva. Gere o índice clicável a partir dela:</p>
+                        <button
+                          onClick={() => handleRegenerateIndex(item)}
+                          disabled={isReprocessing === item.id}
+                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          <Sparkles size={14} />
+                          {isReprocessing === item.id ? 'Gerando...' : 'Gerar índice'}
+                        </button>
+                      </div>
+                    ) : item.summary!.map((s, i) => (
                       <button key={i} onClick={() => setSeekTime(parseTimeToSeconds(s.time))}
                         className="text-left text-sm hover:bg-blue-50 p-2 rounded w-full flex gap-3 transition-colors border border-transparent hover:border-blue-100 group cursor-pointer">
                         <span className="text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded group-hover:bg-blue-100">{s.time}</span>
                         <span className="text-gray-700 leading-tight">{s.topic}</span>
                       </button>
-                    )) : <p className="text-sm text-gray-500 italic">Nenhum índice gerado. Importe a transcrição completa pra gerar.</p>}
+                    ))}
                   </div>
                 </div>
-                <div className="lg:col-span-2 bg-black rounded-lg overflow-hidden h-[450px] flex items-center justify-center shadow-sm">
+                <div className="bg-black rounded-lg overflow-hidden h-[450px] flex items-center justify-center shadow-sm">
                   {videoId ? (
                     <iframe
                       ref={iframeRef}
@@ -378,6 +390,18 @@ function SortableVideoRow({
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen />
                   ) : <p className="text-white">Vídeo indisponível</p>}
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 h-[450px] flex flex-col shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <ListVideo size={18} className="text-teal-600" /> Transcrição completa
+                  </h4>
+                  <div className="overflow-y-auto flex-1 pr-2">
+                    {item.rawTranscript ? (
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-mono text-xs">{item.rawTranscript}</p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Nenhuma transcrição importada.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -616,6 +640,24 @@ export default function KnowledgeManagerView() {
       alert("Erro ao salvar item.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRegenerateIndex = async (item: KnowledgeEntry) => {
+    if (!item.rawTranscript || !item.id) return;
+    setIsReprocessing(item.id);
+    try {
+      const { generateSummaryFromRawTranscript } = await import('../lib/gemini');
+      const { summary, transcript } = await generateSummaryFromRawTranscript(item.sourceUrl, item.rawTranscript);
+      await updateKnowledge(item.id, {
+        summary: summary || [],
+        transcript: transcript || ''
+      });
+      await fetchItems();
+    } catch (error) {
+      alert('Erro ao gerar índice.');
+    } finally {
+      setIsReprocessing(null);
     }
   };
 
@@ -1221,6 +1263,7 @@ export default function KnowledgeManagerView() {
                               isReprocessing={isReprocessing}
                               getYoutubeId={getYoutubeId}
                               parseTimeToSeconds={parseTimeToSeconds}
+                              handleRegenerateIndex={handleRegenerateIndex}
                               setModalConfig={setModalConfig}
                               setExpandedId={setExpandedId}
                               setSeekTime={setSeekTime}
