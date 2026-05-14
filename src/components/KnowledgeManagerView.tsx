@@ -528,6 +528,7 @@ export default function KnowledgeManagerView() {
   const [editNewPlaylist, setEditNewPlaylist] = useState('');
   const [editSiblings, setEditSiblings] = useState<KnowledgeEntry[]>([]);
   const [editExtraPlacements, setEditExtraPlacements] = useState<Array<{ course: string; playlist: string; newPlaylistName: string }>>([]);
+  const [editSiblingsToDelete, setEditSiblingsToDelete] = useState<Set<string>>(new Set());
   const [isEditToolsDropdownOpen, setIsEditToolsDropdownOpen] = useState(false);
   const [isEditAnalysesDropdownOpen, setIsEditAnalysesDropdownOpen] = useState(false);
 
@@ -549,6 +550,12 @@ export default function KnowledgeManagerView() {
     migrateAllCourses(MIGRATION_COURSE).catch(console.error);
     fetchItems();
   }, []);
+
+  useEffect(() => {
+    if (modalConfig.isOpen && modalConfig.type === 'editVideo') {
+      setEditSiblingsToDelete(new Set());
+    }
+  }, [modalConfig.isOpen, modalConfig.type]);
 
   useEffect(() => {
     if (modalConfig.isOpen && modalConfig.type === 'importTranscript' && modalConfig.targetId) {
@@ -847,6 +854,9 @@ export default function KnowledgeManagerView() {
               associatedAnalyses: editVideoData.associatedAnalyses
             });
           }
+        }
+        for (const sibId of editSiblingsToDelete) {
+          await deleteKnowledge(sibId);
         }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
         await deleteCourse(modalConfig.targetCourse);
@@ -1438,15 +1448,43 @@ export default function KnowledgeManagerView() {
                       <div>
                         <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Também disponível em</label>
                         <div className="space-y-1">
-                          {editSiblings.map(s => (
-                            <div key={s.id} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 border border-gray-200 px-3 py-2 rounded-[4px]">
-                              <Layers size={12} className="text-gray-400 flex-shrink-0" />
-                              <span className="font-medium">{s.course}</span>
-                              <span className="text-gray-400">/</span>
-                              <span>{s.playlist}</span>
-                            </div>
-                          ))}
+                          {editSiblings.map(s => {
+                            const markedForDelete = editSiblingsToDelete.has(s.id!);
+                            return (
+                              <div key={s.id} className={cn(
+                                "flex items-center gap-2 text-xs px-3 py-2 rounded-[4px] border transition-colors",
+                                markedForDelete
+                                  ? "bg-red-50 border-red-200 text-red-400 line-through"
+                                  : "bg-gray-50 border-gray-200 text-gray-600"
+                              )}>
+                                <Layers size={12} className="flex-shrink-0" />
+                                <span className="font-medium flex-1">{s.course}</span>
+                                <span className="opacity-50">/</span>
+                                <span className="flex-1">{s.playlist}</span>
+                                <button
+                                  type="button"
+                                  title={markedForDelete ? "Desfazer remoção" : "Remover deste curso"}
+                                  onClick={() => setEditSiblingsToDelete(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(s.id!)) next.delete(s.id!); else next.add(s.id!);
+                                    return next;
+                                  })}
+                                  className={cn(
+                                    "border-none bg-transparent cursor-pointer p-0.5 rounded transition-colors flex-shrink-0",
+                                    markedForDelete ? "text-red-400 hover:text-red-600" : "text-gray-300 hover:text-red-500"
+                                  )}
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
+                        {editSiblingsToDelete.size > 0 && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {editSiblingsToDelete.size} placement(s) serão removidos ao confirmar.
+                          </p>
+                        )}
                       </div>
                     )}
 
