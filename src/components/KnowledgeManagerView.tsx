@@ -262,7 +262,19 @@ function SortableVideoRow({
               )}
             </div>
             <div>
-              <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
+                {((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0) && (
+                  <span className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                    ✓ IA
+                  </span>
+                )}
+                {item.rawTranscript && (
+                  <span className="text-[10px] text-teal-700 font-bold bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                    Transcrição
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-3 mt-1">
                 <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">
                   Acessar no YouTube
@@ -670,8 +682,10 @@ export default function KnowledgeManagerView() {
         summary: summary || [],
         transcript: transcript || ''
       });
-      fetchItems();
       setRawTranscriptText('');
+      await fetchItems();
+      setExpandedId(item.id!);
+      setActiveTab('raw');
     } catch (error) {
       alert("Erro ao processar transcrição completa.");
     } finally {
