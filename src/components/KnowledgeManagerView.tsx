@@ -476,14 +476,33 @@ export default function KnowledgeManagerView() {
   const [formData, setFormData] = useState({
     sourceUrl: '',
     playlistUrl: '',
-    course: '',
-    playlist: '',
+    placements: [{ course: '', playlist: '', newPlaylistName: '' }] as Array<{ course: string; playlist: string; newPlaylistName: string }>,
     associatedTools: [] as string[],
     associatedAnalyses: [] as string[]
   });
 
-  const [newCourse, setNewCourse] = useState('');
-  const [newPlaylist, setNewPlaylist] = useState('');
+  const emptyFormData = {
+    sourceUrl: '',
+    playlistUrl: '',
+    placements: [{ course: '', playlist: '', newPlaylistName: '' }],
+    associatedTools: [] as string[],
+    associatedAnalyses: [] as string[]
+  };
+
+  const updatePlacement = (idx: number, patch: Partial<{ course: string; playlist: string; newPlaylistName: string }>) => {
+    setFormData(prev => ({
+      ...prev,
+      placements: prev.placements.map((p, i) => i === idx ? { ...p, ...patch } : p)
+    }));
+  };
+
+  const addPlacement = () => {
+    setFormData(prev => ({ ...prev, placements: [...prev.placements, { course: '', playlist: '', newPlaylistName: '' }] }));
+  };
+
+  const removePlacement = (idx: number) => {
+    setFormData(prev => ({ ...prev, placements: prev.placements.filter((_, i) => i !== idx) }));
+  };
   const [isSaving, setIsSaving] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState<string | null>(null);
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
@@ -604,26 +623,34 @@ export default function KnowledgeManagerView() {
     }));
   };
 
+  const resolvePlacements = () => formData.placements
+    .map(p => ({ course: p.course, playlist: p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist }))
+    .filter(p => p.course && p.playlist);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const resolved = resolvePlacements();
+    if (resolved.length === 0) {
+      alert('Selecione ao menos um curso e playlist.');
+      return;
+    }
     setIsSaving(true);
     try {
-      const finalCourse = formData.course;
-      const finalPlaylist = formData.playlist === 'NEW' ? newPlaylist : formData.playlist;
-      
       if (importMode === 'playlist') {
+        const first = resolved[0];
+        if (resolved.length > 1) {
+          alert('A importação de fase usa apenas o primeiro curso/playlist. Os demais serão ignorados.');
+        }
         const { extractPlaylistVideos } = await import('../lib/gemini');
         try {
           const videos = await extractPlaylistVideos(formData.playlistUrl);
-          
           if (videos && videos.length > 0) {
-            // Fetch last order once
             const { collection, query, where, getDocs } = await import('firebase/firestore');
             const { db } = await import('../lib/firebase');
             const q = query(
-              collection(db, KNOWLEDGE_COLLECTION), 
-              where('course', '==', finalCourse),
-              where('playlist', '==', finalPlaylist)
+              collection(db, KNOWLEDGE_COLLECTION),
+              where('course', '==', first.course),
+              where('playlist', '==', first.playlist)
             );
             const snapshot = await getDocs(q);
             let lastOrder = 0;
@@ -632,68 +659,75 @@ export default function KnowledgeManagerView() {
               if (docOrder > lastOrder) lastOrder = docOrder;
             });
 
-            // Trigger save in background (fire-and-forget)
-            Promise.all(videos.map((video, index) => 
+            Promise.all(videos.map((video, index) =>
               saveKnowledge({
                 title: video.title,
                 content: '',
                 sourceUrl: video.url,
-                course: finalCourse,
-                playlist: finalPlaylist,
+                course: first.course,
+                playlist: first.playlist,
                 summary: [],
                 transcript: '',
                 associatedTools: formData.associatedTools
               }, lastOrder + index + 1)
-            )).then(() => {
-              fetchItems();
-            }).catch(err => {
-              console.error("Erro na importação em segundo plano:", err);
-            });
-            
-            alert("Importação iniciada em segundo plano! Você pode continuar usando o app.");
+            )).then(() => fetchItems())
+              .catch(err => console.error('Erro na importação em segundo plano:', err));
+
+            alert('Importação iniciada em segundo plano! Você pode continuar usando o app.');
           } else {
-            alert("Não foi possível extrair vídeos desta fase. Verifique a URL.");
+            alert('Não foi possível extrair vídeos desta fase. Verifique a URL.');
           }
         } catch (error: any) {
-          alert(error.message || "Erro ao extrair fase.");
-        } finally {
-          setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [], associatedAnalyses: [] });
-          setNewCourse('');
-          setNewPlaylist('');
-          setIsAdding(false);
-          setIsToolsDropdownOpen(false);
-          setIsAnalysesDropdownOpen(false);
-          setIsSaving(false);
+          alert(error.message || 'Erro ao extrair fase.');
         }
       } else {
         const title = await fetchYoutubeTitle(formData.sourceUrl);
 
-        // Salva sem resumo — usuário importa a transcrição depois pra gerar índice/resumo
-        await saveKnowledge({
-          title,
-          content: '',
-          sourceUrl: formData.sourceUrl,
-          course: finalCourse,
-          playlist: finalPlaylist,
-          summary: [],
-          transcript: '',
-          associatedTools: formData.associatedTools,
-          associatedAnalyses: formData.associatedAnalyses
-        });
+        // Se já existe um doc com a mesma sourceUrl, copia transcrição/índice pra novas placements
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+        const existingSnap = await getDocs(query(
+          collection(db, KNOWLEDGE_COLLECTION),
+          where('sourceUrl', '==', formData.sourceUrl)
+        ));
+        const existing = existingSnap.docs[0]?.data();
+        const sharedFields = existing
+          ? { rawTranscript: existing.rawTranscript || '', summary: existing.summary || [], transcript: existing.transcript || '' }
+          : { rawTranscript: '', summary: [], transcript: '' };
+
+        await Promise.all(resolved.map(p =>
+          saveKnowledge({
+            title,
+            content: '',
+            sourceUrl: formData.sourceUrl,
+            course: p.course,
+            playlist: p.playlist,
+            ...sharedFields,
+            associatedTools: formData.associatedTools,
+            associatedAnalyses: formData.associatedAnalyses
+          })
+        ));
       }
-      
-      setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [], associatedAnalyses: [] });
-      setNewCourse('');
-      setNewPlaylist('');
+
+      setFormData(emptyFormData);
       setIsAdding(false);
       setIsToolsDropdownOpen(false);
       setIsAnalysesDropdownOpen(false);
       fetchItems();
     } catch (error) {
-      alert("Erro ao salvar item.");
+      alert('Erro ao salvar item.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Atualiza transcrição/resumo em todos os docs com a mesma sourceUrl (placements irmãos).
+  const syncSiblingsBySourceUrl = async (sourceUrl: string, fields: Partial<KnowledgeEntry>) => {
+    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    const snap = await getDocs(query(collection(db, KNOWLEDGE_COLLECTION), where('sourceUrl', '==', sourceUrl)));
+    if (snap.empty) return;
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.update(d.ref, fields));
+    await batch.commit();
   };
 
   const handleRegenerateIndex = async (item: KnowledgeEntry) => {
@@ -702,7 +736,7 @@ export default function KnowledgeManagerView() {
     try {
       const { generateSummaryFromRawTranscript } = await import('../lib/gemini');
       const { summary, transcript } = await generateSummaryFromRawTranscript(item.sourceUrl, item.rawTranscript);
-      await updateKnowledge(item.id, {
+      await syncSiblingsBySourceUrl(item.sourceUrl, {
         summary: summary || [],
         transcript: transcript || ''
       });
@@ -716,18 +750,18 @@ export default function KnowledgeManagerView() {
 
   const handleImportTranscript = async () => {
     if (!modalConfig.targetId || !rawTranscriptText.trim()) return;
-    
+
     setIsReprocessing(modalConfig.targetId);
     setModalConfig({ isOpen: false, type: 'importTranscript' });
-    
+
     try {
       const item = items.find(i => i.id === modalConfig.targetId);
       if (!item) return;
 
       const { generateSummaryFromRawTranscript } = await import('../lib/gemini');
       const { summary, transcript } = await generateSummaryFromRawTranscript(item.sourceUrl, rawTranscriptText);
-      
-      await updateKnowledge(item.id!, {
+
+      await syncSiblingsBySourceUrl(item.sourceUrl, {
         rawTranscript: rawTranscriptText,
         summary: summary || [],
         transcript: transcript || ''
@@ -852,9 +886,8 @@ export default function KnowledgeManagerView() {
 
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
   
-  // Filter playlists based on selected course
-  const availablePlaylists = formData.course && formData.course !== 'NEW'
-    ? Array.from(new Set(items.filter(i => i.course === formData.course).map(i => i.playlist).filter(Boolean)))
+  const playlistsForCourse = (course: string) => course && course !== 'NEW'
+    ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
     : [];
 
   // Group by Course -> Playlist -> Videos
@@ -986,50 +1019,73 @@ export default function KnowledgeManagerView() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Curso</label>
-                <select
-                  required
-                  value={formData.course}
-                  onChange={(e) => setFormData({...formData, course: e.target.value, playlist: ''})}
-                  className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-gray-500 uppercase">
+                {importMode === 'single' ? 'Cursos e playlists onde este vídeo aparece' : 'Curso e playlist de destino'}
+              </label>
+              {formData.placements.map((p, idx) => {
+                const availPlaylists = playlistsForCourse(p.course);
+                return (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-start">
+                    <select
+                      required
+                      value={p.course}
+                      onChange={(e) => updatePlacement(idx, { course: e.target.value, playlist: '', newPlaylistName: '' })}
+                      className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
+                    >
+                      <option value="" disabled>Selecione um curso...</option>
+                      {initiativeNames.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <div className="space-y-2">
+                      <select
+                        required
+                        value={p.playlist}
+                        onChange={(e) => updatePlacement(idx, { playlist: e.target.value })}
+                        className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
+                      >
+                        <option value="" disabled>Selecione uma playlist...</option>
+                        {availPlaylists.map(pl => (
+                          <option key={pl} value={pl}>{pl}</option>
+                        ))}
+                        <option value="NEW">+ Cadastrar nova playlist</option>
+                      </select>
+                      {p.playlist === 'NEW' && (
+                        <input
+                          required
+                          type="text"
+                          value={p.newPlaylistName}
+                          onChange={(e) => updatePlacement(idx, { newPlaylistName: e.target.value })}
+                          className="w-full p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-blue-50"
+                          placeholder="Nome da nova playlist"
+                        />
+                      )}
+                    </div>
+                    {formData.placements.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => removePlacement(idx)}
+                        className="p-2 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer self-center"
+                        title="Remover este destino"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    ) : (
+                      <div className="w-9" />
+                    )}
+                  </div>
+                );
+              })}
+              {importMode === 'single' && (
+                <button
+                  type="button"
+                  onClick={addPlacement}
+                  className="flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 border-none bg-transparent cursor-pointer pt-1"
                 >
-                  <option value="" disabled>Selecione um curso...</option>
-                  {initiativeNames.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Playlist</label>
-                <select
-                  required
-                  value={formData.playlist}
-                  onChange={(e) => setFormData({...formData, playlist: e.target.value})}
-                  className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
-                >
-                  <option value="" disabled>Selecione uma playlist...</option>
-                  {availablePlaylists.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                  <option value="NEW">+ Cadastrar nova playlist</option>
-                </select>
-
-                {formData.playlist === 'NEW' && (
-                  <motion.input
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    required
-                    type="text"
-                    value={newPlaylist}
-                    onChange={(e) => setNewPlaylist(e.target.value)}
-                    className="w-full p-2 border border-blue-300 rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-blue-50"
-                    placeholder="Nome da nova playlist"
-                  />
-                )}
-              </div>
+                  <Plus size={14} /> Adicionar em outro curso
+                </button>
+              )}
             </div>
 
             <div className="space-y-3">
