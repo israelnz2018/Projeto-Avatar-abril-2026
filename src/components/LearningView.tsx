@@ -291,10 +291,6 @@ export default function LearningView() {
                               )}
                             </div>
                           </div>
-                          <div className="mt-4 p-4 bg-white border border-[#ccc] rounded-[4px]">
-                            <h4 className="text-xs font-bold mb-2">Descrição</h4>
-                            <p className="text-xs text-gray-600 leading-relaxed m-0 line-clamp-4">{item.content}</p>
-                          </div>
                         </div>
                       </div>
                     </motion.div>
