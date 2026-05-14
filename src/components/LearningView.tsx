@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, 
@@ -33,10 +33,36 @@ export default function LearningView() {
   const [selectedVideo, setSelectedVideo] = useState<KnowledgeEntry | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
+  const [seekTime, setSeekTime] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     fetchItems();
   }, []);
+
+  useEffect(() => {
+    setSeekTime(0);
+  }, [selectedVideo?.id]);
+
+  useEffect(() => {
+    if (seekTime > 0 && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekTo', args: [seekTime, true] }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+        '*'
+      );
+    }
+  }, [seekTime]);
+
+  const parseTimeToSeconds = (timeStr: string) => {
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  };
 
   const fetchItems = async () => {
     setLoading(true);
@@ -257,9 +283,10 @@ export default function LearningView() {
                       <div className="p-6 flex flex-col lg:flex-row gap-6">
                         <div className="flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg">
                           <iframe
+                            ref={iframeRef}
                             width="100%"
                             height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`}
                             title={item.title}
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -277,14 +304,18 @@ export default function LearningView() {
                             <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[300px]">
                               {item.summary && item.summary.length > 0 ? (
                                 item.summary.map((point, idx) => (
-                                  <div key={idx} className="flex gap-3 group/point">
-                                    <span className="text-blue-600 font-mono text-xs font-bold bg-blue-50 px-2 py-0.5 rounded h-fit">
+                                  <button
+                                    key={idx}
+                                    onClick={() => setSeekTime(parseTimeToSeconds(point.time))}
+                                    className="w-full flex gap-3 text-left p-1.5 -mx-1.5 rounded hover:bg-blue-50 transition-colors group/point border-none bg-transparent cursor-pointer"
+                                  >
+                                    <span className="text-blue-600 font-mono text-xs font-bold bg-blue-50 group-hover/point:bg-blue-100 px-2 py-0.5 rounded h-fit transition-colors flex-shrink-0">
                                       {point.time}
                                     </span>
                                     <p className="text-xs text-gray-700 m-0 leading-relaxed group-hover/point:text-blue-600 transition-colors">
                                       {point.topic}
                                     </p>
-                                  </div>
+                                  </button>
                                 ))
                               ) : (
                                 <p className="text-xs text-gray-400 italic text-center py-8">Nenhum sumário disponível para este vídeo.</p>
