@@ -236,7 +236,7 @@ function SortableVideoRow({
           <div
             {...attributes}
             {...listeners}
-            className="p-1.5 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing opacity-0 group-hover/row:opacity-100 transition-opacity"
+            className="p-1.5 text-gray-400 hover:text-gray-700 cursor-grab active:cursor-grabbing transition-colors"
             title="Arrastar para reordenar"
           >
             <GripVertical size={16} />
@@ -818,16 +818,22 @@ export default function KnowledgeManagerView() {
     if (!over || active.id === over.id) return;
     const oldIdx = playlistItems.findIndex(v => v.id === String(active.id));
     const newIdx = playlistItems.findIndex(v => v.id === String(over.id));
+    if (oldIdx === -1 || newIdx === -1) return;
     const reordered = arrayMove(playlistItems, oldIdx, newIdx);
     setItems(prev => {
       const others = prev.filter(i => !playlistItems.some(v => v.id === i.id));
       return [...others, ...reordered.map((item, i) => ({ ...item, order: i + 1 }))];
     });
-    const batch = writeBatch(db);
-    reordered.forEach((item, i) => {
-      if (item.id) batch.update(doc(db, KNOWLEDGE_COLLECTION, item.id), { order: i + 1 });
-    });
-    await batch.commit();
+    try {
+      const batch = writeBatch(db);
+      reordered.forEach((item, i) => {
+        if (item.id) batch.update(doc(db, KNOWLEDGE_COLLECTION, item.id), { order: i + 1 });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error('Erro ao salvar ordem:', error);
+      alert('Erro ao salvar a ordem. Recarregue a página.');
+    }
   };
 
   const filteredItems = items.filter(item => 
