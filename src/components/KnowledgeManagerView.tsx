@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus,
@@ -14,7 +14,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   GripVertical
 } from 'lucide-react';
 import {
@@ -198,25 +197,38 @@ interface SortableVideoRowProps {
   item: KnowledgeEntry;
   expandedId: string | null;
   seekTime: number;
-  activeTab: 'summary' | 'raw';
   isReprocessing: string | null;
   getYoutubeId: (url: string) => string | null;
   parseTimeToSeconds: (timeStr: string) => number;
   setModalConfig: React.Dispatch<React.SetStateAction<ModalConfig>>;
   setExpandedId: (id: string | null) => void;
   setSeekTime: (time: number) => void;
-  setActiveTab: (tab: 'summary' | 'raw') => void;
   setEditVideoData: React.Dispatch<React.SetStateAction<any>>;
   setEditNewCourse: (s: string) => void;
   setEditNewPlaylist: (s: string) => void;
 }
 
 function SortableVideoRow({
-  item, expandedId, seekTime, activeTab, isReprocessing,
+  item, expandedId, seekTime, isReprocessing,
   getYoutubeId, parseTimeToSeconds,
-  setModalConfig, setExpandedId, setSeekTime, setActiveTab,
+  setModalConfig, setExpandedId, setSeekTime,
   setEditVideoData, setEditNewCourse, setEditNewPlaylist,
 }: SortableVideoRowProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    if (seekTime > 0 && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekTo', args: [seekTime, true] }),
+        '*'
+      );
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+        '*'
+      );
+    }
+  }, [seekTime]);
+
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id! });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -336,10 +348,16 @@ function SortableVideoRow({
           <td colSpan={4} className="p-0 border-b border-[#eee] bg-[#f8fafc]">
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
               <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-white p-4 rounded-lg border border-gray-200 h-[400px] flex flex-col shadow-sm">
-                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <div className="lg:col-span-1 bg-white p-4 rounded-lg border border-gray-200 h-[450px] flex flex-col shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                     <ListVideo size={18} className="text-blue-600" /> Índice do Vídeo
                   </h4>
+                  {(item.summary?.length || 0) > 0 && !item.rawTranscript && (
+                    <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800 flex items-start gap-2">
+                      <span className="flex-shrink-0">⚠️</span>
+                      <span>Este índice foi gerado sem a transcrição. <button onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })} className="font-bold underline hover:text-amber-900 border-none bg-transparent cursor-pointer p-0">Importar transcrição</button> para regenerá-lo com precisão.</span>
+                    </div>
+                  )}
                   <div className="overflow-y-auto flex-1 pr-2 space-y-2">
                     {item.summary && item.summary.length > 0 ? item.summary.map((s, i) => (
                       <button key={i} onClick={() => setSeekTime(parseTimeToSeconds(s.time))}
@@ -347,37 +365,19 @@ function SortableVideoRow({
                         <span className="text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded group-hover:bg-blue-100">{s.time}</span>
                         <span className="text-gray-700 leading-tight">{s.topic}</span>
                       </button>
-                    )) : <p className="text-sm text-gray-500 italic">Nenhum índice gerado.</p>}
+                    )) : <p className="text-sm text-gray-500 italic">Nenhum índice gerado. Importe a transcrição completa pra gerar.</p>}
                   </div>
                 </div>
-                <div className="bg-black rounded-lg overflow-hidden h-[400px] flex items-center justify-center shadow-sm">
+                <div className="lg:col-span-2 bg-black rounded-lg overflow-hidden h-[450px] flex items-center justify-center shadow-sm">
                   {videoId ? (
-                    <iframe width="100%" height="100%"
-                      src={`https://www.youtube.com/embed/${videoId}?start=${seekTime}&autoplay=${seekTime > 0 ? 1 : 0}`}
+                    <iframe
+                      ref={iframeRef}
+                      width="100%" height="100%"
+                      src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
                       title="YouTube video player" frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen />
                   ) : <p className="text-white">Vídeo indisponível</p>}
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 h-[400px] flex flex-col shadow-sm">
-                  <div className="flex items-center gap-4 mb-4 border-b border-gray-100 pb-2">
-                    <button onClick={() => setActiveTab('summary')}
-                      className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'summary' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
-                      <Sparkles size={16} /> Índice IA
-                    </button>
-                    {item.rawTranscript && (
-                      <button onClick={() => setActiveTab('raw')}
-                        className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'raw' ? 'text-teal-600 border-teal-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
-                        <ListVideo size={16} /> Transcrição completa
-                      </button>
-                    )}
-                  </div>
-                  <div className="overflow-y-auto flex-1 pr-2">
-                    {activeTab === 'summary'
-                      ? <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{item.transcript || "Resumo não disponível. Clique em 'Reprocessar IA'."}</p>
-                      : <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-mono text-xs">{item.rawTranscript}</p>
-                    }
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -426,7 +426,6 @@ export default function KnowledgeManagerView() {
 
   const [modalConfig, setModalConfig] = useState<ModalConfig>({ isOpen: false, type: 'editCourse' });
   const [rawTranscriptText, setRawTranscriptText] = useState('');
-  const [activeTab, setActiveTab] = useState<'summary' | 'raw'>('summary');
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [seekTime, setSeekTime] = useState<number>(0);
@@ -641,7 +640,6 @@ export default function KnowledgeManagerView() {
       setRawTranscriptText('');
       await fetchItems();
       setExpandedId(item.id!);
-      setActiveTab('raw');
     } catch (error) {
       alert("Erro ao processar transcrição completa.");
     } finally {
@@ -1220,14 +1218,12 @@ export default function KnowledgeManagerView() {
                               item={item}
                               expandedId={expandedId}
                               seekTime={seekTime}
-                              activeTab={activeTab}
                               isReprocessing={isReprocessing}
                               getYoutubeId={getYoutubeId}
                               parseTimeToSeconds={parseTimeToSeconds}
                               setModalConfig={setModalConfig}
                               setExpandedId={setExpandedId}
                               setSeekTime={setSeekTime}
-                              setActiveTab={setActiveTab}
                               setEditVideoData={setEditVideoData}
                               setEditNewCourse={setEditNewCourse}
                               setEditNewPlaylist={setEditNewPlaylist}
