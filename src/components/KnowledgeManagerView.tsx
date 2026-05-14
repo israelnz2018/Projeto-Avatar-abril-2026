@@ -202,7 +202,6 @@ interface SortableVideoRowProps {
   isReprocessing: string | null;
   getYoutubeId: (url: string) => string | null;
   parseTimeToSeconds: (timeStr: string) => number;
-  handleReprocess: (item: KnowledgeEntry) => void;
   setModalConfig: React.Dispatch<React.SetStateAction<ModalConfig>>;
   setExpandedId: (id: string | null) => void;
   setSeekTime: (time: number) => void;
@@ -214,7 +213,7 @@ interface SortableVideoRowProps {
 
 function SortableVideoRow({
   item, expandedId, seekTime, activeTab, isReprocessing,
-  getYoutubeId, parseTimeToSeconds, handleReprocess,
+  getYoutubeId, parseTimeToSeconds,
   setModalConfig, setExpandedId, setSeekTime, setActiveTab,
   setEditVideoData, setEditNewCourse, setEditNewPlaylist,
 }: SortableVideoRowProps) {
@@ -268,24 +267,6 @@ function SortableVideoRow({
                   Acessar no YouTube
                 </a>
                 <button
-                  onClick={() => handleReprocess(item)}
-                  disabled={isReprocessing === item.id}
-                  className={cn(
-                    "text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-full font-bold border transition-colors disabled:opacity-50 cursor-pointer",
-                    ((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0)
-                      ? "bg-purple-600 border-purple-600 text-white hover:bg-purple-700"
-                      : "bg-white border-green-500 text-green-600 hover:bg-green-50"
-                  )}
-                  title={((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0) ? 'Reprocessar com IA' : 'Gerar índice e resumo com IA'}
-                >
-                  <Sparkles size={12} />
-                  {isReprocessing === item.id
-                    ? 'Processando...'
-                    : ((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0)
-                      ? 'IA ✓'
-                      : 'Processar IA'}
-                </button>
-                <button
                   onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })}
                   disabled={isReprocessing === item.id}
                   className={cn(
@@ -294,10 +275,14 @@ function SortableVideoRow({
                       ? "bg-teal-600 border-teal-600 text-white hover:bg-teal-700"
                       : "bg-white border-blue-500 text-blue-600 hover:bg-blue-50"
                   )}
-                  title={item.rawTranscript ? 'Re-importar transcrição completa' : 'Colar transcrição completa do YouTube'}
+                  title={item.rawTranscript ? 'Ver/editar transcrição e reprocessar' : 'Colar transcrição do YouTube — a IA gera índice e resumo automaticamente'}
                 >
                   <ListVideo size={12} />
-                  {item.rawTranscript ? 'Transcrição ✓' : 'Importar Transcrição'}
+                  {isReprocessing === item.id
+                    ? 'Processando...'
+                    : item.rawTranscript
+                      ? 'Transcrição ✓'
+                      : 'Importar Transcrição'}
                 </button>
               </div>
               {item.associatedTools && item.associatedTools.length > 0 && (
@@ -607,8 +592,8 @@ export default function KnowledgeManagerView() {
       } else {
         const title = await fetchYoutubeTitle(formData.sourceUrl);
 
-        // Salva imediatamente sem summary (rapido)
-        const savedDocId = await saveKnowledge({
+        // Salva sem resumo — usuário importa a transcrição depois pra gerar índice/resumo
+        await saveKnowledge({
           title,
           content: '',
           sourceUrl: formData.sourceUrl,
@@ -619,25 +604,6 @@ export default function KnowledgeManagerView() {
           associatedTools: formData.associatedTools,
           associatedAnalyses: formData.associatedAnalyses
         });
-
-        // Gera summary em segundo plano (nao bloqueia)
-        (async () => {
-          try {
-            const { generateVideoSummary } = await import('../lib/gemini');
-            const { summary, transcript } = await generateVideoSummary(formData.sourceUrl);
-            if (savedDocId) {
-              const { doc, updateDoc } = await import('firebase/firestore');
-              const { db } = await import('../lib/firebase');
-              await updateDoc(doc(db, KNOWLEDGE_COLLECTION, savedDocId), {
-                summary: summary || [],
-                transcript: transcript || ''
-              });
-              fetchItems();
-            }
-          } catch (e) {
-            console.error('[summary background]', e);
-          }
-        })();
       }
       
       setFormData({ sourceUrl: '', playlistUrl: '', course: '', playlist: '', associatedTools: [], associatedAnalyses: [] });
@@ -651,23 +617,6 @@ export default function KnowledgeManagerView() {
       alert("Erro ao salvar item.");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleReprocess = async (item: KnowledgeEntry) => {
-    setIsReprocessing(item.id!);
-    try {
-      const { generateVideoSummary } = await import('../lib/gemini');
-      const { summary, transcript } = await generateVideoSummary(item.sourceUrl);
-      await updateKnowledge(item.id!, {
-        summary: summary || [],
-        transcript: transcript || ''
-      });
-      fetchItems();
-    } catch (error) {
-      alert("Erro ao reprocessar vídeo.");
-    } finally {
-      setIsReprocessing(null);
     }
   };
 
@@ -1275,7 +1224,6 @@ export default function KnowledgeManagerView() {
                               isReprocessing={isReprocessing}
                               getYoutubeId={getYoutubeId}
                               parseTimeToSeconds={parseTimeToSeconds}
-                              handleReprocess={handleReprocess}
                               setModalConfig={setModalConfig}
                               setExpandedId={setExpandedId}
                               setSeekTime={setSeekTime}
