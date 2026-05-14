@@ -1,23 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Plus, 
-  Search, 
-  Trash2, 
-  ExternalLink, 
-  Youtube, 
-  Save, 
-  X, 
+import {
+  Plus,
+  Search,
+  Trash2,
+  Youtube,
+  Save,
+  X,
   Video,
   Folder,
   Edit2,
   ListVideo,
   ChevronDown,
-  ChevronUp,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  GripVertical
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/src/lib/utils';
 import { db } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
@@ -179,6 +193,203 @@ type ModalConfig = {
   targetPlaylist?: string;
   inputValue?: string;
 };
+
+interface SortableVideoRowProps {
+  item: KnowledgeEntry;
+  expandedId: string | null;
+  seekTime: number;
+  activeTab: 'summary' | 'raw';
+  isReprocessing: string | null;
+  getYoutubeId: (url: string) => string | null;
+  parseTimeToSeconds: (timeStr: string) => number;
+  handleReprocess: (item: KnowledgeEntry) => void;
+  setModalConfig: React.Dispatch<React.SetStateAction<ModalConfig>>;
+  setExpandedId: (id: string | null) => void;
+  setSeekTime: (time: number) => void;
+  setActiveTab: (tab: 'summary' | 'raw') => void;
+  setEditVideoData: React.Dispatch<React.SetStateAction<any>>;
+  setEditNewCourse: (s: string) => void;
+  setEditNewPlaylist: (s: string) => void;
+}
+
+function SortableVideoRow({
+  item, expandedId, seekTime, activeTab, isReprocessing,
+  getYoutubeId, parseTimeToSeconds, handleReprocess,
+  setModalConfig, setExpandedId, setSeekTime, setActiveTab,
+  setEditVideoData, setEditNewCourse, setEditNewPlaylist,
+}: SortableVideoRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id! });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    backgroundColor: isDragging ? '#eff6ff' : undefined,
+    position: 'relative' as const,
+    zIndex: isDragging ? 1 : 'auto' as any,
+  };
+  const videoId = getYoutubeId(item.sourceUrl);
+
+  return (
+    <React.Fragment>
+      <tr ref={setNodeRef} style={style} className="border-b border-[#eee] last:border-0 hover:bg-gray-50 transition-colors group/row">
+        <td className="pl-2 w-8">
+          <div
+            {...attributes}
+            {...listeners}
+            className="p-1.5 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing opacity-0 group-hover/row:opacity-100 transition-opacity"
+            title="Arrastar para reordenar"
+          >
+            <GripVertical size={16} />
+          </div>
+        </td>
+        <td className="p-4 pl-2">
+          <div className="flex items-center gap-3">
+            <div className="w-24 aspect-video rounded overflow-hidden flex-shrink-0 border border-[#eee] relative group">
+              {videoId ? (
+                <>
+                  <img
+                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-transparent group-hover:bg-black/20 transition-all flex items-center justify-center">
+                    <Youtube className="text-white opacity-0 group-hover:opacity-100" size={24} />
+                  </div>
+                </>
+              ) : (
+                <Video className="w-full h-full p-2 text-gray-300" />
+              )}
+            </div>
+            <div>
+              <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">
+                  Acessar no YouTube
+                </a>
+                <button
+                  onClick={() => handleReprocess(item)}
+                  disabled={isReprocessing === item.id}
+                  className={`text-xs flex items-center gap-1 disabled:opacity-50 border-none bg-transparent cursor-pointer font-bold ${
+                    (item.summary && item.summary.length > 0) || (item.transcript && item.transcript.length > 0)
+                      ? 'text-purple-600 hover:text-purple-800'
+                      : 'text-green-600 hover:text-green-800'
+                  }`}
+                >
+                  <Sparkles size={12} />
+                  {isReprocessing === item.id ? 'Processando...' : ((item.summary?.length || 0) > 0 || (item.transcript?.length || 0) > 0 ? 'Reprocessar IA' : 'Processar IA')}
+                </button>
+                <button
+                  onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })}
+                  disabled={isReprocessing === item.id}
+                  className="text-xs flex items-center gap-1 disabled:opacity-50 border-none bg-transparent cursor-pointer font-bold text-teal-600 hover:text-teal-800"
+                >
+                  <ListVideo size={12} />
+                  Transcrição Completa
+                </button>
+              </div>
+              {item.associatedTools && item.associatedTools.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {item.associatedTools.map(toolId => (
+                    <span key={toolId} className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-100">
+                      {toolId}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="p-4 text-xs text-gray-500 w-32 text-right">{item.timestamp.toLocaleDateString()}</td>
+        <td className="p-4 w-28">
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => {
+                if (expandedId === item.id) { setExpandedId(null); }
+                else { setExpandedId(item.id!); setSeekTime(0); }
+              }}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors border-none bg-transparent cursor-pointer flex items-center gap-1 text-xs font-bold"
+            >
+              Detalhes {expandedId === item.id ? <ChevronRight size={14} className="rotate-90" /> : <ChevronRight size={14} className="-rotate-90" />}
+            </button>
+            <button
+              onClick={() => {
+                setEditVideoData({ id: item.id!, title: item.title, course: item.course, playlist: item.playlist, associatedTools: item.associatedTools || [], associatedAnalyses: item.associatedAnalyses || [] });
+                setEditNewCourse('');
+                setEditNewPlaylist('');
+                setModalConfig({ isOpen: true, type: 'editVideo', targetId: item.id });
+              }}
+              className="p-2 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
+              title="Editar"
+            >
+              <Edit2 size={16} />
+            </button>
+            <button
+              onClick={() => setModalConfig({ isOpen: true, type: 'deleteVideo', targetId: item.id })}
+              className="p-2 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer"
+              title="Remover"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expandedId === item.id && (
+        <tr>
+          <td colSpan={4} className="p-0 border-b border-[#eee] bg-[#f8fafc]">
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
+              <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-white p-4 rounded-lg border border-gray-200 h-[400px] flex flex-col shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <ListVideo size={18} className="text-blue-600" /> Índice do Vídeo
+                  </h4>
+                  <div className="overflow-y-auto flex-1 pr-2 space-y-2">
+                    {item.summary && item.summary.length > 0 ? item.summary.map((s, i) => (
+                      <button key={i} onClick={() => setSeekTime(parseTimeToSeconds(s.time))}
+                        className="text-left text-sm hover:bg-blue-50 p-2 rounded w-full flex gap-3 transition-colors border border-transparent hover:border-blue-100 group cursor-pointer">
+                        <span className="text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded group-hover:bg-blue-100">{s.time}</span>
+                        <span className="text-gray-700 leading-tight">{s.topic}</span>
+                      </button>
+                    )) : <p className="text-sm text-gray-500 italic">Nenhum índice gerado.</p>}
+                  </div>
+                </div>
+                <div className="bg-black rounded-lg overflow-hidden h-[400px] flex items-center justify-center shadow-sm">
+                  {videoId ? (
+                    <iframe width="100%" height="100%"
+                      src={`https://www.youtube.com/embed/${videoId}?start=${seekTime}&autoplay=${seekTime > 0 ? 1 : 0}`}
+                      title="YouTube video player" frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen />
+                  ) : <p className="text-white">Vídeo indisponível</p>}
+                </div>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 h-[400px] flex flex-col shadow-sm">
+                  <div className="flex items-center gap-4 mb-4 border-b border-gray-100 pb-2">
+                    <button onClick={() => setActiveTab('summary')}
+                      className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'summary' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
+                      <Sparkles size={16} /> Resumo IA
+                    </button>
+                    {item.rawTranscript && (
+                      <button onClick={() => setActiveTab('raw')}
+                        className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'raw' ? 'text-teal-600 border-teal-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
+                        <ListVideo size={16} /> Transcrição Original
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-y-auto flex-1 pr-2">
+                    {activeTab === 'summary'
+                      ? <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{item.transcript || "Resumo não disponível. Clique em 'Reprocessar IA'."}</p>
+                      : <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-mono text-xs">{item.rawTranscript}</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
+  );
+}
 
 export default function KnowledgeManagerView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
@@ -598,6 +809,27 @@ export default function KnowledgeManagerView() {
     return 0;
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const makeHandleDragEnd = (playlistItems: KnowledgeEntry[]) => async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = playlistItems.findIndex(v => v.id === String(active.id));
+    const newIdx = playlistItems.findIndex(v => v.id === String(over.id));
+    const reordered = arrayMove(playlistItems, oldIdx, newIdx);
+    setItems(prev => {
+      const others = prev.filter(i => !playlistItems.some(v => v.id === i.id));
+      return [...others, ...reordered.map((item, i) => ({ ...item, order: i + 1 }))];
+    });
+    const batch = writeBatch(db);
+    reordered.forEach((item, i) => {
+      if (item.id) batch.update(doc(db, KNOWLEDGE_COLLECTION, item.id), { order: i + 1 });
+    });
+    await batch.commit();
+  };
+
   const filteredItems = items.filter(item => 
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -996,242 +1228,39 @@ export default function KnowledgeManagerView() {
               {activePlaylists[course.name] && course.playlists.find(p => p.name === activePlaylists[course.name]) && (
                 <div className="border-b border-[#eee] last:border-0">
                   <table className="w-full border-collapse">
-                    <tbody>
-                      {course.playlists.find(p => p.name === activePlaylists[course.name])!.videos.map((item, idx, courseItems) => {
-                        const videoId = getYoutubeId(item.sourceUrl);
-                        return (
-                          <React.Fragment key={item.id || idx}>
-                            <tr className="border-b border-[#eee] last:border-0 hover:bg-gray-50 transition-colors">
-                              <td className="p-4 pl-10">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-24 aspect-video rounded overflow-hidden flex-shrink-0 border border-[#eee] relative group">
-                                    {videoId ? (
-                                      <>
-                                        <img 
-                                          src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} 
-                                          alt={item.title}
-                                          className="w-full h-full object-cover transition-transform duration-500"
-                                          referrerPolicy="no-referrer"
-                                        />
-                                        <div className="absolute inset-0 bg-transparent group-hover:bg-black/20 transition-all flex items-center justify-center">
-                                          <Youtube className="text-white opacity-0 group-hover:opacity-100" size={24} />
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <Video className="w-full h-full p-2 text-gray-300" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
-                                    <div className="flex items-center gap-3 mt-1">
-                                      <a 
-                                        href={item.sourceUrl} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-blue-500 hover:underline inline-block"
-                                      >
-                                        Acessar no YouTube
-                                      </a>
-                                      <button 
-                                        onClick={() => handleReprocess(item)}
-                                        disabled={isReprocessing === item.id}
-                                        className={`text-xs flex items-center gap-1 disabled:opacity-50 border-none bg-transparent cursor-pointer font-bold ${
-                                          (item.summary && item.summary.length > 0) || (item.transcript && item.transcript.length > 0)
-                                            ? "text-purple-600 hover:text-purple-800"
-                                            : "text-green-600 hover:text-green-800"
-                                        }`}
-                                      >
-                                        <Sparkles size={12} />
-                                        {isReprocessing === item.id 
-                                          ? 'Processando...' 
-                                          : ((item.summary && item.summary.length > 0) || (item.transcript && item.transcript.length > 0)
-                                              ? 'Reprocessar IA'
-                                              : 'Processar IA')
-                                        }
-                                      </button>
-                                      <button 
-                                        onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })}
-                                        disabled={isReprocessing === item.id}
-                                        className="text-xs flex items-center gap-1 disabled:opacity-50 border-none bg-transparent cursor-pointer font-bold text-teal-600 hover:text-teal-800"
-                                        title="Colar a transcrição completa do YouTube para gerar o resumo"
-                                      >
-                                        <ListVideo size={12} />
-                                        Transcrição Completa
-                                      </button>
-                                    </div>
-                                    {item.associatedTools && item.associatedTools.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 mt-2">
-                                        {item.associatedTools.map(toolId => {
-                                          const tool = AVAILABLE_TOOLS.find(t => t.id === toolId);
-                                          return tool ? (
-                                            <span key={toolId} className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-100">
-                                              {tool.name}
-                                            </span>
-                                          ) : null;
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="p-4 text-xs text-gray-500 w-32 text-right">
-                                {item.timestamp.toLocaleDateString()}
-                              </td>
-                              <td className="p-4 w-32">
-                                <div className="flex items-center justify-end gap-2">
-                                  <div className="flex items-center border border-gray-200 rounded mr-2 overflow-hidden">
-                                    <button
-                                      disabled={idx === 0 || isMoving !== null}
-                                      onClick={() => handleMove(item, 'up', courseItems)}
-                                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-50 disabled:opacity-30 border-none bg-transparent cursor-pointer transition-colors"
-                                      title="Mover para cima"
-                                    >
-                                      <ChevronUp size={14} />
-                                    </button>
-                                    <div className="w-px h-4 bg-gray-200" />
-                                    <button
-                                      disabled={idx === courseItems.length - 1 || isMoving !== null}
-                                      onClick={() => handleMove(item, 'down', courseItems)}
-                                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-50 disabled:opacity-30 border-none bg-transparent cursor-pointer transition-colors"
-                                      title="Mover para baixo"
-                                    >
-                                      <ChevronDown size={14} />
-                                    </button>
-                                  </div>
-                                  <button 
-                                    onClick={() => {
-                                      if (expandedId === item.id) {
-                                        setExpandedId(null);
-                                      } else {
-                                        setExpandedId(item.id!);
-                                        setSeekTime(0);
-                                      }
-                                    }}
-                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors border-none bg-transparent cursor-pointer flex items-center gap-1 text-xs font-bold" 
-                                    title="Ver Detalhes"
-                                  >
-                                    Detalhes {expandedId === item.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                  </button>
-                                  <button 
-                                    onClick={() => {
-                                      setEditVideoData({
-                                        id: item.id!,
-                                        title: item.title,
-                                        course: item.course,
-                                        playlist: item.playlist,
-                                        associatedTools: item.associatedTools || [],
-                                        associatedAnalyses: item.associatedAnalyses || []
-                                      });
-                                      setEditNewCourse('');
-                                      setEditNewPlaylist('');
-                                      setModalConfig({ isOpen: true, type: 'editVideo', targetId: item.id });
-                                    }}
-                                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer" 
-                                    title="Editar vídeo"
-                                  >
-                                    <Edit2 size={16} />
-                                  </button>
-                                  <button 
-                                    onClick={() => setModalConfig({ isOpen: true, type: 'deleteVideo', targetId: item.id })}
-                                    className="p-2 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer" 
-                                    title="Remover vídeo"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            {expandedId === item.id && (
-                              <tr>
-                                <td colSpan={3} className="p-0 border-b border-[#eee] bg-[#f8fafc]">
-                                  <motion.div 
-                                    initial={{ height: 0, opacity: 0 }} 
-                                    animate={{ height: 'auto', opacity: 1 }} 
-                                    className="overflow-hidden"
-                                  >
-                                    <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                      {/* Col 1: Summary */}
-                                      <div className="bg-white p-4 rounded-lg border border-gray-200 h-[400px] flex flex-col shadow-sm">
-                                        <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                          <ListVideo size={18} className="text-blue-600" />
-                                          Índice do Vídeo
-                                        </h4>
-                                        <div className="overflow-y-auto flex-1 pr-2 space-y-2">
-                                          {item.summary && item.summary.length > 0 ? (
-                                            item.summary.map((s, i) => (
-                                              <button 
-                                                key={i}
-                                                onClick={() => setSeekTime(parseTimeToSeconds(s.time))} 
-                                                className="text-left text-sm hover:bg-blue-50 p-2 rounded w-full flex gap-3 transition-colors border border-transparent hover:border-blue-100 group cursor-pointer"
-                                              >
-                                                <span className="text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded group-hover:bg-blue-100 transition-colors">{s.time}</span>
-                                                <span className="text-gray-700 leading-tight">{s.topic}</span>
-                                              </button>
-                                            ))
-                                          ) : (
-                                            <p className="text-sm text-gray-500 italic">Nenhum índice gerado para este vídeo.</p>
-                                          )}
-                                        </div>
-                                      </div>
-
-                                      {/* Col 2: Video Player */}
-                                      <div className="bg-black rounded-lg overflow-hidden h-[400px] flex items-center justify-center shadow-sm">
-                                        {videoId ? (
-                                          <iframe
-                                            width="100%"
-                                            height="100%"
-                                            src={`https://www.youtube.com/embed/${videoId}?start=${seekTime}&autoplay=${seekTime > 0 ? 1 : 0}`}
-                                            title="YouTube video player"
-                                            frameBorder="0"
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                          ></iframe>
-                                        ) : (
-                                          <p className="text-white">Vídeo indisponível</p>
-                                        )}
-                                      </div>
-
-                                      {/* Col 3: Transcript */}
-                                      <div className="bg-white p-4 rounded-lg border border-gray-200 h-[400px] flex flex-col shadow-sm">
-                                        <div className="flex items-center gap-4 mb-4 border-b border-gray-100 pb-2">
-                                          <button 
-                                            onClick={() => setActiveTab('summary')}
-                                            className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'summary' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-                                          >
-                                            <Sparkles size={16} />
-                                            Resumo IA
-                                          </button>
-                                          {item.rawTranscript && (
-                                            <button 
-                                              onClick={() => setActiveTab('raw')}
-                                              className={`font-bold flex items-center gap-2 pb-2 -mb-[9px] border-b-2 transition-colors ${activeTab === 'raw' ? 'text-teal-600 border-teal-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
-                                            >
-                                              <ListVideo size={16} />
-                                              Transcrição Original
-                                            </button>
-                                          )}
-                                        </div>
-                                        <div className="overflow-y-auto flex-1 pr-2">
-                                          {activeTab === 'summary' ? (
-                                            <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-                                              {item.transcript || "O resumo detalhado não está disponível para este vídeo. Clique em 'Reprocessar IA' para tentar gerá-lo."}
-                                            </p>
-                                          ) : (
-                                            <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed font-mono text-xs">
-                                              {item.rawTranscript}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={makeHandleDragEnd(course.playlists.find(p => p.name === activePlaylists[course.name])!.videos)}
+                    >
+                      <SortableContext
+                        items={course.playlists.find(p => p.name === activePlaylists[course.name])!.videos.map(v => v.id!)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <tbody>
+                          {course.playlists.find(p => p.name === activePlaylists[course.name])!.videos.map((item) => (
+                            <SortableVideoRow
+                              key={item.id}
+                              item={item}
+                              expandedId={expandedId}
+                              seekTime={seekTime}
+                              activeTab={activeTab}
+                              isReprocessing={isReprocessing}
+                              getYoutubeId={getYoutubeId}
+                              parseTimeToSeconds={parseTimeToSeconds}
+                              handleReprocess={handleReprocess}
+                              setModalConfig={setModalConfig}
+                              setExpandedId={setExpandedId}
+                              setSeekTime={setSeekTime}
+                              setActiveTab={setActiveTab}
+                              setEditVideoData={setEditVideoData}
+                              setEditNewCourse={setEditNewCourse}
+                              setEditNewPlaylist={setEditNewPlaylist}
+                            />
+                          ))}
+                        </tbody>
+                      </SortableContext>
+                    </DndContext>
                   </table>
                 </div>
               )}
