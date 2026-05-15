@@ -170,3 +170,18 @@ export async function updatePlaylistName(courseName: string, oldName: string, ne
   await batch.commit();
 }
 
+export async function movePlaylistToCourse(currentCourse: string, playlistName: string, newCourse: string): Promise<number> {
+  if (currentCourse === newCourse) return 0;
+  const q = query(
+    collection(db, KNOWLEDGE_COLLECTION),
+    where('course', '==', currentCourse),
+    where('playlist', '==', playlistName)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return 0;
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(d => batch.update(d.ref, { course: newCourse }));
+  await batch.commit();
+  return snapshot.docs.length;
+}
+

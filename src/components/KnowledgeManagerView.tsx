@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Sparkles,
   GripVertical,
-  PlusCircle
+  PlusCircle,
+  ArrowRightLeft
 } from 'lucide-react';
 import {
   DndContext,
@@ -47,6 +48,7 @@ import {
   updateCourseName,
   deletePlaylist,
   updatePlaylistName,
+  movePlaylistToCourse,
   KNOWLEDGE_COLLECTION
 } from '../services/knowledgeService';
 import { getInitiatives } from '../services/configService';
@@ -187,7 +189,7 @@ const AVAILABLE_ANALYSES = [
 
 type ModalConfig = {
   isOpen: boolean;
-  type: 'editCourse' | 'deleteCourse' | 'editPlaylist' | 'deletePlaylist' | 'editVideo' | 'deleteVideo' | 'importTranscript';
+  type: 'editCourse' | 'deleteCourse' | 'editPlaylist' | 'deletePlaylist' | 'movePlaylist' | 'editVideo' | 'deleteVideo' | 'importTranscript';
   targetId?: string;
   targetCourse?: string;
   targetPlaylist?: string;
@@ -421,9 +423,10 @@ interface SortablePlaylistTabProps {
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onMove: () => void;
 }
 
-function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete }: SortablePlaylistTabProps) {
+function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, onMove }: SortablePlaylistTabProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: playlist.name });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -450,6 +453,13 @@ function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete }:
         <span className="text-[10px] ml-1 text-gray-400">({playlist.videos.length})</span>
       </button>
       <div className="flex items-center ml-1">
+        <button
+          onClick={onMove}
+          className="p-1 text-gray-400 hover:text-green-600 transition-colors border-none bg-transparent cursor-pointer"
+          title="Mover playlist para outro curso"
+        >
+          <ArrowRightLeft size={14} />
+        </button>
         <button
           onClick={onEdit}
           className="p-1 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
@@ -852,6 +862,12 @@ export default function KnowledgeManagerView() {
         await deletePlaylist(modalConfig.targetCourse, modalConfig.targetPlaylist);
       } else if (modalConfig.type === 'editPlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
         await updatePlaylistName(modalConfig.targetCourse, modalConfig.targetPlaylist, modalConfig.inputValue);
+      } else if (modalConfig.type === 'movePlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
+        if (modalConfig.inputValue === modalConfig.targetCourse) {
+          alert('A playlist já está nesse curso.');
+          return;
+        }
+        await movePlaylistToCourse(modalConfig.targetCourse, modalConfig.targetPlaylist, modalConfig.inputValue);
       }
       
       setModalConfig({ isOpen: false, type: 'editCourse' });
@@ -1278,6 +1294,7 @@ export default function KnowledgeManagerView() {
                           onSelect={() => setActivePlaylists(prev => ({ ...prev, [course.name]: playlist.name }))}
                           onEdit={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
                           onDelete={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
+                          onMove={() => setModalConfig({ isOpen: true, type: 'movePlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: '' })}
                         />
                       ))}
                     </SortableContext>
@@ -1349,6 +1366,7 @@ export default function KnowledgeManagerView() {
                 {modalConfig.type === 'editCourse' && `Editar Nome do Curso`}
                 {modalConfig.type === 'deletePlaylist' && `Excluir Playlist`}
                 {modalConfig.type === 'editPlaylist' && `Editar Nome da Playlist`}
+                {modalConfig.type === 'movePlaylist' && `Mover Playlist`}
                 {modalConfig.type === 'deleteVideo' && `Excluir Vídeo`}
                 {modalConfig.type === 'editVideo' && `Editar Vídeo`}
                 {modalConfig.type === 'importTranscript' && `Importar Transcrição Completa`}
@@ -1532,6 +1550,31 @@ export default function KnowledgeManagerView() {
                         )}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {modalConfig.type === 'movePlaylist' && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600">
+                      Mover a playlist <strong>{modalConfig.targetPlaylist}</strong> (atualmente em <em>{modalConfig.targetCourse}</em>) para qual curso?
+                    </p>
+                    <div>
+                      <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Curso destino</label>
+                      <select
+                        value={modalConfig.inputValue || ''}
+                        onChange={(e) => setModalConfig({ ...modalConfig, inputValue: e.target.value })}
+                        className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white"
+                        autoFocus
+                      >
+                        <option value="" disabled>Selecione um curso...</option>
+                        {initiativeNames.filter(c => c !== modalConfig.targetCourse).map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Todos os vídeos desta playlist serão movidos. O nome da playlist e a ordem dos vídeos são preservados.
+                    </p>
                   </div>
                 )}
 
