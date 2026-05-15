@@ -170,12 +170,3 @@ export async function updatePlaylistName(courseName: string, oldName: string, ne
   await batch.commit();
 }
 
-export async function migrateAllCourses(newCourseName: string): Promise<number> {
-  const snapshot = await getDocs(collection(db, KNOWLEDGE_COLLECTION));
-  const toUpdate = snapshot.docs.filter(d => d.data().course !== newCourseName);
-  if (toUpdate.length === 0) return 0;
-  const batch = writeBatch(db);
-  toUpdate.forEach(d => batch.update(d.ref, { course: newCourseName }));
-  await batch.commit();
-  return toUpdate.length;
-}

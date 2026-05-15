@@ -47,7 +47,6 @@ import {
   updateCourseName,
   deletePlaylist,
   updatePlaylistName,
-  migrateAllCourses,
   KNOWLEDGE_COLLECTION
 } from '../services/knowledgeService';
 import { getInitiatives } from '../services/configService';
@@ -531,14 +530,11 @@ export default function KnowledgeManagerView() {
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
 
-  const MIGRATION_COURSE = '1.2 - Formação em Gestão de Projetos de Melhoria (Lean Six Sigma Black Belt)';
-
   useEffect(() => {
     getInitiatives().then(list => {
       const names = list.filter(i => !!i.parentId).map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
     }).catch(console.error);
-    migrateAllCourses(MIGRATION_COURSE).catch(console.error);
     fetchItems();
   }, []);
 
