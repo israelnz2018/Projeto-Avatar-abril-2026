@@ -51,6 +51,26 @@ service cloud.firestore {
       );
     }
 
+    // Users — cada aluno pode ler/criar/atualizar APENAS o seu próprio doc.
+    // Quando ele migra de plano (gratuito → completo) o uid é o mesmo,
+    // então projects/knowledge_base/mentor_conversations dele continuam acessíveis
+    // automaticamente porque dependem de ownerUid/userId, não do plano.
+    match /users/{userId} {
+      allow read:   if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow delete: if isAdmin();
+    }
+
+    // Invites — gerenciados pelo admin (ou n8n via service account no futuro).
+    // Aluno autenticado lê pra que ensureUserDocument puxe nome/formações
+    // do convite, e pode deletar quando consumir no primeiro login.
+    match /invites/{inviteKey} {
+      allow read:   if isAuthenticated();
+      allow write:  if isAdmin();
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
+    }
+
     // Projects
     match /projects/{projectId} {
       // Allow read if user is owner or admin
@@ -116,6 +136,29 @@ service cloud.firestore {
     match /mentor_tool_context/{toolId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // API settings (Gemini key, Anthropic key, modelo) — só admin.
+    // Outros usuários precisam ler pra obter o modelo padrão usado nas chamadas
+    // client-side; mas a key é mascarada na UI. Mantendo read auth-only.
+    match /app_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Tracking de consumo de tokens — qualquer user autenticado incrementa
+    // (write via SDK client após cada chamada Gemini); leitura só admin.
+    match /api_usage/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAuthenticated();
+    }
+
+    // Feedback do aluno (bug / sugestão / dúvida) — aluno cria, admin lê.
+    // Aluno só pode ver/escrever os próprios feedbacks (caso queira histórico).
+    match /feedback/{feedbackId} {
+      allow read:   if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
   }
 }

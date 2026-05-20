@@ -22,7 +22,6 @@ import {
 import { getInitiatives } from '../services/configService';
 import { Initiative } from '../types';
 import { cn } from '../lib/utils';
-import { GoogleGenAI } from "@google/genai";
 import { toast } from 'sonner';
 
 const getInitiativeIcon = (name: string) => {
@@ -83,49 +82,48 @@ export default function ToolCreator() {
     if (!isAdjustment) setGeneratedDraft(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const { callAI } = await import('../services/aiRouter');
       const parent = initiatives.find(i => i.id === selectedParentId);
       const child = initiatives.find(i => i.id === selectedChildId);
       const phase = phases.find(p => p.id === selectedPhaseId);
 
-      const prompt = `
-        Você é um consultor sênior de melhoria contínua, prático e direto ao ponto.
-        O usuário deseja criar uma ferramenta para:
-        
-        Tipo de Projeto: ${parent?.name}
-        Subcategoria: ${child?.name}
-        Fase do Projeto: ${phase?.name}
-        Descrição Inicial: ${description}
-        ${isAdjustment ? `Feedback/Mudanças solicitadas: ${feedback}` : ''}
-        
-        Crie um "Conceito" REALISTA e PRÁTICO para esta ferramenta.
-        REGRAS CRÍTICAS:
-        1. NOME: Use nomes profissionais em PORTUGUÊS (ex: "Matriz de Priorização", "Checklist de Setup"). Nada de nomes fantasiosos ou em inglês.
-        2. FOCO NA AÇÃO: O que o aluno REALMENTE tem que fazer?
-        3. SEM ENROLAÇÃO: Não explique a teoria. Vá direto para a aplicação.
-        
-        Estrutura da resposta:
-        - Nome da Ferramenta (Realista e em Português)
-        - Objetivo Direto (1 frase)
-        - O que o aluno DEVE fazer (Lista de ações práticas)
-        - O que o aluno NÃO DEVE fazer (Erros comuns a evitar)
-        - Campos necessários para o formulário
-        
-        Responda em Markdown limpo.
-      `;
+      const prompt = `Você é um consultor sênior de melhoria contínua, prático e direto ao ponto.
+O usuário deseja criar uma ferramenta para:
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt,
+Tipo de Projeto: ${parent?.name}
+Subcategoria: ${child?.name}
+Fase do Projeto: ${phase?.name}
+Descrição Inicial: ${description}
+${isAdjustment ? `Feedback/Mudanças solicitadas: ${feedback}` : ''}
+
+Crie um "Conceito" REALISTA e PRÁTICO para esta ferramenta.
+REGRAS CRÍTICAS:
+1. NOME: Use nomes profissionais em PORTUGUÊS (ex: "Matriz de Priorização", "Checklist de Setup"). Nada de nomes fantasiosos ou em inglês.
+2. FOCO NA AÇÃO: O que o aluno REALMENTE tem que fazer?
+3. SEM ENROLAÇÃO: Não explique a teoria. Vá direto para a aplicação.
+
+Estrutura da resposta:
+- Nome da Ferramenta (Realista e em Português)
+- Objetivo Direto (1 frase)
+- O que o aluno DEVE fazer (Lista de ações práticas)
+- O que o aluno NÃO DEVE fazer (Erros comuns a evitar)
+- Campos necessários para o formulário
+
+Responda em Markdown limpo.`;
+
+      const { text } = await callAI({
+        location: 'tool-react',
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens: 4096,
       });
 
-      setGeneratedDraft(response.text || 'Não foi possível gerar o draft.');
+      setGeneratedDraft(text || 'Não foi possível gerar o draft.');
       setShowFeedbackInput(false);
       setFeedback('');
       toast.success(isAdjustment ? 'Ideia ajustada com sucesso!' : 'Ideia gerada com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating tool draft:', error);
-      toast.error('Erro ao gerar a ideia da ferramenta');
+      toast.error(error?.message || 'Erro ao gerar a ideia da ferramenta');
     } finally {
       setIsGenerating(false);
     }
@@ -136,53 +134,47 @@ export default function ToolCreator() {
 
     setIsGeneratingFull(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const parent = initiatives.find(i => i.id === selectedParentId);
-      const child = initiatives.find(i => i.id === selectedChildId);
+      const { callAIJSON } = await import('../services/aiRouter');
       const phase = phases.find(p => p.id === selectedPhaseId);
 
-      const prompt = `
-        Você é um consultor sênior de melhoria contínua.
-        O usuário aprovou a seguinte ideia de ferramenta:
-        
-        ${generatedDraft}
-        
-        ${isAdjustment ? `O usuário solicitou os seguintes ajustes na ferramenta funcional: ${fullToolFeedback}` : ''}
+      const prompt = `Você é um consultor sênior de melhoria contínua.
+O usuário aprovou a seguinte ideia de ferramenta:
 
-        Agora, gere a estrutura FUNCIONAL desta ferramenta em formato JSON.
-        A ferramenta deve seguir o PADRÃO VISUAL E FUNCIONAL das ferramentas existentes (como Project Brief e Ishikawa):
-        - Cabeçalho com Título e Fase.
-        - Campos de entrada claros e organizados.
-        - Lógica de resultado ou conclusão prática.
+${generatedDraft}
 
-        REGRAS:
-        - Título em PORTUGUÊS e profissional.
-        - Campos práticos que o aluno deve preencher.
-        - Descrição curta e focada na AÇÃO.
-        
-        O JSON deve seguir este formato:
-        {
-          "title": "Nome da Ferramenta",
-          "description": "Instrução curta do que o aluno deve fazer agora.",
-          "phase": "${phase?.name}",
-          "fields": [
-            { "id": "field1", "label": "Nome do Campo", "type": "text" | "number" | "select", "options": ["Opção 1", "Opção 2"], "placeholder": "Dica prática de preenchimento" }
-          ],
-          "resultLogic": "O que o aluno deve concluir após preencher esses dados."
-        }
+${isAdjustment ? `O usuário solicitou os seguintes ajustes na ferramenta funcional: ${fullToolFeedback}` : ''}
 
-        Retorne APENAS o JSON.
-      `;
+Agora, gere a estrutura FUNCIONAL desta ferramenta em formato JSON.
+A ferramenta deve seguir o PADRÃO VISUAL E FUNCIONAL das ferramentas existentes (como Project Brief e Ishikawa):
+- Cabeçalho com Título e Fase.
+- Campos de entrada claros e organizados.
+- Lógica de resultado ou conclusão prática.
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+REGRAS:
+- Título em PORTUGUÊS e profissional.
+- Campos práticos que o aluno deve preencher.
+- Descrição curta e focada na AÇÃO.
+
+O JSON deve seguir este formato:
+{
+  "title": "Nome da Ferramenta",
+  "description": "Instrução curta do que o aluno deve fazer agora.",
+  "phase": "${phase?.name}",
+  "fields": [
+    { "id": "field1", "label": "Nome do Campo", "type": "text" | "number" | "select", "options": ["Opção 1", "Opção 2"], "placeholder": "Dica prática de preenchimento" }
+  ],
+  "resultLogic": "O que o aluno deve concluir após preencher esses dados."
+}
+
+Retorne APENAS o JSON.`;
+
+      const toolJson = await callAIJSON<any>({
+        location: 'tool-ppt',
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens: 4096,
       });
-
-      const toolJson = JSON.parse(response.text || '{}');
       setFullTool(toolJson);
-      
+
       // Initialize tool data with empty values
       const initialData: Record<string, any> = {};
       toolJson.fields?.forEach((f: any) => initialData[f.id] = '');
@@ -191,9 +183,9 @@ export default function ToolCreator() {
       setShowFullToolFeedback(false);
       setFullToolFeedback('');
       toast.success(isAdjustment ? 'Ferramenta ajustada com sucesso!' : 'Ferramenta funcional gerada com sucesso!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating full tool:', error);
-      toast.error('Erro ao gerar a ferramenta funcional');
+      toast.error(error?.message || 'Erro ao gerar a ferramenta funcional');
     } finally {
       setIsGeneratingFull(false);
     }

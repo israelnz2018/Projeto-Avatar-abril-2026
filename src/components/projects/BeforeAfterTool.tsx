@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, CheckCircle2, BarChart3, FileText, Printer, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { GoogleGenAI } from "@google/genai";
 
 interface BeforeAfterProps {
   onSave: (data: any) => void;
@@ -75,22 +74,19 @@ Dados Subjetivos: ${data.after.subj.join(', ')}`;
   const improveWithAI = async () => {
     setIsImproving(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const { callAI } = await import('../../services/aiRouter');
       const prompt = `Melhore o seguinte relatório de melhoria, tornando as frases mais bonitas, gramaticalmente corretas e profissionais. Mantenha a estrutura de Antes e Depois.
-      
-      ${reportText}
-      
-      Retorne apenas o texto melhorado.`;
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
+
+${reportText}
+
+Retorne apenas o texto melhorado.`;
+      const { text } = await callAI({
+        location: 'fill-tool',
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens: 2048,
       });
-      
-      if (response.text) {
-        setReportText(response.text);
-      }
-    } catch (error) {
+      if (text) setReportText(text);
+    } catch (error: any) {
       console.error("Erro ao melhorar com IA:", error);
     } finally {
       setIsImproving(false);

@@ -5,7 +5,6 @@ import {
   TrendingUp, BarChart3, Activity, Play, ChevronRight, Compass,
   X, FolderTree, BookOpen, Wand2,
 } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/src/lib/firebase';
@@ -436,13 +435,21 @@ export default function ChatAssistant() {
   const go = (next: 'hero' | 'tree' | 'leaf' | 'chat', direction: 1 | -1 = 1) => { setDir(direction); setView(next); };
 
   const callGemini = async (prompt: string, json = false) => {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      ...(json ? { config: { responseMimeType: 'application/json' } } : {}),
+    const { callAI, callAIJSON } = await import('../services/aiRouter');
+    if (json) {
+      const obj = await callAIJSON({
+        location: 'chat-ai',
+        messages: [{ role: 'user', content: prompt + '\n\nResponda APENAS com JSON válido, sem texto antes ou depois.' }],
+        maxTokens: 4096,
+      });
+      return JSON.stringify(obj);
+    }
+    const { text } = await callAI({
+      location: 'chat-ai',
+      messages: [{ role: 'user', content: prompt }],
+      maxTokens: 4096,
     });
-    return response.text || '';
+    return text;
   };
 
   const handleCategoryClick = (catId: string) => {

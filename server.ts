@@ -1,8 +1,12 @@
+import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
+import nodemailer from "nodemailer";
+import { YoutubeTranscript } from "youtube-transcript";
+import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore } from "./src/lib/firebaseAdmin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +16,342 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Firebase Admin SDK — usado pelos endpoints /api/admin/*
+  initFirebaseAdmin();
+
+  // ===============================================================
+  // Admin Users API — gerenciar usuários pelo painel /users
+  // ===============================================================
+  // Helper: manda e-mail de boas-vindas com senha provisória.
+  // Retorna true se enviou, false se SMTP não está configurado ou falhou.
+  async function sendWelcomeEmail(params: {
+    para: string;
+    nome: string;
+    senhaProvisoria: string;
+    appUrl?: string;
+    contexto?: "novo" | "reset";
+  }): Promise<boolean> {
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || "465", 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || user;
+    if (!host || !user || !pass) {
+      console.warn("[sendWelcomeEmail] SMTP não configurado. Pulando envio.");
+      return false;
+    }
+    try {
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      });
+      const linkApp = params.appUrl || process.env.APP_URL || "https://lbw-copilot.app";
+      const titulo = params.contexto === "reset"
+        ? "Sua senha foi resetada — LBW Copilot"
+        : "Bem-vindo ao LBW Copilot — seus dados de acesso";
+      const intro = params.contexto === "reset"
+        ? `O administrador resetou sua senha de acesso ao <strong>LBW Continuous Improvement Copilot</strong>.`
+        : `Sua conta no <strong>LBW Continuous Improvement Copilot</strong> foi criada por um administrador.`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #2A2F3A;">
+          <h2 style="color: #1E2D6E;">${titulo}</h2>
+          <p>Olá ${params.nome || params.para.split("@")[0]},</p>
+          <p>${intro}</p>
+          <div style="background: #F0F2FA; border-left: 4px solid #0033CC; padding: 16px 20px; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #1E2D6E; font-weight: bold;">DADOS DE ACESSO</p>
+            <p style="margin: 4px 0;"><strong>E-mail:</strong> ${params.para}</p>
+            <p style="margin: 4px 0;"><strong>Senha provisória:</strong> <code style="background: #fff; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;">${params.senhaProvisoria}</code></p>
+          </div>
+          <p>Recomendamos que você <strong>troque a senha</strong> no primeiro acesso.</p>
+          <p style="margin: 24px 0;">
+            <a href="${linkApp}" style="background: #0033CC; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Acessar a plataforma</a>
+          </p>
+          <p style="font-size: 12px; color: #9CA3AF; margin-top: 32px;">
+            Se não foi você que solicitou esse acesso, ignore este e-mail.
+          </p>
+          <p style="font-size: 12px; color: #9CA3AF;">Equipe LBW · Learning by Working</p>
+        </div>
+      `;
+      await transporter.sendMail({
+        from,
+        to: params.para,
+        subject: titulo,
+        html,
+      });
+      return true;
+    } catch (err: any) {
+      console.error("[sendWelcomeEmail] Erro SMTP:", err?.message || err);
+      return false;
+    }
+  }
+
+
+  // Verifica que o request vem de um admin autenticado (idToken Firebase no header).
+  async function requireAdmin(req: any, res: any, next: any) {
+    if (!isAdminReady()) {
+      return res.status(503).json({ error: "Firebase Admin não configurado no servidor." });
+    }
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) {
+      return res.status(401).json({ error: "Header Authorization Bearer <idToken> obrigatório." });
+    }
+    try {
+      const decoded = await adminAuth().verifyIdToken(idToken);
+      const email = (decoded.email || "").toLowerCase();
+      const ADMIN_EMAILS = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+      if (!ADMIN_EMAILS.includes(email)) {
+        return res.status(403).json({ error: "Acesso restrito a administradores." });
+      }
+      req.adminEmail = email;
+      req.adminUid = decoded.uid;
+      next();
+    } catch (err: any) {
+      console.error("[requireAdmin] erro:", err);
+      return res.status(401).json({ error: "idToken inválido ou expirado." });
+    }
+  }
+
+  // GET /api/admin/users/list — lista TODOS os usuários (Auth + Firestore merged)
+  // Resolve a "lacuna": usuários que existem no Firebase Auth mas não têm doc Firestore
+  // aparecem aqui marcados como `_hasDoc: false` — admin pode regularizar com 1 clique.
+  app.get("/api/admin/users/list", requireAdmin, async (_req: any, res) => {
+    try {
+      // 1. Lista tudo do Firebase Auth (max 1000)
+      const authResult = await adminAuth().listUsers(1000);
+      // 2. Lê tudo do Firestore users/
+      const firestoreSnap = await adminFirestore().collection("users").get();
+      const docsByUid = new Map<string, any>();
+      firestoreSnap.docs.forEach(d => docsByUid.set(d.id, d.data()));
+
+      // 3. Merge pelo uid
+      const merged = authResult.users.map(au => {
+        const doc = docsByUid.get(au.uid);
+        if (doc) {
+          return {
+            ...doc,
+            uid: au.uid,
+            email: doc.email || au.email || "",
+            _hasDoc: true,
+            _authCreatedAt: au.metadata?.creationTime || null,
+            _authDisabled: au.disabled || false,
+          };
+        }
+        // Órfão — só Auth, sem doc Firestore
+        return {
+          uid: au.uid,
+          email: au.email || "",
+          nome: au.displayName || "",
+          tipoUsuario: "aluno",
+          plano: "gratuito",
+          formacoes: [],
+          creditoIA: { limite: 0, usado: 0, resetEm: au.metadata?.creationTime || new Date().toISOString() },
+          criadoEm: au.metadata?.creationTime || new Date().toISOString(),
+          _hasDoc: false,
+          _authCreatedAt: au.metadata?.creationTime || null,
+          _authDisabled: au.disabled || false,
+        };
+      });
+
+      return res.json({ users: merged, count: merged.length });
+    } catch (err: any) {
+      console.error("[GET /api/admin/users/list] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao listar usuários." });
+    }
+  });
+
+  // POST /api/admin/users/:uid/complete-profile — cria doc Firestore pra um usuário
+  // que só existia no Firebase Auth ("órfão"). Aplica defaults razoáveis.
+  app.post("/api/admin/users/:uid/complete-profile", requireAdmin, async (req: any, res) => {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: "uid obrigatório." });
+    try {
+      // Verifica se o usuário existe no Auth
+      const authUser = await adminAuth().getUser(uid);
+      // Confirma que não tem doc ainda — não sobrescreve dados existentes
+      const docRef = adminFirestore().collection("users").doc(uid);
+      const snap = await docRef.get();
+      if (snap.exists) {
+        return res.status(409).json({ error: "Usuário já tem doc Firestore. Use o botão Editar." });
+      }
+      const novoDoc = {
+        uid,
+        email: authUser.email || "",
+        nome: authUser.displayName || "",
+        tipoUsuario: "aluno",
+        plano: "gratuito",
+        formacoes: ["projetos-melhoria-introdutoria"],
+        creditoIA: {
+          limite: 100,
+          usado: 0,
+          resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        },
+        criadoEm: authUser.metadata?.creationTime || new Date().toISOString(),
+      };
+      await docRef.set(novoDoc);
+      return res.json({ ok: true, doc: novoDoc });
+    } catch (err: any) {
+      console.error("[POST complete-profile] erro:", err);
+      if (err?.code === "auth/user-not-found") {
+        return res.status(404).json({ error: "Conta Firebase Auth não encontrada." });
+      }
+      return res.status(500).json({ error: err?.message || "Erro ao completar perfil." });
+    }
+  });
+
+  // POST /api/admin/users — cria conta Firebase Auth + doc Firestore
+  app.post("/api/admin/users", requireAdmin, async (req: any, res) => {
+    const { email, nome, plano, formacoes, empresaId, empresaNome, maxAlunos, tipoUsuario } = req.body as {
+      email: string;
+      nome?: string;
+      plano?: "gratuito" | "completo" | "coordenador";
+      formacoes?: string[];
+      empresaId?: string;
+      empresaNome?: string;
+      maxAlunos?: number;
+      tipoUsuario?: "aluno" | "coordenador";
+    };
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
+    const senhaProvisoria = Math.random().toString(36).slice(-10);
+    const tipo = tipoUsuario === "coordenador" ? "coordenador" : "aluno";
+    try {
+      const userRecord = await adminAuth().createUser({
+        email: email.toLowerCase().trim(),
+        password: senhaProvisoria,
+        displayName: nome || undefined,
+      });
+      await adminFirestore().collection("users").doc(userRecord.uid).set({
+        uid: userRecord.uid,
+        email: userRecord.email || email.toLowerCase().trim(),
+        nome: nome || "",
+        tipoUsuario: tipo,
+        plano: plano || (tipo === "coordenador" ? "coordenador" : "gratuito"),
+        formacoes: Array.isArray(formacoes) && formacoes.length > 0
+          ? formacoes
+          : ["projetos-melhoria-introdutoria"],
+        creditoIA: {
+          limite: 100,
+          usado: 0,
+          resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        },
+        ...(empresaId ? { empresaId } : {}),
+        ...(empresaNome ? { empresaNome } : {}),
+        ...(typeof maxAlunos === "number" ? { maxAlunos } : {}),
+        criadoEm: new Date().toISOString(),
+      });
+      // Tenta enviar e-mail de boas-vindas automaticamente
+      const appUrl = (req.body as any)?.appUrl;
+      const emailEnviado = await sendWelcomeEmail({
+        para: userRecord.email || email.toLowerCase().trim(),
+        nome: nome || "",
+        senhaProvisoria,
+        appUrl,
+        contexto: "novo",
+      });
+      return res.json({
+        ok: true,
+        uid: userRecord.uid,
+        email: userRecord.email,
+        senhaProvisoria,
+        emailEnviado,
+      });
+    } catch (err: any) {
+      console.error("[POST /api/admin/users] erro:", err);
+      if (err?.code === "auth/email-already-exists") {
+        return res.status(409).json({ error: "E-mail já cadastrado no Firebase Auth." });
+      }
+      return res.status(500).json({ error: err?.message || "Erro ao criar usuário." });
+    }
+  });
+
+  // PATCH /api/admin/users/:uid — edita doc Firestore (e displayName/email no Auth se vier)
+  app.patch("/api/admin/users/:uid", requireAdmin, async (req: any, res) => {
+    const { uid } = req.params;
+    const updates = req.body as Record<string, any>;
+    if (!uid) return res.status(400).json({ error: "uid obrigatório." });
+    try {
+      const firestoreUpdate: Record<string, any> = {};
+      const allowed = [
+        "nome",
+        "tipoUsuario",
+        "plano",
+        "formacoes",
+        "empresaId",
+        "empresaNome",
+        "maxAlunos",
+        "creditoIA",
+      ];
+      for (const k of allowed) {
+        if (updates[k] !== undefined) firestoreUpdate[k] = updates[k];
+      }
+      if (Object.keys(firestoreUpdate).length > 0) {
+        await adminFirestore().collection("users").doc(uid).set(firestoreUpdate, { merge: true });
+      }
+      // Atualizar displayName no Auth se mudou o nome
+      if (updates.nome !== undefined) {
+        try {
+          await adminAuth().updateUser(uid, { displayName: updates.nome });
+        } catch (e) {
+          console.warn("[PATCH /api/admin/users] não atualizou displayName no Auth:", e);
+        }
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[PATCH /api/admin/users] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao atualizar usuário." });
+    }
+  });
+
+  // DELETE /api/admin/users/:uid — apaga Auth + Firestore
+  app.delete("/api/admin/users/:uid", requireAdmin, async (req: any, res) => {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: "uid obrigatório." });
+    try {
+      // Auth primeiro (se falhar aqui, paramos sem corromper o Firestore)
+      try {
+        await adminAuth().deleteUser(uid);
+      } catch (e: any) {
+        // Se a conta já foi deletada do Auth, segue pra limpar Firestore
+        if (e?.code !== "auth/user-not-found") {
+          throw e;
+        }
+        console.warn(`[DELETE /api/admin/users/${uid}] conta Auth já não existia.`);
+      }
+      // Firestore
+      await adminFirestore().collection("users").doc(uid).delete();
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[DELETE /api/admin/users] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao deletar usuário." });
+    }
+  });
+
+  // POST /api/admin/users/:uid/reset-password — gera nova senha provisória + envia e-mail
+  app.post("/api/admin/users/:uid/reset-password", requireAdmin, async (req: any, res) => {
+    const { uid } = req.params;
+    if (!uid) return res.status(400).json({ error: "uid obrigatório." });
+    try {
+      const senhaProvisoria = Math.random().toString(36).slice(-10);
+      const userRecord = await adminAuth().updateUser(uid, { password: senhaProvisoria });
+      // Manda e-mail com a senha nova (se SMTP configurado)
+      const emailEnviado = await sendWelcomeEmail({
+        para: userRecord.email || "",
+        nome: userRecord.displayName || "",
+        senhaProvisoria,
+        appUrl: (req.body as any)?.appUrl,
+        contexto: "reset",
+      });
+      return res.json({ ok: true, senhaProvisoria, emailEnviado });
+    } catch (err: any) {
+      console.error("[POST reset-password] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao resetar senha." });
+    }
+  });
 
   // Mock Database State
   let projects: any[] = [];
@@ -53,6 +393,238 @@ async function startServer() {
     };
     analysisRuns.push(run);
     res.status(201).json(run);
+  });
+
+  // Convite por e-mail (SMTP Hostinger + links de webhooks n8n)
+  app.post("/api/send-invite", async (req, res) => {
+    const { para, nome, empresa, tipoEmail, mensagemExtra, appUrl, formacaoNome, aceitouMarketing } = req.body as {
+      para: string;
+      nome?: string;
+      empresa?: string;
+      tipoEmail: "convite_gratuito" | "convite_pago" | "convite_coordenador" | "time_coordenador";
+      mensagemExtra?: string;
+      appUrl?: string;
+      formacaoNome?: string;
+      aceitouMarketing?: boolean;
+    };
+
+    if (!para || !para.includes("@")) {
+      return res.status(400).json({ error: "E-mail de destino inválido." });
+    }
+
+    // convite_gratuito: chama o n8n direto (server-to-server). O n8n cria a conta
+    // e envia o e-mail com a senha provisória pro cliente. Sem SMTP nem botão intermediário.
+    // Mantemos paridade de campos com o que a landing page envia (nome, email,
+    // aceitouMarketing, formacaoNome) — o n8n parseia $json.body desses 4 campos.
+    if (tipoEmail === "convite_gratuito") {
+      const url = process.env.N8N_WEBHOOK_GRATUITO;
+      if (!url) {
+        return res.status(500).json({ error: "N8N_WEBHOOK_GRATUITO não configurado no .env." });
+      }
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // Campos no formato esperado pelo n8n (idêntico à landing)
+            nome: nome || "",
+            email: para,
+            aceitouMarketing: typeof aceitouMarketing === "boolean" ? aceitouMarketing : true,
+            formacaoNome: formacaoNome || "Yellow Belt LBW",
+            // Campos auxiliares pra rastreabilidade no n8n
+            name: nome || "",
+            source: "lbw-app-invite",
+          }),
+        });
+        if (!r.ok) {
+          const t = await r.text().catch(() => "");
+          return res.status(502).json({ error: `n8n retornou ${r.status}: ${t.slice(0, 200)}` });
+        }
+        // n8n responde com { ok, ja_existe?: boolean, email?: string }.
+        // Repassamos a flag pro frontend mostrar mensagem amigável quando a conta já existe.
+        const body = await r.json().catch(() => ({} as any));
+        return res.json({
+          ok: true,
+          source: "n8n",
+          ja_existe: !!body?.ja_existe,
+          email: body?.email || para,
+        });
+      } catch (err: any) {
+        console.error("[/api/send-invite] Erro chamando n8n:", err);
+        return res.status(500).json({ error: err?.message || "Falha ao acionar n8n." });
+      }
+    }
+
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || "465", 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || user;
+
+    if (!host || !user || !pass) {
+      return res.status(500).json({
+        error: "SMTP não configurado. Defina SMTP_HOST, SMTP_USER e SMTP_PASS no .env do servidor.",
+      });
+    }
+
+    const WEBHOOK_GRATUITO = process.env.N8N_WEBHOOK_GRATUITO || "";
+    const WEBHOOK_PAGO = process.env.N8N_WEBHOOK_PAGO || "";
+    const WEBHOOK_COORDENADOR = process.env.N8N_WEBHOOK_COORDENADOR || "";
+    const linkApp = appUrl || process.env.APP_URL || "https://lbw-copilot.app";
+
+    // Define o conteúdo de acordo com o tipo de e-mail
+    const config = {
+      convite_gratuito: {
+        titulo: "Conheça a plataforma LBW — acesso gratuito",
+        chamada: `Quero te apresentar a <strong>LBW Continuous Improvement Copilot</strong>: uma plataforma de Lean Six Sigma e melhoria contínua com mentor de IA, ferramentas integradas (Charter, SIPOC, Ishikawa, FMEA e mais 40), análises estatísticas e geração automática de apresentações.<br><br>Liberei pra você o <strong>plano gratuito Yellow Belt</strong>, com a formação introdutória e as principais análises de dados. Sem cartão, sem amarras — é só criar a conta com este e-mail.`,
+        botaoLabel: "Criar conta gratuita",
+        botaoUrl: WEBHOOK_GRATUITO || linkApp,
+      },
+      convite_pago: {
+        titulo: "Convite especial — Plano completo LBW",
+        chamada: `Você foi indicado(a) a conhecer o <strong>plano completo da LBW Continuous Improvement Copilot</strong>: acesso total às 3 metodologias (DMAIC, Lean/Kaizen e PMI), mais de 40 ferramentas, 80+ análises estatísticas e mentor de IA dedicado.<br><br>Pelo link abaixo você finaliza a compra e, no primeiro login, todas as suas permissões já estarão configuradas automaticamente.`,
+        botaoLabel: "Quero o plano completo",
+        botaoUrl: WEBHOOK_PAGO || linkApp,
+      },
+      convite_coordenador: {
+        titulo: "Plano Coordenador — gestão da sua equipe",
+        chamada: `Para empresas e líderes de melhoria contínua: o <strong>plano Coordenador da LBW</strong> dá tudo do plano completo <em>mais</em> um dashboard exclusivo para gerenciar sua equipe — você acompanha o progresso dos seus alunos, distribui formações e mede a evolução de cada um.<br><br>Após a compra, sua área de gestão e a quantidade de vagas do time são liberadas automaticamente.`,
+        botaoLabel: "Quero o plano Coordenador",
+        botaoUrl: WEBHOOK_COORDENADOR || linkApp,
+      },
+      time_coordenador: {
+        titulo: "Seu acesso à LBW foi liberado",
+        chamada: `Boa notícia: você foi incluído(a) no time${empresa ? ` da empresa <strong>${empresa}</strong>` : ""} na plataforma <strong>LBW Continuous Improvement Copilot</strong>.<br><br>Suas formações, mentor de IA e ferramentas já estão liberadas. Basta fazer o cadastro com <strong>este mesmo e-mail</strong> que tudo aparece pronto na primeira entrada.`,
+        botaoLabel: "Fazer meu cadastro",
+        botaoUrl: linkApp,
+      },
+    }[tipoEmail] || null;
+
+    if (!config) {
+      return res.status(400).json({ error: "tipoEmail inválido." });
+    }
+
+    // Adiciona email e nome como query params na URL do botão (pra n8n receber via GET)
+    const qs = new URLSearchParams();
+    qs.set("email", para);
+    if (nome) qs.set("name", nome);
+    if (empresa) qs.set("empresa", empresa);
+    const sep = config.botaoUrl.includes("?") ? "&" : "?";
+    config.botaoUrl = `${config.botaoUrl}${sep}${qs.toString()}`;
+
+    const saudacao = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
+    const mensagemExtraHtml = mensagemExtra
+      ? `<div style="background: #F0F2FA; border-left: 4px solid #0033CC; padding: 12px 16px; margin: 16px 0; font-size: 14px;">${mensagemExtra.replace(/\n/g, "<br>")}</div>`
+      : "";
+
+    const html = `
+<div style="font-family: Calibri, Arial, sans-serif; color: #2A2F3A; max-width: 600px; margin: 0 auto;">
+  <div style="background: #1E2D6E; color: white; padding: 24px; border-radius: 4px 4px 0 0;">
+    <h1 style="margin: 0; font-size: 22px;">${config.titulo}</h1>
+    <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.85;">LBW Continuous Improvement Copilot</p>
+  </div>
+  <div style="background: #ffffff; padding: 28px 24px; border: 1px solid #ccc; border-top: 0; border-radius: 0 0 4px 4px;">
+    <p style="font-size: 15px;">${saudacao}</p>
+    <p>${config.chamada}</p>
+    ${mensagemExtraHtml}
+    <p style="margin: 28px 0; text-align: center;">
+      <a href="${config.botaoUrl}" style="background: #0033CC; color: white; padding: 14px 36px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; font-size: 15px;">${config.botaoLabel}</a>
+    </p>
+    <p style="font-size: 13px; color: #666; text-align: center;">
+      Ou copie e cole no navegador:<br>
+      <a href="${config.botaoUrl}" style="color: #0033CC; word-break: break-all;">${config.botaoUrl}</a>
+    </p>
+    <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+    <p style="font-size: 12px; color: #9CA3AF;">Qualquer dúvida, responda este e-mail.<br>Equipe LBW · Learning by Working</p>
+  </div>
+</div>`.trim();
+
+    const texto = [
+      saudacao,
+      "",
+      config.chamada.replace(/<[^>]+>/g, ""),
+      "",
+      mensagemExtra || "",
+      "",
+      `${config.botaoLabel}: ${config.botaoUrl}`,
+      "",
+      "Qualquer dúvida, responda este e-mail.",
+      "Equipe LBW",
+    ].filter(Boolean).join("\n");
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      });
+      const info = await transporter.sendMail({
+        from: `"LBW Continuous Improvement Copilot" <${from}>`,
+        to: para,
+        subject: config.titulo,
+        text: texto,
+        html,
+      });
+      res.json({ ok: true, messageId: info.messageId });
+    } catch (err: any) {
+      console.error("[/api/send-invite] Erro SMTP:", err);
+      res.status(500).json({ error: err?.message || "Falha ao enviar e-mail." });
+    }
+  });
+
+  // YouTube Transcript Endpoint
+  // Busca o transcript bruto (com timestamps) diretamente do YouTube.
+  // Body: { videoUrl: string, lang?: string }  → Response: { transcript: string }
+  app.post("/api/youtube-transcript", async (req, res) => {
+    const { videoUrl, lang } = req.body as { videoUrl?: string; lang?: string };
+    if (!videoUrl) {
+      return res.status(400).json({ error: "videoUrl é obrigatório" });
+    }
+    try {
+      // Tenta primeiro no idioma solicitado (default pt), depois cai para pt-BR, en e default.
+      const candidates = [lang, "pt", "pt-BR", "en", undefined].filter(
+        (v, i, arr) => arr.indexOf(v) === i
+      );
+      let segments: { text: string; offset: number; duration: number }[] | null = null;
+      let lastError: unknown = null;
+      for (const candidate of candidates) {
+        try {
+          const opts = candidate ? { lang: candidate } : undefined;
+          segments = (await YoutubeTranscript.fetchTranscript(videoUrl, opts)) as any;
+          if (segments && segments.length > 0) break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      if (!segments || segments.length === 0) {
+        const msg = lastError instanceof Error ? lastError.message : "Sem legendas disponíveis";
+        return res.status(404).json({ error: `Nenhuma legenda encontrada: ${msg}` });
+      }
+
+      // A lib retorna offset/duration em ms (formato srv3) ou em segundos (formato classic).
+      // Detecta a unidade pela duração mediana dos segmentos: frases típicas duram 1-10s,
+      // então se a mediana de "duration" for > 60, está em ms.
+      const sortedDurations = segments.map(s => s.duration).sort((a, b) => a - b);
+      const medianDuration = sortedDurations[Math.floor(sortedDurations.length / 2)];
+      const inMs = medianDuration > 60;
+
+      const formatTs = (offset: number) => {
+        const totalSeconds = Math.floor(inMs ? offset / 1000 : offset);
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      };
+
+      const transcript = segments
+        .map((seg) => `[${formatTs(seg.offset)}] ${seg.text}`)
+        .join("\n");
+
+      res.json({ transcript, segments: segments.length });
+    } catch (err: any) {
+      console.error("[/api/youtube-transcript] erro:", err);
+      res.status(500).json({ error: err?.message || "Erro ao buscar transcript" });
+    }
   });
 
   // AI Chat Endpoint

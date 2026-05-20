@@ -24,16 +24,17 @@ import {
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { 
-  getInitiatives, 
-  createInitiative, 
-  updateInitiative, 
-  deleteInitiative, 
-  getInitiativeConfigs, 
+import {
+  getInitiatives,
+  createInitiative,
+  updateInitiative,
+  deleteInitiative,
+  getInitiativeConfigs,
   saveInitiativeConfig,
   seedDefaultInitiative,
   restoreDefaultMethodologies
 } from '../services/configService';
+import { updateCourseName } from '../services/knowledgeService';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
@@ -208,10 +209,30 @@ export default function ProjectToolsConfig() {
 
   const handleSaveInitiativeEdit = async () => {
     if (!selectedInitiative || !editingInitiativeName.trim()) return;
-    
+
+    const nomeAntigo = selectedInitiative.name;
+    const nomeNovo = editingInitiativeName.trim();
+    const renomeou = nomeAntigo !== nomeNovo;
+
     try {
-      const updates: any = { 
-        name: editingInitiativeName,
+      // ────────────────────────────────────────────────────────────────────
+      // PROPAGAÇÃO AUTOMÁTICA (Opção B):
+      // Vídeos da Base de Conhecimento referenciam o curso por NOME (campo
+      // `course` em KnowledgeEntry), não por ID. Se o admin renomeia a trilha
+      // sem propagar, os vídeos viram órfãos. Aqui interceptamos: ANTES de
+      // salvar a iniciativa, fazemos batch update dos vídeos vinculados.
+      //
+      // Ordem importa: se updateCourseName falhar, NÃO salvamos a iniciativa
+      // (consistência — ou propaga tudo, ou nada).
+      // ────────────────────────────────────────────────────────────────────
+      if (renomeou) {
+        // Propagação silenciosa: usuário renomeou de propósito, não precisa confirmar.
+        // updateCourseName é no-op se não houver vídeos vinculados (batch vazio).
+        await updateCourseName(nomeAntigo, nomeNovo);
+      }
+
+      const updates: any = {
+        name: nomeNovo,
         isFree: editIsFree
       };
       if (editingInitiativeParentId) {
@@ -219,16 +240,21 @@ export default function ProjectToolsConfig() {
       } else {
         updates.parentId = null; // Or remove it
       }
-      
+
       await updateInitiative(selectedInitiative.id, updates);
-      
+
       const updated = { ...selectedInitiative, ...updates };
       setSelectedInitiative(updated);
       setInitiatives(initiatives.map(i => i.id === updated.id ? updated : i));
       setIsEditingInitiative(false);
-      toast.success("Iniciativa atualizada com sucesso!");
+      if (renomeou) {
+        toast.success("Trilha renomeada e vídeos vinculados atualizados.");
+      } else {
+        toast.success("Iniciativa atualizada com sucesso!");
+      }
     } catch (error) {
-      toast.error("Erro ao atualizar iniciativa");
+      console.error('[Edit Initiative] Falha:', error);
+      toast.error("Erro ao atualizar iniciativa. Veja o console.");
     }
   };
 
@@ -377,41 +403,23 @@ export default function ProjectToolsConfig() {
                     placeholder="Nome do Tipo de Projeto"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">
-                    Tipo de Projeto Pai (Opcional)
-                  </label>
-                  <select
-                    value={editingInitiativeParentId}
-                    onChange={(e) => setEditingInitiativeParentId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="">Nenhum (Tipo Principal)</option>
-                    {initiatives
-                      .filter(i => i.id !== selectedInitiative?.id) // Prevent setting itself as parent
-                      .map((initiative) => (
-                        <option key={initiative.id} value={initiative.id}>
-                          {initiative.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                {/* Campo "Tipo de Projeto Pai" removido — modelo agora é de trilhas individuais.
+                    O estado editingInitiativeParentId e o save no Firestore continuam intactos,
+                    preservando qualquer parentId histórico que já exista (não apaga dados). */}
 
-                {editingInitiativeParentId && (
-                  <div className="w-full">
-                    <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={editIsFree}
-                        onChange={(e) => setEditIsFree(e.target.checked)}
-                        className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-bold text-blue-700">
-                        Curso gratuito (acessível para todos os alunos)
-                      </span>
-                    </label>
-                  </div>
-                )}
+                <div className="w-full">
+                  <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={editIsFree}
+                      onChange={(e) => setEditIsFree(e.target.checked)}
+                      className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-bold text-blue-700">
+                      Trilha gratuita (acessível para todos os alunos)
+                    </span>
+                  </label>
+                </div>
               </div>
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
@@ -472,27 +480,13 @@ export default function ProjectToolsConfig() {
                   }}
                   className="flex-1 p-3 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
-                  <option value="">Selecione um tipo de projeto para configurar...</option>
+                  <option value="">Selecione uma trilha para configurar...</option>
                   {initiatives
-                    .filter(i => !i.parentId) // Top-level initiatives
-                    .map((parent) => (
-                      <optgroup key={parent.id} label={parent.name}>
-                        <option value={parent.id}>{parent.name} (Principal)</option>
-                        {initiatives
-                          .filter(child => child.parentId === parent.id)
-                          .map(child => (
-                            <option key={child.id} value={child.id}>
-                              ↳ {child.name}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
-                  {/* Initiatives that might have a parent that doesn't exist anymore (fallback) */}
-                  {initiatives
-                    .filter(i => i.parentId && !initiatives.some(p => p.id === i.parentId))
-                    .map(orphan => (
-                      <option key={orphan.id} value={orphan.id}>
-                        {orphan.name} (Órfã)
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                    .map((trilha) => (
+                      <option key={trilha.id} value={trilha.id}>
+                        {trilha.name}
                       </option>
                     ))}
                 </select>
@@ -569,34 +563,20 @@ export default function ProjectToolsConfig() {
               >
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
-                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Nome do Novo Tipo de Projeto</label>
-                    <input 
+                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Nome da Nova Trilha</label>
+                    <input
                       autoFocus
                       type="text"
-                      placeholder="Ex: 1.1 Pequenas melhorias (ver e agir)"
+                      placeholder="Ex: Primeiros Passos para se Destacar no Trabalho"
                       value={newInitiativeName}
                       onChange={(e) => setNewInitiativeName(e.target.value)}
                       className="w-full p-3 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-bold bg-white"
                       onKeyDown={(e) => e.key === 'Enter' && handleCreateInitiative()}
                     />
                   </div>
-                  <div className="w-full md:w-64">
-                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Tipo de Projeto Pai (Opcional)</label>
-                    <select
-                      value={newInitiativeParentId}
-                      onChange={(e) => setNewInitiativeParentId(e.target.value)}
-                      className="w-full p-3 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-bold bg-white"
-                    >
-                      <option value="">Nenhum (Principal)</option>
-                      {initiatives
-                        .filter(i => !i.parentId)
-                        .map(parent => (
-                          <option key={parent.id} value={parent.id}>
-                            {parent.name}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
+                  {/* Campo "Tipo de Projeto Pai" removido — modelo agora é de trilhas individuais.
+                      newInitiativeParentId continua no estado mas nunca recebe valor — createInitiative
+                      é chamado com undefined no 3º arg, então o Firestore não recebe o campo. */}
 
                   <div className="flex gap-2 w-full md:w-auto">
                     <button 
@@ -619,21 +599,19 @@ export default function ProjectToolsConfig() {
                   </div>
                 </div>
 
-                {newInitiativeParentId && (
-                  <div className="w-full mt-4">
-                    <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={newInitiativeIsFree}
-                        onChange={(e) => setNewInitiativeIsFree(e.target.checked)}
-                        className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-bold text-blue-700">
-                        Curso gratuito (acessível para todos os alunos)
-                      </span>
-                    </label>
-                  </div>
-                )}
+                <div className="w-full mt-4">
+                  <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={newInitiativeIsFree}
+                      onChange={(e) => setNewInitiativeIsFree(e.target.checked)}
+                      className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-bold text-blue-700">
+                      Trilha gratuita (acessível para todos os alunos)
+                    </span>
+                  </label>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

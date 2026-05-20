@@ -12,7 +12,10 @@ export interface KnowledgeEntry {
   summary?: { time: string; topic: string }[];
   transcript?: string;
   rawTranscript?: string;
+  /** Ferramentas associadas ao vídeo (ex: 'charter', 'sipoc') — usadas para sugerir vídeos contextuais quando o aluno abre uma ferramenta */
   associatedTools?: string[];
+  /** Análises de dados associadas (ex: 'graficoSumario', 'analiseOutliers') — usadas para sugerir vídeos quando o aluno roda uma análise */
+  associatedAnalyses?: string[];
   order?: number;
   playlistOrder?: number;
 }
@@ -152,6 +155,17 @@ export async function updateCourseName(oldName: string, newName: string) {
   const batch = writeBatch(db);
   snapshot.docs.forEach(d => batch.update(d.ref, { course: newName }));
   await batch.commit();
+}
+
+/**
+ * Conta quantos vídeos têm um curso específico (por nome).
+ * Usado pra mostrar confirmação antes de propagar renomeação de trilha no /config.
+ * Operação de leitura — não modifica nada no Firestore.
+ */
+export async function countVideosByCourse(courseName: string): Promise<number> {
+  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName));
+  const snapshot = await getDocs(q);
+  return snapshot.size;
 }
 
 export async function deletePlaylist(courseName: string, playlistName: string) {

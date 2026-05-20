@@ -11,7 +11,11 @@
  
 import { buildPrompt, AI_PROMPTS } from './aiPrompts';
  
-const API_URL = process.env.RAILWAY_API_URL || 'https://analises-production.up.railway.app';
+// Bug latente fix: `process.env` não é exposto no bundle frontend do Vite
+// (era sempre undefined → fallback hardcoded sempre vencia). Trocado pra
+// `import.meta.env.VITE_*` que é o padrão Vite. Backward-compatible: mesma
+// URL fallback caso o env não esteja setado.
+const API_URL = import.meta.env.VITE_ANALISES_API_URL || 'https://analises-production.up.railway.app';
  
 /**
  * Sanitiza os dados retornados pela IA, garantindo arrays e estruturas esperadas.

@@ -26,7 +26,6 @@ import {
   Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleGenAI, Type } from "@google/genai";
 import { cn } from '@/src/lib/utils';
 
 interface ModelingStep {
@@ -120,8 +119,6 @@ export default function ProcessValidation({ data, onSave, modelingData, projectC
     comments: ''
   });
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-
   const runAIValidation = async () => {
     if (!modelingData || modelingData.steps.length === 0) return;
     
@@ -159,34 +156,12 @@ export default function ProcessValidation({ data, onSave, modelingData, projectC
         }
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              status: { type: Type.STRING, enum: ["Approved", "Approved with Recommendations", "Not Approved"] },
-              score: { type: Type.NUMBER },
-              feedback: {
-                type: Type.OBJECT,
-                properties: {
-                  correct: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  adjustments: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  unclearSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  roleConflicts: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["correct", "adjustments", "suggestions", "unclearSteps", "roleConflicts"]
-              }
-            },
-            required: ["status", "score", "feedback"]
-          }
-        }
+      const { callAIJSON } = await import('../../services/aiRouter');
+      const result = await callAIJSON<any>({
+        location: 'fill-tool',
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens: 4096,
       });
-
-      const result = JSON.parse(response.text || '{}');
       setValidationResult(result);
       
       // Auto-generate RACI and SOP if at least "Approved with Recommendations"

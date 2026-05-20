@@ -22,6 +22,32 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    esbuild: {
+      // Remove console.log/debug/info do bundle de produção via tree-shake
+      // (marca como pure call — se valor não é usado, esbuild dropa).
+      // Mantém console.error e console.warn intactos pra reporting de bugs em prod.
+      // Em dev (mode !== 'production'), todos os logs continuam visíveis normalmente.
+      pure: mode === 'production' ? ['console.log', 'console.debug', 'console.info'] : [],
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          // Separa libs de terceiros em chunks dedicados — melhor cache de browser
+          // entre deploys (só re-baixa o chunk que mudou em vez do bundle todo).
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+            'motion': ['motion/react'],
+            'plotly': ['plotly.js-dist-min', 'react-plotly.js'],
+            'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+            'office-export': ['pptxgenjs', 'exceljs', 'docx', 'jszip', 'file-saver'],
+          },
+        },
+      },
+      // Aumenta o limite do warning de chunk grande — agora que temos lazy loading,
+      // chunks de rota podem passar de 500kB e está OK.
+      chunkSizeWarningLimit: 1500,
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.

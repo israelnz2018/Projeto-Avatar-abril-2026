@@ -10,6 +10,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
+// Base URL do n8n (automação). Sobrescrevível via env VITE_N8N_BASE_URL.
+const N8N_BASE_URL = import.meta.env.VITE_N8N_BASE_URL || 'https://primary-production-1d53.up.railway.app';
+
 interface LoginProps {
   onLogin: (user: User) => void;
 }
@@ -79,7 +82,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
 
     try {
-      const resposta = await fetch("https://primary-production-1d53.up.railway.app/webhook/senhaprovisoria", {
+      const resposta = await fetch(`${N8N_BASE_URL}/webhook/senhaprovisoria`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 

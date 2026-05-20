@@ -1,7 +1,5 @@
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { callAI, callAIJSON } from './aiRouter';
 import { getAllKnowledge, KnowledgeEntry } from './knowledgeService';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 // ============================================================
 // Tipos
@@ -10,6 +8,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 export interface MentorContext {
   type: 'tool' | 'analysis' | 'aiAssistant' | 'free';
   id?: string;
+  /** Rótulo humano da ferramenta/análise ativa, usado pra dar foco ao mentor IA no nível 3 */
+  label?: string;
   // Histórico de conversas anteriores neste projeto (opcional)
   conversationHistory?: { question: string; answer: string }[];
 }
@@ -122,30 +122,16 @@ Retorne APENAS JSON válido no formato:
 }`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        maxOutputTokens: 2048,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            found: { type: Type.BOOLEAN },
-            answer: { type: Type.STRING },
-            confidence: { type: Type.NUMBER },
-            usedVideoIds: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["found", "answer", "confidence", "usedVideoIds"]
-        }
-      }
+    const parsed = await callAIJSON<{
+      found?: boolean;
+      answer?: string;
+      confidence?: number;
+      usedVideoIds?: string[];
+    }>({
+      location: 'mentor',
+      messages: [{ role: 'user', content: prompt }],
+      maxTokens: 2048,
     });
-
-    const parsed = JSON.parse(response.text || '{}');
     return {
       found: parsed.found ?? false,
       answer: parsed.answer ?? '',
@@ -153,48 +139,43 @@ Retorne APENAS JSON válido no formato:
       usedVideoIds: parsed.usedVideoIds ?? []
     };
   } catch (error) {
-    console.error('[contextualAI] Erro Gemini com contexto:', error);
+    console.error('[contextualAI] Erro mentor com contexto:', error);
     return { found: false, answer: '', confidence: 0, usedVideoIds: [] };
   }
 }
 
-/**
- * Chama o Gemini SEM contexto (Nível 3 - resposta geral).
- */
-async function callGeminiWithoutContext(
+// Nível 3: pergunta NÃO encontrada nas aulas. A IA responde mesmo assim,
+// usando conhecimento geral de Lean Six Sigma / Melhoria Contínua, e SINALIZA
+// claramente que está respondendo sem citar aulas específicas.
+async function answerWithoutVideoContext(
   question: string,
+  contextLabel?: string,
   conversationHistory?: { question: string; answer: string }[]
 ): Promise<string> {
   const historyText = conversationHistory && conversationHistory.length > 0
-    ? `\n\nHISTÓRICO DESTA CONVERSA:\n${conversationHistory.slice(-3).map(h => `Pergunta: ${h.question}\nResposta: ${h.answer}`).join('\n\n')}\n`
+    ? `\n\nHISTÓRICO DESTA CONVERSA:\n${conversationHistory.slice(-3).map(h => `Aluno: ${h.question}\nMentor: ${h.answer}`).join('\n\n')}`
     : '';
 
-  const prompt = `Você é o Mentor LBW, consultor sênior em Lean Six Sigma e Melhoria Contínua.
+  const focus = contextLabel
+    ? `O aluno está com a ferramenta "${contextLabel}" selecionada na tela. Considere esse contexto na resposta.`
+    : 'Não há ferramenta específica selecionada.';
 
-⚠️ IMPORTANTE: O assunto desta pergunta NÃO foi encontrado nas aulas do Israel.
-Você vai responder com conhecimento geral, mas seja transparente sobre isso.
-
-${historyText}
-
-Responda à pergunta do aluno em português, tom amigável, 2-3 parágrafos.
-Use seu conhecimento sólido de Lean Six Sigma. Comece a resposta com algo como:
-"Não encontrei esse assunto específico nas aulas do Israel, mas posso te dar uma visão geral..."
-
-PERGUNTA: ${question}`;
+  const system = `Você é o Mentor LBW, consultor sênior em Lean Six Sigma e Melhoria Contínua, conversando com um aluno do Israel.
+Esta pergunta não está coberta pelas aulas atuais do Israel — responda com seu conhecimento geral de DMAIC, Lean, Six Sigma e PMI.
+Comece a resposta com uma frase curta sinalizando que o conteúdo vem do seu conhecimento geral (algo como "Esse assunto ainda não tem aula no curso, mas posso te explicar:").
+Tom: amigável, técnico, em português do Brasil. 2 a 4 parágrafos.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        maxOutputTokens: 1024,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
-      }
+    const { text } = await callAI({
+      location: 'mentor',
+      system,
+      messages: [{ role: 'user', content: `${focus}\n${historyText}\n\nPERGUNTA: ${question}` }],
+      maxTokens: 1024,
     });
-    return response.text || 'Desculpe, não consegui gerar uma resposta neste momento.';
-  } catch (error) {
-    console.error('[contextualAI] Erro Gemini sem contexto:', error);
-    return 'Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente em instantes.';
+    return text || 'Não consegui gerar uma resposta agora. Tente novamente em alguns instantes.';
+  } catch (err: any) {
+    console.error('[contextualAI] erro no nível 3:', err);
+    return 'Não consegui acessar o mentor IA neste momento. Tente novamente em instantes ou use a aba **AI Assistant** no menu lateral.';
   }
 }
 
@@ -271,8 +252,8 @@ export async function askMentor(
     }
   }
 
-  // ----- NÍVEL 3: sem contexto -----
-  const answer = await callGeminiWithoutContext(question, context.conversationHistory);
+  // ----- NÍVEL 3: sem vídeo relevante — IA responde com conhecimento geral -----
+  const answer = await answerWithoutVideoContext(question, context.label, context.conversationHistory);
   return {
     answer,
     level: 3,

@@ -26,7 +26,6 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { AIPromptCard } from './ToolWrapper';
@@ -118,8 +117,6 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     }
   }, [initialData]);
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
   const handleInputChange = (name: string, value: string) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
@@ -185,15 +182,12 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
 }
 `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json"
-        }
+      const { callAIJSON } = await import('../../services/aiRouter');
+      const jsonResponse = await callAIJSON<{ projects?: any[] }>({
+        location: 'fill-tool',
+        messages: [{ role: 'user', content: prompt }],
+        maxTokens: 4096,
       });
-
-      const jsonResponse = JSON.parse(response.text || '{}');
       const projects = jsonResponse.projects || [];
 
       const normalized = normalizeProjects(projects);

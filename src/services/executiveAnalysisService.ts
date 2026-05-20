@@ -1,5 +1,8 @@
 import { Project } from '../types';
 
+// URL do backend de análises (proxy Claude). Sobrescrevível via env VITE_ANALISES_API_URL.
+const ANALISES_API = import.meta.env.VITE_ANALISES_API_URL || 'https://analises-production.up.railway.app';
+
 export interface AnalysisInput {
   project: Project;
   toolId: string;
@@ -31,7 +34,7 @@ export async function generateExecutiveAnalysis(input: AnalysisInput): Promise<s
   }
   const prompt = builder(input);
 
-  const response = await fetch('https://analises-production.up.railway.app/claude/generate', {
+  const response = await fetch(`${ANALISES_API}/claude/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),

@@ -1,59 +1,86 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Database, 
-  ClipboardList, 
-  GraduationCap, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Database,
+  ClipboardList,
+  GraduationCap,
   BookOpen,
   Video,
-  Menu, 
+  Menu,
   X,
   LogOut,
   User as UserIcon,
   ChevronDown,
   Settings,
-  Sparkles
+  Sparkles,
+  Users,
+  Key,
+  Compass
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
 import { Login } from './components/Login';
 import { cn } from './lib/utils';
 
-// Components
-import Dashboard from './components/Dashboard';
-import ChatAssistant from './components/ChatAssistant';
-import DataAnalysis from './components/DataAnalysis';
-import ProjectManagement from './components/ProjectManagement';
-import LearningView from './components/LearningView';
-import KnowledgeManagerView from './components/KnowledgeManagerView';
-import ProjectToolsConfig from './components/ProjectToolsConfig';
-import AIAssistantConfig from './components/AIAssistantConfig';
-import ToolCreator from './components/ToolCreator';
+// Imports eager: rotas iniciais críticas (sempre aparecem rápido) + UserProfile
+// (tem export nominal `getUserProfile` usado em 4 outros arquivos)
 import UserProfile, { getUserProfile } from './components/UserProfile';
+import JornadaPrincipal from './components/JornadaPrincipal';
+
+// Code splitting: rotas secundárias e telas admin viram chunks separados —
+// o usuário só baixa o JS daquela tela quando navega pra ela.
+// Reduz drasticamente o bundle inicial (era 10.5 MB, ~3 MB gzipped antes).
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const ChatAssistant = lazy(() => import('./components/ChatAssistant'));
+const DataAnalysis = lazy(() => import('./components/DataAnalysis'));
+const ProjectManagement = lazy(() => import('./components/ProjectManagement'));
+const LearningView = lazy(() => import('./components/LearningView'));
+const KnowledgeManagerView = lazy(() => import('./components/KnowledgeManagerView'));
+const ProjectToolsConfig = lazy(() => import('./components/ProjectToolsConfig'));
+const AIAssistantConfig = lazy(() => import('./components/AIAssistantConfig'));
+const ToolCreator = lazy(() => import('./components/ToolCreator'));
+const UserManagementView = lazy(() => import('./components/UserManagementView'));
+const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 import { ensureUserDocument } from './services/userService';
+import { useUserAccess } from './hooks/useUserAccess';
 
 import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { projetoAtivo } = useProject();
+  const { tipoUsuario, plano } = useUserAccess();
 
   const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
-  const isAdmin = user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false;
+  const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
+  const isCoordenador = tipoUsuario === 'coordenador';
+
+  const roleLabel = isAdmin
+    ? 'Administrador'
+    : isCoordenador
+    ? 'Coordenador'
+    : plano === 'completo'
+    ? 'Aluno · Completo'
+    : 'Aluno · Gratuito';
 
   const menuItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Sua Jornada', path: '/', icon: Compass },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Educação', path: '/education', icon: GraduationCap },
     { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
+    ...(isAdmin || isCoordenador ? [
+      { name: 'Gestão de Usuários', path: '/users', icon: Users },
+    ] : []),
     ...(isAdmin ? [
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
       { name: 'Criar Nova Ferramenta', path: '/tool-creator', icon: Sparkles },
       { name: 'AI Assistant Config', path: '/ai-config', icon: Settings },
+      { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
     ] : []),
   ];
 
@@ -121,7 +148,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
                     <p className="text-[10px] font-bold text-blue-400 uppercase">
-                      {user?.email?.toLowerCase() === 'israelnz2018@hotmail.com' ? 'Administrador' : 'Aluno'}
+                      {roleLabel}
                     </p>
                   </div>
                 </div>
@@ -271,19 +298,31 @@ export default function App() {
         <Toaster position="top-right" richColors />
         <Router>
           <Layout user={user} onLogout={pedirConfirmacaoLogout}>
+            <Suspense fallback={
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <div className="inline-block w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
+                  <p className="text-gray-500 text-sm">Carregando…</p>
+                </div>
+              </div>
+            }>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<JornadaPrincipal />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />
               <Route path="/projects" element={<ProjectManagement />} />
               <Route path="/learning" element={<KnowledgeManagerView />} />
               <Route path="/education" element={<LearningView />} />
               <Route path="/profile" element={<ProfileView />} />
+              <Route path="/users" element={<UserManagementView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/tool-creator" element={<ToolCreator />} />
               <Route path="/ai-config" element={<AIAssistantConfig />} />
+              <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
           </Layout>
         </Router>
         {showLogoutConfirm && (

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search, ArrowDownToLine } from 'lucide-react';
-import { generateAIToolReport, generateToolData } from '@/src/services/aiService';
-import { generateWithClaude, shouldUseClaude } from '@/src/services/claudeService';
+import { generateToolData } from '@/src/services/aiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
 import { exportCharterSlide } from '@/src/services/charterSlideExporter';
@@ -24,7 +23,6 @@ import { InlinePresentationShell } from './InlinePresentationShell';
 import { IshikawaSlide } from './presentations/IshikawaSlide';
 import { useUserTheme } from '@/src/hooks/useUserTheme';
 import { toast } from 'sonner';
-import { GoogleGenAI, Type as SchemaType } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
@@ -365,42 +363,45 @@ export const AIPromptCard = ({
 
   // We explicitly removed the old JS-based 'projects' logic, letting the AI generate it instead.
 
+  // Extração local — sem IA. Lê os projetos das ferramentas anteriores diretamente
+  // do estado. A versão anterior chamava o Gemini só pra fazer parse, o que era
+  // overkill — agora é um simples map sobre os dados.
   const handleExtractProjectsAI = async () => {
     setIsExtracting(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Você é um assistente de extração de dados analíticos. 
-Sua missão é analisar os dados brutos de ferramentas anteriores de um projeto e extrair uma lista de TÍTULOS de projetos disponíveis.
+      const improvementIdea = getToolDataByPrefix(allProjectData, 'improvementIdea');
+      const gut = getToolDataByPrefix(allProjectData, 'gut');
+      const rab = getToolDataByPrefix(allProjectData, 'rab');
 
-DADOS BRUTOS:
-${JSON.stringify({
-  improvementIdea: getToolDataByPrefix(allProjectData, 'improvementIdea'),
-  gut: getToolDataByPrefix(allProjectData, 'gut'),
-  rab: getToolDataByPrefix(allProjectData, 'rab')
-}, null, 2)}
+      const fromImprovement = Array.isArray(improvementIdea?.generatedProjects)
+        ? improvementIdea.generatedProjects.map((p: any) => ({
+            title: p.title || '',
+            description: p.problem || '',
+            y_indicator: p.y_indicator || '',
+            financial_impact: p.financial_impact || '',
+            belt_level: p.belt_level || '',
+            justification: p.justification || '',
+          }))
+        : [];
+      const fromGut = Array.isArray(gut?.opportunities)
+        ? gut.opportunities.map((o: any) => ({ title: o.description || o.title || '', description: o.description || '' }))
+        : [];
+      const fromRab = Array.isArray(rab?.opportunities)
+        ? rab.opportunities.map((o: any) => ({ title: o.description || o.title || '', description: o.description || '' }))
+        : [];
 
-INSTRUÇÕES:
-1. Extraia projetos da chave "improvementIdea" (os projetos gerados).
-2. Se a chave "improvementIdea" estiver vazia ou não tiver projetos, busque em "gut", e em último caso, "rab".
-3. Localize os títulos e outras propriedades úteis (descrição, etc) de cada projeto.
-4. Remova títulos duplicados.
-5. Retorne APENAS um JSON Array contendo objetos com a propriedade "title" (contendo o título limpo) e demais dados relacionados ("description", etc).
-
-NOTA IMPORTANTÍSSIMA: RETORNE SOMENTE O ARRAY JSON.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        }
+      const all = fromImprovement.length > 0 ? fromImprovement : fromGut.length > 0 ? fromGut : fromRab;
+      const seen = new Set<string>();
+      const dedup = all.filter((p: any) => {
+        const key = (p.title || '').trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
       });
-
-      const extracted = JSON.parse(response.text || "[]");
-      setExtractedProjects(extracted);
-      toast.success("Títulos puxados com sucesso pela IA!");
-    } catch (error) {
-      console.error("Erro ao extrair com IA:", error);
+      setExtractedProjects(dedup);
+      toast.success("Títulos puxados das fases anteriores.");
+    } catch (error: any) {
+      console.error("Erro ao extrair títulos:", error);
       toast.error("Erro ao puxar dados das fases anteriores.");
     } finally {
       setIsExtracting(false);
@@ -968,14 +969,21 @@ export default function ToolWrapper({
     
     setIsGeneratingData(true);
     try {
-      // Usa o caminho Claude (rota /generate) com contexto do projeto selecionado
-      const generatedData = await generateWithClaude('brief', selectedProject, projectName);
+      // Brief usa o roteador padrão (Anthropic via aiRouter, location 'fill-tool').
+      const generatedData = await generateToolData(
+        'brief',
+        'Entendendo o Problema (Brief)',
+        null,
+        selectedProject,
+        { name: projectName, description: project.description },
+        allProjectData
+      );
       const normalized = normalizeInitialData('brief', generatedData);
       handleToolSave(normalized);
       setClearKey(prev => prev + 1);
       toast.success("Brief gerado com sucesso!");
     } catch (error: any) {
-      console.error("Erro ao gerar brief com Claude:", error);
+      console.error("Erro ao gerar brief:", error);
       toast.error(error.message || "Erro ao gerar brief.");
     } finally {
       setIsGeneratingData(false);
@@ -1524,22 +1532,15 @@ export default function ToolWrapper({
         };
       }
 
-      // Se a ferramenta esta configurada em aiPrompts.ts, usa Claude API.
-      // Caso contrario, continua usando Gemini (comportamento atual).
-      let generatedData;
-      if (shouldUseClaude(toolId)) {
-        const contextForClaude = targetContext || allProjectData || {};
-        generatedData = await generateWithClaude(toolId, contextForClaude, projectName);
-      } else {
-        generatedData = await generateToolData(
-          toolId, 
-          toolName, 
-          previousToolName || null, 
-          targetContext,
-          { name: projectName, description: project.description },
-          allProjectData
-        );
-      }
+      // Todas as ferramentas agora usam Anthropic via aiRouter (location: 'fill-tool').
+      const generatedData = await generateToolData(
+        toolId,
+        toolName,
+        previousToolName || null,
+        targetContext,
+        { name: projectName, description: project.description },
+        allProjectData
+      );
       const normalized = normalizeInitialData(toolId, generatedData);
       setLocalData(normalized);
       setClearKey(prev => prev + 1); // Force remount to pass down new generated data to internal useState
@@ -1556,27 +1557,8 @@ export default function ToolWrapper({
     }
   };
 
-  const handleGenerateAI = async () => {
-    if (!localData) return;
-    setIsGenerating(true);
-    setError(null);
-    setAiReport(''); // Clear previous report to show update feedback
-    try {
-      const report = await generateAIToolReport(toolName, localData, projectName);
-      setAiReport(report);
-      setEditedReport(report);
-      // Save both tool data and AI report
-      onSave({
-        toolData: localData,
-        aiReport: report
-      });
-    } catch (error: any) {
-      console.error("Erro ao gerar relatório IA:", error);
-      setError(error.message || "Ocorreu um erro ao gerar o relatório com IA.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  // handleGenerateAI removido em 2026-05-17 — botão estava escondido por {false &&}
+  // e a função generateAIToolReport (Claude/Gemini) foi descontinuada.
 
   const handleSaveEditedReport = () => {
     setAiReport(editedReport);
@@ -2040,12 +2022,12 @@ export default function ToolWrapper({
           {/* Botões de exportação */}
           <div className="flex items-center gap-2">
 
-            {/* PDF */}
-            {false && (toolId === 'brief' ? (
+            {/* PDF — desabilitado na UI atual (mantido aqui só pra referência futura) */}
+            {false && toolId !== 'sop' && (
               <button
-                onClick={handleGenerateAI}
-                disabled={!isSaved || isGenerating}
-                title={!isSaved ? "Salve primeiro para exportar" : "Gerar relatório PDF"}
+                onClick={handlePrint}
+                disabled={!isSaved || isPrinting}
+                title={!isSaved ? "Salve primeiro para exportar" : "Imprimir / Gerar PDF"}
                 className={cn(
                   "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
                   !isSaved
@@ -2053,27 +2035,10 @@ export default function ToolWrapper({
                     : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
                 )}
               >
-                {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+                {isPrinting ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
                 PDF
               </button>
-            ) : (
-              toolId !== 'sop' && (
-                <button
-                  onClick={handlePrint}
-                  disabled={!isSaved || isPrinting}
-                  title={!isSaved ? "Salve primeiro para exportar" : "Imprimir / Gerar PDF"}
-                  className={cn(
-                    "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
-                    !isSaved
-                      ? "bg-gray-100 text-gray-300 cursor-not-allowed"
-                      : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
-                  )}
-                >
-                  {isPrinting ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
-                  PDF
-                </button>
-              )
-            ))}
+            )}
 
             {/* Word */}
             {false && (

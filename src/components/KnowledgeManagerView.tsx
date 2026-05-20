@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus,
@@ -16,7 +16,10 @@ import {
   Sparkles,
   GripVertical,
   PlusCircle,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Download,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import {
   DndContext,
@@ -315,14 +318,14 @@ function SortableVideoRow({
           </div>
         </td>
         <td className="p-4 text-xs text-gray-500 w-32 text-right">{item.timestamp.toLocaleDateString()}</td>
-        <td className="p-4 w-28">
+        <td className="p-4 w-40">
           <div className="flex items-center justify-end gap-1">
             <button
               onClick={() => {
                 if (expandedId === item.id) { setExpandedId(null); }
                 else { setExpandedId(item.id!); setSeekTime(0); }
               }}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors border-none bg-transparent cursor-pointer flex items-center gap-1 text-xs font-bold"
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors border-none bg-transparent cursor-pointer flex items-center gap-1 text-xs font-bold whitespace-nowrap"
             >
               Detalhes {expandedId === item.id ? <ChevronRight size={14} className="rotate-90" /> : <ChevronRight size={14} className="-rotate-90" />}
             </button>
@@ -450,7 +453,12 @@ function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, o
       >
         <ListVideo size={14} className={isActive ? "text-purple-400" : "text-purple-500"} />
         {playlist.name}
-        <span className="text-[10px] ml-1 text-gray-400">({playlist.videos.length})</span>
+        <span className={cn(
+          "text-[11px] font-bold px-1.5 py-0.5 rounded ml-1",
+          isActive ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"
+        )}>
+          {playlist.videos.length}
+        </span>
       </button>
       <div className="flex items-center ml-1">
         <button
@@ -483,12 +491,18 @@ export default function KnowledgeManagerView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [importMode, setImportMode] = useState<'single' | 'playlist'>('single');
+  const [bulkProgress, setBulkProgress] = useState<{
+    running: boolean;
+    kind: 'transcript' | 'index';
+    total: number;
+    done: number;
+    failed: number;
+    currentTitle: string;
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const [formData, setFormData] = useState({
     sourceUrl: '',
-    playlistUrl: '',
     placements: [{ course: '', playlist: '', newPlaylistName: '' }] as Array<{ course: string; playlist: string; newPlaylistName: string }>,
     associatedTools: [] as string[],
     associatedAnalyses: [] as string[]
@@ -496,7 +510,6 @@ export default function KnowledgeManagerView() {
 
   const emptyFormData = {
     sourceUrl: '',
-    playlistUrl: '',
     placements: [{ course: '', playlist: '', newPlaylistName: '' }],
     associatedTools: [] as string[],
     associatedAnalyses: [] as string[]
@@ -540,9 +553,19 @@ export default function KnowledgeManagerView() {
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
 
+  // Estados do helper de reconciliação de cursos órfãos
+  // (cursos que estão nos vídeos mas não existem mais como trilhas no /config — provavelmente foram renomeados)
+  const [reconcileTarget, setReconcileTarget] = useState<Record<string, string>>({});
+  const [ignoredOrphans, setIgnoredOrphans] = useState<Set<string>>(new Set());
+  const [reconcilingOrfao, setReconcilingOrfao] = useState<string | null>(null);
+
   useEffect(() => {
     getInitiatives().then(list => {
-      const names = list.filter(i => !!i.parentId).map(i => i.name).filter(Boolean);
+      // Modelo antigo assumia hierarquia pai/filho — só "filhos" (com parentId) viravam
+      // cursos selecionáveis aqui. Após a migração pra trilhas individuais (todas
+      // viraram Principal), o filtro `!!i.parentId` retornava [] e o dropdown ficava
+      // vazio. Agora pegamos TODAS as iniciativas como opções de curso.
+      const names = list.map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
     }).catch(console.error);
     fetchItems();
@@ -554,6 +577,215 @@ export default function KnowledgeManagerView() {
       setRawTranscriptText(item?.rawTranscript || '');
     }
   }, [modalConfig.isOpen, modalConfig.type, modalConfig.targetId, items]);
+
+  // Quando o usuário limpa o filtro (ou ele muda), garante que a playlist ativa
+  // de cada curso ainda existe; se não, escolhe a com mais vídeos.
+  // Isso evita o "sumiço" aparente quando o filtro tira a playlist ativa.
+  useEffect(() => {
+    const term = searchTerm.toLowerCase();
+    const visibleByCourse = items.reduce((acc, item) => {
+      const matches = !term ||
+        item.title.toLowerCase().includes(term) ||
+        item.course.toLowerCase().includes(term) ||
+        item.playlist.toLowerCase().includes(term);
+      if (!matches) return acc;
+      const c = item.course || 'Sem Curso';
+      const p = item.playlist || 'Sem Playlist';
+      if (!acc[c]) acc[c] = {};
+      acc[c][p] = (acc[c][p] || 0) + 1;
+      return acc;
+    }, {} as Record<string, Record<string, number>>);
+
+    setActivePlaylists(prev => {
+      const next = { ...prev };
+      let changed = false;
+      Object.entries(visibleByCourse).forEach(([course, plMap]) => {
+        const current = next[course];
+        if (!current || !plMap[current]) {
+          const best = Object.entries(plMap).sort((a, b) => b[1] - a[1])[0];
+          if (best) {
+            next[course] = best[0];
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [searchTerm, items]);
+
+  // Processa em lote todos os vídeos sem transcript:
+  // Baixa o transcript BRUTO e COMPLETO do YouTube e salva direto no Firestore.
+  // NÃO usa Gemini/IA — o conteúdo original é preservado integralmente.
+  const handleBulkImportTranscripts = async () => {
+    const pending = items.filter(item => {
+      const hasTranscript = item.transcript && item.transcript.trim().length > 0;
+      const hasRaw = item.rawTranscript && item.rawTranscript.trim().length > 0;
+      return !hasTranscript && !hasRaw;
+    });
+
+    if (pending.length === 0) {
+      alert('✅ Todos os vídeos já possuem transcript. Nada a fazer.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Importar transcripts faltantes em lote?\n\n` +
+      `Vídeos a processar: ${pending.length}\n\n` +
+      `O que vai acontecer:\n` +
+      `• Baixa a legenda COMPLETA e ORIGINAL do YouTube\n` +
+      `• Salva integralmente no Firestore (sem resumo de IA)\n` +
+      `• Tempo: ~2 a 5 segundos por vídeo (rápido)\n\n` +
+      `Não feche essa aba durante o processo.\n\n` +
+      `Continuar?`
+    );
+    if (!confirmed) return;
+
+    setBulkProgress({ running: true, kind: 'transcript', total: pending.length, done: 0, failed: 0, currentTitle: '' });
+
+    let done = 0;
+    let failed = 0;
+    const failures: { title: string; reason: string }[] = [];
+
+    for (const item of pending) {
+      setBulkProgress({
+        running: true,
+        kind: 'transcript',
+        total: pending.length,
+        done,
+        failed,
+        currentTitle: item.title || item.sourceUrl
+      });
+
+      try {
+        if (!item.id) {
+          throw new Error('Item sem id no Firestore');
+        }
+
+        const res = await fetch('/api/youtube-transcript', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoUrl: item.sourceUrl })
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.error || `HTTP ${res.status}`);
+        }
+        const { transcript: rawTranscript } = await res.json();
+        if (!rawTranscript || rawTranscript.trim().length === 0) {
+          throw new Error('Transcript vazio retornado pelo YouTube');
+        }
+
+        await updateKnowledge(item.id, {
+          rawTranscript,
+          transcript: rawTranscript,
+          summary: []
+        });
+
+        done++;
+      } catch (err: any) {
+        console.error(`[bulkImport] erro em "${item.title}":`, err);
+        failed++;
+        failures.push({
+          title: item.title || item.sourceUrl,
+          reason: err?.message || 'erro desconhecido'
+        });
+      }
+    }
+
+    setBulkProgress({ running: false, kind: 'transcript', total: pending.length, done, failed, currentTitle: '' });
+    await fetchItems();
+
+    const failureSummary = failures.length > 0
+      ? `\n\nFalhas:\n${failures.map(f => `• ${f.title}: ${f.reason}`).join('\n')}`
+      : '';
+    alert(
+      `Importação em lote concluída!\n\n` +
+      `✅ Sucesso: ${done}\n` +
+      `❌ Falha: ${failed}${failureSummary}`
+    );
+  };
+
+  // Processa em lote todos os vídeos com transcript mas sem índice (summary):
+  // Usa Gemini pra gerar índice + resumo a partir do rawTranscript salvo no Firestore.
+  const handleBulkGenerateIndexes = async () => {
+    // Agrupa por sourceUrl — um índice cobre todas as placements irmãs.
+    const bySourceUrl = new Map<string, KnowledgeEntry>();
+    for (const item of items) {
+      const hasRaw = item.rawTranscript && item.rawTranscript.trim().length > 0;
+      const hasSummary = (item.summary?.length || 0) > 0;
+      if (!hasRaw || hasSummary) continue;
+      if (!bySourceUrl.has(item.sourceUrl)) bySourceUrl.set(item.sourceUrl, item);
+    }
+    const pending = Array.from(bySourceUrl.values());
+
+    if (pending.length === 0) {
+      alert('✅ Todos os vídeos com transcript já possuem índice. Nada a fazer.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Gerar índices faltantes em lote?\n\n` +
+      `Vídeos a processar: ${pending.length}\n\n` +
+      `O que vai acontecer:\n` +
+      `• A IA (Gemini) lê o transcript completo de cada vídeo\n` +
+      `• Gera um índice clicável com tempos + resumo detalhado\n` +
+      `• Salva nos placements irmãos automaticamente\n` +
+      `• Tempo: ~15 a 45 segundos por vídeo (depende do tamanho)\n\n` +
+      `Não feche essa aba durante o processo.\n\n` +
+      `Continuar?`
+    );
+    if (!confirmed) return;
+
+    setBulkProgress({ running: true, kind: 'index', total: pending.length, done: 0, failed: 0, currentTitle: '' });
+
+    let done = 0;
+    let failed = 0;
+    const failures: { title: string; reason: string }[] = [];
+
+    const { generateSummaryFromRawTranscript } = await import('../lib/gemini');
+
+    for (const item of pending) {
+      setBulkProgress({
+        running: true,
+        kind: 'index',
+        total: pending.length,
+        done,
+        failed,
+        currentTitle: item.title || item.sourceUrl
+      });
+
+      try {
+        const { summary, transcript } = await generateSummaryFromRawTranscript(item.sourceUrl, item.rawTranscript || '');
+        if (!Array.isArray(summary) || summary.length === 0) {
+          throw new Error('Gemini retornou índice vazio (possível falha de quota, modelo ou parse).');
+        }
+        await syncSiblingsBySourceUrl(item.sourceUrl, {
+          summary,
+          transcript: transcript || ''
+        });
+        done++;
+      } catch (err: any) {
+        console.error(`[bulkGenerateIndexes] erro em "${item.title}":`, err);
+        failed++;
+        failures.push({
+          title: item.title || item.sourceUrl,
+          reason: err?.message || 'erro desconhecido'
+        });
+      }
+    }
+
+    setBulkProgress({ running: false, kind: 'index', total: pending.length, done, failed, currentTitle: '' });
+    await fetchItems();
+
+    const failureSummary = failures.length > 0
+      ? `\n\nFalhas:\n${failures.map(f => `• ${f.title}: ${f.reason}`).join('\n')}`
+      : '';
+    alert(
+      `Geração de índices em lote concluída!\n\n` +
+      `✅ Sucesso: ${done}\n` +
+      `❌ Falha: ${failed}${failureSummary}`
+    );
+  };
 
   const fetchItems = async () => {
     setLoading(true);
@@ -644,51 +876,7 @@ export default function KnowledgeManagerView() {
     }
     setIsSaving(true);
     try {
-      if (importMode === 'playlist') {
-        const first = resolved[0];
-        if (resolved.length > 1) {
-          alert('A importação de fase usa apenas o primeiro curso/playlist. Os demais serão ignorados.');
-        }
-        const { extractPlaylistVideos } = await import('../lib/gemini');
-        try {
-          const videos = await extractPlaylistVideos(formData.playlistUrl);
-          if (videos && videos.length > 0) {
-            const { collection, query, where, getDocs } = await import('firebase/firestore');
-            const { db } = await import('../lib/firebase');
-            const q = query(
-              collection(db, KNOWLEDGE_COLLECTION),
-              where('course', '==', first.course),
-              where('playlist', '==', first.playlist)
-            );
-            const snapshot = await getDocs(q);
-            let lastOrder = 0;
-            snapshot.docs.forEach(doc => {
-              const docOrder = doc.data().order || 0;
-              if (docOrder > lastOrder) lastOrder = docOrder;
-            });
-
-            Promise.all(videos.map((video, index) =>
-              saveKnowledge({
-                title: video.title,
-                content: '',
-                sourceUrl: video.url,
-                course: first.course,
-                playlist: first.playlist,
-                summary: [],
-                transcript: '',
-                associatedTools: formData.associatedTools
-              }, lastOrder + index + 1)
-            )).then(() => fetchItems())
-              .catch(err => console.error('Erro na importação em segundo plano:', err));
-
-            alert('Importação iniciada em segundo plano! Você pode continuar usando o app.');
-          } else {
-            alert('Não foi possível extrair vídeos desta fase. Verifique a URL.');
-          }
-        } catch (error: any) {
-          alert(error.message || 'Erro ao extrair fase.');
-        }
-      } else {
+      {
         const title = await fetchYoutubeTitle(formData.sourceUrl);
 
         // Se já existe um doc com a mesma sourceUrl, copia transcrição/índice pra novas placements
@@ -744,13 +932,19 @@ export default function KnowledgeManagerView() {
     try {
       const { generateSummaryFromRawTranscript } = await import('../lib/gemini');
       const { summary, transcript } = await generateSummaryFromRawTranscript(item.sourceUrl, item.rawTranscript);
+      if (!Array.isArray(summary) || summary.length === 0) {
+        // Gemini engoliu o erro internamente e retornou vazio. Não sobrescrevemos
+        // o doc com vazio — informamos o usuário pra ele saber que algo falhou.
+        throw new Error('A IA retornou índice vazio. Verifique o console (F12) — pode ser quota do Gemini, modelo indisponível ou erro de parse.');
+      }
       await syncSiblingsBySourceUrl(item.sourceUrl, {
-        summary: summary || [],
+        summary,
         transcript: transcript || ''
       });
       await fetchItems();
-    } catch (error) {
-      alert('Erro ao gerar índice.');
+    } catch (error: any) {
+      console.error('[handleRegenerateIndex] erro:', error);
+      alert(`Erro ao gerar índice: ${error?.message || 'erro desconhecido'}`);
     } finally {
       setIsReprocessing(null);
     }
@@ -926,7 +1120,67 @@ export default function KnowledgeManagerView() {
   );
 
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
-  
+
+  // -------------------------------------------------------------------------
+  // HELPER DE RECONCILIAÇÃO DE CURSOS ÓRFÃOS
+  // -------------------------------------------------------------------------
+  // Detecta cursos cujo NOME está nos vídeos do Firestore mas não bate com
+  // nenhuma trilha atual do /config (provavelmente o admin renomeou a trilha
+  // depois que os vídeos já estavam cadastrados).
+  //
+  // O usuário pode escolher uma trilha de destino para cada órfão e clicar
+  // "Reconciliar" — o sistema chama updateCourseName(antigo, novo) em batch,
+  // que atualiza o campo `course` em todos os vídeos vinculados.
+  const orfaosComContagem = useMemo(() => {
+    const nomesAtuais = new Set(initiativeNames);
+    const contagem: Record<string, number> = {};
+    items.forEach(v => {
+      if (v.course && !nomesAtuais.has(v.course) && !ignoredOrphans.has(v.course)) {
+        contagem[v.course] = (contagem[v.course] || 0) + 1;
+      }
+    });
+    return Object.entries(contagem)
+      .map(([nome, qtd]) => ({ nome, qtd }))
+      .sort((a, b) => b.qtd - a.qtd);
+  }, [items, initiativeNames, ignoredOrphans]);
+
+  const handleReconcile = async (orfao: string) => {
+    const destino = reconcileTarget[orfao];
+    if (!destino) {
+      alert('Selecione a trilha de destino antes de reconciliar.');
+      return;
+    }
+    if (destino === orfao) {
+      alert('A trilha de destino tem o mesmo nome do órfão. Nada a fazer.');
+      return;
+    }
+    const qtd = items.filter(v => v.course === orfao).length;
+    const ok = window.confirm(
+      `Vou atualizar o campo "course" de ${qtd} vídeo${qtd > 1 ? 's' : ''} no Firestore:\n\n` +
+      `DE: "${orfao}"\n` +
+      `PARA: "${destino}"\n\n` +
+      `Operação irreversível. Continuar?`
+    );
+    if (!ok) return;
+
+    setReconcilingOrfao(orfao);
+    try {
+      await updateCourseName(orfao, destino);
+      // Limpa o estado local desse órfão antes do refetch
+      setReconcileTarget(prev => {
+        const { [orfao]: _removed, ...rest } = prev;
+        return rest;
+      });
+      await fetchItems();
+      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's' : ''} reconciliado${qtd > 1 ? 's' : ''} para "${destino}".`);
+    } catch (e) {
+      console.error('[Reconcile] Falha:', e);
+      alert('Falha ao reconciliar: ' + (e as Error).message);
+    } finally {
+      setReconcilingOrfao(null);
+    }
+  };
+
   const playlistsForCourse = (course: string) => course && course !== 'NEW'
     ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
     : [];
@@ -943,8 +1197,11 @@ export default function KnowledgeManagerView() {
     return acc;
   }, {} as Record<string, Record<string, KnowledgeEntry[]>>);
 
-  // Convert to sorted arrays
-  const groupedItems = Object.entries(groupedItemsMap).map(([courseName, playlistsMap]) => {
+  // Convert to sorted arrays — cursos ordenados por nome com numeric:true,
+  // pra que prefixos numéricos do nome ("1-", "2-", "10-") sejam respeitados.
+  const groupedItems = Object.entries(groupedItemsMap)
+    .sort(([a], [b]) => a.localeCompare(b, 'pt-BR', { numeric: true }))
+    .map(([courseName, playlistsMap]) => {
     const sortedPlaylists = Object.entries(playlistsMap)
       .map(([playlistName, videos]) => ({
         name: playlistName,
@@ -970,13 +1227,125 @@ export default function KnowledgeManagerView() {
           <h1 className="text-[1.5rem] font-bold text-[#333] m-0">Base de Conhecimento</h1>
           <p className="text-[#666] mt-1 text-sm">Gerencie seus vídeos e recursos educacionais.</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-blue-700 transition-all border-none cursor-pointer"
-        >
-          <Plus size={18} /> Adicionar Vídeo
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleBulkImportTranscripts}
+            disabled={bulkProgress?.running}
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-purple-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Baixa o transcript COMPLETO do YouTube e salva direto, sem resumo de IA"
+          >
+            {bulkProgress?.running && bulkProgress.kind === 'transcript' ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Processando {bulkProgress.done + bulkProgress.failed + 1}/{bulkProgress.total}…
+              </>
+            ) : (
+              <>
+                <Download size={18} /> Importar todos transcripts faltantes
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleBulkGenerateIndexes}
+            disabled={bulkProgress?.running}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-indigo-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Para cada vídeo que já tem transcript mas não tem índice, a IA gera o índice clicável + resumo detalhado"
+          >
+            {bulkProgress?.running && bulkProgress.kind === 'index' ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Gerando índice {bulkProgress.done + bulkProgress.failed + 1}/{bulkProgress.total}…
+              </>
+            ) : (
+              <>
+                <Sparkles size={18} /> Gerar todos os índices faltantes
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-blue-700 transition-all border-none cursor-pointer"
+          >
+            <Plus size={18} /> Adicionar Vídeo
+          </button>
+        </div>
       </header>
+
+      {/* ───────────────────────────────────────────────────────────────────
+          BANNER DE RECONCILIAÇÃO DE CURSOS ÓRFÃOS
+          Aparece SÓ quando há vídeos vinculados a nomes de curso que não
+          existem mais como trilha no /config (geralmente após renomeação).
+          ─────────────────────────────────────────────────────────────────── */}
+      {orfaosComContagem.length > 0 && (
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="text-yellow-600 mt-1 shrink-0" size={22} />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-black text-yellow-900 text-base m-0">
+                {orfaosComContagem.length} curso{orfaosComContagem.length > 1 ? 's' : ''} órfão{orfaosComContagem.length > 1 ? 's' : ''} detectado{orfaosComContagem.length > 1 ? 's' : ''}
+              </h3>
+              <p className="text-xs text-yellow-800 mt-1 mb-4 m-0 leading-relaxed">
+                Estes cursos estão vinculados a vídeos no Firestore mas não batem com nenhuma trilha atual do <code className="bg-yellow-100 px-1 rounded">/config</code> (provavelmente foram renomeados).
+                Selecione a trilha de destino e clique em <strong>RECONCILIAR</strong> para atualizar os vídeos em batch.
+              </p>
+              <div className="space-y-2">
+                {orfaosComContagem.map(({ nome, qtd }) => (
+                  <div key={nome} className="bg-white border border-yellow-200 rounded-md p-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-sm text-gray-800 m-0 truncate" title={nome}>{nome}</p>
+                        <p className="text-[11px] text-gray-500 m-0 mt-0.5">{qtd} vídeo{qtd > 1 ? 's' : ''} vinculado{qtd > 1 ? 's' : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap shrink-0">
+                        <select
+                          value={reconcileTarget[nome] || ''}
+                          onChange={e => setReconcileTarget(prev => ({ ...prev, [nome]: e.target.value }))}
+                          className="p-2 border border-gray-300 rounded text-sm bg-white min-w-[200px] focus:outline-none focus:border-blue-500"
+                          disabled={reconcilingOrfao === nome}
+                        >
+                          <option value="">Reconciliar para...</option>
+                          {initiativeNames.map(n => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleReconcile(nome)}
+                          disabled={!reconcileTarget[nome] || reconcilingOrfao === nome}
+                          className="px-3 py-2 bg-yellow-600 text-white rounded text-xs font-black hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
+                        >
+                          {reconcilingOrfao === nome ? (
+                            <><Loader2 size={12} className="animate-spin" /> RECONCILIANDO…</>
+                          ) : 'RECONCILIAR'}
+                        </button>
+                        <button
+                          onClick={() => setIgnoredOrphans(prev => {
+                            const next = new Set(prev);
+                            next.add(nome);
+                            return next;
+                          })}
+                          disabled={reconcilingOrfao === nome}
+                          className="px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                          title="Esconder este órfão até recarregar a página (não muda o Firestore)"
+                        >
+                          Ignorar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {ignoredOrphans.size > 0 && (
+                <button
+                  onClick={() => setIgnoredOrphans(new Set())}
+                  className="mt-3 text-xs text-yellow-700 hover:text-yellow-900 underline cursor-pointer border-none bg-transparent p-0"
+                >
+                  Mostrar {ignoredOrphans.size} órfão{ignoredOrphans.size > 1 ? 's' : ''} ignorado{ignoredOrphans.size > 1 ? 's' : ''} novamente
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-4 bg-white p-4 border border-[#ccc] rounded-[4px]">
         <div className="relative flex-1">
@@ -1008,61 +1377,24 @@ export default function KnowledgeManagerView() {
           </div>
 
           <form onSubmit={handleSave} className="space-y-6">
-            <div className="flex gap-4 mb-4">
-              <button
-                type="button"
-                onClick={() => setImportMode('single')}
-                className={cn("px-4 py-2 rounded-md text-sm font-bold transition-colors border-none cursor-pointer", importMode === 'single' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}
-              >
-                Vídeo Único
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportMode('playlist')}
-                className={cn("px-4 py-2 rounded-md text-sm font-bold transition-colors border-none cursor-pointer", importMode === 'playlist' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200")}
-              >
-                Importar Fase
-              </button>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL do YouTube</label>
+              <div className="relative">
+                <Youtube size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600" />
+                <input
+                  required
+                  type="url"
+                  value={formData.sourceUrl}
+                  onChange={(e) => setFormData({...formData, sourceUrl: e.target.value})}
+                  className="w-full pl-10 pr-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+              </div>
             </div>
-
-            {importMode === 'single' ? (
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL do YouTube</label>
-                <div className="relative">
-                  <Youtube size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600" />
-                  <input
-                    required
-                    type="url"
-                    value={formData.sourceUrl}
-                    onChange={(e) => setFormData({...formData, sourceUrl: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL da Fase do YouTube</label>
-                <div className="relative">
-                  <ListVideo size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600" />
-                  <input
-                    required
-                    type="url"
-                    value={formData.playlistUrl}
-                    onChange={(e) => setFormData({...formData, playlistUrl: e.target.value})}
-                    className="w-full pl-10 pr-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
-                    placeholder="https://www.youtube.com/playlist?list=..."
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  A importação irá cadastrar todos os vídeos da playlist sequencialmente. O processamento da IA (resumo e legenda) não será feito automaticamente para evitar sobrecarga. Você poderá reprocessar cada vídeo individualmente depois.
-                </p>
-              </div>
-            )}
 
             <div className="space-y-3">
               <label className="block text-xs font-bold text-gray-500 uppercase">
-                {importMode === 'single' ? 'Cursos e playlists onde este vídeo aparece' : 'Curso e playlist de destino'}
+                Cursos e playlists onde este vídeo aparece
               </label>
               {formData.placements.map((p, idx) => {
                 const availPlaylists = playlistsForCourse(p.course);
@@ -1118,7 +1450,7 @@ export default function KnowledgeManagerView() {
                   </div>
                 );
               })}
-              {importMode === 'single' && (
+              {(
                 <button
                   type="button"
                   onClick={addPlacement}
@@ -1245,16 +1577,31 @@ export default function KnowledgeManagerView() {
             <p className="text-gray-400 text-sm">Adicione seu primeiro vídeo para começar.</p>
           </div>
         ) : (
-          groupedItems.map((course) => (
+          groupedItems.map((course) => {
+            const totalDoCurso = items.filter(i => i.course === course.name).length;
+            const visibleNoCurso = course.playlists.reduce((sum, p) => sum + p.videos.length, 0);
+            const filtroAtivo = !!searchTerm && visibleNoCurso < totalDoCurso;
+            const activePl = course.playlists.find(p => p.name === activePlaylists[course.name]);
+            return (
             <div key={course.name} className="bg-white border border-[#ccc] rounded-[4px] overflow-hidden">
               {/* Course Header */}
               <div className="bg-gray-50 p-4 border-b border-[#ccc] flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Folder className="text-blue-600" size={20} />
                   <h2 className="font-bold text-lg text-gray-800 m-0">{course.name}</h2>
-                  <span className="ml-2 bg-gray-200 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
-                    {course.playlists.reduce((sum, p) => sum + p.videos.length, 0)} vídeos
+                  <span className="ml-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {totalDoCurso} vídeo{totalDoCurso !== 1 ? 's' : ''} no curso
                   </span>
+                  {activePl && (
+                    <span className="bg-gray-200 text-gray-700 text-[11px] font-bold px-2 py-1 rounded-full">
+                      {activePl.videos.length} nesta playlist
+                    </span>
+                  )}
+                  {filtroAtivo && (
+                    <span className="bg-yellow-100 text-yellow-800 text-[11px] font-bold px-2 py-1 rounded-full border border-yellow-300">
+                      Filtro ativo · {visibleNoCurso} de {totalDoCurso} visíveis
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -1342,7 +1689,8 @@ export default function KnowledgeManagerView() {
                 </div>
               )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -215,7 +215,6 @@ const getInitiativeIcon = (name: string) => {
   return <Folder size={24} />;
 };
 
-import { chatWithMentor, getMentorSuggestions } from '../services/aiService';
 import { useProject } from '../contexts/ProjectContext';
 
 export default function ProjectManagement() {
@@ -241,11 +240,8 @@ export default function ProjectManagement() {
 
   const isAdmin = auth.currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
 
-  // Mentor State
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([]);
-  const [isGeneratingMentor, setIsGeneratingMentor] = useState(false);
+  // Mentor sugestões (sidebar) — pré-fixas por fase, sem IA.
+  const [dynamicSuggestions] = useState<string[]>([]);
 
   // Dropdown "Meus Projetos Ativos"
   const [isProjectsListOpen, setIsProjectsListOpen] = useState(false);
@@ -262,25 +258,8 @@ export default function ProjectManagement() {
       });
   }, [initiatives, selectedParentInitiativeId]);
 
-  // Fetch dynamic suggestions when phase or project changes
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (selectedProject) {
-        try {
-          const suggestions = await getMentorSuggestions(
-            currentPhase, 
-            null, 
-            selectedProject.completedTools || [], 
-            {} // projectData
-          );
-          setDynamicSuggestions(suggestions);
-        } catch (error) {
-          console.error("Error fetching mentor suggestions:", error);
-        }
-      }
-    };
-    fetchSuggestions();
-  }, [selectedProject?.id, currentPhase]);
+  // (Sugestões dinâmicas do mentor foram removidas em 2026-05-17 — antes chamavam IA
+  // só pra montar 3 perguntas curtas, e o sidebar já tem sugestões fixas por fase.)
 
   const fetchProjects = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -439,33 +418,6 @@ export default function ProjectManagement() {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !selectedProject || isGeneratingMentor) return;
-    
-    const userMsg = inputMessage;
-    const currentHistory = [...messages, { role: 'user' as const, content: userMsg }];
-    setMessages(currentHistory);
-    setInputMessage('');
-    setIsGeneratingMentor(true);
-
-    try {
-      const response = await chatWithMentor(
-        currentPhase,
-        null,
-        {}, 
-        { name: selectedProject.name, description: selectedProject.description },
-        currentHistory
-      );
-      
-      setMessages([...currentHistory, { role: 'assistant', content: response }]);
-    } catch (error) {
-      console.error("Error chatting with mentor:", error);
-      setMessages([...currentHistory, { role: 'assistant', content: "Desculpe, tive um problema ao processar sua pergunta. Pode tentar novamente?" }]);
-    } finally {
-      setIsGeneratingMentor(false);
-    }
-  };
-
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4">
@@ -482,6 +434,16 @@ export default function ProjectManagement() {
             </div>
           ) : (
             <div>
+              {/* Botão "Criar Novo Projeto" — acima do dropdown */}
+              <button
+                onClick={() => setIsCreating(true)}
+                className="w-full mb-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-[13px] text-white transition-all cursor-pointer border-none"
+                style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`, boxShadow: '0 6px 16px -6px rgba(0, 51, 204, 0.4)' }}
+              >
+                <Plus size={16} />
+                Criar novo projeto
+              </button>
+
               {/* Header do dropdown (sempre visível) */}
               <button
                 onClick={() => setIsProjectsListOpen(!isProjectsListOpen)}
@@ -502,14 +464,6 @@ export default function ProjectManagement() {
                     </div>
                   </div>
                 </div>
-                {selectedProject && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setSelectedProject(null); }}
-                    className="text-[10px] font-black text-blue-600 hover:text-blue-700 flex items-center gap-1 uppercase tracking-wider px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all border-none bg-transparent cursor-pointer mr-2"
-                  >
-                    <Plus size={12} /> Novo
-                  </button>
-                )}
                 <motion.div
                   animate={{ rotate: isProjectsListOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}

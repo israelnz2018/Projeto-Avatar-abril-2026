@@ -32,6 +32,13 @@ import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 
+/**
+ * URL base do backend de análises (Python — repo israelnz2018/Analises rodando no Railway).
+ * Sobrescrevível via env VITE_ANALISES_API_URL. Fallback aponta pro serviço em produção
+ * pra não quebrar caso o env não esteja setado (defensivo).
+ */
+const ANALISES_API = import.meta.env.VITE_ANALISES_API_URL || 'https://analises-production.up.railway.app';
+
 // --- CONFIGURATIONS FROM entradadedados.js ---
 const configuracoesFerramentas: Record<string, any[]> = {
   "Gráfico Sumario": ["Y"],
@@ -578,7 +585,7 @@ export default function DataAnalysis() {
       formData.append("n_replicas", String(gageRRConfig.n_replicas));
       formData.append("ordem", gageRRConfig.ordem);
 
-      const response = await fetch('https://analises-production.up.railway.app/v2/gerar-planilha-gage-rr', {
+      const response = await fetch(`${ANALISES_API}/v2/gerar-planilha-gage-rr`, {
         method: 'POST',
         body: formData
       });
@@ -696,7 +703,7 @@ export default function DataAnalysis() {
       const isApenasInterativa = ferramentasApenasInterativas.includes(ferramentaAtual);
 
       if (!isApenasInterativa) {
-        const response = await fetch('https://analises-production.up.railway.app/v2/analise', {
+        const response = await fetch(`${ANALISES_API}/v2/analise`, {
           method: 'POST',
           body: formData
         });
@@ -725,7 +732,7 @@ export default function DataAnalysis() {
           });
 
           const responseInterativo = await fetch(
-            'https://analises-production.up.railway.app/v2/grafico-interativo',
+            `${ANALISES_API}/v2/grafico-interativo`,
             { method: 'POST', body: formDataInterativo }
           );
           const resultInterativo = await responseInterativo.json();
@@ -858,7 +865,7 @@ export default function DataAnalysis() {
     formData.append("tipo", result.analise ? "analise" : "grafico");
 
     try {
-      const response = await fetch('https://analises-production.up.railway.app/v2/pergunta', {
+      const response = await fetch(`${ANALISES_API}/v2/pergunta`, {
         method: 'POST',
         body: formData
       });
@@ -902,7 +909,7 @@ export default function DataAnalysis() {
     formData.append("inclinacao_x", personalization.rotacao_x.toString());
 
     try {
-      const response = await fetch('https://analises-production.up.railway.app/v2/personalizar-grafico', {
+      const response = await fetch(`${ANALISES_API}/v2/personalizar-grafico`, {
         method: 'POST',
         body: formData
       });
