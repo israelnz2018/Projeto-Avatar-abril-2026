@@ -32,6 +32,9 @@ export interface UserData {
   };
   tipoUsuario: TipoUsuario;
   criadoEm: string;
+  /** Atualizado a cada login (ISO string). Usado pelo Dashboard do Coordenador
+   *  pra detectar alunos inativos. Pode estar ausente em docs antigos. */
+  lastLogin?: string;
   empresaId?: string;
   empresaNome?: string;
   nome?: string;
@@ -70,6 +73,11 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
   const snapshot = await getDoc(userRef);
 
   if (snapshot.exists()) {
+    // Atualiza lastLogin a cada login (necessário pro Dashboard do Coordenador
+    // detectar alunos inativos). Fire-and-forget — não bloqueia o login.
+    updateDoc(userRef, { lastLogin: new Date().toISOString() }).catch(err => {
+      if (import.meta.env.DEV) console.warn('[ensureUserDocument] falha ao atualizar lastLogin:', err);
+    });
     return snapshot.data() as UserData;
   }
 
@@ -103,6 +111,7 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
     }
   }
 
+  const agora = new Date().toISOString();
   const novoUsuario: UserData = {
     uid: authUser.uid,
     email,
@@ -113,7 +122,8 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
       resetEm: calcularProximoReset(),
     },
     tipoUsuario,
-    criadoEm: new Date().toISOString(),
+    criadoEm: agora,
+    lastLogin: agora,
     ...(nomeFromInvite ? { nome: nomeFromInvite } : (authUser.displayName ? { nome: authUser.displayName } : {})),
     ...(empresaId ? { empresaId } : {}),
     ...(empresaNome ? { empresaNome } : {}),

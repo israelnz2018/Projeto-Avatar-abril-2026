@@ -51,12 +51,36 @@ service cloud.firestore {
       );
     }
 
+    // Coordenador: lê o próprio doc e checa se é tipo 'coordenador'.
+    // Usado pra liberar leitura cruzada de users/projects do time (mesmo empresaId).
+    function isCoordenador() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tipoUsuario == 'coordenador';
+    }
+
+    function sameEmpresa(otherUserId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId != null &&
+        get(/databases/$(database)/documents/users/$(otherUserId)).data.empresaId ==
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId;
+    }
+
+    function projectOwnerSameEmpresa(projectId) {
+      return isAuthenticated() &&
+        sameEmpresa(get(/databases/$(database)/documents/projects/$(projectId)).data.ownerUid);
+    }
+
     // Users — cada aluno pode ler/criar/atualizar APENAS o seu próprio doc.
     // Quando ele migra de plano (gratuito → completo) o uid é o mesmo,
     // então projects/knowledge_base/mentor_conversations dele continuam acessíveis
     // automaticamente porque dependem de ownerUid/userId, não do plano.
     match /users/{userId} {
-      allow read:   if isAuthenticated() && (isAdmin() || isOwner(userId));
+      // Coordenador lê docs de alunos do mesmo empresaId (pra dashboard do time).
+      allow read:   if isAuthenticated() && (
+        isAdmin() ||
+        isOwner(userId) ||
+        (isCoordenador() && sameEmpresa(userId))
+      );
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isAuthenticated() && (isAdmin() || isOwner(userId));
       allow delete: if isAdmin();
@@ -73,18 +97,25 @@ service cloud.firestore {
 
     // Projects
     match /projects/{projectId} {
-      // Allow read if user is owner or admin
-      allow read: if isAuthenticated() && (isAdmin() || resource == null || resource.data.ownerUid == request.auth.uid);
-      
+      // Allow read if user is owner, admin, OR coordenador do mesmo empresaId do dono.
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource == null ||
+        resource.data.ownerUid == request.auth.uid ||
+        (isCoordenador() && sameEmpresa(resource.data.ownerUid))
+      );
+
       // Allow create if authenticated and setting self as owner
       allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-      
+
       // Allow update/delete if owner or admin
       allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.ownerUid == request.auth.uid);
-      
-      // Subcollection: data
+
+      // Subcollection: data — owner, admin, ou coordenador read-only do time.
       match /data/{dataId} {
-        allow read, write: if isProjectOwner(projectId) || isAdmin();
+        allow read: if isProjectOwner(projectId) || isAdmin() ||
+                       (isCoordenador() && projectOwnerSameEmpresa(projectId));
+        allow write: if isProjectOwner(projectId) || isAdmin();
       }
     }
 
@@ -158,6 +189,16 @@ service cloud.firestore {
     match /feedback/{feedbackId} {
       allow read:   if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Eventos comportamentais — telemetria do Dashboard.
+    // Qualquer user autenticado escreve eventos do PRÓPRIO uid (fire-and-forget).
+    // Leitura só admin (agregações pro painel) — coordenador NÃO lê eventos brutos
+    // do time, recebe agregados já mascarados via Cloud Function (futuro).
+    match /eventos/{eventoId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read:   if isAdmin();
       allow update, delete: if isAdmin();
     }
   }

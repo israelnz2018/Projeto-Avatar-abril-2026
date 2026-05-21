@@ -27,6 +27,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
 import { cn } from '@/src/lib/utils';
+import { logToolOpened } from '@/src/services/eventLogger';
 
 interface ToolWrapperProps {
   toolId: string;
@@ -704,6 +705,12 @@ export default function ToolWrapper({
   currentPhaseId
 }: ToolWrapperProps) {
   const { headerColor, headerTextColor, companyLogoUrl, companyName } = useUserTheme();
+
+  // Telemetria: registra abertura da ferramenta. Fire-and-forget, falha silenciosa.
+  useEffect(() => {
+    logToolOpened(toolId, project?.id, toolName);
+  }, [toolId, project?.id]);
+
   const [localData, setLocalData] = useState(initialData?.toolData || initialData);
   const [aiReport, setAiReport] = useState(initialData?.aiReport || '');
   const [isGenerating, setIsGenerating] = useState(false);

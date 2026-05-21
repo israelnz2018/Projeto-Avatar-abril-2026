@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
+import { logVideoPlayed } from '../services/eventLogger';
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
@@ -221,7 +222,10 @@ export default function LearningView() {
                     viewMode === 'grid' ? "flex-col" : "flex-row h-32",
                     isSelected ? "border-blue-500 ring-1 ring-blue-500" : "border-[#ccc]"
                   )}
-                  onClick={() => setSelectedVideo(isSelected ? null : item)}
+                  onClick={() => {
+                    if (!isSelected && item.id) logVideoPlayed(item.id, item.title, item.course);
+                    setSelectedVideo(isSelected ? null : item);
+                  }}
                 >
                   <div className={cn(
                     "relative overflow-hidden",

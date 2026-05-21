@@ -31,6 +31,7 @@ import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
+import { logAnalysisRun } from '../services/eventLogger';
 
 /**
  * URL base do backend de análises (Python — repo israelnz2018/Analises rodando no Railway).
@@ -647,6 +648,8 @@ export default function DataAnalysis() {
       exibirModalErro('⚠️ Esta análise está em desenvolvimento e estará disponível em breve.');
       return;
     }
+
+    logAnalysisRun(ferramentaAtual, projetoAtivo?.id);
 
     const config = configuracoesFerramentas[ferramentaAtual] || [];
     const camposSempreOpcionais = ["Subgrupo", "Data", "Z", "Zs"];

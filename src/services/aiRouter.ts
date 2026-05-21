@@ -14,6 +14,7 @@
 
 import { callAnthropic, callAnthropicJSON } from "../lib/anthropic";
 import { getAnthropicModel } from "./apiSettingsService";
+import { logIaQuestion } from "./eventLogger";
 
 export type AILocation =
   | "chat-ai"
@@ -43,6 +44,7 @@ export interface AIRouterCallOpts {
 }
 
 export async function callAI(opts: AIRouterCallOpts) {
+  logIaQuestion(opts.location, opts.messages);
   const tier = LOCATION_MAP[opts.location];
   const model = await getAnthropicModel(tier);
   return callAnthropic({
@@ -55,6 +57,7 @@ export async function callAI(opts: AIRouterCallOpts) {
 }
 
 export async function callAIJSON<T = any>(opts: AIRouterCallOpts): Promise<T> {
+  logIaQuestion(opts.location, opts.messages);
   const tier = LOCATION_MAP[opts.location];
   const model = await getAnthropicModel(tier);
   return callAnthropicJSON<T>({
