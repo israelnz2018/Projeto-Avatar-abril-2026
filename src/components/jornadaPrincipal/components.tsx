@@ -114,7 +114,7 @@ export function TrailerHero({ trilha, onPlay, onMoreInfo }: TrailerHeroProps) {
       </div>
 
       {/* Conteúdo */}
-      <div className="relative h-full flex items-center px-6 md:px-16 lg:px-24 pb-20 pt-32">
+      <div className="relative h-full flex items-end px-6 md:px-16 lg:px-24 pb-40 md:pb-44 pt-32">
         <div className="max-w-3xl text-white">
           {/* Marca "SEU CONSULTOR" — assinatura editorial Israel */}
           <motion.div

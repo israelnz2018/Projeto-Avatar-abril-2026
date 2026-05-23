@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2 } from 'lucide-react';
+import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, Footprints, ShieldAlert, Users, LineChart, Recycle, Trophy, Mic } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { generateFullProjectPresentation } from '../services/fullProjectPresentationExporter';
 import { getUserProfile } from './UserProfile';
@@ -21,6 +21,93 @@ import { LockedToolPopup } from './LockedToolPopup';
 import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
+
+/**
+ * Tipo de projeto — derivado do prefixo numérico da trilha (initiative.name).
+ * Aparece como badge + descrição customizada no popup "Novo Projeto".
+ * Mapeamento fixo no código: trilha é editada via Firestore, mas a categorização
+ * (tipo de projeto, ferramentas que vai carregar) mora aqui.
+ */
+function getTipoProjeto(initiativeName: string | undefined): {
+  label: string;
+  subtitle: string | null;
+  descricao: string;
+  placeholder: string;
+} {
+  const numero = parseInt(initiativeName || '');
+  switch (numero) {
+    case 1:
+      return {
+        label: 'Projeto de Estudo',
+        subtitle: 'introdutório',
+        descricao: 'Vamos conhecer as ferramentas básicas (SIPOC, 5W2H, Brainstorming) aplicadas num caso real seu.',
+        placeholder: 'Ex: Conhecer as ferramentas no setor de compras',
+      };
+    case 2:
+      return {
+        label: 'Projeto de Melhoria',
+        subtitle: 'DMAIC',
+        descricao: 'O Mentor vai te guiar pelo ciclo DMAIC completo — Definir, Medir, Analisar, Melhorar, Controlar.',
+        placeholder: 'Ex: Reduzir defeitos de pintura na linha A',
+      };
+    case 3:
+      return {
+        label: 'Projeto de Análise',
+        subtitle: 'apenas dados',
+        descricao: 'Vamos trabalhar só com dados — Pareto, Histograma, Boxplot e interpretação IA pra decisão.',
+        placeholder: 'Ex: Investigar queda de vendas no Q3',
+      };
+    case 4:
+      return {
+        label: 'Projeto de Risco',
+        subtitle: 'FMEA + PMI',
+        descricao: 'Vamos aplicar FMEA, plano B em 1 página e o ritual pré-go-live que reduz surpresa.',
+        placeholder: 'Ex: Avaliar riscos da migração do ERP',
+      };
+    case 5:
+      return {
+        label: 'Projeto de Mudança',
+        subtitle: 'ADKAR',
+        descricao: 'Vamos mapear stakeholders e estruturar a mudança com o framework ADKAR.',
+        placeholder: 'Ex: Implementar trabalho híbrido no time comercial',
+      };
+    case 6:
+      return {
+        label: 'Projeto de Análise Estatística',
+        subtitle: 'estudos pontuais',
+        descricao: 'Estudos estatísticos pontuais — correlação, regressão, teste de hipótese aplicados ao seu problema.',
+        placeholder: 'Ex: Correlação temperatura × taxa de defeito',
+      };
+    case 7:
+      return {
+        label: 'Projeto de Apresentação',
+        subtitle: 'recomendações',
+        descricao: 'Vamos estruturar suas recomendações e gerar slides executivos prontos.',
+        placeholder: 'Ex: Apresentar plano de redução de custos ao board',
+      };
+    case 8:
+      return {
+        label: 'Projeto de Estudo',
+        subtitle: 'cultura Lean',
+        descricao: 'Vamos treinar o olhar Lean — os 8 desperdícios, gemba walk, kaizen e os 5 princípios na sua rotina.',
+        placeholder: 'Ex: Aplicar 5S e gemba na minha área',
+      };
+    case 9:
+      return {
+        label: 'Projeto de Gestão de Melhoria',
+        subtitle: null,
+        descricao: 'Vamos estruturar projeto complexo de 12-18 meses com PMI — charter, WBS, risk register, cronograma.',
+        placeholder: 'Ex: Programa de excelência operacional 2027',
+      };
+    default:
+      return {
+        label: 'Projeto',
+        subtitle: null,
+        descricao: 'O Mentor IA vai carregar as ferramentas e vídeos específicos pra essa trilha.',
+        placeholder: 'Ex: Redução de Desperdício na Linha A',
+      };
+  }
+}
 
 // LBW Brand Palette
 const LBW = {
@@ -202,6 +289,30 @@ function SubInitiativeCard({ child, index, onClick }: { child: Initiative; index
       <ChevronRight size={16} className="text-blue-500 shrink-0 ml-2 mt-1 transition-transform group-hover:translate-x-1" />
     </motion.button>
   );
+}
+
+/**
+ * Visual único por trilha (ícone + gradiente + borda).
+ * Casado pelo prefixo numérico do nome da initiative.
+ */
+function getTrilhaVisual(initiativeName: string | undefined): {
+  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  gradient: string;
+  borderColor: string;
+} {
+  const numero = parseInt(initiativeName || '');
+  switch (numero) {
+    case 1: return { Icon: Footprints,    gradient: 'from-sky-500 to-indigo-700',         borderColor: '#0EA5E9' };
+    case 2: return { Icon: Target,        gradient: 'from-emerald-500 to-teal-700',       borderColor: '#10B981' };
+    case 3: return { Icon: BarChart3,     gradient: 'from-cyan-500 to-blue-700',          borderColor: '#06B6D4' };
+    case 4: return { Icon: ShieldAlert,   gradient: 'from-rose-500 to-red-700',           borderColor: '#F43F5E' };
+    case 5: return { Icon: Users,         gradient: 'from-amber-500 to-orange-700',       borderColor: '#F59E0B' };
+    case 6: return { Icon: LineChart,     gradient: 'from-violet-500 to-purple-700',      borderColor: '#8B5CF6' };
+    case 7: return { Icon: Mic,           gradient: 'from-orange-500 to-rose-700',        borderColor: '#F97316' };
+    case 8: return { Icon: Recycle,       gradient: 'from-emerald-400 to-teal-800',       borderColor: '#10B981' };
+    case 9: return { Icon: Trophy,        gradient: 'from-[#1E2D6E] to-[#0033CC]',        borderColor: '#0033CC' };
+    default: return { Icon: Folder,       gradient: 'from-slate-500 to-slate-700',        borderColor: '#64748B' };
+  }
 }
 
 const getInitiativeIcon = (name: string) => {
@@ -434,16 +545,6 @@ export default function ProjectManagement() {
             </div>
           ) : (
             <div>
-              {/* Botão "Criar Novo Projeto" — acima do dropdown */}
-              <button
-                onClick={() => setIsCreating(true)}
-                className="w-full mb-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-[13px] text-white transition-all cursor-pointer border-none"
-                style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`, boxShadow: '0 6px 16px -6px rgba(0, 51, 204, 0.4)' }}
-              >
-                <Plus size={16} />
-                Criar novo projeto
-              </button>
-
               {/* Header do dropdown (sempre visível) */}
               <button
                 onClick={() => setIsProjectsListOpen(!isProjectsListOpen)}
@@ -631,48 +732,92 @@ export default function ProjectManagement() {
                     </motion.p>
                   </div>
 
-                  {/* Hero Cards */}
-                  {(() => {
-                    const rootCount = initiatives.filter(i => !i.parentId).length;
-                    const gridCols = rootCount === 1 ? 'lg:grid-cols-1'
-                      : rootCount === 2 ? 'lg:grid-cols-2'
-                      : rootCount === 3 ? 'lg:grid-cols-3'
-                      : 'lg:grid-cols-4';
-                    return (
-                      <div className={cn("relative grid grid-cols-1 md:grid-cols-2 gap-4 mb-2", gridCols)}>
-                        {initiatives
-                          .filter(i => !i.parentId)
-                          .sort((a, b) => {
-                            const numA = parseInt(a.name) || 0;
-                            const numB = parseInt(b.name) || 0;
-                            if (numA !== numB) return numA - numB;
-                            return a.name.localeCompare(b.name);
-                          })
-                          .map((initiative, index) => {
-                            const isSelected = selectedParentInitiativeId === initiative.id;
-                            const hasOtherSelected = selectedParentInitiativeId !== null && !isSelected;
-                            // Primeiro card sempre dark (destaque), demais alternam outlined/light
-                            const variant: 'dark' | 'outlined' | 'light' =
-                              index === 0 ? 'dark' : (index % 2 === 1 ? 'outlined' : 'light');
-                            return (
-                              <HeroInitiativeCard
-                                key={initiative.id}
-                                initiative={initiative}
-                                variant={variant}
-                                icon={getInitiativeIcon(initiative.name)}
-                                index={index}
-                                isSelected={isSelected}
-                                hasOtherSelected={hasOtherSelected}
-                                onClick={() => {
-                                  setSelectedParentInitiativeId(isSelected ? null : initiative.id);
-                                  setSelectedInitiativeId('');
-                                }}
-                              />
-                            );
-                          })}
-                      </div>
-                    );
-                  })()}
+                  {/* Lista de trilhas — clique abre o popup direto */}
+                  <div className="space-y-2 mb-2">
+                    {initiatives
+                      .filter(i => !i.parentId)
+                      .sort((a, b) => {
+                        const numA = parseInt(a.name) || 0;
+                        const numB = parseInt(b.name) || 0;
+                        if (numA !== numB) return numA - numB;
+                        return a.name.localeCompare(b.name);
+                      })
+                      .map((initiative, index) => {
+                        const tipo = getTipoProjeto(initiative.name);
+                        const visual = getTrilhaVisual(initiative.name);
+                        const numeroMatch = initiative.name.match(/^(\d+)/);
+                        const numero = numeroMatch ? numeroMatch[1].padStart(2, '0') : '—';
+                        const titleClean = initiative.name.replace(/^\d+\s*[-—]?\s*/, '');
+                        const VisualIcon = visual.Icon;
+                        return (
+                          <motion.button
+                            key={initiative.id}
+                            onClick={() => {
+                              setSelectedInitiativeId(initiative.id);
+                              setIsCreating(true);
+                            }}
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03, duration: 0.25 }}
+                            whileHover={{ x: 4 }}
+                            className="group relative w-full flex items-center gap-4 pl-5 pr-4 py-3.5 rounded-2xl bg-white hover:bg-gradient-to-r hover:from-white hover:to-blue-50/40 transition-all cursor-pointer text-left overflow-hidden"
+                            style={{
+                              borderLeft: `4px solid ${visual.borderColor}`,
+                              boxShadow: '0 6px 16px -8px rgba(30, 45, 110, 0.12), 0 0 0 1px rgba(229, 231, 235, 0.6)',
+                            }}
+                          >
+                            {/* Glow do gradiente — sutil no fundo */}
+                            <div
+                              className={`absolute -left-8 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gradient-to-br ${visual.gradient} opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-300`}
+                            />
+
+                            {/* Número grande (decorativo) */}
+                            <div className="relative z-10 flex flex-col items-center justify-center shrink-0 w-12">
+                              <span
+                                className="text-[28px] font-black leading-none tabular-nums"
+                                style={{ color: visual.borderColor, textShadow: `0 2px 8px ${visual.borderColor}30` }}
+                              >
+                                {numero}
+                              </span>
+                            </div>
+
+                            {/* Ícone único da trilha */}
+                            <div
+                              className={`relative z-10 w-12 h-12 rounded-xl flex items-center justify-center text-white shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 bg-gradient-to-br ${visual.gradient}`}
+                              style={{ boxShadow: `0 8px 16px -6px ${visual.borderColor}55` }}
+                            >
+                              <VisualIcon size={22} className="text-white" />
+                            </div>
+
+                            {/* Nome + tipo */}
+                            <div className="relative z-10 flex-1 min-w-0">
+                              <p className="text-[13px] font-black leading-tight m-0 truncate uppercase tracking-tight" style={{ color: LBW.navy }}>
+                                {titleClean}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <span
+                                  className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white"
+                                  style={{ background: visual.borderColor }}
+                                >
+                                  {tipo.label}
+                                </span>
+                                {tipo.subtitle && (
+                                  <span className="text-[10px] font-bold text-slate-500 italic">
+                                    {tipo.subtitle}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Seta indicando ação */}
+                            <ChevronRight
+                              size={18}
+                              className="relative z-10 text-slate-300 group-hover:text-slate-600 group-hover:translate-x-1 transition-all shrink-0"
+                            />
+                          </motion.button>
+                        );
+                      })}
+                  </div>
 
                   {/* Painel de sub-iniciativas (trilhas) - desce abaixo dos cards */}
                   <AnimatePresence mode="wait">
@@ -809,71 +954,108 @@ export default function ProjectManagement() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"
             >
-              <form onSubmit={handleCreateProject}>
-                <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
-                  <div>
-                    <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Novo Projeto</h3>
-                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">
-                      {initiatives.find(i => i.id === selectedInitiativeId)?.name}
-                    </p>
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsCreating(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white rounded-xl transition-all"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-                
-                <div className="p-8 space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block">
-                      Nome do Projeto
-                    </label>
-                    <input
-                      autoFocus
-                      type="text"
-                      placeholder="Ex: Redução de Desperdício na Linha A"
-                      value={newProjectName}
-                      onChange={(e) => setNewProjectName(e.target.value)}
-                      className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
-                    />
-                  </div>
-
-                  <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-4 items-center">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0">
-                      <Sparkles size={20} />
-                    </div>
-                    <p className="text-[11px] font-bold text-blue-800 leading-relaxed">
-                      Ao criar este projeto, o Mentor IA irá carregar as ferramentas e vídeos específicos para esta metodologia.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-8 bg-gray-50/50 border-t border-gray-50 flex gap-3">
-                  <button 
-                    type="button"
-                    onClick={() => setIsCreating(false)}
-                    className="flex-1 py-4 text-xs font-black text-gray-500 hover:text-gray-700 uppercase tracking-widest"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting || !newProjectName.trim()}
-                    className="flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-black text-xs hover:bg-blue-700 shadow-xl shadow-blue-200 disabled:opacity-50 uppercase tracking-widest transition-all"
-                  >
-                    {isSubmitting ? 'CRIANDO...' : 'INICIAR JORNADA'}
-                  </button>
-                </div>
-              </form>
+              <CreateProjectModalContent
+                trilha={initiatives.find(i => i.id === selectedInitiativeId)}
+                newProjectName={newProjectName}
+                setNewProjectName={setNewProjectName}
+                handleCreateProject={handleCreateProject}
+                onClose={() => setIsCreating(false)}
+                isSubmitting={isSubmitting}
+              />
             </motion.div>
           </div>
         )}
       </AnimatePresence>
       <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
     </div>
+  );
+}
+
+/** Modal "Novo Projeto" — extraído como subcomponente pra usar o hook getTipoProjeto sem IIFE no JSX. */
+function CreateProjectModalContent({
+  trilha,
+  newProjectName,
+  setNewProjectName,
+  handleCreateProject,
+  onClose,
+  isSubmitting,
+}: {
+  trilha: Initiative | undefined;
+  newProjectName: string;
+  setNewProjectName: (s: string) => void;
+  handleCreateProject: (e: React.FormEvent) => void;
+  onClose: () => void;
+  isSubmitting: boolean;
+}) {
+  const tipo = getTipoProjeto(trilha?.name);
+  return (
+    <form onSubmit={handleCreateProject}>
+      <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Novo Projeto</h3>
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-full">
+            <span className="text-[10px] font-black uppercase tracking-widest">{tipo.label}</span>
+            {tipo.subtitle && (
+              <span className="text-[10px] font-bold text-white/85">· {tipo.subtitle}</span>
+            )}
+          </div>
+          {trilha?.name && (
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-2 truncate">
+              Trilha: {trilha.name}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white rounded-xl transition-all shrink-0"
+        >
+          <X size={24} />
+        </button>
+      </div>
+
+      <div className="p-8 space-y-6">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] block">
+            Nome do Projeto
+          </label>
+          <input
+            autoFocus
+            type="text"
+            placeholder={tipo.placeholder}
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
+          />
+        </div>
+
+        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-4 items-center">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0">
+            <Sparkles size={20} />
+          </div>
+          <p className="text-[11px] font-bold text-blue-800 leading-relaxed">
+            {tipo.descricao}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-8 bg-gray-50/50 border-t border-gray-50 flex gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 py-4 text-xs font-black text-gray-500 hover:text-gray-700 uppercase tracking-widest"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting || !newProjectName.trim()}
+          className="flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-black text-xs hover:bg-blue-700 shadow-xl shadow-blue-200 disabled:opacity-50 uppercase tracking-widest transition-all"
+        >
+          {isSubmitting ? 'CRIANDO...' : 'INICIAR JORNADA'}
+        </button>
+      </div>
+    </form>
   );
 }
 

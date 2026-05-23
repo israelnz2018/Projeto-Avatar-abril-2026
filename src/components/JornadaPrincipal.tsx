@@ -65,8 +65,8 @@ const HERO_TRILHAS_IDS = [
   'mudanca-com-menos-resistencia',   // 5 — Conduzir Mudanças
   'problema-cronico',                // 6 — Análises Estatísticas
   'apresentar-recomendacao',         // 7 — Apresentações que Convencem
-  'especialista-projetos-complexos', // 8 — FORMAÇÃO LBW (paleta NAVY/BLUE)
-  'perfil-gestor-lean',              // 9 — Gestor LEAN
+  'perfil-gestor-lean',              // 8 — Cultura Lean na Prática
+  'especialista-projetos-complexos', // 9 — FORMAÇÃO LBW (paleta NAVY/BLUE — âncora final)
 ];
 
 const HERO_INTERVALO_MS = 8_000;
@@ -182,7 +182,7 @@ export default function JornadaPrincipal() {
         </div>
 
         {/* Barra de paginação Netflix-style: thumbnails + barra de progresso */}
-        <div className="relative -mt-24 md:-mt-28 mb-10 z-30 px-6 md:px-16 lg:px-24">
+        <div className="relative -mt-16 md:-mt-20 mb-10 z-30 px-6 md:px-16 lg:px-24">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5 text-[10px] md:text-[11px] font-black tracking-[0.3em] text-white/85 uppercase">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

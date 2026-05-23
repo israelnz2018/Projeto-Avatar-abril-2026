@@ -80,7 +80,7 @@ export interface Trilha {
   /** Total de episódios (não precisa bater com array de episodios) */
   totalEpisodios: number;
   /** Selo Netflix-like opcional: "Novo", "Top 10", "Em alta", "Formação" (a trilha-âncora) */
-  selo?: 'NOVO' | 'TOP 10' | 'EM ALTA' | 'IMPERDÍVEL' | 'FORMAÇÃO LBW' | 'COMECE AQUI';
+  selo?: 'NOVO' | 'TOP 10' | 'EM ALTA' | 'IMPERDÍVEL' | 'FORMAÇÃO LBW' | 'COMECE AQUI' | 'CULTURA';
   /** Carta do Israel — 1ª pessoa, 3 a 4 parágrafos */
   cartaIsrael: string;
   oQueVoceLeva: string[];
@@ -358,54 +358,56 @@ Te ensino o esqueleto de como rodar um projeto de 12 a 18 meses sem perder o tim
 
   {
     id: 'perfil-gestor-lean',
-    numero: '09',
-    titulo: 'Como Se Tornar um Gestor LEAN',
-    subtitulo: 'O que separa quem sobe de quem fica parado',
-    dor: 'Pra ser visto como gestor antes de ser promovido a gestor',
-    paraQuem: 'Quem quer próxima promoção (sem MBA caro)',
-    icone: Award,
-    gradient: 'from-pink-400 via-fuchsia-600 to-purple-900',
-    glow: 'rgba(217, 70, 239, 0.45)',
-    accent: '#D946EF',
-    motif: 'rising-line',
-    duracao: '8 semanas',
-    nivel: 'Avançado',
+    numero: '08',
+    titulo: 'Cultura Lean na Prática',
+    subtitulo: 'Pensar Lean antes de aplicar Lean',
+    dor: 'Pra você ver o desperdício que está na cara da sua área (e ninguém percebe)',
+    paraQuem: 'Quem trabalha em processos e quer enxergar antes de executar',
+    icone: Recycle,
+    gradient: 'from-emerald-400 via-teal-600 to-emerald-900',
+    glow: 'rgba(16, 185, 129, 0.45)',
+    accent: '#10B981',
+    motif: 'spiral-flow',
+    duracao: '6 semanas',
+    nivel: 'Intermediário',
     totalEpisodios: 10,
-    selo: 'TOP 10',
-    cartaIsrael: `Em 5 multinacionais, vi um padrão claro: quem é promovido a gestor não é necessariamente o mais técnico. É o que LIDA com pessoas, processos e resultado de um jeito específico.
+    selo: 'CULTURA',
+    cartaIsrael: `Em 27 anos passei por linha de produção da Ford, projetos $20MM/ano na Braskem, hospital, banco, escritório. E aprendi a mesma lição em todo lugar: as ferramentas Lean (5S, kanban, kaizen, A3) só funcionam quando o OLHAR vem antes.
 
-Tem 7 hábitos que eu observo em todo gestor lean que sobe: andar pelo gemba (ir onde o trabalho acontece), perguntar antes de ordenar, ler números antes de reagir, dar feedback em tempo real, eliminar reuniões inúteis, defender o time pra cima e ser exigente pra dentro.
+Tem gente que monta um quadro kanban bonito e nada muda. Tem gente que faz 5S na bancada e em 30 dias volta a bagunça. Por quê? Aplicou técnica sem ter cultura.
 
-Essa trilha é mais um JEITO DE SER do que um conjunto de ferramentas. Vou te mostrar como pareceu na prática nos meus 27 anos — e como você pode aplicar essa semana ainda, mesmo sem cargo.`,
+Cultura Lean é um JEITO de ver: ver o desperdício antes da ferramenta, ver o fluxo antes do indicador, ver o cliente antes do processo. Sem isso, qualquer Lean vira teatro.
+
+Aqui te mostro como eu treinei esse olhar — com casos reais — e como você pode treinar o seu na próxima semana. Sem mudar de cargo, sem certificado, sem MBA. Só com prática.`,
     oQueVoceLeva: [
-      'Os 7 hábitos do gestor lean (com exemplos reais)',
-      'Como "atuar como gestor antes de ser promovido"',
-      'Construir um portfolio de pequenas vitórias visíveis',
-      'Falar a língua da diretoria (números, prioridades, riscos)',
+      'Os 5 princípios Lean explicados sem academia',
+      'Os 8 desperdícios na sua rotina semanal (com exemplos da sua área)',
+      'O ritual diário do olhar Lean (15 min)',
+      'Como propor melhoria sem desafiar quem manda',
     ],
     episodios: [
-      { numero: 1, titulo: 'Andar pelo gemba (mesmo no remoto)', duracao: '14 min', resumo: 'Ir onde o trabalho acontece' },
-      { numero: 2, titulo: 'Perguntar antes de ordenar', duracao: '12 min', resumo: 'A pergunta que muda a conversa' },
-      { numero: 3, titulo: 'Ler número antes de reagir', duracao: '15 min', resumo: 'Evitar o "achismo de gestor" ' },
-      { numero: 4, titulo: 'Feedback em tempo real', duracao: '16 min', resumo: 'Sem esperar a avaliação anual' },
-      { numero: 5, titulo: 'Eliminar reunião inútil', duracao: '12 min', resumo: 'Como dizer "isso podia ser um email"' },
-      { numero: 6, titulo: 'Defender o time pra cima', duracao: '14 min', resumo: 'Sua moeda mais valiosa' },
-      { numero: 7, titulo: 'Ser exigente pra dentro', duracao: '15 min', resumo: 'Sem virar tirano' },
-      { numero: 8, titulo: 'Portfolio de pequenas vitórias', duracao: '18 min', resumo: 'O que mostrar quando a vaga abrir' },
-      { numero: 9, titulo: 'Falar a língua da diretoria', duracao: '20 min', resumo: 'Números, prioridades, riscos' },
-      { numero: 10, titulo: 'A conversa de carreira que você precisa ter', duracao: '14 min', resumo: 'Com seu chefe — e quando' },
+      { numero: 1, titulo: 'Os 5 princípios Lean (valor, fluxo, puxar, perfeição)', duracao: '14 min', resumo: 'A base que ninguém ensina direito' },
+      { numero: 2, titulo: 'Os 8 desperdícios — onde estão na sua semana', duracao: '16 min', resumo: 'Muda no detalhe' },
+      { numero: 3, titulo: 'Andar pelo gemba (mesmo no remoto)', duracao: '12 min', resumo: 'Ir onde o trabalho acontece' },
+      { numero: 4, titulo: 'Ver o fluxo: do pedido à entrega', duracao: '18 min', resumo: 'O mapa que muda a conversa' },
+      { numero: 5, titulo: '5 porquês — perguntar antes de resolver', duracao: '14 min', resumo: 'Causa raiz sem chute' },
+      { numero: 6, titulo: 'Cultura kaizen: pequena melhoria todo dia', duracao: '12 min', resumo: 'O hábito que multiplica' },
+      { numero: 7, titulo: '5S não é arrumar a mesa', duracao: '13 min', resumo: 'O que ele de fato é' },
+      { numero: 8, titulo: 'Quando otimizar e quando NÃO otimizar', duracao: '15 min', resumo: 'Nem tudo merece esforço' },
+      { numero: 9, titulo: 'Propor melhoria sem desafiar o chefe', duracao: '16 min', resumo: 'A política da mudança' },
+      { numero: 10, titulo: 'O ritual da semana Lean (15 min/dia)', duracao: '14 min', resumo: 'Como manter o olhar treinado' },
     ],
     ferramentas: [
       { label: 'Ver suas iniciativas e formações', rota: '/education' },
-      { label: 'Pedir mentoria de carreira ao Mentor', rota: '/chat' },
+      { label: 'Conversar sobre Lean com o Mentor', rota: '/chat' },
     ],
     ctaPrimario: { label: 'Conversar com o Mentor', rota: '/chat' },
-    tags: ['destaque', 'carreira'],
+    tags: ['destaque', 'cultura'],
   },
 
   {
     id: 'especialista-projetos-complexos',
-    numero: '08',
+    numero: '09',
     titulo: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
     subtitulo: 'A formação completa pra liderar projetos estratégicos',
     dor: 'Pra você passar de "faz pequenos" pra "lidera os complexos"',

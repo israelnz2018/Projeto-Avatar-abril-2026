@@ -1,7 +1,7 @@
 /**
  * Preços de referência por modelo (USD por 1 milhão de tokens).
  * Atualize esta tabela quando os preços oficiais mudarem.
- * Fonte: jan/2026.
+ * Fonte: maio/2026.
  */
 
 export interface ModelPrice {
@@ -10,12 +10,18 @@ export interface ModelPrice {
 }
 
 export const GEMINI_PRICES: Record<string, ModelPrice> = {
-  'gemini-2.5-flash': { inputPerMTok: 0.075, outputPerMTok: 0.30 },
-  'gemini-2.5-pro': { inputPerMTok: 1.25, outputPerMTok: 5.00 },
-  'gemini-2.0-flash': { inputPerMTok: 0.10, outputPerMTok: 0.40 },
+  // Família 2.5 (stable)
+  'gemini-2.5-flash-lite': { inputPerMTok: 0.04, outputPerMTok: 0.15 },
+  'gemini-2.5-flash':      { inputPerMTok: 0.075, outputPerMTok: 0.30 },
+  'gemini-2.5-pro':        { inputPerMTok: 1.25, outputPerMTok: 5.00 },
+  // Família 3.x (stable)
+  'gemini-3.1-flash-lite': { inputPerMTok: 0.05, outputPerMTok: 0.20 },
+  'gemini-3.5-flash':      { inputPerMTok: 0.15, outputPerMTok: 0.60 },
+  // Legados (mantidos pra compatibilidade — não usar em produção)
+  'gemini-2.0-flash':      { inputPerMTok: 0.10, outputPerMTok: 0.40 },
   'gemini-2.0-flash-lite': { inputPerMTok: 0.075, outputPerMTok: 0.30 },
-  'gemini-1.5-flash': { inputPerMTok: 0.075, outputPerMTok: 0.30 },
-  'gemini-1.5-pro': { inputPerMTok: 1.25, outputPerMTok: 5.00 },
+  'gemini-1.5-flash':      { inputPerMTok: 0.075, outputPerMTok: 0.30 },
+  'gemini-1.5-pro':        { inputPerMTok: 1.25, outputPerMTok: 5.00 },
 };
 
 export const ANTHROPIC_PRICES: Record<string, ModelPrice> = {

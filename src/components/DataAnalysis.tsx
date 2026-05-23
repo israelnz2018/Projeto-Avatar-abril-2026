@@ -32,6 +32,8 @@ import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
+import DataAnalysisTour, { hasSeenAnalysisTour } from './DataAnalysisTour';
+import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
 /**
  * URL base do backend de análises (Python — repo israelnz2018/Analises rodando no Railway).
@@ -339,9 +341,19 @@ export default function DataAnalysis() {
   const [salvandoTudo, setSalvandoTudo] = useState(false);
   const [modalSubstituirPlanilha, setModalSubstituirPlanilha] = useState(false);
   const [modalSucessoSalvar, setModalSucessoSalvar] = useState<string | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => {
     getAllKnowledge().then(items => setKnowledgeItems(items)).catch(console.error);
+  }, []);
+
+  // Tour: abre automaticamente na 1ª visita do aluno (uma vez, persiste em localStorage)
+  useEffect(() => {
+    if (!hasSeenAnalysisTour()) {
+      // pequeno delay pra DOM montar antes da medição dos elementos
+      const t = setTimeout(() => setTourOpen(true), 500);
+      return () => clearTimeout(t);
+    }
   }, []);
 
   useEffect(() => {
@@ -390,6 +402,16 @@ export default function DataAnalysis() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeEntry[]>([]);
   const [selectedAnalysisVideo, setSelectedAnalysisVideo] = useState<KnowledgeEntry | null>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
+  const [showEduVideos, setShowEduVideos] = useState(false);
+
+  // Vídeos educacionais FIXOS sobre como usar variáveis X e Y na aba Data Analysis.
+  // Aparecem sempre, independente da análise selecionada. Click → toca no player inline.
+  const EDU_VIDEO_URLS = [
+    'https://youtu.be/zFhaxlzzeiI',  // Relação de causa e efeito
+    'https://youtu.be/37Lkea50zOY',  // Mapa de Análise Estatística Parte 1
+    'https://youtu.be/alx-f4QOO9E',  // Mapa de análise Estatística - Parte 2
+    'https://youtu.be/WKxwkFZ8isg',  // Escolha da melhor ferramenta
+  ];
   const [modoGageRR, setModoGageRR] = useState<"gerar" | "analisar" | null>(null);
   const [gageRRConfig, setGageRRConfig] = useState({
     n_pecas: 10,
@@ -1283,7 +1305,7 @@ export default function DataAnalysis() {
       {/* Header & Navigation Combined (Internal Workspace Header) */}
       <header className="bg-[#1f2937] text-white px-[20px] py-[10px] flex justify-between items-center border-b border-[#ccc] -mx-8 -mt-8 mb-8">
         <div className="flex items-center gap-[20px]">
-          <nav>
+          <nav data-tour-id="menu">
             <ul className="list-none m-0 p-0 flex gap-[15px]">
               {Object.keys(configuracoesAnalises).map((grupo) => (
                 <li 
@@ -1368,12 +1390,14 @@ export default function DataAnalysis() {
               ))}
               <div className="flex items-center pl-3">
                 <button
+                  data-tour-id="salvar"
                   onClick={handleSalvarTudo}
                   disabled={!projetoAtivo || salvandoTudo}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-bold rounded shadow-sm disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer flex items-center gap-2 whitespace-nowrap"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-[11px] font-black uppercase tracking-widest rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer whitespace-nowrap transition-colors"
                   title={!projetoAtivo ? 'Selecione um projeto primeiro na aba Projetos' : 'Salvar planilha e análises no projeto ativo'}
                 >
-                  💾 {salvandoTudo ? 'Salvando...' : 'Salvar Tudo no Projeto'}
+                  <Save size={13} />
+                  {salvandoTudo ? 'Salvando...' : 'Salvar no Projeto'}
                 </button>
               </div>
             </ul>
@@ -1384,13 +1408,13 @@ export default function DataAnalysis() {
       <div className="p-[20px] space-y-6">
         {/* File Upload & Sheet Selection */}
         <div className="flex flex-col md:flex-row gap-[40px] items-end mb-6">
-          <div className="flex-1">
+          <div className="flex-1" data-tour-id="upload">
             <label className="block mb-1 font-bold text-gray-700">Escolha seu arquivo (.xlsx):</label>
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept=".xlsx"
               onChange={handleFileChange}
-              className="block w-full text-sm text-gray-900 border border-[#ccc] rounded-[4px] cursor-pointer bg-white p-[5px] h-[38px]" 
+              className="block w-full text-sm text-gray-900 border border-[#ccc] rounded-[4px] cursor-pointer bg-white p-[5px] h-[38px]"
             />
             {file && (
               <p className="text-[11px] text-green-700 mt-1 font-medium">
@@ -1398,9 +1422,9 @@ export default function DataAnalysis() {
               </p>
             )}
           </div>
-          <div className="w-full md:w-[45%]">
+          <div className="w-full md:w-[45%]" data-tour-id="sheet">
             <label className="block mb-1 font-bold text-gray-700">Aba da Planilha</label>
-            <select 
+            <select
               className="w-full border border-[#ccc] rounded-[4px] p-[8px] bg-white h-[38px] outline-none"
               value={selectedSheet}
               onChange={(e) => handleSheetChange(e.target.value)}
@@ -1408,6 +1432,113 @@ export default function DataAnalysis() {
               <option value="">Selecione a aba...</option>
               {sheets.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+          </div>
+        </div>
+
+        {/* Linha dupla: tour (esquerda) + X/Y educacionais (direita, alinhado com box de análise) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-4">
+          {/* Tour banner — coluna esquerda (mesma largura do preview da tabela abaixo) */}
+          <div className="lg:col-span-2">
+            <div className="inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-100">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E2D6E] to-[#0033CC] flex items-center justify-center shrink-0">
+                <HelpCircle size={13} className="text-white" />
+              </div>
+              <p className="text-[11px] font-bold text-[#1E2D6E] m-0">Não sabe por onde começar?</p>
+              <button
+                onClick={() => setTourOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all border-none cursor-pointer whitespace-nowrap"
+              >
+                <Sparkles size={11} />
+                Iniciar tour
+              </button>
+            </div>
+          </div>
+
+          {/* X/Y Fundamentos — coluna direita (alinhado com box de Análise selecionada) */}
+          <div className="lg:col-span-1">
+            <div data-tour-id="edu-videos" className="border border-blue-100 rounded-lg overflow-hidden bg-white shadow-sm">
+              <button
+                type="button"
+                onClick={() => setShowEduVideos(s => !s)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-blue-50 hover:bg-blue-100 transition-colors border-none cursor-pointer"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Play size={11} className="text-red-500 shrink-0" />
+                  <span className="text-[10px] font-black text-[#1E2D6E] uppercase tracking-widest truncate">
+                    Variáveis X e Y · Fundamentos
+                  </span>
+                  <span className="text-[9px] text-gray-500 shrink-0">· 4 vídeos</span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={cn("text-[#1E2D6E] transition-transform shrink-0", showEduVideos && "rotate-180")}
+                />
+              </button>
+              {showEduVideos && (
+                <div className="p-2 flex flex-col gap-1 border-t border-blue-100">
+                  {EDU_VIDEO_URLS.map(url => {
+                    const video = knowledgeItems.find(v => v.sourceUrl === url);
+                    if (!video) return null;
+                    const isActive = selectedAnalysisVideo?.id === video.id;
+                    return (
+                      <button
+                        key={url}
+                        onClick={() => setSelectedAnalysisVideo(isActive ? null : video)}
+                        className={cn(
+                          "flex items-center gap-2 px-2 py-1.5 rounded border text-[10px] font-bold text-left transition-all cursor-pointer w-full",
+                          isActive
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                        )}
+                      >
+                        <Play size={9} className={isActive ? "text-white flex-shrink-0" : "text-red-500 flex-shrink-0"} />
+                        <span className="truncate">{video.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Player inline — aparece DENTRO desse painel quando um vídeo EDU está selecionado */}
+              <AnimatePresence>
+                {selectedAnalysisVideo && EDU_VIDEO_URLS.includes(selectedAnalysisVideo.sourceUrl) && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="border-t border-blue-100 p-3 bg-white"
+                  >
+                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-5 h-5 bg-red-50 rounded-full flex items-center justify-center shrink-0">
+                          <Play size={10} className="text-red-600" />
+                        </div>
+                        <span className="text-[10px] font-black text-gray-800 uppercase tracking-tight truncate">
+                          {selectedAnalysisVideo.title}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedAnalysisVideo(null)}
+                        className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-all cursor-pointer border-none bg-transparent shrink-0"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <div className="aspect-video bg-black rounded overflow-hidden">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://www.youtube.com/embed/${getYoutubeId(selectedAnalysisVideo.sourceUrl)}?autoplay=1`}
+                        title={selectedAnalysisVideo.title}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
@@ -1449,7 +1580,7 @@ export default function DataAnalysis() {
 
           {/* Tool Selection Box */}
           <div className="lg:col-span-1">
-            <div id="boxAnalise" className="border border-[#ccc] bg-white p-[15px] shadow-sm h-[300px] overflow-y-auto">
+            <div id="boxAnalise" data-tour-id="variables" className="border border-[#ccc] bg-white p-[15px] shadow-sm h-[300px] overflow-y-auto">
               <p className="text-[12px] text-gray-500 mb-3">Análise selecionada: <span className="font-bold text-gray-700">{ferramentaAtual || 'Nenhuma'}</span></p>
               
               {ferramentaAtual && (
@@ -1672,13 +1803,22 @@ export default function DataAnalysis() {
             {/* Vídeos de apoio (botões compactos abaixo do box) */}
             {ferramentaAtual && (() => {
               const analiseId = ANALISE_NOME_PARA_ID[ferramentaAtual];
-              const videos = analiseId
+              // Filtra vídeos vinculados à análise e DEDUPLICA por sourceUrl —
+              // o mesmo vídeo pode estar replicado em várias trilhas (cada placement
+              // é um doc separado no Firestore, mesmo URL). Sem dedup, aparece duplicado.
+              const videosTodos = analiseId
                 ? knowledgeItems.filter(v => v.associatedAnalyses?.includes(analiseId))
                 : [];
+              const vistosUrl = new Set<string>();
+              const videos = videosTodos.filter(v => {
+                if (!v.sourceUrl || vistosUrl.has(v.sourceUrl)) return false;
+                vistosUrl.add(v.sourceUrl);
+                return true;
+              });
               if (videos.length === 0) return null;
               const visibleVideos = showAllVideos ? videos : videos.slice(0, 3);
               return (
-                <div className="mt-2">
+                <div className="mt-2" data-tour-id="videos">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-[1px] flex-1 bg-gray-200"></div>
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
@@ -1718,9 +1858,9 @@ export default function DataAnalysis() {
               );
             })()}
 
-            {/* Player de vídeo inline */}
+            {/* Player de vídeo inline — só pra vídeos de apoio (não os 4 educacionais que tocam acima) */}
             <AnimatePresence>
-              {selectedAnalysisVideo && (
+              {selectedAnalysisVideo && !EDU_VIDEO_URLS.includes(selectedAnalysisVideo.sourceUrl) && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1793,35 +1933,49 @@ export default function DataAnalysis() {
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button — Enviar Análise (primary) */}
         <div className="text-center py-2">
-          <button 
+          <button
+            data-tour-id="enviar"
             onClick={handleRunAnalysis}
             disabled={isProcessing}
             className={cn(
-              "bg-[#2563eb] text-white rounded-[4px] px-[40px] py-[10px] hover:bg-blue-700 transition-all font-bold text-[13px]",
-              isProcessing && "opacity-50 cursor-not-allowed"
+              "inline-flex items-center gap-2 px-10 py-3 rounded-lg font-black text-[13px] uppercase tracking-widest text-white",
+              "bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] hover:from-[#0033CC] hover:to-[#1E2D6E]",
+              "shadow-lg shadow-blue-500/30 hover:shadow-xl hover:scale-[1.02]",
+              "transition-all border-none cursor-pointer",
+              isProcessing && "opacity-50 cursor-not-allowed hover:scale-100"
             )}
           >
-            {isProcessing ? <span className="pontinhos">Processando</span> : "Enviar Análise"}
+            {isProcessing ? (
+              <span className="pontinhos">Processando</span>
+            ) : (
+              <>
+                <Sparkles size={14} />
+                Enviar Análise
+              </>
+            )}
           </button>
         </div>
 
-        {/* Question Section */}
-        <div className="flex flex-col md:flex-row md:items-center gap-0 border border-[#ccc] rounded-[4px] overflow-hidden bg-white">
-          <label className="font-bold whitespace-nowrap px-4 py-2 bg-gray-50 border-r border-[#ccc]">Pergunta (apenas estatística):</label>
-          <input 
-            type="text" 
-            className="flex-1 p-[10px] bg-white outline-none" 
-            placeholder="Digite sua pergunta..." 
+        {/* Question Section — Perguntar (secondary) */}
+        <div data-tour-id="perguntar" className="flex flex-col md:flex-row md:items-center gap-0 border border-blue-100 rounded-lg overflow-hidden bg-white shadow-sm">
+          <label className="font-bold whitespace-nowrap px-4 py-2.5 bg-blue-50 border-r border-blue-100 text-[12px] text-[#1E2D6E]">
+            Pergunta (apenas estatística):
+          </label>
+          <input
+            type="text"
+            className="flex-1 px-3 py-2.5 bg-white outline-none text-[13px]"
+            placeholder="Digite sua pergunta..."
             value={pergunta}
             onChange={(e) => setPergunta(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
           />
-          <button 
+          <button
             onClick={handleAskAI}
-            className="bg-[#10b981] text-white px-[25px] py-[10px] hover:bg-[#059669] transition-all font-bold border-l border-[#ccc]"
+            className="inline-flex items-center gap-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white px-6 py-2.5 transition-colors font-black text-[12px] uppercase tracking-widest border-none cursor-pointer"
           >
+            <Sparkles size={13} />
             Perguntar
           </button>
         </div>
@@ -1907,10 +2061,12 @@ export default function DataAnalysis() {
                     alert('Erro ao gerar slide. Tente novamente.');
                   }
                 }}
-                className="absolute right-0 flex items-center gap-2 px-4 py-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white rounded-md font-bold text-xs uppercase tracking-wider transition-all border-none cursor-pointer shadow-sm"
+                data-tour-id="ppt"
+                className="absolute right-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-[#1E2D6E] text-[#1E2D6E] hover:text-white rounded-md font-black text-[11px] uppercase tracking-widest transition-all border border-[#1E2D6E] cursor-pointer"
                 title="Gerar apresentação PPT das análises"
               >
-                📊 PPT
+                <FileDown size={12} />
+                PPT
               </button>
             </div>
             <div id="conteudoGrafico" className="flex-1 border border-[#ccc] bg-white p-[20px] min-h-[400px] shadow-sm rounded-[4px] relative">
@@ -2493,6 +2649,7 @@ export default function DataAnalysis() {
           </div>
         </div>
       )}
+      <DataAnalysisTour isOpen={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }

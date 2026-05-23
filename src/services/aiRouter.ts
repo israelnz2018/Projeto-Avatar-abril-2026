@@ -30,7 +30,7 @@ const LOCATION_MAP: Record<AILocation, Tier> = {
   "chat-ai": "sonnet",
   "mentor": "sonnet",
   "fill-tool": "sonnet",
-  "kb-idx": "sonnet",
+  "kb-idx": "haiku",
   "tool-react": "opus",
   "tool-ppt": "opus",
 };

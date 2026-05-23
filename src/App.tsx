@@ -63,7 +63,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ? 'Coordenador'
     : plano === 'completo'
     ? 'Aluno · Completo'
-    : 'Aluno · Gratuito';
+    : 'Starter';
 
   const menuItems = [
     { name: 'Sua Jornada', path: '/', icon: Compass },
@@ -72,11 +72,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Educação', path: '/education', icon: GraduationCap },
-    { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
     ...(isAdmin || isCoordenador ? [
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
     ] : []),
     ...(isAdmin ? [
+      { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
       { name: 'Criar Nova Ferramenta', path: '/tool-creator', icon: Sparkles },
       { name: 'AI Assistant Config', path: '/ai-config', icon: Settings },
@@ -91,16 +91,53 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         "bg-[#1f2937] text-white transition-all duration-300 flex flex-col",
         isSidebarOpen ? "w-64" : "w-20"
       )}>
-        <div className="p-6 flex items-center justify-between border-b border-gray-700">
+        <div className="p-4 flex items-start justify-between gap-2 border-b border-gray-700">
           {isSidebarOpen && (
-            <div className="flex items-center gap-2">
-              <img src="https://i.postimg.cc/7PgJFtZK/logo-LBW.png" alt="Logo" className="h-8 w-auto" />
-              <span className="font-bold text-lg">LBW Copilot</span>
+            <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+              <img src="https://i.postimg.cc/7PgJFtZK/logo-LBW.png" alt="Logo" className="h-10 w-auto" />
+              <span className="font-bold text-sm whitespace-nowrap text-center">Educação pelo Trabalho</span>
             </div>
           )}
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-700 rounded">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-700 rounded shrink-0">
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
+        </div>
+
+        {/* Bloco do usuário — logo abaixo da logo, acima do Projeto Ativo */}
+        <div className="p-4 border-b border-gray-700">
+          <div className={cn("flex items-center justify-between gap-2", !isSidebarOpen && "justify-center")}>
+            {isSidebarOpen ? (
+              <>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
+                    {user?.email?.[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
+                    <p className="text-[10px] font-bold text-blue-400 uppercase">
+                      {roleLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link to="/profile" title="Meu Perfil">
+                    <UserIcon size={16} className="text-gray-400 hover:text-white transition-colors" />
+                  </Link>
+                  <button
+                    onClick={onLogout}
+                    title="Sair"
+                    className="border-none bg-transparent cursor-pointer p-0 flex items-center"
+                  >
+                    <LogOut size={16} className="text-gray-400 hover:text-white transition-colors" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
+                {user?.email?.[0].toUpperCase()}
+              </div>
+            )}
+          </div>
         </div>
 
         {isSidebarOpen && (
@@ -136,42 +173,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
             </Link>
           ))}
         </nav>
-
-        <div className="p-4 border-t border-gray-700">
-          <div className={cn("flex items-center justify-between gap-2 p-3", !isSidebarOpen && "justify-center")}>
-            {isSidebarOpen ? (
-              <>
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
-                    {user?.email?.[0].toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
-                    <p className="text-[10px] font-bold text-blue-400 uppercase">
-                      {roleLabel}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Link to="/profile" title="Meu Perfil">
-                    <UserIcon size={16} className="text-gray-400 hover:text-white transition-colors" />
-                  </Link>
-                  <button
-                    onClick={onLogout}
-                    title="Sair"
-                    className="border-none bg-transparent cursor-pointer p-0 flex items-center"
-                  >
-                    <LogOut size={16} className="text-gray-400 hover:text-white transition-colors" />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
-                {user?.email?.[0].toUpperCase()}
-              </div>
-            )}
-          </div>
-        </div>
       </aside>
 
       {/* Main Content */}

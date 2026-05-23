@@ -17,14 +17,16 @@ const ANTHROPIC_HAIKU_OPTIONS = ['claude-haiku-4-5-20251001', 'claude-haiku-4-5'
 const ANTHROPIC_SONNET_OPTIONS = ['claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-3-7-sonnet-latest'];
 const ANTHROPIC_OPUS_OPTIONS = ['claude-opus-4-7', 'claude-opus-4-1', 'claude-3-opus-latest'];
 
-const GEMINI_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
+// Lista atualizada em 2026-05-23. Só modelos STABLE (GA) — sem preview/experimental.
+// Ordem: do mais recomendado pro nosso uso (estruturação barata) ao mais avançado.
+const GEMINI_MODELS: Array<{ id: string; label: string }> = [
+  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite — $0.04 in / $0.15 out · 💰 mais barato (recomendado)' },
+  { id: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash — $0.075 in / $0.30 out · equilibrado' },
+  { id: 'gemini-2.5-pro',        label: 'Gemini 2.5 Pro — $1.25 in / $5.00 out · reasoning avançado' },
+  { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite — $0.05 in / $0.20 out · 3.x cost-effective' },
+  { id: 'gemini-3.5-flash',      label: 'Gemini 3.5 Flash — $0.15 in / $0.60 out · ⭐ top stable 3.x' },
 ];
+const GEMINI_MODEL_IDS = GEMINI_MODELS.map(m => m.id);
 
 function maskKey(key: string): string {
   if (!key) return '(não configurada)';
@@ -269,7 +271,7 @@ export default function ApiSettingsView() {
             <input
               type={showGemini ? 'text' : 'password'}
               value={geminiKey}
-              onChange={e => setGeminiKey(e.target.value)}
+              onChange={e => { setGeminiKey(e.target.value); setTestResult(null); }}
               placeholder="AIza…"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-[4px] font-mono text-sm focus:outline-none focus:border-blue-500"
             />
@@ -291,16 +293,19 @@ export default function ApiSettingsView() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
           <select
             value={geminiModel}
-            onChange={e => setGeminiModel(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:border-blue-500"
+            onChange={e => { setGeminiModel(e.target.value); setTestResult(null); }}
+            className="w-full md:w-auto min-w-[480px] px-3 py-2 border border-gray-300 rounded-[4px] text-sm focus:outline-none focus:border-blue-500"
           >
             {GEMINI_MODELS.map(m => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m.id} value={m.id}>{m.label}</option>
             ))}
           </select>
-          {!GEMINI_MODELS.includes(geminiModel) && (
+          {!GEMINI_MODEL_IDS.includes(geminiModel) && (
             <span className="ml-2 text-xs text-amber-600">Modelo customizado: {geminiModel}</span>
           )}
+          <p className="text-[10px] text-gray-500 mt-1">
+            Preço em USD por 1M de tokens (entrada / saída) · fonte: maio/2026
+          </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -383,7 +388,7 @@ export default function ApiSettingsView() {
               {ANTHROPIC_HAIKU_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
               {!ANTHROPIC_HAIKU_OPTIONS.includes(modelHaiku) && <option value="custom">{modelHaiku} (custom)</option>}
             </select>
-            <p className="text-[10px] text-gray-500 mt-1">Usado em: análises rápidas, geração de relatório curto</p>
+            <p className="text-[10px] text-gray-500 mt-1">Usado em: <strong>gerar índice de vídeo</strong> (mais barato — ~10× menos que Sonnet)</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Sonnet (padrão)</label>
@@ -395,7 +400,7 @@ export default function ApiSettingsView() {
               {ANTHROPIC_SONNET_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
               {!ANTHROPIC_SONNET_OPTIONS.includes(modelSonnet) && <option value="custom">{modelSonnet} (custom)</option>}
             </select>
-            <p className="text-[10px] text-gray-500 mt-1">Usado em: chat IA, mentor, preencher com IA, gerar índice</p>
+            <p className="text-[10px] text-gray-500 mt-1">Usado em: chat IA, mentor, preencher ferramenta com IA</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">Opus (top)</label>

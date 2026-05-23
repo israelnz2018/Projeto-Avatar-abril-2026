@@ -708,12 +708,23 @@ export default function KnowledgeManagerView() {
   // Processa em lote todos os vídeos com transcript mas sem índice (summary):
   // Usa Gemini pra gerar índice + resumo a partir do rawTranscript salvo no Firestore.
   const handleBulkGenerateIndexes = async () => {
-    // Agrupa por sourceUrl — um índice cobre todas as placements irmãs.
+    // Passo 1: agrupar por sourceUrl e descobrir quais URLs já têm summary
+    // em PELO MENOS UMA placement irmã. Se sim, o vídeo está pronto — pula.
+    const sourceUrlsComSummary = new Set<string>();
+    for (const item of items) {
+      if ((item.summary?.length || 0) > 0 && item.sourceUrl) {
+        sourceUrlsComSummary.add(item.sourceUrl);
+      }
+    }
+
+    // Passo 2: pega 1 placement por sourceUrl que precise de índice
+    // (tem rawTranscript, mas o sourceUrl não está no set de "já tem").
     const bySourceUrl = new Map<string, KnowledgeEntry>();
     for (const item of items) {
+      if (!item.sourceUrl) continue;
+      if (sourceUrlsComSummary.has(item.sourceUrl)) continue;
       const hasRaw = item.rawTranscript && item.rawTranscript.trim().length > 0;
-      const hasSummary = (item.summary?.length || 0) > 0;
-      if (!hasRaw || hasSummary) continue;
+      if (!hasRaw) continue;
       if (!bySourceUrl.has(item.sourceUrl)) bySourceUrl.set(item.sourceUrl, item);
     }
     const pending = Array.from(bySourceUrl.values());
@@ -723,15 +734,19 @@ export default function KnowledgeManagerView() {
       return;
     }
 
+    // Lista preview dos 8 primeiros pra você bater olho se realmente faltam
+    const preview = pending.slice(0, 8).map((p, i) => `${i + 1}. ${p.title || p.sourceUrl}`).join('\n');
+    const remaining = pending.length > 8 ? `\n…e mais ${pending.length - 8} vídeos` : '';
+
+    console.log('[bulkGenerateIndexes] Lista completa de pendentes:', pending.map(p => ({ title: p.title, url: p.sourceUrl })));
+
     const confirmed = window.confirm(
       `Gerar índices faltantes em lote?\n\n` +
       `Vídeos a processar: ${pending.length}\n\n` +
-      `O que vai acontecer:\n` +
-      `• A IA (Gemini) lê o transcript completo de cada vídeo\n` +
-      `• Gera um índice clicável com tempos + resumo detalhado\n` +
-      `• Salva nos placements irmãos automaticamente\n` +
-      `• Tempo: ~15 a 45 segundos por vídeo (depende do tamanho)\n\n` +
-      `Não feche essa aba durante o processo.\n\n` +
+      `PRIMEIROS 8 DA FILA (confira se realmente faltam):\n${preview}${remaining}\n\n` +
+      `Provedor: Gemini 2.5 Flash · ~$0,003/vídeo\n` +
+      `Tempo: ~15s por vídeo (com throttle de 10s entre chamadas)\n\n` +
+      `Lista completa logada no Console (F12) pra conferência.\n\n` +
       `Continuar?`
     );
     if (!confirmed) return;
@@ -744,7 +759,20 @@ export default function KnowledgeManagerView() {
 
     const { generateSummaryFromRawTranscript } = await import('../lib/gemini');
 
-    for (const item of pending) {
+    // Helpers: delay + timeout pra evitar trava em rate-limit / chamada lenta
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+    const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout (${ms / 1000}s) em "${label}"`)), ms)
+        ),
+      ]);
+
+    console.log(`[bulkGenerateIndexes] iniciando lote de ${pending.length} vídeos`);
+
+    for (let i = 0; i < pending.length; i++) {
+      const item = pending[i];
       setBulkProgress({
         running: true,
         kind: 'index',
@@ -753,24 +781,35 @@ export default function KnowledgeManagerView() {
         failed,
         currentTitle: item.title || item.sourceUrl
       });
+      console.log(`[bulkGenerateIndexes] ${i + 1}/${pending.length} → ${item.title}`);
 
       try {
-        const { summary, transcript } = await generateSummaryFromRawTranscript(item.sourceUrl, item.rawTranscript || '');
+        const { summary, transcript } = await withTimeout(
+          generateSummaryFromRawTranscript(item.sourceUrl, item.rawTranscript || ''),
+          90_000,
+          item.title || item.sourceUrl
+        );
         if (!Array.isArray(summary) || summary.length === 0) {
-          throw new Error('Gemini retornou índice vazio (possível falha de quota, modelo ou parse).');
+          throw new Error('IA retornou índice vazio (possível falha de quota, modelo ou parse).');
         }
         await syncSiblingsBySourceUrl(item.sourceUrl, {
           summary,
           transcript: transcript || ''
         });
         done++;
+        console.log(`[bulkGenerateIndexes] ✅ OK: "${item.title}"`);
       } catch (err: any) {
-        console.error(`[bulkGenerateIndexes] erro em "${item.title}":`, err);
+        console.error(`[bulkGenerateIndexes] ❌ erro em "${item.title}":`, err);
         failed++;
         failures.push({
           title: item.title || item.sourceUrl,
           reason: err?.message || 'erro desconhecido'
         });
+      }
+
+      // Throttle: 2s entre chamadas (Gemini paid tier suporta 2000 RPM, sobra margem)
+      if (i < pending.length - 1) {
+        await sleep(2_000);
       }
     }
 
@@ -1245,23 +1284,51 @@ export default function KnowledgeManagerView() {
               </>
             )}
           </button>
-          <button
-            onClick={handleBulkGenerateIndexes}
-            disabled={bulkProgress?.running}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-indigo-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Para cada vídeo que já tem transcript mas não tem índice, a IA gera o índice clicável + resumo detalhado"
-          >
-            {bulkProgress?.running && bulkProgress.kind === 'index' ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Gerando índice {bulkProgress.done + bulkProgress.failed + 1}/{bulkProgress.total}…
-              </>
-            ) : (
-              <>
-                <Sparkles size={18} /> Gerar todos os índices faltantes
-              </>
-            )}
-          </button>
+          {(() => {
+            // Conta vídeos únicos (por sourceUrl) que precisam de índice.
+            // Se QUALQUER placement irmã já tem summary, considera o vídeo todo pronto.
+            const sourceUrlsComSummary = new Set<string>();
+            for (const it of items) {
+              if ((it.summary?.length || 0) > 0 && it.sourceUrl) {
+                sourceUrlsComSummary.add(it.sourceUrl);
+              }
+            }
+            const seenUrls = new Set<string>();
+            let pendingCount = 0;
+            for (const it of items) {
+              if (!it.sourceUrl) continue;
+              if (sourceUrlsComSummary.has(it.sourceUrl)) continue;
+              const hasRaw = it.rawTranscript && it.rawTranscript.trim().length > 0;
+              if (!hasRaw) continue;
+              if (!seenUrls.has(it.sourceUrl)) {
+                seenUrls.add(it.sourceUrl);
+                pendingCount++;
+              }
+            }
+            const noPending = pendingCount === 0 && !(bulkProgress?.running && bulkProgress.kind === 'index');
+            return (
+              <button
+                onClick={handleBulkGenerateIndexes}
+                disabled={bulkProgress?.running || noPending}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-indigo-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                title="Só roda IA nos vídeos que têm transcript mas não têm índice. Já-indexados são puladas."
+              >
+                {bulkProgress?.running && bulkProgress.kind === 'index' ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Gerando índice {bulkProgress.done + bulkProgress.failed + 1} de {bulkProgress.total} pendentes…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    {pendingCount === 0
+                      ? 'Todos com índice ✓'
+                      : `Gerar índice (${pendingCount} ${pendingCount === 1 ? 'pendente' : 'pendentes'})`}
+                  </>
+                )}
+              </button>
+            );
+          })()}
           <button
             onClick={() => setIsAdding(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-blue-700 transition-all border-none cursor-pointer"
