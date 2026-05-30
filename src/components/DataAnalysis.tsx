@@ -897,8 +897,8 @@ export default function DataAnalysis() {
 
       const data = await response.json();
       if (data.resposta) {
-        setResults(prev => prev.map((r, i) => 
-          i === 0 
+        setResults(prev => prev.map((r, i) =>
+          i === 0
             ? { ...r, qa: [{ question: pergunta, answer: data.resposta }, ...r.qa] }
             : r
         ));

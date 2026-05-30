@@ -43,6 +43,8 @@ const AIAssistantConfig = lazy(() => import('./components/AIAssistantConfig'));
 const ToolCreator = lazy(() => import('./components/ToolCreator'));
 const UserManagementView = lazy(() => import('./components/UserManagementView'));
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
+const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
+const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
 import { ensureUserDocument } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 
@@ -289,6 +291,21 @@ export default function App() {
     );
   }
 
+  // Rota PÚBLICA de verificação de certificado — bypass do login.
+  // Recrutador/colega abre /verificar/{certId} sem precisar de conta.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/verificar/')) {
+    return (
+      <Router>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-100"><div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin" /></div>}>
+          <Routes>
+            <Route path="/verificar/:certId" element={<VerificarPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </Router>
+    );
+  }
+
   if (!user) {
     return <Login onLogin={(u) => setUser(u)} />;
   }
@@ -321,6 +338,7 @@ export default function App() {
               <Route path="/tool-creator" element={<ToolCreator />} />
               <Route path="/ai-config" element={<AIAssistantConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
+              <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             </Suspense>

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Lightbulb, 
-  Building2, 
-  Settings2, 
-  AlertTriangle, 
-  BarChart3, 
-  Zap, 
-  Loader2, 
-  CheckCircle2, 
+import {
+  Lightbulb,
+  Building2,
+  Settings2,
+  AlertTriangle,
+  BarChart3,
+  Zap,
+  Loader2,
+  CheckCircle2,
   FileText,
   Users,
   Calendar,
@@ -24,7 +24,11 @@ import {
   Info,
   ChevronDown,
   Plus,
-  Trash2
+  Trash2,
+  X,
+  Map,
+  Globe2,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,43 +39,101 @@ interface ImprovementProjectIdeaProps {
   initialData?: any;
 }
 
-type UserProfile = 'Analista' | 'Gestor' | 'Black Belt' | null;
+// Perfis NOVOS — por ESCOPO de melhoria, não por cargo.
+// Mantemos os antigos como aliases pra retrocompatibilidade de dados salvos.
+type UserProfile = 'Atividades' | 'Area' | 'Empresa' | null;
+type LegacyProfile = 'Analista' | 'Gestor' | 'Black Belt';
+
+const LEGACY_PROFILE_MAP: Record<LegacyProfile, UserProfile> = {
+  'Analista': 'Atividades',
+  'Gestor': 'Area',
+  'Black Belt': 'Empresa',
+};
+
+function normalizeProfile(p: any): UserProfile {
+  if (!p) return null;
+  if (p === 'Atividades' || p === 'Area' || p === 'Empresa') return p;
+  if (LEGACY_PROFILE_MAP[p as LegacyProfile]) return LEGACY_PROFILE_MAP[p as LegacyProfile];
+  return null;
+}
+
+// Mapa de recomendação de trilha por perfil (popup informativo, aluno decide)
+const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: string; trilhaNome: string; explicacao: string } | null> = {
+  'Atividades': {
+    trilhaNumero: 'Trilha 2',
+    trilhaNome: 'Como Investigar Problemas e Melhorar a Sua Área',
+    explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha cobre causa-raiz, plano simples e implementação sem virar polícia. É o caminho mais direto pro seu escopo.',
+  },
+  'Area': null, // sem recomendação específica — o aluno tem várias opções
+  'Empresa': {
+    trilhaNumero: 'Trilha 9',
+    trilhaNome: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+    explicacao: 'Pra quem enxerga a empresa como sistema, essa formação cobre PMI completo, gerenciamento de stakeholders em múltiplas áreas, risk register e relatório executivo. É o nível pra liderar projeto que atravessa departamentos.',
+  },
+};
 
 export default function ImprovementProjectIdea({ onSave, initialData }: ImprovementProjectIdeaProps) {
   const [loading, setLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile>(initialData?.userProfile || null);
+  const [userProfile, setUserProfile] = useState<UserProfile>(normalizeProfile(initialData?.userProfile));
+  // Popup de recomendação de trilha — aparece quando aluno clica em perfil com sugestão
+  const [recommendationPopup, setRecommendationPopup] = useState<{
+    perfil: UserProfile;
+    trilhaNumero: string;
+    trilhaNome: string;
+    explicacao: string;
+  } | null>(null);
   const [formData, setFormData] = useState(initialData?.formData || initialData?.toolData || {
-    // SEÇÃO 1
+    // Comuns
     sector: '',
     area: '',
     participantCount: '',
     clientType: '',
-    // SEÇÃO 2
-    processDetail: '',
-    processCritical: '',
-    processVolume: '',
-    areaPriority: '',
     automationLevel: '',
-    // SEÇÃO 3
     problemVolume: '',
     financialImpact: '',
     frequency: '',
     affectedClient: '',
     clientPerception: '',
-    // SEÇÃO 4
     processVariation: '',
     worseningContext: '',
     rootCauseHypothesis: '',
     dataAvailability: '',
-    // SEÇÃO 5
     leadershipSupport: '',
     previousAttempts: '',
     systemsUsed: '',
     timeHorizon: '',
-    // SEÇÃO 6
     futureVision: '',
     successIndicator: '',
-    replicability: ''
+    replicability: '',
+    // Específicos por perfil (preservados se algum migrar de antigo)
+    processDetail: '',     // Atividades
+    processCritical: '',   // Area
+    processVolume: '',     // Area
+    areaPriority: '',      // Empresa
+    // NOVOS — Perfil "Atividades"
+    minhaFuncao: '',
+    tempoNaFuncao: '',
+    atividadesQueExecuto: '',
+    problemasQueEnfrento: '',
+    reclamacoesQueRecebo: '',
+    ideiasJaPensadas: '',
+    // NOVOS — Perfil "Area"
+    tamanhoEquipe: '',
+    principaisProcessos: '',
+    indicadorChaveArea: '',
+    valorAtualIndicador: '',
+    pontosFracosArea: '',
+    areasQueReclamam: '',
+    areasComConflito: '',
+    // NOVOS — Perfil "Empresa"
+    tamanhoEmpresa: '',
+    meuPapelEmpresa: '',
+    doresExecutivas: '',
+    areasCriticasEmpresa: '',
+    conexoesProblematicas: '',
+    jaTemProgramaOpEx: '',
+    historicoOpEx: '',
+    numeroEstrategico: '',
   });
 
   const normalizeProjects = (projects: any[]) => {
@@ -111,7 +173,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
 
   useEffect(() => {
     if (initialData) {
-      if (initialData.userProfile) setUserProfile(initialData.userProfile);
+      if (initialData.userProfile) setUserProfile(normalizeProfile(initialData.userProfile));
       if (initialData.formData || initialData.toolData) setFormData(initialData.formData || initialData.toolData);
       if (initialData.generatedProjects) setGeneratedProjects(normalizeProjects(initialData.generatedProjects));
     }
@@ -124,6 +186,29 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
       userProfile,
       formData: newFormData,
       generatedProjects
+    }, { silent: true });
+  };
+
+  // Quando aluno clica num card de perfil: se tem recomendação de trilha, mostra popup primeiro.
+  // Senão, seleciona direto.
+  const handleProfileClick = (profile: Exclude<UserProfile, null>) => {
+    const rec = PERFIL_RECOMENDACAO[profile];
+    if (rec) {
+      setRecommendationPopup({ perfil: profile, ...rec });
+    } else {
+      confirmProfileSelection(profile);
+    }
+  };
+
+  // Aluno decide: aceitar recomendação (vira pra trilha) ou continuar nessa ferramenta.
+  // De qualquer forma, define o perfil pra que se ele decidir continuar, a ferramenta esteja pronta.
+  const confirmProfileSelection = (profile: Exclude<UserProfile, null>) => {
+    setUserProfile(profile);
+    setRecommendationPopup(null);
+    onSave({
+      userProfile: profile,
+      formData,
+      generatedProjects,
     }, { silent: true });
   };
 
@@ -149,13 +234,21 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
   const generateProjects = async () => {
     setLoading(true);
     try {
+      const focoDescritivo =
+        userProfile === 'Atividades' ? 'O aluno quer melhorar SUAS PRÓPRIAS ATIVIDADES no dia a dia. Foco em ações individuais — não propor projetos que dependam de várias áreas ou alto patrocínio. Quick wins, ideias acionáveis sem aprovação executiva.' :
+        userProfile === 'Area' ? 'O aluno é coordenador/gerente de área e quer melhorar SUA ÁREA. Foco em projetos de escopo de área (1-3 processos), com possíveis interfaces com áreas vizinhas. Não propor projetos corporativos amplos.' :
+        userProfile === 'Empresa' ? 'O aluno é especialista/consultor com visão SISTÊMICA da empresa. Pode propor projetos transversais grandes, programa OpEx, mudanças estruturais, projetos Black Belt com 5+ áreas envolvidas.' :
+        '';
       const prompt = `
-Você é um Master Black Belt com 20 anos de experiência.
+Você é o Israel, mentor LBW (Lean Six Sigma Master Black Belt · PMP · MBA).
 
-PERFIL: ${userProfile}
-DADOS: ${JSON.stringify(formData, null, 2)}
+FOCO ESCOLHIDO PELO ALUNO: ${userProfile}
+CONTEXTO DO FOCO: ${focoDescritivo}
 
-Gere entre 5 e 10 projetos ordenados por prioridade.
+DADOS COLETADOS NA ENTREVISTA:
+${JSON.stringify(formData, null, 2)}
+
+Gere entre 5 e 10 ideias de projetos ordenados por prioridade. RESPEITE o foco escolhido — não fuja do escopo.
 
 CLASSIFICAÇÃO — siga RIGOROSAMENTE esta matriz para o campo belt_level:
 1. "Ver e Agir": Solução óbvia, melhoria rápida, 1 pessoa, prazo < 30 dias, Sem estatística.
@@ -205,61 +298,145 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     }
   };
 
-  // Progress Calculation
+  // Progress Calculation — adaptado aos novos perfis (Atividades/Area/Empresa).
+  const sec1Filled =
+    userProfile === 'Atividades' ? !!(formData.sector && formData.area && formData.minhaFuncao && formData.tempoNaFuncao) :
+    userProfile === 'Area' ? !!(formData.sector && formData.area && formData.tamanhoEquipe && formData.clientType) :
+    userProfile === 'Empresa' ? !!(formData.sector && formData.area && formData.tamanhoEmpresa && formData.meuPapelEmpresa) :
+    false;
+  const sec2Filled =
+    userProfile === 'Atividades' ? !!(formData.atividadesQueExecuto && formData.clientType && formData.automationLevel) :
+    userProfile === 'Area' ? !!(formData.principaisProcessos && formData.processCritical && formData.automationLevel) :
+    userProfile === 'Empresa' ? !!(formData.doresExecutivas && formData.areasCriticasEmpresa && formData.automationLevel) :
+    false;
+  const sec3Filled =
+    userProfile === 'Atividades' ? !!(formData.problemasQueEnfrento && formData.reclamacoesQueRecebo && formData.problemVolume) :
+    userProfile === 'Area' ? !!(formData.pontosFracosArea && formData.areasQueReclamam && formData.problemVolume) :
+    userProfile === 'Empresa' ? !!(formData.conexoesProblematicas && formData.problemVolume) :
+    false;
   const sectionsStatus = [
-    { id: 1, filled: !!(formData.sector && formData.area && formData.participantCount && formData.clientType) },
-    { id: 2, filled: !!(userProfile === 'Analista' ? formData.processDetail : userProfile === 'Gestor' ? (formData.processCritical && formData.processVolume) : formData.areaPriority) && !!formData.automationLevel },
-    { id: 3, filled: !!(formData.problemVolume && formData.financialImpact && formData.frequency && formData.affectedClient && formData.clientPerception) },
+    { id: 1, filled: sec1Filled },
+    { id: 2, filled: sec2Filled },
+    { id: 3, filled: sec3Filled },
     { id: 4, filled: !!(formData.processVariation && formData.worseningContext && formData.rootCauseHypothesis && formData.dataAvailability) },
-    { id: 5, filled: !!(formData.leadershipSupport && formData.previousAttempts && formData.systemsUsed) },
-    { id: 6, filled: !!(formData.futureVision && formData.successIndicator) }
+    { id: 5, filled: !!(formData.leadershipSupport && formData.previousAttempts) },
+    { id: 6, filled: !!(formData.futureVision && formData.successIndicator) },
   ];
 
-  const canGenerate = sectionsStatus[0].filled; // Only Section 1 required
+  const canGenerate = sectionsStatus[0].filled; // Só seção 1 obrigatória pra liberar geração
   const progressPercent = (sectionsStatus.filter(s => s.filled).length / 6) * 100;
 
   if (!userProfile) {
     return (
-      <div className="max-w-4xl mx-auto p-12 space-y-12 text-center bg-[#f8fafc] min-h-screen">
+      <div className="max-w-5xl mx-auto p-12 space-y-12 text-center bg-[#f8fafc] min-h-screen">
         <div className="space-y-4">
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Para personalizar suas perguntas, me diz: qual é o seu perfil?</h2>
-          <p className="text-gray-500 font-medium italic">Isso ajudará nosso consultor IA a fazer as perguntas certas para você.</p>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight">Antes de tudo: qual é o ESCOPO da melhoria que você quer?</h2>
+          <p className="text-gray-500 font-medium italic">Vou fazer perguntas diferentes pra cada caso. Escolhe o que descreve melhor a sua situação.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { 
-              id: 'Analista' as UserProfile, 
-              title: 'Analista / Especialista', 
-              description: 'Executo processos e identifico problemas no dia a dia',
-              icon: ClipboardList
+            {
+              id: 'Atividades' as Exclude<UserProfile, null>,
+              title: 'Quero melhorar MINHAS ATIVIDADES',
+              description: 'O que EU faço no dia a dia — re-trabalho, ferramenta ruim, espera, reclamação que recebo.',
+              icon: ClipboardList,
+              hint: 'Sugestão: Trilha 2',
             },
-            { 
-              id: 'Gestor' as UserProfile, 
-              title: 'Gestor / Gerente de Área', 
-              description: 'Gerencio equipes e processo com visão de resultados',
-              icon: Briefcase
+            {
+              id: 'Area' as Exclude<UserProfile, null>,
+              title: 'Quero melhorar MINHA ÁREA',
+              description: 'Sou coordenador/gerente — onde minha área está fraca, queixas internas, conflito com outras áreas.',
+              icon: Building2,
+              hint: '',
             },
-            { 
-              id: 'Black Belt' as UserProfile, 
-              title: 'Black Belt / Consultor', 
-              description: 'Conduzo projetos de melhoria em diferentes áreas',
-              icon: Zap
-            }
+            {
+              id: 'Empresa' as Exclude<UserProfile, null>,
+              title: 'Quero melhorar MINHA EMPRESA',
+              description: 'Sou especialista/consultor — visão sistêmica, dores executivas, conexões entre áreas, programa OpEx.',
+              icon: Globe2,
+              hint: 'Sugestão: Trilha 9',
+            },
           ].map((profile) => (
             <button
               key={profile.id}
-              onClick={() => handleProfileSelect(profile.id)}
-              className="p-8 bg-white border-2 border-gray-100 rounded-3xl text-left hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all group"
+              onClick={() => handleProfileClick(profile.id)}
+              className="p-6 bg-white border-2 border-gray-100 rounded-3xl text-left hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all group cursor-pointer flex flex-col"
             >
-              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 border border-gray-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
+              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center mb-4 border border-gray-100 group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
                 <profile.icon className="text-gray-400 group-hover:text-blue-600 transition-colors" size={24} />
               </div>
-              <h3 className="text-lg font-black text-gray-900 mb-2">{profile.title}</h3>
-              <p className="text-sm text-gray-500 font-medium leading-relaxed">{profile.description}</p>
+              <h3 className="text-[15px] font-black text-gray-900 mb-3 leading-tight">{profile.title}</h3>
+              <p className="text-sm text-gray-500 font-medium leading-relaxed flex-1">{profile.description}</p>
+              {profile.hint && (
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mt-4 pt-3 border-t border-gray-100">
+                  💡 {profile.hint}
+                </p>
+              )}
             </button>
           ))}
         </div>
+
+        {/* Popup de recomendação de trilha — aluno decide */}
+        <AnimatePresence>
+          {recommendationPopup && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setRecommendationPopup(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 text-left"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[#F0F2FA] flex items-center justify-center text-[#0033CC]">
+                      <Lightbulb size={22} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black tracking-widest uppercase text-[#0033CC]">Recomendação do Israel</p>
+                      <p className="text-[18px] font-black text-gray-900">{recommendationPopup.trilhaNumero}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setRecommendationPopup(null)} className="text-gray-400 hover:text-gray-700 bg-transparent border-0 cursor-pointer p-1">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <p className="text-[15px] font-bold text-gray-900 mb-2 leading-tight">{recommendationPopup.trilhaNome}</p>
+                <p className="text-sm text-gray-600 leading-relaxed mb-6">{recommendationPopup.explicacao}</p>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 flex gap-2">
+                  <Info size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    Você pode <strong>seguir com essa ferramenta aqui</strong> de qualquer jeito — a recomendação acima é só um atalho. Sua escolha vale.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setRecommendationPopup(null)}
+                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-600 text-[12px] font-black uppercase tracking-widest hover:bg-gray-50 transition cursor-pointer bg-white"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    onClick={() => recommendationPopup.perfil && confirmProfileSelection(recommendationPopup.perfil as Exclude<UserProfile, null>)}
+                    className="flex-[2] px-4 py-3 rounded-xl bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-[12px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 cursor-pointer border-0"
+                  >
+                    Continuar com essa ferramenta <ArrowRight size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -282,324 +459,575 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
             <Briefcase size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              Entrevista Investigativa Six Sigma
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2 flex-wrap">
+              Bate-papo com o Israel pra achar a melhor ideia
               <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-widest translate-y-[-2px]">
-                Modo {userProfile}
+                {userProfile === 'Atividades' && 'Foco: Suas atividades'}
+                {userProfile === 'Area' && 'Foco: Sua área'}
+                {userProfile === 'Empresa' && 'Foco: A empresa'}
               </span>
             </h1>
-            <p className="text-sm text-gray-500 font-bold">Responda as perguntas para identificarmos gargalos estatísticos.</p>
+            <p className="text-sm text-gray-500 font-bold">
+              {userProfile === 'Atividades' && 'Vou te fazer perguntas sobre o que VOCÊ faz no dia a dia.'}
+              {userProfile === 'Area' && 'Vou te fazer perguntas sobre os processos da sua ÁREA.'}
+              {userProfile === 'Empresa' && 'Vou te fazer perguntas sistêmicas sobre a EMPRESA como um todo.'}
+            </p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setUserProfile(null)}
           className="text-xs font-black text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 uppercase tracking-widest"
         >
           <UserCircle size={14} />
-          Trocar Perfil
+          Trocar Foco
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-10 pb-20">
-        {/* SEÇÃO 1 */}
-        <SectionCard 
-          step={1} 
-          title="Contexto e Cenário" 
+        {/* SEÇÃO 1 — Contexto (varia por foco) */}
+        <SectionCard
+          step={1}
+          title={
+            userProfile === 'Atividades' ? 'Quem é você no jogo' :
+            userProfile === 'Area' ? 'Contexto da sua área' :
+            'Contexto da empresa'
+          }
           icon={Building2}
+          subtitle={
+            userProfile === 'Atividades' ? 'Antes de tudo, preciso te conhecer um pouco.' :
+            userProfile === 'Area' ? 'Vamos posicionar sua área no mapa.' :
+            'Visão geral pra entender o terreno.'
+          }
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Field label="Setor da Empresa">
-              <Input 
-                value={formData.sector} 
+            <Field label="Setor da empresa">
+              <Input
+                value={formData.sector}
                 onChange={(v) => handleInputChange('sector', v)}
-                placeholder="Ex: Automotivo, Varejo, Saúde..." 
+                placeholder="Ex: Automotivo, Varejo, Saúde..."
               />
             </Field>
-            <Field label="Área de Atuação">
-              <Input 
-                value={formData.area} 
+            <Field label={
+              userProfile === 'Atividades' ? 'Sua área (onde você está)' :
+              userProfile === 'Area' ? 'Nome da sua área' :
+              'Áreas que você acompanha'
+            }>
+              <Input
+                value={formData.area}
                 onChange={(v) => handleInputChange('area', v)}
-                placeholder="Ex: Comercial, Logística, Manutenção..." 
+                placeholder={
+                  userProfile === 'Atividades' ? 'Ex: Logística, Comercial, TI...' :
+                  userProfile === 'Area' ? 'Ex: Atendimento, Manutenção, Suprimentos...' :
+                  'Ex: todas, ou as 3-5 críticas'
+                }
               />
             </Field>
-            <Field label="Pessoas envolvidas no processo?">
-              <Input 
-                type="number"
-                value={formData.participantCount} 
-                onChange={(v) => handleInputChange('participantCount', v)}
-                placeholder="0" 
-              />
-            </Field>
-            <Field label="Quem o processo atende?">
-              <Select 
-                value={formData.clientType} 
-                onChange={(v) => handleInputChange('clientType', v)}
-                options={[
-                  { label: 'Clientes Internos', value: 'Internos' },
-                  { label: 'Clientes Externos', value: 'Externos' },
-                  { label: 'Ambos', value: 'Ambos' }
-                ]}
-              />
-            </Field>
+            {userProfile === 'Atividades' && (
+              <>
+                <Field label="Sua função / cargo">
+                  <Input
+                    value={formData.minhaFuncao}
+                    onChange={(v) => handleInputChange('minhaFuncao', v)}
+                    placeholder="Ex: Analista de processos, Coordenador..."
+                  />
+                </Field>
+                <Field label="Há quanto tempo nessa função?">
+                  <Select
+                    value={formData.tempoNaFuncao}
+                    onChange={(v) => handleInputChange('tempoNaFuncao', v)}
+                    options={[
+                      { label: 'Menos de 6 meses', value: '<6m' },
+                      { label: '6 meses a 2 anos', value: '6m-2a' },
+                      { label: '2 a 5 anos', value: '2-5a' },
+                      { label: 'Mais de 5 anos', value: '>5a' },
+                    ]}
+                  />
+                </Field>
+              </>
+            )}
+            {userProfile === 'Area' && (
+              <>
+                <Field label="Tamanho da equipe que você coordena">
+                  <Input
+                    type="number"
+                    value={formData.tamanhoEquipe}
+                    onChange={(v) => handleInputChange('tamanhoEquipe', v)}
+                    placeholder="Ex: 12"
+                  />
+                </Field>
+                <Field label="Quem a sua área atende?">
+                  <Select
+                    value={formData.clientType}
+                    onChange={(v) => handleInputChange('clientType', v)}
+                    options={[
+                      { label: 'Outras áreas (cliente interno)', value: 'Internos' },
+                      { label: 'Cliente final (externo)', value: 'Externos' },
+                      { label: 'Ambos', value: 'Ambos' },
+                    ]}
+                  />
+                </Field>
+              </>
+            )}
+            {userProfile === 'Empresa' && (
+              <>
+                <Field label="Tamanho da empresa">
+                  <Select
+                    value={formData.tamanhoEmpresa}
+                    onChange={(v) => handleInputChange('tamanhoEmpresa', v)}
+                    options={[
+                      { label: 'Pequena (< 100 pessoas)', value: 'pequena' },
+                      { label: 'Média (100 a 1000)', value: 'media' },
+                      { label: 'Grande (> 1000)', value: 'grande' },
+                    ]}
+                  />
+                </Field>
+                <Field label="Seu papel na empresa">
+                  <Input
+                    value={formData.meuPapelEmpresa}
+                    onChange={(v) => handleInputChange('meuPapelEmpresa', v)}
+                    placeholder="Ex: Consultor interno, Black Belt, Gerente OpEx..."
+                  />
+                </Field>
+              </>
+            )}
           </div>
         </SectionCard>
 
-        {/* SEÇÃO 2 */}
-        <SectionCard 
-          step={2} 
-          title="O Processo em Questão" 
+        {/* SEÇÃO 2 — Foco do problema (varia por foco) */}
+        <SectionCard
+          step={2}
+          title={
+            userProfile === 'Atividades' ? 'O que você FAZ no dia a dia' :
+            userProfile === 'Area' ? 'O que sua área entrega' :
+            'Onde a empresa mais dói'
+          }
           icon={Settings2}
+          subtitle={
+            userProfile === 'Atividades' ? 'Quero entender as atividades concretas — não cargo, não responsabilidade no papel.' :
+            userProfile === 'Area' ? 'Vamos olhar os processos críticos e o nível de maturidade.' :
+            'As 3 dores executivas que aparecem em reunião de diretoria.'
+          }
         >
           <div className="space-y-6">
-            {userProfile === 'Analista' && (
-              <Field label="Descreva em detalhes o processo que você executa do início ao fim">
-                <Textarea 
-                  value={formData.processDetail} 
-                  onChange={(v) => handleInputChange('processDetail', v)}
-                  placeholder="Seja detalhado sobre as etapas..." 
-                />
-              </Field>
+            {userProfile === 'Atividades' && (
+              <>
+                <Field label="Liste suas 3-5 atividades principais da semana">
+                  <Textarea
+                    value={formData.atividadesQueExecuto}
+                    onChange={(v) => handleInputChange('atividadesQueExecuto', v)}
+                    placeholder="Ex: 1) Fechar relatório mensal · 2) Atender solicitações de outras áreas · 3) Atualizar planilha XYZ..."
+                  />
+                </Field>
+                <Field label="Pra quem você entrega o resultado dessas atividades?">
+                  <Select
+                    value={formData.clientType}
+                    onChange={(v) => handleInputChange('clientType', v)}
+                    options={[
+                      { label: 'Pro meu chefe', value: 'Chefe' },
+                      { label: 'Pra outras áreas internas', value: 'Internos' },
+                      { label: 'Pro cliente final', value: 'Externos' },
+                      { label: 'Mistura de tudo', value: 'Ambos' },
+                    ]}
+                  />
+                </Field>
+              </>
             )}
-            {userProfile === 'Gestor' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
-                  <Field label="Qual é o processo mais crítico sob sua responsabilidade?">
-                    <Textarea 
-                      value={formData.processCritical} 
+            {userProfile === 'Area' && (
+              <>
+                <Field label="Quais são os 2-3 processos críticos da sua área?">
+                  <Textarea
+                    value={formData.principaisProcessos}
+                    onChange={(v) => handleInputChange('principaisProcessos', v)}
+                    placeholder="Ex: 1) Atendimento de chamados · 2) Gestão de estoque · 3) Cadastro de novos clientes..."
+                  />
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Field label="Qual é O processo MAIS crítico (o que mais te tira o sono)?">
+                    <Textarea
+                      value={formData.processCritical}
                       onChange={(v) => handleInputChange('processCritical', v)}
-                      placeholder="Identifique o processo prioritário..." 
+                      placeholder="Aquele que se falhar, vira problema com diretoria..."
+                    />
+                  </Field>
+                  <Field label="Volume desse processo (semanal/mensal)">
+                    <Input
+                      value={formData.processVolume}
+                      onChange={(v) => handleInputChange('processVolume', v)}
+                      placeholder="Ex: 500 chamados/mês, 200 pedidos/semana..."
                     />
                   </Field>
                 </div>
-                <Field label="Volume diário/mensal?">
-                  <Input 
-                    type="number"
-                    value={formData.processVolume} 
-                    onChange={(v) => handleInputChange('processVolume', v)}
-                    placeholder="Ex: 500 chamados/mês" 
+              </>
+            )}
+            {userProfile === 'Empresa' && (
+              <>
+                <Field label="Quais 3 dores aparecem MAIS em reuniões executivas?">
+                  <Textarea
+                    value={formData.doresExecutivas}
+                    onChange={(v) => handleInputChange('doresExecutivas', v)}
+                    placeholder="Ex: 1) Margem caindo em produtos B · 2) Atraso em entrega · 3) Custo de retrabalho subindo..."
                   />
                 </Field>
-              </div>
+                <Field label="Quais áreas você considera críticas hoje (onde se concentra o maior risco)?">
+                  <Textarea
+                    value={formData.areasCriticasEmpresa}
+                    onChange={(v) => handleInputChange('areasCriticasEmpresa', v)}
+                    placeholder="Ex: Operações da unidade SP, Faturamento, TI..."
+                  />
+                </Field>
+              </>
             )}
-            {userProfile === 'Black Belt' && (
-              <Field label="Qual processo foi identificado como prioritário e por quê?">
-                <Textarea 
-                  value={formData.areaPriority} 
-                  onChange={(v) => handleInputChange('areaPriority', v)}
-                  placeholder="Contexto da identificação estratégica..." 
-                />
-              </Field>
-            )}
-            <Field label="Nível de Automação">
-              <Select 
-                value={formData.automationLevel} 
+            <Field label="Nível de automação do que estamos discutindo">
+              <Select
+                value={formData.automationLevel}
                 onChange={(v) => handleInputChange('automationLevel', v)}
                 options={[
-                  { label: 'Manual (Muitas planilhas e digitação)', value: 'Manual' },
-                  { label: 'Parcialmente Automatizado', value: 'Parcial' },
-                  { label: 'Totalmente Automatizado', value: 'Total' }
+                  { label: 'Manual (planilhas, papel, digitação)', value: 'Manual' },
+                  { label: 'Parcial (uns sistemas + planilhas no meio)', value: 'Parcial' },
+                  { label: 'Total (sistema integrado, sem retrabalho)', value: 'Total' },
                 ]}
               />
             </Field>
           </div>
         </SectionCard>
 
-        {/* SEÇÃO 3 */}
-        <SectionCard 
-          step={3} 
-          title="Dor e Impacto" 
+        {/* SEÇÃO 3 — A dor concreta + reclamações (varia por foco) */}
+        <SectionCard
+          step={3}
+          title={
+            userProfile === 'Atividades' ? 'O que TE ATRAPALHA + reclamações' :
+            userProfile === 'Area' ? 'Pontos fracos da área + atritos' :
+            'Onde acumula custo, atraso ou perda'
+          }
           icon={TrendingDown}
-          subtitle="Aqui precisamos de números. Sem dados não há projeto Six Sigma."
+          subtitle={
+            userProfile === 'Atividades' ? 'Bora ser concreto: o que sai errado, o que toma seu tempo, quem reclama de você.' :
+            userProfile === 'Area' ? 'Onde a área tropeça, quem reclama, quem você "briga" no dia a dia.' :
+            'Os pontos cegos sistêmicos. Cuidado: aqui aparece muita causa raiz organizacional.'
+          }
         >
           <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-4 mb-8">
             <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
             <p className="text-xs text-amber-800 font-bold leading-relaxed">
-              💡 Dica: projetos Six Sigma sem dados quantitativos têm baixa chance de aprovação. Seja específico sobre volume de erros, tempo ou custo.
+              💡 Quanto mais NÚMERO você trouxer aqui (% retrabalho, horas, custo), melhor a ideia que a IA vai te gerar. Sem número, sai sugestão vaga.
             </p>
           </div>
 
           <div className="space-y-6">
-            <Field label="Qual é o volume do problema? (Ex: X erros/semana, Y% retrabalho, Z horas/mês)" important>
-              <Textarea 
-                value={formData.problemVolume} 
+            {userProfile === 'Atividades' && (
+              <>
+                <Field label="O que mais TE ATRAPALHA no dia a dia? (re-trabalho, espera, ferramenta ruim, info que falta)" important>
+                  <Textarea
+                    value={formData.problemasQueEnfrento}
+                    onChange={(v) => handleInputChange('problemasQueEnfrento', v)}
+                    placeholder="Ex: Toda segunda perco 2h fazendo um relatório que ninguém usa..."
+                  />
+                </Field>
+                <Field label="Quem RECLAMA de você? E sobre o quê?" important>
+                  <Textarea
+                    value={formData.reclamacoesQueRecebo}
+                    onChange={(v) => handleInputChange('reclamacoesQueRecebo', v)}
+                    placeholder="Ex: A área X reclama de atraso · Meu chefe pede dado que eu não tenho na hora..."
+                  />
+                </Field>
+              </>
+            )}
+            {userProfile === 'Area' && (
+              <>
+                <Field label="Onde sua área TROPEÇA mais? (pontos fracos honestos)" important>
+                  <Textarea
+                    value={formData.pontosFracosArea}
+                    onChange={(v) => handleInputChange('pontosFracosArea', v)}
+                    placeholder="Ex: SLA furado em pedidos urgentes · Equipe sobrecarregada às sextas..."
+                  />
+                </Field>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Field label="Quais áreas RECLAMAM da sua?" important>
+                    <Textarea
+                      value={formData.areasQueReclamam}
+                      onChange={(v) => handleInputChange('areasQueReclamam', v)}
+                      placeholder="Ex: Comercial reclama de prazo, Faturamento reclama de info errada..."
+                    />
+                  </Field>
+                  <Field label="Quais áreas VOCÊ tem atrito recorrente?">
+                    <Textarea
+                      value={formData.areasComConflito}
+                      onChange={(v) => handleInputChange('areasComConflito', v)}
+                      placeholder="Ex: TI demora demais · Suprimentos não respeita prazo..."
+                    />
+                  </Field>
+                </div>
+              </>
+            )}
+            {userProfile === 'Empresa' && (
+              <>
+                <Field label="Quais áreas se PREJUDICAM mutuamente (conexões problemáticas)?" important>
+                  <Textarea
+                    value={formData.conexoesProblematicas}
+                    onChange={(v) => handleInputChange('conexoesProblematicas', v)}
+                    placeholder="Ex: Vendas promete prazo que Operações não cumpre · Comercial vs Crédito..."
+                  />
+                </Field>
+              </>
+            )}
+            <Field label="Volume do problema em NÚMERO (X erros/semana, Y% retrabalho, Z horas/mês)" important>
+              <Textarea
+                value={formData.problemVolume}
                 onChange={(v) => handleInputChange('problemVolume', v)}
-                placeholder="Traga números reais aqui..." 
+                placeholder="Traga números reais — chute educado vale mais que 'muito'..."
               />
             </Field>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Impacto Financeiro Estimado" important>
-                <Select 
-                  value={formData.financialImpact} 
+              <Field label="Impacto financeiro estimado" important>
+                <Select
+                  value={formData.financialImpact}
                   onChange={(v) => handleInputChange('financialImpact', v)}
                   options={[
                     { label: 'Menos de R$10k/ano', value: '<10k' },
                     { label: 'R$10k–50k/ano', value: '10k-50k' },
                     { label: 'R$50k–200k/ano', value: '50k-200k' },
-                    { label: 'Acima de R$200k/ano', value: '>200k' },
-                    { label: 'Não sei estimar', value: 'unknown' }
+                    { label: 'R$200k–1MM/ano', value: '200k-1MM' },
+                    { label: 'Acima de R$1MM/ano', value: '>1MM' },
+                    { label: 'Não sei estimar', value: 'unknown' },
                   ]}
                 />
               </Field>
-              <Field label="Frequência do Problema" important>
-                <Select 
-                  value={formData.frequency} 
+              <Field label="Com que frequência o problema ocorre" important>
+                <Select
+                  value={formData.frequency}
                   onChange={(v) => handleInputChange('frequency', v)}
                   options={[
                     { label: 'Diariamente', value: 'Diário' },
                     { label: 'Semanalmente', value: 'Semanal' },
                     { label: 'Mensalmente', value: 'Mensal' },
-                    { label: 'Raramente (alto impacto)', value: 'Raro' }
+                    { label: 'Raramente, mas alto impacto', value: 'Raro' },
                   ]}
                 />
               </Field>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Quem é o cliente mais afetado?">
-                <Input 
-                  value={formData.affectedClient} 
+              <Field label={
+                userProfile === 'Atividades' ? 'Quem é o cliente mais afetado pelo seu output?' :
+                userProfile === 'Area' ? 'Quem é o cliente mais afetado pela área?' :
+                'Qual stakeholder externo mais sofre com isso?'
+              }>
+                <Input
+                  value={formData.affectedClient}
                   onChange={(v) => handleInputChange('affectedClient', v)}
-                  placeholder="Área destino ou cliente final..." 
+                  placeholder="Ex: Cliente Premium · Área Comercial · Acionistas..."
                 />
               </Field>
-              <Field label="Como o cliente percebe o problema?">
-                <Textarea 
-                  value={formData.clientPerception} 
+              <Field label="Como ele percebe o problema?">
+                <Textarea
+                  value={formData.clientPerception}
                   onChange={(v) => handleInputChange('clientPerception', v)}
-                  placeholder="Reclamação, atraso, insatisfação..." 
+                  placeholder="Reclamação, atraso, insatisfação, churn..."
                 />
               </Field>
             </div>
           </div>
         </SectionCard>
 
-        {/* SEÇÃO 4 */}
-        <SectionCard 
-          step={4} 
-          title="Causas e Variação" 
+        {/* SEÇÃO 4 — Causa raiz + variação (universal) */}
+        <SectionCard
+          step={4}
+          title="Causas e variação"
           icon={BarChart3}
-          subtitle="Vamos investigar a variabilidade — isso é o que define um projeto Six Sigma"
+          subtitle={
+            userProfile === 'Atividades' ? 'Vamos olhar PADRÕES — o que torna seu dia mais difícil em alguns momentos.' :
+            userProfile === 'Area' ? 'Onde a variabilidade aparece — é o que separa "ruim sempre" de "ruim às vezes".' :
+            'Investigação sistêmica — variabilidade em múltiplas dimensões revela problemas estruturais.'
+          }
         >
           <div className="space-y-6">
-            <Field label="O resultado é sempre o mesmo ou varia? Descreva a variação.">
-              <Textarea 
-                value={formData.processVariation} 
+            <Field label="O resultado é SEMPRE igual ou VARIA muito? Descreve a variação.">
+              <Textarea
+                value={formData.processVariation}
                 onChange={(v) => handleInputChange('processVariation', v)}
-                placeholder="Ex: 'Alguns dias o prazo é 2h, em outros é 24h'..." 
+                placeholder={
+                  userProfile === 'Atividades' ? "Ex: Tem dia que faço em 1h, outros em 4h..." :
+                  userProfile === 'Area' ? "Ex: Alguns dias o SLA é cumprido em 90%, outros em 60%..." :
+                  "Ex: Algumas unidades atingem meta, outras ficam 30% abaixo..."
+                }
               />
             </Field>
-            <Field label="Quando o problema é pior? (Dia, turno, operador, equipamento)">
-              <Textarea 
-                value={formData.worseningContext} 
+            <Field label="QUANDO o problema piora? (dia da semana, turno, mês, sazonalidade, pessoa específica)">
+              <Textarea
+                value={formData.worseningContext}
                 onChange={(v) => handleInputChange('worseningContext', v)}
-                placeholder="Padrões identificados..." 
+                placeholder="Padrões observáveis..."
               />
             </Field>
-            <Field label="Causa Raiz: Já existe alguma hipótese?">
-              <Textarea 
-                value={formData.rootCauseHypothesis} 
+            <Field label="JÁ tem alguma hipótese de causa raiz? (chute educado vale)">
+              <Textarea
+                value={formData.rootCauseHypothesis}
                 onChange={(v) => handleInputChange('rootCauseHypothesis', v)}
-                placeholder="O que você acha que está causando isso?" 
+                placeholder={
+                  userProfile === 'Atividades' ? "Ex: Acho que a ferramenta X é lenta · O processo Y depende de info que só vem na sexta..." :
+                  userProfile === 'Area' ? "Ex: Equipe nova faz mais erro · Sistema Z trava em pico..." :
+                  "Ex: Não tem dono claro do processo entre Comercial e Operações..."
+                }
               />
             </Field>
-            <Field label="Disponibilidade de Dados Históricos">
-              <Select 
-                value={formData.dataAvailability} 
+            <Field label="Tem dados históricos disponíveis?">
+              <Select
+                value={formData.dataAvailability}
                 onChange={(v) => handleInputChange('dataAvailability', v)}
                 options={[
-                  { label: 'Sim, temos dados estruturados', value: 'Estruturados' },
-                  { label: 'Sim, mas planilhas dispersas', value: 'Dispersas' },
-                  { label: 'Dados parciais', value: 'Parciais' },
-                  { label: 'Não temos dados', value: 'Nenhum' }
+                  { label: 'Sim, temos em sistema estruturado', value: 'Estruturados' },
+                  { label: 'Sim, mas em planilhas dispersas', value: 'Dispersas' },
+                  { label: 'Dados parciais — alguns sim, outros não', value: 'Parciais' },
+                  { label: 'Não temos dado nenhum', value: 'Nenhum' },
                 ]}
               />
             </Field>
           </div>
         </SectionCard>
 
-        {/* SEÇÃO 5 */}
-        <SectionCard 
-          step={5} 
-          title="Contexto Organizacional" 
+        {/* SEÇÃO 5 — Contexto organizacional (varia por foco) */}
+        <SectionCard
+          step={5}
+          title={
+            userProfile === 'Atividades' ? 'Apoio + tentativas anteriores' :
+            userProfile === 'Area' ? 'Suporte gerencial + histórico' :
+            'Maturidade OpEx da empresa'
+          }
           icon={Users}
         >
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Apoio da Liderança">
-                <Select 
-                  value={formData.leadershipSupport} 
+              <Field label={
+                userProfile === 'Atividades' ? 'Seu chefe topa você mexer nisso?' :
+                userProfile === 'Area' ? 'Apoio da diretoria pra essa melhoria' :
+                'Patrocínio executivo / sponsor da iniciativa'
+              }>
+                <Select
+                  value={formData.leadershipSupport}
                   onChange={(v) => handleInputChange('leadershipSupport', v)}
                   options={[
-                    { label: 'Sim, total', value: 'Total' },
-                    { label: 'Parcial', value: 'Parcial' },
-                    { label: 'Ainda não discutido', value: 'Nao' }
+                    { label: 'Sim, total apoio', value: 'Total' },
+                    { label: 'Parcial — vai aprovar se eu trouxer bons números', value: 'Parcial' },
+                    { label: 'Ainda não conversei sobre isso', value: 'Nao' },
                   ]}
                 />
               </Field>
-              {['Gestor', 'Black Belt'].includes(userProfile) && (
-                <Field label="Horizonte de Tempo para Resultados">
-                  <Select 
-                    value={formData.timeHorizon} 
+              {(userProfile === 'Area' || userProfile === 'Empresa') && (
+                <Field label="Horizonte de tempo desejado pra resultados">
+                  <Select
+                    value={formData.timeHorizon}
                     onChange={(v) => handleInputChange('timeHorizon', v)}
                     options={[
-                      { label: '30 dias', value: '30d' },
-                      { label: '3 meses', value: '3m' },
-                      { label: '6 meses', value: '6m' },
-                      { label: 'Mais de 6 meses', value: '6m+' }
+                      { label: '30 dias (quick win)', value: '30d' },
+                      { label: '3 meses (DMAIC compacto)', value: '3m' },
+                      { label: '6 meses (DMAIC pleno)', value: '6m' },
+                      { label: 'Mais de 6 meses (projeto grande)', value: '6m+' },
                     ]}
                   />
                 </Field>
               )}
             </div>
-            <Field label="Já houve tentativas anteriores de melhoria? O que aconteceu?">
-              <Textarea 
-                value={formData.previousAttempts} 
+            {userProfile === 'Empresa' && (
+              <>
+                <Field label="A empresa já tem programa formal de melhoria contínua (OpEx, Lean, Six Sigma)?">
+                  <Select
+                    value={formData.jaTemProgramaOpEx}
+                    onChange={(v) => handleInputChange('jaTemProgramaOpEx', v)}
+                    options={[
+                      { label: 'Sim, maduro (3+ anos)', value: 'maduro' },
+                      { label: 'Sim, começando (< 2 anos)', value: 'iniciante' },
+                      { label: 'Tinha mas parou', value: 'parou' },
+                      { label: 'Nunca teve', value: 'nunca' },
+                    ]}
+                  />
+                </Field>
+                {(formData.jaTemProgramaOpEx === 'maduro' || formData.jaTemProgramaOpEx === 'iniciante' || formData.jaTemProgramaOpEx === 'parou') && (
+                  <Field label="Conta um pouco do histórico OpEx — o que funcionou, o que não">
+                    <Textarea
+                      value={formData.historicoOpEx}
+                      onChange={(v) => handleInputChange('historicoOpEx', v)}
+                      placeholder="Tipo de projetos, resultados, por que parou..."
+                    />
+                  </Field>
+                )}
+              </>
+            )}
+            <Field label="Já houve tentativas anteriores de melhoria nessa frente? O que aconteceu?">
+              <Textarea
+                value={formData.previousAttempts}
                 onChange={(v) => handleInputChange('previousAttempts', v)}
-                placeholder="Histórico de mudanças..." 
+                placeholder="Histórico de mudanças que funcionaram OU travaram..."
               />
             </Field>
-            <Field label="Sistemas Usados (ERP, planilhas, sistemas próprios)">
-              <Input 
-                value={formData.systemsUsed} 
+            <Field label="Sistemas usados (ERP, planilhas, ferramentas internas)">
+              <Input
+                value={formData.systemsUsed}
                 onChange={(v) => handleInputChange('systemsUsed', v)}
-                placeholder="Ex: SAP, Excel, JIRA..." 
+                placeholder="Ex: SAP, Excel, JIRA, Sistema interno X..."
               />
             </Field>
           </div>
         </SectionCard>
 
-        {/* SEÇÃO 6 */}
-        <SectionCard 
-          step={6} 
-          title="Visão de Futuro" 
+        {/* SEÇÃO 6 — Visão de futuro (varia por foco) */}
+        <SectionCard
+          step={6}
+          title="Como ficaria se desse certo"
           icon={Sparkles}
+          subtitle={
+            userProfile === 'Atividades' ? 'Quero entender o "depois" — sem isso a IA chuta meta no escuro.' :
+            userProfile === 'Area' ? 'O futuro desejado da área (e o impacto em quem é cliente dela).' :
+            'A visão estratégica e o impacto no negócio.'
+          }
         >
           <div className="space-y-6">
-            <Field label="Se este processo funcionasse perfeitamente, como seria diferente do hoje?">
-              <Textarea 
-                value={formData.futureVision} 
+            <Field label={
+              userProfile === 'Atividades' ? 'Se essa(s) atividade(s) rolasse(m) "perfeita(s)", o que seria diferente pra você?' :
+              userProfile === 'Area' ? 'Se a área ficasse "show", o que mudaria pra quem é cliente dela?' :
+              'Se essa dor sumisse, qual seria o impacto pra empresa?'
+            }>
+              <Textarea
+                value={formData.futureVision}
                 onChange={(v) => handleInputChange('futureVision', v)}
-                placeholder="Descreva o estado futuro desejado..." 
+                placeholder="Descreva o estado futuro desejado..."
               />
             </Field>
-            <Field label="Qual seria o indicador de sucesso mais importante?">
-              <Input 
-                value={formData.successIndicator} 
+            <Field label="Qual o indicador de sucesso (número-meta)?">
+              <Input
+                value={formData.successIndicator}
                 onChange={(v) => handleInputChange('successIndicator', v)}
-                placeholder="Ex: Reduzir de 15% para 2% em 4 meses" 
+                placeholder="Ex: Reduzir de 15% pra 2% em 4 meses · SLA de 70% pra 95%..."
               />
             </Field>
-            {userProfile === 'Black Belt' && (
-              <Field label="Este projeto poderia ser replicado em outras áreas?">
-                <Select 
-                  value={formData.replicability} 
-                  onChange={(v) => handleInputChange('replicability', v)}
-                  options={[
-                    { label: 'Sim', value: 'Sim' },
-                    { label: 'Não', value: 'Nao' },
-                    { label: 'Talvez', value: 'Talvez' }
-                  ]}
+            {userProfile === 'Atividades' && (
+              <Field label="Você já PENSOU em alguma ideia mas não pôs em prática? Conta.">
+                <Textarea
+                  value={formData.ideiasJaPensadas}
+                  onChange={(v) => handleInputChange('ideiasJaPensadas', v)}
+                  placeholder="Mesmo as ideias que parecem 'pequenas demais' — vale ouro pra IA gerar variantes..."
                 />
               </Field>
+            )}
+            {userProfile === 'Empresa' && (
+              <>
+                <Field label="Qual o NÚMERO ESTRATÉGICO que se virasse, mudaria a empresa?">
+                  <Textarea
+                    value={formData.numeroEstrategico}
+                    onChange={(v) => handleInputChange('numeroEstrategico', v)}
+                    placeholder="Ex: Reduzir custo unitário em 8%, dobrar capacidade sem CAPEX, retenção de cliente de 70 pra 85%..."
+                  />
+                </Field>
+                <Field label="Esse projeto seria replicável em outras unidades/áreas/empresas?">
+                  <Select
+                    value={formData.replicability}
+                    onChange={(v) => handleInputChange('replicability', v)}
+                    options={[
+                      { label: 'Sim, em várias áreas/unidades', value: 'Sim' },
+                      { label: 'Talvez, com ajustes', value: 'Talvez' },
+                      { label: 'Não, é específico desse caso', value: 'Nao' },
+                    ]}
+                  />
+                </Field>
+              </>
             )}
           </div>
         </SectionCard>

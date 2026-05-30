@@ -69,6 +69,7 @@ import ProcessCanva from './ProcessCanva';
 import ProcessModeling from './ProcessModeling';
 import ProcessValidation from './ProcessValidation';
 import ImprovementProjectIdea from './ImprovementProjectIdea';
+import RaciTool from './RaciTool';
 import ProjectCharterPMI from './ProjectCharterPMI';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
@@ -76,9 +77,9 @@ import { getUserProfile } from '../UserProfile';
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema', component: ProjectBrief, defaultPhase: 'Define' },
   { id: 'charter', name: 'Project Charter', component: ProjectCharter, defaultPhase: 'Define' },
-  { id: 'stakeholderAdkar', name: 'Stakeholder & ADKAR', component: StakeholderAdkar, defaultPhase: 'Define' },
+  { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)', component: StakeholderAdkar, defaultPhase: 'Define' },
   { id: 'projectCharterPMI', name: 'Project Charter - PMI', component: ProjectCharterPMI, defaultPhase: 'Define' },
-  { id: 'measureAdkar', name: 'Stakeholder & ADKAR — Medir (Desire)', component: MeasureAdkar, defaultPhase: 'Measure' },
+  { id: 'measureAdkar', name: 'ADKAR — Medir (Desire)', component: MeasureAdkar, defaultPhase: 'Measure' },
   { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)', component: AnalyzeAdkar, defaultPhase: 'Analyze' },
   { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)', component: ImproveAdkar, defaultPhase: 'Improve' },
   { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)', component: ControlAdkar, defaultPhase: 'Control' },
@@ -86,6 +87,7 @@ const AVAILABLE_TOOLS = [
   { id: 'timeline', name: 'Cronograma Macro', component: ProjectTimeline, defaultPhase: 'Define' },
   { id: 'wbs', name: 'WBS (EAP)', component: WBSTool, defaultPhase: 'Planejamento' },
   { id: 'gpPlanPMI', name: 'Plano do GP - PMI', component: GPPlanPMI, defaultPhase: 'Iniciação' },
+  { id: 'raci', name: 'Matriz RACI', component: RaciTool, defaultPhase: 'Define' },
   { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', component: StakeholderAnalysisPMI, defaultPhase: 'Iniciação' },
   { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', component: RiskManagementPMI, defaultPhase: 'Planejamento' },
   { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', component: RiskMonitoringPMI, defaultPhase: 'Monitoramento' },
@@ -106,7 +108,7 @@ const AVAILABLE_TOOLS = [
   { id: 'directObservation', name: 'Observação Direta (Gemba)', component: DirectObservationForm, defaultPhase: 'Analyze' },
   { id: 'fiveWhys', name: '5 Porquês', component: FiveWhys, defaultPhase: 'Analyze' },
   { id: 'fta', name: 'Árvore de Falhas (FTA)', component: FaultTreeAnalysis, defaultPhase: 'Analyze' },
-  { id: 'statisticalAnalysis', name: 'Análise Estatística', component: StatisticalAnalysisForm, defaultPhase: 'Analyze' },
+  { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística', component: StatisticalAnalysisForm, defaultPhase: 'Analyze' },
   { id: 'dataNature', name: 'Natureza dos Dados', component: DataNatureAssistant, defaultPhase: 'Analyze' },
   { id: 'fmea', name: 'FMEA', component: ProcessFMEA, defaultPhase: 'Improve' },
   { id: 'plan5w2h', name: 'Plano de Ação 5W2H', component: ActionPlan5W2H, defaultPhase: 'Improve' },
@@ -554,8 +556,12 @@ useEffect(() => {
   };
 
   const ToolVideos = ({ toolId }: { toolId: string }) => {
-    const toolVideos = knowledgeItems.filter(item => item.associatedTools?.includes(toolId));
-    
+    // Dedup por sourceUrl — knowledge_base tem multi-placement (mesmo vídeo em N cursos),
+    // sem isso o mesmo vídeo aparece repetido em "Vídeos de Apoio".
+    const toolVideos = knowledgeItems
+      .filter(item => item.associatedTools?.includes(toolId))
+      .filter((v, idx, arr) => v.sourceUrl && arr.findIndex(x => x.sourceUrl === v.sourceUrl) === idx);
+
     if (toolVideos.length === 0) return null;
 
     const handleSeek = (timeStr: string) => {
@@ -1178,48 +1184,71 @@ useEffect(() => {
     <div className="flex gap-8 relative min-h-[calc(100vh-100px)]">
       {/* Main Content */}
       <div className="flex-1 space-y-8 min-w-0">
-        {/* Progress Stepper */}
-        <div className="bg-white p-4 border border-[#ccc] rounded-[4px] shadow-sm overflow-x-auto">
-          <div className="flex items-center justify-between min-w-[800px] px-4">
+        {/* Progress Stepper — redesign limpo, sem scroll horizontal forçado */}
+        <div className="bg-white p-5 border border-[#e5e7eb] rounded-xl shadow-sm">
+          {/* Header: Fase atual + % concluído */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-[11px] font-black tracking-widest uppercase text-[#1E2D6E]">
+              <span>Fase {currentPhaseIndex + 1} de {filteredPhases.length}</span>
+              <span className="text-[#9CA3AF]">·</span>
+              <span className="text-[#0033CC]">
+                {filteredPhases.length === 0 ? 0 : Math.round((currentPhaseIndex / Math.max(1, filteredPhases.length - 1)) * 100)}% percorrido
+              </span>
+            </div>
+            <span className="text-[11px] text-[#9CA3AF] font-medium truncate max-w-[60%]" title={filteredPhases[currentPhaseIndex]?.name}>
+              {filteredPhases[currentPhaseIndex]?.name}
+            </span>
+          </div>
+
+          {/* Barra de progresso linear contínua acima dos passos */}
+          <div className="relative h-1.5 bg-[#f3f4f6] rounded-full mb-5 overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#0033CC] to-[#1E2D6E] rounded-full transition-all duration-500"
+              style={{
+                width: filteredPhases.length <= 1
+                  ? '100%'
+                  : `${(currentPhaseIndex / (filteredPhases.length - 1)) * 100}%`,
+              }}
+            />
+          </div>
+
+          {/* Steps — tamanhos consistentes, texto maior, truncate em 2 linhas */}
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${filteredPhases.length}, minmax(0, 1fr))` }}>
             {filteredPhases.map((phase, i) => {
               const Icon = phase.icon;
               const isActive = currentPhase === phase.id || currentPhase === phase.name;
               const isCompleted = i < currentPhaseIndex;
-              
               return (
-                <div key={phase.id} className="flex items-center flex-1 last:flex-none">
-                  <div 
-                    className={cn(
-                      "flex flex-col items-center space-y-2 cursor-pointer transition-all",
-                      isActive ? "scale-110" : "opacity-60 hover:opacity-100"
-                    )}
-                    onClick={() => setCurrentPhase(phase.id)}
-                  >
-                    <div 
-                      className={cn(
-                        "w-[40px] h-[40px] rounded-[8px] flex items-center justify-center border-2 transition-all",
-                        isActive ? "bg-[#1f2937] text-white border-[#1f2937] shadow-lg" :
-                        isCompleted ? "bg-green-100 text-green-600 border-green-200" : "bg-white text-[#ccc] border-[#eee]"
-                      )}
-                    >
-                      {isCompleted ? <CheckCircle2 size={20} /> : <Icon size={20} />}
-                    </div>
-                    <span className={cn(
-                      "text-[10px] font-bold uppercase tracking-wider",
-                      isActive ? "text-[#333]" : "text-[#999]"
-                    )}>
-                      {phase.name}
-                    </span>
-                  </div>
-                  {i < filteredPhases.length - 1 && (
-                    <div className="flex-1 h-[2px] mx-4 bg-[#eee]">
-                      <div 
-                        className="h-full bg-green-500 transition-all duration-500" 
-                        style={{ width: isCompleted ? '100%' : '0%' }}
-                      />
-                    </div>
+                <button
+                  key={phase.id}
+                  onClick={() => setCurrentPhase(phase.id)}
+                  title={phase.name}
+                  className={cn(
+                    "group flex flex-col items-center text-center gap-2 p-2 rounded-lg transition-all cursor-pointer border-0 bg-transparent",
+                    isActive ? "bg-[#F0F2FA]" : "hover:bg-[#f9fafb]"
                   )}
-                </div>
+                >
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                      isActive
+                        ? "bg-[#1E2D6E] text-white shadow-md"
+                        : isCompleted
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-[#f3f4f6] text-[#9CA3AF] group-hover:bg-[#e5e7eb]"
+                    )}
+                  >
+                    {isCompleted ? <CheckCircle2 size={18} /> : <Icon size={18} />}
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[11px] leading-tight font-bold tracking-tight line-clamp-2",
+                      isActive ? "text-[#1E2D6E]" : isCompleted ? "text-emerald-700" : "text-[#6B7280]"
+                    )}
+                  >
+                    {phase.name}
+                  </span>
+                </button>
               );
             })}
           </div>

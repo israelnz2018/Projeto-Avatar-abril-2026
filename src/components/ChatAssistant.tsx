@@ -4,11 +4,15 @@ import {
   Send, ArrowRight, Sparkles, Clock, HelpCircle,
   TrendingUp, BarChart3, Activity, Play, ChevronRight, Compass,
   X, FolderTree, BookOpen, Wand2,
+  Footprints, Target, ShieldAlert, Users, LineChart, Mic, Recycle, Trophy,
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/src/lib/firebase';
 import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedVideo, LeafAction } from './AIAssistantConfig';
+import { getInitiatives } from '../services/configService';
+import type { Initiative } from '../types';
+import { getGlobalKnowledge, getTrilhaKnowledge, getAllKnowledge } from '../knowledge/loader';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC', light: '#F0F2FA', ink: '#2A2F3A', white: '#FFFFFF' };
 
@@ -26,6 +30,22 @@ const CATEGORY_TYPES: Record<string, ProjectType> = { projects: 'DMAIC', data: '
 const CATEGORY_TAGS: Record<string, string> = { projects: 'Mais usado', data: 'Insights', stats: 'Pontual' };
 const CATEGORY_VARIANTS: Record<string, 'light' | 'outlined' | 'dark'> = { projects: 'light', data: 'outlined', stats: 'dark' };
 const LANGS = [{ code: 'pt-BR', flag: '🇧🇷', label: 'PT' }, { code: 'en-US', flag: '🇺🇸', label: 'EN' }, { code: 'es-ES', flag: '🇪🇸', label: 'ES' }];
+
+// 9 trilhas — labels + cores espelhando trilhas.ts (mesma identidade visual da aba Jornada).
+// Quando clica, a IA puxa esse contexto e faz 2-3 follow-ups pra confirmar a trilha exata.
+const TRILHA_HERO_CARDS = [
+  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Se adaptar a uma empresa, área ou função nova',            gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
+  { id: 'melhorar-minha-area',             num: '02', icon: Target,      label: 'Investigar a causa de um problema',                        gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #164E63 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
+  { id: 'dados-do-dia-a-dia',              num: '03', icon: BarChart3,   label: 'Gerar recomendações baseadas em dados',                    gradient: 'linear-gradient(135deg, #22D3EE 0%, #2563EB 55%, #1E3A8A 100%)', glow: 'rgba(34, 211, 238, 0.45)'  },
+  { id: 'analise-risco-mudanca',           num: '04', icon: ShieldAlert, label: 'Antecipar riscos antes de executar',                       gradient: 'linear-gradient(135deg, #EF4444 0%, #BE123C 55%, #0F172A 100%)', glow: 'rgba(239, 68, 68, 0.45)'   },
+  { id: 'mudanca-com-menos-resistencia',   num: '05', icon: Users,       label: 'Conduzir mudanças com menos resistência',                  gradient: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 55%, #7F1D1D 100%)', glow: 'rgba(245, 158, 11, 0.45)'  },
+  { id: 'problema-cronico',                num: '06', icon: LineChart,   label: 'Estudos pontuais com estatística aplicada',                gradient: 'linear-gradient(135deg, #C084FC 0%, #7C3AED 55%, #312E81 100%)', glow: 'rgba(168, 85, 247, 0.45)'  },
+  { id: 'apresentar-recomendacao',         num: '07', icon: Mic,         label: 'Criar apresentações que convencem',                        gradient: 'linear-gradient(135deg, #FB923C 0%, #EF4444 55%, #9F1239 100%)', glow: 'rgba(249, 115, 22, 0.45)'  },
+  { id: 'perfil-gestor-lean',              num: '08', icon: Recycle,     label: 'Conhecer a cultura Lean na prática',                       gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #064E3B 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
+  { id: 'especialista-projetos-complexos', num: '09', icon: Trophy,      label: 'Gerenciar projetos de melhoria complexos',                 gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
+] as const;
+
+type TrilhaHeroCard = typeof TRILHA_HERO_CARDS[number];
 
 const ISRAEL_PHOTO = '/avatar-israel.png';
 
@@ -231,6 +251,46 @@ function HeroCard({ cat, type, tag, variant, icon: Icon, i, onClick }: {
   );
 }
 
+// NineCard — card do grid 3×3 do hero. Texto grande, centralizado, sem número/ícone.
+// Usa o gradiente da trilha correspondente, suavizado com camada branca pra ficar menos agressivo.
+function NineCard({ card, i, onClick, compact = false }: {
+  card: TrilhaHeroCard; i: number; onClick: () => void; compact?: boolean;
+}) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.12 + i * 0.035, type: 'spring', stiffness: 260, damping: 22 }}
+      whileHover={{ y: -2, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="group relative rounded-2xl overflow-hidden flex items-center justify-center cursor-pointer text-white px-4"
+      style={{
+        // Stack: camada branca sobre o gradiente original = mesma identidade, tom mais claro.
+        background: `linear-gradient(135deg, rgba(255,255,255,0.42), rgba(255,255,255,0.20)), ${card.gradient}`,
+        border: '1px solid rgba(255,255,255,0.18)',
+        boxShadow: `0 12px 28px -18px ${card.glow}, 0 4px 14px -10px rgba(0,0,0,0.18)`,
+        height: compact ? 76 : 96,
+      }}
+    >
+      {/* Glow decorativo (mais sutil agora) */}
+      <div aria-hidden className="absolute -top-10 -right-10 w-28 h-28 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(closest-side, rgba(255,255,255,0.35), transparent 70%)' }}
+      />
+      {/* Label — único elemento, centralizado e maior */}
+      <p className="relative font-semibold tracking-tight m-0 text-center"
+        style={{
+          color: 'rgba(255,255,255,1)',
+          textShadow: '0 1px 3px rgba(0,0,0,0.35), 0 0 1px rgba(0,0,0,0.25)',
+          fontSize: compact ? '15px' : '18px',
+          lineHeight: 1.1,
+        }}>
+        {card.label}
+      </p>
+    </motion.button>
+  );
+}
+
 function TreeCard({ item, type, i, onClick }: { item: TreeNode; type: ProjectType; i: number; onClick: () => void }) {
   const pal = TYPE_PALETTE[type];
   const hasChildren = (item.children || []).length > 0;
@@ -390,6 +450,17 @@ export default function ChatAssistant() {
   const [lang, setLang] = useState('pt-BR');
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Quando o usuário clica em um dos 9 cards de trilha, os outros somem e a IA inicia follow-up
+  // INLINE no mesmo hero (sem trocar de view — tudo cabe em 1 dobra).
+  const [pickedCard, setPickedCard] = useState<TrilhaHeroCard | null>(null);
+  const heroChatScrollRef = useRef<HTMLDivElement>(null);
+  // Lista REAL de trilhas (do Firestore) — injetada no system prompt pra IA não inventar nome de trilha
+  // que não existe. Carrega 1× ao montar; admin pode adicionar/renomear/remover e basta o aluno
+  // recarregar a página pra IA enxergar.
+  const [allInitiatives, setAllInitiatives] = useState<Initiative[]>([]);
+  useEffect(() => {
+    getInitiatives().then(setAllInitiatives).catch(err => console.error('[ChatAssistant] erro ao carregar trilhas:', err));
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -405,7 +476,8 @@ export default function ChatAssistant() {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [chat, showAiTyping, view]);
+    if (heroChatScrollRef.current) heroChatScrollRef.current.scrollTop = heroChatScrollRef.current.scrollHeight;
+  }, [chat, showAiTyping, view, pickedCard]);
 
   useEffect(() => {
     return () => { try { window.speechSynthesis?.cancel(); } catch {} };
@@ -460,6 +532,58 @@ export default function ChatAssistant() {
     else go('chat', 1);
   };
 
+  // Bloco de contexto injetado no system prompt — lista as trilhas REAIS da plataforma.
+  // Sem isso, a IA pode inventar nome de trilha que não existe.
+  const buildTrilhasContexto = (): string => {
+    if (allInitiatives.length === 0) return '';
+    const linhas = allInitiatives.map(i => {
+      const desc = i.description ? ` — ${i.description.slice(0, 100)}` : '';
+      return `- "${i.name}"${desc}`;
+    }).join('\n');
+    return (
+      `TRILHAS REAIS DA PLATAFORMA LBW (use SEMPRE o nome exato da lista abaixo, NUNCA invente nome novo):\n` +
+      `${linhas}\n\n` +
+      `Ao recomendar, escreva entre aspas o nome EXATO da trilha tal como aparece acima.`
+    );
+  };
+
+  // Clique num dos 9 cards do hero → as outras 8 somem, a trilha picked vira o "header" e a IA
+  // já começa o follow-up INLINE no mesmo hero (sem trocar de view — tudo cabe em 1 dobra).
+  const handleTrilhaPickClick = async (card: TrilhaHeroCard) => {
+    setPickedCard(card);
+    setChat([]); // limpa qualquer histórico anterior
+    setShowAiTyping(true);
+    try {
+      const trilhasCtx = buildTrilhasContexto();
+      // Knowledge injection: regras globais + knowledge específico desta trilha (do arquivo .md)
+      const globalKb = getGlobalKnowledge();
+      const trilhaKb = getTrilhaKnowledge(card.id);
+      const knowledgeBlock = [globalKb, trilhaKb].filter(Boolean).join('\n\n---\n\n');
+      const prompt =
+        (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
+        `Você é o Israel, mentor LBW. O aluno escolheu o caminho: "${card.label}".\n\n` +
+        (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
+        `Sua tarefa AGORA é fazer 1 pergunta curta (máximo 2 linhas) pra entender melhor o contexto dele ANTES de recomendar uma trilha. ` +
+        `Tom 1ª pessoa, direto, sem buzzword. Pergunta UMA coisa só — o que mais importa pra decidir a trilha certa.\n\n` +
+        `Depois que ele responder, você fará mais 1-2 perguntas (no máximo 3 total) e então recomendará UMA das trilhas da lista acima pelo NOME EXATO (entre aspas).\n\n` +
+        `IMPORTANTE: seu único objetivo é orientar a MELHOR TRILHA. Não sugira próximos passos, ferramentas específicas, planos de ação, "primeira coisa a fazer", checklist nada disso. Foco TOTAL em: qual trilha resolve o problema do aluno.\n\n` +
+        `Responda em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}. Não use JSON, só texto direto.`;
+      const reply = await callGemini(prompt);
+      setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: reply }]);
+    } catch {
+      setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: 'Erro ao conectar. Tente novamente.' }]);
+    } finally {
+      setShowAiTyping(false);
+    }
+  };
+
+  // Volta pro grid de 9 cards (limpa o picked + histórico do chat).
+  const resetHeroPick = () => {
+    setPickedCard(null);
+    setChat([]);
+    setChatInput('');
+  };
+
   const handleNodeClick = (node: TreeNode) => {
     const newPath = [...navPath, node.id];
     setNavPath(newPath);
@@ -493,6 +617,7 @@ export default function ChatAssistant() {
 
   const resetToHero = () => {
     setView('hero'); setNavPath([]); setActiveVideoId(null); setChat([]); setInput('');
+    setPickedCard(null); setChatInput('');
   };
 
   const speakMessage = (m: ChatMessage) => {
@@ -519,20 +644,23 @@ export default function ChatAssistant() {
     go('chat', 1);
     setShowAiTyping(true);
     try {
-      const raw = await callGemini(
-        `Você é o Mentor LBW. O aluno descreveu: "${txt}". Retorne APENAS JSON válido:\n{"type":"DMAIC","duration":"3 a 4 meses","justification":"2-3 frases","question":"Uma pergunta"}\ntype deve ser exatamente um destes: DMAIC, Lean, ADKAR, PMI, QuickWin.`,
-        true
+      // Texto livre passa pelo MESMO fluxo dos 9 cards: Israel faz follow-ups (até 3)
+      // e recomenda UMA das trilhas REAIS da plataforma pelo nome exato.
+      // Como não sabemos qual trilha ainda, injetamos TODAS pra IA escolher.
+      const trilhasCtx = buildTrilhasContexto();
+      const knowledgeBlock = getAllKnowledge();
+      const reply = await callGemini(
+        (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
+        `Você é o Israel, mentor LBW. O aluno descreveu o que precisa:\n\n"${txt}"\n\n` +
+        (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
+        `Sua tarefa: se a descrição já deixa claro qual trilha indicar, faça UMA pergunta de confirmação curta (1-2 linhas) e depois recomende a trilha. ` +
+        `Se a descrição é ambígua (pode ser mais de uma trilha), faça 1 pergunta curta pra desempatar. NUNCA mais de 3 perguntas no total — chegando lá, recomende.\n\n` +
+        `Tom: 1ª pessoa do Israel, direto, sem buzzword, sem JSON. ` +
+        `Quando for recomendar, escreva entre aspas o nome EXATO da trilha da lista acima.\n\n` +
+        `IMPORTANTE: seu único objetivo é orientar a MELHOR TRILHA. Não sugira próximos passos, ferramentas específicas, planos de ação, "primeira coisa a fazer", checklist nada disso. Foco TOTAL em: qual trilha resolve o problema do aluno.\n\n` +
+        `Responda em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`
       );
-      let classification: ClassificationData | null = null;
-      try {
-        const p = JSON.parse(raw);
-        if (p.type && p.duration && p.justification && p.question) classification = p;
-      } catch {}
-      setChat(c => [...c, {
-        id: String(Date.now()+1), role: 'ai',
-        text: classification ? '' : 'Pode me dar mais detalhes do problema?',
-        classification: classification || undefined,
-      }]);
+      setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: reply }]);
     } catch {
       setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar. Tente novamente.' }]);
     } finally { setShowAiTyping(false); }
@@ -545,7 +673,17 @@ export default function ChatAssistant() {
     setChatInput('');
     setShowAiTyping(true);
     try {
-      const reply = await callGemini(`${config.mentorRules}\n\nO aluno disse: "${txt}"\n\nResponda agora em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`);
+      const trilhasCtx = buildTrilhasContexto();
+      // Knowledge injection: se há trilha já picked, usa só a dela (mais focado); senão, todas
+      const knowledgeBlock = pickedCard
+        ? [getGlobalKnowledge(), getTrilhaKnowledge(pickedCard.id)].filter(Boolean).join('\n\n---\n\n')
+        : getAllKnowledge();
+      const reply = await callGemini(
+        (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
+        `${config.mentorRules}\n\n` +
+        (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
+        `O aluno disse: "${txt}"\n\nResponda agora em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`
+      );
       setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: reply }]);
     } catch {
       setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar.' }]);
@@ -583,56 +721,175 @@ export default function ChatAssistant() {
       <AnimatePresence mode="wait" custom={dir}>
         {view === 'hero' && (
           <motion.div key="hero" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.35 }} className="absolute inset-0 overflow-y-auto"
+            transition={{ duration: 0.35 }} className="absolute inset-0 overflow-hidden"
           >
-            <div className="min-h-full flex flex-col px-6 md:px-10 py-14">
-              <div className="max-w-5xl w-full mx-auto flex-1 flex flex-col">
-                <div className="mb-5">
-                  <motion.h1
-                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-                    className="text-[32px] md:text-[40px] leading-[1.05] tracking-[-0.025em] font-semibold text-stone-900"
-                  >
-                    Olá,{' '}
-                    <span className="relative inline-block">
-                      <span className="italic font-normal pr-1"
-                        style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, color: LBW.blue }}>
-                        {userName}
+            <div className="h-full flex flex-col px-6 md:px-10 py-5 md:py-6">
+              <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col min-h-0">
+
+                {!pickedCard && (
+                  <>
+                    {/* GRID MODE — 9 cards + composer livre */}
+                    <div className="mb-3">
+                      <motion.h1
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, ease: [0.2, 0.7, 0.2, 1] }}
+                        className="text-[24px] md:text-[30px] leading-[1.05] tracking-[-0.025em] font-semibold text-stone-900 m-0"
+                      >
+                        Olá,{' '}
+                        <span className="italic font-normal pr-1"
+                          style={{ fontFamily: "'Instrument Serif', serif", fontWeight: 400, color: LBW.blue }}>
+                          {userName}
+                        </span>.
+                      </motion.h1>
+                      <motion.h2
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.1, ease: [0.2, 0.7, 0.2, 1] }}
+                        className="text-[15px] md:text-[18px] leading-[1.1] tracking-[-0.02em] font-light text-stone-700 m-0 mt-0.5"
+                      >
+                        Por onde quer <span style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 600 }}>começar</span>?
+                      </motion.h2>
+                    </div>
+
+                    {/* Grid 3×3 — cabe tudo na 1ª dobra */}
+                    <div className="grid grid-cols-3 gap-2.5 mb-4">
+                      {TRILHA_HERO_CARDS.map((card, i) => (
+                        <NineCard key={card.id} card={card} i={i} onClick={() => handleTrilhaPickClick(card)} />
+                      ))}
+                    </div>
+
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }} className="flex items-center gap-3 mb-2 max-w-3xl mx-auto w-full">
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
+                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-stone-500 whitespace-nowrap">
+                        Ou descreva em texto livre
                       </span>
-                    </span>.
-                  </motion.h1>
-                  <motion.h2
-                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.12, ease: [0.2, 0.7, 0.2, 1] }}
-                    className="text-[22px] md:text-[28px] leading-[1.05] tracking-[-0.025em] font-light text-stone-700"
-                  >
-                    Como posso te <span style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 600 }}>ajudar</span> hoje?
-                  </motion.h2>
-                </div>
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
+                    </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                  {config.categories.map((c, i) => {
-                    const Icon = CATEGORY_ICONS[c.id] || TrendingUp;
-                    const type = CATEGORY_TYPES[c.id] || 'DMAIC';
-                    const tag = CATEGORY_TAGS[c.id] || 'Área';
-                    const variant = CATEGORY_VARIANTS[c.id] || (i === 0 ? 'light' : i === 1 ? 'outlined' : 'dark');
-                    return (
-                      <HeroCard key={c.id} cat={c} type={type} tag={tag} variant={variant}
-                        icon={Icon} i={i} onClick={() => handleCategoryClick(c.id)} />
-                    );
-                  })}
-                </div>
+                    <HeroComposer value={input} setValue={setInput} onSend={sendFromHero} />
+                  </>
+                )}
 
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }} className="flex items-center gap-3 mb-3 max-w-3xl mx-auto w-full">
-                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
-                  <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-stone-500 whitespace-nowrap">
-                    Ou prefere escrever em texto livre
-                  </span>
-                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
-                </motion.div>
+                {pickedCard && (
+                  <>
+                    {/* PICKED MODE — só o card escolhido + chat IA inline */}
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+                      className="flex items-center justify-between mb-2"
+                    >
+                      <button onClick={resetHeroPick}
+                        className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] uppercase text-stone-500 hover:text-stone-900 transition-colors bg-transparent border-0 cursor-pointer p-0"
+                      >
+                        ← Ver outras opções
+                      </button>
+                      <span className="text-[10px] font-semibold tracking-wider uppercase text-stone-400">
+                        Israel está te ajudando a escolher
+                      </span>
+                    </motion.div>
 
-                <HeroComposer value={input} setValue={setInput} onSend={sendFromHero} />
+                    {/* Card escolhido — em largura total mas compacto */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 240, damping: 22 }}
+                      className="relative rounded-2xl overflow-hidden text-white p-4 mb-3"
+                      style={{
+                        background: `linear-gradient(135deg, rgba(255,255,255,0.42), rgba(255,255,255,0.20)), ${pickedCard.gradient}`,
+                        boxShadow: `0 16px 40px -22px ${pickedCard.glow}, 0 6px 18px -12px rgba(0,0,0,0.22)`,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                      }}
+                    >
+                      <div aria-hidden className="absolute -top-16 -right-16 w-48 h-48 rounded-full"
+                        style={{ background: 'radial-gradient(closest-side, rgba(255,255,255,0.22), transparent 70%)' }}
+                      />
+                      <div className="relative flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0"
+                          style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.25)' }}>
+                          {(() => { const Icon = pickedCard.icon; return <Icon size={20} strokeWidth={2.2} />; })()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold tracking-[0.18em] m-0 mb-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                            TRILHA {pickedCard.num}
+                          </p>
+                          <p className="text-[14px] md:text-[15px] font-semibold leading-snug m-0"
+                            style={{ color: 'rgba(255,255,255,0.97)', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                            {pickedCard.label}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Chat thread + input — flex-1 ocupa o restante sem scroll global */}
+                    <div className="flex-1 flex flex-col rounded-2xl bg-white/85 backdrop-blur-xl border border-black/[0.06] overflow-hidden min-h-0"
+                      style={{ boxShadow: `0 18px 50px -28px ${LBW.navy}55` }}>
+                      <div ref={heroChatScrollRef}
+                        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0"
+                        style={{ background: `linear-gradient(180deg, ${LBW.light}60, ${LBW.light}30)` }}
+                      >
+                        <AnimatePresence initial={false}>
+                          {chat.map((m) => (
+                            <motion.div key={m.id}
+                              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+                              className={`flex items-end gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
+                            >
+                              {m.role === 'ai' ? (
+                                <MentorOrb size={26} showHalo={false} online={false} isSpeaking={speakingId === m.id} />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0"
+                                  style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.ink})` }}>
+                                  {userInitial}
+                                </div>
+                              )}
+                              {m.text && (
+                                <div className="max-w-[78%] px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-wrap"
+                                  style={
+                                    m.role === 'user'
+                                      ? { background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`, color: 'white', borderRadius: '16px 16px 4px 16px', boxShadow: `0 6px 16px -8px ${LBW.blue}99` }
+                                      : { background: 'white', color: LBW.ink, border: '1px solid rgba(30,45,110,0.10)', borderRadius: '16px 16px 16px 4px', boxShadow: `0 3px 10px -6px ${LBW.navy}33` }
+                                  }
+                                >
+                                  {m.text}
+                                </div>
+                              )}
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                        {showAiTyping && (
+                          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                            <TypingIndicator />
+                          </motion.div>
+                        )}
+                      </div>
+
+                      <div className="px-3 py-2.5 border-t border-stone-200/60 bg-white/70 flex-shrink-0">
+                        <div className="flex items-end gap-2 bg-white border border-stone-200 rounded-xl px-3 py-2">
+                          <textarea value={chatInput} rows={1}
+                            placeholder="Responda ao Israel…"
+                            onChange={(e) => {
+                              setChatInput(e.target.value);
+                              e.target.style.height = 'auto';
+                              e.target.style.height = Math.min(e.target.scrollHeight, 90) + 'px';
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                            className="flex-1 bg-transparent outline-none resize-none text-[13px] leading-relaxed max-h-[90px] py-1"
+                            style={{ color: LBW.ink }}
+                          />
+                          <motion.button
+                            whileHover={chatInput.trim() ? { scale: 1.05 } : {}}
+                            whileTap={chatInput.trim() ? { scale: 0.95 } : {}}
+                            onClick={sendChat} disabled={!chatInput.trim()}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, boxShadow: `0 6px 14px -6px ${LBW.blue}77` }}
+                          >
+                            <Send size={13} />
+                          </motion.button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
               </div>
             </div>
           </motion.div>

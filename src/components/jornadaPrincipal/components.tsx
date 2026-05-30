@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Play, Plus, Info, ChevronRight, ChevronLeft, X, Clock, BookOpen,
   ArrowRight, Sparkles, Quote, CheckCircle2, ExternalLink, Volume2, VolumeX,
+  Wrench, Compass, Lightbulb, Copy,
 } from 'lucide-react';
 import type { Trilha } from './trilhas';
 import { TrailerCanvas } from './TrailerCanvas';
@@ -406,7 +407,7 @@ export function TrilhaCard({ trilha, onClick, rank }: TrilhaCardProps) {
             <span>·</span>
             <span>{trilha.duracao}</span>
             <span>·</span>
-            <span>{trilha.totalEpisodios} ep</span>
+            <span>{trilha.totalEpisodios} {trilha.situacoes && trilha.situacoes.length > 0 ? 'sit.' : 'ep'}</span>
           </div>
         </div>
       </div>
@@ -465,6 +466,10 @@ interface TrilhaModalProps {
 
 export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
   const navigate = useNavigate();
+  // Situação expandida — só usado pela Trilha 1 (que tem `situacoes`).
+  // Reseta sempre que a trilha aberta muda.
+  const [situacaoAberta, setSituacaoAberta] = useState<string | null>(null);
+  useEffect(() => { setSituacaoAberta(null); }, [trilha?.id]);
 
   // Lock scroll
   useEffect(() => {
@@ -559,7 +564,7 @@ export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
                     <span>·</span>
                     <span><Clock size={12} className="inline mr-1" />{trilha.duracao}</span>
                     <span>·</span>
-                    <span><BookOpen size={12} className="inline mr-1" />{trilha.totalEpisodios} episódios</span>
+                    <span><BookOpen size={12} className="inline mr-1" />{trilha.totalEpisodios} {trilha.situacoes && trilha.situacoes.length > 0 ? 'situações' : 'episódios'}</span>
                   </div>
                   <p className="text-base md:text-lg text-white/80 leading-relaxed m-0">
                     {trilha.dor}
@@ -611,29 +616,247 @@ export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
                 </div>
               </div>
 
-              {/* Episódios */}
-              <div className="mb-10">
-                <h3 className="text-xl md:text-2xl font-black text-white m-0 mb-4">
-                  Episódios
-                  <span className="ml-3 text-sm font-bold text-white/40">({trilha.episodios.length})</span>
-                </h3>
-                <div className="space-y-2">
-                  {trilha.episodios.map(ep => (
-                    <div key={ep.numero}
-                         className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition group">
-                      <div className="text-3xl font-black text-white/30 w-10 text-center shrink-0">
-                        {ep.numero}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-white text-sm md:text-base m-0">{ep.titulo}</p>
-                        <p className="text-white/60 text-xs md:text-sm m-0 mt-0.5">{ep.resumo}</p>
-                      </div>
-                      <div className="text-xs font-bold text-white/50 shrink-0">{ep.duracao}</div>
-                      <Play size={18} className="text-white/30 group-hover:text-white transition shrink-0" />
-                    </div>
-                  ))}
+              {/* Situações (Trilha 1 — kit circular) OU Episódios (demais trilhas — lista linear).
+                  Decisão pelo campo `situacoes`: presente = render círculos. Ausente = render lista. */}
+              {trilha.situacoes && trilha.situacoes.length > 0 ? (
+                <div className="mb-10">
+                  <h3 className="text-xl md:text-2xl font-black text-white m-0 mb-2">
+                    Situações que essa trilha resolve
+                  </h3>
+                  <p className="text-sm text-white/60 mb-5 m-0">
+                    Não tem ordem certa. Abra o círculo que descreve o que te trava HOJE.
+                  </p>
+
+                  {/* Grid de círculos — 2 cols em mobile, 3 em desktop */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                    {trilha.situacoes.map(sit => {
+                      const Icone = sit.icone;
+                      const aberta = situacaoAberta === sit.id;
+                      return (
+                        <button
+                          key={sit.id}
+                          onClick={() => setSituacaoAberta(aberta ? null : sit.id)}
+                          className="group relative flex flex-col items-center text-center gap-3 focus:outline-none"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                        >
+                          <motion.div
+                            whileHover={{ scale: 1.06 }}
+                            whileTap={{ scale: 0.97 }}
+                            animate={aberta ? { scale: 1.08 } : { scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                            className="relative w-24 h-24 md:w-28 md:h-28 rounded-full flex items-center justify-center"
+                            style={{
+                              background: aberta
+                                ? `radial-gradient(circle at 30% 30%, ${trilha.accent}, ${LBW.navy})`
+                                : `radial-gradient(circle at 30% 30%, ${trilha.accent}66, ${LBW.navy}55)`,
+                              border: aberta ? `2px solid ${trilha.accent}` : '2px solid rgba(255,255,255,0.18)',
+                              boxShadow: aberta
+                                ? `0 14px 40px -10px ${trilha.glow}, 0 0 0 6px ${trilha.accent}22`
+                                : `0 10px 28px -14px ${trilha.glow}`,
+                            }}
+                          >
+                            <Icone size={36} className="text-white" strokeWidth={1.8} />
+                          </motion.div>
+                          <p className="text-xs md:text-sm font-bold text-white/90 leading-tight px-1 max-w-[16ch] m-0">
+                            {sit.titulo}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Painel expandido — aparece abaixo do grid quando uma situação é clicada */}
+                  <AnimatePresence mode="wait">
+                    {situacaoAberta && (() => {
+                      const sit = trilha.situacoes!.find(s => s.id === situacaoAberta);
+                      if (!sit) return null;
+                      const Icone = sit.icone;
+                      return (
+                        <motion.div
+                          key={sit.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 8 }}
+                          transition={{ duration: 0.25 }}
+                          className="mt-8 rounded-2xl border border-white/10 overflow-hidden"
+                          style={{ background: 'rgba(255,255,255,0.03)' }}
+                        >
+                          {/* Cabeçalho da situação */}
+                          <div className="p-5 md:p-7 flex items-start gap-4"
+                               style={{ background: `linear-gradient(135deg, ${trilha.accent}22, transparent)` }}>
+                            <div className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
+                                 style={{ background: `radial-gradient(circle at 30% 30%, ${trilha.accent}, ${LBW.navy})` }}>
+                              <Icone size={26} className="text-white" strokeWidth={1.8} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-black tracking-[0.25em] text-white/50 uppercase m-0 mb-1">
+                                Quando dói
+                              </p>
+                              <p className="text-base md:text-lg font-bold text-white m-0 mb-2 leading-tight">
+                                {sit.titulo}
+                              </p>
+                              <p className="text-sm text-white/70 m-0 leading-snug">
+                                {sit.quandoDoi}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setSituacaoAberta(null)}
+                              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition shrink-0"
+                              style={{ border: 'none', cursor: 'pointer' }}
+                              aria-label="Fechar situação"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+
+                          {/* Conteúdo da situação — 2 colunas (técnico / comportamental) */}
+                          <div className="p-5 md:p-7 grid md:grid-cols-2 gap-5">
+                            <div className="rounded-xl p-4 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <Wrench size={14} style={{ color: trilha.accent }} />
+                                <span className="text-[10px] font-black tracking-[0.2em] uppercase text-white/60">
+                                  Parte técnica
+                                </span>
+                              </div>
+                              <ul className="space-y-2 m-0 p-0 list-none">
+                                {sit.parteTecnica.map((t, i) => (
+                                  <li key={i} className="text-sm text-white/85 leading-snug flex gap-2">
+                                    <span style={{ color: trilha.accent }}>•</span>
+                                    <span>{t}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="rounded-xl p-4 border border-white/10" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <Compass size={14} style={{ color: trilha.accent }} />
+                                <span className="text-[10px] font-black tracking-[0.2em] uppercase text-white/60">
+                                  Parte comportamental
+                                </span>
+                              </div>
+                              <ul className="space-y-2 m-0 p-0 list-none">
+                                {sit.parteComportamental.map((t, i) => (
+                                  <li key={i} className="text-sm text-white/85 leading-snug flex gap-2">
+                                    <span style={{ color: trilha.accent }}>•</span>
+                                    <span>{t}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          {/* Artefato + vídeo Israel + prompt do Mentor */}
+                          <div className="px-5 md:px-7 pb-5 md:pb-7 space-y-4">
+                            {/* Artefato */}
+                            <div className="rounded-xl p-4 flex items-start gap-3"
+                                 style={{ background: `${trilha.accent}18`, border: `1px solid ${trilha.accent}44` }}>
+                              <CheckCircle2 size={18} className="shrink-0 mt-0.5" style={{ color: trilha.accent }} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-black tracking-[0.2em] uppercase m-0 mb-1" style={{ color: trilha.accent }}>
+                                  Artefato salvo na sua conta
+                                </p>
+                                <p className="text-sm text-white m-0 leading-snug">{sit.artefato}</p>
+                              </div>
+                            </div>
+
+                            {/* Vídeo do Israel */}
+                            <div className="rounded-xl p-4 border border-white/10 flex items-start gap-3"
+                                 style={{ background: 'rgba(255,255,255,0.02)' }}>
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-black text-white"
+                                   style={{ background: `linear-gradient(135deg, ${trilha.accent}, ${LBW.navy})` }}>
+                                IS
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-black tracking-[0.2em] uppercase text-white/60 m-0 mb-1">
+                                  Vídeo do Israel · {sit.videoIsrael.duracao}
+                                </p>
+                                <p className="text-sm text-white/85 italic m-0 leading-snug">
+                                  "{sit.videoIsrael.resumo}"
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => { navigate(trilha.ctaPrimario.rota); onClose(); }}
+                                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-white hover:bg-white/20 transition"
+                                style={{ background: 'rgba(255,255,255,0.10)', border: 'none', cursor: 'pointer' }}
+                              >
+                                <Play size={12} fill="white" /> Assistir
+                              </button>
+                            </div>
+
+                            {/* Prompt pré-moldado pro Mentor */}
+                            <div className="rounded-xl p-4 border border-white/10"
+                                 style={{ background: 'rgba(255,255,255,0.02)' }}>
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles size={14} style={{ color: trilha.accent }} />
+                                  <span className="text-[10px] font-black tracking-[0.2em] uppercase text-white/60">
+                                    Use no Mentor IA
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    try {
+                                      navigator.clipboard?.writeText(sit.promptMentor);
+                                    } catch { /* clipboard pode falhar em http — ignora */ }
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold text-white/80 hover:text-white hover:bg-white/10 transition"
+                                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', cursor: 'pointer' }}
+                                >
+                                  <Copy size={11} /> Copiar
+                                </button>
+                              </div>
+                              <p className="text-sm text-white/85 m-0 leading-snug font-mono"
+                                 style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                                {sit.promptMentor}
+                              </p>
+                              <button
+                                onClick={() => { navigate('/chat'); onClose(); }}
+                                className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold text-white transition"
+                                style={{ background: trilha.accent, border: 'none', cursor: 'pointer' }}
+                              >
+                                <Sparkles size={13} /> Abrir Mentor com esse prompt
+                              </button>
+                            </div>
+
+                            {/* Conexão com trilha paga (gateway) */}
+                            {sit.conexaoPaga && (
+                              <div className="flex items-start gap-2 px-1">
+                                <Lightbulb size={14} className="text-white/40 mt-0.5 shrink-0" />
+                                <p className="text-xs text-white/55 m-0 leading-snug">
+                                  Quer mais profundidade? Esse tema é coberto em <span className="text-white/80 font-bold">{sit.conexaoPaga}</span>.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })()}
+                  </AnimatePresence>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-10">
+                  <h3 className="text-xl md:text-2xl font-black text-white m-0 mb-4">
+                    Episódios
+                    <span className="ml-3 text-sm font-bold text-white/40">({trilha.episodios.length})</span>
+                  </h3>
+                  <div className="space-y-2">
+                    {trilha.episodios.map(ep => (
+                      <div key={ep.numero}
+                           className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition group">
+                        <div className="text-3xl font-black text-white/30 w-10 text-center shrink-0">
+                          {ep.numero}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-white text-sm md:text-base m-0">{ep.titulo}</p>
+                          <p className="text-white/60 text-xs md:text-sm m-0 mt-0.5">{ep.resumo}</p>
+                        </div>
+                        <div className="text-xs font-bold text-white/50 shrink-0">{ep.duracao}</div>
+                        <Play size={18} className="text-white/30 group-hover:text-white transition shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Ferramentas relacionadas — direcionando pras outras abas */}
               <div>

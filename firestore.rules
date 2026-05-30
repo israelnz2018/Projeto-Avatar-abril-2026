@@ -201,5 +201,26 @@ service cloud.firestore {
       allow read:   if isAdmin();
       allow update, delete: if isAdmin();
     }
+
+    // Progresso de vídeos assistidos — 1 doc por aluno (id = uid).
+    // Aluno lê/escreve só o próprio. Admin lê tudo (relatório). Coordenador lê do time.
+    match /userProgress/{userId} {
+      allow read:   if isAuthenticated() && (
+        isAdmin() ||
+        isOwner(userId) ||
+        (isCoordenador() && sameEmpresa(userId))
+      );
+      allow create, update: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow delete: if isAdmin();
+    }
+
+    // Snapshot público de certificados — leitura ABERTA (qualquer pessoa com o certId valida).
+    // Escrita só pelo próprio aluno autenticado (no momento da emissão automática).
+    // Não contém dados sensíveis: só nome do aluno, nome da trilha, data e ID.
+    match /certificadosPublicos/{certId} {
+      allow read:  if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
   }
 }

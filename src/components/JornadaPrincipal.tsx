@@ -115,20 +115,22 @@ export default function JornadaPrincipal() {
     setTrilhaSelecionada(trilha);
   }, []);
 
-  // "Top 10" — usa as trilhas com selo TOP 10 + algumas escolhidas a dedo
-  const top10Ids = [
-    'melhorar-minha-area',
-    'perfil-gestor-lean',
-    'ferramentas-dia-a-dia',
-    'analise-risco-mudanca',
-    'mudanca-com-menos-resistencia',
-    'apresentar-recomendacao',
-    'dados-do-dia-a-dia',
-    'especialista-projetos-complexos',
-    'problema-cronico',
-    'gerenciar-pessoas-projeto',
+  // Progressão sugerida — do mais básico (chegou agora) ao mais avançado (Especialista LBW).
+  // Ordem honesta de dificuldade técnica, não ranking inventado de popularidade.
+  const progressaoIds = [
+    'ferramentas-dia-a-dia',              // T1 — Iniciante (GRÁTIS)
+    'melhorar-minha-area',                // T2 — Iniciante
+    'identificar-desperdicio',            // Iniciante
+    'dados-do-dia-a-dia',                 // T3 — Intermediário
+    'mudanca-com-menos-resistencia',      // T5 — Intermediário
+    'analise-risco-mudanca',              // T4 — Intermediário
+    'perfil-gestor-lean',                 // T8 — Intermediário
+    'gerenciar-pessoas-projeto',          // Intermediário
+    'apresentar-recomendacao',            // T7 — Avançado
+    'problema-cronico',                   // T6 — Avançado
+    'especialista-projetos-complexos',    // T9 — Avançado (Formação LBW)
   ];
-  const top10 = top10Ids
+  const progressao = progressaoIds
     .map(id => TRILHAS.find(t => t.id === id))
     .filter((t): t is Trilha => t !== undefined);
 
@@ -288,11 +290,11 @@ export default function JornadaPrincipal() {
           onSelect={onInfo}
         />
 
-        {/* ROW 4 — TOP 10 (ranqueada) */}
+        {/* ROW 4 — Progressão sugerida (ranqueada por nível de dificuldade) */}
         <TrilhaRow
-          titulo="Top 10 da semana"
-          subtitulo="As trilhas que mais transformam carreira agora"
-          trilhas={top10}
+          titulo="Do básico ao avançado"
+          subtitulo="A ordem natural — da primeira semana de trabalho até o nível especialista"
+          trilhas={progressao}
           onSelect={onInfo}
           ranked
         />
@@ -346,14 +348,15 @@ function ManifestoRodape() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              o que eu queria ter tido
+              o que aprendi no tropeço
             </span><br/>
-            aos 25 anos.
+            em 27 anos de carreira.
           </p>
           <p className="text-base md:text-lg text-white/65 leading-relaxed max-w-2xl mx-auto m-0 mb-10">
-            Aprendi tropeçando — e foi caro. Aqui está condensado em trilhas, ferramentas e
-            mentoria pra você não pagar o mesmo preço. Comece pela trilha que te chamou
-            atenção agora. Não precisa fazer tudo. Faça <strong className="text-white">uma</strong>.
+            Passei por 5 multinacionais no Brasil e na Nova Zelândia — petroquímica, automotivo,
+            alimentos, dispositivos médicos e setor público. Aqui está o que funciona no chão
+            da empresa, sem academia e sem buzzword. Comece pela trilha que te chamou atenção.
+            Não precisa fazer todas. Faça <strong className="text-white">uma</strong> bem feita.
           </p>
 
           <div className="inline-flex items-center gap-3 mb-10">

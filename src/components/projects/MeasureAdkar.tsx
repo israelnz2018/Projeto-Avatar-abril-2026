@@ -438,7 +438,7 @@ export default function MeasureAdkar({
     const rawSource = stakeholderAdkarData || allProjectData?.stakeholderAdkar;
     const source = rawSource?.toolData || rawSource;
     if (!source?.stakeholders?.length) {
-      alert('Nenhum dado encontrado na ferramenta Stakeholder & ADKAR (fase Definir). Salve os dados lá primeiro.');
+      alert('Nenhum dado encontrado na ferramenta ADKAR — Definir (Awareness). Salve os dados lá primeiro.');
       return;
     }
     const imported = source.stakeholders.map((s: any) => ({

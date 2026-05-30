@@ -27,6 +27,7 @@ import {
   LBW_GRADIENTS,
   Pill,
 } from './_shared';
+import VideoProgressSection from './VideoProgressSection';
 
 interface Props {
   nome?: string | null;
@@ -233,6 +234,9 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
           </div>
         </motion.div>
       )}
+
+      {/* ====== Progresso de vídeos por trilha (apenas trilhas acessíveis ao Starter) ====== */}
+      <VideoProgressSection accessibleInitiatives={scope.data.initiatives} />
     </DashboardShell>
   );
 }

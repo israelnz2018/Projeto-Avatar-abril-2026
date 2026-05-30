@@ -21,7 +21,9 @@ import {
   ChevronDown,
   ChevronUp,
   ListVideo,
-  Lock
+  Lock,
+  Check,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
@@ -29,6 +31,19 @@ import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { getInitiatives } from '../services/configService';
 import { LockedToolPopup } from './LockedToolPopup';
+import { auth } from '../lib/firebase';
+import {
+  subscribeUserProgress,
+  markVideoWatched,
+  checkAndIssueCertificate,
+  saveVideoPosition,
+  WATCH_THRESHOLD_PCT,
+  CERTIFICATE_THRESHOLD_PCT,
+  type WatchedEntry,
+} from '../services/videoProgressService';
+import { useYouTubeWatchTracker } from '../hooks/useYouTubeWatchTracker';
+import { getUserData } from '../services/userService';
+import type { Initiative } from '../types';
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
@@ -41,21 +56,49 @@ export default function LearningView() {
   const [seekTime, setSeekTime] = useState(0);
   const [freeCourseNames, setFreeCourseNames] = useState<Set<string>>(new Set());
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+  const [allInitiatives, setAllInitiatives] = useState<Initiative[]>([]);
+  const [watchedUrls, setWatchedUrls] = useState<Record<string, WatchedEntry>>({});
+  const [justCompletedCertId, setJustCompletedCertId] = useState<string | null>(null);
+  const [alunoNome, setAlunoNome] = useState<string>('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Carrega nome do aluno do Firestore (congela no certificado quando emitir).
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    getUserData(uid).then(u => {
+      const nome = u?.nome
+        || auth.currentUser?.displayName
+        || (auth.currentUser?.email?.split('@')[0] || 'Aluno LBW');
+      setAlunoNome(nome);
+    }).catch(() => {
+      setAlunoNome(auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Aluno LBW');
+    });
+  }, []);
 
   const { plano, isAdmin, isCoordenador } = useUserAccess();
   // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
   const isStarter = !isAdmin && !isCoordenador && plano !== 'completo';
 
-  // Carrega trilhas gratuitas (isFree === true) e guarda os NOMES delas — o vínculo
-  // com knowledge_base é via `course` que deve bater com `initiative.name`.
+  // Carrega initiatives (todas) — guardamos pra calcular progresso por trilha + free check.
+  // Vínculo com knowledge_base é via `course` que deve bater com `initiative.name`.
   useEffect(() => {
     getInitiatives()
       .then(inits => {
+        setAllInitiatives(inits);
         const nomes = new Set(inits.filter(i => i.isFree === true).map(i => i.name));
         setFreeCourseNames(nomes);
       })
       .catch(() => setFreeCourseNames(new Set()));
+  }, []);
+
+  // Assina o progresso do aluno em tempo real. Atualização do doc Firestore reflete na UI
+  // imediatamente (ex: quando o tracker marca um vídeo como assistido).
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const unsub = subscribeUserProgress(uid, p => setWatchedUrls(p.watchedUrls));
+    return () => unsub();
   }, []);
 
   const isCourseLocked = (course: string) => isStarter && !freeCourseNames.has(course);
@@ -66,6 +109,59 @@ export default function LearningView() {
 
   useEffect(() => {
     setSeekTime(0);
+  }, [selectedVideo?.id]);
+
+  // Throttle refs pra salvar posição no máximo a cada 10s (evita writes em rajada)
+  const lastPositionSaveAt = useRef(0);
+
+  // Watch tracker: quando o aluno está com vídeo aberto, conta segundos em PLAYING state.
+  // Quando passa 70% (WATCH_THRESHOLD_PCT), marca como assistido + checa certificado da trilha.
+  // Também persiste a posição atual a cada ~10s pra retomar do mesmo ponto na próxima abertura.
+  useYouTubeWatchTracker({
+    iframeRef,
+    videoId: selectedVideo ? (selectedVideo.sourceUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)?.[1] || null) : null,
+    threshold: WATCH_THRESHOLD_PCT,
+    onThresholdReached: async (pct) => {
+      const uid = auth.currentUser?.uid;
+      if (!uid || !selectedVideo) return;
+      try {
+        const initiative = allInitiatives.find(i => i.name === selectedVideo.course);
+        await markVideoWatched(uid, selectedVideo.sourceUrl, pct, initiative?.id);
+        if (initiative) {
+          const justIssued = await checkAndIssueCertificate(uid, initiative, items, alunoNome);
+          if (justIssued) setJustCompletedCertId(initiative.id);
+        }
+      } catch (err) {
+        console.error('[LearningView] erro ao marcar vídeo assistido:', err);
+      }
+    },
+    onTick: (cur, dur) => {
+      const uid = auth.currentUser?.uid;
+      if (!uid || !selectedVideo || dur <= 0) return;
+      const now = Date.now();
+      if (now - lastPositionSaveAt.current < 10_000) return; // throttle 10s
+      lastPositionSaveAt.current = now;
+      saveVideoPosition(uid, selectedVideo.sourceUrl, cur, dur).catch(err =>
+        console.error('[LearningView] erro ao salvar posição:', err),
+      );
+    },
+  });
+
+  // Quando troca de vídeo, se já tem lastPosition salvo (> 0), pula pro ponto onde parou.
+  // A regra do service garante: se chegou a 95%+ do vídeo, lastPosition foi salvo como 0
+  // (modo revisão — começa do início).
+  useEffect(() => {
+    if (!selectedVideo) return;
+    const entry = watchedUrls[selectedVideo.sourceUrl];
+    const resumeAt = entry?.lastPosition || 0;
+    if (resumeAt > 0) {
+      // Pequeno delay pra dar tempo do iframe carregar antes do seek
+      const t = setTimeout(() => setSeekTime(resumeAt), 1500);
+      return () => clearTimeout(t);
+    }
+  // Intencionalmente NÃO depende de watchedUrls — não queremos re-seek quando o tracker
+  // atualiza watchedUrls em background; só quando o aluno seleciona um vídeo novo.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVideo?.id]);
 
   useEffect(() => {
@@ -291,6 +387,94 @@ export default function LearningView() {
         </motion.div>
       )}
 
+      {/* Barra de progresso da trilha — só quando uma trilha específica está selecionada.
+          Dedup por sourceUrl: se o mesmo vídeo aparece em N playlists, conta uma vez. */}
+      {activeCategory !== 'Todos' && (() => {
+        const videosDaTrilha = items.filter(v => v.course === activeCategory);
+        const urlsUnicas = Array.from(new Set(videosDaTrilha.map(v => v.sourceUrl).filter(Boolean)));
+        const assistidos = urlsUnicas.filter(u => watchedUrls[u]).length;
+        const total = urlsUnicas.length;
+        const pct = total === 0 ? 0 : assistidos / total;
+        const pctRound = Math.round(pct * 100);
+        const earnedCert = pct >= CERTIFICATE_THRESHOLD_PCT && total > 0;
+        return (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white border border-[#e5e7eb] rounded-[8px] p-4 flex items-center gap-4"
+          >
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+              earnedCert ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+            )}>
+              {earnedCert ? <Award size={20} /> : <GraduationCap size={20} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[12px] font-black uppercase tracking-wider text-[#1f2937] m-0">
+                  Seu progresso nesta trilha
+                </p>
+                <span className="text-[12px] font-bold text-[#374151]">
+                  {assistidos} / {total} vídeos · {pctRound}%
+                </span>
+              </div>
+              <div className="relative h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pctRound}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className={cn(
+                    "absolute inset-y-0 left-0 rounded-full",
+                    earnedCert ? "bg-emerald-500" : "bg-blue-600"
+                  )}
+                />
+                {/* Marca do threshold do certificado */}
+                <div
+                  className="absolute top-[-4px] bottom-[-4px] w-px bg-amber-500"
+                  style={{ left: `${CERTIFICATE_THRESHOLD_PCT * 100}%` }}
+                  title={`Certificado liberado em ${CERTIFICATE_THRESHOLD_PCT * 100}%`}
+                />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1.5 m-0">
+                {earnedCert
+                  ? <span className="text-emerald-700 font-bold">🎓 Certificado liberado</span>
+                  : `Liberação do certificado em ${Math.round(CERTIFICATE_THRESHOLD_PCT * 100)}% — falta ${Math.max(0, Math.ceil(total * CERTIFICATE_THRESHOLD_PCT) - assistidos)} ${(Math.ceil(total * CERTIFICATE_THRESHOLD_PCT) - assistidos) === 1 ? 'vídeo' : 'vídeos'}`
+                }
+              </p>
+            </div>
+          </motion.div>
+        );
+      })()}
+
+      {/* Toast de certificado recém-emitido */}
+      {justCompletedCertId && (() => {
+        const init = allInitiatives.find(i => i.id === justCompletedCertId);
+        if (!init) return null;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="fixed top-20 right-6 z-50 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-2xl shadow-2xl p-4 max-w-sm border border-emerald-300"
+          >
+            <div className="flex items-start gap-3">
+              <Award size={28} className="flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-black text-sm m-0 mb-1">🎓 Certificado liberado!</p>
+                <p className="text-xs opacity-90 m-0 mb-3">Você completou {Math.round(CERTIFICATE_THRESHOLD_PCT * 100)}% da trilha <strong>{init.name}</strong>.</p>
+                <a
+                  href={`/certificado/${init.id}`}
+                  className="inline-flex items-center gap-1.5 bg-white text-emerald-700 hover:bg-emerald-50 text-[11px] font-black tracking-wider uppercase px-3 py-1.5 rounded-md transition-colors no-underline"
+                >
+                  Ver meu certificado →
+                </a>
+              </div>
+              <button onClick={() => setJustCompletedCertId(null)}
+                className="text-white/70 hover:text-white border-0 bg-transparent cursor-pointer p-0">
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {loading ? (
         <div className={cn(
           "grid gap-6",
@@ -315,6 +499,7 @@ export default function LearningView() {
             const videoId = getYoutubeId(item.sourceUrl);
             const isSelected = selectedVideo?.id === item.id;
             const videoLocked = isCourseLocked(item.course);
+            const isWatched = !!watchedUrls[item.sourceUrl];
 
             return (
               <React.Fragment key={item.id || i}>
@@ -350,6 +535,13 @@ export default function LearningView() {
                       )}
                       referrerPolicy="no-referrer"
                     />
+                    {/* Badge de "Assistido" — canto superior esquerdo, sempre visível */}
+                    {isWatched && !videoLocked && (
+                      <div className="absolute top-2 left-2 z-10 bg-emerald-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg border-2 border-white"
+                        title="Você já assistiu este vídeo">
+                        <Check size={14} strokeWidth={3} />
+                      </div>
+                    )}
                     {videoLocked ? (
                       <>
                         {/* Overlay escuro fixo nos vídeos bloqueados */}
@@ -452,7 +644,7 @@ export default function LearningView() {
                             ref={iframeRef}
                             width="100%"
                             height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`}
+                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1`}
                             title={item.title}
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

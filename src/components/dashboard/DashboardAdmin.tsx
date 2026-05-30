@@ -8,12 +8,12 @@
  * Resiliente: zero IDs chumbados. Tudo lido dos hooks de dashboard.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Activity, TrendingUp, Wrench, Video, Sparkles,
   AlertTriangle, MessageSquare, ExternalLink, BarChart2,
-  Mail, Clock, Crown,
+  Mail, Clock, Crown, Award, GraduationCap, Download, Search,
 } from 'lucide-react';
 import {
   useAdminGlobalStats, useAdminEventStats,
@@ -23,13 +23,23 @@ import {
   DashboardShell, DashboardLoading, SectionLabel,
   StatCard, Pill, LBW_GRADIENTS, GradientKey,
 } from './_shared';
+import {
+  getAllUsersProgress, calculateTrilhaProgress,
+  CERTIFICATE_THRESHOLD_PCT,
+  type UserProgress,
+} from '../../services/videoProgressService';
+import { getInitiatives } from '../../services/configService';
+import { getAllKnowledge, type KnowledgeEntry } from '../../services/knowledgeService';
+import { getAllUsers, type UserData } from '../../services/userService';
+import type { Initiative } from '../../types';
 
-type Aba = 'negocio' | 'uso' | 'saude' | 'usuarios';
+type Aba = 'negocio' | 'uso' | 'saude' | 'progresso' | 'usuarios';
 
 const ABAS: Array<{ id: Aba; label: string; icon: React.ReactNode }> = [
   { id: 'negocio', label: 'Negócio', icon: <TrendingUp size={13} /> },
   { id: 'uso', label: 'Uso', icon: <BarChart2 size={13} /> },
   { id: 'saude', label: 'Saúde', icon: <Activity size={13} /> },
+  { id: 'progresso', label: 'Progresso', icon: <GraduationCap size={13} /> },
   { id: 'usuarios', label: 'Usuários', icon: <Crown size={13} /> },
 ];
 
@@ -106,6 +116,7 @@ export default function DashboardAdmin({ nome }: { nome?: string | null }) {
           {abaAtiva === 'negocio' && <AbaNegocio />}
           {abaAtiva === 'uso' && <AbaUso />}
           {abaAtiva === 'saude' && <AbaSaude />}
+          {abaAtiva === 'progresso' && <AbaProgresso />}
           {abaAtiva === 'usuarios' && <AbaUsuarios />}
         </motion.div>
       </AnimatePresence>
@@ -470,6 +481,267 @@ function AbaUsuarios() {
           <ExternalLink size={14} />
         </a>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// ABA PROGRESSO — heatmap aluno × trilha (% conclusão) + métricas
+// =============================================================================
+
+function AbaProgresso() {
+  const [loading, setLoading] = useState(true);
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [allVideos, setAllVideos] = useState<KnowledgeEntry[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [progressos, setProgressos] = useState<UserProgress[]>([]);
+  const [busca, setBusca] = useState('');
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('todas');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [inits, vids, usrs, progs] = await Promise.all([
+          getInitiatives(),
+          getAllKnowledge(),
+          getAllUsers(),
+          getAllUsersProgress(),
+        ]);
+        setInitiatives(inits);
+        setAllVideos(vids);
+        setUsers(usrs);
+        setProgressos(progs);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <DashboardLoading label="Carregando progresso dos alunos…" />;
+
+  // Index progressos por uid pra lookup O(1)
+  const progressByUid = new Map<string, UserProgress>();
+  progressos.forEach(p => progressByUid.set(p.uid, p));
+
+  // Filtra users pelos critérios da UI
+  const empresas = Array.from(new Set(users.map(u => u.empresaNome).filter(Boolean) as string[])).sort();
+  const usersVisiveis = users
+    .filter(u => u.tipoUsuario !== 'admin') // admins fora do relatório
+    .filter(u => filtroEmpresa === 'todas' || u.empresaNome === filtroEmpresa)
+    .filter(u => {
+      if (!busca.trim()) return true;
+      const q = busca.toLowerCase();
+      return (u.nome || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+    });
+
+  // Pré-calcula progresso por trilha pra cada user visível
+  const linhas = usersVisiveis.map(u => {
+    const progress = progressByUid.get(u.uid);
+    const watched = progress?.watchedUrls || {};
+    const porTrilha = initiatives.map(i => calculateTrilhaProgress(i, allVideos, watched));
+    const certificados = porTrilha.filter(t => t.earnedCertificate).length;
+    const pctMedia = porTrilha.length === 0 ? 0
+      : porTrilha.reduce((s, t) => s + t.pct, 0) / porTrilha.length;
+    return { user: u, porTrilha, certificados, pctMedia };
+  });
+
+  // Métricas agregadas
+  const totalAlunos = usersVisiveis.length;
+  const totalCertificados = linhas.reduce((s, l) => s + l.certificados, 0);
+  const pctMedioGlobal = linhas.length === 0 ? 0
+    : linhas.reduce((s, l) => s + l.pctMedia, 0) / linhas.length;
+  const trilhaMaisCompleta = (() => {
+    if (initiatives.length === 0 || linhas.length === 0) return null;
+    const totaisPorTrilha = initiatives.map((i, idx) => ({
+      initiative: i,
+      pctMedia: linhas.reduce((s, l) => s + (l.porTrilha[idx]?.pct || 0), 0) / linhas.length,
+    }));
+    totaisPorTrilha.sort((a, b) => b.pctMedia - a.pctMedia);
+    return totaisPorTrilha[0];
+  })();
+
+  // CSV export
+  const exportCSV = () => {
+    const header = ['Aluno', 'Email', 'Empresa', ...initiatives.map(i => i.name), 'Certificados', '% médio'];
+    const rows = linhas.map(l => [
+      l.user.nome || '',
+      l.user.email || '',
+      l.user.empresaNome || '',
+      ...l.porTrilha.map(t => `${Math.round(t.pct * 100)}%`),
+      String(l.certificados),
+      `${Math.round(l.pctMedia * 100)}%`,
+    ]);
+    const csv = [header, ...rows].map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `progresso-alunos-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Métricas top */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Alunos" value={totalAlunos.toString()} icon={<Crown size={16} />} gradient="navy" />
+        <StatCard label="% médio global" value={`${Math.round(pctMedioGlobal * 100)}%`} icon={<TrendingUp size={16} />} gradient="sky" />
+        <StatCard label="Certificados emitidos" value={totalCertificados.toString()} icon={<Award size={16} />} gradient="emerald" />
+        <StatCard
+          label="Trilha mais completa"
+          value={trilhaMaisCompleta ? `${Math.round(trilhaMaisCompleta.pctMedia * 100)}%` : '—'}
+          icon={<GraduationCap size={16} />}
+          gradient="violet"
+          sublabel={trilhaMaisCompleta?.initiative.name}
+        />
+      </div>
+
+      {/* Atalho admin: preview de certificado por trilha (sem precisar concluir) */}
+      <div className="rounded-xl p-4 border border-amber-500/30" style={{ background: 'rgba(245, 158, 11, 0.06)' }}>
+        <div className="flex items-center gap-2 text-[11px] font-black tracking-widest uppercase text-amber-300 mb-3">
+          <Award size={12} />
+          Testar certificados (admin) — abre preview pra imprimir
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+          {initiatives.map(i => (
+            <a
+              key={i.id}
+              href={`/certificado/${i.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-bold text-white/85 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-md px-3 py-2 transition-colors truncate"
+              title={i.name}
+            >
+              {i.name}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Filtros + export */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 flex-1 min-w-[200px] max-w-md">
+          <Search size={14} className="text-white/40" />
+          <input
+            type="text"
+            placeholder="Buscar por nome ou email…"
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            className="bg-transparent outline-none text-[12px] text-white placeholder:text-white/35 flex-1"
+          />
+        </div>
+        {empresas.length > 0 && (
+          <select
+            value={filtroEmpresa}
+            onChange={e => setFiltroEmpresa(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[12px] text-white outline-none"
+          >
+            <option value="todas">Todas as empresas</option>
+            {empresas.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
+        )}
+        <button
+          onClick={exportCSV}
+          disabled={linhas.length === 0}
+          className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white text-[11px] font-bold tracking-wider uppercase px-3 py-2 rounded-lg disabled:opacity-40"
+          style={{ cursor: linhas.length === 0 ? 'not-allowed' : 'pointer' }}
+        >
+          <Download size={12} /> CSV
+        </button>
+      </div>
+
+      {/* Heatmap aluno × trilha */}
+      <div
+        className="rounded-xl overflow-hidden border border-white/10"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px] text-white/90">
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <th className="text-left px-3 py-2.5 font-black tracking-wider uppercase text-white/55 sticky left-0 z-10"
+                  style={{ background: 'rgba(15,25,55,0.95)', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+                  Aluno
+                </th>
+                {initiatives.map(i => (
+                  <th key={i.id} className="px-2 py-2.5 font-black tracking-wider uppercase text-white/55 text-center" style={{ minWidth: 92 }}>
+                    {i.name.length > 14 ? i.name.slice(0, 12) + '…' : i.name}
+                  </th>
+                ))}
+                <th className="px-2 py-2.5 font-black tracking-wider uppercase text-white/55 text-center" style={{ minWidth: 70 }}>
+                  Certs
+                </th>
+                <th className="px-2 py-2.5 font-black tracking-wider uppercase text-white/55 text-center" style={{ minWidth: 70 }}>
+                  Médio
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.length === 0 ? (
+                <tr>
+                  <td colSpan={initiatives.length + 3} className="text-center py-8 text-white/45">
+                    Nenhum aluno com os filtros atuais.
+                  </td>
+                </tr>
+              ) : linhas.map(({ user, porTrilha, certificados, pctMedia }) => (
+                <tr key={user.uid} className="hover:bg-white/[0.03] transition-colors">
+                  <td className="px-3 py-2 sticky left-0 z-10" style={{ background: 'rgba(15,25,55,0.92)', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="font-bold text-white text-[12px] leading-tight truncate max-w-[200px]" title={user.nome || user.email}>
+                      {user.nome || user.email.split('@')[0]}
+                    </div>
+                    <div className="text-[10px] text-white/45 truncate max-w-[200px]">
+                      {user.empresaNome || user.email}
+                    </div>
+                  </td>
+                  {porTrilha.map((t, idx) => (
+                    <td key={idx} className="text-center px-1 py-1">
+                      <HeatCell pct={t.pct} total={t.total} watched={t.watched} earnedCert={t.earnedCertificate} />
+                    </td>
+                  ))}
+                  <td className="text-center font-bold text-[12px]" style={{ color: certificados > 0 ? '#34D399' : 'rgba(255,255,255,0.35)' }}>
+                    {certificados > 0 ? `🎓 ${certificados}` : '—'}
+                  </td>
+                  <td className="text-center font-bold text-[12px] text-white">
+                    {Math.round(pctMedia * 100)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-white/35 text-center">
+        Certificado liberado em {Math.round(CERTIFICATE_THRESHOLD_PCT * 100)}% da trilha · dados atualizados em tempo real
+      </p>
+    </div>
+  );
+}
+
+function HeatCell({ pct, total, watched, earnedCert }: { pct: number; total: number; watched: number; earnedCert: boolean }) {
+  if (total === 0) {
+    return <div className="text-[10px] text-white/25">—</div>;
+  }
+  // Cor por faixa: vermelho < 25%, laranja < 50%, amarelo < 70%, verde >= 70%
+  const bg = pct >= CERTIFICATE_THRESHOLD_PCT ? 'rgba(52, 211, 153, 0.35)'
+    : pct >= 0.5 ? 'rgba(251, 191, 36, 0.30)'
+    : pct >= 0.25 ? 'rgba(251, 146, 60, 0.30)'
+    : pct > 0 ? 'rgba(239, 68, 68, 0.25)'
+    : 'rgba(255,255,255,0.04)';
+  const borderColor = earnedCert ? 'rgba(52, 211, 153, 0.7)' : 'rgba(255,255,255,0.08)';
+  return (
+    <div className="inline-flex flex-col items-center justify-center rounded-md px-2 py-1.5 min-w-[68px]"
+      style={{ background: bg, border: `1px solid ${borderColor}` }}
+      title={`${watched} de ${total} vídeos (${Math.round(pct * 100)}%)${earnedCert ? ' · certificado' : ''}`}
+    >
+      <span className="text-[12px] font-black text-white leading-none">
+        {Math.round(pct * 100)}%
+      </span>
+      <span className="text-[9px] text-white/55 leading-none mt-0.5">
+        {watched}/{total}
+      </span>
     </div>
   );
 }

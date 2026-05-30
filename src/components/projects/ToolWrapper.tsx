@@ -639,8 +639,8 @@ const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; 
   },
   brainstormingImprove: {
     title: 'Gerar Brainstorming de Soluções',
-    description: 'Obter os dados de Observação Direta e Análise Estatística e gerar Brainstorming de Soluções.',
-    source: 'Observação Direta e Análise Estatística'
+    description: 'Obter os dados de Observação Direta e Análise Gráfica e Estatística e gerar Brainstorming de Soluções.',
+    source: 'Observação Direta e Análise Gráfica e Estatística'
   },
   measureIshikawa: {
     title: "Gerar Espinha de Peixe com IA",
@@ -1900,7 +1900,9 @@ export default function ToolWrapper({
           </div>
         </div>
 
-      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && (
+      {/* AI Block — só aparece se a ferramenta SOURCE foi aberta e salvou dados (previousToolData).
+          Antes, o bloco aparecia mesmo com source vazio — gerava SIPOC sem Charter, etc. */}
+      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && !!previousToolData && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}
@@ -1912,14 +1914,15 @@ export default function ToolWrapper({
         />
       )}
 
-      {isToolEmpty() && TOOLS_WITH_MIGRATE_BLOCK[toolId] && showAIPrompt && (
+      {/* Migrate Block — só aparece se a ferramenta SOURCE existe e tem dados salvos. */}
+      {isToolEmpty() && TOOLS_WITH_MIGRATE_BLOCK[toolId] && showAIPrompt && !!getToolDataByPrefix(allProjectData, TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId) && (
         <MigratePromptCard
           toolId={toolId}
           toolName={toolName}
           sourceName={TOOLS_WITH_MIGRATE_BLOCK[toolId].source}
           onMigrate={() => handleMigrateData(TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)}
           isMigrating={isGeneratingData}
-          hasSourceData={!!getToolDataByPrefix(allProjectData, TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)}
+          hasSourceData={true}
         />
       )}
 

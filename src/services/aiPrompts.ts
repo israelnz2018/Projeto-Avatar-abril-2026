@@ -168,7 +168,7 @@ Use dados reais do contexto do projeto.`
   // STAKEHOLDER & ADKAR
   // ======================================================================
   stakeholderAdkar: {
-    toolName: "Stakeholder & ADKAR",
+    toolName: "ADKAR — Definir (Awareness)",
     structure: `{
   "stakeholders": [
     {

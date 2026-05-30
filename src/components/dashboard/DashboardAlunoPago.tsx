@@ -22,6 +22,7 @@ import {
   DashboardShell, DashboardLoading, DashboardError,
   SectionLabel, StatCard, ProgressBar, Pill, LBW_GRADIENTS, GradientKey,
 } from './_shared';
+import VideoProgressSection from './VideoProgressSection';
 
 interface Props {
   nome?: string | null;
@@ -277,6 +278,9 @@ export default function DashboardAlunoPago({ nome }: Props) {
           })}
         </div>
       </div>
+
+      {/* ====== Progresso de vídeos por trilha (auto-atualiza com Firestore) ====== */}
+      <VideoProgressSection accessibleInitiatives={scope.data.initiatives} />
 
       {/* ====== Ferramentas legadas (se houver) ====== */}
       {stats.data.ferramentas.legadas > 0 && (

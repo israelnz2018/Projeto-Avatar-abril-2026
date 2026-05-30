@@ -29,6 +29,12 @@ import {
   Recycle,
   RotateCw,
   Globe2,
+  Compass,
+  Network,
+  Search,
+  MessageSquare,
+  Eye,
+  AtSign,
 } from 'lucide-react';
 
 // =============================================================================
@@ -40,6 +46,44 @@ export interface Episodio {
   titulo: string;
   duracao: string;
   resumo: string;
+}
+
+/**
+ * Situação — usado APENAS pela Trilha 1 (grátis).
+ *
+ * A Trilha 1 não é uma sequência linear de episódios. É um KIT DE ADAPTAÇÃO
+ * organizado por situação real que o profissional enfrenta nos primeiros
+ * meses de uma área nova. O aluno consome QUANDO trava em algo — não em ordem.
+ *
+ * Por isso o modal renderiza as situações como CÍRCULOS (não como lista
+ * numerada de episódios). Cada círculo abre uma carta-vídeo + ferramenta +
+ * prompt do Mentor IA.
+ *
+ * Cada situação separa explicitamente PARTE TÉCNICA (método, ferramenta)
+ * de PARTE COMPORTAMENTAL (régua de decisão, frame de comunicação). Israel
+ * é técnico — comportamento só entra como critério objetivo, nunca como
+ * "como você se sente".
+ */
+export interface Situacao {
+  id: string;
+  /** Frase em 1ª pessoa: "Cheguei e não entendi como minha área se encaixa no todo" */
+  titulo: string;
+  /** Quando esse problema dói (gatilho) */
+  quandoDoi: string;
+  /** Tópicos da parte técnica (método, ferramenta) */
+  parteTecnica: string[];
+  /** Tópicos da parte comportamental — sempre régua/critério, nunca emoção */
+  parteComportamental: string[];
+  /** Artefato concreto que fica salvo na conta do aluno */
+  artefato: string;
+  /** Vídeo do Israel — duração curta + resumo do caso real que ele conta */
+  videoIsrael: { duracao: string; resumo: string };
+  /** Prompt pré-moldado pro Mentor IA — aluno só completa os colchetes */
+  promptMentor: string;
+  /** Trilha paga que aprofunda esse tema (gateway) */
+  conexaoPaga?: string;
+  /** Ícone lucide */
+  icone: ElementType;
 }
 
 export interface FerramentaLink {
@@ -85,6 +129,11 @@ export interface Trilha {
   cartaIsrael: string;
   oQueVoceLeva: string[];
   episodios: Episodio[];
+  /**
+   * Situações — opcional. Quando presente, o modal renderiza um GRID DE CÍRCULOS
+   * em vez da lista linear de episódios. Hoje só a Trilha 1 (grátis) usa isso.
+   */
+  situacoes?: Situacao[];
   ferramentas: FerramentaLink[];
   ctaPrimario: { label: string; rota: string };
   /** Tag invisível pra filtrar em rows ("destaque", "iniciante", "lideranca", etc) */
@@ -107,41 +156,188 @@ export const TRILHAS: Trilha[] = [
   {
     id: 'ferramentas-dia-a-dia',
     numero: '01',
-    titulo: 'Como Dar Os Primeiros Passos para se Destacar no Trabalho',
-    subtitulo: 'Sua primeira semana sem se sentir perdido',
-    dor: 'Pra você não passar vergonha e mostrar valor desde o primeiro dia',
-    paraQuem: 'Quem está chegando agora — ou mudou de área e precisa se posicionar rápido',
-    icone: Wrench,
+    titulo: 'Como Se Adaptar a uma Área Nova Sem Travar',
+    subtitulo: 'Kit de sobrevivência pros primeiros meses',
+    dor: 'Pra você se posicionar rápido quando chega numa empresa, área ou função nova',
+    paraQuem: 'Quem chegou agora (1 semana a 6 meses) numa empresa nova, área nova ou função nova — e precisa entregar valor antes de "se achar"',
+    icone: Compass,
     gradient: 'from-blue-500 via-blue-700 to-indigo-900',
     glow: 'rgba(59, 130, 246, 0.45)',
     accent: '#3B82F6',
     motif: 'spiral-flow',
-    duracao: '1 semana',
+    duracao: 'Use quando travar',
     nivel: 'Iniciante',
-    totalEpisodios: 5,
+    totalEpisodios: 6,
     selo: 'COMECE AQUI',
-    cartaIsrael: `Olha, eu não vou te explicar o nome bonito das ferramentas — Wikipedia faz isso melhor. O que vou te ensinar é QUANDO usar cada uma.
+    cartaIsrael: `Olha, em 27 anos passei por 5 multinacionais em 2 países. Toda vez que cheguei numa empresa nova ou mudei de área, vivi a mesma coisa: as 4-12 primeiras semanas você não sabe ONDE está pisando.
 
-Em 27 anos, aprendi que as ferramentas mais simples (um SIPOC, um 5W2H, um Brainstorming bem feito) resolvem 80% dos problemas. Os 20% que sobram precisam de coisa mais avançada — e a gente chega lá.
+Isso não é falta de competência — é falta de método pra adaptação. Faculdade não ensina, livro não ensina, e seu chefe não tem tempo de te explicar.
 
-Comece simples. Use HOJE. Aplique no que você está fazendo essa semana mesmo, mesmo que pareça pequeno. O segredo não é saber 50 ferramentas — é saber escolher as 3 certas pro problema que está na sua frente.`,
+Aqui você não vai assistir um curso de cabo a rabo. Você abre o kit QUANDO trava em alguma coisa específica: não entendi minha área, não sei a quem escalar, recebi planilha e não sei começar, tenho ideia mas não sei propor, ando aqui mas não enxergo o que observar, ou simplesmente não domino etiqueta de email no corporativo.
+
+São 6 situações reais. Cada uma com a parte técnica (a ferramenta) e a parte comportamental (a régua de decisão). Sem papo de coach. É o que eu faria se fosse você chegando.`,
     oQueVoceLeva: [
-      'Saber escolher a ferramenta certa pro problema certo (sem chutar)',
-      'Mapear qualquer processo em 5 minutos com SIPOC',
-      'Estruturar um plano de ação que seu chefe não vai rejeitar',
-      'Fazer uma sessão de brainstorming que gera ideias úteis (não papo furado)',
+      'Mapear sua nova área em 2 dias (não em 2 semanas)',
+      'Régua objetiva pra decidir QUANDO escalar e quando resolver sozinho',
+      'Frame pra destravar análise antes de tocar no Excel',
+      'Estrutura pra propor ideia sem parecer arrogante',
+      'Olhar treinado pra enxergar desperdício no escritório (não só na fábrica)',
+      'Etiqueta de email corporativo — TO, CC, BCC, tom — sem queimar carreira',
     ],
     episodios: [
-      { numero: 1, titulo: 'O critério das 3 ferramentas certas', duracao: '12 min', resumo: 'Como evitar a paralisia do "qual ferramenta uso"' },
-      { numero: 2, titulo: 'SIPOC em 5 minutos', duracao: '18 min', resumo: 'Mapeie qualquer processo num post-it' },
-      { numero: 3, titulo: 'Plano de ação que chefe não rejeita', duracao: '15 min', resumo: 'O 5W2H que sobrevive à primeira reunião' },
-      { numero: 4, titulo: 'Brainstorming sem papo furado', duracao: '20 min', resumo: 'Estrutura pra reuniões que geram ideias úteis' },
+      // Mantido vazio porque a Trilha 1 usa "situacoes" em vez de "episodios".
+      // O modal detecta `situacoes` e renderiza círculos automaticamente.
+    ],
+    situacoes: [
+      {
+        id: 'mapear-area',
+        titulo: 'Cheguei e não entendi como minha área se encaixa no todo',
+        quandoDoi: 'Primeiras 2-3 semanas. Você sabe o título do cargo mas não consegue explicar em 3 frases o que sua área entrega, pra quem, e como conecta com as outras.',
+        parteTecnica: [
+          'SIPOC do papel (não da empresa) — input → o que EU faço → output → cliente interno',
+          'Leitura prática de organograma: chefe, chefe do chefe, áreas vizinhas que afetam você',
+          'Fluxo de valor simplificado da área em 5 caixas',
+        ],
+        parteComportamental: [
+          'Nunca confie só na job description. Valide com 3 fontes: seu chefe, um par direto, alguém que JÁ SAIU da área',
+          'Critério: se em 2 semanas você não explica sua área em 3 frases pra um leigo, está incompleto — volta nas fontes',
+        ],
+        artefato: 'SIPOC do papel + 1-pager "minha área em 5 linhas"',
+        videoIsrael: {
+          duracao: '6 min',
+          resumo: 'Em Braskem aos 26, levei 2 semanas mapeando minha área pelas pessoas erradas. Te mostro como fazer em 2 dias com 3 conversas.',
+        },
+        promptMentor: 'Me ajude a montar o SIPOC do meu papel. Eu trabalho em [sua área], minha entrada é [...], minha saída é [...], reporto pra [...].',
+        conexaoPaga: 'Trilha 8 — Cultura Lean (fluxo de valor extendido)',
+        icone: Compass,
+      },
+      {
+        id: 'escalar-decisao',
+        titulo: 'Não sei a quem responder primeiro nem quando escalar',
+        quandoDoi: '3-4 pessoas pedindo coisas com prazos conflitantes. Dúvida constante: chamo meu chefe ou resolvo sozinho?',
+        parteTecnica: [
+          'RACI simplificado do dia a dia — pra cada demanda: quem é Responsável, Accountable, Consultado, Informado',
+          'Matriz urgência × importância básica pra triagem das demandas da semana',
+        ],
+        parteComportamental: [
+          'Régua de escalação em 3 perguntas: (1) é decisão acima do meu cargo? (2) custo de errar é maior que custo de pedir? (3) já tentei 1 opção e bati num bloqueio?',
+          'Se 2 das 3 forem SIM, escala. Se não, resolve. Sem culpa',
+          'Frase pronta pra escalar sem parecer fraco: "Tentei X e bati em Y. Antes de tentar Z, queria seu OK porque envolve [implicações]."',
+        ],
+        artefato: 'RACI semanal + tabela do critério de escalação',
+        videoIsrael: {
+          duracao: '6 min',
+          resumo: 'Meu chefe alemão em Braskem tinha uma regra: não escala se você ainda tem 1 opção que não tentou. Te ensino a calibrar isso sem virar dependente.',
+        },
+        promptMentor: 'Tenho essas tarefas hoje: [tarefa A, B, C, D]. Me ajude a aplicar o critério de escalação e definir o que faço primeiro?',
+        conexaoPaga: 'Trilha 6 — Gerenciar pessoas num projeto (RACI completo)',
+        icone: Network,
+      },
+      {
+        id: 'destravar-analise',
+        titulo: 'Me pediram análise ou relatório e travei',
+        quandoDoi: 'Planilha gigante na tela, comando vago do chefe ("dá uma olhada nesses números"), você não sabe nem começar.',
+        parteTecnica: [
+          'A pergunta antes do gráfico — escrever em 1 linha O QUE você está respondendo',
+          'Brainstorming sozinho com o Mentor IA pra listar 5 hipóteses (15 min)',
+          'Ishikawa rápido pra estruturar hipóteses em 4-6 grupos',
+        ],
+        parteComportamental: [
+          'Regra de ouro: se em 30 min você não sabe o que está procurando, NÃO toca em Excel. Volta pra quem pediu',
+          'Frase pronta sem parecer despreparado: "Pra entregar a análise certa, posso confirmar: você vai usar isso pra decidir X ou pra justificar Y? Faz diferença no recorte."',
+          'O que NÃO falar: "Não entendi o que você quer" (queima)',
+        ],
+        artefato: '1-pager "minha pergunta + 5 hipóteses" antes de tocar no Excel',
+        videoIsrael: {
+          duracao: '7 min',
+          resumo: 'Aos 28 numa multinacional alemã, me deram 50 mil linhas e travei o dia inteiro. Em 27 anos NUNCA mais toquei no Excel sem ter a pergunta escrita.',
+        },
+        promptMentor: 'Recebi essa demanda do meu chefe: [colar texto ou descrever]. Me ajude a transformar em uma pergunta clara antes de eu abrir o Excel.',
+        conexaoPaga: 'Trilha 3 — Recomendar com Dados / Trilha 2 — Investigar Problemas',
+        icone: Search,
+      },
+      {
+        id: 'propor-ideia',
+        titulo: 'Tenho uma ideia, mas não sei propor sem parecer arrogante',
+        quandoDoi: '3-6 meses de empresa. Você vê uma melhoria possível mas tem medo de soar "o novato que veio ensinar".',
+        parteTecnica: [
+          'Frame da proposta em 4 blocos: Problema (com dado) → Opções (3, não 1) → Recomendação (com critério) → Pedido (decisão específica)',
+          '5W2H pra dar concretude operacional',
+          'Esforço × Impacto pra mostrar que você pensou no custo',
+        ],
+        parteComportamental: [
+          'Regra do pedido claro: toda proposta termina com 1 pergunta específica ("quero seu OK pra rodar piloto de 2 semanas com 1 time") — NUNCA "o que você acha?"',
+          'Posicionamento de envio: segunda de manhã > sexta à tarde. Email > Slack. 1:1 antes do email se for proposta grande',
+          'Frame de humildade técnica (não de submissão): "Vi um padrão, posso estar errado, mas se eu pudesse testar 2 semanas..."',
+          'CC do primeiro email da proposta: ninguém além do seu chefe direto. Se ele aprovar, ele adiciona os outros',
+        ],
+        artefato: '1-pager da proposta (problema → opções → recomendação → pedido)',
+        videoIsrael: {
+          duracao: '7 min',
+          resumo: 'Em Fisher & Paykel propus mudança que poupou US$ 200k. Não falei "tenho ideia incrível". Falei: "vi um padrão, posso estar errado, posso testar 2 semanas?". Frase exata.',
+        },
+        promptMentor: 'Tenho essa ideia: [descrever sua ideia]. Me ajude a montar o 1-pager com problema, 3 opções, recomendação e pedido específico.',
+        conexaoPaga: 'Trilha 5 — Conduzir Mudanças / Trilha 7 — Apresentações',
+        icone: MessageSquare,
+      },
+      {
+        id: 'observar-desperdicio',
+        titulo: 'Ando pela empresa mas não sei o que observar',
+        quandoDoi: 'Passa pelos processos da empresa todo dia, sente que tem oportunidade escondida, mas seu reflexo é "tá tudo normal".',
+        parteTecnica: [
+          'Os 8 desperdícios (TIMWOODS) com exemplos de escritório — retrabalho de relatório, espera por aprovação, email desnecessário, reunião sem decisão',
+          'Gemba walk básico em 1 dia — roteiro de observação prático',
+          'Diário de observação (template)',
+        ],
+        parteComportamental: [
+          'Regra: observe sem julgar. Nas primeiras 6 semanas, anota e cala. Valide 3 vezes antes de levar pra fora',
+          'Frame que NÃO ofende: "Tô tentando entender por que fazemos assim — me ajuda?". Nunca "Por que VOCÊS fazem assim?" (acusa)',
+          'Nunca aponte desperdício do trabalho do colega de mesa. Aponte desperdício do PROCESSO. Diferença sutil que salva carreira',
+        ],
+        artefato: 'Diário de 5 dias com 8 desperdícios observados (sem ainda propor solução)',
+        videoIsrael: {
+          duracao: '6 min',
+          resumo: 'Numa fábrica em Camaçari mapeei R$ 380k de desperdício em 4 horas. Não cheguei dizendo "tá errado". Cheguei dizendo "me ensina por que faz assim".',
+        },
+        promptMentor: 'Observei isso na minha área: [descrição]. É qual dos 8 desperdícios e por quê?',
+        conexaoPaga: 'Trilha 8 — Cultura Lean / ferramenta Observação Direta',
+        icone: Eye,
+      },
+      {
+        id: 'etiqueta-email',
+        titulo: 'Não domino etiqueta de email — quando uso TO, CC, BCC',
+        quandoDoi: 'Vai escrever pra 5+ pessoas e congela. Ou recebe email em grupo e não sabe se responde só pro remetente ou pra todos.',
+        parteTecnica: [
+          'TO = quem PRECISA agir. Se não vai fazer nada, não está no TO',
+          'CC = quem precisa SABER mas não agir. Sinaliza visibilidade na hierarquia',
+          'BCC = uso raro: listas grandes sem expor destinatários, ou comunicação interna sensível',
+          'Reply vs Reply All: critério "essa informação muda algo pra essa pessoa específica?"',
+          'Assunto com prefixo padrão: "Ação requerida:" / "FYI:" / "Aprovação:" / "Pergunta:"',
+          'Corpo em 3 blocos: contexto (1 linha) → o que peço (1 linha) → quando preciso (1 linha)',
+        ],
+        parteComportamental: [
+          'CC no seu chefe: só se ele já participou do contexto OU se você está formalmente escalando. CC no chefe todo email passa sensação de "tasselando" e queima sua autonomia percebida',
+          'BCC NÃO é arma política. Usar BCC pra "ficar de olho" sem destinatário saber queima reputação INSTANTÂNEA se descobrirem',
+          'Reply All: pergunta de freio — "vale ocupar a atenção de 12 pessoas?". Default = NÃO',
+          'Tom da primeira mensagem pra um sênior: padrão neutro corporativo ("Olá [primeiro nome], …"). Nem "Oi!" nem "Prezado Sr."',
+          'Resposta tardia (3+ dias): não invente desculpa, não se humilhe. "Voltando à sua mensagem — resposta abaixo." Ponto',
+          'Quando NÃO usar email: se a conversa exigir mais de 2 idas e voltas, troca pra 1:1 ou call. Email não é chat',
+        ],
+        artefato: 'Matriz pessoal TO/CC/BCC + 3 templates prontos (pedido, escalação formal, FYI)',
+        videoIsrael: {
+          duracao: '7 min',
+          resumo: 'Em 27 anos de multinacional vi mais carreira queimar por CC mal usado do que por erro técnico. Vou te contar o caso real de 2012 que me ensinou isso.',
+        },
+        promptMentor: 'Preciso escrever email sobre [assunto] pra [pessoas e seus papéis]. Me ajude a definir TO/CC/BCC, o assunto e os 3 blocos do corpo.',
+        conexaoPaga: 'Trilha 5 — Conduzir Mudanças (comunicação como vetor de change management)',
+        icone: AtSign,
+      },
     ],
     ferramentas: [
-      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'Charter + SIPOC + 5W2H aplicados num caso real seu' },
-      { label: 'Perguntar ao Mentor IA', rota: '/chat', descricao: 'Tire dúvidas pontuais sobre qual ferramenta usar' },
+      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'SIPOC, 5W2H, Brainstorming, Ishikawa, Esforço × Impacto, Observação Direta — todos liberados no plano grátis' },
+      { label: 'Perguntar ao Mentor IA', rota: '/chat', descricao: 'Tire dúvidas sobre qual situação atacar primeiro' },
     ],
-    ctaPrimario: { label: 'Começar agora', rota: '/projects' },
+    ctaPrimario: { label: 'Abrir o kit', rota: '/projects' },
     tags: ['destaque', 'iniciante', 'execucao'],
   },
 
@@ -630,8 +826,8 @@ Te ensino o operating system que uso: cadência semanal, status assíncrono, dec
 export const CATEGORIAS: Categoria[] = [
   {
     id: 'destaques',
-    titulo: 'Em destaque pra você',
-    subtitulo: 'O que mais transforma carreira em 30 dias',
+    titulo: 'Em destaque',
+    subtitulo: 'Trilhas que cobrem o que mais aparece no dia a dia de uma empresa',
     trilhaIds: [
       'ferramentas-dia-a-dia',
       'apresentar-recomendacao',
@@ -644,7 +840,7 @@ export const CATEGORIAS: Categoria[] = [
   {
     id: 'comece-aqui',
     titulo: 'Comece por aqui',
-    subtitulo: 'Pra quem está chegando agora',
+    subtitulo: 'Pra quem chegou agora numa empresa, área ou função nova',
     trilhaIds: [
       'ferramentas-dia-a-dia',
       'dados-do-dia-a-dia',
@@ -654,8 +850,8 @@ export const CATEGORIAS: Categoria[] = [
   },
   {
     id: 'faca-acontecer',
-    titulo: 'Faça acontecer na sua área',
-    subtitulo: 'Execução: do problema ao resultado',
+    titulo: 'Investigar e melhorar processo',
+    subtitulo: 'Definir o problema, achar a causa e implementar mudança que sustenta',
     trilhaIds: [
       'melhorar-minha-area',
       'analise-risco-mudanca',
@@ -665,8 +861,8 @@ export const CATEGORIAS: Categoria[] = [
   },
   {
     id: 'lideranca',
-    titulo: 'Liderança e pessoas',
-    subtitulo: 'A parte que ninguém te ensinou na faculdade',
+    titulo: 'Coordenar pessoas e mudança',
+    subtitulo: 'Influenciar sem autoridade direta, conduzir mudança e tocar projeto com time',
     trilhaIds: [
       'mudanca-com-menos-resistencia',
       'gerenciar-pessoas-projeto',
@@ -675,8 +871,8 @@ export const CATEGORIAS: Categoria[] = [
   },
   {
     id: 'carreira',
-    titulo: 'Próximo passo na carreira',
-    subtitulo: 'Como subir sem MBA caro',
+    titulo: 'Aprofundamento técnico',
+    subtitulo: 'Pra quem já entrega no básico e quer ir pro nível especialista',
     trilhaIds: [
       'perfil-gestor-lean',
       'especialista-projetos-complexos',
