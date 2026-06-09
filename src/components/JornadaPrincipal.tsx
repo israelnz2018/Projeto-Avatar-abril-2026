@@ -53,20 +53,24 @@ import {
 const BG = '#080a14';
 
 /**
- * Trilhas no rodízio do Hero — TODAS as 9 trilhas, na ordem 1 → 9.
- * A trilha 8 (Especialista) é a FORMAÇÃO ÂNCORA da LBW, com paleta NAVY/BLUE
- * (definida no próprio trilhas.ts via gradient/accent/glow LBW).
+ * Trilhas no rodízio do Hero — 8 trilhas, na ordem do funil pedagógico.
+ *
+ * IMPORTANTE: a antiga Trilha 2 ("Investigar Problemas") foi fundida com a
+ * Trilha 1 em jun/2026 — o ciclo DMAIC qualitativo (definir, causa-raiz,
+ * implementar, sustentar) virou 4 das 10 situações da Trilha 1 grátis.
+ *
+ * A última trilha (Especialista) é a FORMAÇÃO ÂNCORA da LBW, com paleta
+ * NAVY/BLUE (definida no próprio trilhas.ts via gradient/accent/glow LBW).
  */
 const HERO_TRILHAS_IDS = [
-  'ferramentas-dia-a-dia',           // 1 — Primeiros Passos
-  'melhorar-minha-area',             // 2 — Investigar Problemas (era 3)
-  'dados-do-dia-a-dia',              // 3 — Recomendar com Dados (era 2)
-  'analise-risco-mudanca',           // 4 — Antecipar Riscos
-  'mudanca-com-menos-resistencia',   // 5 — Conduzir Mudanças
-  'problema-cronico',                // 6 — Análises Estatísticas
-  'apresentar-recomendacao',         // 7 — Apresentações que Convencem
-  'perfil-gestor-lean',              // 8 — Cultura Lean na Prática
-  'especialista-projetos-complexos', // 9 — FORMAÇÃO LBW (paleta NAVY/BLUE — âncora final)
+  'ferramentas-dia-a-dia',           // 1 — Kit grátis (adaptação + 1ª entrega) ← FUNIL DE TOPO
+  'dados-do-dia-a-dia',              // 2 — Recomendar com Dados
+  'analise-risco-mudanca',           // 3 — Antecipar Riscos
+  'mudanca-com-menos-resistencia',   // 4 — Conduzir Mudanças
+  'problema-cronico',                // 5 — Análises Estatísticas
+  'apresentar-recomendacao',         // 6 — Apresentações que Convencem
+  'perfil-gestor-lean',              // 7 — Cultura Lean na Prática
+  'especialista-projetos-complexos', // 8 — FORMAÇÃO LBW (âncora — paleta NAVY/BLUE)
 ];
 
 const HERO_INTERVALO_MS = 8_000;
@@ -117,18 +121,18 @@ export default function JornadaPrincipal() {
 
   // Progressão sugerida — do mais básico (chegou agora) ao mais avançado (Especialista LBW).
   // Ordem honesta de dificuldade técnica, não ranking inventado de popularidade.
+  // Nota: a antiga T2 ("melhorar-minha-area") foi fundida na T1 grátis em jun/2026.
   const progressaoIds = [
-    'ferramentas-dia-a-dia',              // T1 — Iniciante (GRÁTIS)
-    'melhorar-minha-area',                // T2 — Iniciante
+    'ferramentas-dia-a-dia',              // 1 — Iniciante (GRÁTIS — kit de 10 situações)
     'identificar-desperdicio',            // Iniciante
-    'dados-do-dia-a-dia',                 // T3 — Intermediário
-    'mudanca-com-menos-resistencia',      // T5 — Intermediário
-    'analise-risco-mudanca',              // T4 — Intermediário
-    'perfil-gestor-lean',                 // T8 — Intermediário
+    'dados-do-dia-a-dia',                 // Intermediário
+    'mudanca-com-menos-resistencia',      // Intermediário
+    'analise-risco-mudanca',              // Intermediário
+    'perfil-gestor-lean',                 // Intermediário
     'gerenciar-pessoas-projeto',          // Intermediário
-    'apresentar-recomendacao',            // T7 — Avançado
-    'problema-cronico',                   // T6 — Avançado
-    'especialista-projetos-complexos',    // T9 — Avançado (Formação LBW)
+    'apresentar-recomendacao',            // Avançado
+    'problema-cronico',                   // Avançado
+    'especialista-projetos-complexos',    // Avançado (Formação LBW — âncora)
   ];
   const progressao = progressaoIds
     .map(id => TRILHAS.find(t => t.id === id))

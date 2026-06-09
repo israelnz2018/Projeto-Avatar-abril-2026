@@ -35,6 +35,10 @@ import {
   MessageSquare,
   Eye,
   AtSign,
+  Crosshair,
+  GitBranch,
+  Megaphone,
+  Shield,
 } from 'lucide-react';
 
 // =============================================================================
@@ -156,26 +160,28 @@ export const TRILHAS: Trilha[] = [
   {
     id: 'ferramentas-dia-a-dia',
     numero: '01',
-    titulo: 'Como Se Adaptar a uma Área Nova Sem Travar',
-    subtitulo: 'Kit de sobrevivência pros primeiros meses',
-    dor: 'Pra você se posicionar rápido quando chega numa empresa, área ou função nova',
-    paraQuem: 'Quem chegou agora (1 semana a 6 meses) numa empresa nova, área nova ou função nova — e precisa entregar valor antes de "se achar"',
+    titulo: 'Como Chegar Numa Área Nova e Já Entregar Resultado',
+    subtitulo: 'Kit grátis de 10 situações pros primeiros 6 meses',
+    dor: 'Pra você sair do "perdido" e chegar no "olha o que mudou" antes do fim do primeiro ano',
+    paraQuem: 'Quem chegou agora (1 semana a 6 meses) numa empresa nova, área nova ou função nova — e quer mostrar valor antes de virar "mais um" do time',
     icone: Compass,
     gradient: 'from-blue-500 via-blue-700 to-indigo-900',
     glow: 'rgba(59, 130, 246, 0.45)',
     accent: '#3B82F6',
     motif: 'spiral-flow',
-    duracao: 'Use quando travar',
+    duracao: 'Use quando travar · 100% grátis',
     nivel: 'Iniciante',
-    totalEpisodios: 6,
+    totalEpisodios: 10,
     selo: 'COMECE AQUI',
-    cartaIsrael: `Olha, em 27 anos passei por 5 multinacionais em 2 países. Toda vez que cheguei numa empresa nova ou mudei de área, vivi a mesma coisa: as 4-12 primeiras semanas você não sabe ONDE está pisando.
+    cartaIsrael: `Olha, em 27 anos passei por 5 multinacionais em 2 países. Toda vez que cheguei numa empresa nova ou mudei de área, vivi a mesma coisa: os primeiros 6 meses são uma corrida entre se adaptar E entregar algo que mostre que valeu a contratação.
 
-Isso não é falta de competência — é falta de método pra adaptação. Faculdade não ensina, livro não ensina, e seu chefe não tem tempo de te explicar.
+A maioria foca SÓ na adaptação e perde a janela. Quando se dá conta, já é "mais um" do time — e ninguém mais espera entrega especial. Por outro lado, quem tenta entregar antes de entender a área queima carreira logo de cara.
 
-Aqui você não vai assistir um curso de cabo a rabo. Você abre o kit QUANDO trava em alguma coisa específica: não entendi minha área, não sei a quem escalar, recebi planilha e não sei começar, tenho ideia mas não sei propor, ando aqui mas não enxergo o que observar, ou simplesmente não domino etiqueta de email no corporativo.
+Esse kit cobre os 2 lados. **Primeira metade (6 situações):** se adaptar sem travar — mapear a área, escalar com critério, destravar análises, propor sem parecer arrogante, enxergar desperdício, dominar etiqueta de email. **Segunda metade (4 situações):** entregar a primeira mudança real — definir problema certo, achar causa-raiz, vender solução, sustentar o ganho.
 
-São 6 situações reais. Cada uma com a parte técnica (a ferramenta) e a parte comportamental (a régua de decisão). Sem papo de coach. É o que eu faria se fosse você chegando.`,
+Não é curso linear. Você abre o círculo da situação que tá te travando ESSA semana. Cada uma vem com parte técnica (a ferramenta) e parte comportamental (a régua de decisão). Sem coach. É o que eu faria se fosse você chegando hoje.
+
+É grátis pra você usar enquanto quiser. Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplicada, gestão de mudança), as outras 8 trilhas estão lá.`,
     oQueVoceLeva: [
       'Mapear sua nova área em 2 dias (não em 2 semanas)',
       'Régua objetiva pra decidir QUANDO escalar e quando resolver sozinho',
@@ -183,6 +189,10 @@ São 6 situações reais. Cada uma com a parte técnica (a ferramenta) e a parte
       'Estrutura pra propor ideia sem parecer arrogante',
       'Olhar treinado pra enxergar desperdício no escritório (não só na fábrica)',
       'Etiqueta de email corporativo — TO, CC, BCC, tom — sem queimar carreira',
+      'Mini-Charter pra transformar pedido vago em problema bem definido',
+      'Ishikawa + 5 Porquês pra achar causa-raiz real (não a óbvia)',
+      'Mapa de stakeholders pra vender solução sem virar inimigo do time',
+      'Plano de controle pra mudança não voltar atrás em 60 dias',
     ],
     episodios: [
       // Mantido vazio porque a Trilha 1 usa "situacoes" em vez de "episodios".
@@ -253,7 +263,7 @@ São 6 situações reais. Cada uma com a parte técnica (a ferramenta) e a parte
           resumo: 'Aos 28 numa multinacional alemã, me deram 50 mil linhas e travei o dia inteiro. Em 27 anos NUNCA mais toquei no Excel sem ter a pergunta escrita.',
         },
         promptMentor: 'Recebi essa demanda do meu chefe: [colar texto ou descrever]. Me ajude a transformar em uma pergunta clara antes de eu abrir o Excel.',
-        conexaoPaga: 'Trilha 3 — Recomendar com Dados / Trilha 2 — Investigar Problemas',
+        conexaoPaga: 'Trilha 3 — Recomendar com Dados / Trilha 6 — Análises Estatísticas',
         icone: Search,
       },
       {
@@ -332,9 +342,105 @@ São 6 situações reais. Cada uma com a parte técnica (a ferramenta) e a parte
         conexaoPaga: 'Trilha 5 — Conduzir Mudanças (comunicação como vetor de change management)',
         icone: AtSign,
       },
+      // ───────────── SEGUNDA METADE: ENTREGAR PRIMEIRA MUDANÇA REAL ─────────────
+      // As 4 situações abaixo cobrem o arco "definir problema → causa-raiz →
+      // vender solução → sustentar ganho". É o que separa quem só se adaptou
+      // de quem efetivamente entregou valor no primeiro ano.
+      {
+        id: 'definir-problema',
+        titulo: 'Te pediram pra resolver um problema e você não sabe nem por onde começar',
+        quandoDoi: '3-9 meses na empresa. Chefe te chama: "Resolve isso." Você nem sabe se é problema técnico, de processo, de gente, ou um sintoma de outra coisa.',
+        parteTecnica: [
+          'Diferença prática entre SINTOMA (o que se vê) e PROBLEMA (o que causa) — 70% dos juniors confunde os dois',
+          'Mini-Charter em 1 página: problema (em 2 frases), escopo (o que está dentro/fora), critério de sucesso (como saberemos que resolveu)',
+          'Métrica mínima viável — 1 número que mede o problema, medido HOJE (linha de base) — sem isso você não sabe se melhorou',
+        ],
+        parteComportamental: [
+          'Regra: nunca aceite "resolve isso" sem 1 pergunta de clarificação ANTES de aceitar prazo. Sempre.',
+          'Frase pronta: "Pra eu te entregar a coisa certa, posso confirmar: qual é o sintoma que você está vendo, e qual seria pra você o sinal de que resolveu?"',
+          'Cuidado com a armadilha do herói: aceitar prazo sem definir escopo é receita pra entregar a coisa errada no prazo correto',
+        ],
+        artefato: 'Mini-Charter (1 página: problema, escopo, critério de sucesso, linha de base)',
+        videoIsrael: {
+          duracao: '7 min',
+          resumo: 'Aos 26 me chamaram pra "resolver as paradas de produção". Em 2 semanas descobri que o problema real era a programação, não a parada. Te conto como aprendi a perguntar antes de aceitar.',
+        },
+        promptMentor: 'Meu chefe me pediu pra resolver: [descrição do pedido]. Me ajude a transformar isso num Mini-Charter — problema, escopo, critério de sucesso — ANTES de eu aceitar prazo.',
+        conexaoPaga: 'Trilha 4 — Antecipar Riscos / Trilha 9 — Especialista em Gestão de Projetos',
+        icone: Crosshair,
+      },
+      {
+        id: 'causa-raiz',
+        titulo: 'Achei a causa óbvia, mas suspeito que tem mais coisa',
+        quandoDoi: 'Está investigando um problema. A primeira causa que aparece é "óbvia demais". Você sente que se atacar só ela, vai voltar.',
+        parteTecnica: [
+          'Ishikawa (Espinha de Peixe) — 6 categorias pra mapear causas em paralelo: Método, Máquina, Material, Mão-de-obra, Medida, Meio-ambiente',
+          '5 Porquês — pergunta "por quê?" 5 vezes seguidas, sempre cavando mais fundo na resposta anterior',
+          'Critério de quando usar cada um: Ishikawa quando NÃO sabe por onde começar; 5 Porquês quando JÁ tem uma hipótese e quer cavar',
+        ],
+        parteComportamental: [
+          'Regra: nunca pare no PRIMEIRO porquê. Vá pelo menos até o 3º — antes disso ainda é sintoma',
+          'Os 5 Porquês têm que apontar pra SISTEMA (processo, regra, decisão), nunca pra pessoa específica. "Falha do operador" não é causa raiz — é desistência',
+          'Sinal de alerta: quando todo mundo concorda na primeira hipótese, DESCONFIE. Investigação séria gera fricção. Concordância fácil = ainda no sintoma',
+        ],
+        artefato: 'Ishikawa preenchido (1 página) + cadeia de 5 Porquês documentada com pelo menos 5 níveis',
+        videoIsrael: {
+          duracao: '8 min',
+          resumo: 'Numa fábrica todo mundo dizia "falha do operador". Em 4 horas de 5 Porquês descobri que era um detalhe num documento que ninguém lia há 6 anos. Resolvido em 2 semanas, sem culpar ninguém.',
+        },
+        promptMentor: 'Tô investigando esse problema: [descrição]. A causa óbvia que apareceu é [X]. Me ajude a aplicar 5 Porquês pra verificar se é mesmo a raiz, ou tem coisa por trás.',
+        conexaoPaga: 'Trilha 6 — Análises Estatísticas (causa-raiz com dado) / Trilha 4 — FMEA',
+        icone: GitBranch,
+      },
+      {
+        id: 'vender-solucao',
+        titulo: 'Vou propor uma solução, mas tenho medo do time virar a cara',
+        quandoDoi: 'Sua solução tá pronta. Você sabe que é boa. Mas sente que vai bater em resistência ("sempre fizemos assim", "isso não vai dar certo", "fácil falar de fora").',
+        parteTecnica: [
+          'Plano de Ação 5W2H — concretiza a proposta nos 7 campos: O quê, Por quê, Quem, Quando, Onde, Como, Quanto',
+          'Esforço × Impacto — prioriza a 1ª ação (a do quadrante "alto impacto, baixo esforço") — não a mais ambiciosa',
+          'Mapa de stakeholders simplificado em 3 colunas: APOIA / RESISTE / EM CIMA DO MURO',
+        ],
+        parteComportamental: [
+          'Regra: comece pelo APOIADOR, nunca pelo resistente. Apoiador valida + cria momentum + vira aliado em reunião',
+          'Nunca apresente solução nova em grupo grande primeiro. Faça 2-3 conversas 1:1 com stakeholders-chave ANTES da reunião — chega na reunião com 3-4 vozes já preparadas',
+          'Frame pra abrir o 1:1: "Quero validar uma ideia com você antes de levar pra reunião — você pode me dar feedback honesto?" — quase ninguém recusa',
+        ],
+        artefato: '5W2H da solução + mapa de stakeholders (3 colunas) + roteiro do 1:1 de validação',
+        videoIsrael: {
+          duracao: '7 min',
+          resumo: 'Em 2018 propus mudança de turno que ia mexer com 40 pessoas. Antes da reunião conversei 1:1 com 4 pessoas estratégicas. Quando apresentei, 4 vozes já defendiam por mim. Aprovou na primeira reunião.',
+        },
+        promptMentor: 'Vou propor essa solução: [descrição]. Me ajude a montar o 5W2H + identificar 3 stakeholders pra validar 1:1 ANTES da reunião de apresentação.',
+        conexaoPaga: 'Trilha 5 — Conduzir Mudanças (ADKAR) / Trilha 7 — Apresentações que Convencem',
+        icone: Megaphone,
+      },
+      {
+        id: 'sustentar-ganho',
+        titulo: 'Implementei a mudança e em 2 meses voltou tudo ao que era',
+        quandoDoi: 'A mudança pegou. Time aderiu. Em 1-2 meses, devagar, todo mundo volta aos velhos hábitos. Você sente que perdeu tudo.',
+        parteTecnica: [
+          'Plano de Controle simplificado em 1 página: quem monitora, com que frequência, qual é a métrica, o que faz se voltar atrás',
+          'POP (Procedimento Operacional Padrão) enxuto — 1 página com os 5 passos críticos da nova rotina (sem capa, sem rodapé, sem ISO)',
+          '1 indicador único monitorado SEMANALMENTE nos primeiros 90 dias — se cair, você é o primeiro a saber',
+        ],
+        parteComportamental: [
+          'Regra: mudança não termina na implementação. Termina quando vira ROTINA — e isso leva 90 dias de acompanhamento ativo',
+          'Não delegue o monitoramento pro time nas primeiras 4 semanas. Você acompanha pessoalmente. Sinaliza que importa',
+          'Quando algo voltar atrás, NÃO acuse o time. Pergunta: "o que dificultou hoje?" — em 9 de 10 vezes vai aparecer um obstáculo invisível que você não previu',
+        ],
+        artefato: 'Plano de Controle (1 página) + POP enxuto (5 passos) + calendário de check-ins semanais de 90 dias',
+        videoIsrael: {
+          duracao: '6 min',
+          resumo: 'Em 2015 implementei uma mudança que parecia perfeita. Em 6 semanas tudo voltou. Quando voltei pra entender, descobri 3 obstáculos invisíveis que ninguém me contou. Hoje eu nunca implemento sem plano de controle.',
+        },
+        promptMentor: 'Implementei essa mudança na minha área: [descrição]. Me ajude a montar um plano de controle pra ela sustentar nos próximos 90 dias.',
+        conexaoPaga: 'Trilha 8 — Cultura Lean (kaizen contínuo) / Trilha 5 — Conduzir Mudanças (reinforcement do ADKAR)',
+        icone: Shield,
+      },
     ],
     ferramentas: [
-      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'SIPOC, 5W2H, Brainstorming, Ishikawa, Esforço × Impacto, Observação Direta — todos liberados no plano grátis' },
+      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'SIPOC, 5W2H, Brainstorming, Ishikawa, 5 Porquês, Esforço × Impacto, Observação Direta, Plano de Controle, POP — todos liberados no plano grátis' },
       { label: 'Perguntar ao Mentor IA', rota: '/chat', descricao: 'Tire dúvidas sobre qual situação atacar primeiro' },
     ],
     ctaPrimario: { label: 'Abrir o kit', rota: '/projects' },
@@ -384,50 +490,11 @@ Aqui você vai aprender a fazer Pareto, Histograma, Boxplot e algumas análises 
     tags: ['destaque', 'iniciante', 'dados'],
   },
 
-  {
-    id: 'melhorar-minha-area',
-    numero: '02',
-    titulo: 'Como Investigar Problemas e Melhorar a Sua Área',
-    subtitulo: 'Do "todo mundo reclama" ao "olha o que mudou"',
-    dor: 'Pra você sair da queixa e entregar resultado real',
-    paraQuem: 'Quem vê desperdício todo dia e quer atacar de forma estruturada',
-    icone: Target,
-    gradient: 'from-emerald-400 via-teal-600 to-cyan-900',
-    glow: 'rgba(16, 185, 129, 0.45)',
-    accent: '#10B981',
-    motif: 'rising-line',
-    duracao: '6 semanas',
-    nivel: 'Iniciante',
-    totalEpisodios: 8,
-    selo: 'TOP 10',
-    cartaIsrael: `Aos 26, meu chefe me chamou e disse: "Resolve esse problema, Israel." Eu tinha 8 meses na empresa. Não sabia nem o nome dos processos direito.
-
-O que descobri foi: chefe não quer que você seja PhD em Lean Six Sigma. Quer que você ENTREGUE. E pra entregar, você precisa de UM método — não 50.
-
-Aqui você vai aprender o ciclo de melhoria do começo ao fim: definir o problema (de verdade, não o sintoma), medir, achar a causa, propor a solução, implementar e ter certeza que não volta. É o que multinacionais chamam de DMAIC, mas eu chamo de "como resolver problema sem virar refém da própria solução".`,
-    oQueVoceLeva: [
-      'Definir o problema certo (a maioria das pessoas erra aqui)',
-      'Investigar causa-raiz sem culpar pessoa errada',
-      'Construir um plano que sobrevive ao "isso não vai funcionar"',
-      'Implementar mudanças que não voltam pra trás no mês seguinte',
-    ],
-    episodios: [
-      { numero: 1, titulo: 'Definir o problema certo', duracao: '20 min', resumo: 'Por que 70% dos projetos resolvem o sintoma' },
-      { numero: 2, titulo: 'Medir sem virar burocrata', duracao: '18 min', resumo: 'O mínimo de dado pra decidir' },
-      { numero: 3, titulo: 'Achar causa-raiz sem caça-bruxa', duracao: '22 min', resumo: 'Ishikawa, 5 Porquês — quando cada um funciona' },
-      { numero: 4, titulo: 'Propor solução que cola', duracao: '20 min', resumo: 'Esforço x Impacto na prática' },
-      { numero: 5, titulo: 'Implementar sem virar polícia', duracao: '18 min', resumo: 'Plano que o time abraça' },
-      { numero: 6, titulo: 'Sustentar o ganho', duracao: '15 min', resumo: 'Os 90 dias críticos pós-mudança' },
-      { numero: 7, titulo: 'Quando o projeto trava', duracao: '14 min', resumo: 'Os 3 sinais de que você precisa pivotar' },
-      { numero: 8, titulo: 'Fechar e celebrar (sério)', duracao: '12 min', resumo: 'Como apresentar resultado pra subir junto' },
-    ],
-    ferramentas: [
-      { label: 'Abrir um projeto novo (DMAIC completo)', rota: '/projects', descricao: 'Da fase Definir até Controlar' },
-      { label: 'Tirar dúvidas com o Mentor', rota: '/chat' },
-    ],
-    ctaPrimario: { label: 'Começar meu projeto', rota: '/projects' },
-    tags: ['destaque', 'execucao'],
-  },
+  // NOTA: a antiga Trilha 2 ("Como Investigar Problemas e Melhorar a Sua Área")
+  // foi fundida com a Trilha 1 em jun/2026. O conteúdo dos 8 episódios virou
+  // 4 situações (definir-problema, causa-raiz, vender-solucao, sustentar-ganho)
+  // dentro do kit grátis da Trilha 1. Esse vácuo no numero '02' é intencional —
+  // a Trilha 7 (Apresentações) virou Trilha 2 na ordem visual.
 
   {
     id: 'apresentar-recomendacao',
@@ -851,9 +918,8 @@ export const CATEGORIAS: Categoria[] = [
   {
     id: 'faca-acontecer',
     titulo: 'Investigar e melhorar processo',
-    subtitulo: 'Definir o problema, achar a causa e implementar mudança que sustenta',
+    subtitulo: 'Antecipar risco, atacar desperdício e resolver problema crônico',
     trilhaIds: [
-      'melhorar-minha-area',
       'analise-risco-mudanca',
       'identificar-desperdicio',
       'problema-cronico',

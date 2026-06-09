@@ -1,6 +1,8 @@
 # 📚 Mentor IA — Knowledge Base da LBW
 
-Arquivo único editável em texto puro. Contém **1 seção global** + **9 seções (uma por trilha)** = 10 seções no total.
+Arquivo único editável em texto puro. Contém **1 seção global** + **8 seções (uma por trilha)** = 9 seções no total.
+
+Nota: em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida na Trilha 1 grátis. As seções de trilha pulam do número 1 direto pro 3 — o "espaço vazio" da Trilha 2 é intencional. Não renumerar as outras pra evitar confusão com o histórico.
 
 O sistema lê esse arquivo em runtime e injeta no prompt da IA. Atualizar = só editar e salvar.
 
@@ -98,26 +100,29 @@ Apresentação: Botão PPT em cada ferramenta gera slide executivo
 ═══════════════════════════════════════════════════════════════════════
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 1 — Trilha 01: Adaptação na Sua Área (GRÁTIS · kit por situação)
+# SEÇÃO 1 — Trilha 01: Chegar e Entregar (GRÁTIS · kit fundido de 10 situações)
 
-ID: `ferramentas-dia-a-dia` · Título oficial: **"Como Se Adaptar a uma Área Nova Sem Travar"**
+ID: `ferramentas-dia-a-dia` · Título oficial: **"Como Chegar Numa Área Nova e Já Entregar Resultado"**
 
 ## ✅ Sobre a trilha
-**Subtítulo:** Kit de sobrevivência pros primeiros meses
-**Dor:** Pra você se posicionar rápido quando chega numa empresa, área ou função nova
+**Subtítulo:** Kit grátis de 10 situações pros primeiros 6 meses
+**Dor:** Pra você sair do "perdido" e chegar no "olha o que mudou" antes do fim do primeiro ano
 **Pra quem:** Profissional que está há pouco tempo numa empresa nova OU mudou de área internamente OU vai assumir uma nova função. Janela típica: 1 semana a 6 meses no contexto novo.
-**Formato:** 6 SITUAÇÕES (não episódios sequenciais). Aluno abre QUANDO trava em algo. Iniciante.
+**Formato:** 10 SITUAÇÕES em ARCO (NÃO episódios sequenciais). Aluno abre QUANDO trava em algo. Iniciante. **100% GRÁTIS.**
+**Histórico:** Em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida nesta trilha — os 8 episódios da T2 viraram 4 situações novas (definir-problema, causa-raiz, vender-solucao, sustentar-ganho). Esta trilha agora cobre arco completo: chegou → adaptou → entregou primeira mudança.
 
 ## ⚠️ REGRA CRÍTICA DESTA TRILHA
-A Trilha 1 NÃO é uma sequência. É um **kit por situação**. Quando o aluno mencionar uma das 6 situações abaixo, direcione SEMPRE pra situação correspondente — não pra um "episódio 1, 2, 3". Use o nome da situação ao falar.
+A Trilha 1 NÃO é uma sequência. É um **kit por situação em arco progressivo**. Quando o aluno mencionar uma das 10 situações abaixo, direcione SEMPRE pra situação correspondente — não pra um "episódio 1, 2, 3". Use o nome da situação ao falar.
 
 Toda situação tem duas camadas que você DEVE preservar:
-- **PARTE TÉCNICA** — método/ferramenta (SIPOC, Ishikawa, etc.)
+- **PARTE TÉCNICA** — método/ferramenta (SIPOC, Ishikawa, 5W2H, etc.)
 - **PARTE COMPORTAMENTAL** — régua de decisão, frase pronta, critério objetivo. NUNCA é "como você se sente". É sempre regra de bolso.
 
 NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PMP, 27 anos). Comportamento aqui é convenção e critério, não autoconhecimento.
 
-## ✅ As 6 situações
+## ✅ As 10 situações — duas metades
+
+### PRIMEIRA METADE — ADAPTAÇÃO (situações 1 a 6)
 
 ### Situação 1 — "Cheguei e não entendi como minha área se encaixa no todo"
 - **Quando dói:** primeiras 2-3 semanas, não sabe explicar a área em 3 frases
@@ -141,7 +146,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** Regra de ouro — 30 min sem saber o que procura = NÃO toca em Excel, volta pra quem pediu. Frase: "Pra entregar análise certa, posso confirmar: você vai usar isso pra decidir X ou justificar Y? Faz diferença no recorte". O que NÃO falar: "Não entendi o que você quer"
 - **Artefato:** 1-pager "pergunta + 5 hipóteses"
 - **Caso real do Israel:** aos 28 em multinacional alemã, 50 mil linhas, travou o dia
-- **Conexão paga:** Trilha 3 (Recomendar com Dados) / Trilha 2 (Investigar Problemas)
+- **Conexão paga:** Trilha 3 (Recomendar com Dados) / Trilha 6 (Análises Estatísticas)
 
 ### Situação 4 — "Tenho ideia, mas não sei propor sem parecer arrogante"
 - **Quando dói:** 3-6 meses de empresa, vê melhoria possível, medo de soar novato presunçoso
@@ -179,8 +184,42 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Caso real do Israel:** caso de 2012, CC mal usado custou promoção
 - **Conexão paga:** Trilha 5 (Conduzir Mudanças — comunicação como vetor)
 
+### SEGUNDA METADE — ENTREGAR A PRIMEIRA MUDANÇA REAL (situações 7 a 10)
+
+### Situação 7 — "Te pediram pra resolver um problema mas você não sabe nem por onde começar"
+- **Quando dói:** 3-9 meses na empresa, chefe te chama "resolve isso", você não sabe se é técnico, processo ou gente
+- **Técnica:** Diferenciar SINTOMA (o que se vê) de PROBLEMA (o que causa). Mini-Charter em 1 página (problema, escopo, critério de sucesso). Métrica mínima viável — 1 número medido HOJE pra ser linha de base
+- **Comportamental:** NUNCA aceitar "resolve isso" abstrato sem 1 pergunta de clarificação ANTES do prazo. Frase pronta: "Pra eu te entregar a coisa certa, posso confirmar: qual é o sintoma e qual seria o sinal de que resolveu?". Cuidado com a armadilha do herói — aceitar prazo sem definir escopo entrega coisa errada no prazo correto
+- **Artefato:** Mini-Charter (1 página: problema, escopo, critério de sucesso, linha de base)
+- **Caso real do Israel:** aos 26 chamaram pra "resolver paradas". Em 2 semanas descobriu que o problema era programação, não parada
+- **Conexão paga:** Trilha 4 (Antecipar Riscos) / Trilha 9 (Especialista em Gestão de Projetos)
+
+### Situação 8 — "Achei a causa óbvia, mas suspeito que tem mais coisa"
+- **Quando dói:** investigando problema, primeira causa é "óbvia demais", você sente que se atacar só ela vai voltar
+- **Técnica:** Ishikawa (Espinha de Peixe) — 6 categorias (Método, Máquina, Material, Mão-de-obra, Medida, Meio-ambiente). 5 Porquês — pergunta "por quê?" 5x cavando fundo. Critério: Ishikawa quando NÃO sabe por onde começar; 5 Porquês quando já tem hipótese
+- **Comportamental:** NUNCA pare no primeiro porquê — vá pelo menos até o 3º. 5 Porquês aponta SISTEMA, nunca pessoa específica. "Falha do operador" não é causa-raiz, é desistência. Sinal de alerta: concordância fácil de todos = ainda no sintoma
+- **Artefato:** Ishikawa (1 página) + cadeia de 5 Porquês com pelo menos 5 níveis
+- **Caso real do Israel:** fábrica todos diziam "falha do operador". 4 horas de 5 Porquês = era um detalhe em documento não lido há 6 anos
+- **Conexão paga:** Trilha 6 (Análises Estatísticas — causa-raiz com dado) / Trilha 4 (FMEA)
+
+### Situação 9 — "Vou propor uma solução, mas tenho medo do time virar a cara"
+- **Quando dói:** solução pronta, sabe que é boa, mas sente que vai bater em resistência ("sempre fizemos assim")
+- **Técnica:** Plano de Ação 5W2H (O quê, Por quê, Quem, Quando, Onde, Como, Quanto). Esforço × Impacto pra priorizar 1ª ação. Mapa de stakeholders em 3 colunas (Apoia / Resiste / Em cima do muro)
+- **Comportamental:** comece pelo APOIADOR, nunca pelo resistente. Nunca apresente em grupo grande primeiro — faça 2-3 conversas 1:1 com stakeholders-chave ANTES da reunião. Frame pra abrir o 1:1: "Quero validar uma ideia com você antes de levar pra reunião — pode me dar feedback honesto?". Chega na reunião com 3-4 vozes preparadas
+- **Artefato:** 5W2H da solução + mapa de stakeholders (3 colunas) + roteiro do 1:1 de validação
+- **Caso real do Israel:** 2018, propôs mudança de turno que mexia com 40 pessoas. Conversou 1:1 com 4 pessoas estratégicas antes. 4 vozes já defendiam na reunião. Aprovou de primeira
+- **Conexão paga:** Trilha 5 (Conduzir Mudanças — ADKAR) / Trilha 7 (Apresentações)
+
+### Situação 10 — "Implementei a mudança e em 2 meses voltou tudo ao que era"
+- **Quando dói:** mudança pegou, em 1-2 meses time volta aos velhos hábitos
+- **Técnica:** Plano de Controle em 1 página (quem monitora, frequência, métrica, o que faz se voltar). POP enxuto — 5 passos críticos da nova rotina (sem capa, sem ISO). 1 indicador único monitorado SEMANALMENTE nos primeiros 90 dias
+- **Comportamental:** mudança não termina na implementação, termina quando vira ROTINA — leva 90 dias de acompanhamento ativo. Não delegue monitoramento nas 4 primeiras semanas — você acompanha pessoalmente, sinaliza que importa. Quando voltar atrás NÃO acuse — pergunta "o que dificultou hoje?" (em 9 de 10 vezes aparece obstáculo invisível)
+- **Artefato:** Plano de Controle (1 página) + POP enxuto (5 passos) + calendário de check-ins semanais de 90 dias
+- **Caso real do Israel:** 2015, mudança "perfeita" voltou em 6 semanas. Descobriu 3 obstáculos invisíveis. Hoje nunca implementa sem plano de controle
+- **Conexão paga:** Trilha 8 (Cultura Lean — kaizen contínuo) / Trilha 5 (Conduzir Mudanças — reinforcement do ADKAR)
+
 ## ✅ Ferramentas do app pra esta trilha (liberadas no plano grátis)
-SIPOC, Plano de Ação 5W2H, Brainstorming, Espinha de Peixe (Ishikawa), Esforço × Impacto, Observação Direta (Gemba), Stakeholders/RACI simples
+SIPOC, Plano de Ação 5W2H, Brainstorming, Espinha de Peixe (Ishikawa), 5 Porquês, Project Charter (versão mini), Esforço × Impacto, Observação Direta (Gemba), Stakeholders/RACI simples, Plano de Controle, POP
 
 ## ❓ Perguntas comuns + respostas ideais
 
@@ -188,58 +227,36 @@ P: Acabei de chegar na empresa, por onde começo?
 R: Comece pela Situação 1 — "Cheguei e não entendi como minha área se encaixa no todo". É a base. Em 2 dias você tem o SIPOC do seu papel e consegue explicar sua área pra um leigo. Aí volta aqui quando a próxima situação aparecer (provavelmente Situação 3 — análise que travou — ou Situação 6 — primeiro email difícil pra um sênior).
 
 P: Vou ter reunião importante semana que vem e não sei o que falar
-R: Duas situações cobrem isso: se você vai PROPOR uma ideia, é Situação 4 (Frame em 4 blocos: Problema → Opções → Recomendação → Pedido). Se você vai APRESENTAR ANÁLISE, é Situação 3 (a pergunta antes do gráfico). Me conta qual dos dois é o seu caso que eu te aponto o frame certo.
+R: Duas situações cobrem isso: se você vai PROPOR uma ideia ainda em fase de exploração, é Situação 4. Se você vai APRESENTAR ANÁLISE, é Situação 3 (a pergunta antes do gráfico). Se você vai apresentar SOLUÇÃO PRONTA pra ser implementada, é Situação 9 (validação 1:1 com stakeholders antes da reunião). Me conta o caso que eu te aponto o frame certo.
 
-P: Meu chefe pediu uma análise vaga e eu não sei nem por onde começar
-R: Situação 3. Regra de ouro: NÃO toca no Excel ainda. Em 30 min, se você não sabe o que está procurando, volta pro seu chefe com essa frase: "Pra entregar a análise certa, posso confirmar: você vai usar isso pra decidir X ou pra justificar Y? Faz diferença no recorte." É menos arriscado que adivinhar.
+P: Meu chefe pediu pra eu "resolver um problema" e eu não sei nem o que ele quer
+R: Situação 7. Regra: NUNCA aceite "resolve isso" sem 1 pergunta de clarificação ANTES de aceitar prazo. Frase pra devolver: "Pra eu te entregar a coisa certa, posso confirmar: qual é o sintoma que você está vendo, e qual seria pra você o sinal de que resolveu?". O risco é aceitar e entregar a coisa errada no prazo correto.
+
+P: Implementei uma mudança e 2 meses depois tudo voltou ao normal
+R: Situação 10. Mudança não termina na implementação — termina em ROTINA, e isso leva 90 dias de acompanhamento ativo seu. Você precisa de Plano de Controle, POP enxuto e 1 indicador monitorado SEMANALMENTE. E quando algo voltar atrás, NÃO acuse o time — pergunta "o que dificultou hoje?". 9 em 10 vezes aparece obstáculo invisível que você não previu.
+
+P: Tô investigando um problema e a primeira causa parece óbvia demais
+R: Boa sinal seu instinto. Situação 8. Aplica 5 Porquês — pergunta "por quê" 5 vezes seguidas em cima da resposta anterior. 99% das primeiras causas óbvias são SINTOMA. A causa real geralmente está no 3º ou 4º "por quê". E ela aponta pra SISTEMA (processo, regra), nunca pra pessoa.
 
 P: Tenho uma ideia mas tenho medo de propor e meu chefe achar que sou metido
-R: Situação 4. O frame que eu usei pra propor uma mudança de US$ 200k na Fisher & Paykel: "Vi um padrão, posso estar errado, mas se eu pudesse testar 2 semanas...". Não é falsa humildade, é convite a colaborar. E sua proposta tem que terminar com pedido específico (piloto de X dias com Y time), nunca "o que você acha?".
+R: Situação 4 (proposta inicial) ou Situação 9 (já tem solução estruturada). Frame que funcionou pra mim numa proposta de US$ 200k: "Vi um padrão, posso estar errado, mas se eu pudesse testar 2 semanas...". Não é falsa humildade, é convite a colaborar. E sempre termina com pedido específico (piloto de X dias com Y time), nunca "o que você acha?".
 
 P: Quero mandar um email pra 5 pessoas mas não sei quem vai no TO e quem vai no CC
-R: Situação 6. Regra simples: TO é quem PRECISA fazer algo com esse email. Se a pessoa não vai agir, ela vai no CC (só pra saber). E uma coisa importante: CC no seu chefe só se ele já participou do contexto OU se você está escalando formalmente. CC chefe todo email passa sensação de que você está "tasselando" e queima sua autonomia percebida.
+R: Situação 6. TO é quem PRECISA fazer algo. Se a pessoa não vai agir, vai no CC (só pra saber). E CC no seu chefe só se ele já participou do contexto OU se você está escalando formalmente. CC chefe todo email passa sensação de "tasselando" e queima sua autonomia percebida.
 
 ## 🚫 Não recomendar nesta trilha
-- NÃO falar de estatística inferencial (ANOVA, teste t, regressão) — vai pra Trilha 4 ou 6
-- NÃO falar de FMEA, Risk Register, PMBOK — vai pra Trilha 4
-- NÃO falar de ADKAR estruturado — vai pra Trilha 5 (mas pode pincelar "como propor sem parecer arrogante" como Situação 4)
+- NÃO falar de estatística inferencial (ANOVA, teste t, regressão) — vai pra Trilha 6
+- NÃO falar de FMEA detalhado, Risk Register, PMBOK — vai pra Trilha 4 ou 9
+- NÃO falar de ADKAR estruturado completo — vai pra Trilha 5 (mas pode pincelar "como vender solução sem virar inimigo" na Situação 9)
 - NÃO falar de DOE, MSA, Cp/Cpk, CEP — vai pra Trilha 6
 - NÃO virar coach. Nada de "como você se sente?", "tente respirar", "vai dar certo". Israel é técnico. Comportamento aqui é régua de decisão, não autoconhecimento
+- NUNCA mais mencionar "Trilha 2 — Investigar Problemas" — ela foi fundida nesta trilha em jun/2026
 
 ## 💡 Notas extras
-- Esta é a única trilha GRÁTIS. Todo lead começa aqui. Boa parte das perguntas de aluno novo cai em uma das 6 situações — sempre devolva pela situação, não pelo episódio
+- Esta é a única trilha GRÁTIS. Todo lead começa aqui. Boa parte das perguntas de aluno novo cai em uma das 10 situações — sempre devolva pela situação, não pelo episódio
+- A trilha cobre ARCO COMPLETO: chegou (Sit 1) → adaptou (Sit 2-6) → entregou primeira mudança real (Sit 7-10). Por isso converte bem pra trilhas pagas — o aluno chega no fim e PERCEBE que tem profundidade pra ir mais fundo
 - Quando recomendar trilha paga, use o campo "Conexão paga" da situação correspondente. Nunca empurra venda sem antes resolver o aperto do momento
-
-═══════════════════════════════════════════════════════════════════════
-
-# SEÇÃO 2 — Trilha 02: Investigar Problemas
-
-ID: `melhorar-minha-area` · Título oficial: **"Como Investigar Problemas e Melhorar a Sua Área"**
-
-## ✅ Sobre a trilha
-**Subtítulo:** Do "todo mundo reclama" ao "olha o que mudou"
-**Dor:** Pra você sair da queixa e entregar resultado real
-**Pra quem:** Quem vê desperdício todo dia e quer atacar de forma estruturada
-**Duração:** 6 semanas · 8 episódios · Iniciante
-
-## ✅ O que ensina
-- Definir o problema certo (a maioria das pessoas erra aqui)
-- Investigar causa-raiz sem culpar pessoa errada
-- Construir um plano que sobrevive ao "isso não vai funcionar"
-- Implementar mudanças que não voltam pra trás no mês seguinte
-
-## ✅ Ferramentas do app pra esta trilha
-Project Charter, SIPOC, Ishikawa, 5 Porquês, Brainstorming, 5W2H, Effort × Impact, Plano de Controle (DMAIC completo)
-
-## ❓ Perguntas comuns + respostas ideais 🖊️
-**[PREENCHA 3-5]**
-
-P: ...
-R: ...
-
-## 🚫 Não recomendar nesta trilha 🖊️
-
-## 💡 Notas extras 🖊️
+- Esta trilha é especificamente desenhada pra atrair Gen Z 23-30 brasileira que valoriza "quick wins aplicáveis essa semana" + freemium sem cartão
 
 ═══════════════════════════════════════════════════════════════════════
 

@@ -60,9 +60,9 @@ function normalizeProfile(p: any): UserProfile {
 // Mapa de recomendação de trilha por perfil (popup informativo, aluno decide)
 const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: string; trilhaNome: string; explicacao: string } | null> = {
   'Atividades': {
-    trilhaNumero: 'Trilha 2',
-    trilhaNome: 'Como Investigar Problemas e Melhorar a Sua Área',
-    explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha cobre causa-raiz, plano simples e implementação sem virar polícia. É o caminho mais direto pro seu escopo.',
+    trilhaNumero: 'Trilha 1',
+    trilhaNome: 'Como Chegar Numa Área Nova e Já Entregar Resultado',
+    explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha (grátis) cobre 10 situações: da adaptação até implementar mudança que sustenta. Inclui Mini-Charter, causa-raiz com 5 Porquês, vender solução sem virar inimigo do time e plano de controle. É o caminho mais direto pro seu escopo — e não custa nada.',
   },
   'Area': null, // sem recomendação específica — o aluno tem várias opções
   'Empresa': {
@@ -341,7 +341,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               title: 'Quero melhorar MINHAS ATIVIDADES',
               description: 'O que EU faço no dia a dia — re-trabalho, ferramenta ruim, espera, reclamação que recebo.',
               icon: ClipboardList,
-              hint: 'Sugestão: Trilha 2',
+              hint: 'Sugestão: Trilha 1 (grátis)',
             },
             {
               id: 'Area' as Exclude<UserProfile, null>,

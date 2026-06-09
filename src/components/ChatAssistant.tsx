@@ -4,7 +4,7 @@ import {
   Send, ArrowRight, Sparkles, Clock, HelpCircle,
   TrendingUp, BarChart3, Activity, Play, ChevronRight, Compass,
   X, FolderTree, BookOpen, Wand2,
-  Footprints, Target, ShieldAlert, Users, LineChart, Mic, Recycle, Trophy,
+  Footprints, ShieldAlert, Users, LineChart, Mic, Recycle, Trophy,
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
@@ -31,18 +31,18 @@ const CATEGORY_TAGS: Record<string, string> = { projects: 'Mais usado', data: 'I
 const CATEGORY_VARIANTS: Record<string, 'light' | 'outlined' | 'dark'> = { projects: 'light', data: 'outlined', stats: 'dark' };
 const LANGS = [{ code: 'pt-BR', flag: '🇧🇷', label: 'PT' }, { code: 'en-US', flag: '🇺🇸', label: 'EN' }, { code: 'es-ES', flag: '🇪🇸', label: 'ES' }];
 
-// 9 trilhas — labels + cores espelhando trilhas.ts (mesma identidade visual da aba Jornada).
+// 8 trilhas — labels + cores espelhando trilhas.ts (mesma identidade visual da aba Jornada).
 // Quando clica, a IA puxa esse contexto e faz 2-3 follow-ups pra confirmar a trilha exata.
+// Nota: antiga T2 "Investigar Problemas" foi fundida na T1 grátis em jun/2026.
 const TRILHA_HERO_CARDS = [
-  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Se adaptar a uma empresa, área ou função nova',            gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
-  { id: 'melhorar-minha-area',             num: '02', icon: Target,      label: 'Investigar a causa de um problema',                        gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #164E63 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
-  { id: 'dados-do-dia-a-dia',              num: '03', icon: BarChart3,   label: 'Gerar recomendações baseadas em dados',                    gradient: 'linear-gradient(135deg, #22D3EE 0%, #2563EB 55%, #1E3A8A 100%)', glow: 'rgba(34, 211, 238, 0.45)'  },
-  { id: 'analise-risco-mudanca',           num: '04', icon: ShieldAlert, label: 'Antecipar riscos antes de executar',                       gradient: 'linear-gradient(135deg, #EF4444 0%, #BE123C 55%, #0F172A 100%)', glow: 'rgba(239, 68, 68, 0.45)'   },
-  { id: 'mudanca-com-menos-resistencia',   num: '05', icon: Users,       label: 'Conduzir mudanças com menos resistência',                  gradient: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 55%, #7F1D1D 100%)', glow: 'rgba(245, 158, 11, 0.45)'  },
-  { id: 'problema-cronico',                num: '06', icon: LineChart,   label: 'Estudos pontuais com estatística aplicada',                gradient: 'linear-gradient(135deg, #C084FC 0%, #7C3AED 55%, #312E81 100%)', glow: 'rgba(168, 85, 247, 0.45)'  },
-  { id: 'apresentar-recomendacao',         num: '07', icon: Mic,         label: 'Criar apresentações que convencem',                        gradient: 'linear-gradient(135deg, #FB923C 0%, #EF4444 55%, #9F1239 100%)', glow: 'rgba(249, 115, 22, 0.45)'  },
-  { id: 'perfil-gestor-lean',              num: '08', icon: Recycle,     label: 'Conhecer a cultura Lean na prática',                       gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #064E3B 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
-  { id: 'especialista-projetos-complexos', num: '09', icon: Trophy,      label: 'Gerenciar projetos de melhoria complexos',                 gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
+  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Chegar numa área nova e já entregar resultado (GRÁTIS)',  gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
+  { id: 'dados-do-dia-a-dia',              num: '02', icon: BarChart3,   label: 'Gerar recomendações baseadas em dados',                    gradient: 'linear-gradient(135deg, #22D3EE 0%, #2563EB 55%, #1E3A8A 100%)', glow: 'rgba(34, 211, 238, 0.45)'  },
+  { id: 'analise-risco-mudanca',           num: '03', icon: ShieldAlert, label: 'Antecipar riscos antes de executar',                       gradient: 'linear-gradient(135deg, #EF4444 0%, #BE123C 55%, #0F172A 100%)', glow: 'rgba(239, 68, 68, 0.45)'   },
+  { id: 'mudanca-com-menos-resistencia',   num: '04', icon: Users,       label: 'Conduzir mudanças com menos resistência',                  gradient: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 55%, #7F1D1D 100%)', glow: 'rgba(245, 158, 11, 0.45)'  },
+  { id: 'problema-cronico',                num: '05', icon: LineChart,   label: 'Estudos pontuais com estatística aplicada',                gradient: 'linear-gradient(135deg, #C084FC 0%, #7C3AED 55%, #312E81 100%)', glow: 'rgba(168, 85, 247, 0.45)'  },
+  { id: 'apresentar-recomendacao',         num: '06', icon: Mic,         label: 'Criar apresentações que convencem',                        gradient: 'linear-gradient(135deg, #FB923C 0%, #EF4444 55%, #9F1239 100%)', glow: 'rgba(249, 115, 22, 0.45)'  },
+  { id: 'perfil-gestor-lean',              num: '07', icon: Recycle,     label: 'Conhecer a cultura Lean na prática',                       gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #064E3B 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
+  { id: 'especialista-projetos-complexos', num: '08', icon: Trophy,      label: 'Gerenciar projetos de melhoria complexos',                 gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
 ] as const;
 
 type TrilhaHeroCard = typeof TRILHA_HERO_CARDS[number];
