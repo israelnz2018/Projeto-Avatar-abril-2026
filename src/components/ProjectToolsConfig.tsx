@@ -47,6 +47,31 @@ const DEFAULT_PHASES = [
   { id: 'Control', name: 'Controlar' },
 ];
 
+/**
+ * CATÁLOGO DE FERRAMENTAS DA PLATAFORMA
+ *
+ * ⚠️ AO ADICIONAR UMA FERRAMENTA NOVA, ATUALIZE OS 4 LUGARES ABAIXO:
+ *
+ * 1. ESTE ARRAY (AVAILABLE_TOOLS) — id + nome + fase. É o catálogo visível
+ *    na tela "Ferramentas por Projeto".
+ *
+ * 2. src/components/projects/ProjectJourney.tsx — array de routing onde
+ *    cada toolId é mapeado pro seu componente React.
+ *    Exemplo: { id: 'raci', name: 'Matriz RACI', component: RaciTool, defaultPhase: 'Define' }
+ *
+ * 3. src/services/configService.ts — função `seedDefaultInitiative`. Adicione
+ *    o toolId ao array `toolIds` da fase apropriada nas iniciativas DMAIC,
+ *    PMI e/ou Pequenas Melhorias. Sem isso a ferramenta nasce desmarcada
+ *    nas iniciativas seedadas.
+ *
+ * 4. INICIATIVAS EXISTENTES NO FIRESTORE — o seed só roda na primeira vez.
+ *    Pra que a ferramenta apareça em iniciativas já criadas, vá manualmente
+ *    em cada uma: Ferramentas por Projeto → escolha a iniciativa → fase
+ *    correspondente → clique no card da ferramenta → Salvar.
+ *
+ * Sem os 4 passos, a ferramenta pode existir no código mas não aparecer
+ * no app — exatamente o sintoma que sempre te frustrou.
+ */
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema', phase: 'Define' },
   { id: 'charter', name: 'Project Charter', phase: 'Define' },
