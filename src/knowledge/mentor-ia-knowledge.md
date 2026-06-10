@@ -2,7 +2,7 @@
 
 Arquivo único editável em texto puro. Contém **1 seção global** + **8 seções (uma por trilha)** = 9 seções no total.
 
-Nota: em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida na Trilha 1 grátis. As seções de trilha pulam do número 1 direto pro 3 — o "espaço vazio" da Trilha 2 é intencional. Não renumerar as outras pra evitar confusão com o histórico.
+Histórico: em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida na Trilha 1 grátis — os 8 episódios da T2 viraram 4 situações novas (definir-problema, causa-raiz, vender-solucao, sustentar-ganho) dentro da T1. As trilhas restantes foram renumeradas 1-8 sem gap, na ordem do funil de venda (Opção A — pesquisa-baseada): T1 grátis (gateway) → T2 Dados → T3 Mudanças → T4 Apresentações → T5 Riscos → T6 Lean → T7 Estatística → T8 Especialista (âncora).
 
 O sistema lê esse arquivo em runtime e injeta no prompt da IA. Atualizar = só editar e salvar.
 
@@ -83,7 +83,7 @@ Apresentação: Botão PPT em cada ferramenta gera slide executivo
 2. Sem buzzword vazia ("sinergia", "paradigma", "mindset", "disruptivo")
 3. Frases curtas, parágrafos curtos. Direto ao ponto.
 4. Seu ÚNICO objetivo é orientar a MELHOR TRILHA — nada além disso. Recomendações DEVEM:
-   - Citar o nome EXATO de uma das 9 trilhas reais (entre aspas)
+   - Citar o nome EXATO de uma das 8 trilhas reais (entre aspas)
    - NÃO sugerir próximos passos, ferramentas específicas, planos de ação, checklist, "primeira coisa a fazer", coleta de dados ou qualquer roteiro
    - NÃO dar conselho operacional/técnico — pra isso o aluno tem o Mentor IA dentro de cada ferramenta
 5. Se a dúvida não bater com nenhuma trilha, sugira a mais próxima e explique
@@ -130,7 +130,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** valide com 3 fontes (chefe + par + ex-membro); se em 2 semanas não consegue explicar pra leigo, está incompleto
 - **Artefato:** SIPOC do papel + 1-pager "minha área em 5 linhas"
 - **Caso real do Israel:** Braskem aos 26, 2 semanas perdidas
-- **Conexão paga:** Trilha 8 (Cultura Lean — fluxo de valor extendido)
+- **Conexão paga:** Trilha 6 (Cultura Lean — fluxo de valor extendido)
 
 ### Situação 2 — "Não sei a quem responder primeiro nem quando escalar"
 - **Quando dói:** múltiplas demandas conflitantes, dúvida "escalo ou resolvo?"
@@ -138,7 +138,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** régua de 3 perguntas (decisão acima do meu cargo? custo errar > custo pedir? bati num bloqueio?). 2 SIM = escala. Frase pronta: "Tentei X e bati em Y. Antes de Z, queria seu OK porque [implicações]"
 - **Artefato:** RACI semanal + tabela do critério
 - **Caso real do Israel:** chefe alemão em Braskem — "não escala se ainda tem 1 opção que não tentou"
-- **Conexão paga:** Trilha 6 (Gerenciar pessoas — RACI completo)
+- **Conexão paga:** Trilha auxiliar Gerenciar Pessoas num Projeto (RACI completo)
 
 ### Situação 3 — "Me pediram análise/relatório e travei"
 - **Quando dói:** planilha gigante, comando vago, não sabe começar
@@ -146,7 +146,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** Regra de ouro — 30 min sem saber o que procura = NÃO toca em Excel, volta pra quem pediu. Frase: "Pra entregar análise certa, posso confirmar: você vai usar isso pra decidir X ou justificar Y? Faz diferença no recorte". O que NÃO falar: "Não entendi o que você quer"
 - **Artefato:** 1-pager "pergunta + 5 hipóteses"
 - **Caso real do Israel:** aos 28 em multinacional alemã, 50 mil linhas, travou o dia
-- **Conexão paga:** Trilha 3 (Recomendar com Dados) / Trilha 6 (Análises Estatísticas)
+- **Conexão paga:** Trilha 2 (Recomendar com Dados) / Trilha 7 (Análises Estatísticas)
 
 ### Situação 4 — "Tenho ideia, mas não sei propor sem parecer arrogante"
 - **Quando dói:** 3-6 meses de empresa, vê melhoria possível, medo de soar novato presunçoso
@@ -154,7 +154,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** pedido sempre específico ("quero seu OK pra piloto de 2 semanas") nunca "o que você acha?". Segunda manhã > sexta tarde. Email > Slack. 1:1 antes pra propostas grandes. Frame humilde-técnico: "vi um padrão, posso estar errado, mas posso testar?". CC do 1º email: só chefe direto
 - **Artefato:** 1-pager da proposta
 - **Caso real do Israel:** Fisher & Paykel, mudança de US$ 200k, frase exata "vi um padrão, posso estar errado, posso testar 2 semanas?"
-- **Conexão paga:** Trilha 5 (Conduzir Mudanças) / Trilha 7 (Apresentações)
+- **Conexão paga:** Trilha 3 (Conduzir Mudanças) / Trilha 4 (Apresentações)
 
 ### Situação 5 — "Ando pela empresa mas não sei o que observar"
 - **Quando dói:** passa pelos processos todo dia, sente oportunidade mas não enxerga
@@ -162,7 +162,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** primeiras 6 semanas anota e cala. Valida 3 vezes antes de levar pra fora. Frame que NÃO ofende: "Tô tentando entender por que fazemos assim — me ajuda?". Nunca "Por que VOCÊS fazem assim?". Aponte desperdício do PROCESSO, não do colega
 - **Artefato:** Diário de 5 dias com 8 desperdícios observados
 - **Caso real do Israel:** fábrica em Camaçari, R$ 380k em 4 horas, abordagem "me ensina por que faz assim"
-- **Conexão paga:** Trilha 8 (Cultura Lean) + ferramenta Observação Direta
+- **Conexão paga:** Trilha 6 (Cultura Lean) + ferramenta Observação Direta
 
 ### Situação 6 — "Não domino etiqueta de email — TO, CC, BCC, tom"
 - **Quando dói:** vai escrever pra 5+ pessoas e congela; ou recebe email de grupo e não sabe quem responde
@@ -182,7 +182,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
   - Mais de 2 idas e voltas = sair do email, ir pra 1:1 ou call
 - **Artefato:** Matriz TO/CC/BCC pessoal + 3 templates (pedido, escalação formal, FYI)
 - **Caso real do Israel:** caso de 2012, CC mal usado custou promoção
-- **Conexão paga:** Trilha 5 (Conduzir Mudanças — comunicação como vetor)
+- **Conexão paga:** Trilha 3 (Conduzir Mudanças — comunicação como vetor)
 
 ### SEGUNDA METADE — ENTREGAR A PRIMEIRA MUDANÇA REAL (situações 7 a 10)
 
@@ -192,7 +192,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** NUNCA aceitar "resolve isso" abstrato sem 1 pergunta de clarificação ANTES do prazo. Frase pronta: "Pra eu te entregar a coisa certa, posso confirmar: qual é o sintoma e qual seria o sinal de que resolveu?". Cuidado com a armadilha do herói — aceitar prazo sem definir escopo entrega coisa errada no prazo correto
 - **Artefato:** Mini-Charter (1 página: problema, escopo, critério de sucesso, linha de base)
 - **Caso real do Israel:** aos 26 chamaram pra "resolver paradas". Em 2 semanas descobriu que o problema era programação, não parada
-- **Conexão paga:** Trilha 4 (Antecipar Riscos) / Trilha 9 (Especialista em Gestão de Projetos)
+- **Conexão paga:** Trilha 5 (Antecipar Riscos) / Trilha 8 (Especialista em Gestão de Projetos)
 
 ### Situação 8 — "Achei a causa óbvia, mas suspeito que tem mais coisa"
 - **Quando dói:** investigando problema, primeira causa é "óbvia demais", você sente que se atacar só ela vai voltar
@@ -200,7 +200,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** NUNCA pare no primeiro porquê — vá pelo menos até o 3º. 5 Porquês aponta SISTEMA, nunca pessoa específica. "Falha do operador" não é causa-raiz, é desistência. Sinal de alerta: concordância fácil de todos = ainda no sintoma
 - **Artefato:** Ishikawa (1 página) + cadeia de 5 Porquês com pelo menos 5 níveis
 - **Caso real do Israel:** fábrica todos diziam "falha do operador". 4 horas de 5 Porquês = era um detalhe em documento não lido há 6 anos
-- **Conexão paga:** Trilha 6 (Análises Estatísticas — causa-raiz com dado) / Trilha 4 (FMEA)
+- **Conexão paga:** Trilha 7 (Análises Estatísticas — causa-raiz com dado) / Trilha 5 (FMEA)
 
 ### Situação 9 — "Vou propor uma solução, mas tenho medo do time virar a cara"
 - **Quando dói:** solução pronta, sabe que é boa, mas sente que vai bater em resistência ("sempre fizemos assim")
@@ -208,7 +208,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** comece pelo APOIADOR, nunca pelo resistente. Nunca apresente em grupo grande primeiro — faça 2-3 conversas 1:1 com stakeholders-chave ANTES da reunião. Frame pra abrir o 1:1: "Quero validar uma ideia com você antes de levar pra reunião — pode me dar feedback honesto?". Chega na reunião com 3-4 vozes preparadas
 - **Artefato:** 5W2H da solução + mapa de stakeholders (3 colunas) + roteiro do 1:1 de validação
 - **Caso real do Israel:** 2018, propôs mudança de turno que mexia com 40 pessoas. Conversou 1:1 com 4 pessoas estratégicas antes. 4 vozes já defendiam na reunião. Aprovou de primeira
-- **Conexão paga:** Trilha 5 (Conduzir Mudanças — ADKAR) / Trilha 7 (Apresentações)
+- **Conexão paga:** Trilha 3 (Conduzir Mudanças — ADKAR) / Trilha 4 (Apresentações)
 
 ### Situação 10 — "Implementei a mudança e em 2 meses voltou tudo ao que era"
 - **Quando dói:** mudança pegou, em 1-2 meses time volta aos velhos hábitos
@@ -216,7 +216,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Comportamental:** mudança não termina na implementação, termina quando vira ROTINA — leva 90 dias de acompanhamento ativo. Não delegue monitoramento nas 4 primeiras semanas — você acompanha pessoalmente, sinaliza que importa. Quando voltar atrás NÃO acuse — pergunta "o que dificultou hoje?" (em 9 de 10 vezes aparece obstáculo invisível)
 - **Artefato:** Plano de Controle (1 página) + POP enxuto (5 passos) + calendário de check-ins semanais de 90 dias
 - **Caso real do Israel:** 2015, mudança "perfeita" voltou em 6 semanas. Descobriu 3 obstáculos invisíveis. Hoje nunca implementa sem plano de controle
-- **Conexão paga:** Trilha 8 (Cultura Lean — kaizen contínuo) / Trilha 5 (Conduzir Mudanças — reinforcement do ADKAR)
+- **Conexão paga:** Trilha 6 (Cultura Lean — kaizen contínuo) / Trilha 3 (Conduzir Mudanças — reinforcement do ADKAR)
 
 ## ✅ Ferramentas do app pra esta trilha (liberadas no plano grátis)
 SIPOC, Plano de Ação 5W2H, Brainstorming, Espinha de Peixe (Ishikawa), 5 Porquês, Project Charter (versão mini), Esforço × Impacto, Observação Direta (Gemba), Stakeholders/RACI simples, Plano de Controle, POP
@@ -245,10 +245,10 @@ P: Quero mandar um email pra 5 pessoas mas não sei quem vai no TO e quem vai no
 R: Situação 6. TO é quem PRECISA fazer algo. Se a pessoa não vai agir, vai no CC (só pra saber). E CC no seu chefe só se ele já participou do contexto OU se você está escalando formalmente. CC chefe todo email passa sensação de "tasselando" e queima sua autonomia percebida.
 
 ## 🚫 Não recomendar nesta trilha
-- NÃO falar de estatística inferencial (ANOVA, teste t, regressão) — vai pra Trilha 6
-- NÃO falar de FMEA detalhado, Risk Register, PMBOK — vai pra Trilha 4 ou 9
-- NÃO falar de ADKAR estruturado completo — vai pra Trilha 5 (mas pode pincelar "como vender solução sem virar inimigo" na Situação 9)
-- NÃO falar de DOE, MSA, Cp/Cpk, CEP — vai pra Trilha 6
+- NÃO falar de estatística inferencial (ANOVA, teste t, regressão) — vai pra Trilha 7
+- NÃO falar de FMEA detalhado, Risk Register, PMBOK — vai pra Trilha 5 ou 8
+- NÃO falar de ADKAR estruturado completo — vai pra Trilha 3 (mas pode pincelar "como vender solução sem virar inimigo" na Situação 9)
+- NÃO falar de DOE, MSA, Cp/Cpk, CEP — vai pra Trilha 7
 - NÃO virar coach. Nada de "como você se sente?", "tente respirar", "vai dar certo". Israel é técnico. Comportamento aqui é régua de decisão, não autoconhecimento
 - NUNCA mais mencionar "Trilha 2 — Investigar Problemas" — ela foi fundida nesta trilha em jun/2026
 
@@ -260,7 +260,7 @@ R: Situação 6. TO é quem PRECISA fazer algo. Se a pessoa não vai agir, vai n
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 3 — Trilha 03: Recomendar com Dados
+# SEÇÃO 2 — Trilha 02: Recomendar com Dados
 
 ID: `dados-do-dia-a-dia` · Título oficial: **"Como Recomendar Melhorias com Base em Análise de Dados"**
 
@@ -290,14 +290,14 @@ R: ...
 
 ## 🚫 Não recomendar nesta trilha 🖊️
 - NÃO mencionar Python, R ou Excel — usa as análises descritivas do app
-- NÃO sugerir DOE, FMEA ou modelagem complexa — vai pra trilha 6
+- NÃO sugerir DOE, FMEA ou modelagem complexa — vai pra Trilha 7 (estatística) ou Trilha 5 (FMEA)
 - ...
 
 ## 💡 Notas extras 🖊️
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 4 — Trilha 04: Antecipar Riscos
+# SEÇÃO 5 — Trilha 05: Antecipar Riscos
 
 ID: `analise-risco-mudanca` · Título oficial: **"Como Antecipar Riscos Antes que Virem Problemas"**
 
@@ -328,7 +328,7 @@ R: ...
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 5 — Trilha 05: Conduzir Mudanças
+# SEÇÃO 3 — Trilha 03: Conduzir Mudanças
 
 ID: `mudanca-com-menos-resistencia` · Título oficial: **"Como Conduzir Mudanças com Menos Resistência"**
 
@@ -362,7 +362,7 @@ R: ...
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 6 — Trilha 06: Análises Estatísticas Aplicadas
+# SEÇÃO 7 — Trilha 07: Análises Estatísticas Aplicadas
 
 ID: `problema-cronico` · Título oficial: **"Como Fazer Análises Estatísticas Aplicadas a Negócios"**
 
@@ -399,7 +399,7 @@ R: ...
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 7 — Trilha 07: Apresentações que Convencem
+# SEÇÃO 4 — Trilha 04: Apresentações que Convencem
 
 ID: `apresentar-recomendacao` · Título oficial: **"Como Criar Apresentações que Convencem"**
 
@@ -436,7 +436,7 @@ R: ...
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 8 — Trilha 08: Cultura Lean na Prática
+# SEÇÃO 6 — Trilha 06: Cultura Lean na Prática
 
 ID: `perfil-gestor-lean` · Título oficial: **"Cultura Lean na Prática"**
 
@@ -470,7 +470,7 @@ R: ...
 
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 9 — Trilha 09: Especialista em Projetos Complexos
+# SEÇÃO 8 — Trilha 08: Especialista em Projetos Complexos · FORMAÇÃO ÂNCORA
 
 ID: `especialista-projetos-complexos` · Título oficial: **"Como Se Tornar um Especialista em Gestão de Projetos de Melhoria"**
 
@@ -499,7 +499,7 @@ P: ...
 R: ...
 
 ## 🚫 Não recomendar nesta trilha 🖊️
-- Indicar SOMENTE pra alunos sêniores que já passaram pelas T1-T6
+- Indicar SOMENTE pra alunos sêniores que já passaram pelas T1-T7
 - NÃO citar PMP/PMI como certificação externa
 - ...
 

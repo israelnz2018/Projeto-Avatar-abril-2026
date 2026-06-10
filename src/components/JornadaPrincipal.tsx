@@ -63,14 +63,14 @@ const BG = '#080a14';
  * NAVY/BLUE (definida no próprio trilhas.ts via gradient/accent/glow LBW).
  */
 const HERO_TRILHAS_IDS = [
-  'ferramentas-dia-a-dia',           // 1 — Kit grátis (adaptação + 1ª entrega) ← FUNIL DE TOPO
-  'dados-do-dia-a-dia',              // 2 — Recomendar com Dados
-  'analise-risco-mudanca',           // 3 — Antecipar Riscos
-  'mudanca-com-menos-resistencia',   // 4 — Conduzir Mudanças
-  'problema-cronico',                // 5 — Análises Estatísticas
-  'apresentar-recomendacao',         // 6 — Apresentações que Convencem
-  'perfil-gestor-lean',              // 7 — Cultura Lean na Prática
-  'especialista-projetos-complexos', // 8 — FORMAÇÃO LBW (âncora — paleta NAVY/BLUE)
+  'ferramentas-dia-a-dia',           // 01 — Kit grátis (adaptação + 1ª entrega) ← FUNIL DE TOPO
+  'dados-do-dia-a-dia',              // 02 — Recomendar com Dados (1ª venda + provável pós-grátis)
+  'mudanca-com-menos-resistencia',   // 03 — Conduzir Mudanças (2ª venda + provável)
+  'apresentar-recomendacao',         // 04 — Apresentações que Convencem (3ª venda + provável)
+  'analise-risco-mudanca',           // 05 — Antecipar Riscos (refinamento técnico)
+  'perfil-gestor-lean',              // 06 — Cultura Lean na Prática (mindset)
+  'problema-cronico',                // 07 — Análises Estatísticas (profundidade técnica)
+  'especialista-projetos-complexos', // 08 — FORMAÇÃO LBW (âncora — paleta NAVY/BLUE)
 ];
 
 const HERO_INTERVALO_MS = 8_000;

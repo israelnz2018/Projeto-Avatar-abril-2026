@@ -449,7 +449,7 @@ Não é curso linear. Você abre o círculo da situação que tá te travando ES
 
   {
     id: 'dados-do-dia-a-dia',
-    numero: '03',
+    numero: '02',
     titulo: 'Como Recomendar Melhorias com Base em Análise de Dados',
     subtitulo: 'Da análise ao "sim" do chefe',
     dor: 'Pra parar de chutar e começar a propor com base em fato',
@@ -498,7 +498,7 @@ Aqui você vai aprender a fazer Pareto, Histograma, Boxplot e algumas análises 
 
   {
     id: 'apresentar-recomendacao',
-    numero: '07',
+    numero: '04',
     titulo: 'Como Criar Apresentações que Convencem',
     subtitulo: 'Sem travar, sem cara de quem está mentindo',
     dor: 'Pra parar de congelar quando a diretoria pergunta',
@@ -538,7 +538,7 @@ Te ensino a estrutura que uso em qualquer reunião com C-level: situação, comp
 
   {
     id: 'mudanca-com-menos-resistencia',
-    numero: '05',
+    numero: '03',
     titulo: 'Como Conduzir Mudanças com Menos Resistência',
     subtitulo: 'Quando você fala e o time finalmente escuta',
     dor: 'Pra mudar processos sem virar inimigo do seu time',
@@ -579,7 +579,7 @@ A diferença entre quem sobe rápido e quem fica parado não é técnica. É a c
 
   {
     id: 'gerenciar-pessoas-projeto',
-    numero: '06',
+    numero: '09',
     titulo: 'Gerencie pessoas num projeto',
     subtitulo: 'Liderar sem autoridade formal',
     dor: 'Pra coordenar gente mais experiente sem virar piada',
@@ -621,7 +621,7 @@ Te ensino o esqueleto de como rodar um projeto de 12 a 18 meses sem perder o tim
 
   {
     id: 'perfil-gestor-lean',
-    numero: '08',
+    numero: '06',
     titulo: 'Cultura Lean na Prática',
     subtitulo: 'Pensar Lean antes de aplicar Lean',
     dor: 'Pra você ver o desperdício que está na cara da sua área (e ninguém percebe)',
@@ -670,7 +670,7 @@ Aqui te mostro como eu treinei esse olhar — com casos reais — e como você p
 
   {
     id: 'especialista-projetos-complexos',
-    numero: '09',
+    numero: '08',
     titulo: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
     subtitulo: 'A formação completa pra liderar projetos estratégicos',
     dor: 'Pra você passar de "faz pequenos" pra "lidera os complexos"',
@@ -719,7 +719,7 @@ Essa trilha não é pra todo mundo. É pra quem já lidera e quer dar o salto pr
 
   {
     id: 'analise-risco-mudanca',
-    numero: '04',
+    numero: '05',
     titulo: 'Como Antecipar Riscos Antes que Virem Problemas',
     subtitulo: 'Antes de apertar o botão, leia o radar',
     dor: 'Pra você não ser lembrado como quem quebrou o processo',
@@ -802,7 +802,7 @@ Aqui você vai aprender a fazer um diagnóstico rápido de qualquer área em 1 d
 
   {
     id: 'problema-cronico',
-    numero: '06',
+    numero: '07',
     titulo: 'Como Fazer Análises Estatísticas Aplicadas a Negócios',
     subtitulo: 'Estatística que vira decisão, não relatório',
     dor: 'Pra usar dado de verdade — não "sentimentômetro" disfarçado',
@@ -845,7 +845,7 @@ A chave é o método: voltar até a causa-raiz REAL (não a primeira que aparece
 
   {
     id: 'projetos-remotos',
-    numero: '12',
+    numero: '11',
     titulo: 'Coordenar projetos remotos',
     subtitulo: 'Quando o time está em 4 fusos diferentes',
     dor: 'Pra liderar sem ver as caras todo dia (e não perder o time)',

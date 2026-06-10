@@ -66,7 +66,7 @@ const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: st
   },
   'Area': null, // sem recomendação específica — o aluno tem várias opções
   'Empresa': {
-    trilhaNumero: 'Trilha 9',
+    trilhaNumero: 'Trilha 8',
     trilhaNome: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
     explicacao: 'Pra quem enxerga a empresa como sistema, essa formação cobre PMI completo, gerenciamento de stakeholders em múltiplas áreas, risk register e relatório executivo. É o nível pra liderar projeto que atravessa departamentos.',
   },
@@ -355,7 +355,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               title: 'Quero melhorar MINHA EMPRESA',
               description: 'Sou especialista/consultor — visão sistêmica, dores executivas, conexões entre áreas, programa OpEx.',
               icon: Globe2,
-              hint: 'Sugestão: Trilha 9',
+              hint: 'Sugestão: Trilha 8',
             },
           ].map((profile) => (
             <button
