@@ -102,7 +102,7 @@ Apresentação: Botão PPT em cada ferramenta gera slide executivo
 
 # SEÇÃO 1 — Trilha 01: Chegar e Entregar (GRÁTIS · kit fundido de 10 situações)
 
-ID: `ferramentas-dia-a-dia` · Título oficial: **"Como Chegar Numa Área Nova e Já Entregar Resultado"**
+ID: `ferramentas-dia-a-dia` · Título oficial: **"Como Chegar em uma Área Nova e Já Entregar Resultado"**
 
 ## ✅ Sobre a trilha
 **Subtítulo:** Kit grátis de 10 situações pros primeiros 6 meses

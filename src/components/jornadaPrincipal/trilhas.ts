@@ -160,7 +160,7 @@ export const TRILHAS: Trilha[] = [
   {
     id: 'ferramentas-dia-a-dia',
     numero: '01',
-    titulo: 'Como Chegar Numa Área Nova e Já Entregar Resultado',
+    titulo: 'Como Chegar em uma Área Nova e Já Entregar Resultado',
     subtitulo: 'Kit grátis de 10 situações pros primeiros 6 meses',
     dor: 'Pra você sair do "perdido" e chegar no "olha o que mudou" antes do fim do primeiro ano',
     paraQuem: 'Quem chegou agora (1 semana a 6 meses) numa empresa nova, área nova ou função nova — e quer mostrar valor antes de virar "mais um" do time',

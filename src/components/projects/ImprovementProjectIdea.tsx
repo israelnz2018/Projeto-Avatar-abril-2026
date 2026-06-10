@@ -61,7 +61,7 @@ function normalizeProfile(p: any): UserProfile {
 const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: string; trilhaNome: string; explicacao: string } | null> = {
   'Atividades': {
     trilhaNumero: 'Trilha 1',
-    trilhaNome: 'Como Chegar Numa Área Nova e Já Entregar Resultado',
+    trilhaNome: 'Como Chegar em uma Área Nova e Já Entregar Resultado',
     explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha (grátis) cobre 10 situações: da adaptação até implementar mudança que sustenta. Inclui Mini-Charter, causa-raiz com 5 Porquês, vender solução sem virar inimigo do time e plano de controle. É o caminho mais direto pro seu escopo — e não custa nada.',
   },
   'Area': null, // sem recomendação específica — o aluno tem várias opções
