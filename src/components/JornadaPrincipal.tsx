@@ -119,22 +119,6 @@ export default function JornadaPrincipal() {
     setTrilhaSelecionada(trilha);
   }, []);
 
-  // Progressão sugerida — as 8 trilhas reais, do mais básico (chegou agora)
-  // ao mais avançado (Especialista LBW). Ordem honesta de dificuldade técnica.
-  const progressaoIds = [
-    'ferramentas-dia-a-dia',              // 1 — Iniciante (GRÁTIS — kit de 10 situações)
-    'dados-do-dia-a-dia',                 // 2 — Intermediário
-    'mudanca-com-menos-resistencia',      // 3 — Intermediário
-    'apresentar-recomendacao',            // 4 — Avançado
-    'analise-risco-mudanca',              // 5 — Intermediário
-    'perfil-gestor-lean',                 // 6 — Intermediário
-    'problema-cronico',                   // 7 — Avançado
-    'especialista-projetos-complexos',    // 8 — Avançado (Formação LBW — âncora)
-  ];
-  const progressao = progressaoIds
-    .map(id => TRILHAS.find(t => t.id === id))
-    .filter((t): t is Trilha => t !== undefined);
-
   return (
     // Estoura o padding do Layout (que adiciona p-8 ao redor de children) — Netflix precisa full-bleed
     <div className="-m-8 min-h-screen" style={{ background: BG, color: 'white' }}>
@@ -275,30 +259,11 @@ export default function JornadaPrincipal() {
         {/* BANNER DO MENTOR */}
         <MentorBanner onCTA={() => navigate('/chat')} />
 
-        {/* ROW 2 — Resolver problema e melhorar processo */}
-        <TrilhaRow
-          titulo={CATEGORIAS[1].titulo}
-          subtitulo={CATEGORIAS[1].subtitulo}
-          trilhas={getTrilhasByCategoria('resolver-problema')}
-          onSelect={onInfo}
-        />
-
-        {/* ROW 3 — Progressão sugerida (ranqueada 1 → 8) */}
-        <TrilhaRow
-          titulo="Do básico ao avançado"
-          subtitulo="A ordem natural — da primeira semana de trabalho até o nível especialista"
-          trilhas={progressao}
-          onSelect={onInfo}
-          ranked
-        />
-
-        {/* ROW 4 — Aprofundamento técnico */}
-        <TrilhaRow
-          titulo={CATEGORIAS[2].titulo}
-          subtitulo={CATEGORIAS[2].subtitulo}
-          trilhas={getTrilhasByCategoria('aprofundamento')}
-          onSelect={onInfo}
-        />
+        {/* SEÇÃO — Arsenal de ferramentas (informativo, não clicável).
+            As rows "Resolver problema", "Do básico ao avançado" e "Aprofundamento
+            técnico" foram removidas — a única row de trilhas é "Comece por aqui"
+            (acima), e o resto vira o arsenal informativo. */}
+        <ArsenalFerramentas />
 
         {/* MANIFESTO RODAPÉ */}
         <ManifestoRodape />
@@ -307,6 +272,108 @@ export default function JornadaPrincipal() {
       {/* MODAL */}
       <TrilhaModal trilha={trilhaSelecionada} onClose={() => setTrilhaSelecionada(null)} />
     </div>
+  );
+}
+
+// =============================================================================
+// ARSENAL DE FERRAMENTAS — seção informativa (não clicável).
+// Mostra o "tamanho do arsenal" da plataforma agrupado por categoria, pra
+// comunicar profundidade técnica. Substitui a antiga row "Aprofundamento".
+// =============================================================================
+
+const ARSENAL: {
+  numero: string;
+  titulo: string;
+  accent: string;
+  grupos: { sub: string; itens: string[] }[];
+}[] = [
+  {
+    numero: '1',
+    titulo: 'Ferramentas de Gestão',
+    accent: '#3B82F6',
+    grupos: [
+      { sub: '1.1 Gestão de Projetos', itens: ['Project Charter', 'WBS (EAP)', 'Cronograma', 'Plano do GP'] },
+      { sub: '1.2 Gestão de Mudanças', itens: ['ADKAR', 'Mapa de Stakeholders', 'Plano de Comunicação'] },
+      { sub: '1.3 Gestão de Riscos', itens: ['FMEA', 'Risk Register', 'Plano de Contingência'] },
+    ],
+  },
+  {
+    numero: '2',
+    titulo: 'Ferramentas Estatísticas',
+    accent: '#A855F7',
+    grupos: [
+      { sub: '2.1 Inferência & Capacidade', itens: ['MSA (Gage R&R)', 'SPC / Cartas de Controle', 'Cp · Cpk · Pp · Ppk', 'Testes de Hipótese', 'ANOVA', 'Qui-quadrado'] },
+      { sub: '2.2 Preditivas', itens: ['Regressão', 'Série Temporal', 'Árvore de Decisão', 'Random Forest'] },
+    ],
+  },
+  {
+    numero: '3',
+    titulo: 'Ferramentas Gráficas',
+    accent: '#22D3EE',
+    grupos: [
+      { sub: '3.1 Visualização', itens: ['Box Plot', 'Pareto', 'Histograma', 'Dispersão', 'Tendência', 'Setores (Pizza)'] },
+    ],
+  },
+];
+
+function ArsenalFerramentas() {
+  return (
+    <section className="relative px-6 md:px-16 lg:px-24 mt-10 mb-4">
+      <div className="mb-1">
+        <h2 className="text-xl md:text-2xl font-black text-white tracking-tight m-0">
+          O arsenal por dentro das trilhas
+        </h2>
+        <p className="text-sm text-white/55 mt-1 m-0">
+          As ferramentas que você domina ao longo do caminho — agrupadas por tipo
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        {ARSENAL.map((cat) => (
+          <motion.div
+            key={cat.numero}
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ duration: 0.5 }}
+            className="rounded-2xl p-5 md:p-6 border border-white/10"
+            style={{ background: 'rgba(255,255,255,0.03)' }}
+          >
+            {/* Cabeçalho da categoria */}
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shrink-0"
+                   style={{ background: `linear-gradient(135deg, ${cat.accent}, ${cat.accent}99)` }}>
+                {cat.numero}
+              </div>
+              <h3 className="text-base md:text-lg font-black text-white m-0 leading-tight">
+                {cat.titulo}
+              </h3>
+            </div>
+
+            {/* Subgrupos */}
+            <div className="space-y-4">
+              {cat.grupos.map((g) => (
+                <div key={g.sub}>
+                  <p className="text-[11px] font-black uppercase tracking-wider m-0 mb-2"
+                     style={{ color: cat.accent }}>
+                    {g.sub}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {g.itens.map((item) => (
+                      <span key={item}
+                            className="text-[11px] font-medium text-white/80 px-2.5 py-1 rounded-md border border-white/10"
+                            style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
   );
 }
 

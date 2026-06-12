@@ -761,38 +761,24 @@ A chave é o método: voltar até a causa-raiz REAL (não a primeira que aparece
 // CATEGORIAS (rows do Netflix)
 // =============================================================================
 
-// CATEGORIAS (rows) — só as 8 trilhas reais. Sem trilhas extras, sem repetição
-// pesada: cada trilha aparece em no máximo 2 rows, e cada row tem curadoria
-// temática clara. A row "comece-aqui" destaca a grátis + as 3 mais convertíveis.
+// CATEGORIAS (rows) — a Jornada hoje tem 1 única row de trilhas ("Comece por
+// aqui", todas as 8 na ordem 1-8). As rows temáticas antigas (resolver-problema,
+// aprofundamento, do-basico-ao-avancado) foram removidas em jun/2026; o
+// aprofundamento técnico virou a seção informativa "Arsenal de ferramentas"
+// dentro de JornadaPrincipal.tsx.
 export const CATEGORIAS: Categoria[] = [
   {
     id: 'comece-aqui',
-    titulo: 'Comece por aqui',
-    subtitulo: 'Grátis pra testar — e as 3 que mais resolvem no começo',
+    titulo: 'Todas as trilhas',
+    subtitulo: 'Da grátis (kit de adaptação) ao nível especialista — você escolhe por onde começar',
     trilhaIds: [
       'ferramentas-dia-a-dia',          // 1 — grátis
       'dados-do-dia-a-dia',             // 2
       'mudanca-com-menos-resistencia',  // 3
       'apresentar-recomendacao',        // 4
-    ],
-  },
-  {
-    id: 'resolver-problema',
-    titulo: 'Resolver problema e melhorar processo',
-    subtitulo: 'Investigar a fundo, antecipar risco e atacar o que volta sempre',
-    trilhaIds: [
       'analise-risco-mudanca',          // 5
-      'problema-cronico',               // 7
       'perfil-gestor-lean',             // 6
-    ],
-  },
-  {
-    id: 'aprofundamento',
-    titulo: 'Aprofundamento técnico',
-    subtitulo: 'Pra quem já entrega no básico e quer chegar no nível especialista',
-    trilhaIds: [
-      'problema-cronico',               // 7 — estatística
-      'analise-risco-mudanca',          // 5 — riscos/FMEA
+      'problema-cronico',               // 7
       'especialista-projetos-complexos',// 8 — âncora
     ],
   },
