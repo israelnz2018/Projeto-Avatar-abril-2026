@@ -9,6 +9,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/src/lib/firebase';
+import { youtubeThumb } from '@/src/lib/utils';
 import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedVideo, LeafAction } from './AIAssistantConfig';
 import { getInitiatives } from '../services/configService';
 import type { Initiative } from '../types';
@@ -1046,7 +1047,7 @@ export default function ChatAssistant() {
                               >
                                 <div className="relative flex-shrink-0">
                                   {ytId ? (
-                                    <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt=""
+                                    <img src={youtubeThumb(ytId, 'hqdefault')} alt=""
                                       className="w-[88px] h-[50px] object-cover rounded-md" />
                                   ) : (<div className="w-[88px] h-[50px] bg-stone-200 rounded-md" />)}
                                   {active && (

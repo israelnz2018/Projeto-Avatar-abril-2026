@@ -37,7 +37,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { cn } from '@/src/lib/utils';
+import { cn, youtubeThumb } from '@/src/lib/utils';
 import { db } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
 import {
@@ -268,7 +268,7 @@ function SortableVideoRow({
               {videoId ? (
                 <>
                   <img
-                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                    src={youtubeThumb(videoId, 'hqdefault')}
                     alt={item.title}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"

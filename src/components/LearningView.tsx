@@ -25,7 +25,7 @@ import {
   Check,
   Award,
 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn, youtubeThumb } from '@/src/lib/utils';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -527,7 +527,7 @@ export default function LearningView() {
                     viewMode === 'grid' ? "aspect-video" : "w-56 h-full"
                   )}>
                     <img
-                      src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                      src={youtubeThumb(videoId, 'hqdefault')}
                       alt={item.title}
                       className={cn(
                         "w-full h-full object-cover transition-transform duration-500",

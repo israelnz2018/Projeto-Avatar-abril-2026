@@ -3,7 +3,7 @@ import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Save, Edit2, X, Check, Loader2, Plus, Trash2, ChevronRight, ChevronDown, Video, FileText, Search, ArrowUp, ArrowDown } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn, youtubeThumb } from '@/src/lib/utils';
 import { KNOWLEDGE_COLLECTION } from '@/src/services/knowledgeService';
 
 export interface CustomField { id: string; label: string; content: string; }
@@ -251,7 +251,7 @@ function InlineVideoList({ selected, onToggle }: {
                   {sel && <Check size={10} className="text-white" />}
                 </div>
                 {ytId ? (
-                  <img src={`https://img.youtube.com/vi/${ytId}/default.jpg`} alt=""
+                  <img src={youtubeThumb(ytId, 'default')} alt=""
                     className="w-[40px] h-[24px] object-cover rounded-[2px] flex-shrink-0" />
                 ) : (
                   <div className="w-[40px] h-[24px] bg-[#e2e8f0] rounded-[2px] flex-shrink-0" />
@@ -360,7 +360,7 @@ function NodeEditor({ node, onSave, onCancel }: {
                 const ytId = getYoutubeId(v.sourceUrl);
                 return (
                   <div key={v.id} className="flex items-center gap-2 bg-white border border-[#e2e8f0] rounded-[3px] px-2 py-1">
-                    {ytId && <img src={`https://img.youtube.com/vi/${ytId}/default.jpg`} alt="" className="w-[40px] h-[24px] object-cover rounded-[2px] flex-shrink-0" />}
+                    {ytId && <img src={youtubeThumb(ytId, 'default')} alt="" className="w-[40px] h-[24px] object-cover rounded-[2px] flex-shrink-0" />}
                     <p className="flex-1 text-[12px] text-[#334155] truncate">{v.title}</p>
                     <button onClick={() => setLocalVideos(prev => prev.filter(x => x.id !== v.id))}
                       className="border-none bg-transparent cursor-pointer text-[#ccc] hover:text-red-500 p-1">
