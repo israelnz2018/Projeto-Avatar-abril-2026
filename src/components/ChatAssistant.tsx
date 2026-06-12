@@ -553,39 +553,20 @@ export default function ChatAssistant() {
     );
   };
 
-  // Clique num dos 9 cards do hero → as outras 8 somem, a trilha picked vira o "header" e a IA
-  // já começa o follow-up INLINE no mesmo hero (sem trocar de view — tudo cabe em 1 dobra).
-  const handleTrilhaPickClick = async (card: TrilhaHeroCard) => {
+  // Clique num dos cards de trilha → a IA abre com uma saudação simples
+  // perguntando como pode ajudar. Resposta fixa e instantânea (sem chamar a IA):
+  // determinística, sem custo de token, sem risco de pergunta desconexa.
+  // Quando o aluno responder, sendChat() assume e orienta a trilha usando o
+  // knowledge específico da trilha picked.
+  const handleTrilhaPickClick = (card: TrilhaHeroCard) => {
     setPickedCard(card);
-    setChat([]); // limpa qualquer histórico anterior
-    setShowAiTyping(true);
-    try {
-      const trilhasCtx = buildTrilhasContexto();
-      // Knowledge injection: regras globais + knowledge específico desta trilha (do arquivo .md)
-      const globalKb = getGlobalKnowledge();
-      const trilhaKb = getTrilhaKnowledge(card.id);
-      const knowledgeBlock = [globalKb, trilhaKb].filter(Boolean).join('\n\n---\n\n');
-      const prompt =
-        (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
-        `Você é o Israel, mentor LBW. O aluno acabou de escolher o caminho: "${card.label}".\n\n` +
-        (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
-        `Sua tarefa AGORA é dar uma SAUDAÇÃO curta e acolhedora (máximo 3 linhas) que:\n` +
-        `1. Reconhece de boa o tema que ele escolheu ("${card.label}");\n` +
-        `2. Diz em 1 frase que você pode ajudar com isso;\n` +
-        `3. Convida ele a te contar, com as próprias palavras, o que está vivendo no trabalho hoje OU o que quer resolver.\n\n` +
-        `NÃO faça perguntas de qualificação técnica nem perguntas que pareçam desconexas do que ele pediu. ` +
-        `NÃO recomende trilha ainda. NÃO liste ferramentas, passos ou checklist. ` +
-        `É só uma abertura calorosa tipo "boa escolha — me conta o que está acontecendo aí que eu te ajudo". ` +
-        `Quando ELE responder contando a situação, AÍ sim você orienta a melhor trilha pelo nome exato (entre aspas).\n\n` +
-        `Tom: 1ª pessoa, direto, mentor de café, sem buzzword, sem formalidade. ` +
-        `Responda em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}. Não use JSON, só texto direto.`;
-      const reply = await callGemini(prompt);
-      setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: reply }]);
-    } catch {
-      setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: 'Erro ao conectar. Tente novamente.' }]);
-    } finally {
-      setShowAiTyping(false);
-    }
+    const saudacao = lang === 'en-US'
+      ? 'Hey! How can I help you?'
+      : lang === 'es-ES'
+        ? '¡Hola! ¿Cómo puedo ayudarte?'
+        : 'Olá! Como posso te ajudar?';
+    setChat([{ id: String(Date.now()), role: 'ai', text: saudacao }]);
+    setChatInput('');
   };
 
   // Volta pro grid de 9 cards (limpa o picked + histórico do chat).
