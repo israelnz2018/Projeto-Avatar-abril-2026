@@ -567,12 +567,17 @@ export default function ChatAssistant() {
       const knowledgeBlock = [globalKb, trilhaKb].filter(Boolean).join('\n\n---\n\n');
       const prompt =
         (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
-        `Você é o Israel, mentor LBW. O aluno escolheu o caminho: "${card.label}".\n\n` +
+        `Você é o Israel, mentor LBW. O aluno acabou de escolher o caminho: "${card.label}".\n\n` +
         (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
-        `Sua tarefa AGORA é fazer 1 pergunta curta (máximo 2 linhas) pra entender melhor o contexto dele ANTES de recomendar uma trilha. ` +
-        `Tom 1ª pessoa, direto, sem buzzword. Pergunta UMA coisa só — o que mais importa pra decidir a trilha certa.\n\n` +
-        `Depois que ele responder, você fará mais 1-2 perguntas (no máximo 3 total) e então recomendará UMA das trilhas da lista acima pelo NOME EXATO (entre aspas).\n\n` +
-        `IMPORTANTE: seu único objetivo é orientar a MELHOR TRILHA. Não sugira próximos passos, ferramentas específicas, planos de ação, "primeira coisa a fazer", checklist nada disso. Foco TOTAL em: qual trilha resolve o problema do aluno.\n\n` +
+        `Sua tarefa AGORA é dar uma SAUDAÇÃO curta e acolhedora (máximo 3 linhas) que:\n` +
+        `1. Reconhece de boa o tema que ele escolheu ("${card.label}");\n` +
+        `2. Diz em 1 frase que você pode ajudar com isso;\n` +
+        `3. Convida ele a te contar, com as próprias palavras, o que está vivendo no trabalho hoje OU o que quer resolver.\n\n` +
+        `NÃO faça perguntas de qualificação técnica nem perguntas que pareçam desconexas do que ele pediu. ` +
+        `NÃO recomende trilha ainda. NÃO liste ferramentas, passos ou checklist. ` +
+        `É só uma abertura calorosa tipo "boa escolha — me conta o que está acontecendo aí que eu te ajudo". ` +
+        `Quando ELE responder contando a situação, AÍ sim você orienta a melhor trilha pelo nome exato (entre aspas).\n\n` +
+        `Tom: 1ª pessoa, direto, mentor de café, sem buzzword, sem formalidade. ` +
         `Responda em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}. Não use JSON, só texto direto.`;
       const reply = await callGemini(prompt);
       setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: reply }]);
