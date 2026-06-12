@@ -292,9 +292,7 @@ const ARSENAL: {
     titulo: 'Ferramentas de Gestão',
     accent: '#3B82F6',
     grupos: [
-      { sub: '1.1 Gestão de Projetos', itens: ['Project Charter', 'WBS (EAP)', 'Cronograma', 'Plano do GP'] },
-      { sub: '1.2 Gestão de Mudanças', itens: ['ADKAR', 'Mapa de Stakeholders', 'Plano de Comunicação'] },
-      { sub: '1.3 Gestão de Riscos', itens: ['FMEA', 'Risk Register', 'Plano de Contingência'] },
+      { sub: '', itens: ['Gestão de Projetos', 'Gestão de Mudanças', 'Gestão de Riscos'] },
     ],
   },
   {
@@ -302,8 +300,7 @@ const ARSENAL: {
     titulo: 'Ferramentas Estatísticas',
     accent: '#A855F7',
     grupos: [
-      { sub: '2.1 Inferência & Capacidade', itens: ['MSA (Gage R&R)', 'SPC / Cartas de Controle', 'Cp · Cpk · Pp · Ppk', 'Testes de Hipótese', 'ANOVA', 'Qui-quadrado'] },
-      { sub: '2.2 Preditivas', itens: ['Regressão', 'Série Temporal', 'Árvore de Decisão', 'Random Forest'] },
+      { sub: '', itens: ['MSA', 'SPC', 'Capabilidade', 'Testes de Hipóteses'] },
     ],
   },
   {
@@ -311,7 +308,7 @@ const ARSENAL: {
     titulo: 'Ferramentas Gráficas',
     accent: '#22D3EE',
     grupos: [
-      { sub: '3.1 Visualização', itens: ['Box Plot', 'Pareto', 'Histograma', 'Dispersão', 'Tendência', 'Setores (Pizza)'] },
+      { sub: '', itens: ['Box Plot', 'Pareto', 'Dispersão'] },
     ],
   },
 ];
@@ -350,14 +347,17 @@ function ArsenalFerramentas() {
               </h3>
             </div>
 
-            {/* Subgrupos */}
+            {/* Itens do bloco */}
             <div className="space-y-4">
-              {cat.grupos.map((g) => (
-                <div key={g.sub}>
-                  <p className="text-[11px] font-black uppercase tracking-wider m-0 mb-2"
-                     style={{ color: cat.accent }}>
-                    {g.sub}
-                  </p>
+              {cat.grupos.map((g, gi) => (
+                <div key={gi}>
+                  {/* Rótulo do subgrupo só aparece se existir (alguns blocos não têm) */}
+                  {g.sub && (
+                    <p className="text-[11px] font-black uppercase tracking-wider m-0 mb-2"
+                       style={{ color: cat.accent }}>
+                      {g.sub}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
                     {g.itens.map((item) => (
                       <span key={item}
