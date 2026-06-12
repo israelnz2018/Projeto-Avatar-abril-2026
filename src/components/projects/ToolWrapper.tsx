@@ -1854,7 +1854,7 @@ export default function ToolWrapper({
             )}
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-80">
-                {companyName || 'Meu Projeto'}
+                {projectName || companyName || 'Meu Projeto'}
               </p>
               <h2 className="text-lg font-black tracking-tight">{toolName}</h2>
             </div>

@@ -212,15 +212,24 @@ useEffect(() => {
   };
 
   const phases = useMemo(() => {
-    const translateName = (id: string, name: string) => {
-      const translations: Record<string, string> = {
-        'Define': 'Definir',
-        'Measure': 'Medir',
-        'Analyze': 'Analisar',
-        'Improve': 'Melhorar',
-        'Control': 'Controlar'
-      };
-      return translations[id] || translations[name] || name;
+    // Resolve o nome de exibição da fase.
+    // REGRA: o nome customizado que o admin definiu no Firestore SEMPRE vence.
+    // Só traduzimos quando o `name` ainda está em inglês (igual ao id padrão,
+    // ex: name === 'Define'). Antes, o código traduzia pelo ID e jogava fora
+    // o nome customizado — por isso o card mostrava "Encontre Problemas que
+    // Merecem Atenção" mas a barra de fases mostrava "Definir".
+    const PHASE_TRANSLATIONS: Record<string, string> = {
+      'Define': 'Definir',
+      'Measure': 'Medir',
+      'Analyze': 'Analisar',
+      'Improve': 'Melhorar',
+      'Control': 'Controlar',
+    };
+    const resolvePhaseName = (id: string, name: string) => {
+      // Se o admin customizou o nome (diferente do id em inglês), respeita.
+      if (name && !PHASE_TRANSLATIONS[name] && name !== id) return name;
+      // Caso contrário, traduz o id/name padrão pro português.
+      return PHASE_TRANSLATIONS[name] || PHASE_TRANSLATIONS[id] || name;
     };
 
     if (project.initiativeId) {
@@ -229,7 +238,7 @@ useEffect(() => {
           const defaultPhase = DEFAULT_PHASES.find(dp => dp.id === p.id);
           return {
             id: p.id,
-            name: translateName(p.id, p.name),
+            name: resolvePhaseName(p.id, p.name),
             icon: defaultPhase?.icon || Lightbulb,
             color: defaultPhase?.color || '#6366f1',
             description: defaultPhase?.description || `Fase de ${p.name}`
