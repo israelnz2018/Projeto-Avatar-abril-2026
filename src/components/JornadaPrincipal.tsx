@@ -35,8 +35,6 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, Quote, ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import {
   TRILHAS,
-  CATEGORIAS,
-  getTrilhasByCategoria,
   type Trilha,
 } from './jornadaPrincipal/trilhas';
 import {
@@ -248,21 +246,12 @@ export default function JornadaPrincipal() {
           </div>
         </div>
 
-        {/* ROW 1 — Comece por aqui (grátis + as mais convertíveis) */}
-        <TrilhaRow
-          titulo={CATEGORIAS[0].titulo}
-          subtitulo={CATEGORIAS[0].subtitulo}
-          trilhas={getTrilhasByCategoria('comece-aqui')}
-          onSelect={onInfo}
-        />
-
         {/* BANNER DO MENTOR */}
         <MentorBanner onCTA={() => navigate('/chat')} />
 
         {/* SEÇÃO — Arsenal de ferramentas (informativo, não clicável).
-            As rows "Resolver problema", "Do básico ao avançado" e "Aprofundamento
-            técnico" foram removidas — a única row de trilhas é "Comece por aqui"
-            (acima), e o resto vira o arsenal informativo. */}
+            Todas as rows de trilhas foram removidas — as trilhas aparecem no
+            Hero rotativo (topo). Aqui fica só o arsenal informativo + manifesto. */}
         <ArsenalFerramentas />
 
         {/* MANIFESTO RODAPÉ */}
