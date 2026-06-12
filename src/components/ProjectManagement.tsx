@@ -39,15 +39,15 @@ function getTipoProjeto(initiativeName: string | undefined): {
     case 1:
       return {
         label: 'Projeto de Estudo',
-        subtitle: 'introdutório',
+        subtitle: 'Projeto de adequação e pequenas melhorias',
         descricao: 'Vamos conhecer as ferramentas básicas (SIPOC, 5W2H, Brainstorming) aplicadas num caso real seu.',
         placeholder: 'Ex: Conhecer as ferramentas no setor de compras',
       };
     case 2:
       return {
         label: 'Projeto de Melhoria',
-        subtitle: 'DMAIC',
-        descricao: 'O Mentor vai te guiar pelo ciclo DMAIC completo — Definir, Medir, Analisar, Melhorar, Controlar.',
+        subtitle: 'análise de dados',
+        descricao: 'O Mentor vai te guiar pelo ciclo completo de melhoria — Definir, Medir, Analisar, Melhorar, Controlar.',
         placeholder: 'Ex: Reduzir defeitos de pintura na linha A',
       };
     case 3:
@@ -60,7 +60,7 @@ function getTipoProjeto(initiativeName: string | undefined): {
     case 4:
       return {
         label: 'Projeto de Risco',
-        subtitle: 'FMEA + PMI',
+        subtitle: 'Apresentação',
         descricao: 'Vamos aplicar FMEA, plano B em 1 página e o ritual pré-go-live que reduz surpresa.',
         placeholder: 'Ex: Avaliar riscos da migração do ERP',
       };
@@ -74,7 +74,7 @@ function getTipoProjeto(initiativeName: string | undefined): {
     case 6:
       return {
         label: 'Projeto de Análise Estatística',
-        subtitle: 'estudos pontuais',
+        subtitle: 'Projeto de estudo',
         descricao: 'Estudos estatísticos pontuais — correlação, regressão, teste de hipótese aplicados ao seu problema.',
         placeholder: 'Ex: Correlação temperatura × taxa de defeito',
       };
@@ -88,7 +88,7 @@ function getTipoProjeto(initiativeName: string | undefined): {
     case 8:
       return {
         label: 'Projeto de Estudo',
-        subtitle: 'cultura Lean',
+        subtitle: 'Especialista',
         descricao: 'Vamos treinar o olhar Lean — os 8 desperdícios, gemba walk, kaizen e os 5 princípios na sua rotina.',
         placeholder: 'Ex: Aplicar 5S e gemba na minha área',
       };
@@ -1064,14 +1064,14 @@ function getMentorMessage(phase: string | null): string {
   switch (phase) {
     case 'Define': return 'O Project Charter é o seu contrato com a empresa. Seja específico. "Melhorar a qualidade" é vago. "Reduzir defeitos de 5% para 2%" é um compromisso.';
     case 'Analyze': return 'Agora somos detetives. Não aceite a primeira resposta. Use os "5 Porquês" para cada causa que você colocar no Ishikawa.';
-    default: return 'Continue focado no processo. O DMAIC é uma bússola, não uma regra rígida. Adapte-se aos dados.';
+    default: return 'Continue focado no processo. O método é uma bússola, não uma regra rígida. Adapte-se aos dados.';
   }
 }
 
 function getMentorStaticSuggestions(phase: string | null): string[] {
   if (!phase) return [
     'Como começar um novo projeto?',
-    'Quais ferramentas usar no DMAIC?',
+    'Quais ferramentas usar no meu projeto?',
     'Dicas de gestão de equipe'
   ];
   switch (phase) {
