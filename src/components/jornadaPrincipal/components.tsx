@@ -440,16 +440,11 @@ export function TrilhaCard({ trilha, onClick, rank }: TrilhaCardProps) {
             <Info size={14} />
           </button>
         </div>
-        <p className="text-white/90 text-xs leading-snug m-0 mb-2 line-clamp-2 font-medium">
+        <p className="text-white/90 text-xs leading-snug m-0 line-clamp-2 font-medium">
           {trilha.dor}
         </p>
-        <div className="flex flex-wrap gap-1.5">
-          {trilha.tags.slice(0, 3).map(t => (
-            <span key={t} className="text-[10px] uppercase tracking-wider font-bold text-white/60">
-              · {t.replace(/-/g, ' ')}
-            </span>
-          ))}
-        </div>
+        {/* Tags internas (destaque/iniciante/execucao) NÃO são exibidas — são só
+            marcadores de filtro no código, não copy pro usuário. */}
       </div>
     </motion.div>
   );

@@ -119,20 +119,17 @@ export default function JornadaPrincipal() {
     setTrilhaSelecionada(trilha);
   }, []);
 
-  // Progressão sugerida — do mais básico (chegou agora) ao mais avançado (Especialista LBW).
-  // Ordem honesta de dificuldade técnica, não ranking inventado de popularidade.
-  // Nota: a antiga T2 ("melhorar-minha-area") foi fundida na T1 grátis em jun/2026.
+  // Progressão sugerida — as 8 trilhas reais, do mais básico (chegou agora)
+  // ao mais avançado (Especialista LBW). Ordem honesta de dificuldade técnica.
   const progressaoIds = [
     'ferramentas-dia-a-dia',              // 1 — Iniciante (GRÁTIS — kit de 10 situações)
-    'identificar-desperdicio',            // Iniciante
-    'dados-do-dia-a-dia',                 // Intermediário
-    'mudanca-com-menos-resistencia',      // Intermediário
-    'analise-risco-mudanca',              // Intermediário
-    'perfil-gestor-lean',                 // Intermediário
-    'gerenciar-pessoas-projeto',          // Intermediário
-    'apresentar-recomendacao',            // Avançado
-    'problema-cronico',                   // Avançado
-    'especialista-projetos-complexos',    // Avançado (Formação LBW — âncora)
+    'dados-do-dia-a-dia',                 // 2 — Intermediário
+    'mudanca-com-menos-resistencia',      // 3 — Intermediário
+    'apresentar-recomendacao',            // 4 — Avançado
+    'analise-risco-mudanca',              // 5 — Intermediário
+    'perfil-gestor-lean',                 // 6 — Intermediário
+    'problema-cronico',                   // 7 — Avançado
+    'especialista-projetos-complexos',    // 8 — Avançado (Formação LBW — âncora)
   ];
   const progressao = progressaoIds
     .map(id => TRILHAS.find(t => t.id === id))
@@ -267,34 +264,26 @@ export default function JornadaPrincipal() {
           </div>
         </div>
 
-        {/* ROW 1 — Destaques */}
+        {/* ROW 1 — Comece por aqui (grátis + as mais convertíveis) */}
         <TrilhaRow
           titulo={CATEGORIAS[0].titulo}
           subtitulo={CATEGORIAS[0].subtitulo}
-          trilhas={getTrilhasByCategoria('destaques')}
+          trilhas={getTrilhasByCategoria('comece-aqui')}
           onSelect={onInfo}
         />
 
         {/* BANNER DO MENTOR */}
         <MentorBanner onCTA={() => navigate('/chat')} />
 
-        {/* ROW 2 — Comece por aqui */}
+        {/* ROW 2 — Resolver problema e melhorar processo */}
         <TrilhaRow
           titulo={CATEGORIAS[1].titulo}
           subtitulo={CATEGORIAS[1].subtitulo}
-          trilhas={getTrilhasByCategoria('comece-aqui')}
+          trilhas={getTrilhasByCategoria('resolver-problema')}
           onSelect={onInfo}
         />
 
-        {/* ROW 3 — Faça acontecer */}
-        <TrilhaRow
-          titulo={CATEGORIAS[2].titulo}
-          subtitulo={CATEGORIAS[2].subtitulo}
-          trilhas={getTrilhasByCategoria('faca-acontecer')}
-          onSelect={onInfo}
-        />
-
-        {/* ROW 4 — Progressão sugerida (ranqueada por nível de dificuldade) */}
+        {/* ROW 3 — Progressão sugerida (ranqueada 1 → 8) */}
         <TrilhaRow
           titulo="Do básico ao avançado"
           subtitulo="A ordem natural — da primeira semana de trabalho até o nível especialista"
@@ -303,19 +292,11 @@ export default function JornadaPrincipal() {
           ranked
         />
 
-        {/* ROW 5 — Liderança */}
+        {/* ROW 4 — Aprofundamento técnico */}
         <TrilhaRow
-          titulo={CATEGORIAS[3].titulo}
-          subtitulo={CATEGORIAS[3].subtitulo}
-          trilhas={getTrilhasByCategoria('lideranca')}
-          onSelect={onInfo}
-        />
-
-        {/* ROW 6 — Carreira */}
-        <TrilhaRow
-          titulo={CATEGORIAS[4].titulo}
-          subtitulo={CATEGORIAS[4].subtitulo}
-          trilhas={getTrilhasByCategoria('carreira')}
+          titulo={CATEGORIAS[2].titulo}
+          subtitulo={CATEGORIAS[2].subtitulo}
+          trilhas={getTrilhasByCategoria('aprofundamento')}
           onSelect={onInfo}
         />
 

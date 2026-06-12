@@ -17,18 +17,13 @@
 
 import type { ElementType } from 'react';
 import {
-  Wrench,
   BarChart3,
-  Target,
   Mic,
   Users,
-  UserCog,
-  Award,
   Trophy,
   ShieldAlert,
   Recycle,
   RotateCw,
-  Globe2,
   Compass,
   Network,
   Search,
@@ -181,7 +176,7 @@ Esse kit cobre os 2 lados. **Primeira metade (6 situações):** se adaptar sem t
 
 Não é curso linear. Você abre o círculo da situação que tá te travando ESSA semana. Cada uma vem com parte técnica (a ferramenta) e parte comportamental (a régua de decisão). Sem coach. É o que eu faria se fosse você chegando hoje.
 
-É grátis pra você usar enquanto quiser. Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplicada, gestão de mudança), as outras 8 trilhas estão lá.`,
+É grátis pra você usar enquanto quiser. Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplicada, gestão de mudança), as outras 7 trilhas estão lá.`,
     oQueVoceLeva: [
       'Mapear sua nova área em 2 dias (não em 2 semanas)',
       'Régua objetiva pra decidir QUANDO escalar e quando resolver sozinho',
@@ -578,48 +573,6 @@ A diferença entre quem sobe rápido e quem fica parado não é técnica. É a c
   },
 
   {
-    id: 'gerenciar-pessoas-projeto',
-    numero: '09',
-    titulo: 'Gerencie pessoas num projeto',
-    subtitulo: 'Liderar sem autoridade formal',
-    dor: 'Pra coordenar gente mais experiente sem virar piada',
-    paraQuem: 'Recém-promovido a líder de projeto, sem autoridade direta',
-    icone: UserCog,
-    gradient: 'from-violet-400 via-purple-700 to-indigo-900',
-    glow: 'rgba(139, 92, 246, 0.45)',
-    accent: '#8B5CF6',
-    motif: 'network-pulse',
-    duracao: '4 semanas',
-    nivel: 'Intermediário',
-    totalEpisodios: 6,
-    cartaIsrael: `Liderei um projeto com 12 pessoas, vários muito mais velhos e experientes que eu. Os 3 primeiros meses foram um inferno. Eu pedia, ninguém entregava. Eu cobrava, todo mundo se ofendia.
-
-O que mudou? Aprendi que líder de projeto não é chefe — é alguém que coordena. E coordenar é três coisas: clareza de papel (RACI), cadência de reuniões (semanal, curta, focada) e celebração de vitórias pequenas (sério, isso muda tudo).
-
-Te ensino o esqueleto de como rodar um projeto de 12 a 18 meses sem perder o time pelo caminho — incluindo o que fazer quando alguém claramente não está entregando e você precisa "ter aquela conversa".`,
-    oQueVoceLeva: [
-      'Atribuir papéis claros (quem decide, quem executa, quem é consultado)',
-      'Rodar reunião semanal de 30min que TODO MUNDO quer participar',
-      'Detectar e tratar problemas de motivação antes de virarem demissão',
-      'Construir cronograma que se ajusta sem virar caos',
-    ],
-    episodios: [
-      { numero: 1, titulo: 'RACI sem academicismo', duracao: '14 min', resumo: 'Como dividir papel num post-it' },
-      { numero: 2, titulo: 'A reunião semanal de 30 min', duracao: '16 min', resumo: 'Pauta, ritmo, fechamento' },
-      { numero: 3, titulo: '"Ter aquela conversa"', duracao: '20 min', resumo: 'Quando alguém não está entregando' },
-      { numero: 4, titulo: 'Celebrar vitória pequena (sério)', duracao: '12 min', resumo: 'Por que isso muda tudo' },
-      { numero: 5, titulo: 'Cronograma que respira', duracao: '18 min', resumo: 'Replanejar sem virar caos' },
-      { numero: 6, titulo: 'Encerrar e reconhecer', duracao: '10 min', resumo: 'O ritual que faz o time querer o próximo' },
-    ],
-    ferramentas: [
-      { label: 'Cronograma + ADKAR do time', rota: '/projects' },
-      { label: 'Pedir feedback ao Mentor sobre seu caso', rota: '/chat' },
-    ],
-    ctaPrimario: { label: 'Estruturar meu time', rota: '/projects' },
-    tags: ['lideranca'],
-  },
-
-  {
     id: 'perfil-gestor-lean',
     numero: '06',
     titulo: 'Cultura Lean na Prática',
@@ -760,47 +713,6 @@ Te ensino o framework que uso em toda mudança que envolve mais de R$ 100k em ri
   },
 
   {
-    id: 'identificar-desperdicio',
-    numero: '10',
-    titulo: 'Identifique o desperdício escondido',
-    subtitulo: 'Onde está o dinheiro que ninguém vê',
-    dor: 'Pra parar de andar passando por R$ 200k jogados fora',
-    paraQuem: 'Quem está na operação e quer mostrar valor rápido',
-    icone: Recycle,
-    gradient: 'from-lime-400 via-emerald-600 to-teal-900',
-    glow: 'rgba(132, 204, 22, 0.45)',
-    accent: '#84CC16',
-    motif: 'pulse-grid',
-    duracao: '2 semanas',
-    nivel: 'Iniciante',
-    totalEpisodios: 5,
-    cartaIsrael: `Numa fábrica que visitei em 2019, o supervisor me garantiu: "Aqui não tem desperdício, somos enxutos." Em 4 horas de gemba, mapeei R$ 380 mil por ano em desperdício invisível. Ele não enxergava porque era O QUE ELE FAZIA TODO DIA.
-
-A boa notícia: desperdício tem um catálogo. Os 7+1 desperdícios do Lean. Quando você conhece o catálogo, você começa a ver o invisível. É como aprender o nome dos pássaros — antes, era só "passarinho"; depois, é "bem-te-vi, sabiá, pomba".
-
-Aqui você vai aprender a fazer um diagnóstico rápido de qualquer área em 1 dia. Quantificar em R$. E ter munição pra propor a primeira melhoria com ROI claro. Isso é o que faz você sair do "achismo" pro "olha o dado".`,
-    oQueVoceLeva: [
-      'Reconhecer os 8 tipos de desperdício na sua área',
-      'Fazer um diagnóstico de gemba em 1 dia',
-      'Quantificar desperdício em R$ (e o que isso significa pro chefe)',
-      'Construir o pitch da primeira melhoria com ROI',
-    ],
-    episodios: [
-      { numero: 1, titulo: 'O catálogo dos 8 desperdícios', duracao: '18 min', resumo: 'TIMWOODS pra você nunca mais esquecer' },
-      { numero: 2, titulo: 'O gemba walk de 1 dia', duracao: '20 min', resumo: 'Roteiro pra qualquer área' },
-      { numero: 3, titulo: 'Quantificar em R$ sem chutar', duracao: '16 min', resumo: 'Cálculo simples que diretoria entende' },
-      { numero: 4, titulo: 'O mapa do dinheiro escondido', duracao: '15 min', resumo: 'Como mostrar visualmente' },
-      { numero: 5, titulo: 'Pitch da primeira melhoria', duracao: '14 min', resumo: 'O slide de 1 página que abre porta' },
-    ],
-    ferramentas: [
-      { label: 'Observação direta + Charter', rota: '/projects' },
-      { label: 'Pareto da área', rota: '/analysis' },
-    ],
-    ctaPrimario: { label: 'Diagnóstico da minha área', rota: '/projects' },
-    tags: ['execucao', 'iniciante'],
-  },
-
-  {
     id: 'problema-cronico',
     numero: '07',
     titulo: 'Como Fazer Análises Estatísticas Aplicadas a Negócios',
@@ -843,106 +755,45 @@ A chave é o método: voltar até a causa-raiz REAL (não a primeira que aparece
     tags: ['execucao'],
   },
 
-  {
-    id: 'projetos-remotos',
-    numero: '11',
-    titulo: 'Coordenar projetos remotos',
-    subtitulo: 'Quando o time está em 4 fusos diferentes',
-    dor: 'Pra liderar sem ver as caras todo dia (e não perder o time)',
-    paraQuem: 'Quem virou líder no mundo híbrido/remoto',
-    icone: Globe2,
-    gradient: 'from-indigo-400 via-violet-600 to-slate-900',
-    glow: 'rgba(99, 102, 241, 0.45)',
-    accent: '#6366F1',
-    motif: 'orbit-system',
-    duracao: '3 semanas',
-    nivel: 'Intermediário',
-    totalEpisodios: 5,
-    selo: 'EM ALTA',
-    cartaIsrael: `Coordeno projetos com time em Brasil, Nova Zelândia e Europa há 8 anos. No início foi caótico. Hoje rodo 3 projetos paralelos com gente em 4 fusos sem sentir.
-
-O segredo do remoto não é ferramenta (Teams, Slack, Notion — não importa). O segredo é RITMO e ASSINCRONIA. Rituais síncronos curtos pra alinhar; trabalho assíncrono pra entregar. Quem mistura os dois entra em colapso.
-
-Te ensino o operating system que uso: cadência semanal, status assíncrono, decisões documentadas, e como detectar quando alguém está "sumindo" pra agir antes de virar problema. Funciona em projeto de 6 ou 60 pessoas.`,
-    oQueVoceLeva: [
-      'Construir cadência semanal que respeita fuso e energia',
-      'Separar o que precisa de reunião do que pode ser assíncrono',
-      'Documentar decisão sem virar burocracia',
-      'Detectar desengajamento antes da pessoa "sumir"',
-    ],
-    episodios: [
-      { numero: 1, titulo: 'Ritmo síncrono x assíncrono', duracao: '15 min', resumo: 'A separação que salva o projeto' },
-      { numero: 2, titulo: 'Cadência semanal que respeita o fuso', duracao: '18 min', resumo: 'Modelo que funciona em qualquer time' },
-      { numero: 3, titulo: 'Decisão documentada em 5 linhas', duracao: '14 min', resumo: 'Pra ninguém perguntar de novo' },
-      { numero: 4, titulo: '"Onde está fulano?" — detectar antes', duracao: '16 min', resumo: 'Sinais de desengajamento remoto' },
-      { numero: 5, titulo: 'Encontro presencial que valeu o voo', duracao: '12 min', resumo: 'Quando juntar todos vale a pena' },
-    ],
-    ferramentas: [
-      { label: 'Cronograma + Plano de Comunicação', rota: '/projects' },
-      { label: 'Conversar sobre seu caso com o Mentor', rota: '/chat' },
-    ],
-    ctaPrimario: { label: 'Estruturar meu time remoto', rota: '/projects' },
-    tags: ['lideranca'],
-  },
 ];
 
 // =============================================================================
 // CATEGORIAS (rows do Netflix)
 // =============================================================================
 
+// CATEGORIAS (rows) — só as 8 trilhas reais. Sem trilhas extras, sem repetição
+// pesada: cada trilha aparece em no máximo 2 rows, e cada row tem curadoria
+// temática clara. A row "comece-aqui" destaca a grátis + as 3 mais convertíveis.
 export const CATEGORIAS: Categoria[] = [
-  {
-    id: 'destaques',
-    titulo: 'Em destaque',
-    subtitulo: 'Trilhas que cobrem o que mais aparece no dia a dia de uma empresa',
-    trilhaIds: [
-      'ferramentas-dia-a-dia',
-      'apresentar-recomendacao',
-      'analise-risco-mudanca',
-      'mudanca-com-menos-resistencia',
-      'perfil-gestor-lean',
-      'dados-do-dia-a-dia',
-    ],
-  },
   {
     id: 'comece-aqui',
     titulo: 'Comece por aqui',
-    subtitulo: 'Pra quem chegou agora numa empresa, área ou função nova',
+    subtitulo: 'Grátis pra testar — e as 3 que mais resolvem no começo',
     trilhaIds: [
-      'ferramentas-dia-a-dia',
-      'dados-do-dia-a-dia',
-      'apresentar-recomendacao',
-      'identificar-desperdicio',
+      'ferramentas-dia-a-dia',          // 1 — grátis
+      'dados-do-dia-a-dia',             // 2
+      'mudanca-com-menos-resistencia',  // 3
+      'apresentar-recomendacao',        // 4
     ],
   },
   {
-    id: 'faca-acontecer',
-    titulo: 'Investigar e melhorar processo',
-    subtitulo: 'Antecipar risco, atacar desperdício e resolver problema crônico',
+    id: 'resolver-problema',
+    titulo: 'Resolver problema e melhorar processo',
+    subtitulo: 'Investigar a fundo, antecipar risco e atacar o que volta sempre',
     trilhaIds: [
-      'analise-risco-mudanca',
-      'identificar-desperdicio',
-      'problema-cronico',
+      'analise-risco-mudanca',          // 5
+      'problema-cronico',               // 7
+      'perfil-gestor-lean',             // 6
     ],
   },
   {
-    id: 'lideranca',
-    titulo: 'Coordenar pessoas e mudança',
-    subtitulo: 'Influenciar sem autoridade direta, conduzir mudança e tocar projeto com time',
-    trilhaIds: [
-      'mudanca-com-menos-resistencia',
-      'gerenciar-pessoas-projeto',
-      'projetos-remotos',
-    ],
-  },
-  {
-    id: 'carreira',
+    id: 'aprofundamento',
     titulo: 'Aprofundamento técnico',
-    subtitulo: 'Pra quem já entrega no básico e quer ir pro nível especialista',
+    subtitulo: 'Pra quem já entrega no básico e quer chegar no nível especialista',
     trilhaIds: [
-      'perfil-gestor-lean',
-      'especialista-projetos-complexos',
-      'apresentar-recomendacao',
+      'problema-cronico',               // 7 — estatística
+      'analise-risco-mudanca',          // 5 — riscos/FMEA
+      'especialista-projetos-complexos',// 8 — âncora
     ],
   },
 ];
