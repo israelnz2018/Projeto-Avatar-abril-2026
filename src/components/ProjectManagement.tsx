@@ -36,66 +36,61 @@ function getTipoProjeto(initiativeName: string | undefined): {
 } {
   const numero = parseInt(initiativeName || '');
   switch (numero) {
-    case 1:
+    // Numeração alinhada com as 8 trilhas reais (pós-fusão T1+T2, jun/2026).
+    // Badge + subtítulo descrevem o TIPO de projeto de cada trilha.
+    case 1: // Como Chegar em uma Área Nova e Já Entregar Resultado
       return {
         label: 'Projeto de Estudo',
-        subtitle: 'Projeto de adequação e pequenas melhorias',
+        subtitle: 'adequação e pequenas melhorias',
         descricao: 'Vamos conhecer as ferramentas básicas (SIPOC, 5W2H, Brainstorming) aplicadas num caso real seu.',
         placeholder: 'Ex: Conhecer as ferramentas no setor de compras',
       };
-    case 2:
-      return {
-        label: 'Projeto de Melhoria',
-        subtitle: 'análise de dados',
-        descricao: 'O Mentor vai te guiar pelo ciclo completo de melhoria — Definir, Medir, Analisar, Melhorar, Controlar.',
-        placeholder: 'Ex: Reduzir defeitos de pintura na linha A',
-      };
-    case 3:
+    case 2: // Como Recomendar Melhorias com Base em Análise de Dados
       return {
         label: 'Projeto de Análise',
-        subtitle: 'apenas dados',
-        descricao: 'Vamos trabalhar só com dados — Pareto, Histograma, Boxplot e interpretação IA pra decisão.',
+        subtitle: 'análise de dados',
+        descricao: 'Vamos transformar dados em recomendação — Pareto, Histograma, Boxplot e interpretação pra decisão.',
         placeholder: 'Ex: Investigar queda de vendas no Q3',
       };
-    case 4:
-      return {
-        label: 'Projeto de Risco',
-        subtitle: 'Apresentação',
-        descricao: 'Vamos aplicar FMEA, plano B em 1 página e o ritual pré-go-live que reduz surpresa.',
-        placeholder: 'Ex: Avaliar riscos da migração do ERP',
-      };
-    case 5:
+    case 3: // Como Conduzir Mudanças com Menos Resistência
       return {
         label: 'Projeto de Mudança',
-        subtitle: 'ADKAR',
+        subtitle: 'gestão de mudança',
         descricao: 'Vamos mapear stakeholders e estruturar a mudança com o framework ADKAR.',
         placeholder: 'Ex: Implementar trabalho híbrido no time comercial',
       };
-    case 6:
-      return {
-        label: 'Projeto de Análise Estatística',
-        subtitle: 'Projeto de estudo',
-        descricao: 'Estudos estatísticos pontuais — correlação, regressão, teste de hipótese aplicados ao seu problema.',
-        placeholder: 'Ex: Correlação temperatura × taxa de defeito',
-      };
-    case 7:
+    case 4: // Como Criar Apresentações que Convencem
       return {
         label: 'Projeto de Apresentação',
-        subtitle: 'recomendações',
+        subtitle: 'recomendações executivas',
         descricao: 'Vamos estruturar suas recomendações e gerar slides executivos prontos.',
         placeholder: 'Ex: Apresentar plano de redução de custos ao board',
       };
-    case 8:
+    case 5: // Como Antecipar Riscos Antes que Virem Problemas
+      return {
+        label: 'Projeto de Risco',
+        subtitle: 'gestão de riscos',
+        descricao: 'Vamos aplicar FMEA, plano B em 1 página e o ritual pré-go-live que reduz surpresa.',
+        placeholder: 'Ex: Avaliar riscos da migração do ERP',
+      };
+    case 6: // Cultura Lean na Prática
       return {
         label: 'Projeto de Estudo',
-        subtitle: 'Especialista',
+        subtitle: 'cultura Lean',
         descricao: 'Vamos treinar o olhar Lean — os 8 desperdícios, gemba walk, kaizen e os 5 princípios na sua rotina.',
         placeholder: 'Ex: Aplicar 5S e gemba na minha área',
       };
-    case 9:
+    case 7: // Como Fazer Análises Estatísticas Aplicadas a Negócios
+      return {
+        label: 'Projeto de Análise Estatística',
+        subtitle: 'estudos pontuais',
+        descricao: 'Estudos estatísticos pontuais — correlação, regressão, teste de hipótese aplicados ao seu problema.',
+        placeholder: 'Ex: Correlação temperatura × taxa de defeito',
+      };
+    case 8: // Como Se Tornar um Especialista em Gestão de Projetos de Melhoria
       return {
         label: 'Projeto de Gestão de Melhoria',
-        subtitle: null,
+        subtitle: 'especialista',
         descricao: 'Vamos estruturar projeto complexo de 12-18 meses com PMI — charter, WBS, risk register, cronograma.',
         placeholder: 'Ex: Programa de excelência operacional 2027',
       };
