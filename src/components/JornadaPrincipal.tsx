@@ -281,7 +281,7 @@ const ARSENAL: {
     titulo: 'Ferramentas de Gestão',
     accent: '#3B82F6',
     grupos: [
-      { sub: '', itens: ['Gestão de Projetos', 'Gestão de Mudanças', 'Gestão de Riscos'] },
+      { sub: '', itens: ['Gestão de Projetos', 'Gestão de Mudanças', 'Gestão de Riscos', 'Técnicas de Apresentação', 'Gerenciamento Lean'] },
     ],
   },
   {
@@ -289,7 +289,7 @@ const ARSENAL: {
     titulo: 'Ferramentas Estatísticas',
     accent: '#A855F7',
     grupos: [
-      { sub: '', itens: ['MSA', 'SPC', 'Capabilidade', 'Testes de Hipóteses'] },
+      { sub: '', itens: ['MSA (Análise do Sistema de Medição)', 'SPC (Controle Estatístico de Processo)', 'Capabilidade', 'Testes de Hipóteses', 'Teste de Normalidade', 'Análise Preditiva', 'Cálculo de Probabilidade', 'Análise Descritiva', 'Mapa de Análise Estatística'] },
     ],
   },
   {
@@ -297,7 +297,15 @@ const ARSENAL: {
     titulo: 'Ferramentas Gráficas',
     accent: '#22D3EE',
     grupos: [
-      { sub: '', itens: ['Box Plot', 'Pareto', 'Dispersão'] },
+      { sub: '', itens: ['Box Plot', 'Pareto', 'Dispersão', 'Pizza', 'Barra', 'Séries Temporais', 'Bolhas', 'Intervalo', '3D', 'Histograma', 'Tendência'] },
+    ],
+  },
+  {
+    numero: '4',
+    titulo: 'Ferramentas da Qualidade',
+    accent: '#10B981',
+    grupos: [
+      { sub: '', itens: ['Matriz de Prioridade', 'Espinha de Peixe', 'Brainstorming', 'Análise de Stakeholders', 'FMEA', 'Plano de Ação', 'Plano de Coleta de Dados', 'Plano de Controle', 'RAB', 'GUT', 'Contrato do Projeto', 'RACI'] },
     ],
   },
 ];
@@ -306,15 +314,16 @@ function ArsenalFerramentas() {
   return (
     <section className="relative px-6 md:px-16 lg:px-24 mt-10 mb-4">
       <div className="mb-1">
-        <h2 className="text-xl md:text-2xl font-black text-white tracking-tight m-0">
+        <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight m-0">
           O arsenal por dentro das trilhas
         </h2>
-        <p className="text-sm text-white/55 mt-1 m-0">
+        <p className="text-base text-white/60 mt-1 m-0">
           As ferramentas que você domina ao longo do caminho — agrupadas por tipo
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+      {/* 2 boxes por linha */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
         {ARSENAL.map((cat) => (
           <motion.div
             key={cat.numero}
@@ -322,16 +331,16 @@ function ArsenalFerramentas() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.5 }}
-            className="rounded-2xl p-5 md:p-6 border border-white/10"
+            className="rounded-2xl p-6 md:p-7 border border-white/10"
             style={{ background: 'rgba(255,255,255,0.03)' }}
           >
             {/* Cabeçalho da categoria */}
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-lg shrink-0"
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-xl shrink-0"
                    style={{ background: `linear-gradient(135deg, ${cat.accent}, ${cat.accent}99)` }}>
                 {cat.numero}
               </div>
-              <h3 className="text-base md:text-lg font-black text-white m-0 leading-tight">
+              <h3 className="text-xl md:text-2xl font-black text-white m-0 leading-tight">
                 {cat.titulo}
               </h3>
             </div>
@@ -342,16 +351,16 @@ function ArsenalFerramentas() {
                 <div key={gi}>
                   {/* Rótulo do subgrupo só aparece se existir (alguns blocos não têm) */}
                   {g.sub && (
-                    <p className="text-[11px] font-black uppercase tracking-wider m-0 mb-2"
+                    <p className="text-sm font-black uppercase tracking-wider m-0 mb-2"
                        style={{ color: cat.accent }}>
                       {g.sub}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {g.itens.map((item) => (
                       <span key={item}
-                            className="text-[11px] font-medium text-white/80 px-2.5 py-1 rounded-md border border-white/10"
-                            style={{ background: 'rgba(255,255,255,0.04)' }}>
+                            className="text-sm font-medium text-white/85 px-3 py-1.5 rounded-md border border-white/10"
+                            style={{ background: 'rgba(255,255,255,0.05)' }}>
                         {item}
                       </span>
                     ))}
