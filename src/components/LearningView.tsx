@@ -219,8 +219,21 @@ export default function LearningView() {
     'from-indigo-400 via-violet-600 to-slate-900',
   ];
 
-  const countByCategory = (cat: string) =>
-    cat === 'Todos' ? items.length : items.filter(i => i.course === cat).length;
+  // "Todos" conta vídeos DISTINTOS (por sourceUrl) — o mesmo vídeo aparece em
+  // várias trilhas/playlists (modelo multi-placement: cada ocorrência é um doc
+  // Firestore separado vinculado por sourceUrl). Sem dedup, o total inflava.
+  // Cada trilha individual continua contando suas próprias ocorrências.
+  const countByCategory = (cat: string) => {
+    if (cat !== 'Todos') return items.filter(i => i.course === cat).length;
+    // Dedup por sourceUrl; vídeos sem sourceUrl contam individualmente (cada doc = 1)
+    const distintos = new Set<string>();
+    let semUrl = 0;
+    items.forEach(i => {
+      if (i.sourceUrl) distintos.add(i.sourceUrl);
+      else semUrl++;
+    });
+    return distintos.size + semUrl;
+  };
   
   const playlists = activeCategory === 'Todos' 
     ? [] 
