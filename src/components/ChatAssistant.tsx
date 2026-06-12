@@ -674,7 +674,12 @@ export default function ChatAssistant() {
         (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
         `${config.mentorRules}\n\n` +
         (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
-        `O aluno disse: "${txt}"\n\nResponda agora em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`
+        `O aluno disse: "${txt}"\n\n` +
+        `FECHAMENTO OBRIGATÓRIO: depois de responder, NÃO termine empurrando "próxima ação", ` +
+        `"me conte em uma frase", "qual cenário é o seu" nem peça mais detalhes pra continuar interrogando. ` +
+        `Encerre de forma leve perguntando só se ficou claro e se ele tem outra dúvida ` +
+        `(ex: "Ficou claro? Qualquer outra dúvida, é só falar.").\n\n` +
+        `Responda agora em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`
       );
       setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: reply }]);
     } catch {
