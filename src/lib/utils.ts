@@ -6,25 +6,17 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Versão da thumbnail do YouTube — usada como cache-buster.
+ * Monta a URL da thumbnail de um vídeo do YouTube.
  *
- * O app puxa a capa do vídeo direto do YouTube (img.youtube.com/vi/{id}/...).
- * Quando uma capa customizada é trocada/removida no YouTube, o navegador e o
- * CDN do Google podem continuar servindo a versão antiga em cache por horas/dias.
+ * IMPORTANTE: NÃO adicionar query string (?v=, ?t=, etc.) na URL.
+ * O domínio img.youtube.com NÃO aceita query params — quando recebe `?v=1`
+ * ele devolve imagem vazia/placeholder cinza em vez da capa. Isso quebrou
+ * 95% das capas numa tentativa de cache-busting em jun/2026. A URL tem que
+ * ser exatamente `https://img.youtube.com/vi/{id}/{quality}.jpg`, limpa.
  *
- * Esta constante é anexada como `?v=N` em todas as URLs de thumbnail. Quando
- * você precisar forçar TODOS os usuários a rebaixar as capas novas (ex: depois
- * de trocar capas no YouTube de novo), basta INCREMENTAR este número e fazer
- * deploy. Cada valor novo é uma URL nova → o cache antigo é ignorado.
- *
- * Histórico:
- *   1 — jun/2026: capas customizadas removidas do YouTube; forçar reload pro
- *       frame automático aparecer no lugar das capas antigas em cache.
- */
-export const YT_THUMB_VERSION = 1;
-
-/**
- * Monta a URL da thumbnail de um vídeo do YouTube com cache-busting embutido.
+ * Se um dia precisar forçar reload de capa (cache antigo), a saída é trocar
+ * a QUALIDADE (ex: hqdefault → sddefault) ou o domínio (i.ytimg.com), não
+ * anexar query string.
  *
  * @param videoId  ID de 11 chars do vídeo (não a URL completa)
  * @param quality  qualidade da thumb ('hqdefault' = 480x360 padrão dos cards,
@@ -36,5 +28,5 @@ export function youtubeThumb(
   quality: 'default' | 'hqdefault' | 'mqdefault' | 'sddefault' | 'maxresdefault' = 'hqdefault'
 ): string {
   if (!videoId) return '';
-  return `https://img.youtube.com/vi/${videoId}/${quality}.jpg?v=${YT_THUMB_VERSION}`;
+  return `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
 }
