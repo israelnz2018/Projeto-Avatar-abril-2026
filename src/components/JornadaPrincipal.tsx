@@ -398,15 +398,16 @@ function ManifestoRodape() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              o que aprendi no tropeço
+              o que aprendi ao longo
             </span><br/>
-            em 27 anos de carreira.
+            de mais de 20 anos de carreira.
           </p>
           <p className="text-base md:text-lg text-white/65 leading-relaxed max-w-2xl mx-auto m-0 mb-10">
-            Passei por 5 multinacionais no Brasil e na Nova Zelândia — petroquímica, automotivo,
-            alimentos, dispositivos médicos e setor público. Aqui está o que funciona no chão
-            da empresa, sem academia e sem buzzword. Comece pela trilha que te chamou atenção.
-            Não precisa fazer todas. Faça <strong className="text-white">uma</strong> bem feita.
+            Passei por 5 multinacionais no Brasil e na Nova Zelândia — Petroquímica, Automotivo,
+            Bebidas, Dispositivos Médicos e Setor Público — e também como empresário e professor
+            de graduação e pós-graduação. Aqui está o que funciona na prática, e não em livros de
+            teoria. Comece pela trilha que te chamou atenção. Não precisa fazer todas.
+            Faça <strong className="text-white">uma</strong> bem feita.
           </p>
 
           <div className="inline-flex items-center gap-3 mb-10">
