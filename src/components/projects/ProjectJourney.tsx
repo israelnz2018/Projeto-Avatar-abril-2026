@@ -71,6 +71,7 @@ import ProcessValidation from './ProcessValidation';
 import ImprovementProjectIdea from './ImprovementProjectIdea';
 import RaciTool from './RaciTool';
 import Organograma from './Organograma';
+import Indicadores from './Indicadores';
 import ProjectCharterPMI from './ProjectCharterPMI';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
@@ -90,6 +91,7 @@ const AVAILABLE_TOOLS = [
   { id: 'gpPlanPMI', name: 'Plano do GP - PMI', component: GPPlanPMI, defaultPhase: 'Iniciação' },
   { id: 'raci', name: 'Matriz RACI', component: RaciTool, defaultPhase: 'Define' },
   { id: 'organograma', name: 'Organograma', component: Organograma, defaultPhase: 'Define' },
+  { id: 'indicadores', name: 'Indicadores', component: Indicadores, defaultPhase: 'Define' },
   { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', component: StakeholderAnalysisPMI, defaultPhase: 'Iniciação' },
   { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', component: RiskManagementPMI, defaultPhase: 'Planejamento' },
   { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', component: RiskMonitoringPMI, defaultPhase: 'Monitoramento' },

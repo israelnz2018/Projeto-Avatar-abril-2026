@@ -71,6 +71,7 @@ const AVAILABLE_TOOLS = [
   { id: 'gpPlanPMI', name: 'Plano do GP - PMI' },
   { id: 'raci', name: 'Matriz RACI' },
   { id: 'organograma', name: 'Organograma' },
+  { id: 'indicadores', name: 'Indicadores' },
   { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI' },
   { id: 'riskManagementPMI', name: 'Plano de Riscos PMI' },
   { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI' },

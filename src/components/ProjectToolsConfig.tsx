@@ -89,6 +89,7 @@ const AVAILABLE_TOOLS = [
   { id: 'gpPlanPMI', name: 'Plano do GP - PMI', phase: 'Define' },
   { id: 'raci', name: 'Matriz RACI', phase: 'Define' },
   { id: 'organograma', name: 'Organograma', phase: 'Define' },
+  { id: 'indicadores', name: 'Indicadores', phase: 'Define' },
   { id: 'detailedTimeline', name: 'Atividades Detalhadas', phase: 'Define' },
   { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', phase: 'Measure' },
   { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', phase: 'Monitor' },
