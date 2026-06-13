@@ -514,6 +514,26 @@ useEffect(() => {
     return `${phaseId}_${toolId}`;
   };
 
+  // Progresso por FERRAMENTA SALVA (não por fase): conta quantas das ferramentas
+  // habilitadas têm dado salvo em projectData. Vale pra todas as trilhas.
+  const toolProgress = useMemo(() => {
+    const total = allEnabledTools.length;
+    if (total === 0) return { saved: 0, total: 0, percent: 0 };
+    const hasData = (raw: any) => {
+      if (!raw) return false;
+      const d = raw.toolData ?? raw;
+      if (d == null) return false;
+      if (Array.isArray(d)) return d.length > 0;
+      if (typeof d === 'object') return Object.keys(d).length > 0;
+      return true;
+    };
+    const saved = allEnabledTools.filter(({ toolId, phaseId }) => {
+      const key = getToolStorageKey(toolId, phaseId);
+      return hasData(projectData[key]) || hasData(projectData[toolId]);
+    }).length;
+    return { saved, total, percent: Math.round((saved / total) * 100) };
+  }, [allEnabledTools, projectData]);
+
   const handleDeleteTool = async () => {
     if (!activeToolId) return;
     
@@ -1319,7 +1339,7 @@ useEffect(() => {
               <span>Fase {currentPhaseIndex + 1} de {filteredPhases.length}</span>
               <span className="text-[#9CA3AF]">·</span>
               <span className="text-[#0033CC]">
-                {filteredPhases.length === 0 ? 0 : Math.round((currentPhaseIndex / Math.max(1, filteredPhases.length - 1)) * 100)}% percorrido
+                {toolProgress.saved}/{toolProgress.total} ferramentas · {toolProgress.percent}% concluído
               </span>
             </div>
             <span className="text-[11px] text-[#9CA3AF] font-medium truncate max-w-[60%]" title={filteredPhases[currentPhaseIndex]?.name}>
@@ -1331,11 +1351,7 @@ useEffect(() => {
           <div className="relative h-1.5 bg-[#f3f4f6] rounded-full mb-5 overflow-hidden">
             <div
               className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#0033CC] to-[#1E2D6E] rounded-full transition-all duration-500"
-              style={{
-                width: filteredPhases.length <= 1
-                  ? '100%'
-                  : `${(currentPhaseIndex / (filteredPhases.length - 1)) * 100}%`,
-              }}
+              style={{ width: `${toolProgress.percent}%` }}
             />
           </div>
 
