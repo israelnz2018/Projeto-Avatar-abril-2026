@@ -217,9 +217,10 @@ export async function fixarPost(postId: string, pinned: boolean): Promise<void> 
   await updateDoc(doc(db, COL, postId), { pinned });
 }
 
-/** Editar o título e o texto de um post (autor ou admin — a UI controla). */
-export async function editarPost(postId: string, titulo: string, texto: string): Promise<void> {
+/** Editar tipo, título e texto de um post (autor ou admin — a UI controla). */
+export async function editarPost(postId: string, tipo: PostTipo, titulo: string, texto: string): Promise<void> {
   await updateDoc(doc(db, COL, postId), {
+    tipo,
     titulo: titulo.trim() || null,
     texto: texto.trim(),
     editado: true,

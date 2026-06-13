@@ -287,6 +287,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   const [aberto, setAberto] = useState(false);
   const [replies, setReplies] = useState<CommunityReply[]>([]);
   const [editando, setEditando] = useState(false);
+  const [editTipo, setEditTipo] = useState<PostTipo>(post.tipo);
   const [editTitulo, setEditTitulo] = useState(post.titulo || '');
   const [editTexto, setEditTexto] = useState(post.texto);
   const [editReplyId, setEditReplyId] = useState<string | null>(null);
@@ -299,7 +300,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
 
   const salvarEdicaoPost = async () => {
     if (editTexto.trim().length < 5) return;
-    await editarPost(post.id!, editTitulo, editTexto);
+    await editarPost(post.id!, editTipo, editTitulo, editTexto);
     setEditando(false);
   };
 
@@ -358,6 +359,25 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
             {/* Texto OU form de edição */}
             {editando ? (
               <div className="mt-2 space-y-2">
+                {/* Trocar o tipo da conversa */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(['duvida', 'sugestao', 'comentario', 'bug'] as PostTipo[]).map(t => {
+                    const c = TIPO_CFG[t]; const Ic = c.icon; const sel = editTipo === t;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setEditTipo(t)}
+                        className={cn(
+                          'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider rounded px-2 py-1 border cursor-pointer transition',
+                          sel ? `${c.cls} ring-1 ring-current` : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
+                        )}
+                      >
+                        <Ic size={11} /> {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   value={editTitulo}
                   onChange={e => setEditTitulo(e.target.value)}
@@ -379,7 +399,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                     <Check size={13} /> Salvar
                   </button>
                   <button
-                    onClick={() => { setEditando(false); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
+                    onClick={() => { setEditando(false); setEditTipo(post.tipo); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
                     className="px-3 py-1.5 rounded-lg text-[12px] font-bold text-gray-500 hover:bg-gray-100 cursor-pointer bg-transparent border-none"
                   >
                     Cancelar
@@ -433,7 +453,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                 {/* Editar — autor ou admin */}
                 {(souAutor || meIsAdmin) && !editando && (
                   <button
-                    onClick={() => { setEditando(true); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
+                    onClick={() => { setEditando(true); setEditTipo(post.tipo); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
                     className="inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-blue-600 cursor-pointer bg-transparent border-none transition"
                     title="Editar"
                   >
