@@ -1,21 +1,22 @@
 /**
- * Indicadores — Painel de KPIs por nível de gestão.
+ * Indicadores — Painel de KPIs por nível de gestão (Estratégico/Tático/Operacional).
  *
- * 3 abas:
- *   1. Linha de Visão — árvore fixa de 3 camadas: Estratégico → Tático →
- *      Operacional. O aluno vê como o indicador da empresa "desce" até o que
- *      ele controla no dia a dia (a linha de visão entre trabalho e estratégia).
- *   2. Minha Área — o aluno cadastra os indicadores reais da área dele,
- *      marcando o nível de cada um.
- *   3. Biblioteca — referência LBW de KPIs típicos por área (read-only).
+ * 2 abas:
+ *   1. Linha de Visão — 3 camadas fixas. Cada camada pode ter VÁRIOS indicadores.
+ *      O aluno marca qual nível é o DELE (onde ele atua). Vê como o indicador
+ *      da empresa "desce" até o que ele controla no dia a dia.
+ *   2. Biblioteca — referência LBW de KPIs típicos por área (read-only),
+ *      cada área com os 3 níveis.
  *
  * SEM auto-save: reporta dirty via onDirtyChange; o pai (ProjectJourney) avisa
  * "sair sem salvar" se o usuário trocar de ferramenta.
+ *
+ * Simples de propósito — o público é novato.
  */
 
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart3, Plus, Trash2, Save, BookOpen, X, Info,
+  BarChart3, Plus, Trash2, Save, BookOpen, X, Info, Check,
   Target, Layers, Settings2,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
@@ -28,89 +29,80 @@ interface IndicadoresProps {
 
 type Nivel = 'estrategico' | 'tatico' | 'operacional';
 
-interface Indicador {
-  id: string;
-  nome: string;
-  nivel: Nivel;
-}
-
 interface IndicadoresData {
-  // Aba 1: indicadores da árvore por nível (a "linha de visão")
-  linhaVisao: { estrategico: string; tatico: string; operacional: string };
-  // Aba 2: inventário da área do aluno
-  meusIndicadores: Indicador[];
+  // Listas de indicadores por nível (cada nível pode ter vários).
+  estrategico: string[];
+  tatico: string[];
+  operacional: string[];
+  // Qual nível é o do usuário (onde ele atua). null = não marcado.
+  meuNivel: Nivel | null;
 }
 
 const NIVEIS: { value: Nivel; label: string; desc: string; icon: any; cor: string; barra: string }[] = [
-  { value: 'estrategico', label: 'Estratégico', desc: 'Diretoria · empresa toda · longo prazo', icon: Target,    cor: 'text-[#1E2D6E]', barra: 'bg-[#1E2D6E]' },
-  { value: 'tatico',      label: 'Tático',      desc: 'Gerência · a sua área · médio prazo',  icon: Layers,    cor: 'text-[#0033CC]', barra: 'bg-[#0033CC]' },
-  { value: 'operacional', label: 'Operacional', desc: 'Execução · o seu dia a dia · curto prazo', icon: Settings2, cor: 'text-sky-600',  barra: 'bg-sky-500' },
+  { value: 'estrategico', label: 'Estratégico', desc: 'Diretoria · empresa toda · longo prazo',     icon: Target,    cor: 'text-[#1E2D6E]', barra: 'bg-[#1E2D6E]' },
+  { value: 'tatico',      label: 'Tático',      desc: 'Gerência · a sua área · médio prazo',         icon: Layers,    cor: 'text-[#0033CC]', barra: 'bg-[#0033CC]' },
+  { value: 'operacional', label: 'Operacional', desc: 'Execução · o seu dia a dia · curto prazo',    icon: Settings2, cor: 'text-sky-600',  barra: 'bg-sky-500' },
+];
+
+// ===== Exemplos da Linha de Visão (read-only) — escritório + manufatura.
+const LINHA_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório (Logística)',
+    estrategico: ['Margem operacional da empresa'],
+    tatico: ['Custo logístico total da área', 'Entregas no prazo (OTIF)'],
+    operacional: ['Custo por entrega', '% de avaria no transporte'],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura (Produção)',
+    estrategico: ['EBITDA da planta'],
+    tatico: ['Eficiência da linha (OEE)', 'Custo de produção'],
+    operacional: ['Refugo do turno', 'Peças por hora'],
+  },
+];
+
+// ===== Biblioteca (read-only) — 8 áreas, cada uma com os 3 níveis.
+const BIBLIOTECA: { area: string; estrategico: string; tatico: string; operacional: string }[] = [
+  { area: 'Logística',        estrategico: 'Custo logístico sobre a receita', tatico: 'Entregas no prazo (OTIF)',     operacional: 'Custo por entrega' },
+  { area: 'Comercial / Vendas', estrategico: 'Faturamento',                   tatico: 'Taxa de conversão',           operacional: 'Ligações / visitas por dia' },
+  { area: 'Qualidade',        estrategico: 'Custo da não-qualidade',          tatico: 'First Pass Yield (acerto de 1ª)', operacional: '% de defeitos' },
+  { area: 'Produção',         estrategico: 'EBITDA da planta',                tatico: 'Eficiência da linha (OEE)',   operacional: '% de refugo' },
+  { area: 'Financeiro',       estrategico: 'Margem / EBITDA',                 tatico: 'Prazo médio de recebimento',  operacional: 'Inadimplência do dia' },
+  { area: 'RH / Pessoas',     estrategico: 'Engajamento / clima',             tatico: 'Turnover (rotatividade)',     operacional: 'Absenteísmo' },
+  { area: 'TI',               estrategico: 'Disponibilidade dos sistemas',    tatico: 'SLA de atendimento',          operacional: 'Chamados resolvidos/dia' },
+  { area: 'Manutenção',       estrategico: 'Custo de manutenção sobre o ativo', tatico: 'MTBF (tempo entre falhas)', operacional: 'Ordens de serviço/dia' },
 ];
 
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-// ===== Exemplos da Linha de Visão (Aba 1) — read-only, escritório + manufatura.
-const LINHA_EXEMPLOS = [
-  {
-    id: 'escritorio',
-    rotulo: 'Escritório (Logística)',
-    estrategico: 'Margem operacional da empresa',
-    tatico: 'Custo logístico total da área',
-    operacional: 'Custo por entrega que EU controlo',
-  },
-  {
-    id: 'manufatura',
-    rotulo: 'Manufatura (Produção)',
-    estrategico: 'EBITDA da planta',
-    tatico: 'OEE da linha de produção',
-    operacional: 'Refugo do meu turno',
-  },
-];
-
-// ===== Biblioteca de referência (Aba 3) — KPIs típicos por área (read-only).
-// Mantida enxuta (4 áreas, ~3 indicadores cada) pra não sobrecarregar o novato.
-const BIBLIOTECA: { area: string; itens: { nome: string; nivel: Nivel }[] }[] = [
-  { area: 'Logística', itens: [
-    { nome: 'Entrega no prazo (OTIF)', nivel: 'tatico' },
-    { nome: 'Custo por entrega', nivel: 'operacional' },
-    { nome: '% de avaria no transporte', nivel: 'operacional' },
-  ]},
-  { area: 'Comercial / Vendas', itens: [
-    { nome: 'Faturamento', nivel: 'estrategico' },
-    { nome: 'Taxa de conversão', nivel: 'tatico' },
-    { nome: 'Ticket médio', nivel: 'tatico' },
-  ]},
-  { area: 'Qualidade', itens: [
-    { nome: '% de defeitos', nivel: 'operacional' },
-    { nome: '% de retrabalho', nivel: 'operacional' },
-    { nome: 'Custo da não-qualidade', nivel: 'estrategico' },
-  ]},
-  { area: 'Produção', itens: [
-    { nome: 'Produtividade (peças/hora)', nivel: 'operacional' },
-    { nome: '% de refugo', nivel: 'operacional' },
-    { nome: 'Eficiência da linha (OEE)', nivel: 'tatico' },
-  ]},
-];
-
-function nivelInfo(n: Nivel) {
-  return NIVEIS.find(x => x.value === n)!;
-}
-
 export default function Indicadores({ onSave, initialData, onDirtyChange }: IndicadoresProps) {
   const [data, setData] = useState<IndicadoresData>(() => {
     const raw = initialData?.formData || initialData?.toolData || initialData;
-    if (raw && (raw.linhaVisao || raw.meusIndicadores)) {
+    if (raw && (raw.estrategico || raw.tatico || raw.operacional)) {
       return {
-        linhaVisao: raw.linhaVisao || { estrategico: '', tatico: '', operacional: '' },
-        meusIndicadores: Array.isArray(raw.meusIndicadores) ? raw.meusIndicadores : [],
+        estrategico: Array.isArray(raw.estrategico) ? raw.estrategico : [],
+        tatico: Array.isArray(raw.tatico) ? raw.tatico : [],
+        operacional: Array.isArray(raw.operacional) ? raw.operacional : [],
+        meuNivel: raw.meuNivel || null,
       };
     }
-    return { linhaVisao: { estrategico: '', tatico: '', operacional: '' }, meusIndicadores: [] };
+    // Retrocompat com o formato antigo (linhaVisao: {estrategico, tatico, operacional} como strings)
+    if (raw && raw.linhaVisao) {
+      const lv = raw.linhaVisao;
+      return {
+        estrategico: lv.estrategico ? [lv.estrategico] : [],
+        tatico: lv.tatico ? [lv.tatico] : [],
+        operacional: lv.operacional ? [lv.operacional] : [],
+        meuNivel: null,
+      };
+    }
+    return { estrategico: [], tatico: [], operacional: [], meuNivel: null };
   });
 
-  const [aba, setAba] = useState<'linha' | 'area' | 'biblioteca'>('linha');
+  const [aba, setAba] = useState<'linha' | 'biblioteca'>('linha');
   const [showExemplo, setShowExemplo] = useState(false);
   const [exemploIdx, setExemploIdx] = useState(0);
 
@@ -121,33 +113,24 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
     setDirty(true);
   };
 
-  // ===== Aba 1 — Linha de Visão =====
-  const setLinha = (nivel: Nivel, valor: string) => {
-    mutate(prev => ({ ...prev, linhaVisao: { ...prev.linhaVisao, [nivel]: valor } }));
+  // ===== Indicadores por nível =====
+  const addIndicador = (nivel: Nivel) => {
+    mutate(prev => ({ ...prev, [nivel]: [...prev[nivel], ''] }));
+  };
+  const updateIndicador = (nivel: Nivel, idx: number, valor: string) => {
+    mutate(prev => ({ ...prev, [nivel]: prev[nivel].map((v, i) => i === idx ? valor : v) }));
+  };
+  const removeIndicador = (nivel: Nivel, idx: number) => {
+    mutate(prev => ({ ...prev, [nivel]: prev[nivel].filter((_, i) => i !== idx) }));
+  };
+  const setMeuNivel = (nivel: Nivel) => {
+    mutate(prev => ({ ...prev, meuNivel: prev.meuNivel === nivel ? null : nivel }));
   };
 
-  // ===== Aba 2 — Meus Indicadores =====
-  const addIndicador = () => {
-    mutate(prev => ({
-      ...prev,
-      meusIndicadores: [...prev.meusIndicadores, { id: genId(), nome: '', nivel: 'operacional' }],
-    }));
-  };
-  const updateIndicador = (id: string, campo: keyof Indicador, valor: string) => {
-    mutate(prev => ({
-      ...prev,
-      meusIndicadores: prev.meusIndicadores.map(i => i.id === id ? { ...i, [campo]: valor } : i),
-    }));
-  };
-  const removeIndicador = (id: string) => {
-    mutate(prev => ({ ...prev, meusIndicadores: prev.meusIndicadores.filter(i => i.id !== id) }));
-  };
-
-  const TABS = [
-    { id: 'linha' as const, label: 'Linha de Visão' },
-    { id: 'area' as const, label: 'Indicadores da Minha Área' },
-    { id: 'biblioteca' as const, label: 'Biblioteca de Referência' },
-  ];
+  const placeholderDe = (nivel: Nivel) =>
+    nivel === 'estrategico' ? 'ex: margem da empresa' :
+    nivel === 'tatico' ? 'ex: custo da área' :
+    'ex: o que eu controlo no dia a dia';
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-8 bg-white">
@@ -174,7 +157,10 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
 
       {/* Abas */}
       <div className="flex gap-2 mb-6 border-b border-gray-100 flex-wrap">
-        {TABS.map(t => (
+        {[
+          { id: 'linha' as const, label: 'Linha de Visão' },
+          { id: 'biblioteca' as const, label: 'Biblioteca de Referência' },
+        ].map(t => (
           <button
             key={t.id}
             onClick={() => setAba(t.id)}
@@ -191,124 +177,110 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
       {/* ===== ABA 1 — LINHA DE VISÃO ===== */}
       {aba === 'linha' && (
         <div>
-          <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-            Preencha de cima pra baixo: como o indicador da empresa (estratégico) se desdobra
-            até chegar no que <strong>você</strong> controla no dia a dia (operacional). Isso é a sua "linha de visão".
+          <p className="text-sm text-gray-500 mb-2 leading-relaxed">
+            Preencha de cima pra baixo: como o indicador da empresa (estratégico) se desdobra até
+            chegar no que <strong>você</strong> controla (operacional). Pode ter vários por nível.
           </p>
+          <p className="text-xs text-gray-400 mb-5">
+            Clique em <strong>"Esse é o meu nível"</strong> pra marcar onde você atua.
+          </p>
+
           <div className="space-y-3">
             {NIVEIS.map((n, idx) => {
               const Icone = n.icon;
+              const ehMeu = data.meuNivel === n.value;
               return (
                 <div key={n.value} className="flex items-stretch gap-3">
-                  {/* Conector vertical entre níveis */}
+                  {/* Coluna do nível + conector */}
                   <div className="flex flex-col items-center shrink-0" style={{ width: 44 }}>
                     <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center text-white', n.barra)}>
                       <Icone size={20} />
                     </div>
                     {idx < NIVEIS.length - 1 && <div className="flex-1 w-0.5 bg-gray-200 mt-1" />}
                   </div>
-                  <div className="flex-1 pb-2">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
-                      <span className="text-[10px] text-gray-400">{n.desc}</span>
+
+                  {/* Conteúdo do nível */}
+                  <div className={cn(
+                    'flex-1 pb-2 rounded-lg p-3 border transition-colors',
+                    ehMeu ? 'bg-sky-50 border-sky-300' : 'border-transparent'
+                  )}>
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <div className="flex items-baseline gap-2">
+                        <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
+                        <span className="text-[10px] text-gray-400">{n.desc}</span>
+                      </div>
+                      <button
+                        onClick={() => setMeuNivel(n.value)}
+                        className={cn(
+                          'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition',
+                          ehMeu ? 'bg-sky-600 text-white border-sky-600' : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
+                        )}
+                      >
+                        {ehMeu ? <><Check size={11} /> Meu nível</> : 'Esse é o meu nível'}
+                      </button>
                     </div>
-                    <input
-                      type="text"
-                      value={data.linhaVisao[n.value]}
-                      onChange={(e) => setLinha(n.value, e.target.value)}
-                      placeholder={
-                        n.value === 'estrategico' ? 'Ex: Margem operacional da empresa' :
-                        n.value === 'tatico' ? 'Ex: Custo logístico total da área' :
-                        'Ex: Custo por entrega que EU controlo'
-                      }
-                      className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+
+                    {/* Lista de indicadores deste nível */}
+                    <div className="space-y-2">
+                      {data[n.value].map((ind, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={ind}
+                            onChange={(e) => updateIndicador(n.value, i, e.target.value)}
+                            placeholder={placeholderDe(n.value)}
+                            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"
+                          />
+                          <button
+                            onClick={() => removeIndicador(n.value, i)}
+                            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-100 cursor-pointer transition"
+                            title="Remover"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => addIndicador(n.value)}
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded border border-blue-100 bg-white cursor-pointer transition"
+                      >
+                        <Plus size={12} /> Adicionar indicador {n.label.toLowerCase()}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
+
           <div className="mt-5 bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-3 items-start">
             <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
             <p className="text-[12px] text-blue-800 leading-relaxed m-0">
-              Se você não souber o indicador estratégico da empresa, pergunte ao seu gestor — descobrir isso já é
-              meio caminho pra entender as prioridades da organização.
+              Não sabe o indicador estratégico da empresa? Pergunte ao seu gestor — descobrir isso já
+              é meio caminho pra entender as prioridades da organização.
             </p>
           </div>
         </div>
       )}
 
-      {/* ===== ABA 2 — MINHA ÁREA ===== */}
-      {aba === 'area' && (
-        <div>
-          <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-            Liste os indicadores que existem de verdade na sua área. Marque o nível de cada um.
-            Não precisa preencher tudo — comece pelo que você já conhece.
-          </p>
-          <div className="space-y-3">
-            {data.meusIndicadores.map((ind) => (
-              <div key={ind.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                <div className="flex items-start gap-2">
-                  <input
-                    type="text"
-                    value={ind.nome}
-                    onChange={(e) => updateIndicador(ind.id, 'nome', e.target.value)}
-                    placeholder="Nome do indicador (ex: % de pedidos no prazo)"
-                    className="flex-1 px-2.5 py-2 text-sm font-bold border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={() => removeIndicador(ind.id)}
-                    className="shrink-0 w-9 h-9 flex items-center justify-center rounded-md text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-100 cursor-pointer transition"
-                    title="Excluir indicador"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                {/* Nível — só Nome + Nível (simples pro novato) */}
-                <div className="flex gap-1.5 mt-2 flex-wrap">
-                  {NIVEIS.map(n => (
-                    <button
-                      key={n.value}
-                      onClick={() => updateIndicador(ind.id, 'nivel', n.value)}
-                      className={cn(
-                        'text-[10px] font-bold px-2.5 py-1 rounded border cursor-pointer transition',
-                        ind.nivel === n.value ? `${n.barra} text-white border-transparent` : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
-                      )}
-                    >
-                      {n.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            <button
-              onClick={addIndicador}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-blue-200 text-blue-600 text-xs font-black uppercase tracking-widest hover:bg-blue-50 cursor-pointer transition bg-white"
-            >
-              <Plus size={14} /> Adicionar indicador
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ===== ABA 3 — BIBLIOTECA ===== */}
+      {/* ===== ABA 2 — BIBLIOTECA ===== */}
       {aba === 'biblioteca' && (
         <div>
           <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-            Exemplos de indicadores que cada área costuma ter. Use como referência pra entender
-            o que <strong>deveria</strong> estar sendo medido — depois cadastre os reais na aba "Minha Área".
+            Exemplos de indicadores por área — sempre nos 3 níveis. Use como referência pra entender
+            o que costuma ser medido em cada área.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {BIBLIOTECA.map((b) => (
               <div key={b.area} className="border border-gray-200 rounded-lg p-4">
                 <h3 className="text-sm font-black text-gray-800 m-0 mb-3">{b.area}</h3>
                 <div className="space-y-2">
-                  {b.itens.map((item, i) => {
-                    const ni = nivelInfo(item.nivel);
+                  {([['estrategico', b.estrategico], ['tatico', b.tatico], ['operacional', b.operacional]] as [Nivel, string][]).map(([niv, valor]) => {
+                    const ni = NIVEIS.find(x => x.value === niv)!;
                     return (
-                      <div key={i} className="flex items-center gap-2">
+                      <div key={niv} className="flex items-center gap-2">
                         <span className={cn('w-2 h-2 rounded-full shrink-0', ni.barra)} />
-                        <span className="text-[12px] text-gray-700 flex-1">{item.nome}</span>
+                        <span className="text-[12px] text-gray-700 flex-1">{valor}</span>
                         <span className={cn('text-[9px] font-bold uppercase tracking-wider', ni.cor)}>{ni.label}</span>
                       </div>
                     );
@@ -357,7 +329,6 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
                 <X size={16} />
               </button>
             </div>
-            {/* Abas do exemplo */}
             <div className="flex gap-2 px-6 pt-4">
               {LINHA_EXEMPLOS.map((ex, i) => (
                 <button
@@ -376,7 +347,7 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
               <div className="space-y-3">
                 {NIVEIS.map((n, idx) => {
                   const Icone = n.icon;
-                  const valor = (LINHA_EXEMPLOS[exemploIdx] as any)[n.value];
+                  const valores: string[] = (LINHA_EXEMPLOS[exemploIdx] as any)[n.value] || [];
                   return (
                     <div key={n.value} className="flex items-stretch gap-3">
                       <div className="flex flex-col items-center shrink-0" style={{ width: 44 }}>
@@ -387,8 +358,10 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
                       </div>
                       <div className="flex-1 pb-2">
                         <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
-                        <div className="mt-1 px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-800">
-                          {valor}
+                        <div className="mt-1 space-y-1.5">
+                          {valores.map((v, i) => (
+                            <div key={i} className="px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-800">{v}</div>
+                          ))}
                         </div>
                       </div>
                     </div>
