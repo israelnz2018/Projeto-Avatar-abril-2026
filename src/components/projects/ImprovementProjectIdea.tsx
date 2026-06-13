@@ -1160,18 +1160,6 @@ function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }:
                   >
                     Editar Ideia
                   </button>
-                  <button
-                    className={`flex-[2] py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none cursor-pointer ${belt.bg} ${belt.color} border ${belt.border} hover:opacity-80`}
-                    onClick={() => {
-                      // Salva o projeto selecionado para usar no Brief
-                      const event = new CustomEvent('selectProject', { 
-                        detail: { title: title, project: {...project, ...editForm} } 
-                      });
-                      window.dispatchEvent(event);
-                    }}
-                  >
-                    Selecionar este projeto →
-                  </button>
                 </div>
 
               </div>
