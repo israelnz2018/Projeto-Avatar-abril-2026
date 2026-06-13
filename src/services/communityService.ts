@@ -43,6 +43,7 @@ export interface Autor {
 export interface CommunityPost {
   id?: string;
   tipo: PostTipo;
+  titulo?: string | null;       // título curto opcional
   texto: string;
   autor: Autor;
   ferramenta?: string | null;   // nome amigável da ferramenta (se houver)
@@ -50,6 +51,7 @@ export interface CommunityPost {
   resolvido: boolean;           // só o autor do post marca
   replyCount: number;
   likes?: string[];             // uids de quem curtiu
+  pinned?: boolean;             // fixado no topo (só admin)
   createdAt: any;
 }
 
@@ -103,6 +105,7 @@ export async function autorAtual(): Promise<Autor> {
 
 export async function criarPost(input: {
   tipo: PostTipo;
+  titulo?: string | null;
   texto: string;
   ferramenta?: string | null;
   projetoNome?: string | null;
@@ -110,6 +113,7 @@ export async function criarPost(input: {
   const autor = await autorAtual();
   const ref = await addDoc(collection(db, COL), {
     tipo: input.tipo,
+    titulo: input.titulo?.trim() || null,
     texto: input.texto.trim(),
     autor,
     ferramenta: input.ferramenta || null,
@@ -117,9 +121,15 @@ export async function criarPost(input: {
     resolvido: false,
     replyCount: 0,
     likes: [],
+    pinned: false,
     createdAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/** Fixar / desafixar um post no topo (apenas admin — a UI controla o acesso). */
+export async function fixarPost(postId: string, pinned: boolean): Promise<void> {
+  await updateDoc(doc(db, COL, postId), { pinned });
 }
 
 /** Curtir / descurtir um post (toggle do uid no array likes). */

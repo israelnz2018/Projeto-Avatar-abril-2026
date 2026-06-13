@@ -17,13 +17,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle,
   Wrench, Clock, ListFilter, Plus, Trash2, MessageCircle, Shield, X, Bell,
-  Search, ThumbsUp, Flame,
+  Search, ThumbsUp, Flame, Pin,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/firebase';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
-  deletarPost, deletarReply, extrairMencionaveis, curtirPost,
+  deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
   ouvirNotificacoes, marcarNotificacoesLidas,
   CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification,
 } from '../services/communityService';
@@ -188,13 +188,24 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   return (
     <div className={cn(
       'bg-white border rounded-2xl overflow-hidden transition-all',
+      post.pinned ? 'border-amber-300 ring-1 ring-amber-200' :
       post.resolvido ? 'border-emerald-200' : 'border-gray-200'
     )}>
+      {/* Faixa de fixado */}
+      {post.pinned && (
+        <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[10px] font-black uppercase tracking-widest text-amber-700">
+          <Pin size={11} className="fill-amber-600 text-amber-600" /> Fixado pela LBW
+        </div>
+      )}
       {/* Cabeçalho do post */}
       <div className="p-4">
         <div className="flex items-start gap-3">
           <Avatar autor={post.autor} />
           <div className="flex-1 min-w-0">
+            {/* Título (se houver) */}
+            {post.titulo && (
+              <h3 className="text-[15px] font-black text-gray-900 m-0 mb-1 leading-snug">{post.titulo}</h3>
+            )}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-black text-gray-900">{post.autor?.nome || post.autor?.email}</span>
               {post.autor?.isAdmin && (
@@ -257,10 +268,26 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                   {post.resolvido ? 'Resolvido' : 'Marcar como resolvido'}
                 </button>
               )}
+              {/* Fixar — só admin */}
+              {meIsAdmin && (
+                <button
+                  onClick={() => fixarPost(post.id!, !post.pinned)}
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[12px] font-bold cursor-pointer bg-transparent border-none transition ml-auto',
+                    post.pinned ? 'text-amber-600' : 'text-gray-300 hover:text-amber-600'
+                  )}
+                  title={post.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
+                >
+                  <Pin size={13} className={post.pinned ? 'fill-amber-600' : ''} />
+                </button>
+              )}
               {(souAutor || meIsAdmin) && (
                 <button
                   onClick={() => { if (confirm('Excluir este post e suas respostas?')) deletarPost(post.id!); }}
-                  className="inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-red-500 cursor-pointer bg-transparent border-none ml-auto transition"
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-red-500 cursor-pointer bg-transparent border-none transition',
+                    meIsAdmin ? '' : 'ml-auto'
+                  )}
                   title="Excluir"
                 >
                   <Trash2 size={13} />
@@ -314,6 +341,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
 // ===== Modal "Nova pergunta" =====
 function NovoPostModal({ onClose }: { onClose: () => void }) {
   const [tipo, setTipo] = useState<PostTipo>('duvida');
+  const [titulo, setTitulo] = useState('');
   const [texto, setTexto] = useState('');
   const [ferramenta, setFerramenta] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -322,7 +350,7 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
     if (texto.trim().length < 5) return;
     setEnviando(true);
     try {
-      await criarPost({ tipo, texto, ferramenta: ferramenta.trim() || null });
+      await criarPost({ tipo, titulo: titulo.trim() || null, texto, ferramenta: ferramenta.trim() || null });
       onClose();
     } finally { setEnviando(false); }
   };
@@ -350,6 +378,11 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
                 </button>
               );
             })}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Título (opcional)</label>
+            <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Resuma em poucas palavras"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sobre qual ferramenta? (opcional)</label>
@@ -477,11 +510,15 @@ export default function Comunidade() {
     });
   }, [posts, tipoFiltro, busca]);
 
-  // Agrupamento conforme o modo de visualização
+  // Posts fixados aparecem no topo, em qualquer modo. Os demais seguem o agrupamento.
+  const pinned = useMemo(() => postsFiltrados.filter(p => p.pinned), [postsFiltrados]);
+  const naoPinned = useMemo(() => postsFiltrados.filter(p => !p.pinned), [postsFiltrados]);
+
+  // Agrupamento conforme o modo de visualização (sobre os NÃO fixados)
   const grupos = useMemo(() => {
     if (view === 'ferramenta') {
       const map: Record<string, CommunityPost[]> = {};
-      postsFiltrados.forEach(p => {
+      naoPinned.forEach(p => {
         const k = p.ferramenta || 'Sem ferramenta / geral';
         (map[k] ||= []).push(p);
       });
@@ -490,18 +527,18 @@ export default function Comunidade() {
     if (view === 'tipo') {
       const ordem: PostTipo[] = ['duvida', 'sugestao', 'bug'];
       return ordem
-        .map(t => [TIPO_CFG[t].label, postsFiltrados.filter(p => p.tipo === t)] as [string, CommunityPost[]])
+        .map(t => [TIPO_CFG[t].label, naoPinned.filter(p => p.tipo === t)] as [string, CommunityPost[]])
         .filter(([, arr]) => arr.length > 0);
     }
     if (view === 'curtidos') {
-      const ordenado = [...postsFiltrados].sort(
+      const ordenado = [...naoPinned].sort(
         (a, b) => (b.likes?.length || 0) - (a.likes?.length || 0)
       );
       return [['', ordenado]] as [string, CommunityPost[]][];
     }
     // timeline: um único grupo, já vem ordenado por data
-    return [['', postsFiltrados]] as [string, CommunityPost[]][];
-  }, [view, postsFiltrados]);
+    return [['', naoPinned]] as [string, CommunityPost[]][];
+  }, [view, naoPinned]);
 
   const VIEWS: { v: ViewMode; label: string; icon: any }[] = [
     { v: 'timeline', label: 'Recentes', icon: Clock },
@@ -596,6 +633,21 @@ export default function Comunidade() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Fixados — sempre no topo */}
+          {pinned.length > 0 && (
+            <div className="space-y-3">
+              {pinned.map(post => (
+                <PostCard
+                  key={post.id}
+                  post={post}
+                  meUid={meUid}
+                  meIsAdmin={meIsAdmin}
+                  mencionaveis={mencionaveis}
+                  onRepliesLoaded={onRepliesLoaded}
+                />
+              ))}
+            </div>
+          )}
           {grupos.map(([titulo, lista]) => (
             <div key={titulo || 'all'} className="space-y-3">
               {titulo && (
