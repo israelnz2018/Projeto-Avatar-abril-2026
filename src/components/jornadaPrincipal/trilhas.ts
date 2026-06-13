@@ -29,7 +29,6 @@ import {
   Search,
   MessageSquare,
   Eye,
-  AtSign,
   Crosshair,
   GitBranch,
   Megaphone,
@@ -172,7 +171,7 @@ export const TRILHAS: Trilha[] = [
 
 A maioria foca SÓ na adaptação e perde a janela. Quando se dá conta, já é "mais um" do time — e ninguém mais espera entrega especial. Por outro lado, quem tenta entregar antes de entender a área queima carreira logo de cara.
 
-Esse kit cobre os 2 lados. **Primeira metade (6 situações):** se adaptar sem travar — mapear a área, escalar com critério, destravar análises, propor sem parecer arrogante, enxergar desperdício, dominar etiqueta de email. **Segunda metade (4 situações):** entregar a primeira mudança real — definir problema certo, achar causa-raiz, vender solução, sustentar o ganho.
+Esse kit cobre os 2 lados. **Primeira metade (6 situações):** se adaptar sem travar — mapear a área, escalar com critério, destravar análises, propor sem parecer arrogante, enxergar desperdício e se comunicar com profissionalismo (postura, vestimenta, telefone, Teams e Outlook). **Segunda metade (4 situações):** entregar a primeira mudança real — definir problema certo, achar causa-raiz, vender solução, sustentar o ganho.
 
 Não é curso linear. Você abre o círculo da situação que tá te travando ESSA semana. Cada uma vem com parte técnica (a ferramenta) e parte comportamental (a régua de decisão). Sem coach. É o que eu faria se fosse você chegando hoje.
 
@@ -183,7 +182,7 @@ Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplica
       'Frame pra destravar análise antes de tocar no Excel',
       'Estrutura pra propor ideia sem parecer arrogante',
       'Olhar treinado pra enxergar desperdício no escritório (não só na fábrica)',
-      'Etiqueta de email corporativo — TO, CC, BCC, tom — sem queimar carreira',
+      'Profissionalismo corporativo — postura na comunicação, vestimenta, telefone, Teams e Outlook (TO/CC/BCC, tom) sem queimar carreira',
       'Mini-Charter pra transformar pedido vago em problema bem definido',
       'Ishikawa + 5 Porquês pra achar causa-raiz real (não a óbvia)',
       'Mapa de stakeholders pra vender solução sem virar inimigo do time',
@@ -309,33 +308,31 @@ Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplica
         icone: Eye,
       },
       {
-        id: 'etiqueta-email',
-        titulo: 'Não domino etiqueta de email — quando uso TO, CC, BCC',
-        quandoDoi: 'Vai escrever pra 5+ pessoas e congela. Ou recebe email em grupo e não sabe se responde só pro remetente ou pra todos.',
+        id: 'profissionalismo-corporativo',
+        titulo: 'Comunique-se com profissionalismo — postura, vestimenta, telefone, Teams e Outlook',
+        quandoDoi: 'Você domina a parte técnica, mas trava no "como se portar": que roupa usar, como falar numa reunião, o que fazer com o celular, como se comportar no Teams e como organizar o Outlook. Detalhes que ninguém ensina e que decidem como você é percebido.',
         parteTecnica: [
-          'TO = quem PRECISA agir. Se não vai fazer nada, não está no TO',
-          'CC = quem precisa SABER mas não agir. Sinaliza visibilidade na hierarquia',
-          'BCC = uso raro: listas grandes sem expor destinatários, ou comunicação interna sensível',
-          'Reply vs Reply All: critério "essa informação muda algo pra essa pessoa específica?"',
-          'Assunto com prefixo padrão: "Ação requerida:" / "FYI:" / "Aprovação:" / "Pergunta:"',
-          'Corpo em 3 blocos: contexto (1 linha) → o que peço (1 linha) → quando preciso (1 linha)',
+          '📣 POSTURA NA COMUNICAÇÃO: fale em frases curtas e diretas; vá ao ponto antes do detalhe ("a conclusão é X, e o porquê é..."); escute mais do que fala nas primeiras semanas; nunca interrompa um sênior — anote e devolva no momento certo.',
+          '👔 VESTIMENTA: na dúvida, vista-se um nível ACIMA do ambiente nos primeiros dias e calibre observando os seniores; limpo e bem ajustado vence caro e amassado; em call com câmera, a regra de roupa é a mesma da presencial — da cintura pra cima conta.',
+          '📱 TELEFONE / CELULAR: celular fora da mesa e no silencioso em reunião; nada de olhar a tela enquanto alguém fala; ligação de trabalho — atenda dizendo seu nome, e se for retornar, retorne no mesmo dia; mensagem de trabalho não é WhatsApp pessoal (sem áudio longo, sem "bom dia" com figurinha).',
+          '💻 TEAMS / REUNIÕES ONLINE: entre 1-2 min antes; câmera ligada por padrão (mostra presença), microfone no mudo quando não fala; teste áudio/vídeo antes de reunião importante; use o chat pra links e dúvidas sem cortar quem fala; ao compartilhar tela, feche abas e notificações pessoais.',
+          '📧 OUTLOOK: TO = quem precisa agir, CC = quem só precisa saber, BCC = uso raro e nunca pra "espionar"; assunto com prefixo claro ("Ação:", "FYI:", "Aprovação:"); corpo em 3 linhas (contexto → o que peço → prazo); use o Calendário pra marcar reunião com pauta, e o "responder a todos" só quando a info muda algo pra todos.',
         ],
         parteComportamental: [
-          'CC no seu chefe: só se ele já participou do contexto OU se você está formalmente escalando. CC no chefe todo email passa sensação de "tasselando" e queima sua autonomia percebida',
-          'BCC NÃO é arma política. Usar BCC pra "ficar de olho" sem destinatário saber queima reputação INSTANTÂNEA se descobrirem',
-          'Reply All: pergunta de freio — "vale ocupar a atenção de 12 pessoas?". Default = NÃO',
-          'Tom da primeira mensagem pra um sênior: padrão neutro corporativo ("Olá [primeiro nome], …"). Nem "Oi!" nem "Prezado Sr."',
-          'Resposta tardia (3+ dias): não invente desculpa, não se humilhe. "Voltando à sua mensagem — resposta abaixo." Ponto',
-          'Quando NÃO usar email: se a conversa exigir mais de 2 idas e voltas, troca pra 1:1 ou call. Email não é chat',
+          'Regra de ouro da postura: nas primeiras 6 semanas, sua imagem é construída mais pelo COMO você se porta do que pelo QUE você entrega. Observe os seniores e copie o padrão antes de criar o seu.',
+          'Vestimenta: erre pra mais formal no começo — é fácil relaxar depois, difícil recuperar a impressão de "desleixado".',
+          'Telefone: o pior sinal que você passa numa reunião é olhar o celular. Comunica "isso aqui não é prioridade pra mim". Deixe longe da vista.',
+          'Teams: câmera desligada o tempo todo passa "ausente/desengajado" — ligue, principalmente com chefe e clientes internos. Mudo quando não fala evita o ruído que irrita todo mundo.',
+          'Outlook: email não é chat. Se passar de 2 idas e voltas, troca pra uma call ou 1:1. E CC no chefe em TODO email queima sua autonomia percebida — use só quando faz sentido.',
         ],
-        artefato: 'Matriz pessoal TO/CC/BCC + 3 templates prontos (pedido, escalação formal, FYI)',
+        artefato: 'Checklist de profissionalismo (postura, vestimenta, telefone, Teams, Outlook) + matriz TO/CC/BCC + 3 templates de email prontos',
         videoIsrael: {
-          duracao: '7 min',
-          resumo: 'Em 27 anos de multinacional vi mais carreira queimar por CC mal usado do que por erro técnico. Vou te contar o caso real de 2012 que me ensinou isso.',
+          duracao: '8 min',
+          resumo: 'Em 27 anos de multinacional vi gente brilhante tecnicamente travar a carreira por detalhe de postura — câmera desligada, roupa errada, celular na mão, CC mal usado. Vou te dar a régua que uso pra cada um desses pontos.',
         },
-        promptMentor: 'Preciso escrever email sobre [assunto] pra [pessoas e seus papéis]. Me ajude a definir TO/CC/BCC, o assunto e os 3 blocos do corpo.',
+        promptMentor: 'Tenho [reunião / call no Teams / email importante / primeiro dia] com [pessoas e seus papéis]. Me ajude com postura, o que vestir, como usar o Teams e como escrever no Outlook pra passar profissionalismo.',
         conexaoPaga: 'Trilha 5 — Conduzir Mudanças (comunicação como vetor de change management)',
-        icone: AtSign,
+        icone: Megaphone,
       },
       // ───────────── SEGUNDA METADE: ENTREGAR PRIMEIRA MUDANÇA REAL ─────────────
       // As 4 situações abaixo cobrem o arco "definir problema → causa-raiz →
