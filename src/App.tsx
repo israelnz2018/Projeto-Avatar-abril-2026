@@ -14,7 +14,6 @@ import {
   User as UserIcon,
   ChevronDown,
   Settings,
-  Sparkles,
   Users,
   Users2,
   Key,
@@ -41,8 +40,6 @@ const LearningView = lazy(() => import('./components/LearningView'));
 const Comunidade = lazy(() => import('./components/Comunidade'));
 const KnowledgeManagerView = lazy(() => import('./components/KnowledgeManagerView'));
 const ProjectToolsConfig = lazy(() => import('./components/ProjectToolsConfig'));
-const AIAssistantConfig = lazy(() => import('./components/AIAssistantConfig'));
-const ToolCreator = lazy(() => import('./components/ToolCreator'));
 const UserManagementView = lazy(() => import('./components/UserManagementView'));
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
@@ -83,8 +80,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ...(isAdmin ? [
       { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
-      { name: 'Criar Nova Ferramenta', path: '/tool-creator', icon: Sparkles },
-      { name: 'AI Assistant Config', path: '/ai-config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
     ] : []),
   ];
@@ -339,8 +334,6 @@ export default function App() {
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
-              <Route path="/tool-creator" element={<ToolCreator />} />
-              <Route path="/ai-config" element={<AIAssistantConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
