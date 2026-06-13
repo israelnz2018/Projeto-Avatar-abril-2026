@@ -532,10 +532,8 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
       <FeedbackModal
         isOpen={feedbackOpen}
         onClose={() => setFeedbackOpen(false)}
-        projetoAtivoId={projectId || undefined}
         projetoAtivoNome={projectName || undefined}
         ferramentaAtual={activeToolLabel || undefined}
-        contexto={activeToolLabel ? `Ferramenta: ${activeToolLabel}` : (currentPhase ? `Fase: ${currentPhase}` : undefined)}
       />
 
       {/* Modal de Confirmar Limpar Histórico */}

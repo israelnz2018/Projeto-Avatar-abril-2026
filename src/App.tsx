@@ -16,6 +16,7 @@ import {
   Settings,
   Sparkles,
   Users,
+  Users2,
   Key,
   Compass
 } from 'lucide-react';
@@ -37,6 +38,7 @@ const ChatAssistant = lazy(() => import('./components/ChatAssistant'));
 const DataAnalysis = lazy(() => import('./components/DataAnalysis'));
 const ProjectManagement = lazy(() => import('./components/ProjectManagement'));
 const LearningView = lazy(() => import('./components/LearningView'));
+const Comunidade = lazy(() => import('./components/Comunidade'));
 const KnowledgeManagerView = lazy(() => import('./components/KnowledgeManagerView'));
 const ProjectToolsConfig = lazy(() => import('./components/ProjectToolsConfig'));
 const AIAssistantConfig = lazy(() => import('./components/AIAssistantConfig'));
@@ -73,6 +75,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
+    { name: 'Comunidade LBW', path: '/comunidade', icon: Users2 },
     { name: 'Educação', path: '/education', icon: GraduationCap },
     ...(isAdmin || isCoordenador ? [
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
@@ -332,6 +335,7 @@ export default function App() {
               <Route path="/projects" element={<ProjectManagement />} />
               <Route path="/learning" element={<KnowledgeManagerView />} />
               <Route path="/education" element={<LearningView />} />
+              <Route path="/comunidade" element={<Comunidade />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />

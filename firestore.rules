@@ -192,6 +192,33 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Comunidade LBW — fórum público entre alunos.
+    // Qualquer autenticado lê e cria posts. Só o autor (pelo uid no objeto autor)
+    // ou o admin edita/apaga. Idem pra respostas na subcoleção.
+    match /community/{postId} {
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.autor.uid == request.auth.uid;
+      // update liberado a qualquer autenticado (incrementa replyCount ao responder);
+      // delete só autor ou admin.
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.autor.uid == request.auth.uid);
+
+      match /replies/{replyId} {
+        allow read:   if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.autor.uid == request.auth.uid;
+        allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.autor.uid == request.auth.uid);
+      }
+    }
+
+    // Notificações de @menção — destinatário (toUid) lê e marca como lida;
+    // qualquer autenticado cria (ao mencionar alguém).
+    match /community_notifications/{notifId} {
+      allow read:   if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
+    }
+
     // Eventos comportamentais — telemetria do Dashboard.
     // Qualquer user autenticado escreve eventos do PRÓPRIO uid (fire-and-forget).
     // Leitura só admin (agregações pro painel) — coordenador NÃO lê eventos brutos

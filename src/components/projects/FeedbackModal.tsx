@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bug, Lightbulb, HelpCircle, Send, X, Loader2, CheckCircle2, Wrench, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { saveFeedback, FeedbackTipo } from '../../services/feedbackService';
+import { FeedbackTipo } from '../../services/feedbackService';
+import { criarPost } from '../../services/communityService';
 import { cn } from '../../lib/utils';
 
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
-  projetoAtivoId?: string | null;
   projetoAtivoNome?: string | null;
-  contexto?: string | null;
   /** Nome amigável da ferramenta aberta (se houver). Mostra "Você está em: X". */
   ferramentaAtual?: string | null;
 }
@@ -52,9 +51,7 @@ const TIPOS: Array<{
 export default function FeedbackModal({
   isOpen,
   onClose,
-  projetoAtivoId,
   projetoAtivoNome,
-  contexto,
   ferramentaAtual,
 }: FeedbackModalProps) {
   const [tipo, setTipo] = useState<FeedbackTipo>('sugestao');
@@ -73,12 +70,13 @@ export default function FeedbackModal({
     setEnviando(true);
     setErro(null);
     try {
-      await saveFeedback({
+      // Cria um post na Comunidade LBW (público). O tipo (bug/sugestão/dúvida)
+      // é o mesmo da comunidade.
+      await criarPost({
         tipo,
-        descricao,
-        projetoAtivoId: projetoAtivoId || undefined,
-        projetoAtivoNome: projetoAtivoNome || undefined,
-        contexto: contexto || undefined,
+        texto: descricao,
+        ferramenta: ferramentaAtual || null,
+        projetoNome: projetoAtivoNome || null,
       });
       setEnviado(true);
       // Auto-fechar após 2s
