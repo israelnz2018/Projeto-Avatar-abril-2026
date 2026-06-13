@@ -7,14 +7,11 @@ import ReactFlow, {
   type Connection, type Edge, type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Sparkles, Loader2, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface ProcessMapperProps {
   onSave?: (data: any) => void;
   initialData?: any;
-  onGenerateAI?: (customContext?: any) => Promise<void>;
-  isGeneratingAI?: boolean;
   onClearAIData?: () => void;
 }
 
@@ -281,7 +278,7 @@ const initialNodes: Node[] = [];
 
 const initialEdges: Edge[] = [];
 
-export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ProcessMapperProps) {
+export default function ProcessMapper({ onSave, initialData, onClearAIData }: ProcessMapperProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialData?.edges || initialEdges);
   const [history, setHistory] = useState<{ nodes: Node[], edges: Edge[] }[]>([]);
@@ -479,72 +476,8 @@ export default function ProcessMapper({ onSave, initialData, onGenerateAI, isGen
 
   const handleSave = () => onSave?.({ nodes, edges });
 
-  const handleGenerateAI = async () => {
-    await onGenerateAI?.();
-    setAiGenerated(true);
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-      {/* Bloco de IA — aparece quando vazio */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Mapa de Processo com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA analisará os dados do SIPOC e Entendendo o Problema para gerar o mapa completo do processo com raias, atividades e pontos de decisão.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA utiliza os fatos e dados coletados na fase anterior para garantir um mapa rigoroso e técnico.
-              </p>
-            </div>
-            <button
-              onClick={handleGenerateAI}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Badge gerado com IA + botão limpar IA */}
-      {aiGenerated && nodes.length > 0 && (
-        <div className="flex items-center justify-between mb-3 px-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
-          </div>
-          <button
-            onClick={() => { 
-                onClearAIData?.();
-                setNodes([]); 
-                setEdges([]); 
-                setAiGenerated(false); 
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-          >
-            <Trash2 size={13} />
-            Limpar dados da IA
-          </button>
-        </div>
-      )}
 
       {/* Canvas */}
       <div style={{ height: 500, border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
