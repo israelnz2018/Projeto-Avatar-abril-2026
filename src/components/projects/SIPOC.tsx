@@ -178,10 +178,10 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
         </div>
 
         <div className="flex flex-nowrap gap-4 items-stretch overflow-x-auto pb-4">
-          <Column 
-            title="Suppliers" 
-            icon={Truck} 
-            column="suppliers" 
+          <Column
+            title="Fornecedores (Suppliers)"
+            icon={Truck}
+            column="suppliers"
             color="bg-[#1f2937]" 
             placeholder="Quem fornece?"
             items={data.suppliers}
@@ -189,10 +189,10 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
             onRemove={(idx) => removeItem('suppliers', idx)}
             onAdd={() => addItem('suppliers')}
           />
-          <Column 
-            title="Inputs" 
-            icon={Package} 
-            column="inputs" 
+          <Column
+            title="Entradas (Inputs)"
+            icon={Package}
+            column="inputs"
             color="bg-[#374151]" 
             placeholder="O que é fornecido?"
             items={data.inputs}
@@ -200,10 +200,10 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
             onRemove={(idx) => removeItem('inputs', idx)}
             onAdd={() => addItem('inputs')}
           />
-          <Column 
-            title="Process" 
-            icon={Settings} 
-            column="process" 
+          <Column
+            title="Processo (Process)"
+            icon={Settings}
+            column="process"
             color="bg-[#4b5563]" 
             placeholder="Etapa do processo..."
             items={data.process}
@@ -211,10 +211,10 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
             onRemove={(idx) => removeItem('process', idx)}
             onAdd={() => addItem('process')}
           />
-          <Column 
-            title="Outputs" 
-            icon={PackageCheck} 
-            column="outputs" 
+          <Column
+            title="Saídas (Outputs)"
+            icon={PackageCheck}
+            column="outputs"
             color="bg-[#6b7280]" 
             placeholder="O que é entregue?"
             items={data.outputs}
@@ -222,10 +222,10 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
             onRemove={(idx) => removeItem('outputs', idx)}
             onAdd={() => addItem('outputs')}
           />
-          <Column 
-            title="Customers" 
-            icon={UserCheck} 
-            column="customers" 
+          <Column
+            title="Clientes (Customers)"
+            icon={UserCheck}
+            column="customers"
             color="bg-[#9ca3af]" 
             placeholder="Quem recebe?"
             items={data.customers}
