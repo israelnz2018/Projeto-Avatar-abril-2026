@@ -34,7 +34,8 @@ interface No {
 }
 
 interface OrganogramaData {
-  raiz: No | null;
+  // Várias árvores independentes (topos): cada item é uma raiz com sua estrutura.
+  raizes: No[];
 }
 
 function genId(): string {
@@ -108,8 +109,10 @@ function NoExemplo({ no, nivel }: { no: any; nivel: number }) {
 export default function Organograma({ onSave, initialData, onDirtyChange }: OrganogramaProps) {
   const [data, setData] = useState<OrganogramaData>(() => {
     const raw = initialData?.formData || initialData?.toolData || initialData;
-    if (raw && raw.raiz) return raw as OrganogramaData;
-    return { raiz: null };
+    if (raw && Array.isArray(raw.raizes)) return raw as OrganogramaData;
+    // Retrocompat: dado antigo tinha 1 raiz única → vira lista de 1 topo.
+    if (raw && raw.raiz) return { raizes: [raw.raiz] };
+    return { raizes: [] };
   });
 
   // Nós recolhidos (por id). Default = todos expandidos.
@@ -126,34 +129,39 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
     setDirty(true);
   };
 
-  // ===== Operações na árvore (imutáveis, recursivas) =====
-  const atualizarNo = (raiz: No | null, id: string, patch: Partial<No>): No | null => {
-    if (!raiz) return null;
-    if (raiz.id === id) return { ...raiz, ...patch };
-    return { ...raiz, filhos: raiz.filhos.map(f => atualizarNo(f, id, patch)!) };
+  // ===== Operações dentro de UMA árvore (imutáveis, recursivas) =====
+  const atualizarNo = (no: No, id: string, patch: Partial<No>): No => {
+    if (no.id === id) return { ...no, ...patch };
+    return { ...no, filhos: no.filhos.map(f => atualizarNo(f, id, patch)) };
   };
-  const adicionarFilho = (raiz: No | null, paiId: string, filho: No): No | null => {
-    if (!raiz) return null;
-    if (raiz.id === paiId) return { ...raiz, filhos: [...raiz.filhos, filho] };
-    return { ...raiz, filhos: raiz.filhos.map(f => adicionarFilho(f, paiId, filho)!) };
+  const adicionarFilho = (no: No, paiId: string, filho: No): No => {
+    if (no.id === paiId) return { ...no, filhos: [...no.filhos, filho] };
+    return { ...no, filhos: no.filhos.map(f => adicionarFilho(f, paiId, filho)) };
   };
-  const removerNo = (raiz: No | null, id: string): No | null => {
-    if (!raiz) return null;
-    if (raiz.id === id) return null; // remover raiz = zera tudo
-    return { ...raiz, filhos: raiz.filhos.filter(f => f.id !== id).map(f => removerNo(f, id)!) };
+  // Remove um nó de dentro de uma árvore (sem remover a própria raiz aqui).
+  const removerDescendente = (no: No, id: string): No => {
+    return { ...no, filhos: no.filhos.filter(f => f.id !== id).map(f => removerDescendente(f, id)) };
   };
 
+  // ===== Handlers (operam sobre o array de raízes) =====
   const handleCampo = (id: string, campo: keyof No, valor: string) => {
-    mutate(prev => ({ raiz: atualizarNo(prev.raiz, id, { [campo]: valor }) }));
+    mutate(prev => ({ raizes: prev.raizes.map(r => atualizarNo(r, id, { [campo]: valor })) }));
   };
   const handleAddSubordinado = (paiId: string) => {
-    mutate(prev => ({ raiz: adicionarFilho(prev.raiz, paiId, novoNo()) }));
+    mutate(prev => ({ raizes: prev.raizes.map(r => adicionarFilho(r, paiId, novoNo())) }));
   };
   const handleRemover = (id: string) => {
-    mutate(prev => ({ raiz: removerNo(prev.raiz, id) }));
+    // Se o id for uma raiz (topo), remove a árvore inteira. Senão, remove o descendente.
+    mutate(prev => {
+      if (prev.raizes.some(r => r.id === id)) {
+        return { raizes: prev.raizes.filter(r => r.id !== id) };
+      }
+      return { raizes: prev.raizes.map(r => removerDescendente(r, id)) };
+    });
   };
-  const criarRaiz = () => {
-    mutate(() => ({ raiz: novoNo() }));
+  // Adiciona um novo TOPO (árvore independente) ao lado dos existentes.
+  const adicionarTopo = () => {
+    mutate(prev => ({ raizes: [...prev.raizes, novoNo()] }));
   };
 
   const toggleRecolher = (id: string) => {
@@ -253,20 +261,36 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
         </button>
       </div>
 
-      {/* Árvore ou estado vazio */}
-      {data.raiz ? (
-        <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/50 mb-6">
-          {renderNo(data.raiz, 0)}
+      {/* Árvores (vários topos) ou estado vazio */}
+      {data.raizes.length > 0 ? (
+        <div className="space-y-3 mb-4">
+          {data.raizes.map((raiz, i) => (
+            <div key={raiz.id} className="border border-gray-100 rounded-lg p-3 bg-gray-50/50 relative">
+              {data.raizes.length > 1 && (
+                <span className="absolute -top-2 left-3 bg-[#1E2D6E] text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                  Topo {i + 1}
+                </span>
+              )}
+              {renderNo(raiz, 0)}
+            </div>
+          ))}
+          {/* Adicionar outro topo (árvore independente) */}
+          <button
+            onClick={adicionarTopo}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-blue-200 text-blue-600 text-xs font-black uppercase tracking-widest hover:bg-blue-50 cursor-pointer transition bg-white"
+          >
+            <Plus size={14} /> Adicionar outro topo (ex: outro gerente)
+          </button>
         </div>
       ) : (
         <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl mb-6">
           <Network size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500 mb-4">Comece pelo topo da hierarquia (diretor, gerente ou líder).</p>
           <button
-            onClick={criarRaiz}
+            onClick={adicionarTopo}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest cursor-pointer border-0 transition"
           >
-            <Plus size={14} /> Criar o topo
+            <Plus size={14} /> Criar o primeiro topo
           </button>
         </div>
       )}
