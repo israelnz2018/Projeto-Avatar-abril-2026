@@ -484,7 +484,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2 flex-wrap">
-              Bate-papo com o Israel pra achar a melhor ideia
+              Bate-papo pra achar a melhor ideia
               <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-widest translate-y-[-2px]">
                 {userProfile === 'Atividades' && 'Foco: Suas atividades'}
                 {userProfile === 'Area' && 'Foco: Sua área'}
