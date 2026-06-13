@@ -553,10 +553,13 @@ export default function ProjectManagement() {
                   </div>
                   <div className="text-left">
                     <div className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ color: LBW.blueLight }}>
-                      Meus projetos ativos
+                      {selectedProject ? 'Projeto selecionado' : 'Meus projetos ativos'}
                     </div>
                     <div className="text-[13px] font-semibold" style={{ color: LBW.navy }}>
-                      {projects.length} {projects.length === 1 ? 'projeto' : 'projetos'} · clique para {isProjectsListOpen ? 'recolher' : 'expandir'}
+                      {selectedProject
+                        ? <>{selectedProject.name} · <span className="font-normal text-gray-400">trocar projeto</span></>
+                        : <>{projects.length} {projects.length === 1 ? 'projeto' : 'projetos'} · clique para {isProjectsListOpen ? 'recolher' : 'expandir'}</>
+                      }
                     </div>
                   </div>
                 </div>
