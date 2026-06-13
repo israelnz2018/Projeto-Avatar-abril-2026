@@ -1,0 +1,355 @@
+/**
+ * Organograma — árvore hierárquica colapsável (estilo explorer/Outlook).
+ *
+ * Cada nó é uma PESSOA com 3 campos: Nome, Área, Função.
+ * Clica no nó → expande/recolhe os subordinados.
+ * Cada nó pode: adicionar subordinado, editar, excluir.
+ *
+ * SEM auto-save: o componente reporta "dirty" via onDirtyChange; o pai
+ * (ProjectJourney) avisa "sair sem salvar" se o usuário trocar de ferramenta.
+ *
+ * Ferramenta pensada pra Situação 1 da Trilha 1 ("mapear minha área"):
+ * o aluno monta quem é quem e onde ele mesmo se encaixa.
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  Network, Plus, Trash2, Save, BookOpen, X,
+  ChevronRight, ChevronDown, Info,
+} from 'lucide-react';
+import { cn } from '@/src/lib/utils';
+
+interface OrganogramaProps {
+  onSave: (data: any, options?: { silent?: boolean }) => void;
+  initialData?: any;
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+interface No {
+  id: string;
+  nome: string;
+  area: string;
+  funcao: string;
+  filhos: No[];
+}
+
+interface OrganogramaData {
+  raiz: No | null;
+}
+
+function genId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function novoNo(): No {
+  return { id: genId(), nome: '', area: '', funcao: '', filhos: [] };
+}
+
+// ===== Exemplos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+const ORG_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Diretoria de Operações',
+    raiz: {
+      nome: 'Carlos Mendes', area: 'Operações', funcao: 'Diretor de Operações',
+      filhos: [
+        { nome: 'Maria Souza', area: 'Logística', funcao: 'Gerente de Logística', filhos: [
+          { nome: 'Pedro Lima', area: 'Logística', funcao: 'Analista Sênior', filhos: [] },
+          { nome: 'Ana Costa', area: 'Logística', funcao: 'Analista Júnior', filhos: [] },
+        ]},
+        { nome: 'João Alves', area: 'Compras', funcao: 'Gerente de Compras', filhos: [
+          { nome: 'Rita Nunes', area: 'Compras', funcao: 'Compradora', filhos: [] },
+        ]},
+      ],
+    },
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Gerência de Produção',
+    raiz: {
+      nome: 'Roberto Dias', area: 'Produção', funcao: 'Gerente de Produção',
+      filhos: [
+        { nome: 'Sandra Reis', area: 'Produção', funcao: 'Supervisora de Linha', filhos: [
+          { nome: 'Marcos Pinto', area: 'Produção', funcao: 'Líder de Turno', filhos: [] },
+          { nome: 'Time da Linha', area: 'Produção', funcao: 'Operadores', filhos: [] },
+        ]},
+        { nome: 'Felipe Rocha', area: 'Qualidade', funcao: 'Eng. da Qualidade', filhos: [
+          { nome: 'Bia Martins', area: 'Qualidade', funcao: 'Inspetora da Qualidade', filhos: [] },
+        ]},
+        { nome: 'Luísa Gomes', area: 'Manutenção', funcao: 'Supervisora de Manutenção', filhos: [] },
+      ],
+    },
+  },
+];
+
+// Renderiza um nó-exemplo (read-only) recursivo.
+function NoExemplo({ no, nivel }: { no: any; nivel: number }) {
+  return (
+    <div>
+      <div
+        className="flex items-center gap-2 py-1.5"
+        style={{ paddingLeft: nivel * 22 }}
+      >
+        {no.filhos?.length > 0 ? <ChevronDown size={14} className="text-gray-400 shrink-0" /> : <span className="w-3.5 shrink-0" />}
+        <div className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2">
+          <p className="text-[13px] font-bold text-gray-900 m-0 leading-tight">{no.funcao}</p>
+          <p className="text-[11px] text-gray-500 m-0">{no.nome} · {no.area}</p>
+        </div>
+      </div>
+      {(no.filhos || []).map((f: any, i: number) => (
+        <NoExemplo key={i} no={f} nivel={nivel + 1} />
+      ))}
+    </div>
+  );
+}
+
+export default function Organograma({ onSave, initialData, onDirtyChange }: OrganogramaProps) {
+  const [data, setData] = useState<OrganogramaData>(() => {
+    const raw = initialData?.formData || initialData?.toolData || initialData;
+    if (raw && raw.raiz) return raw as OrganogramaData;
+    return { raiz: null };
+  });
+
+  // Nós recolhidos (por id). Default = todos expandidos.
+  const [recolhidos, setRecolhidos] = useState<Set<string>>(new Set());
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0);
+
+  // SEM auto-save — marca dirty pro guard "sair sem salvar".
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+
+  const mutate = (updater: (prev: OrganogramaData) => OrganogramaData) => {
+    setData(updater);
+    setDirty(true);
+  };
+
+  // ===== Operações na árvore (imutáveis, recursivas) =====
+  const atualizarNo = (raiz: No | null, id: string, patch: Partial<No>): No | null => {
+    if (!raiz) return null;
+    if (raiz.id === id) return { ...raiz, ...patch };
+    return { ...raiz, filhos: raiz.filhos.map(f => atualizarNo(f, id, patch)!) };
+  };
+  const adicionarFilho = (raiz: No | null, paiId: string, filho: No): No | null => {
+    if (!raiz) return null;
+    if (raiz.id === paiId) return { ...raiz, filhos: [...raiz.filhos, filho] };
+    return { ...raiz, filhos: raiz.filhos.map(f => adicionarFilho(f, paiId, filho)!) };
+  };
+  const removerNo = (raiz: No | null, id: string): No | null => {
+    if (!raiz) return null;
+    if (raiz.id === id) return null; // remover raiz = zera tudo
+    return { ...raiz, filhos: raiz.filhos.filter(f => f.id !== id).map(f => removerNo(f, id)!) };
+  };
+
+  const handleCampo = (id: string, campo: keyof No, valor: string) => {
+    mutate(prev => ({ raiz: atualizarNo(prev.raiz, id, { [campo]: valor }) }));
+  };
+  const handleAddSubordinado = (paiId: string) => {
+    mutate(prev => ({ raiz: adicionarFilho(prev.raiz, paiId, novoNo()) }));
+  };
+  const handleRemover = (id: string) => {
+    mutate(prev => ({ raiz: removerNo(prev.raiz, id) }));
+  };
+  const criarRaiz = () => {
+    mutate(() => ({ raiz: novoNo() }));
+  };
+
+  const toggleRecolher = (id: string) => {
+    setRecolhidos(prev => {
+      const novo = new Set(prev);
+      novo.has(id) ? novo.delete(id) : novo.add(id);
+      return novo;
+    });
+  };
+
+  // ===== Render recursivo de um nó editável =====
+  const renderNo = (no: No, nivel: number): React.ReactNode => {
+    const temFilhos = no.filhos.length > 0;
+    const recolhido = recolhidos.has(no.id);
+    return (
+      <div key={no.id}>
+        <div className="flex items-start gap-1.5 py-1.5" style={{ paddingLeft: nivel * 24 }}>
+          {/* Toggle expandir/recolher */}
+          {temFilhos ? (
+            <button
+              onClick={() => toggleRecolher(no.id)}
+              className="mt-3 shrink-0 text-gray-400 hover:text-gray-700 bg-transparent border-0 cursor-pointer p-0"
+              title={recolhido ? 'Expandir' : 'Recolher'}
+            >
+              {recolhido ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            </button>
+          ) : (
+            <span className="w-4 shrink-0" />
+          )}
+
+          {/* Card editável da pessoa */}
+          <div className="flex-1 bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <input
+                type="text"
+                value={no.funcao}
+                onChange={(e) => handleCampo(no.id, 'funcao', e.target.value)}
+                placeholder="Função / Cargo"
+                className="px-2 py-1.5 text-[12px] font-bold border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <input
+                type="text"
+                value={no.nome}
+                onChange={(e) => handleCampo(no.id, 'nome', e.target.value)}
+                placeholder="Nome da pessoa"
+                className="px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <input
+                type="text"
+                value={no.area}
+                onChange={(e) => handleCampo(no.id, 'area', e.target.value)}
+                placeholder="Área / Setor"
+                className="px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => handleAddSubordinado(no.id)}
+                className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded border border-blue-100 bg-white cursor-pointer transition"
+              >
+                <Plus size={11} /> Subordinado
+              </button>
+              <button
+                onClick={() => handleRemover(no.id)}
+                className="flex items-center gap-1 text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-red-100 bg-white cursor-pointer transition"
+              >
+                <Trash2 size={11} /> Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filhos (se não recolhido) */}
+        {!recolhido && no.filhos.map(f => renderNo(f, nivel + 1))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 md:p-8 bg-white">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-6 pb-4 border-b-2 border-gray-200">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-12 h-12 bg-[#0033CC] text-white rounded-xl flex items-center justify-center shrink-0">
+            <Network size={22} />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-gray-900 m-0">Organograma</h1>
+            <p className="text-xs text-gray-500 m-0 mt-0.5">Quem é quem na empresa — e onde cada área se encaixa</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
+      </div>
+
+      {/* Árvore ou estado vazio */}
+      {data.raiz ? (
+        <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/50 mb-6">
+          {renderNo(data.raiz, 0)}
+        </div>
+      ) : (
+        <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl mb-6">
+          <Network size={32} className="text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 mb-4">Comece pelo topo da hierarquia (diretor, gerente ou líder).</p>
+          <button
+            onClick={criarRaiz}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest cursor-pointer border-0 transition"
+          >
+            <Plus size={14} /> Criar o topo
+          </button>
+        </div>
+      )}
+
+      {/* Dica */}
+      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-3 items-start mb-6">
+        <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
+        <p className="text-[12px] text-blue-800 leading-relaxed m-0">
+          <strong>Como montar:</strong> comece pelo topo e vá adicionando subordinados. Clique na setinha
+          pra recolher/expandir um ramo. Cada pessoa tem <strong>Função</strong>, <strong>Nome</strong> e <strong>Área</strong>.
+        </p>
+      </div>
+
+      {/* Salvar */}
+      <div className="flex justify-end pt-4 border-t border-gray-200">
+        <button
+          data-save-trigger
+          onClick={() => { onSave(data); setDirty(false); }}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-black uppercase tracking-widest cursor-pointer border-0 transition"
+        >
+          <Save size={14} /> Salvar
+        </button>
+      </div>
+
+      {/* MODAL "Ver exemplo" — read-only */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Organograma</h3>
+                  <p className="text-xs text-gray-500 m-0">{ORG_EXEMPLOS[exemploIdx].titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas */}
+            <div className="flex gap-2 px-6 pt-4">
+              {ORG_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/50">
+                <NoExemplo no={ORG_EXEMPLOS[exemploIdx].raiz} nivel={0} />
+              </div>
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Cada caixa é uma pessoa (função · nome · área). A indentação mostra quem responde
+                  a quem. Este exemplo é só pra ilustrar — ele <strong>não altera</strong> o seu organograma.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -70,6 +70,7 @@ import ProcessModeling from './ProcessModeling';
 import ProcessValidation from './ProcessValidation';
 import ImprovementProjectIdea from './ImprovementProjectIdea';
 import RaciTool from './RaciTool';
+import Organograma from './Organograma';
 import ProjectCharterPMI from './ProjectCharterPMI';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
@@ -88,6 +89,7 @@ const AVAILABLE_TOOLS = [
   { id: 'wbs', name: 'WBS (EAP)', component: WBSTool, defaultPhase: 'Planejamento' },
   { id: 'gpPlanPMI', name: 'Plano do GP - PMI', component: GPPlanPMI, defaultPhase: 'Iniciação' },
   { id: 'raci', name: 'Matriz RACI', component: RaciTool, defaultPhase: 'Define' },
+  { id: 'organograma', name: 'Organograma', component: Organograma, defaultPhase: 'Define' },
   { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', component: StakeholderAnalysisPMI, defaultPhase: 'Iniciação' },
   { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', component: RiskManagementPMI, defaultPhase: 'Planejamento' },
   { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', component: RiskMonitoringPMI, defaultPhase: 'Monitoramento' },
@@ -176,6 +178,43 @@ useEffect(() => {
   const [toolVersion, setToolVersion] = useState(0);
   const [completedTools, setCompletedTools] = useState<string[]>(project.completedTools || []);
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+
+  // ===== Guard "sair sem salvar" =====
+  // A ferramenta ativa reporta se tem alteração não-salva via onDirtyChange.
+  // Quando o usuário tenta trocar de ferramenta com dados sujos, abrimos um
+  // popup em vez de trocar direto. pendingToolId guarda o destino pendente.
+  const [isToolDirty, setIsToolDirty] = useState(false);
+  const [pendingToolId, setPendingToolId] = useState<string | null>(null);
+
+  // Troca de ferramenta COM guard: se sujo, pergunta antes; senão troca direto.
+  const requestToolChange = (novoToolId: string) => {
+    if (novoToolId === activeToolId) return;
+    if (isToolDirty) {
+      setPendingToolId(novoToolId);
+    } else {
+      setActiveToolId(novoToolId);
+    }
+  };
+  // Confirma sair sem salvar → troca pro destino pendente, descarta sujeira.
+  const confirmDiscardAndChange = () => {
+    if (pendingToolId) {
+      setIsToolDirty(false);
+      setActiveToolId(pendingToolId);
+      setPendingToolId(null);
+    }
+  };
+
+  // Aviso nativo do browser ao fechar aba / refresh com dados sujos.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isToolDirty) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isToolDirty]);
+
+  // Ao trocar de ferramenta, zera o dirty (o ToolWrapper remonta limpo).
+  useEffect(() => { setIsToolDirty(false); }, [activeToolId]);
 
   const { canUseTool } = useUserAccess();
 
@@ -415,6 +454,7 @@ useEffect(() => {
   const handleNext = () => {
     if (currentToolIndex < allEnabledTools.length - 1) {
       const next = allEnabledTools[currentToolIndex + 1];
+      if (isToolDirty) { setPendingToolId(next.toolId); return; }
       if (next.phaseId !== currentPhase) {
         setCurrentPhase(next.phaseId);
       }
@@ -425,6 +465,7 @@ useEffect(() => {
   const handleBack = () => {
     if (currentToolIndex > 0) {
       const prev = allEnabledTools[currentToolIndex - 1];
+      if (isToolDirty) { setPendingToolId(prev.toolId); return; }
       if (prev.phaseId !== currentPhase) {
         setCurrentPhase(prev.phaseId);
       }
@@ -890,10 +931,10 @@ useEffect(() => {
                     <Lock size={10} className="text-gray-600" />
                   </div>
                 )}
-                <button 
+                <button
                   onClick={() => {
                     if (hasAccess) {
-                      setActiveToolId(tool.id);
+                      requestToolChange(tool.id);
                     } else {
                       setLockedPopupOpen(true);
                     }
@@ -923,6 +964,52 @@ useEffect(() => {
             );
           })}
         </div>
+
+        {/* Popup "sair sem salvar" — aparece ao trocar de ferramenta com dados sujos */}
+        <AnimatePresence>
+          {pendingToolId && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-gray-100"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center">
+                    <AlertCircle className="text-amber-600" size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-gray-800 uppercase tracking-tight">Sair sem salvar?</h4>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Você tem alterações não salvas</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                  Você fez alterações nesta ferramenta que ainda não foram salvas. Se sair agora, elas serão perdidas. O que deseja fazer?
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setPendingToolId(null)}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-200 transition-all border-none cursor-pointer"
+                  >
+                    Continuar editando
+                  </button>
+                  <button
+                    onClick={confirmDiscardAndChange}
+                    className="flex-1 px-4 py-2.5 bg-amber-600 text-white text-sm font-bold rounded-lg hover:bg-amber-700 transition-all border-none cursor-pointer shadow-lg shadow-amber-200"
+                  >
+                    Sair sem salvar
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Delete Confirmation Modal */}
         <AnimatePresence>
@@ -1020,14 +1107,15 @@ useEffect(() => {
               const Component = ActiveComponent as any;
               const commonProps = {
                 onSave,
-                initialData: initialData && typeof initialData === 'object' && 'toolData' in initialData 
-                  ? initialData.toolData 
+                initialData: initialData && typeof initialData === 'object' && 'toolData' in initialData
+                  ? initialData.toolData
                   : initialData,
                 previousToolData,
                 previousToolName,
                 onGenerateAI,
                 isGeneratingAI,
                 onClearAIData,
+                onDirtyChange: setIsToolDirty,
                 allProjectData: wrapperAllProjectData
               };
 

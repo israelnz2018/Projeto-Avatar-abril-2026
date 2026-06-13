@@ -33,6 +33,8 @@ import { cn } from '@/src/lib/utils';
 interface RaciToolProps {
   onSave: (data: any, options?: { silent?: boolean }) => void;
   initialData?: any;
+  /** Reporta ao pai se há alteração não-salva (pro guard "sair sem salvar"). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 type RaciValue = '' | 'R' | 'A' | 'C' | 'I';
@@ -115,7 +117,7 @@ function emptyData(): RaciData {
   };
 }
 
-export default function RaciTool({ onSave, initialData }: RaciToolProps) {
+export default function RaciTool({ onSave, initialData, onDirtyChange }: RaciToolProps) {
   const [data, setData] = useState<RaciData>(() => {
     const raw = initialData?.formData || initialData?.toolData || initialData;
     if (raw && raw.stakeholders && raw.atividades) return raw as RaciData;
@@ -126,27 +128,32 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
   const [showExemplo, setShowExemplo] = useState(false);
   const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
-  // Auto-save silencioso a cada mudança
-  useEffect(() => {
-    onSave(data, { silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  // SEM auto-save. Em vez disso, marca "dirty" quando o usuário edita —
+  // o pai (ProjectJourney) avisa "sair sem salvar" se ele trocar de ferramenta.
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+
+  // Toda mutação passa por aqui: aplica a mudança E marca como não-salvo.
+  const mutate = (updater: (prev: RaciData) => RaciData) => {
+    setData(updater);
+    setDirty(true);
+  };
 
   const updateField = <K extends keyof RaciData>(key: K, value: RaciData[K]) => {
-    setData(prev => ({ ...prev, [key]: value }));
+    mutate(prev => ({ ...prev, [key]: value }));
   };
 
   // ===== Stakeholders =====
   const addStakeholder = () => {
     const id = genId();
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       stakeholders: [...prev.stakeholders, { id, nome: '' }],
       atividades: prev.atividades.map(a => ({ ...a, raci: { ...a.raci, [id]: '' } })),
     }));
   };
   const removeStakeholder = (id: string) => {
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       stakeholders: prev.stakeholders.filter(s => s.id !== id),
       atividades: prev.atividades.map(a => {
@@ -157,7 +164,7 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
     }));
   };
   const updateStakeholderNome = (id: string, nome: string) => {
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       stakeholders: prev.stakeholders.map(s => s.id === id ? { ...s, nome } : s),
     }));
@@ -168,25 +175,25 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
     const id = genId();
     const raciInicial: Record<string, RaciValue> = {};
     data.stakeholders.forEach(s => { raciInicial[s.id] = ''; });
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       atividades: [...prev.atividades, { id, nome: '', raci: raciInicial }],
     }));
   };
   const removeAtividade = (id: string) => {
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       atividades: prev.atividades.filter(a => a.id !== id),
     }));
   };
   const updateAtividadeNome = (id: string, nome: string) => {
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       atividades: prev.atividades.map(a => a.id === id ? { ...a, nome } : a),
     }));
   };
   const updateCelula = (atividadeId: string, stakeholderId: string, valor: RaciValue) => {
-    setData(prev => ({
+    mutate(prev => ({
       ...prev,
       atividades: prev.atividades.map(a =>
         a.id === atividadeId ? { ...a, raci: { ...a.raci, [stakeholderId]: valor } } : a
@@ -402,10 +409,11 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
         </div>
       </div>
 
-      {/* Save explícito (auto-save também roda em background) */}
+      {/* Save explícito — salva e limpa o estado "não-salvo" */}
       <div className="no-print flex justify-end mt-6 pt-4 border-t border-gray-200">
         <button
-          onClick={() => onSave(data)}
+          data-save-trigger
+          onClick={() => { onSave(data); setDirty(false); }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-black uppercase tracking-widest cursor-pointer border-0 transition"
         >
           <Save size={14} /> Salvar
