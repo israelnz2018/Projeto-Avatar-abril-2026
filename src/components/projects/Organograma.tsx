@@ -1,21 +1,24 @@
 /**
- * Organograma — árvore hierárquica colapsável (estilo explorer/Outlook).
+ * Organograma — árvore hierárquica em CAIXINHAS (top-down), estilo organograma
+ * corporativo profissional.
  *
- * Cada nó é uma PESSOA com 3 campos: Nome, Área, Função.
- * Clica no nó → expande/recolhe os subordinados.
- * Cada nó pode: adicionar subordinado, editar, excluir.
+ * Cada nó é uma CAIXA (pessoa/função). Os filhos ficam LADO A LADO abaixo do pai,
+ * conectados por linhas. Cada nó pode expandir/recolher seus subordinados, e a
+ * árvore suporta vários níveis em paralelo.
+ *
+ * Cada nó tem 3 campos: Função, Nome, Área. Pode ser marcado como "crítico"
+ * (caixa azul-clara) e ter um status de relacionamento (3 estados).
+ *
+ * Suporta VÁRIOS topos (raízes) independentes lado a lado.
  *
  * SEM auto-save: o componente reporta "dirty" via onDirtyChange; o pai
  * (ProjectJourney) avisa "sair sem salvar" se o usuário trocar de ferramenta.
- *
- * Ferramenta pensada pra Situação 1 da Trilha 1 ("mapear minha área"):
- * o aluno monta quem é quem e onde ele mesmo se encaixa.
  */
 
 import React, { useState, useEffect } from 'react';
 import {
-  Network, Plus, Trash2, Save, BookOpen, X,
-  ChevronRight, ChevronDown, Info,
+  Network, Plus, Trash2, Save, BookOpen, X, Pencil, Check,
+  Minus, Info,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -96,44 +99,143 @@ const ORG_EXEMPLOS = [
   },
 ];
 
-// Renderiza um nó-exemplo (read-only) recursivo.
-function NoExemplo({ no, nivel }: { no: any; nivel: number }) {
+/* =========================================================================
+   CONECTORES — organograma top-down com filhos lado a lado.
+   Técnica CSS pura (sem medir DOM): cada nível de filhos é uma linha flex;
+   conectores são pseudo-traços desenhados com divs absolutos. Robusto e
+   responsivo. Estrutura por nó:
+
+     [ CAIXA ]
+        │            (tronco descendo do pai)
+     ┌──┴──┐         (barra horizontal ligando os filhos)
+     │     │         (gota subindo pra cada filho)
+   [filho][filho]
+   ========================================================================= */
+
+// Caixinha visual de um nó (compartilhada por editor e exemplo).
+function NodeBox({
+  no,
+  critico,
+  contato,
+  children,
+}: {
+  no: { funcao?: string; nome?: string; area?: string };
+  critico?: boolean;
+  contato?: Contato;
+  children?: React.ReactNode; // ações/edição embaixo
+}) {
+  const opt = contato ? CONTATO_OPCOES.find(o => o.value === contato) : null;
   return (
-    <div>
-      <div
-        className="flex items-center gap-2 py-1.5"
-        style={{ paddingLeft: nivel * 22 }}
-      >
-        {no.filhos?.length > 0 ? <ChevronDown size={14} className="text-gray-400 shrink-0" /> : <span className="w-3.5 shrink-0" />}
-        <div className={cn(
-          'flex-1 rounded-lg px-3 py-2 border',
-          no.critico ? 'bg-sky-100 border-sky-300' : 'bg-white border-gray-200'
-        )}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-[13px] font-bold text-gray-900 m-0 leading-tight">{no.funcao}</p>
-            {no.critico && (
-              <span className="text-[8px] font-black uppercase tracking-widest text-sky-700 bg-white border border-sky-300 rounded px-1.5 py-0.5">
-                Crítico
-              </span>
-            )}
-            {no.contato && (() => {
-              const opt = CONTATO_OPCOES.find(o => o.value === no.contato);
-              if (!opt) return null;
-              return (
-                <span className={cn('text-[8px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 border flex items-center gap-1', opt.ativo)}>
-                  <span className={cn('w-1.5 h-1.5 rounded-full', opt.dot)} />
-                  {opt.label}
-                </span>
-              );
-            })()}
-          </div>
-          <p className="text-[11px] text-gray-500 m-0">{no.nome} · {no.area}</p>
+    <div
+      className={cn(
+        'w-[220px] rounded-xl border shadow-sm overflow-hidden bg-white transition-colors',
+        critico ? 'border-sky-400 ring-1 ring-sky-200' : 'border-gray-200'
+      )}
+    >
+      {/* Faixa de cor no topo */}
+      <div className={cn('h-1.5 w-full', critico ? 'bg-sky-500' : 'bg-[#1E2D6E]')} />
+      <div className={cn('px-3 py-2.5', critico && 'bg-sky-50/60')}>
+        <p className="text-[13px] font-black text-gray-900 m-0 leading-tight truncate" title={no.funcao || ''}>
+          {no.funcao || <span className="text-gray-300 font-bold">Função / Cargo</span>}
+        </p>
+        <p className="text-[11px] text-gray-600 m-0 mt-0.5 truncate" title={`${no.nome || ''} · ${no.area || ''}`}>
+          {no.nome || <span className="text-gray-300">Nome</span>}
+          {(no.nome || no.area) ? ' · ' : ''}
+          {no.area ? <span className="text-gray-400">{no.area}</span> : <span className="text-gray-300">Área</span>}
+        </p>
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          {critico && (
+            <span className="text-[8px] font-black uppercase tracking-widest text-sky-700 bg-white border border-sky-300 rounded px-1.5 py-0.5">
+              Crítico
+            </span>
+          )}
+          {opt && (
+            <span className={cn('text-[8px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 border flex items-center gap-1', opt.ativo)}>
+              <span className={cn('w-1.5 h-1.5 rounded-full', opt.dot)} />
+              {opt.label}
+            </span>
+          )}
         </div>
       </div>
-      {(no.filhos || []).map((f: any, i: number) => (
-        <NoExemplo key={i} no={f} nivel={nivel + 1} />
-      ))}
+      {children}
     </div>
+  );
+}
+
+// Layout recursivo genérico (usado por editor e exemplo via renderBox).
+// `recolhido(id)` decide se esconde a subárvore; `toggle` opcional.
+function ArvoreLayout({
+  no,
+  renderBox,
+  isRecolhido,
+}: {
+  no: any;
+  renderBox: (no: any, temFilhos: boolean, recolhido: boolean) => React.ReactNode;
+  isRecolhido: (id: string) => boolean;
+}) {
+  const filhos: any[] = no.filhos || [];
+  const temFilhos = filhos.length > 0;
+  const recolhido = isRecolhido(no.id);
+  const mostrarFilhos = temFilhos && !recolhido;
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* A caixa */}
+      <div className="relative flex flex-col items-center">
+        {renderBox(no, temFilhos, recolhido)}
+      </div>
+
+      {/* Tronco + filhos */}
+      {mostrarFilhos && (
+        <>
+          {/* tronco vertical saindo do pai */}
+          <div className="w-px h-5 bg-gray-300" />
+          {/* linha de filhos */}
+          <div className="flex items-start justify-center">
+            {filhos.map((f, i) => {
+              const primeiro = i === 0;
+              const ultimo = i === filhos.length - 1;
+              const unico = filhos.length === 1;
+              return (
+                <div key={f.id || i} className="flex flex-col items-center px-3 relative">
+                  {/* conector superior (barra horizontal + gota) — escondido se filho único */}
+                  {!unico && (
+                    <div className="absolute top-0 left-0 right-0 h-5 flex">
+                      {/* metade esquerda da barra */}
+                      <div className={cn('flex-1 border-gray-300', !primeiro && 'border-t')} />
+                      {/* metade direita da barra */}
+                      <div className={cn('flex-1 border-gray-300', !ultimo && 'border-t')} />
+                    </div>
+                  )}
+                  {/* gota vertical subindo até a barra */}
+                  <div className="w-px h-5 bg-gray-300" />
+                  {/* subárvore do filho */}
+                  <ArvoreLayout no={f} renderBox={renderBox} isRecolhido={isRecolhido} />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ===== Render do nó-exemplo (read-only) usando o mesmo layout de caixinhas.
+function ExemploArvore({ raiz }: { raiz: any }) {
+  // No exemplo tudo expandido; ids sintéticos por índice.
+  const withIds = (n: any, prefix = 'e'): any => ({
+    ...n,
+    id: prefix,
+    filhos: (n.filhos || []).map((f: any, i: number) => withIds(f, `${prefix}-${i}`)),
+  });
+  const root = withIds(raiz);
+  return (
+    <ArvoreLayout
+      no={root}
+      isRecolhido={() => false}
+      renderBox={(no) => <NodeBox no={no} critico={no.critico} contato={no.contato} />}
+    />
   );
 }
 
@@ -148,6 +250,8 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
 
   // Nós recolhidos (por id). Default = todos expandidos.
   const [recolhidos, setRecolhidos] = useState<Set<string>>(new Set());
+  // Nó em edição (id) — abre o mini-painel de campos.
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [showExemplo, setShowExemplo] = useState(false);
   const [exemploIdx, setExemploIdx] = useState(0);
 
@@ -169,7 +273,6 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
     if (no.id === paiId) return { ...no, filhos: [...no.filhos, filho] };
     return { ...no, filhos: no.filhos.map(f => adicionarFilho(f, paiId, filho)) };
   };
-  // Remove um nó de dentro de uma árvore (sem remover a própria raiz aqui).
   const removerDescendente = (no: No, id: string): No => {
     return { ...no, filhos: no.filhos.filter(f => f.id !== id).map(f => removerDescendente(f, id)) };
   };
@@ -185,20 +288,25 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
     mutate(prev => ({ raizes: prev.raizes.map(r => atualizarNo(r, id, { contato: valor })) }));
   };
   const handleAddSubordinado = (paiId: string) => {
-    mutate(prev => ({ raizes: prev.raizes.map(r => adicionarFilho(r, paiId, novoNo())) }));
+    const novo = novoNo();
+    mutate(prev => ({ raizes: prev.raizes.map(r => adicionarFilho(r, paiId, novo)) }));
+    // Garante que o pai esteja expandido pra ver o novo filho, e já abre edição.
+    setRecolhidos(prev => { const n = new Set(prev); n.delete(paiId); return n; });
+    setEditandoId(novo.id);
   };
   const handleRemover = (id: string) => {
-    // Se o id for uma raiz (topo), remove a árvore inteira. Senão, remove o descendente.
     mutate(prev => {
       if (prev.raizes.some(r => r.id === id)) {
         return { raizes: prev.raizes.filter(r => r.id !== id) };
       }
       return { raizes: prev.raizes.map(r => removerDescendente(r, id)) };
     });
+    if (editandoId === id) setEditandoId(null);
   };
-  // Adiciona um novo TOPO (árvore independente) ao lado dos existentes.
   const adicionarTopo = () => {
-    mutate(prev => ({ raizes: [...prev.raizes, novoNo()] }));
+    const novo = novoNo();
+    mutate(prev => ({ raizes: [...prev.raizes, novo] }));
+    setEditandoId(novo.id);
   };
 
   const toggleRecolher = (id: string) => {
@@ -209,113 +317,124 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
     });
   };
 
-  // ===== Render recursivo de um nó editável =====
-  const renderNo = (no: No, nivel: number): React.ReactNode => {
-    const temFilhos = no.filhos.length > 0;
-    const recolhido = recolhidos.has(no.id);
+  // ===== Caixa editável (com ações e mini-painel de edição) =====
+  const renderCaixaEditavel = (no: No, temFilhos: boolean, recolhido: boolean): React.ReactNode => {
+    const emEdicao = editandoId === no.id;
     return (
-      <div key={no.id}>
-        <div className="flex items-start gap-1.5 py-1.5" style={{ paddingLeft: nivel * 24 }}>
-          {/* Toggle expandir/recolher */}
-          {temFilhos ? (
+      <NodeBox no={no} critico={no.critico} contato={no.contato}>
+        {/* Barra de ações */}
+        <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-t border-gray-100 bg-gray-50/70">
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => setEditandoId(emEdicao ? null : no.id)}
+              className={cn(
+                'w-7 h-7 flex items-center justify-center rounded-md border cursor-pointer transition',
+                emEdicao ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-500 border-gray-200 bg-white hover:bg-gray-100'
+              )}
+              title={emEdicao ? 'Fechar edição' : 'Editar'}
+            >
+              {emEdicao ? <Check size={13} /> : <Pencil size={13} />}
+            </button>
+            <button
+              onClick={() => handleAddSubordinado(no.id)}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-blue-600 border border-blue-100 bg-white hover:bg-blue-50 cursor-pointer transition"
+              title="Adicionar subordinado"
+            >
+              <Plus size={13} />
+            </button>
+            <button
+              onClick={() => handleRemover(no.id)}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-red-500 border border-red-100 bg-white hover:bg-red-50 cursor-pointer transition"
+              title="Excluir"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+          {/* Toggle expandir/recolher — só se tiver filhos */}
+          {temFilhos && (
             <button
               onClick={() => toggleRecolher(no.id)}
-              className="mt-3 shrink-0 text-gray-400 hover:text-gray-700 bg-transparent border-0 cursor-pointer p-0"
-              title={recolhido ? 'Expandir' : 'Recolher'}
+              className="flex items-center gap-1 h-7 px-2 rounded-md text-[10px] font-black text-gray-600 border border-gray-200 bg-white hover:bg-gray-100 cursor-pointer transition"
+              title={recolhido ? 'Expandir subordinados' : 'Recolher subordinados'}
             >
-              {recolhido ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+              {recolhido ? <Plus size={12} /> : <Minus size={12} />}
+              {recolhido && <span>{no.filhos.length}</span>}
             </button>
-          ) : (
-            <span className="w-4 shrink-0" />
           )}
-
-          {/* Card editável da pessoa — fica AZUL CLARO quando marcado como crítico */}
-          <div className={cn(
-            'flex-1 rounded-lg p-2.5 shadow-sm border transition-colors',
-            no.critico ? 'bg-sky-100 border-sky-300' : 'bg-white border-gray-200'
-          )}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <input
-                type="text"
-                value={no.funcao}
-                onChange={(e) => handleCampo(no.id, 'funcao', e.target.value)}
-                placeholder="Função / Cargo"
-                className="px-2 py-1.5 text-[12px] font-bold border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={no.nome}
-                onChange={(e) => handleCampo(no.id, 'nome', e.target.value)}
-                placeholder="Nome da pessoa"
-                className="px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-              <input
-                type="text"
-                value={no.area}
-                onChange={(e) => handleCampo(no.id, 'area', e.target.value)}
-                placeholder="Área / Setor"
-                className="px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <button
-                onClick={() => handleAddSubordinado(no.id)}
-                className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded border border-blue-100 bg-white cursor-pointer transition"
-              >
-                <Plus size={11} /> Subordinado
-              </button>
-              <button
-                onClick={() => handleRemover(no.id)}
-                className="flex items-center gap-1 text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded border border-red-100 bg-white cursor-pointer transition"
-              >
-                <Trash2 size={11} /> Excluir
-              </button>
-              {/* Caixinha "Crítico" — pinta o card de azul-claro ao marcar */}
-              <label className={cn(
-                'flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition ml-auto',
-                no.critico ? 'text-sky-700 border-sky-300 bg-sky-50' : 'text-gray-500 border-gray-200 bg-white hover:bg-gray-50'
-              )}>
-                <input
-                  type="checkbox"
-                  checked={!!no.critico}
-                  onChange={() => toggleCritico(no.id, !!no.critico)}
-                  className="accent-sky-600 cursor-pointer"
-                />
-                Crítico
-              </label>
-            </div>
-
-            {/* Status de relacionamento — 3 estados (mapa de quem já abordei) */}
-            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mr-1">Contato:</span>
-              {CONTATO_OPCOES.map(opt => {
-                const atual = (no.contato || 'nao-falei') === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => setContato(no.id, opt.value)}
-                    className={cn(
-                      'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition',
-                      atual ? opt.ativo : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
-                    )}
-                  >
-                    <span className={cn('w-2 h-2 rounded-full', opt.dot)} />
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
-        {/* Filhos (se não recolhido) */}
-        {!recolhido && no.filhos.map(f => renderNo(f, nivel + 1))}
-      </div>
+        {/* Mini-painel de edição (inline) */}
+        {emEdicao && (
+          <div className="px-2.5 py-2.5 border-t border-gray-100 bg-white space-y-2">
+            <input
+              type="text"
+              value={no.funcao}
+              onChange={(e) => handleCampo(no.id, 'funcao', e.target.value)}
+              placeholder="Função / Cargo"
+              autoFocus
+              className="w-full px-2 py-1.5 text-[12px] font-bold border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <input
+              type="text"
+              value={no.nome}
+              onChange={(e) => handleCampo(no.id, 'nome', e.target.value)}
+              placeholder="Nome da pessoa"
+              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <input
+              type="text"
+              value={no.area}
+              onChange={(e) => handleCampo(no.id, 'area', e.target.value)}
+              placeholder="Área / Setor"
+              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+
+            {/* Crítico */}
+            <label className={cn(
+              'flex items-center gap-1.5 text-[10px] font-bold px-2 py-1.5 rounded border cursor-pointer transition',
+              no.critico ? 'text-sky-700 border-sky-300 bg-sky-50' : 'text-gray-500 border-gray-200 bg-white hover:bg-gray-50'
+            )}>
+              <input
+                type="checkbox"
+                checked={!!no.critico}
+                onChange={() => toggleCritico(no.id, !!no.critico)}
+                className="accent-sky-600 cursor-pointer"
+              />
+              Pessoa / função crítica
+            </label>
+
+            {/* Contato — 3 estados */}
+            <div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Contato</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {CONTATO_OPCOES.map(opt => {
+                  const atual = (no.contato || 'nao-falei') === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setContato(no.id, opt.value)}
+                      className={cn(
+                        'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition',
+                        atual ? opt.ativo : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
+                      )}
+                    >
+                      <span className={cn('w-2 h-2 rounded-full', opt.dot)} />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </NodeBox>
     );
   };
 
+  const isRecolhido = (id: string) => recolhidos.has(id);
+
   return (
-    <div className="max-w-4xl mx-auto p-6 md:p-8 bg-white">
+    <div className="max-w-6xl mx-auto p-6 md:p-8 bg-white">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6 pb-4 border-b-2 border-gray-200">
         <div className="flex items-center gap-3 flex-1">
@@ -337,17 +456,23 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
 
       {/* Árvores (vários topos) ou estado vazio */}
       {data.raizes.length > 0 ? (
-        <div className="space-y-3 mb-4">
-          {data.raizes.map((raiz, i) => (
-            <div key={raiz.id} className="border border-gray-100 rounded-lg p-3 bg-gray-50/50 relative">
-              {data.raizes.length > 1 && (
-                <span className="absolute -top-2 left-3 bg-[#1E2D6E] text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
-                  Topo {i + 1}
-                </span>
-              )}
-              {renderNo(raiz, 0)}
+        <div className="space-y-5 mb-4">
+          {/* Canvas com scroll horizontal pra organogramas largos */}
+          <div className="overflow-x-auto pb-4">
+            <div className="flex items-start gap-10 min-w-min px-2 pt-3">
+              {data.raizes.map((raiz, i) => (
+                <div key={raiz.id} className="relative shrink-0 pt-3">
+                  {data.raizes.length > 1 && (
+                    <span className="absolute -top-1 left-1/2 -translate-x-1/2 bg-[#1E2D6E] text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded z-10 whitespace-nowrap">
+                      Topo {i + 1}
+                    </span>
+                  )}
+                  <ArvoreLayout no={raiz} renderBox={renderCaixaEditavel} isRecolhido={isRecolhido} />
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
           {/* Adicionar outro topo (árvore independente) */}
           <button
             onClick={adicionarTopo}
@@ -373,8 +498,10 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-3 items-start mb-6">
         <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
         <p className="text-[12px] text-blue-800 leading-relaxed m-0">
-          <strong>Como montar:</strong> comece pelo topo e vá adicionando subordinados. Clique na setinha
-          pra recolher/expandir um ramo. Cada pessoa tem <strong>Função</strong>, <strong>Nome</strong> e <strong>Área</strong>.
+          <strong>Como montar:</strong> clique no <Pencil size={11} className="inline -mt-0.5" /> pra preencher
+          a caixa, no <Plus size={11} className="inline -mt-0.5" /> pra adicionar um subordinado abaixo, e no{' '}
+          <Minus size={11} className="inline -mt-0.5" /> pra recolher/expandir um ramo. Os subordinados aparecem
+          lado a lado — você pode ter vários níveis em paralelo.
         </p>
       </div>
 
@@ -396,7 +523,7 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
           onClick={() => setShowExemplo(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
@@ -434,14 +561,17 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
             </div>
 
             <div className="p-6">
-              <div className="border border-gray-100 rounded-lg p-3 bg-gray-50/50">
-                <NoExemplo no={ORG_EXEMPLOS[exemploIdx].raiz} nivel={0} />
+              <div className="border border-gray-100 rounded-lg p-4 bg-gray-50/50 overflow-x-auto">
+                <div className="flex justify-center min-w-min pt-2">
+                  <ExemploArvore raiz={ORG_EXEMPLOS[exemploIdx].raiz} />
+                </div>
               </div>
               <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
                 <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
                 <p className="text-xs text-amber-800 leading-relaxed m-0">
-                  Cada caixa é uma pessoa (função · nome · área). A indentação mostra quem responde
-                  a quem. Este exemplo é só pra ilustrar — ele <strong>não altera</strong> o seu organograma.
+                  Cada caixa é uma pessoa (função · nome · área). As linhas mostram quem responde
+                  a quem, com os subordinados lado a lado. Este exemplo é só pra ilustrar — ele{' '}
+                  <strong>não altera</strong> o seu organograma.
                 </p>
               </div>
             </div>
