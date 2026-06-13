@@ -2,7 +2,7 @@
 
 Arquivo único editável em texto puro. Contém **1 seção global** + **8 seções (uma por trilha)** = 9 seções no total.
 
-Histórico: em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida na Trilha 1 grátis — os 8 episódios da T2 viraram 4 situações novas (definir-problema, causa-raiz, vender-solucao, sustentar-ganho) dentro da T1. As trilhas restantes foram renumeradas 1-8 sem gap, na ordem do funil de venda (Opção A — pesquisa-baseada): T1 grátis (gateway) → T2 Dados → T3 Mudanças → T4 Apresentações → T5 Riscos → T6 Lean → T7 Estatística → T8 Especialista (âncora).
+Histórico: em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida na Trilha 1 — os 8 episódios da T2 viraram 4 situações novas (definir-problema, causa-raiz, vender-solucao, sustentar-ganho) dentro da T1. As trilhas restantes foram renumeradas 1-8 sem gap, na ordem do funil de venda (Opção A — pesquisa-baseada): T1 (gateway) → T2 Dados → T3 Mudanças → T4 Apresentações → T5 Riscos → T6 Lean → T7 Estatística → T8 Especialista (âncora).
 
 O sistema lê esse arquivo em runtime e injeta no prompt da IA. Atualizar = só editar e salvar.
 
@@ -105,15 +105,15 @@ Apresentação: Botão PPT em cada ferramenta gera slide executivo
 ═══════════════════════════════════════════════════════════════════════
 ═══════════════════════════════════════════════════════════════════════
 
-# SEÇÃO 1 — Trilha 01: Chegar e Entregar (GRÁTIS · kit fundido de 10 situações)
+# SEÇÃO 1 — Trilha 01: Chegar e Entregar (kit fundido de 10 situações)
 
 ID: `ferramentas-dia-a-dia` · Título oficial: **"Como Chegar em uma Área Nova e Já Entregar Resultado"**
 
 ## ✅ Sobre a trilha
-**Subtítulo:** Kit grátis de 10 situações pros primeiros 6 meses
+**Subtítulo:** Kit de 10 situações pros primeiros 6 meses
 **Dor:** Pra você sair do "perdido" e chegar no "olha o que mudou" antes do fim do primeiro ano
 **Pra quem:** Profissional que está há pouco tempo numa empresa nova OU mudou de área internamente OU vai assumir uma nova função. Janela típica: 1 semana a 6 meses no contexto novo.
-**Formato:** 10 SITUAÇÕES em ARCO (NÃO episódios sequenciais). Aluno abre QUANDO trava em algo. Iniciante. **100% GRÁTIS.**
+**Formato:** 10 SITUAÇÕES em ARCO (NÃO episódios sequenciais). Aluno abre QUANDO trava em algo. Iniciante.
 **Histórico:** Em jun/2026 a antiga Trilha 2 ("Investigar Problemas") foi fundida nesta trilha — os 8 episódios da T2 viraram 4 situações novas (definir-problema, causa-raiz, vender-solucao, sustentar-ganho). Esta trilha agora cobre arco completo: chegou → adaptou → entregou primeira mudança.
 
 ## ⚠️ REGRA CRÍTICA DESTA TRILHA
@@ -223,7 +223,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Caso real do Israel:** 2015, mudança "perfeita" voltou em 6 semanas. Descobriu 3 obstáculos invisíveis. Hoje nunca implementa sem plano de controle
 - **Conexão paga:** Trilha 6 (Cultura Lean — kaizen contínuo) / Trilha 3 (Conduzir Mudanças — reinforcement do ADKAR)
 
-## ✅ Ferramentas do app pra esta trilha (liberadas no plano grátis)
+## ✅ Ferramentas do app pra esta trilha
 SIPOC, Plano de Ação 5W2H, Brainstorming, Espinha de Peixe (Ishikawa), 5 Porquês, Project Charter (versão mini), Esforço × Impacto, Observação Direta (Gemba), Stakeholders/RACI simples, Plano de Controle, POP
 
 ## ❓ Perguntas comuns + respostas ideais
@@ -258,7 +258,7 @@ R: Situação 6. TO é quem PRECISA fazer algo. Se a pessoa não vai agir, vai n
 - NUNCA mais mencionar "Trilha 2 — Investigar Problemas" — ela foi fundida nesta trilha em jun/2026
 
 ## 💡 Notas extras
-- Esta é a única trilha GRÁTIS. Todo lead começa aqui. Boa parte das perguntas de aluno novo cai em uma das 10 situações — sempre devolva pela situação, não pelo episódio
+- Esta é a trilha de ENTRADA. Todo lead começa aqui. Boa parte das perguntas de aluno novo cai em uma das 10 situações — sempre devolva pela situação, não pelo episódio
 - A trilha cobre ARCO COMPLETO: chegou (Sit 1) → adaptou (Sit 2-6) → entregou primeira mudança real (Sit 7-10). Por isso converte bem pra trilhas pagas — o aluno chega no fim e PERCEBE que tem profundidade pra ir mais fundo
 - Quando recomendar trilha paga, use o campo "Conexão paga" da situação correspondente. Nunca empurra venda sem antes resolver o aperto do momento
 - Esta trilha é especificamente desenhada pra atrair Gen Z 23-30 brasileira que valoriza "quick wins aplicáveis essa semana" + freemium sem cartão

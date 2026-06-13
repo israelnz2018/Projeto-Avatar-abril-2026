@@ -34,14 +34,14 @@ const LANGS = [{ code: 'pt-BR', flag: '🇧🇷', label: 'PT' }, { code: 'en-US'
 
 // 8 trilhas — labels + cores espelhando trilhas.ts (mesma identidade visual da aba Jornada).
 // Quando clica, a IA puxa esse contexto e faz 2-3 follow-ups pra confirmar a trilha exata.
-// Nota: antiga T2 "Investigar Problemas" foi fundida na T1 grátis em jun/2026.
+// Nota: antiga T2 "Investigar Problemas" foi fundida na T1 em jun/2026.
 // Ordem segue o funil de venda (Opção A — pesquisa-baseada):
-//   01 grátis (gateway) → 02 Dados (hard skill complementar) →
+//   01 (gateway) → 02 Dados (hard skill complementar) →
 //   03 Mudanças + 04 Apresentações (soft skills mais demandadas no BR) →
 //   05 Riscos + 06 Lean (refinamento) → 07 Estatística (profundidade) →
 //   08 Especialista (âncora — Master Black Belt + PMP)
 const TRILHA_HERO_CARDS = [
-  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Chegar numa área nova e já entregar resultado (GRÁTIS)',  gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
+  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Chegar numa área nova e já entregar resultado',           gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
   { id: 'dados-do-dia-a-dia',              num: '02', icon: BarChart3,   label: 'Gerar recomendações baseadas em dados',                    gradient: 'linear-gradient(135deg, #22D3EE 0%, #2563EB 55%, #1E3A8A 100%)', glow: 'rgba(34, 211, 238, 0.45)'  },
   { id: 'mudanca-com-menos-resistencia',   num: '03', icon: Users,       label: 'Conduzir mudanças com menos resistência',                  gradient: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 55%, #7F1D1D 100%)', glow: 'rgba(245, 158, 11, 0.45)'  },
   { id: 'apresentar-recomendacao',         num: '04', icon: Mic,         label: 'Criar apresentações que convencem',                        gradient: 'linear-gradient(135deg, #FB923C 0%, #EF4444 55%, #9F1239 100%)', glow: 'rgba(249, 115, 22, 0.45)'  },

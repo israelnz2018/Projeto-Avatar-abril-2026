@@ -48,7 +48,7 @@ export interface Episodio {
 }
 
 /**
- * Situação — usado APENAS pela Trilha 1 (grátis).
+ * Situação — usado APENAS pela Trilha 1.
  *
  * A Trilha 1 não é uma sequência linear de episódios. É um KIT DE ADAPTAÇÃO
  * organizado por situação real que o profissional enfrenta nos primeiros
@@ -130,7 +130,7 @@ export interface Trilha {
   episodios: Episodio[];
   /**
    * Situações — opcional. Quando presente, o modal renderiza um GRID DE CÍRCULOS
-   * em vez da lista linear de episódios. Hoje só a Trilha 1 (grátis) usa isso.
+   * em vez da lista linear de episódios. Hoje só a Trilha 1 usa isso.
    */
   situacoes?: Situacao[];
   ferramentas: FerramentaLink[];
@@ -156,7 +156,7 @@ export const TRILHAS: Trilha[] = [
     id: 'ferramentas-dia-a-dia',
     numero: '01',
     titulo: 'Como Chegar em uma Área Nova e Já Entregar Resultado',
-    subtitulo: 'Kit grátis de 10 situações pros primeiros 6 meses',
+    subtitulo: 'Kit de 10 situações pros primeiros 6 meses',
     dor: 'Pra você sair do "perdido" e chegar no "olha o que mudou" antes do fim do primeiro ano',
     paraQuem: 'Quem chegou agora (1 semana a 6 meses) numa empresa nova, área nova ou função nova — e quer mostrar valor antes de virar "mais um" do time',
     icone: Compass,
@@ -164,7 +164,7 @@ export const TRILHAS: Trilha[] = [
     glow: 'rgba(59, 130, 246, 0.45)',
     accent: '#3B82F6',
     motif: 'spiral-flow',
-    duracao: 'Use quando travar · 100% grátis',
+    duracao: 'Use quando travar',
     nivel: 'Iniciante',
     totalEpisodios: 10,
     selo: 'COMECE AQUI',
@@ -176,7 +176,7 @@ Esse kit cobre os 2 lados. **Primeira metade (6 situações):** se adaptar sem t
 
 Não é curso linear. Você abre o círculo da situação que tá te travando ESSA semana. Cada uma vem com parte técnica (a ferramenta) e parte comportamental (a régua de decisão). Sem coach. É o que eu faria se fosse você chegando hoje.
 
-É grátis pra você usar enquanto quiser. Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplicada, gestão de mudança), as outras 7 trilhas estão lá.`,
+Quando quiser ir mais fundo em alguma das ferramentas (FMEA, estatística aplicada, gestão de mudança), as outras 7 trilhas estão lá.`,
     oQueVoceLeva: [
       'Mapear sua nova área em 2 dias (não em 2 semanas)',
       'Régua objetiva pra decidir QUANDO escalar e quando resolver sozinho',
@@ -435,7 +435,7 @@ Não é curso linear. Você abre o círculo da situação que tá te travando ES
       },
     ],
     ferramentas: [
-      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'SIPOC, 5W2H, Brainstorming, Ishikawa, 5 Porquês, Esforço × Impacto, Observação Direta, Plano de Controle, POP — todos liberados no plano grátis' },
+      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'SIPOC, 5W2H, Brainstorming, Ishikawa, 5 Porquês, Esforço × Impacto, Observação Direta, Plano de Controle, POP' },
       { label: 'Perguntar ao Mentor IA', rota: '/chat', descricao: 'Tire dúvidas sobre qual situação atacar primeiro' },
     ],
     ctaPrimario: { label: 'Abrir o kit', rota: '/projects' },
@@ -488,7 +488,7 @@ Aqui você vai aprender a fazer Pareto, Histograma, Boxplot e algumas análises 
   // NOTA: a antiga Trilha 2 ("Como Investigar Problemas e Melhorar a Sua Área")
   // foi fundida com a Trilha 1 em jun/2026. O conteúdo dos 8 episódios virou
   // 4 situações (definir-problema, causa-raiz, vender-solucao, sustentar-ganho)
-  // dentro do kit grátis da Trilha 1. Esse vácuo no numero '02' é intencional —
+  // dentro do kit da Trilha 1. Esse vácuo no numero '02' é intencional —
   // a Trilha 7 (Apresentações) virou Trilha 2 na ordem visual.
 
   {
@@ -770,9 +770,9 @@ export const CATEGORIAS: Categoria[] = [
   {
     id: 'comece-aqui',
     titulo: 'Todas as trilhas',
-    subtitulo: 'Da grátis (kit de adaptação) ao nível especialista — você escolhe por onde começar',
+    subtitulo: 'Do kit de adaptação ao nível especialista — você escolhe por onde começar',
     trilhaIds: [
-      'ferramentas-dia-a-dia',          // 1 — grátis
+      'ferramentas-dia-a-dia',          // 1
       'dados-do-dia-a-dia',             // 2
       'mudanca-com-menos-resistencia',  // 3
       'apresentar-recomendacao',        // 4

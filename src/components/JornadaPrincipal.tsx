@@ -55,14 +55,14 @@ const BG = '#080a14';
  *
  * IMPORTANTE: a antiga Trilha 2 ("Investigar Problemas") foi fundida com a
  * Trilha 1 em jun/2026 — o ciclo DMAIC qualitativo (definir, causa-raiz,
- * implementar, sustentar) virou 4 das 10 situações da Trilha 1 grátis.
+ * implementar, sustentar) virou 4 das 10 situações da Trilha 1.
  *
  * A última trilha (Especialista) é a FORMAÇÃO ÂNCORA da LBW, com paleta
  * NAVY/BLUE (definida no próprio trilhas.ts via gradient/accent/glow LBW).
  */
 const HERO_TRILHAS_IDS = [
-  'ferramentas-dia-a-dia',           // 01 — Kit grátis (adaptação + 1ª entrega) ← FUNIL DE TOPO
-  'dados-do-dia-a-dia',              // 02 — Recomendar com Dados (1ª venda + provável pós-grátis)
+  'ferramentas-dia-a-dia',           // 01 — Kit de adaptação + 1ª entrega ← FUNIL DE TOPO
+  'dados-do-dia-a-dia',              // 02 — Recomendar com Dados (1ª venda provável)
   'mudanca-com-menos-resistencia',   // 03 — Conduzir Mudanças (2ª venda + provável)
   'apresentar-recomendacao',         // 04 — Apresentações que Convencem (3ª venda + provável)
   'analise-risco-mudanca',           // 05 — Antecipar Riscos (refinamento técnico)

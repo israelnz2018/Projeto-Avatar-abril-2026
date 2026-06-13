@@ -62,7 +62,7 @@ const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: st
   'Atividades': {
     trilhaNumero: 'Trilha 1',
     trilhaNome: 'Como Chegar em uma Área Nova e Já Entregar Resultado',
-    explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha (grátis) cobre 10 situações: da adaptação até implementar mudança que sustenta. Inclui Mini-Charter, causa-raiz com 5 Porquês, vender solução sem virar inimigo do time e plano de controle. É o caminho mais direto pro seu escopo — e não custa nada.',
+    explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha cobre 10 situações: da adaptação até implementar mudança que sustenta. Inclui Mini-Charter, causa-raiz com 5 Porquês, vender solução sem virar inimigo do time e plano de controle. É o caminho mais direto pro seu escopo.',
   },
   'Area': null, // sem recomendação específica — o aluno tem várias opções
   'Empresa': {
@@ -337,7 +337,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               title: 'Quero melhorar MINHAS ATIVIDADES',
               description: 'O que EU faço no dia a dia — re-trabalho, ferramenta ruim, espera, reclamação que recebo.',
               icon: ClipboardList,
-              hint: 'Sugestão: Trilha 1 (grátis)',
+              hint: 'Sugestão: Trilha 1',
             },
             {
               id: 'Area' as Exclude<UserProfile, null>,
