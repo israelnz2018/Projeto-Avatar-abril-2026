@@ -189,15 +189,11 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     }, { silent: true });
   };
 
-  // Quando aluno clica num card de perfil: se tem recomendação de trilha, mostra popup primeiro.
-  // Senão, seleciona direto.
+  // Quando aluno clica num card de perfil: vai DIRETO pra ferramenta.
+  // O popup de recomendação de trilha foi removido (a pedido) — o aluno
+  // escolhe o perfil e a ferramenta já fica pronta, sem interrupção.
   const handleProfileClick = (profile: Exclude<UserProfile, null>) => {
-    const rec = PERFIL_RECOMENDACAO[profile];
-    if (rec) {
-      setRecommendationPopup({ perfil: profile, ...rec });
-    } else {
-      confirmProfileSelection(profile);
-    }
+    confirmProfileSelection(profile);
   };
 
   // Aluno decide: aceitar recomendação (vira pra trilha) ou continuar nessa ferramenta.
@@ -377,66 +373,8 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           ))}
         </div>
 
-        {/* Popup de recomendação de trilha — aluno decide */}
-        <AnimatePresence>
-          {recommendationPopup && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-              onClick={() => setRecommendationPopup(null)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.9, y: 20, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 text-left"
-              >
-                <div className="flex items-start justify-between mb-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#F0F2FA] flex items-center justify-center text-[#0033CC]">
-                      <Lightbulb size={22} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black tracking-widest uppercase text-[#0033CC]">Recomendação do Israel</p>
-                      <p className="text-[18px] font-black text-gray-900">{recommendationPopup.trilhaNumero}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setRecommendationPopup(null)} className="text-gray-400 hover:text-gray-700 bg-transparent border-0 cursor-pointer p-1">
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <p className="text-[15px] font-bold text-gray-900 mb-2 leading-tight">{recommendationPopup.trilhaNome}</p>
-                <p className="text-sm text-gray-600 leading-relaxed mb-6">{recommendationPopup.explicacao}</p>
-
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 flex gap-2">
-                  <Info size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800 leading-relaxed">
-                    Você pode <strong>seguir com essa ferramenta aqui</strong> de qualquer jeito — a recomendação acima é só um atalho. Sua escolha vale.
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setRecommendationPopup(null)}
-                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-600 text-[12px] font-black uppercase tracking-widest hover:bg-gray-50 transition cursor-pointer bg-white"
-                  >
-                    Voltar
-                  </button>
-                  <button
-                    onClick={() => recommendationPopup.perfil && confirmProfileSelection(recommendationPopup.perfil as Exclude<UserProfile, null>)}
-                    className="flex-[2] px-4 py-3 rounded-xl bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-[12px] font-black uppercase tracking-widest transition flex items-center justify-center gap-2 cursor-pointer border-0"
-                  >
-                    Continuar com essa ferramenta <ArrowRight size={14} />
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Popup de recomendação de trilha REMOVIDO (a pedido) — clicar no
+            perfil leva direto pra ferramenta, sem interrupção. */}
       </div>
     );
   }
