@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  ChevronRight, 
-  ChevronLeft, 
-  Target, 
-  Ruler, 
-  Search, 
-  Zap, 
-  ShieldCheck, 
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  ShieldCheck,
   Lightbulb,
   MessageSquare,
   Sparkles,
@@ -23,7 +20,11 @@ import {
   Loader2,
   Printer,
   FileSpreadsheet,
-  Lock
+  Lock,
+  Building2,
+  Microscope,
+  Rocket,
+  Megaphone,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '../../services/reportService';
@@ -131,12 +132,38 @@ import { getAllKnowledge, KnowledgeEntry } from '../../services/knowledgeService
 type Phase = 'Define' | 'Measure' | 'Analyze' | 'Improve' | 'Control';
 
 const DEFAULT_PHASES = [
-  { id: 'Define', name: 'Definir', icon: Target, color: '#3b82f6', description: 'Defina o escopo, objetivos e equipe.' },
-  { id: 'Measure', name: 'Medir', icon: Ruler, color: '#8b5cf6', description: 'Mapeie o processo e colete dados da situação atual.' },
-  { id: 'Analyze', name: 'Analisar', icon: Search, color: '#ec4899', description: 'Identifique as causas raiz do problema.' },
-  { id: 'Improve', name: 'Melhorar', icon: Zap, color: '#10b981', description: 'Desenvolva e implemente soluções.' },
+  { id: 'Define', name: 'Definir', icon: Building2, color: '#3b82f6', description: 'Defina o escopo, objetivos e equipe.' },
+  { id: 'Measure', name: 'Medir', icon: Search, color: '#8b5cf6', description: 'Mapeie o processo e colete dados da situação atual.' },
+  { id: 'Analyze', name: 'Analisar', icon: Microscope, color: '#ec4899', description: 'Identifique as causas raiz do problema.' },
+  { id: 'Improve', name: 'Melhorar', icon: Rocket, color: '#10b981', description: 'Desenvolva e implemente soluções.' },
   { id: 'Control', name: 'Controlar', icon: ShieldCheck, color: '#6366f1', description: 'Garanta que os ganhos sejam mantidos.' },
 ];
+
+/**
+ * Escolhe o ícone da fase pelo SIGNIFICADO do nome (palavras-chave), com
+ * fallback pro ícone padrão da fase DMAIC subjacente (por id) e, por último,
+ * por posição. As trilhas usam nomes customizados (ex: "Entenda como sua área
+ * funciona") cujos ids ainda são Define/Measure/... — mapear só por id deixava
+ * ícones genéricos/repetidos. O nome é o que de fato distingue a fase.
+ */
+const PHASE_ICON_KEYWORDS: { re: RegExp; icon: any }[] = [
+  { re: /entend|conhe|empresa|área|area|funciona|mape/i, icon: Building2 },   // entender a área
+  { re: /encontr|identific|problema|oportunidad|priori/i, icon: Search },     // encontrar problemas
+  { re: /causa|raiz|investig|analis|por que|porqu/i, icon: Microscope },      // descobrir a causa
+  { re: /solu|implement|melhor|executa|ação|acao|resolver/i, icon: Rocket },  // implementar solução
+  { re: /comunic|apresent|influen|lideran|mudança|mudanca|story|stakeholder/i, icon: Megaphone }, // comunicar
+  { re: /control|sustenta|manter|padroniz|garant/i, icon: ShieldCheck },      // controlar/sustentar
+];
+
+function getPhaseIcon(name: string, id: string, index: number): any {
+  for (const { re, icon } of PHASE_ICON_KEYWORDS) {
+    if (re.test(name)) return icon;
+  }
+  const byId = DEFAULT_PHASES.find(dp => dp.id === id)?.icon;
+  if (byId) return byId;
+  // Último recurso: ícone por posição (sequência DMAIC clássica).
+  return [Building2, Search, Microscope, Rocket, ShieldCheck][index] || Lightbulb;
+}
 
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { LockedToolPopup } from '../LockedToolPopup';
@@ -275,12 +302,13 @@ useEffect(() => {
 
     if (project.initiativeId) {
       if (initiative?.phases && initiative.phases.length > 0) {
-        return initiative.phases.map(p => {
+        return initiative.phases.map((p, idx) => {
           const defaultPhase = DEFAULT_PHASES.find(dp => dp.id === p.id);
+          const resolvedName = resolvePhaseName(p.id, p.name);
           return {
             id: p.id,
-            name: resolvePhaseName(p.id, p.name),
-            icon: defaultPhase?.icon || Lightbulb,
+            name: resolvedName,
+            icon: getPhaseIcon(resolvedName, p.id, idx),
             color: defaultPhase?.color || '#6366f1',
             description: defaultPhase?.description || `Fase de ${p.name}`
           };
@@ -1329,15 +1357,15 @@ useEffect(() => {
                 >
                   <div
                     className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                      "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
                       isActive
-                        ? "bg-[#1E2D6E] text-white shadow-md"
+                        ? "bg-gradient-to-br from-[#0033CC] to-[#1E2D6E] text-white shadow-lg shadow-blue-200 scale-105"
                         : isCompleted
                           ? "bg-emerald-100 text-emerald-600"
-                          : "bg-[#f3f4f6] text-[#9CA3AF] group-hover:bg-[#e5e7eb]"
+                          : "bg-[#eef0f7] text-[#8A93B0] group-hover:bg-[#e0e4f0] group-hover:text-[#1E2D6E]"
                     )}
                   >
-                    {isCompleted ? <CheckCircle2 size={18} /> : <Icon size={18} />}
+                    {isCompleted ? <CheckCircle2 size={22} /> : <Icon size={22} strokeWidth={2} />}
                   </div>
                   <span
                     className={cn(
