@@ -534,6 +534,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
         onClose={() => setFeedbackOpen(false)}
         projetoAtivoId={projectId || undefined}
         projetoAtivoNome={projectName || undefined}
+        ferramentaAtual={activeToolLabel || undefined}
         contexto={activeToolLabel ? `Ferramenta: ${activeToolLabel}` : (currentPhase ? `Fase: ${currentPhase}` : undefined)}
       />
 

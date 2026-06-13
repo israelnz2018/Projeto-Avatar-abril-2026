@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Bug, Lightbulb, HelpCircle, Send, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Bug, Lightbulb, HelpCircle, Send, X, Loader2, CheckCircle2, Wrench, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { saveFeedback, FeedbackTipo } from '../../services/feedbackService';
 import { cn } from '../../lib/utils';
@@ -10,6 +11,8 @@ interface FeedbackModalProps {
   projetoAtivoId?: string | null;
   projetoAtivoNome?: string | null;
   contexto?: string | null;
+  /** Nome amigável da ferramenta aberta (se houver). Mostra "Você está em: X". */
+  ferramentaAtual?: string | null;
 }
 
 const TIPOS: Array<{
@@ -41,7 +44,7 @@ const TIPOS: Array<{
     label: 'Tirar dúvida',
     icon: HelpCircle,
     iconClass: 'text-blue-600 bg-blue-50 border-blue-200',
-    hint: 'Sua dúvida entra numa lista de perguntas frequentes. Não respondemos individualmente, mas as mais comuns viram conteúdo do curso.',
+    hint: 'Pergunte e a comunidade (e o mentor) pode responder. As dúvidas mais comuns viram conteúdo do curso.',
     placeholder: 'Qual é a sua dúvida?',
   },
 ];
@@ -52,6 +55,7 @@ export default function FeedbackModal({
   projetoAtivoId,
   projetoAtivoNome,
   contexto,
+  ferramentaAtual,
 }: FeedbackModalProps) {
   const [tipo, setTipo] = useState<FeedbackTipo>('sugestao');
   const [descricao, setDescricao] = useState('');
@@ -98,14 +102,14 @@ export default function FeedbackModal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col"
         >
           {enviado ? (
             <div className="p-8 text-center">
@@ -114,15 +118,14 @@ export default function FeedbackModal({
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">Recebido! 🎉</h3>
               <p className="text-sm text-gray-600">
-                {tipo === 'duvida'
-                  ? 'Sua dúvida entrou na lista. Acompanhamos as mais frequentes pra transformar em conteúdo.'
-                  : 'Obrigado pelo seu retorno. Vamos analisar.'}
+                Publicado na aba <strong>Perguntas &amp; Respostas da Comunidade</strong>. Todos os alunos
+                podem ver e responder.
               </p>
             </div>
           ) : (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
                 <h2 className="text-lg font-bold text-gray-800 m-0">Reportar / Sugerir / Perguntar</h2>
                 <button
                   onClick={handleFechar}
@@ -132,8 +135,19 @@ export default function FeedbackModal({
                 </button>
               </div>
 
-              {/* Tipo */}
-              <div className="p-5 space-y-3">
+              {/* Corpo rolável */}
+              <div className="p-5 space-y-3 overflow-y-auto">
+                {/* Ferramenta atual — deixa claro sobre o que ele está falando */}
+                {ferramentaAtual && (
+                  <div className="flex items-center gap-2 text-[12px] bg-blue-50 border border-blue-200 text-blue-800 rounded-[8px] px-3 py-2">
+                    <Wrench size={14} className="shrink-0" />
+                    <span>
+                      Você está na ferramenta <strong>{ferramentaAtual}</strong>. Se sua mensagem for sobre
+                      ela, mencione — assim fica claro pra todos.
+                    </span>
+                  </div>
+                )}
+
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
                   Tipo
                 </label>
@@ -182,11 +196,15 @@ export default function FeedbackModal({
                   </p>
                 </div>
 
-                {contexto && (
-                  <p className="text-[10px] text-gray-500 italic">
-                    Contexto enviado junto: <span className="font-mono">{contexto}</span>
-                  </p>
-                )}
+                {/* Aviso de comunidade — vale pros 3 tipos */}
+                <div className="flex items-start gap-2 text-[12px] bg-amber-50 border border-amber-200 text-amber-800 rounded-[8px] px-3 py-2.5 leading-relaxed">
+                  <Users size={15} className="shrink-0 mt-0.5" />
+                  <span>
+                    Sua mensagem será publicada na aba <strong>Perguntas &amp; Respostas da Comunidade</strong>,
+                    visível para todos os alunos, <strong>com o seu nome</strong>. Não inclua informações
+                    confidenciais.
+                  </span>
+                </div>
 
                 {erro && (
                   <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[4px] p-2">
@@ -196,7 +214,7 @@ export default function FeedbackModal({
               </div>
 
               {/* Footer */}
-              <div className="p-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50">
+              <div className="p-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50 shrink-0">
                 <button
                   onClick={handleFechar}
                   disabled={enviando}
@@ -222,6 +240,7 @@ export default function FeedbackModal({
           )}
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
