@@ -117,6 +117,12 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     problemasQueEnfrento: '',
     reclamacoesQueRecebo: '',
     ideiasJaPensadas: '',
+    // Perfil "Atividades" — as 4 vozes (jun/2026): problema visto por cada ângulo
+    vozEu: '',          // problemas que EU vejo
+    vozGerente: '',     // problemas que meu gerente imediato vê
+    vozColegas: '',     // problemas que meus colegas veem
+    vozCliente: '',     // reclamações de quem RECEBE meu resultado
+    oportunidadesMelhoria: '', // oportunidades (ONDE melhorar, não solução pronta)
     // NOVOS — Perfil "Area"
     tamanhoEquipe: '',
     principaisProcessos: '',
@@ -136,31 +142,25 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     numeroEstrategico: '',
   });
 
+  // Normaliza nivel_projeto pros 3 níveis sem jargão.
+  // Aceita variações (e o antigo belt_level de dados salvos) e mapeia:
+  //   Implementação | Complexidade baixa | Complexidade média
   const normalizeProjects = (projects: any[]) => {
     return projects.map(p => {
-      // Prioritize the belt_level returned by the AI or stored
-      let belt = p.belt_level || p.beltLevel || '';
-      belt = belt.toString().toLowerCase();
+      const raw = (p.nivel_projeto || p.belt_level || p.beltLevel || '').toString().toLowerCase();
 
-      // Precise mapping based on Belt Guide
-      if (belt.includes('ver') || belt.includes('agir')) {
-        p.belt_level = 'Ver e Agir';
-      } else if (belt.includes('yellow') || belt.includes('amarelo')) {
-        p.belt_level = 'Yellow Belt';
-      } else if (belt.includes('green') || belt.includes('verde')) {
-        p.belt_level = 'Green Belt';
-      } else if (belt.includes('black') || belt.includes('preto')) {
-        p.belt_level = 'Black Belt';
+      if (raw.includes('implement') || raw.includes('ver') || raw.includes('agir') || raw.includes('quick') || raw.includes('kaizen')) {
+        p.nivel_projeto = 'Implementação';
+      } else if (raw.includes('baixa') || raw.includes('yellow') || raw.includes('amarelo') || raw.includes('simples')) {
+        p.nivel_projeto = 'Complexidade baixa';
+      } else if (raw.includes('média') || raw.includes('media') || raw.includes('green') || raw.includes('verde') || raw.includes('black') || raw.includes('preto')) {
+        p.nivel_projeto = 'Complexidade média';
       } else {
-        // Fallback for unexpected strings
-        if (belt.includes('quick') || belt.includes('kaizen')) {
-          p.belt_level = 'Ver e Agir';
-        } else if (belt.includes('simples')) {
-          p.belt_level = 'Yellow Belt';
-        } else {
-          p.belt_level = 'Green Belt'; // Mid-range default
-        }
+        p.nivel_projeto = 'Complexidade baixa'; // default seguro
       }
+      // Remove o campo antigo pra não vazar jargão em dados salvos
+      delete p.belt_level;
+      delete p.beltLevel;
 
       p.priority_score = Number(p.priority_score) || 50;
       return p;
@@ -168,8 +168,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
   };
 
   const [generatedProjects, setGeneratedProjects] = useState<any[]>(initialData?.generatedProjects ? normalizeProjects(initialData.generatedProjects) : []);
-  const [beltFilter, setBeltFilter] = useState<string>('Todos');
-  const [showBeltGuide, setShowBeltGuide] = useState(false);
+  const [nivelFilter, setNivelFilter] = useState<string>('Todos');
 
   useEffect(() => {
     if (initialData) {
@@ -233,24 +232,41 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
       const focoDescritivo =
         userProfile === 'Atividades' ? 'O aluno quer melhorar SUAS PRÓPRIAS ATIVIDADES no dia a dia. Foco em ações individuais — não propor projetos que dependam de várias áreas ou alto patrocínio. Quick wins, ideias acionáveis sem aprovação executiva.' :
         userProfile === 'Area' ? 'O aluno é coordenador/gerente de área e quer melhorar SUA ÁREA. Foco em projetos de escopo de área (1-3 processos), com possíveis interfaces com áreas vizinhas. Não propor projetos corporativos amplos.' :
-        userProfile === 'Empresa' ? 'O aluno é especialista/consultor com visão SISTÊMICA da empresa. Pode propor projetos transversais grandes, programa OpEx, mudanças estruturais, projetos Black Belt com 5+ áreas envolvidas.' :
+        userProfile === 'Empresa' ? 'O aluno é especialista/consultor com visão SISTÊMICA da empresa. Pode propor projetos transversais grandes, programa de excelência operacional, mudanças estruturais, projetos complexos com 5+ áreas envolvidas.' :
         '';
       const prompt = `
-Você é o Israel, mentor LBW (Lean Six Sigma Master Black Belt · PMP · MBA).
+Você é o Israel Souza, especialista sênior em gestão de projetos de melhoria.
 
 FOCO ESCOLHIDO PELO ALUNO: ${userProfile}
 CONTEXTO DO FOCO: ${focoDescritivo}
-
+${userProfile === 'Atividades' ? `
+INTERPRETAÇÃO DOS DADOS (perfil Atividades): os problemas vêm em 4 vozes —
+vozEu (visão do próprio), vozGerente (chefe), vozColegas (pares) e vozCliente
+(quem RECEBE o resultado). CRUZE essas vozes: problema citado por mais de uma
+voz tem mais lastro e deve virar projeto prioritário. O campo
+oportunidadesMelhoria aponta ONDE melhorar — trate como vetor de investigação
+(o aluno aponta a direção, você propõe o projeto que investiga a causa). Se o
+aluno tiver cravado uma solução pronta (ex: "comprar máquina"), NÃO finja que é
+investigativo: classifique honestamente como Implementação.
+` : ''}
 DADOS COLETADOS NA ENTREVISTA:
 ${JSON.stringify(formData, null, 2)}
 
 Gere entre 5 e 10 ideias de projetos ordenados por prioridade. RESPEITE o foco escolhido — não fuja do escopo.
 
-CLASSIFICAÇÃO — siga RIGOROSAMENTE esta matriz para o campo belt_level:
-1. "Ver e Agir": Solução óbvia, melhoria rápida, 1 pessoa, prazo < 30 dias, Sem estatística.
-2. "Yellow Belt": Problema simples, 1 área envolvida, 1 a 3 pessoas, prazo 1 a 2 meses, Estatística básica.
-3. "Green Belt": Requer análise de dados, 1 área envolvida, 2 a 5 pessoas, prazo 2 a 4 meses, Estatística intermediária.
-4. "Black Belt": Múltiplas áreas (transversal), alto impacto financeiro, 5+ pessoas, prazo 4 a 6 meses, Estatística avançada.
+CLASSIFICAÇÃO — preencha o campo nivel_projeto com UM destes 3 (NÃO use jargão técnico,
+NÃO mencione Belt, Six Sigma, DMAIC):
+
+1. "Implementação": a solução JÁ está clara e a causa é conhecida — é só executar.
+   Ação direta, rápida, sem investigação. (Ex: padronizar um formulário, criar um checklist.)
+
+2. "Complexidade baixa": projeto INVESTIGATIVO simples. A causa não está 100% clara,
+   exige olhar alguns dados e achar a causa, mas é de 1 pessoa/1 processo, prazo curto.
+
+3. "Complexidade média": projeto INVESTIGATIVO mais elaborado. Exige coletar dados,
+   analisar com mais cuidado, envolve mais de uma pessoa ou processo, prazo maior.
+
+PERMITA os 3 tipos — todos são úteis. Seja honesto: solução pronta = "Implementação".
 
 REGRAS:
 1. Título começa com Reduzir, Aumentar, Melhorar ou Otimizar — máximo 10 palavras
@@ -264,9 +280,9 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     "problem": "descrição do problema em 1 frase",
     "y_indicator": "nome do indicador apenas",
     "financial_impact": "estimativa de impacto",
-    "belt_level": "Ver e Agir | Yellow Belt | Green Belt | Black Belt",
+    "nivel_projeto": "Implementação | Complexidade baixa | Complexidade média",
     "priority_score": 85,
-    "justification": "Explicação técnica de por que este nível foi escolhido com base na Equipe, Prazo e Estatística necessária"
+    "justification": "Por que esse nível — com base no que precisa investigar, pessoas e prazo"
   }]
 }
 `;
@@ -294,19 +310,28 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     }
   };
 
+  // Perfil "Atividades" (refatorado jun/2026): SÓ a função é obrigatória.
+  // Pra gerar, basta a função + ao menos 1 input de problema/oportunidade
+  // (qualquer uma das 4 vozes OU oportunidade de melhoria). Tudo o resto opcional.
+  const atividadesTemAlgumProblema = !!(
+    formData.vozEu || formData.vozGerente || formData.vozColegas ||
+    formData.vozCliente || formData.oportunidadesMelhoria
+  );
+  const atividadesPodeGerar = !!formData.minhaFuncao && atividadesTemAlgumProblema;
+
   // Progress Calculation — adaptado aos novos perfis (Atividades/Area/Empresa).
   const sec1Filled =
-    userProfile === 'Atividades' ? !!(formData.sector && formData.area && formData.minhaFuncao && formData.tempoNaFuncao) :
+    userProfile === 'Atividades' ? !!formData.minhaFuncao :
     userProfile === 'Area' ? !!(formData.sector && formData.area && formData.tamanhoEquipe && formData.clientType) :
     userProfile === 'Empresa' ? !!(formData.sector && formData.area && formData.tamanhoEmpresa && formData.meuPapelEmpresa) :
     false;
   const sec2Filled =
-    userProfile === 'Atividades' ? !!(formData.atividadesQueExecuto && formData.clientType && formData.automationLevel) :
+    userProfile === 'Atividades' ? atividadesTemAlgumProblema :
     userProfile === 'Area' ? !!(formData.principaisProcessos && formData.processCritical && formData.automationLevel) :
     userProfile === 'Empresa' ? !!(formData.doresExecutivas && formData.areasCriticasEmpresa && formData.automationLevel) :
     false;
   const sec3Filled =
-    userProfile === 'Atividades' ? !!(formData.problemasQueEnfrento && formData.reclamacoesQueRecebo && formData.problemVolume) :
+    userProfile === 'Atividades' ? !!formData.oportunidadesMelhoria :
     userProfile === 'Area' ? !!(formData.pontosFracosArea && formData.areasQueReclamam && formData.problemVolume) :
     userProfile === 'Empresa' ? !!(formData.conexoesProblematicas && formData.problemVolume) :
     false;
@@ -319,7 +344,8 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     { id: 6, filled: !!(formData.futureVision && formData.successIndicator) },
   ];
 
-  const canGenerate = sectionsStatus[0].filled; // Só seção 1 obrigatória pra liberar geração
+  // Atividades tem regra própria (função + 1 problema). Demais perfis: seção 1.
+  const canGenerate = userProfile === 'Atividades' ? atividadesPodeGerar : sectionsStatus[0].filled;
   const progressPercent = (sectionsStatus.filter(s => s.filled).length / 6) * 100;
 
   if (!userProfile) {
@@ -438,50 +464,38 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           }
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Field label="Setor da empresa">
-              <Input
-                value={formData.sector}
-                onChange={(v) => handleInputChange('sector', v)}
-                placeholder="Ex: Automotivo, Varejo, Saúde..."
-              />
-            </Field>
-            <Field label={
-              userProfile === 'Atividades' ? 'Sua área (onde você está)' :
-              userProfile === 'Area' ? 'Nome da sua área' :
-              'Áreas que você acompanha'
-            }>
-              <Input
-                value={formData.area}
-                onChange={(v) => handleInputChange('area', v)}
-                placeholder={
-                  userProfile === 'Atividades' ? 'Ex: Logística, Comercial, TI...' :
-                  userProfile === 'Area' ? 'Ex: Atendimento, Manutenção, Suprimentos...' :
-                  'Ex: todas, ou as 3-5 críticas'
-                }
-              />
-            </Field>
-            {userProfile === 'Atividades' && (
+            {/* Setor/área só pra Area e Empresa. Atividades pede só a função. */}
+            {userProfile !== 'Atividades' && (
               <>
-                <Field label="Sua função / cargo">
+                <Field label="Setor da empresa">
                   <Input
-                    value={formData.minhaFuncao}
-                    onChange={(v) => handleInputChange('minhaFuncao', v)}
-                    placeholder="Ex: Analista de processos, Coordenador..."
+                    value={formData.sector}
+                    onChange={(v) => handleInputChange('sector', v)}
+                    placeholder="Ex: Automotivo, Varejo, Saúde..."
                   />
                 </Field>
-                <Field label="Há quanto tempo nessa função?">
-                  <Select
-                    value={formData.tempoNaFuncao}
-                    onChange={(v) => handleInputChange('tempoNaFuncao', v)}
-                    options={[
-                      { label: 'Menos de 6 meses', value: '<6m' },
-                      { label: '6 meses a 2 anos', value: '6m-2a' },
-                      { label: '2 a 5 anos', value: '2-5a' },
-                      { label: 'Mais de 5 anos', value: '>5a' },
-                    ]}
+                <Field label={
+                  userProfile === 'Area' ? 'Nome da sua área' : 'Áreas que você acompanha'
+                }>
+                  <Input
+                    value={formData.area}
+                    onChange={(v) => handleInputChange('area', v)}
+                    placeholder={
+                      userProfile === 'Area' ? 'Ex: Atendimento, Manutenção, Suprimentos...' :
+                      'Ex: todas, ou as 3-5 críticas'
+                    }
                   />
                 </Field>
               </>
+            )}
+            {userProfile === 'Atividades' && (
+              <Field label="Sua função / cargo na organização *">
+                <Input
+                  value={formData.minhaFuncao}
+                  onChange={(v) => handleInputChange('minhaFuncao', v)}
+                  placeholder="Ex: Analista de processos, Coordenador de Logística..."
+                />
+              </Field>
             )}
             {userProfile === 'Area' && (
               <>
@@ -523,7 +537,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
                   <Input
                     value={formData.meuPapelEmpresa}
                     onChange={(v) => handleInputChange('meuPapelEmpresa', v)}
-                    placeholder="Ex: Consultor interno, Black Belt, Gerente OpEx..."
+                    placeholder="Ex: Consultor interno, Especialista de melhoria, Gerente de OpEx..."
                   />
                 </Field>
               </>
@@ -549,14 +563,66 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           <div className="space-y-6">
             {userProfile === 'Atividades' && (
               <>
-                <Field label="Liste suas 3-5 atividades principais da semana">
+                <Field label="Quais atividades você faz ou é responsável?">
                   <Textarea
                     value={formData.atividadesQueExecuto}
                     onChange={(v) => handleInputChange('atividadesQueExecuto', v)}
                     placeholder="Ex: 1) Fechar relatório mensal · 2) Atender solicitações de outras áreas · 3) Atualizar planilha XYZ..."
                   />
                 </Field>
-                <Field label="Pra quem você entrega o resultado dessas atividades?">
+
+                {/* === AS 4 VOZES === todas opcionais. Quanto mais ângulos, mais
+                    forte a ideia de projeto. A IA cruza as perspectivas. */}
+                <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
+                  <p className="text-xs font-bold text-blue-800 m-0">
+                    Os problemas dessas atividades — por 4 ângulos diferentes. Preencha pelo menos um.
+                    Quanto mais ângulos, mais forte fica a ideia de projeto.
+                  </p>
+                  <Field label="1. Problemas que VOCÊ vê nessas atividades">
+                    <Textarea
+                      value={formData.vozEu}
+                      onChange={(v) => handleInputChange('vozEu', v)}
+                      placeholder="Ex: Perco 2h toda segunda num relatório que acho que ninguém usa..."
+                    />
+                  </Field>
+                  <Field label="2. Problemas que seu GERENTE imediato aponta (opcional)">
+                    <Textarea
+                      value={formData.vozGerente}
+                      onChange={(v) => handleInputChange('vozGerente', v)}
+                      placeholder="Não sabe? Tudo bem — mas se descobrir, sua ideia fica muito mais forte. Ex: Ele reclama que o dado chega atrasado..."
+                    />
+                  </Field>
+                  <Field label="3. Problemas que seus COLEGAS comentam (opcional)">
+                    <Textarea
+                      value={formData.vozColegas}
+                      onChange={(v) => handleInputChange('vozColegas', v)}
+                      placeholder="Ex: Pares dizem que dependem de mim pra começar o trabalho deles..."
+                    />
+                  </Field>
+                  <Field label="4. Reclamações de QUEM RECEBE o resultado do seu trabalho (opcional)">
+                    <Textarea
+                      value={formData.vozCliente}
+                      onChange={(v) => handleInputChange('vozCliente', v)}
+                      placeholder="Ex: A área X reclama de info errada · O cliente final reclama de prazo..."
+                    />
+                  </Field>
+                </div>
+
+                {/* === OPORTUNIDADES DE MELHORIA === campo separado, com aviso
+                    anti-solução-pronta (só texto, sem mexer no prompt da IA). */}
+                <Field label="Oportunidades de melhoria que você enxerga (opcional)">
+                  <Textarea
+                    value={formData.oportunidadesMelhoria}
+                    onChange={(v) => handleInputChange('oportunidadesMelhoria', v)}
+                    placeholder="Diga ONDE dá pra melhorar — ex: 'reduzir o tempo do fechamento mensal', 'otimizar o fluxo de aprovação'. NÃO a solução pronta (ex: 'comprar máquina nova', 'instalar ar-condicionado') — isso não é projeto de melhoria investigativo."
+                  />
+                </Field>
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 -mt-3 leading-relaxed">
+                  💡 Dica: oportunidade aponta <strong>onde</strong> melhorar (reduzir, otimizar, eliminar retrabalho).
+                  Se você já cravar a solução ("comprar X", "instalar Y"), vira uma compra — não um projeto investigativo.
+                </p>
+
+                <Field label="Pra quem você entrega o resultado dessas atividades? (opcional)">
                   <Select
                     value={formData.clientType}
                     onChange={(v) => handleInputChange('clientType', v)}
@@ -652,23 +718,17 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           </div>
 
           <div className="space-y-6">
+            {/* Perfil Atividades: os problemas já foram capturados nas 4 vozes
+                da Seção 2. Aqui mostramos só uma nota — não repetir os campos. */}
             {userProfile === 'Atividades' && (
-              <>
-                <Field label="O que mais TE ATRAPALHA no dia a dia? (re-trabalho, espera, ferramenta ruim, info que falta)" important>
-                  <Textarea
-                    value={formData.problemasQueEnfrento}
-                    onChange={(v) => handleInputChange('problemasQueEnfrento', v)}
-                    placeholder="Ex: Toda segunda perco 2h fazendo um relatório que ninguém usa..."
-                  />
-                </Field>
-                <Field label="Quem RECLAMA de você? E sobre o quê?" important>
-                  <Textarea
-                    value={formData.reclamacoesQueRecebo}
-                    onChange={(v) => handleInputChange('reclamacoesQueRecebo', v)}
-                    placeholder="Ex: A área X reclama de atraso · Meu chefe pede dado que eu não tenho na hora..."
-                  />
-                </Field>
-              </>
+              <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
+                <Info className="text-blue-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-blue-800 leading-relaxed m-0">
+                  Você já trouxe os problemas pelas 4 vozes na seção anterior. Se puder,
+                  acrescente <strong>números</strong> lá (horas perdidas, % de retrabalho, frequência) —
+                  com número, a ideia que a IA gera fica bem mais concreta.
+                </p>
+              </div>
             )}
             {userProfile === 'Area' && (
               <>
@@ -855,9 +915,9 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
                     value={formData.timeHorizon}
                     onChange={(v) => handleInputChange('timeHorizon', v)}
                     options={[
-                      { label: '30 dias (quick win)', value: '30d' },
-                      { label: '3 meses (DMAIC compacto)', value: '3m' },
-                      { label: '6 meses (DMAIC pleno)', value: '6m' },
+                      { label: '30 dias (ação rápida)', value: '30d' },
+                      { label: '3 meses (projeto curto)', value: '3m' },
+                      { label: '6 meses (projeto pleno)', value: '6m' },
                       { label: 'Mais de 6 meses (projeto grande)', value: '6m+' },
                     ]}
                   />
@@ -866,7 +926,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
             </div>
             {userProfile === 'Empresa' && (
               <>
-                <Field label="A empresa já tem programa formal de melhoria contínua (OpEx, Lean, Six Sigma)?">
+                <Field label="A empresa já tem programa formal de melhoria contínua (OpEx, excelência operacional)?">
                   <Select
                     value={formData.jaTemProgramaOpEx}
                     onChange={(v) => handleInputChange('jaTemProgramaOpEx', v)}
@@ -1022,24 +1082,23 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               </p>
             </div>
 
-            {/* Filtros — APENAS estas 5 opções */}
+            {/* Filtros — 3 níveis sem jargão */}
             <div className="flex flex-wrap gap-2 justify-center">
-              {['Todos', 'Ver e Agir', 'Yellow Belt', 'Green Belt', 'Black Belt'].map(level => {
-                const count = level === 'Todos' 
-                  ? generatedProjects.length 
-                  : generatedProjects.filter(p => p.belt_level === level).length;
-                const isActive = beltFilter === level;
+              {['Todos', 'Implementação', 'Complexidade baixa', 'Complexidade média'].map(level => {
+                const count = level === 'Todos'
+                  ? generatedProjects.length
+                  : generatedProjects.filter(p => p.nivel_projeto === level).length;
+                const isActive = nivelFilter === level;
                 const colors: Record<string, string> = {
                   'Todos': 'bg-gray-800 text-white border-gray-800',
-                  'Ver e Agir': 'bg-lime-500 text-white border-lime-500',
-                  'Yellow Belt': 'bg-yellow-400 text-yellow-900 border-yellow-400',
-                  'Green Belt': 'bg-green-500 text-white border-green-500',
-                  'Black Belt': 'bg-gray-800 text-white border-gray-800',
+                  'Implementação': 'bg-lime-500 text-white border-lime-500',
+                  'Complexidade baixa': 'bg-blue-500 text-white border-blue-500',
+                  'Complexidade média': 'bg-indigo-600 text-white border-indigo-600',
                 };
                 return (
                   <button
                     key={level}
-                    onClick={() => setBeltFilter(level)}
+                    onClick={() => setNivelFilter(level)}
                     className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border-2 cursor-pointer ${
                       isActive ? colors[level] : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
                     }`}
@@ -1050,57 +1109,10 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               })}
             </div>
 
-            {/* Guia de Belt colapsável */}
-            <div className="border border-gray-100 rounded-2xl overflow-hidden">
-              <button
-                onClick={() => setShowBeltGuide(!showBeltGuide)}
-                className="w-full flex items-center justify-between px-5 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-none cursor-pointer text-left"
-              >
-                <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">
-                  Guia — Quando usar cada nível Belt?
-                </span>
-                <ChevronDown size={14} className={`text-gray-400 transition-transform ${showBeltGuide ? 'rotate-180' : ''}`} />
-              </button>
-              {showBeltGuide && (
-                <div className="p-4 overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        {['Nível', 'Quando usar', 'Equipe', 'Prazo', 'Estatística'].map(h => (
-                          <th key={h} className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { level: 'Ver e Agir', dot: 'bg-lime-500', when: 'Solução óbvia, melhoria rápida', team: '1 pessoa', time: '< 30 dias', stats: 'Não' },
-                        { level: 'Yellow Belt', dot: 'bg-yellow-400', when: 'Problema simples, 1 área', team: '1 a 3 pessoas', time: '1 a 2 meses', stats: 'Básica' },
-                        { level: 'Green Belt', dot: 'bg-green-500', when: 'Análise de dados, 1 área', team: '2 a 5 pessoas', time: '2 a 4 meses', stats: 'Intermediária' },
-                        { level: 'Black Belt', dot: 'bg-gray-800', when: 'Múltiplas áreas, alto impacto', team: '5+ pessoas', time: '4 a 6 meses', stats: 'Avançada' },
-                      ].map(row => (
-                        <tr key={row.level} className="border-b border-gray-50 hover:bg-gray-50">
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full shrink-0 ${row.dot}`} />
-                               <span className="font-bold text-gray-800 whitespace-normal break-words">{row.level}</span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-gray-600">{row.when}</td>
-                          <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.team}</td>
-                          <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.time}</td>
-                          <td className="py-2.5 px-3 text-gray-600">{row.stats}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
             {/* Cards de projetos */}
             <div className="space-y-3">
               {generatedProjects
-                .filter(p => beltFilter === 'Todos' || p.belt_level === beltFilter)
+                .filter(p => nivelFilter === 'Todos' || p.nivel_projeto === nivelFilter)
                 .map((project, idx) => {
                   // Precisamos do indice original para passar corretamente para o remove
                   const originalIndex = generatedProjects.indexOf(project);
@@ -1130,7 +1142,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
                   onClick={() => {
                     const newProject = {
                       title: 'Nova Ideia de Projeto',
-                      beltLevel: 'Ver e Agir',
+                      nivel_projeto: 'Complexidade baixa',
                       what: '',
                       why: '',
                       where: '',
@@ -1142,7 +1154,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
                     };
                     const updatedProjects = [...generatedProjects, newProject];
                     setGeneratedProjects(updatedProjects);
-                    setBeltFilter('Todos');
+                    setNivelFilter('Todos');
                     onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
                   }}
                   className="flex items-center gap-2 px-6 py-3 bg-white text-blue-600 border-2 border-blue-100 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-50 transition-all cursor-pointer"
@@ -1253,156 +1265,42 @@ function Select({ value, onChange, options }: { value: string, onChange: (v: str
   );
 }
 
-function BeltReferenceTable() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="mb-4 border border-gray-100 rounded-2xl overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-5 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-none cursor-pointer text-left"
-      >
-        <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">
-          Guia de Níveis — Quando usar cada Belt?
-        </span>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="p-4">
-              <table className="w-full text-xs box-border">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">Nível</th>
-                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest hidden md:table-cell whitespace-normal break-words">Quando usar</th>
-                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">Equipe</th>
-                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest whitespace-normal break-words">Prazo</th>
-                    <th className="text-left py-2 px-3 text-gray-400 font-black uppercase tracking-widest hidden lg:table-cell whitespace-normal break-words">Estatística</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    {
-                      level: 'Ver e Agir', dot: 'bg-lime-500',
-                      when: 'Solução óbvia, melhoria rápida',
-                      team: '1 pessoa', time: '< 30 dias', stats: 'Não'
-                    },
-                    {
-                      level: 'Yellow Belt', dot: 'bg-yellow-400',
-                      when: 'Problema simples, 1 área',
-                      team: '1 a 3 pessoas', time: '1 a 2 meses', stats: 'Básica'
-                    },
-                    {
-                      level: 'Green Belt', dot: 'bg-green-500',
-                      when: 'Análise de dados, 1 área',
-                      team: '2 a 5 pessoas', time: '2 a 4 meses', stats: 'Intermediária'
-                    },
-                    {
-                      level: 'Black Belt', dot: 'bg-gray-800',
-                      when: 'Múltiplas áreas, alto impacto',
-                      team: '5+ pessoas', time: '4 a 6 meses', stats: 'Avançada'
-                    },
-                    {
-                      level: 'Design for Six Sigma', dot: 'bg-blue-600',
-                      when: 'Criação de novo processo/produto',
-                      team: '3 a 6 pessoas', time: 'Múltiplos meses', stats: 'Variável'
-                    },
-                    {
-                      level: 'Matriz de Decisão', dot: 'bg-purple-600',
-                      when: 'Escolher entre soluções prontas',
-                      team: '1 a 3 pessoas', time: '< 1 mês', stats: 'Não'
-                    },
-                  ].map(row => (
-                    <tr key={row.level} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2.5 px-3 whitespace-normal break-words align-top">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${row.dot} shrink-0`} />
-                          <span className="font-bold text-gray-800 whitespace-normal break-words">{row.level}</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 text-gray-600 hidden md:table-cell whitespace-normal break-words align-top">{row.when}</td>
-                      <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.team}</td>
-                      <td className="py-2.5 px-3 text-gray-600 whitespace-normal break-words align-top">{row.time}</td>
-                      <td className="py-2.5 px-3 text-gray-600 hidden lg:table-cell whitespace-normal break-words align-top">{row.stats}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }: { project: any, index: number, onUpdateProject: (updatedProject: any) => void, onRemoveProject?: () => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const beltConfig: Record<string, { 
-    color: string; 
-    bg: string; 
-    border: string; 
+  // Config visual dos 3 níveis (sem jargão Belt/Six Sigma).
+  const nivelConfig: Record<string, {
+    color: string;
+    bg: string;
+    border: string;
     dot: string;
     label: string;
   }> = {
-    'Ver e Agir': { 
-      color: 'text-lime-700', bg: 'bg-lime-50', 
+    'Implementação': {
+      color: 'text-lime-700', bg: 'bg-lime-50',
       border: 'border-lime-200', dot: 'bg-lime-500',
-      label: 'Ver e Agir'
+      label: 'Implementação'
     },
-    'Yellow Belt': { 
-      color: 'text-yellow-700', bg: 'bg-yellow-50', 
-      border: 'border-yellow-200', dot: 'bg-yellow-400',
-      label: 'Yellow Belt'
-    },
-    'Green Belt': { 
-      color: 'text-green-700', bg: 'bg-green-50', 
-      border: 'border-green-200', dot: 'bg-green-500',
-      label: 'Green Belt'
-    },
-    'Black Belt': { 
-      color: 'text-gray-700', bg: 'bg-gray-50', 
-      border: 'border-gray-300', dot: 'bg-gray-800',
-      label: 'Black Belt'
-    },
-    'Design for Six Sigma (DFSS)': {
+    'Complexidade baixa': {
       color: 'text-blue-700', bg: 'bg-blue-50',
-      border: 'border-blue-200', dot: 'bg-blue-600',
-      label: 'DFSS'
+      border: 'border-blue-200', dot: 'bg-blue-500',
+      label: 'Complexidade baixa'
     },
-    'Matriz de Decisão (Pugh)': {
-      color: 'text-purple-700', bg: 'bg-purple-50',
-      border: 'border-purple-200', dot: 'bg-purple-600',
-      label: 'Matriz Decisão'
+    'Complexidade média': {
+      color: 'text-indigo-700', bg: 'bg-indigo-50',
+      border: 'border-indigo-200', dot: 'bg-indigo-600',
+      label: 'Complexidade média'
     },
-    'Matriz de Decisão': {
-      color: 'text-purple-700', bg: 'bg-purple-50',
-      border: 'border-purple-200', dot: 'bg-purple-600',
-      label: 'Matriz Decisão'
-    },
-    'QFD': {
-      color: 'text-purple-700', bg: 'bg-purple-50',
-      border: 'border-purple-200', dot: 'bg-purple-600',
-      label: 'QFD'
-    }
   };
 
   const title = project.title || '';
-  const beltLevel = project.beltLevel || project.belt_level || project.type || 'Green Belt';
+  const nivelProjeto = project.nivel_projeto || project.belt_level || project.beltLevel || 'Complexidade baixa';
   const priorityScore = project.priority_score || 0;
 
   const [editForm, setEditForm] = useState({
     title: project.title || '',
-    beltLevel: beltLevel,
+    nivel_projeto: nivelProjeto,
     what: project.what || project.problem || '',
     why: project.why || project.justification || '',
     where: project.where || '',
@@ -1416,7 +1314,7 @@ function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }:
   useEffect(() => {
     setEditForm({
       title: project.title || '',
-      beltLevel: project.beltLevel || project.belt_level || project.type || 'Green Belt',
+      nivel_projeto: project.nivel_projeto || project.belt_level || project.beltLevel || 'Complexidade baixa',
       what: project.what || project.problem || '',
       why: project.why || project.justification || '',
       where: project.where || '',
@@ -1428,7 +1326,7 @@ function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }:
     });
   }, [project]);
 
-  const belt = beltConfig[beltLevel] || beltConfig['Green Belt'];
+  const belt = nivelConfig[nivelProjeto] || nivelConfig['Complexidade baixa'];
   const priorityColor = priorityScore >= 80 ? 'bg-red-500' : priorityScore >= 60 ? 'bg-orange-400' : 'bg-blue-400';
 
   const handleSave = () => {
@@ -1453,7 +1351,7 @@ function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }:
           {index + 1}
         </div>
 
-        {/* Badge Belt */}
+        {/* Badge do nível do projeto */}
         <span className={`text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-widest shrink-0 ${belt.bg} ${belt.color} border ${belt.border}`}>
           {belt.label}
         </span>
@@ -1486,12 +1384,11 @@ function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }:
                   <Input value={editForm.title} onChange={(v) => setEditForm({...editForm, title: v})} />
                 </Field>
 
-                <Field label="Nível Belt">
-                    <Select value={editForm.beltLevel} onChange={(v) => setEditForm({...editForm, beltLevel: v})} options={[
-                        {label: 'Ver e Agir', value: 'Ver e Agir'},
-                        {label: 'Yellow Belt', value: 'Yellow Belt'},
-                        {label: 'Green Belt', value: 'Green Belt'},
-                        {label: 'Black Belt', value: 'Black Belt'}
+                <Field label="Nível do projeto">
+                    <Select value={editForm.nivel_projeto} onChange={(v) => setEditForm({...editForm, nivel_projeto: v})} options={[
+                        {label: 'Implementação', value: 'Implementação'},
+                        {label: 'Complexidade baixa', value: 'Complexidade baixa'},
+                        {label: 'Complexidade média', value: 'Complexidade média'}
                     ]} />
                 </Field>
 
