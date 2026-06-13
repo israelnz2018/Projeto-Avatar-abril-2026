@@ -95,3 +95,56 @@ Dados de todas as ferramentas disponíveis: ${JSON.stringify(allProjectData || {
     throw new Error(error.message || 'Erro ao gerar dados com IA. Tente novamente.');
   }
 };
+
+/**
+ * generateBriefData — versão ENXUTA e dedicada do "Entendendo o Problema".
+ *
+ * Por que existe separada do generateToolData genérico (jun/2026): o genérico
+ * injetava JSON.stringify(allProjectData) inteiro no prompt — todos os dados de
+ * todas as ferramentas — o que deixava a chamada lenta (mais de 1 min). Aqui
+ * mandamos SÓ o projeto escolhido + nome do projeto, e pedimos uma saída curta
+ * (maxTokens baixo). Resultado: bem mais rápido, sem perder qualidade pro Brief.
+ *
+ * Retorna { answers: { q1..q12 } } no formato que o ProjectBrief consome.
+ */
+export const generateBriefData = async (
+  selectedProject: { title?: string; problem?: string; y_indicator?: string; financial_impact?: string; justification?: string },
+  projectInfo?: { name?: string; description?: string }
+): Promise<{ answers: Record<string, string> }> => {
+  const systemPrompt = `Você é um consultor sênior de melhoria contínua. Estruture o problema de um projeto preenchendo um formulário curto e objetivo.
+Responda em português do Brasil, tom prático e direto. Sem jargão técnico.
+Responda APENAS com um objeto JSON puro (sem markdown, sem explicação) com a chave "answers".`;
+
+  const userPrompt = `Projeto selecionado:
+- Título: ${selectedProject.title || ''}
+- Problema: ${selectedProject.problem || ''}
+- Indicador (Y): ${selectedProject.y_indicator || ''}
+- Impacto financeiro: ${selectedProject.financial_impact || ''}
+- Justificativa: ${selectedProject.justification || ''}
+${projectInfo?.name ? `\nContexto do projeto: ${projectInfo.name}${projectInfo.description ? ' — ' + projectInfo.description : ''}` : ''}
+
+Preencha cada campo abaixo em 1-2 frases curtas, coerentes com o projeto acima:
+{
+  "answers": {
+    "q6": "Título do projeto (curto)",
+    "q1": "Nome do processo que será melhorado",
+    "q2": "Principal problema hoje (1-2 frases)",
+    "q3": "Principais envolvidos (áreas ou fornecedores)",
+    "q4": "O que está dando errado na prática (atraso, retrabalho, erro...)",
+    "q5": "Algum risco? (financeiro, cliente, compliance...)",
+    "q7": "Existe meta clara? (tempo, qualidade, custo, volume...)",
+    "q8": "O que melhora se der certo (menos custo, mais rapidez...)",
+    "q10": "Próximos passos já em mente",
+    "q12": "Que tipo de ajuda é necessária"
+  }
+}`;
+
+  const result = await callAIJSON<{ answers?: Record<string, string> }>({
+    location: 'fill-tool',
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: 1200,
+  });
+
+  return { answers: result.answers || (result as any) };
+};

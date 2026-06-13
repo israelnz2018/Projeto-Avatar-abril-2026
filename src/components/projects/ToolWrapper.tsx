@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search, ArrowDownToLine } from 'lucide-react';
 import { generateToolData } from '@/src/services/aiService';
+import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
 import { exportCharterSlide } from '@/src/services/charterSlideExporter';
@@ -976,14 +977,11 @@ export default function ToolWrapper({
     
     setIsGeneratingData(true);
     try {
-      // Brief usa o roteador padrão (Anthropic via aiRouter, location 'fill-tool').
-      const generatedData = await generateToolData(
-        'brief',
-        'Entendendo o Problema (Brief)',
-        null,
+      // Brief usa uma chamada ENXUTA (generateBriefData): manda só o projeto
+      // selecionado — NÃO o allProjectData inteiro — pra ser rápido.
+      const generatedData = await generateBriefData(
         selectedProject,
-        { name: projectName, description: project.description },
-        allProjectData
+        { name: projectName, description: project.description }
       );
       const normalized = normalizeInitialData('brief', generatedData);
       handleToolSave(normalized);
