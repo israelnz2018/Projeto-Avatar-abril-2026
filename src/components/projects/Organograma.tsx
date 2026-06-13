@@ -56,8 +56,8 @@ const ORG_EXEMPLOS = [
     raiz: {
       nome: 'Carlos Mendes', area: 'Operações', funcao: 'Diretor de Operações',
       filhos: [
-        { nome: 'Maria Souza', area: 'Logística', funcao: 'Gerente de Logística', filhos: [
-          { nome: 'Pedro Lima', area: 'Logística', funcao: 'Analista Sênior', filhos: [] },
+        { nome: 'Maria Souza', area: 'Logística', funcao: 'Gerente de Logística', critico: true, filhos: [
+          { nome: 'Pedro Lima', area: 'Logística', funcao: 'Analista Sênior', critico: true, filhos: [] },
           { nome: 'Ana Costa', area: 'Logística', funcao: 'Analista Júnior', filhos: [] },
         ]},
         { nome: 'João Alves', area: 'Compras', funcao: 'Gerente de Compras', filhos: [
@@ -73,12 +73,12 @@ const ORG_EXEMPLOS = [
     raiz: {
       nome: 'Roberto Dias', area: 'Produção', funcao: 'Gerente de Produção',
       filhos: [
-        { nome: 'Sandra Reis', area: 'Produção', funcao: 'Supervisora de Linha', filhos: [
+        { nome: 'Sandra Reis', area: 'Produção', funcao: 'Supervisora de Linha', critico: true, filhos: [
           { nome: 'Marcos Pinto', area: 'Produção', funcao: 'Líder de Turno', filhos: [] },
           { nome: 'Time da Linha', area: 'Produção', funcao: 'Operadores', filhos: [] },
         ]},
-        { nome: 'Felipe Rocha', area: 'Qualidade', funcao: 'Eng. da Qualidade', filhos: [
-          { nome: 'Bia Martins', area: 'Qualidade', funcao: 'Inspetora da Qualidade', filhos: [] },
+        { nome: 'Felipe Rocha', area: 'Qualidade', funcao: 'Eng. da Qualidade', critico: true, filhos: [
+          { nome: 'Bia Martins', area: 'Qualidade', funcao: 'Inspetora da Qualidade', critico: true, filhos: [] },
         ]},
         { nome: 'Luísa Gomes', area: 'Manutenção', funcao: 'Supervisora de Manutenção', filhos: [] },
       ],
@@ -95,8 +95,18 @@ function NoExemplo({ no, nivel }: { no: any; nivel: number }) {
         style={{ paddingLeft: nivel * 22 }}
       >
         {no.filhos?.length > 0 ? <ChevronDown size={14} className="text-gray-400 shrink-0" /> : <span className="w-3.5 shrink-0" />}
-        <div className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2">
-          <p className="text-[13px] font-bold text-gray-900 m-0 leading-tight">{no.funcao}</p>
+        <div className={cn(
+          'flex-1 rounded-lg px-3 py-2 border',
+          no.critico ? 'bg-sky-100 border-sky-300' : 'bg-white border-gray-200'
+        )}>
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-bold text-gray-900 m-0 leading-tight">{no.funcao}</p>
+            {no.critico && (
+              <span className="text-[8px] font-black uppercase tracking-widest text-sky-700 bg-white border border-sky-300 rounded px-1.5 py-0.5">
+                Crítico
+              </span>
+            )}
+          </div>
           <p className="text-[11px] text-gray-500 m-0">{no.nome} · {no.area}</p>
         </div>
       </div>
