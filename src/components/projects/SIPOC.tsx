@@ -2,18 +2,32 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { Truck, Package, Settings, PackageCheck, UserCheck, Plus, Trash2, CheckCircle2, Info, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
-// Exemplo pronto exibido no modal "Ver exemplo" — Pagamento a Fornecedores.
-// READ-ONLY: serve só pra ilustrar; não toca nos dados do aluno.
+// Exemplos prontos exibidos no modal "Ver exemplo" — read-only, não tocam
+// nos dados do aluno. Um de ESCRITÓRIO, outro de MANUFATURA.
 // LEMBRETE METODOLÓGICO: as colunas são listas INDEPENDENTES (não há
 // correlação linha a linha). Só o Processo tem ordem (etapas 1→5).
-const SIPOC_EXEMPLO = {
-  titulo: 'Pagamento a Fornecedores',
-  suppliers: ['Fornecedor (emite a nota)', 'Área requisitante', 'Setor de Compras', 'Banco', 'Tesouraria'],
-  inputs: ['Nota fiscal', 'Pedido de compra', 'Contrato / condições de pagamento', 'Dados bancários do fornecedor', 'Saldo / fluxo de caixa'],
-  process: ['1. Receber e conferir a nota fiscal', '2. Validar contra o pedido de compra', '3. Aprovar o pagamento', '4. Agendar no sistema bancário', '5. Efetuar o pagamento'],
-  outputs: ['Pagamento efetuado', 'Comprovante de pagamento', 'Lançamento contábil', 'Nota fiscal arquivada'],
-  customers: ['Fornecedor', 'Contabilidade', 'Fisco / Auditoria', 'Tesouraria'],
-};
+const SIPOC_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Pagamento a Fornecedores',
+    suppliers: ['Fornecedor (emite a nota)', 'Área requisitante', 'Setor de Compras', 'Banco', 'Tesouraria'],
+    inputs: ['Nota fiscal', 'Pedido de compra', 'Contrato / condições de pagamento', 'Dados bancários do fornecedor', 'Saldo / fluxo de caixa'],
+    process: ['1. Receber e conferir a nota fiscal', '2. Validar contra o pedido de compra', '3. Aprovar o pagamento', '4. Agendar no sistema bancário', '5. Efetuar o pagamento'],
+    outputs: ['Pagamento efetuado', 'Comprovante de pagamento', 'Lançamento contábil', 'Nota fiscal arquivada'],
+    customers: ['Fornecedor', 'Contabilidade', 'Fisco / Auditoria', 'Tesouraria'],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Inspeção de Qualidade de Produto Fabricado',
+    suppliers: ['Linha de produção', 'Almoxarifado (amostras)', 'Engenharia da Qualidade', 'Fornecedor do instrumento de medição', 'Setor de Metrologia'],
+    inputs: ['Produto/peça fabricada', 'Plano de inspeção', 'Especificação técnica / desenho', 'Instrumento de medição calibrado', 'Critérios de aceitação (tolerâncias)'],
+    process: ['1. Coletar a amostra da produção', '2. Medir as características críticas', '3. Comparar com a especificação', '4. Aprovar ou reprovar o lote', '5. Registrar o resultado e liberar/segregar'],
+    outputs: ['Produto aprovado (liberado)', 'Produto reprovado (segregado)', 'Relatório de inspeção', 'Registro de não-conformidade', 'Dados pra carta de controle'],
+    customers: ['Cliente final', 'Linha de montagem / próxima etapa', 'Engenharia da Qualidade', 'PCP (Planejamento de Produção)'],
+  },
+];
 
 interface SIPOCProps {
   onSave: (data: any) => void;
@@ -107,6 +121,7 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
 
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
   const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   const isToolEmpty = data.suppliers.length === 0 && 
                      data.inputs.length === 0 && 
@@ -293,7 +308,7 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
                 <BookOpen size={20} className="text-blue-600" />
                 <div>
                   <h3 className="text-base font-black text-gray-800 m-0">Exemplo de SIPOC</h3>
-                  <p className="text-xs text-gray-500 m-0">{SIPOC_EXEMPLO.titulo}</p>
+                  <p className="text-xs text-gray-500 m-0">{SIPOC_EXEMPLOS[exemploIdx].titulo}</p>
                 </div>
               </div>
               <button
@@ -304,14 +319,32 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
               </button>
             </div>
 
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {SIPOC_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {[
-                  { titulo: 'Fornecedores (Suppliers)', cor: 'bg-[#1f2937]', itens: SIPOC_EXEMPLO.suppliers },
-                  { titulo: 'Entradas (Inputs)', cor: 'bg-[#374151]', itens: SIPOC_EXEMPLO.inputs },
-                  { titulo: 'Processo (Process)', cor: 'bg-[#4b5563]', itens: SIPOC_EXEMPLO.process },
-                  { titulo: 'Saídas (Outputs)', cor: 'bg-[#6b7280]', itens: SIPOC_EXEMPLO.outputs },
-                  { titulo: 'Clientes (Customers)', cor: 'bg-[#9ca3af]', itens: SIPOC_EXEMPLO.customers },
+                  { titulo: 'Fornecedores (Suppliers)', cor: 'bg-[#1f2937]', itens: SIPOC_EXEMPLOS[exemploIdx].suppliers },
+                  { titulo: 'Entradas (Inputs)', cor: 'bg-[#374151]', itens: SIPOC_EXEMPLOS[exemploIdx].inputs },
+                  { titulo: 'Processo (Process)', cor: 'bg-[#4b5563]', itens: SIPOC_EXEMPLOS[exemploIdx].process },
+                  { titulo: 'Saídas (Outputs)', cor: 'bg-[#6b7280]', itens: SIPOC_EXEMPLOS[exemploIdx].outputs },
+                  { titulo: 'Clientes (Customers)', cor: 'bg-[#9ca3af]', itens: SIPOC_EXEMPLOS[exemploIdx].customers },
                 ].map((col) => (
                   <div key={col.titulo} className="border border-gray-200 rounded-lg overflow-hidden flex flex-col">
                     <div className={cn('px-3 py-2', col.cor)}>
