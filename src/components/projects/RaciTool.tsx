@@ -22,7 +22,6 @@ import {
   Plus,
   Trash2,
   Save,
-  Printer,
   Info,
   AlertCircle,
   ListChecks,
@@ -208,9 +207,6 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
   });
   const warnings = validacoes.filter(v => v !== null);
 
-  // ===== Print =====
-  const handlePrint = () => window.print();
-
   return (
     <div className="raci-tool-root max-w-[210mm] mx-auto p-6 md:p-10 bg-white">
       {/* Estilos de impressão A4 */}
@@ -242,15 +238,9 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
         <div className="no-print flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowExemplo(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 text-[11px] font-black uppercase tracking-widest transition cursor-pointer"
-          >
-            <BookOpen size={14} /> Ver exemplo
-          </button>
-          <button
-            onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
           >
-            <Printer size={14} /> Imprimir
+            <BookOpen size={14} /> Ver exemplo
           </button>
         </div>
       </div>
@@ -312,7 +302,7 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
               const warning = warnings.find(w => w?.atividadeId === a.id);
               return (
                 <tr key={a.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                  <td className="p-2 sticky left-0 bg-white z-10" style={{ minWidth: 220 }}>
+                  <td className="p-2 sticky left-0 bg-white z-10" style={{ minWidth: 240 }}>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-gray-400 w-5 text-right">{idx + 1}.</span>
                       <input
@@ -327,6 +317,16 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
                           <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />
                         </div>
                       )}
+                      {/* Botão deletar a LINHA — sempre visível e sempre ativo.
+                          Pode deletar todas; quando a matriz fica vazia, o aluno
+                          adiciona uma nova pelo botão "Adicionar atividade". */}
+                      <button
+                        onClick={() => removeAtividade(a.id)}
+                        className="no-print shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-100 cursor-pointer transition"
+                        title="Excluir esta atividade"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </td>
                   {data.stakeholders.map((s) => {
@@ -348,16 +348,6 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
                       </td>
                     );
                   })}
-                  <td className="no-print p-1 text-center">
-                    <button
-                      onClick={() => removeAtividade(a.id)}
-                      disabled={data.atividades.length <= 1}
-                      className="text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed bg-transparent border-0 cursor-pointer p-1"
-                      title="Remover atividade"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
                 </tr>
               );
             })}
