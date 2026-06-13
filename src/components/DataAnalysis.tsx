@@ -29,6 +29,7 @@ import {
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
+import UpgradeBanner from './UpgradeBanner';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
@@ -1406,6 +1407,7 @@ export default function DataAnalysis() {
       </header>
 
       <div className="p-[20px] space-y-6">
+        <UpgradeBanner mensagem="As análises de dados fazem parte do Plano Completo. Libere tudo agora." />
         {/* File Upload & Sheet Selection */}
         <div className="flex flex-col md:flex-row gap-[40px] items-end mb-6">
           <div className="flex-1" data-tour-id="upload">

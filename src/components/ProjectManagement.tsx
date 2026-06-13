@@ -18,6 +18,7 @@ import { Initiative, Project } from '../types';
 import { Toaster, toast } from 'sonner';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
+import UpgradeBanner from './UpgradeBanner';
 import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
@@ -546,6 +547,7 @@ export default function ProjectManagement() {
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4">
+        <UpgradeBanner variant="compact" className="shrink-0" mensagem="Plano gratuito: libere todas as ferramentas dos seus projetos." />
         {/* Top Section: Meus Projetos Ativos (DROPDOWN) */}
         <div className="shrink-0">
           {loading ? (

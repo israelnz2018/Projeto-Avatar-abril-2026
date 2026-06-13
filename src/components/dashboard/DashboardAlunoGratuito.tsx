@@ -17,6 +17,7 @@ import { Wrench, Video, Sparkles, FolderKanban, Lock, ArrowRight } from 'lucide-
 import { auth } from '../../lib/firebase';
 import { useUserContentScope, useUserUsageStats } from '../../hooks/useDashboardData';
 import { useUserAccess } from '../../hooks/useUserAccess';
+import { HOTMART_CHECKOUT_URL } from '../../lib/constants';
 import {
   DashboardShell,
   DashboardLoading,
@@ -223,11 +224,13 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
                 </div>
               </div>
               <a
-                href="mailto:contact@learningbyworking.com?subject=Quero conhecer o Plano Completo"
+                href={HOTMART_CHECKOUT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0033CC] text-[12px] font-black uppercase tracking-widest hover:bg-white/90 transition-all whitespace-nowrap"
                 style={{ cursor: 'pointer' }}
               >
-                Quero saber mais
+                Quero liberar tudo
                 <ArrowRight size={14} />
               </a>
             </div>

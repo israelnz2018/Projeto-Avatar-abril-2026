@@ -17,7 +17,8 @@ import {
   Users,
   Users2,
   Key,
-  Compass
+  Compass,
+  Unlock
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -46,6 +47,7 @@ const CertificatePage = lazy(() => import('./components/CertificatePage').then(m
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
 import { ensureUserDocument } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
+import { HOTMART_CHECKOUT_URL } from './lib/constants';
 
 import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
@@ -173,6 +175,26 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
             </Link>
           ))}
         </nav>
+
+        {/* Rodapé: CTA de compra — só para aluno gratuito */}
+        {!isAdmin && !isCoordenador && plano !== 'completo' && (
+          <div className="p-3 border-t border-gray-700">
+            <a
+              href={HOTMART_CHECKOUT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Liberar tudo — Plano Completo"
+              className={cn(
+                "w-full inline-flex items-center justify-center gap-2 rounded-lg text-white text-[11px] font-black uppercase tracking-widest transition-all hover:brightness-110 no-underline",
+                isSidebarOpen ? "px-4 py-2.5" : "p-2.5"
+              )}
+              style={{ background: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 100%)' }}
+            >
+              <Unlock size={15} className="shrink-0" />
+              {isSidebarOpen && <span>Liberar tudo</span>}
+            </a>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}

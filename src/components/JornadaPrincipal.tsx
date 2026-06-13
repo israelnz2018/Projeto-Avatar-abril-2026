@@ -33,6 +33,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Quote, ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import UpgradeBanner from './UpgradeBanner';
 import {
   TRILHAS,
   type Trilha,
@@ -244,6 +245,11 @@ export default function JornadaPrincipal() {
               );
             })}
           </div>
+        </div>
+
+        {/* CTA de compra — só para aluno gratuito */}
+        <div className="px-6 md:px-16 lg:px-24 mb-8">
+          <UpgradeBanner mensagem="Você está no plano gratuito (Trilha 1). Libere todas as trilhas, ferramentas e análises." />
         </div>
 
         {/* BANNER DO MENTOR */}

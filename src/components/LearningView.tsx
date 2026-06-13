@@ -26,6 +26,7 @@ import {
   Award,
 } from 'lucide-react';
 import { cn, youtubeThumb } from '@/src/lib/utils';
+import UpgradeBanner from './UpgradeBanner';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -262,6 +263,7 @@ export default function LearningView() {
 
   return (
     <div className="space-y-6">
+      <UpgradeBanner mensagem="Você vê os vídeos da trilha gratuita. Libere todos os cursos e vídeos." />
       {/* Toolbar discreto — só busca + grid/list, sem título */}
       <div className="flex items-center justify-end gap-3">
         <div className="flex items-center bg-white p-1 rounded-lg border border-[#e5e7eb]">

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/firebase';
+import UpgradeBanner from './UpgradeBanner';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
@@ -805,6 +806,9 @@ export default function Comunidade() {
           </button>
         </div>
       </div>
+
+      <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano gratuito: participe da comunidade e libere todas as ferramentas." />
+
 
       {/* Busca */}
       <div className="relative mb-4">
