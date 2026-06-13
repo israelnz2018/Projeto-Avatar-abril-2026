@@ -1,9 +1,11 @@
 /**
- * Indicadores — Painel de KPIs por nível de gestão (Estratégico/Tático/Operacional).
+ * Indicadores — Linha de Visão por TRIO correlacionado.
  *
- * Tela única — Linha de Visão: 3 camadas fixas. Cada camada pode ter VÁRIOS
- * indicadores. O aluno marca qual nível é o DELE (onde ele atua) e vê como o
- * indicador da empresa "desce" até o que ele controla no dia a dia.
+ * O aluno monta conjuntos (trios): cada trio tem um TEMA (ex: "Qualidade") e os
+ * 3 indicadores que se DESDOBRAM um do outro — Estratégico → Tático → Operacional.
+ * Os 3 do mesmo trio têm que se manter correlacionados (mesmo tema).
+ * Em cada trio o aluno marca qual nível é o DELE (onde ele atua).
+ * Pode adicionar quantos trios quiser.
  *
  * O botão "Ver exemplo" abre um modal com a biblioteca de referência: KPIs
  * típicos de 8 áreas, cada uma com os 3 níveis (read-only).
@@ -29,13 +31,18 @@ interface IndicadoresProps {
 
 type Nivel = 'estrategico' | 'tatico' | 'operacional';
 
-interface IndicadoresData {
-  // Listas de indicadores por nível (cada nível pode ter vários).
-  estrategico: string[];
-  tatico: string[];
-  operacional: string[];
-  // Qual nível é o do usuário (onde ele atua). null = não marcado.
+interface Trio {
+  id: string;
+  tema: string;
+  estrategico: string;
+  tatico: string;
+  operacional: string;
+  // Qual nível DESTE trio é o do usuário (onde ele atua). null = não marcado.
   meuNivel: Nivel | null;
+}
+
+interface IndicadoresData {
+  trios: Trio[];
 }
 
 const NIVEIS: { value: Nivel; label: string; desc: string; icon: any; cor: string; barra: string }[] = [
@@ -61,28 +68,28 @@ function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function novoTrio(): Trio {
+  return { id: genId(), tema: '', estrategico: '', tatico: '', operacional: '', meuNivel: null };
+}
+
 export default function Indicadores({ onSave, initialData, onDirtyChange }: IndicadoresProps) {
   const [data, setData] = useState<IndicadoresData>(() => {
     const raw = initialData?.formData || initialData?.toolData || initialData;
-    if (raw && (raw.estrategico || raw.tatico || raw.operacional)) {
-      return {
-        estrategico: Array.isArray(raw.estrategico) ? raw.estrategico : [],
-        tatico: Array.isArray(raw.tatico) ? raw.tatico : [],
-        operacional: Array.isArray(raw.operacional) ? raw.operacional : [],
-        meuNivel: raw.meuNivel || null,
-      };
+    // Formato novo (trios)
+    if (raw && Array.isArray(raw.trios)) {
+      return { trios: raw.trios.length ? raw.trios.map((t: any) => ({ ...novoTrio(), ...t })) : [novoTrio()] };
     }
-    // Retrocompat com o formato antigo (linhaVisao: {estrategico, tatico, operacional} como strings)
+    // Retrocompat: formato antigo (listas por nível) → vira 1 trio com o 1º de cada
+    if (raw && (raw.estrategico || raw.tatico || raw.operacional)) {
+      const first = (v: any) => Array.isArray(v) ? (v[0] || '') : (v || '');
+      return { trios: [{ ...novoTrio(), estrategico: first(raw.estrategico), tatico: first(raw.tatico), operacional: first(raw.operacional), meuNivel: raw.meuNivel || null }] };
+    }
+    // Retrocompat: formato bem antigo (linhaVisao)
     if (raw && raw.linhaVisao) {
       const lv = raw.linhaVisao;
-      return {
-        estrategico: lv.estrategico ? [lv.estrategico] : [],
-        tatico: lv.tatico ? [lv.tatico] : [],
-        operacional: lv.operacional ? [lv.operacional] : [],
-        meuNivel: null,
-      };
+      return { trios: [{ ...novoTrio(), estrategico: lv.estrategico || '', tatico: lv.tatico || '', operacional: lv.operacional || '' }] };
     }
-    return { estrategico: [], tatico: [], operacional: [], meuNivel: null };
+    return { trios: [novoTrio()] };
   });
 
   const [showExemplo, setShowExemplo] = useState(false);
@@ -94,23 +101,17 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
     setDirty(true);
   };
 
-  // ===== Indicadores por nível =====
-  const addIndicador = (nivel: Nivel) => {
-    mutate(prev => ({ ...prev, [nivel]: [...prev[nivel], ''] }));
-  };
-  const updateIndicador = (nivel: Nivel, idx: number, valor: string) => {
-    mutate(prev => ({ ...prev, [nivel]: prev[nivel].map((v, i) => i === idx ? valor : v) }));
-  };
-  const removeIndicador = (nivel: Nivel, idx: number) => {
-    mutate(prev => ({ ...prev, [nivel]: prev[nivel].filter((_, i) => i !== idx) }));
-  };
-  const setMeuNivel = (nivel: Nivel) => {
-    mutate(prev => ({ ...prev, meuNivel: prev.meuNivel === nivel ? null : nivel }));
-  };
+  // ===== Trios =====
+  const addTrio = () => mutate(prev => ({ trios: [...prev.trios, novoTrio()] }));
+  const removeTrio = (id: string) => mutate(prev => ({ trios: prev.trios.filter(t => t.id !== id) }));
+  const updateTrio = (id: string, campo: keyof Trio, valor: string) =>
+    mutate(prev => ({ trios: prev.trios.map(t => t.id === id ? { ...t, [campo]: valor } : t) }));
+  const setMeuNivel = (id: string, nivel: Nivel) =>
+    mutate(prev => ({ trios: prev.trios.map(t => t.id === id ? { ...t, meuNivel: t.meuNivel === nivel ? null : nivel } : t) }));
 
   const placeholderDe = (nivel: Nivel) =>
     nivel === 'estrategico' ? 'ex: margem da empresa' :
-    nivel === 'tatico' ? 'ex: custo da área' :
+    nivel === 'tatico' ? 'ex: custo / desempenho da área' :
     'ex: o que eu controlo no dia a dia';
 
   return (
@@ -134,95 +135,112 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
         </button>
       </div>
 
-      {/* ===== LINHA DE VISÃO (aba única) ===== */}
-      {(
-        <div>
-          <p className="text-sm text-gray-500 mb-2 leading-relaxed">
-            Preencha de cima pra baixo: como o indicador da empresa (estratégico) se desdobra até
-            chegar no que <strong>você</strong> controla (operacional). Pode ter vários por nível.
-          </p>
-          <p className="text-xs text-gray-400 mb-5">
-            Clique em <strong>"Esse é o meu nível"</strong> pra marcar onde você atua.
-          </p>
+      {/* ===== LINHA DE VISÃO por TRIO correlacionado ===== */}
+      <div>
+        <p className="text-sm text-gray-500 mb-2 leading-relaxed">
+          Pra cada tema, preencha os <strong>3 indicadores que se desdobram um do outro</strong>:
+          o estratégico (empresa) → o tático (sua área) → o operacional (seu dia a dia). Os três têm
+          que ser do <strong>mesmo assunto</strong>. Depois você pode adicionar outro tema.
+        </p>
+        <p className="text-xs text-gray-400 mb-5">
+          Em cada tema, clique em <strong>"Esse é o meu nível"</strong> na linha onde <strong>você</strong> atua.
+        </p>
 
-          {/* 3 níveis compactos e coesos (juntinhos), mostrando o desdobramento */}
-          <div>
-            {NIVEIS.map((n, idx) => {
-              const Icone = n.icon;
-              const ehMeu = data.meuNivel === n.value;
-              return (
-                <div key={n.value} className="flex items-stretch gap-3">
-                  {/* Coluna do nível + conector */}
-                  <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
-                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0', n.barra)}>
-                      <Icone size={17} />
-                    </div>
-                    {idx < NIVEIS.length - 1 && <div className="flex-1 w-0.5 bg-gray-200" />}
-                  </div>
+        {/* Lista de trios */}
+        <div className="space-y-5">
+          {data.trios.map((trio, ti) => (
+            <div key={trio.id} className="border-2 border-gray-200 rounded-xl p-4">
+              {/* Cabeçalho do trio: tema + remover */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#1E2D6E] text-white text-[11px] font-black shrink-0">
+                  {ti + 1}
+                </span>
+                <input
+                  type="text"
+                  value={trio.tema}
+                  onChange={(e) => updateTrio(trio.id, 'tema', e.target.value)}
+                  placeholder="Tema (ex: Qualidade, Custo, Entrega...)"
+                  className="flex-1 px-3 py-1.5 text-sm font-bold border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300 placeholder:font-normal"
+                />
+                {data.trios.length > 1 && (
+                  <button
+                    onClick={() => removeTrio(trio.id)}
+                    className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-100 cursor-pointer transition"
+                    title="Remover tema"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
 
-                  {/* Conteúdo do nível */}
-                  <div className={cn(
-                    'flex-1 rounded-lg px-2.5 py-2 mb-1.5 border transition-colors',
-                    ehMeu ? 'bg-sky-50 border-sky-300' : 'border-transparent'
-                  )}>
-                    <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                      <div className="flex items-baseline gap-2">
-                        <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
-                        <span className="text-[10px] text-gray-400">{n.desc}</span>
+              {/* As 3 linhas correlacionadas */}
+              <div>
+                {NIVEIS.map((n, idx) => {
+                  const Icone = n.icon;
+                  const ehMeu = trio.meuNivel === n.value;
+                  return (
+                    <div key={n.value} className="flex items-stretch gap-3">
+                      {/* Coluna do nível + conector vertical */}
+                      <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+                        <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0', n.barra)}>
+                          <Icone size={17} />
+                        </div>
+                        {idx < NIVEIS.length - 1 && <div className="flex-1 w-0.5 bg-gray-200" />}
                       </div>
-                      <button
-                        onClick={() => setMeuNivel(n.value)}
-                        className={cn(
-                          'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition',
-                          ehMeu ? 'bg-sky-600 text-white border-sky-600' : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
-                        )}
-                      >
-                        {ehMeu ? <><Check size={11} /> Meu nível</> : 'Esse é o meu nível'}
-                      </button>
-                    </div>
 
-                    {/* Lista de indicadores deste nível */}
-                    <div className="space-y-1.5">
-                      {data[n.value].map((ind, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={ind}
-                            onChange={(e) => updateIndicador(n.value, i, e.target.value)}
-                            placeholder={placeholderDe(n.value)}
-                            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"
-                          />
+                      {/* Conteúdo da linha */}
+                      <div className={cn(
+                        'flex-1 rounded-lg px-2.5 py-2 mb-1.5 border transition-colors',
+                        ehMeu ? 'bg-sky-50 border-sky-300' : 'border-transparent'
+                      )}>
+                        <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                          <div className="flex items-baseline gap-2">
+                            <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
+                            <span className="text-[10px] text-gray-400">{n.desc}</span>
+                          </div>
                           <button
-                            onClick={() => removeIndicador(n.value, i)}
-                            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-md text-red-400 hover:text-white hover:bg-red-500 bg-red-50 border border-red-100 cursor-pointer transition"
-                            title="Remover"
+                            onClick={() => setMeuNivel(trio.id, n.value)}
+                            className={cn(
+                              'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition',
+                              ehMeu ? 'bg-sky-600 text-white border-sky-600' : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
+                            )}
                           >
-                            <Trash2 size={13} />
+                            {ehMeu ? <><Check size={11} /> Meu nível</> : 'Esse é o meu nível'}
                           </button>
                         </div>
-                      ))}
-                      <button
-                        onClick={() => addIndicador(n.value)}
-                        className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded border border-blue-100 bg-white cursor-pointer transition"
-                      >
-                        <Plus size={12} /> Adicionar indicador {n.label.toLowerCase()}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          <div className="mt-5 bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-3 items-start">
-            <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
-            <p className="text-[12px] text-blue-800 leading-relaxed m-0">
-              Não sabe o indicador estratégico da empresa? Pergunte ao seu gestor — descobrir isso já
-              é meio caminho pra entender as prioridades da organização.
-            </p>
-          </div>
+                        <input
+                          type="text"
+                          value={trio[n.value]}
+                          onChange={(e) => updateTrio(trio.id, n.value, e.target.value)}
+                          placeholder={placeholderDe(n.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+
+        {/* Adicionar outro trio */}
+        <button
+          onClick={addTrio}
+          className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-blue-200 text-blue-600 text-[12px] font-black uppercase tracking-widest hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition"
+        >
+          <Plus size={15} /> Adicionar outro tema
+        </button>
+
+        <div className="mt-5 bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-3 items-start">
+          <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
+          <p className="text-[12px] text-blue-800 leading-relaxed m-0">
+            Não sabe o indicador estratégico da empresa? Pergunte ao seu gestor — descobrir isso já
+            é meio caminho pra entender as prioridades da organização.
+          </p>
+        </div>
+      </div>
 
       {/* Salvar */}
       <div className="flex justify-end mt-8 pt-4 border-t border-gray-200">
