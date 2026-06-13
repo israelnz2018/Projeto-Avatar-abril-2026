@@ -26,7 +26,10 @@ import {
   Info,
   AlertCircle,
   ListChecks,
+  BookOpen,
+  X,
 } from 'lucide-react';
+import { cn } from '@/src/lib/utils';
 
 interface RaciToolProps {
   onSave: (data: any, options?: { silent?: boolean }) => void;
@@ -49,7 +52,6 @@ interface Atividade {
 
 interface RaciData {
   processoNome: string;
-  processoObjetivo: string;
   stakeholders: Stakeholder[];
   atividades: Atividade[];
 }
@@ -69,6 +71,37 @@ const RACI_LEGENDA: { letra: RaciValue; nome: string; descricao: string; cor: st
   { letra: 'I', nome: 'Informado',    descricao: 'Quem SABE depois que a atividade foi feita.',            cor: 'bg-violet-100 text-violet-700 border-violet-200' },
 ];
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Matriz montada como: cabeçalho de papéis + linhas de atividade com R/A/C/I.
+const RACI_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    processo: 'Aprovação de Novos Fornecedores',
+    papeis: ['Comprador', 'Gerente de Compras', 'Jurídico', 'Financeiro'],
+    linhas: [
+      { atividade: 'Levantar documentação do fornecedor', raci: ['R', 'A', 'I', 'I'] },
+      { atividade: 'Analisar risco jurídico do contrato', raci: ['C', 'I', 'R/A', 'I'] },
+      { atividade: 'Validar saúde financeira do fornecedor', raci: ['C', 'I', 'I', 'R/A'] },
+      { atividade: 'Aprovar homologação final', raci: ['C', 'A', 'C', 'C'] },
+      { atividade: 'Cadastrar fornecedor no sistema', raci: ['R', 'A', 'I', 'I'] },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    processo: 'Inspeção de Qualidade de Produto Fabricado',
+    papeis: ['Operador', 'Inspetor da Qualidade', 'Eng. da Qualidade', 'Supervisor de Produção'],
+    linhas: [
+      { atividade: 'Coletar amostra da produção', raci: ['R', 'A', 'I', 'C'] },
+      { atividade: 'Medir características críticas', raci: ['I', 'R/A', 'C', 'I'] },
+      { atividade: 'Comparar com a especificação', raci: ['I', 'R', 'A', 'I'] },
+      { atividade: 'Decidir aprovar ou reprovar o lote', raci: ['I', 'C', 'A', 'R'] },
+      { atividade: 'Registrar resultado e liberar/segregar', raci: ['C', 'R/A', 'I', 'I'] },
+    ],
+  },
+];
+
 function genId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -78,7 +111,6 @@ function emptyData(): RaciData {
   const atividadeId = genId();
   return {
     processoNome: '',
-    processoObjetivo: '',
     stakeholders: [{ id: stakeholderId, nome: '' }],
     atividades: [{ id: atividadeId, nome: '', raci: { [stakeholderId]: '' } }],
   };
@@ -90,6 +122,10 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
     if (raw && raw.stakeholders && raw.atividades) return raw as RaciData;
     return emptyData();
   });
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   // Auto-save silencioso a cada mudança
   useEffect(() => {
@@ -203,36 +239,32 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
             <p className="text-xs text-gray-500 m-0 mt-0.5">Responsável · Aprovador · Consultado · Informado</p>
           </div>
         </div>
-        <button
-          onClick={handlePrint}
-          className="no-print flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
-        >
-          <Printer size={14} /> Imprimir
-        </button>
+        <div className="no-print flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 text-[11px] font-black uppercase tracking-widest transition cursor-pointer"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <Printer size={14} /> Imprimir
+          </button>
+        </div>
       </div>
 
-      {/* Contexto do processo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Nome do Processo</label>
-          <input
-            type="text"
-            value={data.processoNome}
-            onChange={(e) => updateField('processoNome', e.target.value)}
-            placeholder="Ex: Aprovação de novos fornecedores"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Objetivo do Processo</label>
-          <input
-            type="text"
-            value={data.processoObjetivo}
-            onChange={(e) => updateField('processoObjetivo', e.target.value)}
-            placeholder="Ex: Garantir fornecedor homologado em até 5 dias"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      {/* Nome do Processo — título em destaque (as atividades vêm abaixo na matriz) */}
+      <div className="mb-6">
+        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Nome do Processo</label>
+        <input
+          type="text"
+          value={data.processoNome}
+          onChange={(e) => updateField('processoNome', e.target.value)}
+          placeholder="Ex: Aprovação de novos fornecedores"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
 
       {/* Matriz */}
@@ -389,6 +421,108 @@ export default function RaciTool({ onSave, initialData }: RaciToolProps) {
           <Save size={14} /> Salvar
         </button>
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="no-print fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Matriz RACI</h3>
+                  <p className="text-xs text-gray-500 m-0">{RACI_EXEMPLOS[exemploIdx].processo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {RACI_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-[12px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-2 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600" style={{ minWidth: 200 }}>
+                        Atividade
+                      </th>
+                      {RACI_EXEMPLOS[exemploIdx].papeis.map((p) => (
+                        <th key={p} className="p-2 border-b border-gray-200 text-center text-[11px] font-bold text-gray-700" style={{ minWidth: 90 }}>
+                          {p}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {RACI_EXEMPLOS[exemploIdx].linhas.map((linha, idx) => (
+                      <tr key={idx} className="border-b border-gray-100">
+                        <td className="p-2 text-[12px] text-gray-800">
+                          <span className="text-[10px] font-bold text-gray-400 mr-1.5">{idx + 1}.</span>
+                          {linha.atividade}
+                        </td>
+                        {linha.raci.map((v, ci) => {
+                          const cor =
+                            v.includes('A') ? 'bg-emerald-100 text-emerald-700' :
+                            v.includes('R') ? 'bg-blue-100 text-blue-700' :
+                            v === 'C' ? 'bg-amber-100 text-amber-700' :
+                            v === 'I' ? 'bg-violet-100 text-violet-700' :
+                            'text-gray-300';
+                          return (
+                            <td key={ci} className="p-1 text-center">
+                              <span className={`inline-block w-full py-1.5 rounded font-black text-[12px] ${cor}`}>
+                                {v || '—'}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  <strong>Como ler:</strong> cada linha é uma atividade; cada coluna é um papel.
+                  <strong> R</strong> = executa, <strong>A</strong> = aprova (1 por linha),
+                  <strong> C</strong> = consultado, <strong>I</strong> = informado.
+                  "R/A" = a mesma pessoa executa e responde. Este exemplo é só pra ilustrar —
+                  ele <strong>não altera</strong> a sua matriz.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
