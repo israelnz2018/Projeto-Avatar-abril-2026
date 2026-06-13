@@ -1,12 +1,12 @@
 /**
  * Indicadores — Painel de KPIs por nível de gestão (Estratégico/Tático/Operacional).
  *
- * 2 abas:
- *   1. Linha de Visão — 3 camadas fixas. Cada camada pode ter VÁRIOS indicadores.
- *      O aluno marca qual nível é o DELE (onde ele atua). Vê como o indicador
- *      da empresa "desce" até o que ele controla no dia a dia.
- *   2. Biblioteca — referência LBW de KPIs típicos por área (read-only),
- *      cada área com os 3 níveis.
+ * Tela única — Linha de Visão: 3 camadas fixas. Cada camada pode ter VÁRIOS
+ * indicadores. O aluno marca qual nível é o DELE (onde ele atua) e vê como o
+ * indicador da empresa "desce" até o que ele controla no dia a dia.
+ *
+ * O botão "Ver exemplo" abre um modal com a biblioteca de referência: KPIs
+ * típicos de 8 áreas, cada uma com os 3 níveis (read-only).
  *
  * SEM auto-save: reporta dirty via onDirtyChange; o pai (ProjectJourney) avisa
  * "sair sem salvar" se o usuário trocar de ferramenta.
@@ -44,25 +44,8 @@ const NIVEIS: { value: Nivel; label: string; desc: string; icon: any; cor: strin
   { value: 'operacional', label: 'Operacional', desc: 'Execução · o seu dia a dia · curto prazo',    icon: Settings2, cor: 'text-sky-600',  barra: 'bg-sky-500' },
 ];
 
-// ===== Exemplos da Linha de Visão (read-only) — escritório + manufatura.
-const LINHA_EXEMPLOS = [
-  {
-    id: 'escritorio',
-    rotulo: 'Escritório (Logística)',
-    estrategico: ['Margem operacional da empresa'],
-    tatico: ['Custo logístico total da área', 'Entregas no prazo (OTIF)'],
-    operacional: ['Custo por entrega', '% de avaria no transporte'],
-  },
-  {
-    id: 'manufatura',
-    rotulo: 'Manufatura (Produção)',
-    estrategico: ['EBITDA da planta'],
-    tatico: ['Eficiência da linha (OEE)', 'Custo de produção'],
-    operacional: ['Refugo do turno', 'Peças por hora'],
-  },
-];
-
 // ===== Biblioteca (read-only) — 8 áreas, cada uma com os 3 níveis.
+// Exibida no modal "Ver exemplo".
 const BIBLIOTECA: { area: string; estrategico: string; tatico: string; operacional: string }[] = [
   { area: 'Logística',        estrategico: 'Custo logístico sobre a receita', tatico: 'Entregas no prazo (OTIF)',     operacional: 'Custo por entrega' },
   { area: 'Comercial / Vendas', estrategico: 'Faturamento',                   tatico: 'Taxa de conversão',           operacional: 'Ligações / visitas por dia' },
@@ -102,9 +85,7 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
     return { estrategico: [], tatico: [], operacional: [], meuNivel: null };
   });
 
-  const [aba, setAba] = useState<'linha' | 'biblioteca'>('linha');
   const [showExemplo, setShowExemplo] = useState(false);
-  const [exemploIdx, setExemploIdx] = useState(0);
 
   const [dirty, setDirty] = useState(false);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
@@ -145,37 +126,16 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
             <p className="text-xs text-gray-500 m-0 mt-0.5">Estratégico · Tático · Operacional — entenda como sua área é gerenciada</p>
           </div>
         </div>
-        {aba === 'linha' && (
-          <button
-            onClick={() => setShowExemplo(true)}
-            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
-          >
-            <BookOpen size={14} /> Ver exemplo
-          </button>
-        )}
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
-      {/* Abas */}
-      <div className="flex gap-2 mb-6 border-b border-gray-100 flex-wrap">
-        {[
-          { id: 'linha' as const, label: 'Linha de Visão' },
-          { id: 'biblioteca' as const, label: 'Biblioteca de Referência' },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setAba(t.id)}
-            className={cn(
-              'px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 -mb-px cursor-pointer bg-transparent',
-              aba === t.id ? 'text-[#0033CC] border-[#0033CC]' : 'text-gray-400 border-transparent hover:text-gray-600'
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ===== ABA 1 — LINHA DE VISÃO ===== */}
-      {aba === 'linha' && (
+      {/* ===== LINHA DE VISÃO (aba única) ===== */}
+      {(
         <div>
           <p className="text-sm text-gray-500 mb-2 leading-relaxed">
             Preencha de cima pra baixo: como o indicador da empresa (estratégico) se desdobra até
@@ -264,42 +224,6 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
         </div>
       )}
 
-      {/* ===== ABA 2 — BIBLIOTECA ===== */}
-      {aba === 'biblioteca' && (
-        <div>
-          <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-            Exemplos de indicadores por área — sempre nos 3 níveis. Use como referência pra entender
-            o que costuma ser medido em cada área.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {BIBLIOTECA.map((b) => (
-              <div key={b.area} className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-sm font-black text-gray-800 m-0 mb-3">{b.area}</h3>
-                <div className="space-y-2">
-                  {([['estrategico', b.estrategico], ['tatico', b.tatico], ['operacional', b.operacional]] as [Nivel, string][]).map(([niv, valor]) => {
-                    const ni = NIVEIS.find(x => x.value === niv)!;
-                    return (
-                      <div key={niv} className="flex items-center gap-2">
-                        <span className={cn('w-2 h-2 rounded-full shrink-0', ni.barra)} />
-                        <span className="text-[12px] text-gray-700 flex-1">{valor}</span>
-                        <span className={cn('text-[9px] font-bold uppercase tracking-wider', ni.cor)}>{ni.label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-gray-500">
-            {NIVEIS.map(n => (
-              <span key={n.value} className="flex items-center gap-1.5">
-                <span className={cn('w-2 h-2 rounded-full', n.barra)} /> {n.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Salvar */}
       <div className="flex justify-end mt-8 pt-4 border-t border-gray-200">
         <button
@@ -311,70 +235,55 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
         </button>
       </div>
 
-      {/* MODAL "Ver exemplo" — Linha de Visão (read-only) */}
+      {/* MODAL "Ver exemplo" — biblioteca de indicadores por área (read-only) */}
       {showExemplo && (
         <div
           className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setShowExemplo(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <div className="flex items-center gap-3">
                 <BookOpen size={20} className="text-blue-600" />
-                <h3 className="text-base font-black text-gray-800 m-0">Exemplo — Linha de Visão</h3>
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplos de indicadores por área</h3>
+                  <p className="text-xs text-gray-500 m-0">Sempre nos 3 níveis — use como referência</p>
+                </div>
               </div>
               <button onClick={() => setShowExemplo(false)} className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer">
                 <X size={16} />
               </button>
             </div>
-            <div className="flex gap-2 px-6 pt-4">
-              {LINHA_EXEMPLOS.map((ex, i) => (
-                <button
-                  key={ex.id}
-                  onClick={() => setExemploIdx(i)}
-                  className={cn(
-                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
-                    exemploIdx === i ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                  )}
-                >
-                  {ex.rotulo}
-                </button>
-              ))}
-            </div>
+
             <div className="p-6">
-              <div className="space-y-3">
-                {NIVEIS.map((n, idx) => {
-                  const Icone = n.icon;
-                  const valores: string[] = (LINHA_EXEMPLOS[exemploIdx] as any)[n.value] || [];
-                  return (
-                    <div key={n.value} className="flex items-stretch gap-3">
-                      <div className="flex flex-col items-center shrink-0" style={{ width: 44 }}>
-                        <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center text-white', n.barra)}>
-                          <Icone size={20} />
-                        </div>
-                        {idx < NIVEIS.length - 1 && <div className="flex-1 w-0.5 bg-gray-200 mt-1" />}
-                      </div>
-                      <div className="flex-1 pb-2">
-                        <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
-                        <div className="mt-1 space-y-1.5">
-                          {valores.map((v, i) => (
-                            <div key={i} className="px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-800">{v}</div>
-                          ))}
-                        </div>
-                      </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {BIBLIOTECA.map((b) => (
+                  <div key={b.area} className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-sm font-black text-gray-800 m-0 mb-3">{b.area}</h3>
+                    <div className="space-y-2">
+                      {([['estrategico', b.estrategico], ['tatico', b.tatico], ['operacional', b.operacional]] as [Nivel, string][]).map(([niv, valor]) => {
+                        const ni = NIVEIS.find(x => x.value === niv)!;
+                        return (
+                          <div key={niv} className="flex items-center gap-2">
+                            <span className={cn('w-2 h-2 rounded-full shrink-0', ni.barra)} />
+                            <span className="text-[12px] text-gray-700 flex-1">{valor}</span>
+                            <span className={cn('text-[9px] font-bold uppercase tracking-wider', ni.cor)}>{ni.label}</span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
-                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
-                <p className="text-xs text-amber-800 leading-relaxed m-0">
-                  Repare como o indicador desce: a empresa quer margem, isso vira custo da área, que vira
-                  o custo que VOCÊ controla. Este exemplo é só pra ilustrar — não altera o seu painel.
-                </p>
+              <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-gray-500">
+                {NIVEIS.map(n => (
+                  <span key={n.value} className="flex items-center gap-1.5">
+                    <span className={cn('w-2 h-2 rounded-full', n.barra)} /> {n.label}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
