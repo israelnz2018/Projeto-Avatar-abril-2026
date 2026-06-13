@@ -25,14 +25,24 @@ interface OrganogramaProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
+type Contato = 'nao-falei' | 'conheco' | 'boa-relacao';
+
 interface No {
   id: string;
   nome: string;
   area: string;
   funcao: string;
   critico?: boolean; // marcado pelo aluno = pessoa/função crítica (caixa azul-clara)
+  contato?: Contato; // status de relacionamento (default: 'nao-falei')
   filhos: No[];
 }
+
+// Config visual dos 3 estados de relacionamento.
+const CONTATO_OPCOES: { value: Contato; label: string; dot: string; ativo: string }[] = [
+  { value: 'nao-falei',   label: 'Não falei',     dot: 'bg-gray-300',   ativo: 'bg-gray-100 text-gray-700 border-gray-300' },
+  { value: 'conheco',     label: 'Já conheço',    dot: 'bg-amber-400',  ativo: 'bg-amber-100 text-amber-700 border-amber-300' },
+  { value: 'boa-relacao', label: 'Boa relação',   dot: 'bg-emerald-500', ativo: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
+];
 
 interface OrganogramaData {
   // Várias árvores independentes (topos): cada item é uma raiz com sua estrutura.
@@ -54,14 +64,14 @@ const ORG_EXEMPLOS = [
     rotulo: 'Escritório',
     titulo: 'Diretoria de Operações',
     raiz: {
-      nome: 'Carlos Mendes', area: 'Operações', funcao: 'Diretor de Operações',
+      nome: 'Carlos Mendes', area: 'Operações', funcao: 'Diretor de Operações', contato: 'nao-falei',
       filhos: [
-        { nome: 'Maria Souza', area: 'Logística', funcao: 'Gerente de Logística', critico: true, filhos: [
-          { nome: 'Pedro Lima', area: 'Logística', funcao: 'Analista Sênior', critico: true, filhos: [] },
-          { nome: 'Ana Costa', area: 'Logística', funcao: 'Analista Júnior', filhos: [] },
+        { nome: 'Maria Souza', area: 'Logística', funcao: 'Gerente de Logística', critico: true, contato: 'conheco', filhos: [
+          { nome: 'Pedro Lima', area: 'Logística', funcao: 'Analista Sênior', critico: true, contato: 'boa-relacao', filhos: [] },
+          { nome: 'Ana Costa', area: 'Logística', funcao: 'Analista Júnior', contato: 'boa-relacao', filhos: [] },
         ]},
-        { nome: 'João Alves', area: 'Compras', funcao: 'Gerente de Compras', filhos: [
-          { nome: 'Rita Nunes', area: 'Compras', funcao: 'Compradora', filhos: [] },
+        { nome: 'João Alves', area: 'Compras', funcao: 'Gerente de Compras', contato: 'nao-falei', filhos: [
+          { nome: 'Rita Nunes', area: 'Compras', funcao: 'Compradora', contato: 'conheco', filhos: [] },
         ]},
       ],
     },
@@ -71,16 +81,16 @@ const ORG_EXEMPLOS = [
     rotulo: 'Manufatura',
     titulo: 'Gerência de Produção',
     raiz: {
-      nome: 'Roberto Dias', area: 'Produção', funcao: 'Gerente de Produção',
+      nome: 'Roberto Dias', area: 'Produção', funcao: 'Gerente de Produção', contato: 'conheco',
       filhos: [
-        { nome: 'Sandra Reis', area: 'Produção', funcao: 'Supervisora de Linha', critico: true, filhos: [
-          { nome: 'Marcos Pinto', area: 'Produção', funcao: 'Líder de Turno', filhos: [] },
-          { nome: 'Time da Linha', area: 'Produção', funcao: 'Operadores', filhos: [] },
+        { nome: 'Sandra Reis', area: 'Produção', funcao: 'Supervisora de Linha', critico: true, contato: 'boa-relacao', filhos: [
+          { nome: 'Marcos Pinto', area: 'Produção', funcao: 'Líder de Turno', contato: 'conheco', filhos: [] },
+          { nome: 'Time da Linha', area: 'Produção', funcao: 'Operadores', contato: 'conheco', filhos: [] },
         ]},
-        { nome: 'Felipe Rocha', area: 'Qualidade', funcao: 'Eng. da Qualidade', critico: true, filhos: [
-          { nome: 'Bia Martins', area: 'Qualidade', funcao: 'Inspetora da Qualidade', critico: true, filhos: [] },
+        { nome: 'Felipe Rocha', area: 'Qualidade', funcao: 'Eng. da Qualidade', critico: true, contato: 'nao-falei', filhos: [
+          { nome: 'Bia Martins', area: 'Qualidade', funcao: 'Inspetora da Qualidade', critico: true, contato: 'nao-falei', filhos: [] },
         ]},
-        { nome: 'Luísa Gomes', area: 'Manutenção', funcao: 'Supervisora de Manutenção', filhos: [] },
+        { nome: 'Luísa Gomes', area: 'Manutenção', funcao: 'Supervisora de Manutenção', contato: 'conheco', filhos: [] },
       ],
     },
   },
@@ -99,13 +109,23 @@ function NoExemplo({ no, nivel }: { no: any; nivel: number }) {
           'flex-1 rounded-lg px-3 py-2 border',
           no.critico ? 'bg-sky-100 border-sky-300' : 'bg-white border-gray-200'
         )}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="text-[13px] font-bold text-gray-900 m-0 leading-tight">{no.funcao}</p>
             {no.critico && (
               <span className="text-[8px] font-black uppercase tracking-widest text-sky-700 bg-white border border-sky-300 rounded px-1.5 py-0.5">
                 Crítico
               </span>
             )}
+            {no.contato && (() => {
+              const opt = CONTATO_OPCOES.find(o => o.value === no.contato);
+              if (!opt) return null;
+              return (
+                <span className={cn('text-[8px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 border flex items-center gap-1', opt.ativo)}>
+                  <span className={cn('w-1.5 h-1.5 rounded-full', opt.dot)} />
+                  {opt.label}
+                </span>
+              );
+            })()}
           </div>
           <p className="text-[11px] text-gray-500 m-0">{no.nome} · {no.area}</p>
         </div>
@@ -160,6 +180,9 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
   };
   const toggleCritico = (id: string, atual: boolean) => {
     mutate(prev => ({ raizes: prev.raizes.map(r => atualizarNo(r, id, { critico: !atual })) }));
+  };
+  const setContato = (id: string, valor: Contato) => {
+    mutate(prev => ({ raizes: prev.raizes.map(r => atualizarNo(r, id, { contato: valor })) }));
   };
   const handleAddSubordinado = (paiId: string) => {
     mutate(prev => ({ raizes: prev.raizes.map(r => adicionarFilho(r, paiId, novoNo())) }));
@@ -260,6 +283,27 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
                 />
                 Crítico
               </label>
+            </div>
+
+            {/* Status de relacionamento — 3 estados (mapa de quem já abordei) */}
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mr-1">Contato:</span>
+              {CONTATO_OPCOES.map(opt => {
+                const atual = (no.contato || 'nao-falei') === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setContato(no.id, opt.value)}
+                    className={cn(
+                      'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition',
+                      atual ? opt.ativo : 'text-gray-400 border-gray-200 bg-white hover:bg-gray-50'
+                    )}
+                  >
+                    <span className={cn('w-2 h-2 rounded-full', opt.dot)} />
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
