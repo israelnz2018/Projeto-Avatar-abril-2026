@@ -55,14 +55,20 @@ export default function FeedbackModal({
   ferramentaAtual,
 }: FeedbackModalProps) {
   const [tipo, setTipo] = useState<FeedbackTipo>('sugestao');
+  const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const tipoConfig = TIPOS.find(t => t.v === tipo)!;
+  const podeEnviar = titulo.trim().length >= 3 && descricao.trim().length >= 5;
 
   const handleEnviar = async () => {
+    if (titulo.trim().length < 3) {
+      setErro('Dê um título com pelo menos 3 caracteres.');
+      return;
+    }
     if (descricao.trim().length < 5) {
       setErro('Descreva com pelo menos 5 caracteres.');
       return;
@@ -74,6 +80,7 @@ export default function FeedbackModal({
       // é o mesmo da comunidade.
       await criarPost({
         tipo,
+        titulo: titulo.trim(),
         texto: descricao,
         ferramenta: ferramentaAtual || null,
         projetoNome: projetoAtivoNome || null,
@@ -92,6 +99,7 @@ export default function FeedbackModal({
 
   const handleFechar = () => {
     setTipo('sugestao');
+    setTitulo('');
     setDescricao('');
     setEnviado(false);
     setErro(null);
@@ -177,10 +185,24 @@ export default function FeedbackModal({
                   {tipoConfig.hint}
                 </div>
 
-                {/* Descrição */}
+                {/* Título (obrigatório) */}
                 <div>
                   <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
-                    Descrição
+                    Título <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={titulo}
+                    onChange={e => setTitulo(e.target.value)}
+                    placeholder="Resuma em poucas palavras"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-[4px] text-sm font-bold focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Descrição (obrigatória) */}
+                <div>
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                    Descrição <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     rows={5}
@@ -222,10 +244,10 @@ export default function FeedbackModal({
                 </button>
                 <button
                   onClick={handleEnviar}
-                  disabled={enviando || descricao.trim().length < 5}
+                  disabled={enviando || !podeEnviar}
                   className={cn(
                     'px-4 py-2 rounded-[4px] text-sm font-bold border-none cursor-pointer flex items-center gap-2',
-                    enviando || descricao.trim().length < 5
+                    enviando || !podeEnviar
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   )}

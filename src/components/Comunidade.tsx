@@ -346,11 +346,13 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
   const [ferramenta, setFerramenta] = useState('');
   const [enviando, setEnviando] = useState(false);
 
+  const podeEnviar = titulo.trim().length >= 3 && texto.trim().length >= 5;
+
   const enviar = async () => {
-    if (texto.trim().length < 5) return;
+    if (!podeEnviar) return;
     setEnviando(true);
     try {
-      await criarPost({ tipo, titulo: titulo.trim() || null, texto, ferramenta: ferramenta.trim() || null });
+      await criarPost({ tipo, titulo: titulo.trim(), texto, ferramenta: ferramenta.trim() || null });
       onClose();
     } finally { setEnviando(false); }
   };
@@ -380,7 +382,7 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
             })}
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Título (opcional)</label>
+            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Título <span className="text-red-500">*</span></label>
             <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Resuma em poucas palavras"
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
@@ -402,9 +404,9 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="p-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-bold bg-white border border-gray-300 cursor-pointer">Cancelar</button>
-          <button onClick={enviar} disabled={enviando || texto.trim().length < 5}
+          <button onClick={enviar} disabled={enviando || !podeEnviar}
             className={cn('px-4 py-2 rounded-xl text-sm font-bold border-none cursor-pointer flex items-center gap-2',
-              enviando || texto.trim().length < 5 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700')}>
+              enviando || !podeEnviar ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700')}>
             <Send size={14} /> Publicar
           </button>
         </div>
