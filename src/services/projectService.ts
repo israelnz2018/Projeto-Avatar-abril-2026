@@ -100,6 +100,16 @@ export const updateProjectPhase = async (projectId: string, phase: string) => {
   }
 };
 
+export const updateProjectName = async (projectId: string, name: string) => {
+  const path = `projects/${projectId}`;
+  try {
+    const projectRef = doc(db, 'projects', projectId);
+    await updateDoc(projectRef, { name });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
 export const saveProjectToolData = async (projectId: string, toolType: string, content: any) => {
   const path = `projects/${projectId}/data/${toolType}`;
   try {

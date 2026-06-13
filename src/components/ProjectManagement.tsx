@@ -12,7 +12,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { getUserProjects, createProject, deleteProject, updateProjectPhase } from '../services/projectService';
+import { getUserProjects, createProject, deleteProject, updateProjectName } from '../services/projectService';
 import { getInitiatives } from '../services/configService';
 import { Initiative, Project } from '../types';
 import { Toaster, toast } from 'sonner';
@@ -332,6 +332,10 @@ export default function ProjectManagement() {
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  // Renomear projeto (botão lápis)
+  const [projectToRename, setProjectToRename] = useState<Project | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string>('');
   const [selectedParentInitiativeId, setSelectedParentInitiativeId] = useState<string | null>(null);
@@ -507,20 +511,35 @@ export default function ProjectManagement() {
     }
   };
 
-  const handleEditProject = async (project: Project, e: React.MouseEvent) => {
+  // Lápis = renomear o projeto. Abre o modal com o nome atual.
+  const handleEditProject = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedProject(project);
-    const initiative = initiatives.find(i => i.id === project.initiativeId);
-    const firstPhase = initiative?.phases?.[0]?.id || 'Define';
-    setCurrentPhase(project.currentPhase || firstPhase);
-    // Optionally update the currentPhase in DB to Define if requested
+    setProjectToRename(project);
+    setRenameValue(project.name);
+  };
+
+  const confirmRename = async () => {
+    if (!projectToRename) return;
+    const novoNome = renameValue.trim();
+    if (!novoNome || novoNome === projectToRename.name) {
+      setProjectToRename(null);
+      return;
+    }
+    setIsRenaming(true);
     try {
-      if (!project.currentPhase) {
-        await updateProjectPhase(project.id, firstPhase);
-        await fetchProjects();
+      await updateProjectName(projectToRename.id, novoNome);
+      // Atualiza o selecionado na hora se for o mesmo
+      if (selectedProject?.id === projectToRename.id) {
+        setSelectedProject({ ...selectedProject, name: novoNome });
       }
+      await fetchProjects();
+      toast.success('Projeto renomeado.');
+      setProjectToRename(null);
     } catch (error) {
-      console.error("Error updating phase:", error);
+      console.error('Erro ao renomear projeto:', error);
+      toast.error('Erro ao renomear o projeto.');
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -935,6 +954,54 @@ export default function ProjectManagement() {
                   className="flex-1 bg-red-600 text-white py-4 rounded-2xl font-black text-xs hover:bg-red-700 shadow-xl shadow-red-200 uppercase tracking-widest transition-all"
                 >
                   EXCLUIR AGORA
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Rename Project Modal */}
+      <AnimatePresence>
+        {projectToRename && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-blue-100"
+            >
+              <div className="p-8">
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                  <Edit2 size={26} />
+                </div>
+                <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight mb-1 text-center">Renomear projeto</h3>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center mb-5">
+                  Digite o novo nome do projeto
+                </p>
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') confirmRename(); }}
+                  placeholder="Nome do projeto"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="p-6 pt-0 flex gap-3">
+                <button
+                  onClick={() => setProjectToRename(null)}
+                  className="flex-1 py-3.5 text-xs font-black text-gray-500 hover:text-gray-700 uppercase tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmRename}
+                  disabled={isRenaming || !renameValue.trim()}
+                  className="flex-1 bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs hover:bg-blue-700 shadow-xl shadow-blue-200 uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isRenaming ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : 'Salvar'}
                 </button>
               </div>
             </motion.div>
