@@ -57,6 +57,53 @@ function normalizeProfile(p: any): UserProfile {
   return null;
 }
 
+function genItemId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+// Rótulos dos itens e das 4 vozes — adaptados por nível (perfil).
+// Cada perfil olha o problema por 4 ângulos diferentes, conforme o escopo.
+const ITEM_CONFIG: Record<Exclude<UserProfile, null>, {
+  itemLabel: string;
+  itemPlaceholder: string;
+  addLabel: string;
+  vozes: { campo: 'voz1' | 'voz2' | 'voz3' | 'voz4'; label: string; placeholder: string }[];
+}> = {
+  Atividades: {
+    itemLabel: 'Atividade que você faz ou é responsável',
+    itemPlaceholder: 'Ex: Fechar o relatório mensal',
+    addLabel: 'Adicionar outra atividade',
+    vozes: [
+      { campo: 'voz1', label: '1. Problemas que VOCÊ vê', placeholder: 'Ex: Perco 2h num relatório que ninguém usa...' },
+      { campo: 'voz2', label: '2. Problemas que seu GERENTE aponta (opcional)', placeholder: 'Não sabe? Tudo bem. Ex: ele reclama que o dado chega atrasado...' },
+      { campo: 'voz3', label: '3. Problemas que seus COLEGAS comentam (opcional)', placeholder: 'Ex: pares dependem de mim pra começar o trabalho deles...' },
+      { campo: 'voz4', label: '4. Reclamações de QUEM RECEBE o resultado (opcional)', placeholder: 'Ex: a área X reclama de info errada...' },
+    ],
+  },
+  Area: {
+    itemLabel: 'Processo crítico da sua área',
+    itemPlaceholder: 'Ex: Atendimento de chamados',
+    addLabel: 'Adicionar outro processo',
+    vozes: [
+      { campo: 'voz1', label: '1. Problemas que VOCÊ (gestor) vê', placeholder: 'Ex: SLA furado nos pedidos urgentes...' },
+      { campo: 'voz2', label: '2. O que sua DIRETORIA cobra / aponta (opcional)', placeholder: 'Ex: cobram redução de custo sem perder qualidade...' },
+      { campo: 'voz3', label: '3. O que sua EQUIPE relata (opcional)', placeholder: 'Ex: time sobrecarregado às sextas, ferramenta lenta...' },
+      { campo: 'voz4', label: '4. Reclamações de ÁREAS VIZINHAS (clientes internos) (opcional)', placeholder: 'Ex: Comercial reclama de prazo, Faturamento de info errada...' },
+    ],
+  },
+  Empresa: {
+    itemLabel: 'Frente / processo sistêmico',
+    itemPlaceholder: 'Ex: Fluxo pedido-a-entrega entre 4 áreas',
+    addLabel: 'Adicionar outra frente',
+    vozes: [
+      { campo: 'voz1', label: '1. Dores que aparecem na DIRETORIA / comitê', placeholder: 'Ex: margem caindo, atraso recorrente em entregas...' },
+      { campo: 'voz2', label: '2. Problemas nas CONEXÕES entre áreas (opcional)', placeholder: 'Ex: Vendas promete prazo que Operações não cumpre...' },
+      { campo: 'voz3', label: '3. O que os DONOS DE PROCESSO (gerentes) relatam (opcional)', placeholder: 'Ex: gerentes apontam retrabalho entre setores...' },
+      { campo: 'voz4', label: '4. O que o CLIENTE FINAL / mercado reclama (opcional)', placeholder: 'Ex: NPS baixo, reclamação de prazo no pós-venda...' },
+    ],
+  },
+};
+
 // Mapa de recomendação de trilha por perfil (popup informativo, aluno decide)
 const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: string; trilhaNome: string; explicacao: string } | null> = {
   'Atividades': {
@@ -123,6 +170,9 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     vozColegas: '',     // problemas que meus colegas veem
     vozCliente: '',     // reclamações de quem RECEBE meu resultado
     oportunidadesMelhoria: '', // oportunidades (ONDE melhorar, não solução pronta)
+    // NOVO modelo (jun/2026): itens dinâmicos. Cada item (atividade/processo/frente)
+    // tem nome + 4 vozes (rótulos variam por perfil) + oportunidade. Vale pros 3 perfis.
+    itens: [] as Array<{ id: string; nome: string; voz1: string; voz2: string; voz3: string; voz4: string; oportunidade: string }>,
     // NOVOS — Perfil "Area"
     tamanhoEquipe: '',
     principaisProcessos: '',
@@ -188,6 +238,23 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     }, { silent: true });
   };
 
+  // ===== Itens dinâmicos (atividade/processo/frente) com 4 vozes + oportunidade.
+  // Rótulos das vozes mudam por perfil. Os dados ficam em formData.itens.
+  const persistItens = (novosItens: any[]) => {
+    const newFormData = { ...formData, itens: novosItens };
+    setFormData(newFormData);
+    onSave({ userProfile, formData: newFormData, generatedProjects }, { silent: true });
+  };
+  const addItem = () => {
+    persistItens([...(formData.itens || []), { id: genItemId(), nome: '', voz1: '', voz2: '', voz3: '', voz4: '', oportunidade: '' }]);
+  };
+  const updateItem = (id: string, campo: string, valor: string) => {
+    persistItens((formData.itens || []).map((it: any) => it.id === id ? { ...it, [campo]: valor } : it));
+  };
+  const removeItem = (id: string) => {
+    persistItens((formData.itens || []).filter((it: any) => it.id !== id));
+  };
+
   // Quando aluno clica num card de perfil: vai DIRETO pra ferramenta.
   // O popup de recomendação de trilha foi removido (a pedido) — o aluno
   // escolhe o perfil e a ferramenta já fica pronta, sem interrupção.
@@ -239,16 +306,24 @@ Você é o Israel Souza, especialista sênior em gestão de projetos de melhoria
 
 FOCO ESCOLHIDO PELO ALUNO: ${userProfile}
 CONTEXTO DO FOCO: ${focoDescritivo}
-${userProfile === 'Atividades' ? `
-INTERPRETAÇÃO DOS DADOS (perfil Atividades): os problemas vêm em 4 vozes —
-vozEu (visão do próprio), vozGerente (chefe), vozColegas (pares) e vozCliente
-(quem RECEBE o resultado). CRUZE essas vozes: problema citado por mais de uma
-voz tem mais lastro e deve virar projeto prioritário. O campo
-oportunidadesMelhoria aponta ONDE melhorar — trate como vetor de investigação
-(o aluno aponta a direção, você propõe o projeto que investiga a causa). Se o
-aluno tiver cravado uma solução pronta (ex: "comprar máquina"), NÃO finja que é
-investigativo: classifique honestamente como Implementação.
-` : ''}
+INTERPRETAÇÃO DOS DADOS — campo "itens": é uma LISTA. Cada item é uma ${
+        userProfile === 'Atividades' ? 'atividade que o aluno executa' :
+        userProfile === 'Area' ? 'processo crítico da área' :
+        'frente/processo sistêmico'
+      }, com:
+- nome: o que é o item
+- voz1, voz2, voz3, voz4: os problemas vistos por 4 ÂNGULOS diferentes (${
+        userProfile === 'Atividades' ? 'o próprio aluno / o gerente dele / os colegas / quem recebe o resultado' :
+        userProfile === 'Area' ? 'o gestor / a diretoria / a equipe / as áreas vizinhas (clientes internos)' :
+        'a diretoria-comitê / as conexões entre áreas / os donos de processo / o cliente final-mercado'
+      })
+- oportunidade: ONDE o aluno acha que dá pra melhorar
+CRUZE as vozes: problema citado por mais de uma voz tem mais lastro e vira projeto prioritário.
+Trate "oportunidade" como vetor de investigação (o aluno aponta a direção; você propõe o projeto
+que investiga a causa). Se o aluno cravou uma solução pronta (ex: "comprar máquina"), NÃO finja
+que é investigativo: classifique honestamente como Implementação.
+Gere projetos a partir dos itens — pode combinar itens relacionados num projeto, mas não invente itens.
+
 DADOS COLETADOS NA ENTREVISTA:
 ${JSON.stringify(formData, null, 2)}
 
@@ -310,43 +385,28 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     }
   };
 
-  // Perfil "Atividades" (refatorado jun/2026): SÓ a função é obrigatória.
-  // Pra gerar, basta a função + ao menos 1 input de problema/oportunidade
-  // (qualquer uma das 4 vozes OU oportunidade de melhoria). Tudo o resto opcional.
-  const atividadesTemAlgumProblema = !!(
-    formData.vozEu || formData.vozGerente || formData.vozColegas ||
-    formData.vozCliente || formData.oportunidadesMelhoria
+  // Modelo enxuto (jun/2026): apenas 2 seções nos 3 perfis.
+  // Seção 1 = quem é você / contexto. Seção 2 = lista de itens com 4 vozes.
+  // Pra gerar: Seção 1 ok + pelo menos 1 item com nome E ao menos 1 voz/oportunidade preenchida.
+  const itensValidos = (formData.itens || []).filter((it: any) =>
+    !!it.nome && !!(it.voz1 || it.voz2 || it.voz3 || it.voz4 || it.oportunidade)
   );
-  const atividadesPodeGerar = !!formData.minhaFuncao && atividadesTemAlgumProblema;
+  const temItemValido = itensValidos.length > 0;
 
-  // Progress Calculation — adaptado aos novos perfis (Atividades/Area/Empresa).
+  // Seção 1 — varia por perfil (contexto de quem responde).
   const sec1Filled =
     userProfile === 'Atividades' ? !!formData.minhaFuncao :
     userProfile === 'Area' ? !!(formData.sector && formData.area && formData.tamanhoEquipe && formData.clientType) :
     userProfile === 'Empresa' ? !!(formData.sector && formData.area && formData.tamanhoEmpresa && formData.meuPapelEmpresa) :
     false;
-  const sec2Filled =
-    userProfile === 'Atividades' ? atividadesTemAlgumProblema :
-    userProfile === 'Area' ? !!(formData.principaisProcessos && formData.processCritical && formData.automationLevel) :
-    userProfile === 'Empresa' ? !!(formData.doresExecutivas && formData.areasCriticasEmpresa && formData.automationLevel) :
-    false;
-  const sec3Filled =
-    userProfile === 'Atividades' ? !!formData.oportunidadesMelhoria :
-    userProfile === 'Area' ? !!(formData.pontosFracosArea && formData.areasQueReclamam && formData.problemVolume) :
-    userProfile === 'Empresa' ? !!(formData.conexoesProblematicas && formData.problemVolume) :
-    false;
+
   const sectionsStatus = [
     { id: 1, filled: sec1Filled },
-    { id: 2, filled: sec2Filled },
-    { id: 3, filled: sec3Filled },
-    { id: 4, filled: !!(formData.processVariation && formData.worseningContext && formData.rootCauseHypothesis && formData.dataAvailability) },
-    { id: 5, filled: !!(formData.leadershipSupport && formData.previousAttempts) },
-    { id: 6, filled: !!(formData.futureVision && formData.successIndicator) },
+    { id: 2, filled: temItemValido },
   ];
 
-  // Atividades tem regra própria (função + 1 problema). Demais perfis: seção 1.
-  const canGenerate = userProfile === 'Atividades' ? atividadesPodeGerar : sectionsStatus[0].filled;
-  const progressPercent = (sectionsStatus.filter(s => s.filled).length / 6) * 100;
+  const canGenerate = sec1Filled && temItemValido;
+  const progressPercent = (sectionsStatus.filter(s => s.filled).length / 2) * 100;
 
   if (!userProfile) {
     return (
@@ -545,490 +605,101 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           </div>
         </SectionCard>
 
-        {/* SEÇÃO 2 — Foco do problema (varia por foco) */}
-        <SectionCard
-          step={2}
-          title={
-            userProfile === 'Atividades' ? 'O que você FAZ no dia a dia' :
-            userProfile === 'Area' ? 'O que sua área entrega' :
-            'Onde a empresa mais dói'
-          }
-          icon={Settings2}
-          subtitle={
-            userProfile === 'Atividades' ? 'Quero entender as atividades concretas — não cargo, não responsabilidade no papel.' :
-            userProfile === 'Area' ? 'Vamos olhar os processos críticos e o nível de maturidade.' :
-            'As 3 dores executivas que aparecem em reunião de diretoria.'
-          }
-        >
-          <div className="space-y-6">
-            {userProfile === 'Atividades' && (
-              <>
-                <Field label="Quais atividades você faz ou é responsável?">
-                  <Textarea
-                    value={formData.atividadesQueExecuto}
-                    onChange={(v) => handleInputChange('atividadesQueExecuto', v)}
-                    placeholder="Ex: 1) Fechar relatório mensal · 2) Atender solicitações de outras áreas · 3) Atualizar planilha XYZ..."
-                  />
-                </Field>
-
-                {/* === AS 4 VOZES === todas opcionais. Quanto mais ângulos, mais
-                    forte a ideia de projeto. A IA cruza as perspectivas. */}
-                <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
-                  <p className="text-xs font-bold text-blue-800 m-0">
-                    Os problemas dessas atividades — por 4 ângulos diferentes. Preencha pelo menos um.
-                    Quanto mais ângulos, mais forte fica a ideia de projeto.
-                  </p>
-                  <Field label="1. Problemas que VOCÊ vê nessas atividades">
-                    <Textarea
-                      value={formData.vozEu}
-                      onChange={(v) => handleInputChange('vozEu', v)}
-                      placeholder="Ex: Perco 2h toda segunda num relatório que acho que ninguém usa..."
-                    />
-                  </Field>
-                  <Field label="2. Problemas que seu GERENTE imediato aponta (opcional)">
-                    <Textarea
-                      value={formData.vozGerente}
-                      onChange={(v) => handleInputChange('vozGerente', v)}
-                      placeholder="Não sabe? Tudo bem — mas se descobrir, sua ideia fica muito mais forte. Ex: Ele reclama que o dado chega atrasado..."
-                    />
-                  </Field>
-                  <Field label="3. Problemas que seus COLEGAS comentam (opcional)">
-                    <Textarea
-                      value={formData.vozColegas}
-                      onChange={(v) => handleInputChange('vozColegas', v)}
-                      placeholder="Ex: Pares dizem que dependem de mim pra começar o trabalho deles..."
-                    />
-                  </Field>
-                  <Field label="4. Reclamações de QUEM RECEBE o resultado do seu trabalho (opcional)">
-                    <Textarea
-                      value={formData.vozCliente}
-                      onChange={(v) => handleInputChange('vozCliente', v)}
-                      placeholder="Ex: A área X reclama de info errada · O cliente final reclama de prazo..."
-                    />
-                  </Field>
-                </div>
-
-                {/* === OPORTUNIDADES DE MELHORIA === campo separado, com aviso
-                    anti-solução-pronta (só texto, sem mexer no prompt da IA). */}
-                <Field label="Oportunidades de melhoria que você enxerga (opcional)">
-                  <Textarea
-                    value={formData.oportunidadesMelhoria}
-                    onChange={(v) => handleInputChange('oportunidadesMelhoria', v)}
-                    placeholder="Diga ONDE dá pra melhorar — ex: 'reduzir o tempo do fechamento mensal', 'otimizar o fluxo de aprovação'. NÃO a solução pronta (ex: 'comprar máquina nova', 'instalar ar-condicionado') — isso não é projeto de melhoria investigativo."
-                  />
-                </Field>
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 -mt-3 leading-relaxed">
-                  💡 Dica: oportunidade aponta <strong>onde</strong> melhorar (reduzir, otimizar, eliminar retrabalho).
-                  Se você já cravar a solução ("comprar X", "instalar Y"), vira uma compra — não um projeto investigativo.
-                </p>
-
-                <Field label="Pra quem você entrega o resultado dessas atividades? (opcional)">
-                  <Select
-                    value={formData.clientType}
-                    onChange={(v) => handleInputChange('clientType', v)}
-                    options={[
-                      { label: 'Pro meu chefe', value: 'Chefe' },
-                      { label: 'Pra outras áreas internas', value: 'Internos' },
-                      { label: 'Pro cliente final', value: 'Externos' },
-                      { label: 'Mistura de tudo', value: 'Ambos' },
-                    ]}
-                  />
-                </Field>
-              </>
-            )}
-            {userProfile === 'Area' && (
-              <>
-                <Field label="Quais são os 2-3 processos críticos da sua área?">
-                  <Textarea
-                    value={formData.principaisProcessos}
-                    onChange={(v) => handleInputChange('principaisProcessos', v)}
-                    placeholder="Ex: 1) Atendimento de chamados · 2) Gestão de estoque · 3) Cadastro de novos clientes..."
-                  />
-                </Field>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Field label="Qual é O processo MAIS crítico (o que mais te tira o sono)?">
-                    <Textarea
-                      value={formData.processCritical}
-                      onChange={(v) => handleInputChange('processCritical', v)}
-                      placeholder="Aquele que se falhar, vira problema com diretoria..."
-                    />
-                  </Field>
-                  <Field label="Volume desse processo (semanal/mensal)">
-                    <Input
-                      value={formData.processVolume}
-                      onChange={(v) => handleInputChange('processVolume', v)}
-                      placeholder="Ex: 500 chamados/mês, 200 pedidos/semana..."
-                    />
-                  </Field>
-                </div>
-              </>
-            )}
-            {userProfile === 'Empresa' && (
-              <>
-                <Field label="Quais 3 dores aparecem MAIS em reuniões executivas?">
-                  <Textarea
-                    value={formData.doresExecutivas}
-                    onChange={(v) => handleInputChange('doresExecutivas', v)}
-                    placeholder="Ex: 1) Margem caindo em produtos B · 2) Atraso em entrega · 3) Custo de retrabalho subindo..."
-                  />
-                </Field>
-                <Field label="Quais áreas você considera críticas hoje (onde se concentra o maior risco)?">
-                  <Textarea
-                    value={formData.areasCriticasEmpresa}
-                    onChange={(v) => handleInputChange('areasCriticasEmpresa', v)}
-                    placeholder="Ex: Operações da unidade SP, Faturamento, TI..."
-                  />
-                </Field>
-              </>
-            )}
-            <Field label="Nível de automação do que estamos discutindo">
-              <Select
-                value={formData.automationLevel}
-                onChange={(v) => handleInputChange('automationLevel', v)}
-                options={[
-                  { label: 'Manual (planilhas, papel, digitação)', value: 'Manual' },
-                  { label: 'Parcial (uns sistemas + planilhas no meio)', value: 'Parcial' },
-                  { label: 'Total (sistema integrado, sem retrabalho)', value: 'Total' },
-                ]}
-              />
-            </Field>
-          </div>
-        </SectionCard>
-
-        {/* SEÇÃO 3 — A dor concreta + reclamações (varia por foco) */}
-        <SectionCard
-          step={3}
-          title={
-            userProfile === 'Atividades' ? 'O que TE ATRAPALHA + reclamações' :
-            userProfile === 'Area' ? 'Pontos fracos da área + atritos' :
-            'Onde acumula custo, atraso ou perda'
-          }
-          icon={TrendingDown}
-          subtitle={
-            userProfile === 'Atividades' ? 'Bora ser concreto: o que sai errado, o que toma seu tempo, quem reclama de você.' :
-            userProfile === 'Area' ? 'Onde a área tropeça, quem reclama, quem você "briga" no dia a dia.' :
-            'Os pontos cegos sistêmicos. Cuidado: aqui aparece muita causa raiz organizacional.'
-          }
-        >
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-4 mb-8">
-            <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
-            <p className="text-xs text-amber-800 font-bold leading-relaxed">
-              💡 Quanto mais NÚMERO você trouxer aqui (% retrabalho, horas, custo), melhor a ideia que a IA vai te gerar. Sem número, sai sugestão vaga.
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {/* Perfil Atividades: os problemas já foram capturados nas 4 vozes
-                da Seção 2. Aqui mostramos só uma nota — não repetir os campos. */}
-            {userProfile === 'Atividades' && (
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
-                <Info className="text-blue-600 shrink-0 mt-0.5" size={18} />
-                <p className="text-xs text-blue-800 leading-relaxed m-0">
-                  Você já trouxe os problemas pelas 4 vozes na seção anterior. Se puder,
-                  acrescente <strong>números</strong> lá (horas perdidas, % de retrabalho, frequência) —
-                  com número, a ideia que a IA gera fica bem mais concreta.
+        {/* SEÇÃO 2 — Itens (atividades / processos / frentes) + 4 vozes cada */}
+        {userProfile && (() => {
+          const cfg = ITEM_CONFIG[userProfile];
+          const itens = formData.itens || [];
+          return (
+            <SectionCard
+              step={2}
+              title={
+                userProfile === 'Atividades' ? 'O que você FAZ no dia a dia' :
+                userProfile === 'Area' ? 'Os processos críticos da sua área' :
+                'As frentes onde a empresa mais dói'
+              }
+              icon={Settings2}
+              subtitle={
+                userProfile === 'Atividades' ? 'Liste cada atividade. Pra cada uma, traga os problemas por 4 ângulos diferentes.' :
+                userProfile === 'Area' ? 'Liste cada processo crítico. Pra cada um, traga os problemas por 4 ângulos.' :
+                'Liste cada frente sistêmica. Pra cada uma, traga os problemas por 4 ângulos.'
+              }
+            >
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-4 mb-8">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={20} />
+                <p className="text-xs text-amber-800 font-bold leading-relaxed m-0">
+                  💡 Quanto mais NÚMERO você trouxer (% retrabalho, horas, custo), melhor a ideia que a IA vai gerar.
+                  Preencha pelo menos a 1ª voz de cada item — as outras são opcionais, mas quanto mais ângulos, mais forte a ideia.
                 </p>
               </div>
-            )}
-            {userProfile === 'Area' && (
-              <>
-                <Field label="Onde sua área TROPEÇA mais? (pontos fracos honestos)" important>
-                  <Textarea
-                    value={formData.pontosFracosArea}
-                    onChange={(v) => handleInputChange('pontosFracosArea', v)}
-                    placeholder="Ex: SLA furado em pedidos urgentes · Equipe sobrecarregada às sextas..."
-                  />
-                </Field>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Field label="Quais áreas RECLAMAM da sua?" important>
-                    <Textarea
-                      value={formData.areasQueReclamam}
-                      onChange={(v) => handleInputChange('areasQueReclamam', v)}
-                      placeholder="Ex: Comercial reclama de prazo, Faturamento reclama de info errada..."
-                    />
-                  </Field>
-                  <Field label="Quais áreas VOCÊ tem atrito recorrente?">
-                    <Textarea
-                      value={formData.areasComConflito}
-                      onChange={(v) => handleInputChange('areasComConflito', v)}
-                      placeholder="Ex: TI demora demais · Suprimentos não respeita prazo..."
-                    />
-                  </Field>
-                </div>
-              </>
-            )}
-            {userProfile === 'Empresa' && (
-              <>
-                <Field label="Quais áreas se PREJUDICAM mutuamente (conexões problemáticas)?" important>
-                  <Textarea
-                    value={formData.conexoesProblematicas}
-                    onChange={(v) => handleInputChange('conexoesProblematicas', v)}
-                    placeholder="Ex: Vendas promete prazo que Operações não cumpre · Comercial vs Crédito..."
-                  />
-                </Field>
-              </>
-            )}
-            <Field label="Volume do problema em NÚMERO (X erros/semana, Y% retrabalho, Z horas/mês)" important>
-              <Textarea
-                value={formData.problemVolume}
-                onChange={(v) => handleInputChange('problemVolume', v)}
-                placeholder="Traga números reais — chute educado vale mais que 'muito'..."
-              />
-            </Field>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Impacto financeiro estimado" important>
-                <Select
-                  value={formData.financialImpact}
-                  onChange={(v) => handleInputChange('financialImpact', v)}
-                  options={[
-                    { label: 'Menos de R$10k/ano', value: '<10k' },
-                    { label: 'R$10k–50k/ano', value: '10k-50k' },
-                    { label: 'R$50k–200k/ano', value: '50k-200k' },
-                    { label: 'R$200k–1MM/ano', value: '200k-1MM' },
-                    { label: 'Acima de R$1MM/ano', value: '>1MM' },
-                    { label: 'Não sei estimar', value: 'unknown' },
-                  ]}
-                />
-              </Field>
-              <Field label="Com que frequência o problema ocorre" important>
-                <Select
-                  value={formData.frequency}
-                  onChange={(v) => handleInputChange('frequency', v)}
-                  options={[
-                    { label: 'Diariamente', value: 'Diário' },
-                    { label: 'Semanalmente', value: 'Semanal' },
-                    { label: 'Mensalmente', value: 'Mensal' },
-                    { label: 'Raramente, mas alto impacto', value: 'Raro' },
-                  ]}
-                />
-              </Field>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label={
-                userProfile === 'Atividades' ? 'Quem é o cliente mais afetado pelo seu output?' :
-                userProfile === 'Area' ? 'Quem é o cliente mais afetado pela área?' :
-                'Qual stakeholder externo mais sofre com isso?'
-              }>
-                <Input
-                  value={formData.affectedClient}
-                  onChange={(v) => handleInputChange('affectedClient', v)}
-                  placeholder="Ex: Cliente Premium · Área Comercial · Acionistas..."
-                />
-              </Field>
-              <Field label="Como ele percebe o problema?">
-                <Textarea
-                  value={formData.clientPerception}
-                  onChange={(v) => handleInputChange('clientPerception', v)}
-                  placeholder="Reclamação, atraso, insatisfação, churn..."
-                />
-              </Field>
-            </div>
-          </div>
-        </SectionCard>
 
-        {/* SEÇÃO 4 — Causa raiz + variação (universal) */}
-        <SectionCard
-          step={4}
-          title="Causas e variação"
-          icon={BarChart3}
-          subtitle={
-            userProfile === 'Atividades' ? 'Vamos olhar PADRÕES — o que torna seu dia mais difícil em alguns momentos.' :
-            userProfile === 'Area' ? 'Onde a variabilidade aparece — é o que separa "ruim sempre" de "ruim às vezes".' :
-            'Investigação sistêmica — variabilidade em múltiplas dimensões revela problemas estruturais.'
-          }
-        >
-          <div className="space-y-6">
-            <Field label="O resultado é SEMPRE igual ou VARIA muito? Descreve a variação.">
-              <Textarea
-                value={formData.processVariation}
-                onChange={(v) => handleInputChange('processVariation', v)}
-                placeholder={
-                  userProfile === 'Atividades' ? "Ex: Tem dia que faço em 1h, outros em 4h..." :
-                  userProfile === 'Area' ? "Ex: Alguns dias o SLA é cumprido em 90%, outros em 60%..." :
-                  "Ex: Algumas unidades atingem meta, outras ficam 30% abaixo..."
-                }
-              />
-            </Field>
-            <Field label="QUANDO o problema piora? (dia da semana, turno, mês, sazonalidade, pessoa específica)">
-              <Textarea
-                value={formData.worseningContext}
-                onChange={(v) => handleInputChange('worseningContext', v)}
-                placeholder="Padrões observáveis..."
-              />
-            </Field>
-            <Field label="JÁ tem alguma hipótese de causa raiz? (chute educado vale)">
-              <Textarea
-                value={formData.rootCauseHypothesis}
-                onChange={(v) => handleInputChange('rootCauseHypothesis', v)}
-                placeholder={
-                  userProfile === 'Atividades' ? "Ex: Acho que a ferramenta X é lenta · O processo Y depende de info que só vem na sexta..." :
-                  userProfile === 'Area' ? "Ex: Equipe nova faz mais erro · Sistema Z trava em pico..." :
-                  "Ex: Não tem dono claro do processo entre Comercial e Operações..."
-                }
-              />
-            </Field>
-            <Field label="Tem dados históricos disponíveis?">
-              <Select
-                value={formData.dataAvailability}
-                onChange={(v) => handleInputChange('dataAvailability', v)}
-                options={[
-                  { label: 'Sim, temos em sistema estruturado', value: 'Estruturados' },
-                  { label: 'Sim, mas em planilhas dispersas', value: 'Dispersas' },
-                  { label: 'Dados parciais — alguns sim, outros não', value: 'Parciais' },
-                  { label: 'Não temos dado nenhum', value: 'Nenhum' },
-                ]}
-              />
-            </Field>
-          </div>
-        </SectionCard>
-
-        {/* SEÇÃO 5 — Contexto organizacional (varia por foco) */}
-        <SectionCard
-          step={5}
-          title={
-            userProfile === 'Atividades' ? 'Apoio + tentativas anteriores' :
-            userProfile === 'Area' ? 'Suporte gerencial + histórico' :
-            'Maturidade OpEx da empresa'
-          }
-          icon={Users}
-        >
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label={
-                userProfile === 'Atividades' ? 'Seu chefe topa você mexer nisso?' :
-                userProfile === 'Area' ? 'Apoio da diretoria pra essa melhoria' :
-                'Patrocínio executivo / sponsor da iniciativa'
-              }>
-                <Select
-                  value={formData.leadershipSupport}
-                  onChange={(v) => handleInputChange('leadershipSupport', v)}
-                  options={[
-                    { label: 'Sim, total apoio', value: 'Total' },
-                    { label: 'Parcial — vai aprovar se eu trouxer bons números', value: 'Parcial' },
-                    { label: 'Ainda não conversei sobre isso', value: 'Nao' },
-                  ]}
-                />
-              </Field>
-              {(userProfile === 'Area' || userProfile === 'Empresa') && (
-                <Field label="Horizonte de tempo desejado pra resultados">
-                  <Select
-                    value={formData.timeHorizon}
-                    onChange={(v) => handleInputChange('timeHorizon', v)}
-                    options={[
-                      { label: '30 dias (ação rápida)', value: '30d' },
-                      { label: '3 meses (projeto curto)', value: '3m' },
-                      { label: '6 meses (projeto pleno)', value: '6m' },
-                      { label: 'Mais de 6 meses (projeto grande)', value: '6m+' },
-                    ]}
-                  />
-                </Field>
-              )}
-            </div>
-            {userProfile === 'Empresa' && (
-              <>
-                <Field label="A empresa já tem programa formal de melhoria contínua (OpEx, excelência operacional)?">
-                  <Select
-                    value={formData.jaTemProgramaOpEx}
-                    onChange={(v) => handleInputChange('jaTemProgramaOpEx', v)}
-                    options={[
-                      { label: 'Sim, maduro (3+ anos)', value: 'maduro' },
-                      { label: 'Sim, começando (< 2 anos)', value: 'iniciante' },
-                      { label: 'Tinha mas parou', value: 'parou' },
-                      { label: 'Nunca teve', value: 'nunca' },
-                    ]}
-                  />
-                </Field>
-                {(formData.jaTemProgramaOpEx === 'maduro' || formData.jaTemProgramaOpEx === 'iniciante' || formData.jaTemProgramaOpEx === 'parou') && (
-                  <Field label="Conta um pouco do histórico OpEx — o que funcionou, o que não">
-                    <Textarea
-                      value={formData.historicoOpEx}
-                      onChange={(v) => handleInputChange('historicoOpEx', v)}
-                      placeholder="Tipo de projetos, resultados, por que parou..."
-                    />
-                  </Field>
+              <div className="space-y-6">
+                {itens.length === 0 && (
+                  <div className="text-center py-10 px-6 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
+                    <p className="text-sm text-gray-500 font-bold m-0">
+                      Nenhum item ainda. Clique abaixo pra adicionar o primeiro.
+                    </p>
+                  </div>
                 )}
-              </>
-            )}
-            <Field label="Já houve tentativas anteriores de melhoria nessa frente? O que aconteceu?">
-              <Textarea
-                value={formData.previousAttempts}
-                onChange={(v) => handleInputChange('previousAttempts', v)}
-                placeholder="Histórico de mudanças que funcionaram OU travaram..."
-              />
-            </Field>
-            <Field label="Sistemas usados (ERP, planilhas, ferramentas internas)">
-              <Input
-                value={formData.systemsUsed}
-                onChange={(v) => handleInputChange('systemsUsed', v)}
-                placeholder="Ex: SAP, Excel, JIRA, Sistema interno X..."
-              />
-            </Field>
-          </div>
-        </SectionCard>
 
-        {/* SEÇÃO 6 — Visão de futuro (varia por foco) */}
-        <SectionCard
-          step={6}
-          title="Como ficaria se desse certo"
-          icon={Sparkles}
-          subtitle={
-            userProfile === 'Atividades' ? 'Quero entender o "depois" — sem isso a IA chuta meta no escuro.' :
-            userProfile === 'Area' ? 'O futuro desejado da área (e o impacto em quem é cliente dela).' :
-            'A visão estratégica e o impacto no negócio.'
-          }
-        >
-          <div className="space-y-6">
-            <Field label={
-              userProfile === 'Atividades' ? 'Se essa(s) atividade(s) rolasse(m) "perfeita(s)", o que seria diferente pra você?' :
-              userProfile === 'Area' ? 'Se a área ficasse "show", o que mudaria pra quem é cliente dela?' :
-              'Se essa dor sumisse, qual seria o impacto pra empresa?'
-            }>
-              <Textarea
-                value={formData.futureVision}
-                onChange={(v) => handleInputChange('futureVision', v)}
-                placeholder="Descreva o estado futuro desejado..."
-              />
-            </Field>
-            <Field label="Qual o indicador de sucesso (número-meta)?">
-              <Input
-                value={formData.successIndicator}
-                onChange={(v) => handleInputChange('successIndicator', v)}
-                placeholder="Ex: Reduzir de 15% pra 2% em 4 meses · SLA de 70% pra 95%..."
-              />
-            </Field>
-            {userProfile === 'Atividades' && (
-              <Field label="Você já PENSOU em alguma ideia mas não pôs em prática? Conta.">
-                <Textarea
-                  value={formData.ideiasJaPensadas}
-                  onChange={(v) => handleInputChange('ideiasJaPensadas', v)}
-                  placeholder="Mesmo as ideias que parecem 'pequenas demais' — vale ouro pra IA gerar variantes..."
-                />
-              </Field>
-            )}
-            {userProfile === 'Empresa' && (
-              <>
-                <Field label="Qual o NÚMERO ESTRATÉGICO que se virasse, mudaria a empresa?">
-                  <Textarea
-                    value={formData.numeroEstrategico}
-                    onChange={(v) => handleInputChange('numeroEstrategico', v)}
-                    placeholder="Ex: Reduzir custo unitário em 8%, dobrar capacidade sem CAPEX, retenção de cliente de 70 pra 85%..."
-                  />
-                </Field>
-                <Field label="Esse projeto seria replicável em outras unidades/áreas/empresas?">
-                  <Select
-                    value={formData.replicability}
-                    onChange={(v) => handleInputChange('replicability', v)}
-                    options={[
-                      { label: 'Sim, em várias áreas/unidades', value: 'Sim' },
-                      { label: 'Talvez, com ajustes', value: 'Talvez' },
-                      { label: 'Não, é específico desse caso', value: 'Nao' },
-                    ]}
-                  />
-                </Field>
-              </>
-            )}
-          </div>
-        </SectionCard>
+                {itens.map((item: any, idx: number) => (
+                  <div key={item.id} className="rounded-2xl border-2 border-gray-100 bg-white p-5 space-y-5 relative">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black shrink-0">
+                        {idx + 1}
+                      </span>
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                        title="Remover item"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+
+                    <Field label={cfg.itemLabel} important>
+                      <Input
+                        value={item.nome}
+                        onChange={(v) => updateItem(item.id, 'nome', v)}
+                        placeholder={cfg.itemPlaceholder}
+                      />
+                    </Field>
+
+                    <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
+                      <p className="text-xs font-bold text-blue-800 m-0">
+                        Os problemas deste item — por 4 ângulos diferentes:
+                      </p>
+                      {cfg.vozes.map((voz) => (
+                        <Field key={voz.campo} label={voz.label}>
+                          <Textarea
+                            value={item[voz.campo]}
+                            onChange={(v) => updateItem(item.id, voz.campo, v)}
+                            placeholder={voz.placeholder}
+                          />
+                        </Field>
+                      ))}
+                    </div>
+
+                    <Field label="Oportunidade de melhoria que você enxerga aqui (opcional)">
+                      <Textarea
+                        value={item.oportunidade}
+                        onChange={(v) => updateItem(item.id, 'oportunidade', v)}
+                        placeholder="Diga ONDE dá pra melhorar (reduzir, otimizar, eliminar retrabalho). NÃO a solução pronta ('comprar máquina nova') — isso vira compra, não projeto."
+                      />
+                    </Field>
+                  </div>
+                ))}
+
+                <button
+                  onClick={addItem}
+                  className="w-full py-4 rounded-2xl border-2 border-dashed border-blue-200 text-blue-600 font-black text-sm uppercase tracking-wider hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus size={18} />
+                  {cfg.addLabel}
+                </button>
+              </div>
+            </SectionCard>
+          );
+        })()}
 
         {/* Action Section */}
         <div className="flex flex-col items-center gap-4 py-8 border-t-2 border-gray-100 border-dashed">
@@ -1053,7 +724,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
             
             {!canGenerate && (
               <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] font-bold px-4 py-2 rounded-xl whitespace-nowrap z-10 pointer-events-none shadow-xl">
-                Preencha pelo menos as 3 primeiras seções para gerar projetos
+                Preencha seu contexto e adicione pelo menos 1 item com problema/oportunidade
               </div>
             )}
           </div>
