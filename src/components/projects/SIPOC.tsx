@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { Truck, Package, Settings, PackageCheck, UserCheck, Plus, Trash2, CheckCircle2, Info, Sparkles, Loader2 } from 'lucide-react';
+import { Truck, Package, Settings, PackageCheck, UserCheck, Plus, Trash2, CheckCircle2, Info, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+
+// Exemplo pronto exibido no modal "Ver exemplo" — Pagamento a Fornecedores.
+// READ-ONLY: serve só pra ilustrar; não toca nos dados do aluno.
+// LEMBRETE METODOLÓGICO: as colunas são listas INDEPENDENTES (não há
+// correlação linha a linha). Só o Processo tem ordem (etapas 1→5).
+const SIPOC_EXEMPLO = {
+  titulo: 'Pagamento a Fornecedores',
+  suppliers: ['Fornecedor (emite a nota)', 'Área requisitante', 'Setor de Compras', 'Banco', 'Tesouraria'],
+  inputs: ['Nota fiscal', 'Pedido de compra', 'Contrato / condições de pagamento', 'Dados bancários do fornecedor', 'Saldo / fluxo de caixa'],
+  process: ['1. Receber e conferir a nota fiscal', '2. Validar contra o pedido de compra', '3. Aprovar o pagamento', '4. Agendar no sistema bancário', '5. Efetuar o pagamento'],
+  outputs: ['Pagamento efetuado', 'Comprovante de pagamento', 'Lançamento contábil', 'Nota fiscal arquivada'],
+  customers: ['Fornecedor', 'Contabilidade', 'Fisco / Auditoria', 'Tesouraria'],
+};
 
 interface SIPOCProps {
   onSave: (data: any) => void;
@@ -92,6 +105,9 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
     };
   });
 
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+
   const isToolEmpty = data.suppliers.length === 0 && 
                      data.inputs.length === 0 && 
                      data.process.length === 0 && 
@@ -171,10 +187,17 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
       <div className="bg-white p-6 border border-[#ccc] rounded-[4px] shadow-sm w-full overflow-hidden">
         <div className="flex items-center gap-3 border-b border-[#eee] pb-4 mb-6">
           <Settings className="text-[#3b82f6]" size={24} />
-          <div>
+          <div className="flex-1">
             <h2 className="text-[1.25rem] font-bold text-[#333]">SIPOC</h2>
             <p className="text-[12px] text-[#666]">Visão macro do processo: Fornecedores, Entradas, Processo, Saídas e Clientes.</p>
           </div>
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 bg-white cursor-pointer shrink-0"
+          >
+            <BookOpen size={14} />
+            Ver exemplo
+          </button>
         </div>
 
         <div className="flex flex-nowrap gap-4 items-stretch overflow-x-auto pb-4">
@@ -254,6 +277,69 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
         </button>
       </div>
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de SIPOC</h3>
+                  <p className="text-xs text-gray-500 m-0">{SIPOC_EXEMPLO.titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                {[
+                  { titulo: 'Fornecedores (Suppliers)', cor: 'bg-[#1f2937]', itens: SIPOC_EXEMPLO.suppliers },
+                  { titulo: 'Entradas (Inputs)', cor: 'bg-[#374151]', itens: SIPOC_EXEMPLO.inputs },
+                  { titulo: 'Processo (Process)', cor: 'bg-[#4b5563]', itens: SIPOC_EXEMPLO.process },
+                  { titulo: 'Saídas (Outputs)', cor: 'bg-[#6b7280]', itens: SIPOC_EXEMPLO.outputs },
+                  { titulo: 'Clientes (Customers)', cor: 'bg-[#9ca3af]', itens: SIPOC_EXEMPLO.customers },
+                ].map((col) => (
+                  <div key={col.titulo} className="border border-gray-200 rounded-lg overflow-hidden flex flex-col">
+                    <div className={cn('px-3 py-2', col.cor)}>
+                      <h4 className="text-white font-bold text-[11px] uppercase tracking-wider m-0 leading-tight">{col.titulo}</h4>
+                    </div>
+                    <div className="p-2 space-y-1.5 bg-gray-50 flex-1">
+                      {col.itens.map((item, i) => (
+                        <div key={i} className="bg-white border border-gray-100 rounded px-2 py-1.5 text-[12px] text-gray-700 leading-snug">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  <strong>Como ler:</strong> cada coluna é uma lista <strong>independente</strong> — não há
+                  relação linha a linha entre elas. Só o <strong>Processo</strong> tem ordem (etapas 1 → 5).
+                  Este exemplo é só pra ilustrar — ele <strong>não altera</strong> o seu SIPOC.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
