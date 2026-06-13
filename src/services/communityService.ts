@@ -30,7 +30,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
-export type PostTipo = 'duvida' | 'sugestao' | 'bug';
+export type PostTipo = 'duvida' | 'sugestao' | 'bug' | 'comentario';
 
 export interface Autor {
   uid: string;
@@ -52,6 +52,7 @@ export interface CommunityPost {
   replyCount: number;
   likes?: string[];             // uids de quem curtiu
   pinned?: boolean;             // fixado no topo (só admin)
+  editado?: boolean;
   createdAt: any;
 }
 
@@ -60,6 +61,7 @@ export interface CommunityReply {
   texto: string;
   autor: Autor;
   mencoes?: string[];           // uids mencionados
+  editado?: boolean;
   createdAt: any;
 }
 
@@ -132,6 +134,15 @@ export async function fixarPost(postId: string, pinned: boolean): Promise<void> 
   await updateDoc(doc(db, COL, postId), { pinned });
 }
 
+/** Editar o título e o texto de um post (autor ou admin — a UI controla). */
+export async function editarPost(postId: string, titulo: string, texto: string): Promise<void> {
+  await updateDoc(doc(db, COL, postId), {
+    titulo: titulo.trim() || null,
+    texto: texto.trim(),
+    editado: true,
+  });
+}
+
 /** Curtir / descurtir um post (toggle do uid no array likes). */
 export async function curtirPost(postId: string, jaCurtiu: boolean): Promise<void> {
   const u = auth.currentUser;
@@ -191,6 +202,11 @@ export async function criarReply(postId: string, texto: string, mencoes: Autor[]
       .filter(m => m.uid !== autor.uid)
       .map(m => notificarMencao(m.uid, postId, autor.nome, texto))
   );
+}
+
+/** Editar o texto de uma resposta (autor ou admin — a UI controla). */
+export async function editarReply(postId: string, replyId: string, texto: string): Promise<void> {
+  await updateDoc(doc(db, COL, postId, 'replies', replyId), { texto: texto.trim(), editado: true });
 }
 
 export async function deletarReply(postId: string, replyId: string): Promise<void> {

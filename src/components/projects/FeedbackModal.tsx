@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bug, Lightbulb, HelpCircle, Send, X, Loader2, CheckCircle2, Wrench, Users } from 'lucide-react';
+import { Bug, Lightbulb, HelpCircle, Send, X, Loader2, CheckCircle2, Wrench, Users, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FeedbackTipo } from '../../services/feedbackService';
-import { criarPost } from '../../services/communityService';
+import { criarPost, PostTipo } from '../../services/communityService';
 import { cn } from '../../lib/utils';
 
 interface FeedbackModalProps {
@@ -15,7 +14,7 @@ interface FeedbackModalProps {
 }
 
 const TIPOS: Array<{
-  v: FeedbackTipo;
+  v: PostTipo;
   label: string;
   icon: React.ElementType;
   iconClass: string;
@@ -23,12 +22,12 @@ const TIPOS: Array<{
   placeholder: string;
 }> = [
   {
-    v: 'bug',
-    label: 'Reportar bug',
-    icon: Bug,
-    iconClass: 'text-red-600 bg-red-50 border-red-200',
-    hint: 'Algo não está funcionando como deveria.',
-    placeholder: 'Descreva o que estava fazendo, o que esperava acontecer e o que aconteceu de fato.',
+    v: 'duvida',
+    label: 'Tirar dúvida',
+    icon: HelpCircle,
+    iconClass: 'text-blue-600 bg-blue-50 border-blue-200',
+    hint: 'Pergunte e a comunidade (e o mentor) pode responder. As dúvidas mais comuns viram conteúdo do curso.',
+    placeholder: 'Qual é a sua dúvida?',
   },
   {
     v: 'sugestao',
@@ -39,12 +38,20 @@ const TIPOS: Array<{
     placeholder: 'Conte sua ideia. Quanto mais específico, melhor.',
   },
   {
-    v: 'duvida',
-    label: 'Tirar dúvida',
-    icon: HelpCircle,
-    iconClass: 'text-blue-600 bg-blue-50 border-blue-200',
-    hint: 'Pergunte e a comunidade (e o mentor) pode responder. As dúvidas mais comuns viram conteúdo do curso.',
-    placeholder: 'Qual é a sua dúvida?',
+    v: 'comentario',
+    label: 'Comentário',
+    icon: MessageCircle,
+    iconClass: 'text-violet-600 bg-violet-50 border-violet-200',
+    hint: 'Um comentário, observação ou troca de experiência com a comunidade.',
+    placeholder: 'Escreva seu comentário.',
+  },
+  {
+    v: 'bug',
+    label: 'Reportar bug',
+    icon: Bug,
+    iconClass: 'text-red-600 bg-red-50 border-red-200',
+    hint: 'Algo não está funcionando como deveria.',
+    placeholder: 'Descreva o que estava fazendo, o que esperava acontecer e o que aconteceu de fato.',
   },
 ];
 
@@ -54,7 +61,7 @@ export default function FeedbackModal({
   projetoAtivoNome,
   ferramentaAtual,
 }: FeedbackModalProps) {
-  const [tipo, setTipo] = useState<FeedbackTipo>('sugestao');
+  const [tipo, setTipo] = useState<PostTipo>('duvida');
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -98,7 +105,7 @@ export default function FeedbackModal({
   };
 
   const handleFechar = () => {
-    setTipo('sugestao');
+    setTipo('duvida');
     setTitulo('');
     setDescricao('');
     setEnviado(false);
@@ -157,7 +164,7 @@ export default function FeedbackModal({
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
                   Tipo
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {TIPOS.map(t => {
                     const Icon = t.icon;
                     const selected = tipo === t.v;

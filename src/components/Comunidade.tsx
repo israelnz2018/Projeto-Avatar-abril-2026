@@ -17,22 +17,24 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle,
   Wrench, Clock, ListFilter, Plus, Trash2, MessageCircle, Shield, X, Bell,
-  Search, ThumbsUp, Flame, Pin,
+  Search, ThumbsUp, Flame, Pin, Pencil, Check,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/firebase';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
+  editarPost, editarReply,
   ouvirNotificacoes, marcarNotificacoesLidas,
   CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification,
 } from '../services/communityService';
 
 // ===== Config visual dos tipos =====
 const TIPO_CFG: Record<PostTipo, { label: string; icon: any; cls: string; dot: string }> = {
-  duvida:   { label: 'Pergunta', icon: HelpCircle, cls: 'text-blue-700 bg-blue-50 border-blue-200',   dot: 'bg-blue-500' },
-  sugestao: { label: 'Sugestão', icon: Lightbulb,  cls: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
-  bug:      { label: 'Bug',      icon: Bug,        cls: 'text-red-700 bg-red-50 border-red-200',       dot: 'bg-red-500' },
+  duvida:     { label: 'Pergunta',   icon: HelpCircle,    cls: 'text-blue-700 bg-blue-50 border-blue-200',     dot: 'bg-blue-500' },
+  sugestao:   { label: 'Sugestão',   icon: Lightbulb,     cls: 'text-amber-700 bg-amber-50 border-amber-200',   dot: 'bg-amber-500' },
+  bug:        { label: 'Bug',        icon: Bug,           cls: 'text-red-700 bg-red-50 border-red-200',         dot: 'bg-red-500' },
+  comentario: { label: 'Comentário', icon: MessageCircle, cls: 'text-violet-700 bg-violet-50 border-violet-200', dot: 'bg-violet-500' },
 };
 
 type ViewMode = 'timeline' | 'curtidos' | 'ferramenta' | 'tipo';
@@ -173,11 +175,22 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
 }) {
   const [aberto, setAberto] = useState(false);
   const [replies, setReplies] = useState<CommunityReply[]>([]);
+  const [editando, setEditando] = useState(false);
+  const [editTitulo, setEditTitulo] = useState(post.titulo || '');
+  const [editTexto, setEditTexto] = useState(post.texto);
+  const [editReplyId, setEditReplyId] = useState<string | null>(null);
+  const [editReplyTexto, setEditReplyTexto] = useState('');
   const cfg = TIPO_CFG[post.tipo];
   const TipoIcon = cfg.icon;
   const souAutor = post.autor?.uid === meUid;
   const likes = post.likes || [];
   const jaCurti = likes.includes(meUid);
+
+  const salvarEdicaoPost = async () => {
+    if (editTexto.trim().length < 5) return;
+    await editarPost(post.id!, editTitulo, editTexto);
+    setEditando(false);
+  };
 
   useEffect(() => {
     if (!aberto) return;
@@ -202,8 +215,8 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
         <div className="flex items-start gap-3">
           <Avatar autor={post.autor} />
           <div className="flex-1 min-w-0">
-            {/* Título (se houver) */}
-            {post.titulo && (
+            {/* Título (se houver) — escondido no modo edição */}
+            {post.titulo && !editando && (
               <h3 className="text-[15px] font-black text-gray-900 m-0 mb-1 leading-snug">{post.titulo}</h3>
             )}
             <div className="flex items-center gap-2 flex-wrap">
@@ -231,10 +244,43 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                 </span>
               )}
             </div>
-            {/* Texto */}
-            <p className="text-[14px] text-gray-700 leading-relaxed mt-2 m-0">
-              <TextoComMencoes texto={post.texto} />
-            </p>
+            {/* Texto OU form de edição */}
+            {editando ? (
+              <div className="mt-2 space-y-2">
+                <input
+                  value={editTitulo}
+                  onChange={e => setEditTitulo(e.target.value)}
+                  placeholder="Título"
+                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <textarea
+                  value={editTexto}
+                  onChange={e => setEditTexto(e.target.value)}
+                  rows={3}
+                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={salvarEdicaoPost}
+                    disabled={editTexto.trim().length < 5}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[12px] font-black hover:bg-blue-700 disabled:opacity-40 cursor-pointer border-none"
+                  >
+                    <Check size={13} /> Salvar
+                  </button>
+                  <button
+                    onClick={() => { setEditando(false); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
+                    className="px-3 py-1.5 rounded-lg text-[12px] font-bold text-gray-500 hover:bg-gray-100 cursor-pointer bg-transparent border-none"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[14px] text-gray-700 leading-relaxed mt-2 m-0">
+                <TextoComMencoes texto={post.texto} />
+                {post.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
+              </p>
+            )}
 
             {/* Ações */}
             <div className="flex items-center gap-3 mt-3">
@@ -268,31 +314,41 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                   {post.resolvido ? 'Resolvido' : 'Marcar como resolvido'}
                 </button>
               )}
-              {/* Fixar — só admin */}
-              {meIsAdmin && (
-                <button
-                  onClick={() => fixarPost(post.id!, !post.pinned)}
-                  className={cn(
-                    'inline-flex items-center gap-1 text-[12px] font-bold cursor-pointer bg-transparent border-none transition ml-auto',
-                    post.pinned ? 'text-amber-600' : 'text-gray-300 hover:text-amber-600'
-                  )}
-                  title={post.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
-                >
-                  <Pin size={13} className={post.pinned ? 'fill-amber-600' : ''} />
-                </button>
-              )}
-              {(souAutor || meIsAdmin) && (
-                <button
-                  onClick={() => { if (confirm('Excluir este post e suas respostas?')) deletarPost(post.id!); }}
-                  className={cn(
-                    'inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-red-500 cursor-pointer bg-transparent border-none transition',
-                    meIsAdmin ? '' : 'ml-auto'
-                  )}
-                  title="Excluir"
-                >
-                  <Trash2 size={13} />
-                </button>
-              )}
+              {/* Controles do autor/admin — agrupados à direita */}
+              <div className="flex items-center gap-2 ml-auto">
+                {/* Editar — autor ou admin */}
+                {(souAutor || meIsAdmin) && !editando && (
+                  <button
+                    onClick={() => { setEditando(true); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
+                    className="inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-blue-600 cursor-pointer bg-transparent border-none transition"
+                    title="Editar"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
+                {/* Fixar — só admin */}
+                {meIsAdmin && (
+                  <button
+                    onClick={() => fixarPost(post.id!, !post.pinned)}
+                    className={cn(
+                      'inline-flex items-center gap-1 text-[12px] font-bold cursor-pointer bg-transparent border-none transition',
+                      post.pinned ? 'text-amber-600' : 'text-gray-300 hover:text-amber-600'
+                    )}
+                    title={post.pinned ? 'Desafixar do topo' : 'Fixar no topo'}
+                  >
+                    <Pin size={13} className={post.pinned ? 'fill-amber-600' : ''} />
+                  </button>
+                )}
+                {(souAutor || meIsAdmin) && (
+                  <button
+                    onClick={() => { if (confirm('Excluir este post e suas respostas?')) deletarPost(post.id!); }}
+                    className="inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-red-500 cursor-pointer bg-transparent border-none transition"
+                    title="Excluir"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -313,18 +369,53 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                     </span>
                   )}
                   <span className="text-[10px] text-gray-400">· {tempoRelativo(r.createdAt)}</span>
-                  {(r.autor?.uid === meUid || meIsAdmin) && (
-                    <button
-                      onClick={() => { if (confirm('Excluir resposta?')) deletarReply(post.id!, r.id!); }}
-                      className="ml-auto text-gray-300 hover:text-red-500 cursor-pointer bg-transparent border-none"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                  {(r.autor?.uid === meUid || meIsAdmin) && editReplyId !== r.id && (
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {r.autor?.uid === meUid && (
+                        <button
+                          onClick={() => { setEditReplyId(r.id!); setEditReplyTexto(r.texto); }}
+                          className="text-gray-300 hover:text-blue-600 cursor-pointer bg-transparent border-none"
+                          title="Editar"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { if (confirm('Excluir resposta?')) deletarReply(post.id!, r.id!); }}
+                        className="text-gray-300 hover:text-red-500 cursor-pointer bg-transparent border-none"
+                        title="Excluir"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   )}
                 </div>
-                <p className="text-[13px] text-gray-700 leading-relaxed mt-0.5 m-0">
-                  <TextoComMencoes texto={r.texto} />
-                </p>
+                {editReplyId === r.id ? (
+                  <div className="mt-1 space-y-2">
+                    <textarea
+                      value={editReplyTexto}
+                      onChange={e => setEditReplyTexto(e.target.value)}
+                      rows={2}
+                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-[13px] resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => { if (editReplyTexto.trim().length < 2) return; await editarReply(post.id!, r.id!, editReplyTexto); setEditReplyId(null); }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-black hover:bg-blue-700 cursor-pointer border-none"
+                      >
+                        <Check size={12} /> Salvar
+                      </button>
+                      <button onClick={() => setEditReplyId(null)} className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-gray-500 hover:bg-gray-100 cursor-pointer bg-transparent border-none">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-gray-700 leading-relaxed mt-0.5 m-0">
+                    <TextoComMencoes texto={r.texto} />
+                    {r.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
+                  </p>
+                )}
               </div>
             </div>
           ))}
@@ -369,8 +460,8 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full border-none bg-transparent cursor-pointer text-gray-500"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-3 gap-2">
-            {(['duvida', 'sugestao', 'bug'] as PostTipo[]).map(t => {
+          <div className="grid grid-cols-4 gap-2">
+            {(['duvida', 'sugestao', 'comentario', 'bug'] as PostTipo[]).map(t => {
               const c = TIPO_CFG[t]; const Icon = c.icon; const sel = tipo === t;
               return (
                 <button key={t} onClick={() => setTipo(t)}
@@ -527,7 +618,7 @@ export default function Comunidade() {
       return Object.entries(map).sort((a, b) => b[1].length - a[1].length);
     }
     if (view === 'tipo') {
-      const ordem: PostTipo[] = ['duvida', 'sugestao', 'bug'];
+      const ordem: PostTipo[] = ['duvida', 'sugestao', 'comentario', 'bug'];
       return ordem
         .map(t => [TIPO_CFG[t].label, naoPinned.filter(p => p.tipo === t)] as [string, CommunityPost[]])
         .filter(([, arr]) => arr.length > 0);
@@ -608,7 +699,7 @@ export default function Comunidade() {
           })}
         </div>
         <div className="flex items-center gap-1">
-          {(['todos', 'duvida', 'sugestao', 'bug'] as const).map(t => {
+          {(['todos', 'duvida', 'sugestao', 'comentario', 'bug'] as const).map(t => {
             const sel = tipoFiltro === t;
             const label = t === 'todos' ? 'Todos' : TIPO_CFG[t].label;
             return (
