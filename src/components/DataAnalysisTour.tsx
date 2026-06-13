@@ -102,7 +102,7 @@ const STEPS: TourStep[] = [
 ];
 
 const COUNT_KEY = 'lbw-analysis-tour-count-v1';
-const AUTO_LIMIT = 2; // mostra automaticamente nas 2 primeiras visitas, depois só manual
+const AUTO_LIMIT = 1; // mostra automaticamente só na 1ª visita, depois só manual (botão "?")
 
 /** True se o aluno já viu o tour automaticamente o número máximo de vezes. */
 export function hasSeenAnalysisTour(): boolean {
@@ -188,6 +188,12 @@ export default function DataAnalysisTour({ isOpen, onClose }: Props) {
     });
   }, [stepIdx]);
 
+  // Marca como visto assim que o tour ABRE — não só ao concluir. Assim, se o
+  // usuário recarregar ou sair sem fechar, ele não reaparece na próxima visita.
+  useEffect(() => {
+    if (isOpen) bumpTourCount();
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     measure();
@@ -214,7 +220,7 @@ export default function DataAnalysisTour({ isOpen, onClose }: Props) {
   };
   const prev = () => setStepIdx(s => Math.max(0, s - 1));
   const finish = () => {
-    bumpTourCount();
+    // O contador já foi incrementado ao abrir (useEffect acima).
     setStepIdx(0);
     onClose();
   };
