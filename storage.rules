@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Regras do Firebase Storage.
+// Anexos da Comunidade LBW ficam em community_uploads/{uid}/...
+// Qualquer usuário autenticado lê os anexos (a Comunidade é pública entre alunos).
+// Cada usuário só escreve dentro da própria pasta (uid).
+// NUNCA vídeos: a validação de tipo é feita no cliente (uploadAnexo) — aqui
+// limitamos o tamanho como rede de segurança.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /community_uploads/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024
+                   && !request.resource.contentType.matches('video/.*');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Demais caminhos: mantenha o que já existe no seu projeto.
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

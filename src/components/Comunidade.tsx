@@ -17,16 +17,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle,
   Wrench, Clock, ListFilter, Plus, Trash2, MessageCircle, Shield, X, Bell,
-  Search, ThumbsUp, Flame, Pin, Pencil, Check,
+  Search, ThumbsUp, Flame, Pin, Pencil, Check, Paperclip, FileText, Loader2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/firebase';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
-  editarPost, editarReply,
+  editarPost, editarReply, uploadAnexo,
   ouvirNotificacoes, marcarNotificacoesLidas,
-  CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification,
+  CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification, Anexo,
 } from '../services/communityService';
 
 // ===== Config visual dos tipos =====
@@ -91,12 +91,119 @@ function TextoComMencoes({ texto }: { texto: string }) {
   );
 }
 
+// ===== Anexos: exibição (imagens + documentos) logo depois do texto =====
+function AnexosView({ anexos }: { anexos?: Anexo[] }) {
+  if (!anexos || anexos.length === 0) return null;
+  const imagens = anexos.filter(a => a.tipo === 'imagem');
+  const docs = anexos.filter(a => a.tipo === 'documento');
+  return (
+    <div className="mt-2 space-y-2">
+      {imagens.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {imagens.map((a, i) => (
+            <a key={i} href={a.url} target="_blank" rel="noreferrer" className="block">
+              <img src={a.url} alt={a.nome} className="max-h-48 rounded-lg border border-gray-200 object-cover hover:opacity-90 transition" />
+            </a>
+          ))}
+        </div>
+      )}
+      {docs.map((a, i) => (
+        <a key={i} href={a.url} target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-[12px] font-bold text-gray-700 no-underline transition max-w-full">
+          <FileText size={15} className="shrink-0 text-blue-600" />
+          <span className="truncate">{a.nome}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+// ===== Anexos: input de seleção/upload (imagens + documentos, sem vídeo) =====
+function AnexosInput({ anexos, setAnexos }: {
+  anexos: Anexo[];
+  setAnexos: (a: Anexo[]) => void;
+}) {
+  const [subindo, setSubindo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const escolher = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setErro(null);
+    const lista = Array.from(files);
+    setSubindo(true);
+    try {
+      const novos: Anexo[] = [];
+      for (const f of lista) {
+        novos.push(await uploadAnexo(f));
+      }
+      setAnexos([...anexos, ...novos]);
+    } catch (e: any) {
+      setErro(e?.message || 'Falha ao anexar.');
+    } finally {
+      setSubindo(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={subindo}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-[12px] font-bold text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          {subindo ? <Loader2 size={13} className="animate-spin" /> : <Paperclip size={13} />}
+          {subindo ? 'Enviando…' : 'Anexar imagem ou documento'}
+        </button>
+        <span className="text-[10px] text-gray-400">Sem vídeo</span>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+          className="hidden"
+          onChange={e => escolher(e.target.files)}
+        />
+      </div>
+      {erro && <p className="text-[11px] text-red-600 m-0">{erro}</p>}
+      {anexos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {anexos.map((a, i) => (
+            <div key={i} className="relative">
+              {a.tipo === 'imagem' ? (
+                <img src={a.url} alt={a.nome} className="h-16 w-16 rounded-lg border border-gray-200 object-cover" />
+              ) : (
+                <div className="h-16 w-28 rounded-lg border border-gray-200 bg-gray-50 flex flex-col items-center justify-center px-1">
+                  <FileText size={16} className="text-blue-600" />
+                  <span className="text-[9px] text-gray-500 truncate w-full text-center mt-0.5">{a.nome}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setAnexos(anexos.filter((_, j) => j !== i))}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center cursor-pointer border-none"
+                title="Remover"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== Composer de resposta com @menção =====
 function ReplyComposer({ mencionaveis, onSubmit }: {
   mencionaveis: Autor[];
-  onSubmit: (texto: string, mencoes: Autor[]) => void;
+  onSubmit: (texto: string, mencoes: Autor[], anexos: Anexo[]) => void;
 }) {
   const [texto, setTexto] = useState('');
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [showMenu, setShowMenu] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -115,14 +222,15 @@ function ReplyComposer({ mencionaveis, onSubmit }: {
   };
 
   const enviar = () => {
-    if (texto.trim().length < 2) return;
+    if (texto.trim().length < 2 && anexos.length === 0) return;
     // Resolve menções: para cada @nome no texto, casa com a lista
     const mencoes = mencionaveis.filter(m => {
       const primeiro = (m.nome || m.email).split(' ')[0].toLowerCase();
       return new RegExp(`@${primeiro}\\b`, 'i').test(texto);
     });
-    onSubmit(texto.trim(), mencoes);
+    onSubmit(texto.trim(), mencoes, anexos);
     setTexto('');
+    setAnexos([]);
   };
 
   return (
@@ -139,11 +247,14 @@ function ReplyComposer({ mencionaveis, onSubmit }: {
         />
         <button
           onClick={enviar}
-          disabled={texto.trim().length < 2}
+          disabled={texto.trim().length < 2 && anexos.length === 0}
           className="h-9 px-3 rounded-xl bg-blue-600 text-white text-xs font-black flex items-center gap-1.5 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none transition"
         >
           <Send size={13} /> Responder
         </button>
+      </div>
+      <div className="mt-2">
+        <AnexosInput anexos={anexos} setAnexos={setAnexos} />
       </div>
       {/* Autocomplete de @menção */}
       {showMenu && matchAt && sugestoes.length > 0 && (
@@ -276,10 +387,13 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                 </div>
               </div>
             ) : (
-              <p className="text-[14px] text-gray-700 leading-relaxed mt-2 m-0">
-                <TextoComMencoes texto={post.texto} />
-                {post.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
-              </p>
+              <>
+                <p className="text-[14px] text-gray-700 leading-relaxed mt-2 m-0">
+                  <TextoComMencoes texto={post.texto} />
+                  {post.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
+                </p>
+                <AnexosView anexos={post.anexos} />
+              </>
             )}
 
             {/* Ações */}
@@ -411,17 +525,20 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[13px] text-gray-700 leading-relaxed mt-0.5 m-0">
-                    <TextoComMencoes texto={r.texto} />
-                    {r.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
-                  </p>
+                  <>
+                    <p className="text-[13px] text-gray-700 leading-relaxed mt-0.5 m-0">
+                      <TextoComMencoes texto={r.texto} />
+                      {r.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
+                    </p>
+                    <AnexosView anexos={r.anexos} />
+                  </>
                 )}
               </div>
             </div>
           ))}
           <ReplyComposer
             mencionaveis={mencionaveis}
-            onSubmit={(texto, mencoes) => criarReply(post.id!, texto, mencoes)}
+            onSubmit={(texto, mencoes, anexos) => criarReply(post.id!, texto, mencoes, anexos)}
           />
         </div>
       )}
@@ -435,6 +552,7 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
   const [titulo, setTitulo] = useState('');
   const [texto, setTexto] = useState('');
   const [ferramenta, setFerramenta] = useState('');
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [enviando, setEnviando] = useState(false);
 
   const podeEnviar = titulo.trim().length >= 3 && texto.trim().length >= 5;
@@ -443,7 +561,7 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
     if (!podeEnviar) return;
     setEnviando(true);
     try {
-      await criarPost({ tipo, titulo: titulo.trim(), texto, ferramenta: ferramenta.trim() || null });
+      await criarPost({ tipo, titulo: titulo.trim(), texto, ferramenta: ferramenta.trim() || null, anexos });
       onClose();
     } finally { setEnviando(false); }
   };
@@ -483,10 +601,14 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sua mensagem</label>
+            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sua mensagem <span className="text-red-500">*</span></label>
             <textarea rows={5} value={texto} onChange={e => setTexto(e.target.value)}
-              placeholder="Escreva sua pergunta, sugestão ou o bug que encontrou. Quanto mais específico, melhor."
+              placeholder="Escreva sua pergunta, sugestão, comentário ou o bug que encontrou. Quanto mais específico, melhor."
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Anexos (opcional)</label>
+            <AnexosInput anexos={anexos} setAnexos={setAnexos} />
           </div>
           <div className="flex items-start gap-2 text-[12px] bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2.5 leading-relaxed">
             <Users2 size={15} className="shrink-0 mt-0.5" />

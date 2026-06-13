@@ -28,7 +28,8 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage } from '../lib/firebase';
 
 export type PostTipo = 'duvida' | 'sugestao' | 'bug' | 'comentario';
 
@@ -53,7 +54,15 @@ export interface CommunityPost {
   likes?: string[];             // uids de quem curtiu
   pinned?: boolean;             // fixado no topo (só admin)
   editado?: boolean;
+  anexos?: Anexo[];             // imagens e documentos (nunca vídeo)
   createdAt: any;
+}
+
+export interface Anexo {
+  url: string;
+  nome: string;
+  tipo: 'imagem' | 'documento';
+  mime?: string;
 }
 
 export interface CommunityReply {
@@ -62,6 +71,7 @@ export interface CommunityReply {
   autor: Autor;
   mencoes?: string[];           // uids mencionados
   editado?: boolean;
+  anexos?: Anexo[];
   createdAt: any;
 }
 
@@ -103,6 +113,77 @@ export async function autorAtual(): Promise<Autor> {
   };
 }
 
+// ===== Anexos (imagens + documentos; NUNCA vídeo) =====
+
+const MAX_DOC_BYTES = 10 * 1024 * 1024; // 10 MB pra documentos
+
+// Comprime/redimensiona uma imagem no navegador (canvas → JPEG ~0.8, máx 1600px).
+function comprimirImagem(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1600;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          const r = Math.min(MAX / width, MAX / height);
+          width = Math.round(width * r);
+          height = Math.round(height * r);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas indisponível'));
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Falha ao comprimir')), 'image/jpeg', 0.8);
+      };
+      img.onerror = () => reject(new Error('Imagem inválida'));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Faz upload de um anexo pro Storage e devolve o Anexo (url, nome, tipo).
+ * Aceita IMAGEM ou DOCUMENTO. Rejeita vídeo (pesado) e tipos não suportados.
+ */
+export async function uploadAnexo(file: File): Promise<Anexo> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Usuário não autenticado.');
+
+  const mime = file.type || '';
+  if (mime.startsWith('video/')) {
+    throw new Error('Vídeos não são permitidos. Anexe imagens ou documentos.');
+  }
+
+  const ehImagem = mime.startsWith('image/');
+  if (!ehImagem) {
+    // Documento: valida tamanho
+    if (file.size > MAX_DOC_BYTES) {
+      throw new Error('Documento muito grande (máx. 10 MB).');
+    }
+  }
+
+  // Stamp único sem Date.now()/Math.random direto no nome (mantém legível).
+  const stamp = `${file.size}-${file.name.replace(/[^\w.\-]/g, '_')}`;
+  const caminho = `community_uploads/${u.uid}/${stamp}`;
+  const sref = storageRef(storage, caminho);
+
+  if (ehImagem) {
+    const blob = await comprimirImagem(file);
+    await uploadBytes(sref, blob, { contentType: 'image/jpeg' });
+    const url = await getDownloadURL(sref);
+    return { url, nome: file.name, tipo: 'imagem', mime: 'image/jpeg' };
+  } else {
+    await uploadBytes(sref, file, { contentType: mime || 'application/octet-stream' });
+    const url = await getDownloadURL(sref);
+    return { url, nome: file.name, tipo: 'documento', mime };
+  }
+}
+
 // ===== Posts =====
 
 export async function criarPost(input: {
@@ -111,6 +192,7 @@ export async function criarPost(input: {
   texto: string;
   ferramenta?: string | null;
   projetoNome?: string | null;
+  anexos?: Anexo[];
 }): Promise<string> {
   const autor = await autorAtual();
   const ref = await addDoc(collection(db, COL), {
@@ -124,6 +206,7 @@ export async function criarPost(input: {
     replyCount: 0,
     likes: [],
     pinned: false,
+    anexos: input.anexos || [],
     createdAt: serverTimestamp(),
   });
   return ref.id;
@@ -180,12 +263,13 @@ export function ouvirReplies(postId: string, onChange: (replies: CommunityReply[
   }, err => console.error('[ouvirReplies]', err));
 }
 
-export async function criarReply(postId: string, texto: string, mencoes: Autor[] = []): Promise<void> {
+export async function criarReply(postId: string, texto: string, mencoes: Autor[] = [], anexos: Anexo[] = []): Promise<void> {
   const autor = await autorAtual();
   await addDoc(collection(db, COL, postId, 'replies'), {
     texto: texto.trim(),
     autor,
     mencoes: mencoes.map(m => m.uid),
+    anexos,
     createdAt: serverTimestamp(),
   });
   // Incrementa o contador no post (leitura + escrita simples; volume baixo).
