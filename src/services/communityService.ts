@@ -25,6 +25,8 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
@@ -47,6 +49,7 @@ export interface CommunityPost {
   projetoNome?: string | null;
   resolvido: boolean;           // só o autor do post marca
   replyCount: number;
+  likes?: string[];             // uids de quem curtiu
   createdAt: any;
 }
 
@@ -113,9 +116,19 @@ export async function criarPost(input: {
     projetoNome: input.projetoNome || null,
     resolvido: false,
     replyCount: 0,
+    likes: [],
     createdAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/** Curtir / descurtir um post (toggle do uid no array likes). */
+export async function curtirPost(postId: string, jaCurtiu: boolean): Promise<void> {
+  const u = auth.currentUser;
+  if (!u) return;
+  await updateDoc(doc(db, COL, postId), {
+    likes: jaCurtiu ? arrayRemove(u.uid) : arrayUnion(u.uid),
+  });
 }
 
 /** Tempo real: todos os posts, mais novos primeiro. */

@@ -17,12 +17,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle,
   Wrench, Clock, ListFilter, Plus, Trash2, MessageCircle, Shield, X, Bell,
+  Search, ThumbsUp, Flame,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/firebase';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
-  deletarPost, deletarReply, extrairMencionaveis,
+  deletarPost, deletarReply, extrairMencionaveis, curtirPost,
   ouvirNotificacoes, marcarNotificacoesLidas,
   CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification,
 } from '../services/communityService';
@@ -34,7 +35,7 @@ const TIPO_CFG: Record<PostTipo, { label: string; icon: any; cls: string; dot: s
   bug:      { label: 'Bug',      icon: Bug,        cls: 'text-red-700 bg-red-50 border-red-200',       dot: 'bg-red-500' },
 };
 
-type ViewMode = 'timeline' | 'ferramenta' | 'tipo';
+type ViewMode = 'timeline' | 'curtidos' | 'ferramenta' | 'tipo';
 
 // ===== Helpers =====
 function iniciais(nome: string): string {
@@ -175,6 +176,8 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   const cfg = TIPO_CFG[post.tipo];
   const TipoIcon = cfg.icon;
   const souAutor = post.autor?.uid === meUid;
+  const likes = post.likes || [];
+  const jaCurti = likes.includes(meUid);
 
   useEffect(() => {
     if (!aberto) return;
@@ -224,6 +227,17 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
 
             {/* Ações */}
             <div className="flex items-center gap-3 mt-3">
+              {/* Joinha (like) */}
+              <button
+                onClick={() => curtirPost(post.id!, jaCurti)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-[12px] font-bold cursor-pointer bg-transparent border-none transition',
+                  jaCurti ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'
+                )}
+                title={jaCurti ? 'Remover curtida' : 'Curtir'}
+              >
+                <ThumbsUp size={14} className={jaCurti ? 'fill-blue-600' : ''} /> {likes.length}
+              </button>
               <button
                 onClick={() => setAberto(a => !a)}
                 className="inline-flex items-center gap-1.5 text-[12px] font-bold text-gray-500 hover:text-blue-600 cursor-pointer bg-transparent border-none transition"
@@ -429,6 +443,7 @@ export default function Comunidade() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('timeline');
   const [tipoFiltro, setTipoFiltro] = useState<PostTipo | 'todos'>('todos');
+  const [busca, setBusca] = useState('');
   const [novoAberto, setNovoAberto] = useState(false);
   const [repliesPorPost, setRepliesPorPost] = useState<Record<string, CommunityReply[]>>({});
 
@@ -446,11 +461,21 @@ export default function Comunidade() {
   const onRepliesLoaded = (postId: string, reps: CommunityReply[]) =>
     setRepliesPorPost(prev => ({ ...prev, [postId]: reps }));
 
-  // Aplica filtro por tipo (válido nos 3 modos)
-  const postsFiltrados = useMemo(
-    () => tipoFiltro === 'todos' ? posts : posts.filter(p => p.tipo === tipoFiltro),
-    [posts, tipoFiltro]
-  );
+  // Aplica filtro por tipo + busca textual (texto, autor, ferramenta)
+  const postsFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return posts.filter(p => {
+      if (tipoFiltro !== 'todos' && p.tipo !== tipoFiltro) return false;
+      if (!termo) return true;
+      const alvo = [
+        p.texto,
+        p.autor?.nome,
+        p.autor?.email,
+        p.ferramenta,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return alvo.includes(termo);
+    });
+  }, [posts, tipoFiltro, busca]);
 
   // Agrupamento conforme o modo de visualização
   const grupos = useMemo(() => {
@@ -468,12 +493,19 @@ export default function Comunidade() {
         .map(t => [TIPO_CFG[t].label, postsFiltrados.filter(p => p.tipo === t)] as [string, CommunityPost[]])
         .filter(([, arr]) => arr.length > 0);
     }
+    if (view === 'curtidos') {
+      const ordenado = [...postsFiltrados].sort(
+        (a, b) => (b.likes?.length || 0) - (a.likes?.length || 0)
+      );
+      return [['', ordenado]] as [string, CommunityPost[]][];
+    }
     // timeline: um único grupo, já vem ordenado por data
     return [['', postsFiltrados]] as [string, CommunityPost[]][];
   }, [view, postsFiltrados]);
 
   const VIEWS: { v: ViewMode; label: string; icon: any }[] = [
     { v: 'timeline', label: 'Recentes', icon: Clock },
+    { v: 'curtidos', label: 'Mais curtidos', icon: Flame },
     { v: 'ferramenta', label: 'Por ferramenta', icon: Wrench },
     { v: 'tipo', label: 'Por tipo', icon: ListFilter },
   ];
@@ -500,6 +532,26 @@ export default function Comunidade() {
             <Plus size={16} /> <span className="hidden sm:inline">Nova publicação</span>
           </button>
         </div>
+      </div>
+
+      {/* Busca */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por texto, pessoa ou ferramenta…"
+          className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {busca && (
+          <button
+            onClick={() => setBusca('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 bg-transparent border-none cursor-pointer"
+            title="Limpar busca"
+          >
+            <X size={15} />
+          </button>
+        )}
       </div>
 
       {/* Barra de visualização + filtro por tipo */}
