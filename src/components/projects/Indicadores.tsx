@@ -185,26 +185,27 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
             Clique em <strong>"Esse é o meu nível"</strong> pra marcar onde você atua.
           </p>
 
-          <div className="space-y-3">
+          {/* 3 níveis compactos e coesos (juntinhos), mostrando o desdobramento */}
+          <div>
             {NIVEIS.map((n, idx) => {
               const Icone = n.icon;
               const ehMeu = data.meuNivel === n.value;
               return (
                 <div key={n.value} className="flex items-stretch gap-3">
                   {/* Coluna do nível + conector */}
-                  <div className="flex flex-col items-center shrink-0" style={{ width: 44 }}>
-                    <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center text-white', n.barra)}>
-                      <Icone size={20} />
+                  <div className="flex flex-col items-center shrink-0" style={{ width: 36 }}>
+                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0', n.barra)}>
+                      <Icone size={17} />
                     </div>
-                    {idx < NIVEIS.length - 1 && <div className="flex-1 w-0.5 bg-gray-200 mt-1" />}
+                    {idx < NIVEIS.length - 1 && <div className="flex-1 w-0.5 bg-gray-200" />}
                   </div>
 
                   {/* Conteúdo do nível */}
                   <div className={cn(
-                    'flex-1 pb-2 rounded-lg p-3 border transition-colors',
+                    'flex-1 rounded-lg px-2.5 py-2 mb-1.5 border transition-colors',
                     ehMeu ? 'bg-sky-50 border-sky-300' : 'border-transparent'
                   )}>
-                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                       <div className="flex items-baseline gap-2">
                         <span className={cn('text-[11px] font-black uppercase tracking-widest', n.cor)}>{n.label}</span>
                         <span className="text-[10px] text-gray-400">{n.desc}</span>
@@ -221,7 +222,7 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
                     </div>
 
                     {/* Lista de indicadores deste nível */}
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {data[n.value].map((ind, i) => (
                         <div key={i} className="flex items-center gap-2">
                           <input
@@ -229,7 +230,7 @@ export default function Indicadores({ onSave, initialData, onDirtyChange }: Indi
                             value={ind}
                             onChange={(e) => updateIndicador(n.value, i, e.target.value)}
                             placeholder={placeholderDe(n.value)}
-                            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-300"
                           />
                           <button
                             onClick={() => removeIndicador(n.value, i)}
