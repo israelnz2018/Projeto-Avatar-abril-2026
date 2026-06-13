@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpCircle, Target, Edit2, X as CloseIcon, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { toast } from 'sonner';
+import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
 
 interface BrainstormingProps {
   onSave: (data: any) => void;
@@ -8,6 +10,31 @@ interface BrainstormingProps {
   onGenerateAI?: (customContext?: any) => Promise<void>;
   isGeneratingAI?: boolean;
   onClearAIData?: () => void;
+  allProjectData?: any;
+}
+
+// Acha os dados de uma ferramenta no allProjectData, ignorando o prefixo de fase.
+function findToolData(allData: any, toolKey: string) {
+  if (!allData) return null;
+  const keys = Object.keys(allData).filter(k => k === toolKey || k.endsWith(`_${toolKey}`));
+  if (keys.length === 0) return null;
+  const meta = allData.__metadata;
+  let chosen = keys[0];
+  if (meta) {
+    let max = meta[chosen] || 0;
+    for (const k of keys) { if ((meta[k] || 0) > max) { max = meta[k]; chosen = k; } }
+  }
+  const d = allData[chosen];
+  return d?.toolData || d;
+}
+
+// Extrai os rótulos das etapas (nodes) do Mapa de Processo, ignorando raias.
+function etapasDoMapa(processMap: any): string[] {
+  const nodes = processMap?.nodes || [];
+  return nodes
+    .filter((n: any) => n.type !== 'lane')
+    .map((n: any) => (n.data?.label || '').trim())
+    .filter((l: string) => l && l.toLowerCase() !== 'nova raia');
 }
 
 interface Idea {
@@ -26,7 +53,7 @@ const BRAINSTORMING_TYPES = [
   'Identificação de riscos'
 ];
 
-export default function Brainstorming({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: BrainstormingProps) {
+export default function Brainstorming({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: BrainstormingProps) {
   const defaultData = initialData?.toolData || initialData;
   const [brainstormingType, setBrainstormingType] = useState(defaultData?.brainstormingType || BRAINSTORMING_TYPES[0]);
   const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || '');
@@ -52,6 +79,41 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
 
   const [newIdea, setNewIdea] = useState('');
   const [author, setAuthor] = useState('');
+
+  // ===== Geração de causas a partir do Mapa de Processo (IA enxuta) =====
+  const [isGenerating, setIsGenerating] = useState(false);
+  const processMap = findToolData(allProjectData, 'processMap');
+  const etapas = etapasDoMapa(processMap);
+  const temMapa = etapas.length > 0;
+
+  const handleGenerateFromMap = async () => {
+    if (!temMapa) {
+      toast.error('Nenhuma etapa encontrada no Mapa de Processo. Preencha aquela ferramenta primeiro.');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const { ideas: novas } = await generateBrainstormingCausas(etapas, brainstormingTopic);
+      if (novas.length === 0) {
+        toast.error('A IA não retornou causas. Tente de novo.');
+        return;
+      }
+      const novasIdeas: Idea[] = novas.map((n, i) => ({
+        id: `${Date.now()}-${i}`,
+        text: n.text,
+        category: 'Mão de Obra',
+        author: 'IA LBW',
+        votes: 0,
+      }));
+      setIdeas(prev => [...prev, ...novasIdeas]);
+      toast.success(`${novasIdeas.length} causas potenciais geradas a partir do Mapa de Processo.`);
+    } catch (e: any) {
+      console.error('Erro ao gerar causas:', e);
+      toast.error(e.message || 'Erro ao gerar causas com IA.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const addIdea = () => {
     if (!newIdea.trim()) return;
@@ -105,6 +167,45 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
 
   return (
     <div className="space-y-8">
+      {/* Box de IA — gera causas potenciais a partir das etapas do Mapa de Processo */}
+      {temMapa && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Gerar causas potenciais com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA olha as <strong>{etapas.length} etapas</strong> do seu Mapa de Processo e levanta
+                causas potenciais pra cada uma. Ex: <em>"Fazer inspeção"</em> → "Inspeção inadequada",
+                "Inspeção insuficiente"...
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * As causas entram na lista abaixo. Você edita, remove ou adiciona as suas.
+              </p>
+            </div>
+            <button
+              onClick={handleGenerateFromMap}
+              disabled={isGenerating}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGenerating
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGenerating
+                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                : <><Sparkles size={16} /> Gerar com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1">

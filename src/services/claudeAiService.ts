@@ -148,3 +148,49 @@ Preencha cada campo abaixo em 1-2 frases curtas, coerentes com o projeto acima:
 
   return { answers: result.answers || (result as any) };
 };
+
+/**
+ * generateBrainstormingCausas — gera causas potenciais a partir das ETAPAS do
+ * Mapa de Processo. Ex: etapa "Fazer inspeção" → "Inspeção inadequada",
+ * "Inspeção insuficiente", "Critério de inspeção não definido"...
+ *
+ * Enxuta de propósito (jun/2026): manda pra IA SÓ as etapas do mapa (não o
+ * projeto inteiro), então é rápida. NÃO classifica nos 6M — as causas entram
+ * como ideias soltas; a categoria fica pro aluno definir depois.
+ *
+ * Retorna { ideas: [{ text }] }.
+ */
+export const generateBrainstormingCausas = async (
+  etapas: string[],
+  topico?: string
+): Promise<{ ideas: Array<{ text: string }> }> => {
+  const systemPrompt = `Você é um facilitador de melhoria contínua conduzindo um brainstorming de CAUSAS POTENCIAIS.
+A partir das etapas de um processo, levante o que pode dar errado em cada etapa (causas/falhas potenciais), de forma concreta.
+Responda em português do Brasil, objetivo. Responda APENAS com um objeto JSON puro (sem markdown), com a chave "ideas".`;
+
+  const userPrompt = `${topico ? `Foco do brainstorming: ${topico}\n\n` : ''}Etapas do Mapa de Processo:
+${etapas.map((e, i) => `${i + 1}. ${e}`).join('\n')}
+
+Para CADA etapa, gere 2 a 4 causas potenciais concretas (o que pode dar errado naquela etapa).
+Exemplo: etapa "Fazer inspeção" → "Inspeção inadequada", "Inspeção insuficiente", "Critério de inspeção não padronizado".
+
+Formato:
+{
+  "ideas": [
+    { "text": "Inspeção inadequada" }
+  ]
+}`;
+
+  const result = await callAIJSON<{ ideas?: Array<{ text?: string }> }>({
+    location: 'fill-tool',
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: 2000,
+  });
+
+  return {
+    ideas: (result.ideas || [])
+      .map((i) => ({ text: (i.text || '').trim() }))
+      .filter((i) => i.text),
+  };
+};
