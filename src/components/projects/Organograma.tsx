@@ -30,6 +30,7 @@ interface No {
   nome: string;
   area: string;
   funcao: string;
+  critico?: boolean; // marcado pelo aluno = pessoa/função crítica (caixa azul-clara)
   filhos: No[];
 }
 
@@ -147,6 +148,9 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
   const handleCampo = (id: string, campo: keyof No, valor: string) => {
     mutate(prev => ({ raizes: prev.raizes.map(r => atualizarNo(r, id, { [campo]: valor })) }));
   };
+  const toggleCritico = (id: string, atual: boolean) => {
+    mutate(prev => ({ raizes: prev.raizes.map(r => atualizarNo(r, id, { critico: !atual })) }));
+  };
   const handleAddSubordinado = (paiId: string) => {
     mutate(prev => ({ raizes: prev.raizes.map(r => adicionarFilho(r, paiId, novoNo())) }));
   };
@@ -192,8 +196,11 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
             <span className="w-4 shrink-0" />
           )}
 
-          {/* Card editável da pessoa */}
-          <div className="flex-1 bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm">
+          {/* Card editável da pessoa — fica AZUL CLARO quando marcado como crítico */}
+          <div className={cn(
+            'flex-1 rounded-lg p-2.5 shadow-sm border transition-colors',
+            no.critico ? 'bg-sky-100 border-sky-300' : 'bg-white border-gray-200'
+          )}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <input
                 type="text"
@@ -217,7 +224,7 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
                 className="px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <button
                 onClick={() => handleAddSubordinado(no.id)}
                 className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded border border-blue-100 bg-white cursor-pointer transition"
@@ -230,6 +237,19 @@ export default function Organograma({ onSave, initialData, onDirtyChange }: Orga
               >
                 <Trash2 size={11} /> Excluir
               </button>
+              {/* Caixinha "Crítico" — pinta o card de azul-claro ao marcar */}
+              <label className={cn(
+                'flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded border cursor-pointer transition ml-auto',
+                no.critico ? 'text-sky-700 border-sky-300 bg-sky-50' : 'text-gray-500 border-gray-200 bg-white hover:bg-gray-50'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={!!no.critico}
+                  onChange={() => toggleCritico(no.id, !!no.critico)}
+                  className="accent-sky-600 cursor-pointer"
+                />
+                Crítico
+              </label>
             </div>
           </div>
         </div>
