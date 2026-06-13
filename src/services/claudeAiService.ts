@@ -194,3 +194,50 @@ Formato:
       .filter((i) => i.text),
   };
 };
+
+/**
+ * distribuirCausasNos6M — recebe causas (textos) do Brainstorming e distribui
+ * cada uma na categoria 6M correta da Espinha de Peixe.
+ *
+ * Enxuta (jun/2026): manda pra IA só os textos das causas + os nomes EXATOS das
+ * categorias que o componente usa (pra não trocar "Medida"/"Medição" etc.).
+ *
+ * Retorna { causes: Record<categoria, string[]> } — pronto pra mesclar no estado.
+ */
+export const distribuirCausasNos6M = async (
+  causas: string[],
+  categorias: string[]
+): Promise<{ causes: Record<string, string[]> }> => {
+  const systemPrompt = `Você é um especialista em qualidade montando um Diagrama de Ishikawa (Espinha de Peixe, 6M).
+Sua tarefa: pegar uma lista de causas e colocar CADA uma na categoria correta.
+Use EXATAMENTE estes nomes de categoria (não invente, não traduza, não mude a grafia): ${categorias.join(', ')}.
+Responda em português do Brasil. Responda APENAS com um objeto JSON puro (sem markdown), com a chave "causes".`;
+
+  const userPrompt = `Causas a classificar:
+${causas.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+Distribua TODAS as causas entre as categorias. Cada causa entra em UMA categoria só, na que melhor se encaixa.
+As chaves do objeto "causes" devem ser EXATAMENTE: ${categorias.join(', ')}.
+
+Formato:
+{
+  "causes": {
+${categorias.map(c => `    "${c}": []`).join(',\n')}
+  }
+}`;
+
+  const result = await callAIJSON<{ causes?: Record<string, string[]> }>({
+    location: 'fill-tool',
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    maxTokens: 2000,
+  });
+
+  // Normaliza: garante todas as categorias presentes e arrays de strings limpas.
+  const out: Record<string, string[]> = {};
+  categorias.forEach(cat => {
+    const arr = result.causes?.[cat];
+    out[cat] = Array.isArray(arr) ? arr.map(s => String(s).trim()).filter(Boolean) : [];
+  });
+  return { causes: out };
+};

@@ -1,13 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, CheckCircle2, Type } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Type, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
- 
+import { toast } from 'sonner';
+import { distribuirCausasNos6M } from '@/src/services/claudeAiService';
+
 interface IshikawaProps {
   onSave: (data: any) => void;
   initialData?: any;
   onGenerateAI?: (customContext?: any) => Promise<void>;
   isGeneratingAI?: boolean;
   onClearAIData?: () => void;
+  allProjectData?: any;
+}
+
+// Acha os dados de uma ferramenta no allProjectData, ignorando o prefixo de fase.
+function findToolData(allData: any, toolKey: string) {
+  if (!allData) return null;
+  const keys = Object.keys(allData).filter(k => k === toolKey || k.endsWith(`_${toolKey}`));
+  if (keys.length === 0) return null;
+  const meta = allData.__metadata;
+  let chosen = keys[0];
+  if (meta) {
+    let max = meta[chosen] || 0;
+    for (const k of keys) { if ((meta[k] || 0) > max) { max = meta[k]; chosen = k; } }
+  }
+  const d = allData[chosen];
+  return d?.toolData || d;
 }
  
 const BRAINSTORMING_TYPES = [
@@ -28,7 +46,7 @@ const CATEGORY_COLORS = [
  
 const FONT_SIZES = [12, 13, 14, 15, 16, 18];
  
-export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
+export default function Ishikawa({ onSave, initialData, allProjectData }: IshikawaProps) {
   const d = initialData?.toolData || initialData;
  
   const [brainstormingType, setBrainstormingType] = useState<string>(
@@ -136,7 +154,45 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
   const handleSave = () => {
     onSave({ brainstormingType, categories, causes, problem, fontSize, columnHeight });
   };
- 
+
+  // ===== IA: distribui as ideias do Brainstorming nos 6M =====
+  const [isGenerating, setIsGenerating] = useState(false);
+  const brainstorming = findToolData(allProjectData, 'brainstorming');
+  const causasDoBrainstorming: string[] = (brainstorming?.ideas || [])
+    .map((i: any) => (i?.text || '').trim())
+    .filter(Boolean);
+  const temBrainstorming = causasDoBrainstorming.length > 0;
+
+  const handleDistribuirIA = async () => {
+    if (!temBrainstorming) {
+      toast.error('Nenhuma ideia encontrada no Brainstorming. Preencha aquela ferramenta primeiro.');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const { causes: distribuidas } = await distribuirCausasNos6M(causasDoBrainstorming, categories);
+      // Mescla: acrescenta às causas que já existem (sem duplicar texto idêntico na mesma coluna).
+      setCauses(prev => {
+        const merged: Record<string, string[]> = { ...prev };
+        categories.forEach(cat => {
+          const atuais = merged[cat] || [];
+          const novas = (distribuidas[cat] || []).filter(
+            nova => !atuais.some(a => a.trim().toLowerCase() === nova.trim().toLowerCase())
+          );
+          merged[cat] = [...atuais, ...novas];
+        });
+        return merged;
+      });
+      const total = Object.values(distribuidas).reduce((s, arr) => s + arr.length, 0);
+      toast.success(`${total} causas distribuídas nos 6M a partir do Brainstorming.`);
+    } catch (e: any) {
+      console.error('Erro ao distribuir causas:', e);
+      toast.error(e.message || 'Erro ao distribuir as causas com IA.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const colTop = categories.slice(0, 3);
   const colBottom = categories.slice(3, 6);
  
@@ -264,6 +320,45 @@ export default function Ishikawa({ onSave, initialData }: IshikawaProps) {
  
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-12 w-full">
+      {/* Box de IA — distribui as causas do Brainstorming nos 6M */}
+      {temBrainstorming && (
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                  Distribuir causas com IA
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                A IA pega as <strong>{causasDoBrainstorming.length} causas</strong> do seu Brainstorming
+                e coloca cada uma na categoria certa dos 6M (Método, Máquina, Medida, Mão de obra,
+                Material, Meio ambiente).
+              </p>
+              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+                * As causas vão direto pras colunas. Você ajusta, move ou remove o que quiser.
+              </p>
+            </div>
+            <button
+              onClick={handleDistribuirIA}
+              disabled={isGenerating}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
+                isGenerating
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+              )}
+            >
+              {isGenerating
+                ? <><Loader2 size={16} className="animate-spin" /> Distribuindo...</>
+                : <><Sparkles size={16} /> Distribuir com IA</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2 flex-1 min-w-[300px]">
