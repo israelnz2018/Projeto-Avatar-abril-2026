@@ -387,8 +387,8 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sobre qual ferramenta? (opcional)</label>
-            <input value={ferramenta} onChange={e => setFerramenta(e.target.value)} placeholder="Ex: Espinha de Peixe"
+            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sobre qual ferramenta / vídeo? (opcional)</label>
+            <input value={ferramenta} onChange={e => setFerramenta(e.target.value)} placeholder="Ex: Espinha de Peixe, vídeo de SIPOC…"
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
@@ -521,7 +521,7 @@ export default function Comunidade() {
     if (view === 'ferramenta') {
       const map: Record<string, CommunityPost[]> = {};
       naoPinned.forEach(p => {
-        const k = p.ferramenta || 'Sem ferramenta / geral';
+        const k = p.ferramenta || 'Sem ferramenta / vídeo (geral)';
         (map[k] ||= []).push(p);
       });
       return Object.entries(map).sort((a, b) => b[1].length - a[1].length);
@@ -545,7 +545,7 @@ export default function Comunidade() {
   const VIEWS: { v: ViewMode; label: string; icon: any }[] = [
     { v: 'timeline', label: 'Recentes', icon: Clock },
     { v: 'curtidos', label: 'Mais curtidos', icon: Flame },
-    { v: 'ferramenta', label: 'Por ferramenta', icon: Wrench },
+    { v: 'ferramenta', label: 'Por ferramenta / vídeo', icon: Wrench },
     { v: 'tipo', label: 'Por tipo', icon: ListFilter },
   ];
 
@@ -579,7 +579,7 @@ export default function Comunidade() {
         <input
           value={busca}
           onChange={e => setBusca(e.target.value)}
-          placeholder="Buscar por texto, pessoa ou ferramenta…"
+          placeholder="Buscar por texto, pessoa, ferramenta ou vídeo…"
           className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {busca && (
