@@ -407,7 +407,7 @@ export function TrilhaCard({ trilha, onClick, rank }: TrilhaCardProps) {
             <span>·</span>
             <span>{trilha.duracao}</span>
             <span>·</span>
-            <span>{trilha.totalEpisodios} {trilha.situacoes && trilha.situacoes.length > 0 ? 'sit.' : 'ep'}</span>
+            <span>{trilha.totalEpisodios} {trilha.situacoes && trilha.situacoes.length > 0 ? 'fases' : 'ep'}</span>
           </div>
         </div>
       </div>
@@ -559,7 +559,7 @@ export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
                     <span>·</span>
                     <span><Clock size={12} className="inline mr-1" />{trilha.duracao}</span>
                     <span>·</span>
-                    <span><BookOpen size={12} className="inline mr-1" />{trilha.totalEpisodios} {trilha.situacoes && trilha.situacoes.length > 0 ? 'situações' : 'episódios'}</span>
+                    <span><BookOpen size={12} className="inline mr-1" />{trilha.totalEpisodios} {trilha.situacoes && trilha.situacoes.length > 0 ? 'fases' : 'episódios'}</span>
                   </div>
                   <p className="text-base md:text-lg text-white/80 leading-relaxed m-0">
                     {trilha.dor}
@@ -616,10 +616,10 @@ export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
               {trilha.situacoes && trilha.situacoes.length > 0 ? (
                 <div className="mb-10">
                   <h3 className="text-xl md:text-2xl font-black text-white m-0 mb-2">
-                    Situações que essa trilha resolve
+                    As 5 fases da trilha
                   </h3>
                   <p className="text-sm text-white/60 mb-5 m-0">
-                    Não tem ordem certa. Abra o círculo que descreve o que te trava HOJE.
+                    Siga na ordem (Fase 1 → 5) ou abra a fase que você está vivendo agora.
                   </p>
 
                   {/* Grid de círculos — 2 cols em mobile, 3 em desktop */}
@@ -685,7 +685,7 @@ export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-[10px] font-black tracking-[0.25em] text-white/50 uppercase m-0 mb-1">
-                                Quando dói
+                                O que você faz nesta fase
                               </p>
                               <p className="text-base md:text-lg font-bold text-white m-0 mb-2 leading-tight">
                                 {sit.titulo}
