@@ -1,34 +1,21 @@
 /// <reference types="vite/client" />
-import React, { useState, useEffect } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  sendPasswordResetEmail, 
-  signOut, 
-  onAuthStateChanged,
+import React, { useState } from 'react';
+import {
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   User
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
-
-// Base URL do n8n (automação). Sobrescrevível via env VITE_N8N_BASE_URL.
-const N8N_BASE_URL = import.meta.env.VITE_N8N_BASE_URL || 'https://primary-production-1d53.up.railway.app';
 
 interface LoginProps {
   onLogin: (user: User) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [view, setView] = useState<'login' | 'primeiroAcesso'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', color: '' });
-
-  // Primeiro Acesso states
-  const [paEmail, setPaEmail] = useState('');
-  const [paProvisoria, setPaProvisoria] = useState('');
-  const [paNovaSenha, setPaNovaSenha] = useState('');
-  const [paConfirmarSenha, setPaConfirmarSenha] = useState('');
 
   const tempoSpinnerLogin = 3000;
 
@@ -74,51 +61,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const handleTrocarSenha = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (paNovaSenha !== paConfirmarSenha) {
-      alert("As senhas não coincidem.");
-      return;
-    }
-
-    try {
-      const resposta = await fetch(`${N8N_BASE_URL}/webhook/senhaprovisoria`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          email: paEmail, 
-          senha_provisoria: paProvisoria, 
-          nova_senha: paNovaSenha 
-        })
-      });
-
-      const resultado = await resposta.json();
-
-      if (resultado.sucesso === true) {
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, paEmail, paNovaSenha);
-          
-          localStorage.setItem('sessaoAtiva', 'true');
-          localStorage.setItem('usuarioEmail', paEmail);
-          localStorage.setItem('usuarioNome', paEmail.split("@")[0]);
-
-          onLogin(userCredential.user);
-        } catch (firebaseError: any) {
-          if (firebaseError.code === 'auth/email-already-in-use') {
-            alert("Este e-mail já foi cadastrado. Tente fazer login normalmente ou use 'Esqueci minha senha'.");
-          } else {
-            alert("Erro ao criar usuário: " + firebaseError.message);
-          }
-        }
-      } else {
-        alert(resultado.mensagem || "Erro na troca de senha.");
-      }
-    } catch (error: any) {
-      console.error(error);
-      alert("Erro ao processar: " + error.message);
-    }
-  };
-
   const handleRecuperarSenha = () => {
     const emailPrompt = prompt("Digite seu e-mail para recuperar a senha:");
     if (!emailPrompt) return;
@@ -145,8 +87,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <h2 style={{ marginBottom: '24px', color: '#333' }}>🔐 Acesso do Aluno</h2>
 
-        {view === 'login' ? (
-          <form id="loginSection" style={{ textAlign: 'left' }} onSubmit={handleLogin}>
+        <form id="loginSection" style={{ textAlign: 'left' }} onSubmit={handleLogin}>
             <label htmlFor="email-login" style={{ fontWeight: 'bold' }}>E-mail</label>
             <input 
               type="email" 
@@ -186,55 +127,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             )}
 
             <div style={{ marginTop: '16px' }}>
-              <button type="button" onClick={handleRecuperarSenha} style={{ color: '#007BFF', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Esqueci minha senha</button><br />
-              <button type="button" onClick={() => setView('primeiroAcesso')} style={{ color: '#007BFF', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Primeiro acesso? Clique aqui</button>
+              <button type="button" onClick={handleRecuperarSenha} style={{ color: '#007BFF', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Esqueci minha senha</button>
             </div>
 
             <p id="mensagem-login" style={{ marginTop: '18px', fontSize: '15px', color: message.color }}>{message.text}</p>
           </form>
-        ) : (
-          <form id="primeiroAcesso" style={{ textAlign: 'left' }} onSubmit={handleTrocarSenha}>
-            <h3 style={{ textAlign: 'center' }}>🔒 Primeiro Acesso</h3>
-            <input 
-              type="email" 
-              placeholder="E-mail" 
-              required 
-              style={{ width: '100%', padding: '12px', margin: '8px 0', border: '1px solid #ccc', borderRadius: '6px' }} 
-              value={paEmail}
-              onChange={(e) => setPaEmail(e.target.value)}
-            />
-            <input 
-              type="password" 
-              placeholder="Senha provisória" 
-              required 
-              style={{ width: '100%', padding: '12px', margin: '8px 0', border: '1px solid #ccc', borderRadius: '6px' }} 
-              value={paProvisoria}
-              onChange={(e) => setPaProvisoria(e.target.value)}
-            />
-            <input 
-              type="password" 
-              placeholder="Nova senha" 
-              required 
-              style={{ width: '100%', padding: '12px', margin: '8px 0', border: '1px solid #ccc', borderRadius: '6px' }} 
-              value={paNovaSenha}
-              onChange={(e) => setPaNovaSenha(e.target.value)}
-            />
-            <input 
-              type="password" 
-              placeholder="Confirme a nova senha" 
-              required 
-              style={{ width: '100%', padding: '12px', margin: '8px 0 16px 0', border: '1px solid #ccc', borderRadius: '6px' }} 
-              value={paConfirmarSenha}
-              onChange={(e) => setPaConfirmarSenha(e.target.value)}
-            />
-
-            <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', cursor: 'pointer' }}>Trocar Senha</button>
-
-            <div style={{ marginTop: '16px' }}>
-              <button type="button" onClick={() => setView('login')} style={{ color: '#007BFF', textDecoration: 'none', fontSize: '14px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Voltar ao Login</button>
-            </div>
-          </form>
-        )}
       </div>
     </div>
   );

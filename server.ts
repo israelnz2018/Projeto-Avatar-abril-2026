@@ -730,6 +730,7 @@ async function startServer() {
             usado: 0,
             resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
           },
+          senhaProvisoria: true, // força troca obrigatória no 1º acesso
           criadoEm: new Date().toISOString(),
           origem: planoSolicitado === "completo" ? "compra-hotmart" : "gratuito-landing",
         });
@@ -757,6 +758,7 @@ async function startServer() {
           criadoEm: new Date().toISOString(),
           origem: "regularizado",
         });
+        // Nota: não marca senhaProvisoria aqui — conta já existia no Auth com senha própria.
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] REGULARIZADO ${email} (${planoSolicitado})`);
         return res.json({ ok: true, status: "regularizado", uid, email, plano: planoSolicitado, emailEnviado });

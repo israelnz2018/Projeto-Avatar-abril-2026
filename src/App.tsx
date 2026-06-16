@@ -45,9 +45,10 @@ const UserManagementView = lazy(() => import('./components/UserManagementView'))
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
-import { ensureUserDocument } from './services/userService';
+import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
+import { DefinirSenha } from './components/DefinirSenha';
 
 import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
@@ -219,6 +220,8 @@ const ProfileView = () => {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  // true = conta nova com senha provisória → força criar senha no 1º acesso
+  const [precisaDefinirSenha, setPrecisaDefinirSenha] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const inatividadeTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -276,8 +279,17 @@ export default function App() {
         } catch (err) {
           console.error('Erro ao garantir documento do usuário:', err);
         }
+        // Conta nova com senha provisória → forçar criação de senha no 1º acesso
+        try {
+          const dados = await getUserData(currentUser.uid) as any;
+          setPrecisaDefinirSenha(dados?.senhaProvisoria === true);
+        } catch {
+          setPrecisaDefinirSenha(false);
+        }
         localStorage.setItem('sessaoAtiva', 'true');
         localStorage.setItem('usuarioEmail', currentUser.email || '');
+      } else {
+        setPrecisaDefinirSenha(false);
       }
       setUser(currentUser);
       setLoading(false);
@@ -328,6 +340,11 @@ export default function App() {
 
   if (!user) {
     return <Login onLogin={(u) => setUser(u)} />;
+  }
+
+  // Primeiro acesso (conta nova): obriga criar a senha antes de liberar o app.
+  if (precisaDefinirSenha) {
+    return <DefinirSenha user={user} onConcluido={() => setPrecisaDefinirSenha(false)} />;
   }
 
   return (
