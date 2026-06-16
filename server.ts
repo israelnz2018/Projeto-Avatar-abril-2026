@@ -89,6 +89,88 @@ async function startServer() {
   }
 
 
+  // E-mail de acesso enviado quando o n8n libera um aluno (compra grátis/pago).
+  // contexto: 'novo' (conta criada, manda senha) | 'upgrade' (virou completo) |
+  //           'existente' (regularizado). Usa o mesmo SMTP Hostinger.
+  async function sendAcessoEmail(params: {
+    para: string;
+    nome?: string;
+    senhaProvisoria?: string;
+    plano: "gratuito" | "completo";
+    contexto: "novo" | "upgrade" | "existente";
+  }): Promise<boolean> {
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || "465", 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || user;
+    if (!host || !user || !pass) {
+      console.warn("[sendAcessoEmail] SMTP não configurado. Pulando envio.");
+      return false;
+    }
+    const linkApp = process.env.APP_URL || "https://app.educacaopelotrabalho.com";
+    const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
+    const planoLabel = params.plano === "completo" ? "Plano Completo (8 trilhas)" : "Plano Gratuito (Trilha 1)";
+
+    const titulo =
+      params.contexto === "upgrade" ? "Seu acesso foi liberado — Plano Completo LBW" :
+      "Seu acesso à LBW está liberado 🎉";
+
+    const introHtml =
+      params.contexto === "upgrade"
+        ? `Boa notícia, ${primeiroNome}! Seu acesso foi atualizado para o <strong>Plano Completo</strong> — agora você tem as <strong>8 trilhas</strong> liberadas. Use o mesmo login de sempre.`
+        : params.contexto === "existente"
+        ? `Olá ${primeiroNome}! Seu acesso à plataforma <strong>LBW</strong> está liberado. Use o seu login de sempre para entrar.`
+        : `Olá ${primeiroNome}! Sua conta na plataforma <strong>LBW</strong> foi criada. Abaixo estão seus dados de acesso.`;
+
+    // Bloco de credenciais só quando há senha nova (conta recém-criada)
+    const credenciaisHtml = params.senhaProvisoria
+      ? `<div style="background: #F0F2FA; border-left: 4px solid #0033CC; padding: 16px 20px; margin: 20px 0;">
+           <p style="margin: 0 0 8px 0; font-size: 13px; color: #1E2D6E; font-weight: bold;">SEUS DADOS DE ACESSO</p>
+           <p style="margin: 4px 0;"><strong>E-mail:</strong> ${params.para}</p>
+           <p style="margin: 4px 0;"><strong>Senha provisória:</strong> <code style="background:#fff;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-family:monospace;">${params.senhaProvisoria}</code></p>
+           <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Recomendamos trocar a senha no primeiro acesso.</p>
+         </div>`
+      : `<div style="background: #F0F2FA; border-left: 4px solid #0033CC; padding: 16px 20px; margin: 20px 0;">
+           <p style="margin: 4px 0;"><strong>E-mail de acesso:</strong> ${params.para}</p>
+           <p style="margin: 4px 0; font-size: 13px; color:#666;">Use a senha que você já criou. Esqueceu? Use "Esqueci minha senha" na tela de login.</p>
+         </div>`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #2A2F3A;">
+        <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:6px 6px 0 0;">
+          <h1 style="margin:0;font-size:22px;">${titulo}</h1>
+          <p style="margin:6px 0 0 0;font-size:13px;opacity:.85;">LBW · Educação pelo Trabalho · ${planoLabel}</p>
+        </div>
+        <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 6px 6px;">
+          <p style="font-size:15px;">${introHtml}</p>
+          ${credenciaisHtml}
+          <p style="margin:28px 0;text-align:center;">
+            <a href="${linkApp}" style="background:#0033CC;color:#fff;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:15px;">ACESSAR MEU CURSO</a>
+          </p>
+          <p style="font-size:13px;color:#666;text-align:center;">
+            O acesso é por aqui: <a href="${linkApp}" style="color:#0033CC;">${linkApp}</a>
+          </p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+          <p style="font-size:12px;color:#9CA3AF;">Dúvidas? Responda este e-mail.<br>Equipe LBW · Learning by Working</p>
+        </div>
+      </div>`;
+
+    try {
+      const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+      await transporter.sendMail({
+        from: `"LBW · Educação pelo Trabalho" <${from}>`,
+        to: params.para,
+        subject: titulo,
+        html,
+      });
+      return true;
+    } catch (err: any) {
+      console.error("[sendAcessoEmail] Erro SMTP:", err?.message || err);
+      return false;
+    }
+  }
+
   // Verifica que o request vem de um admin autenticado (idToken Firebase no header).
   async function requireAdmin(req: any, res: any, next: any) {
     if (!isAdminReady()) {
@@ -570,6 +652,130 @@ async function startServer() {
     } catch (err: any) {
       console.error("[/api/send-invite] Erro SMTP:", err);
       res.status(500).json({ error: err?.message || "Falha ao enviar e-mail." });
+    }
+  });
+
+  // ===============================================================
+  // LIBERAR ACESSO — chamado pelo n8n após compra (grátis ou pago).
+  // Faz TUDO num bloco só, com Firebase Admin (sem 403) + SMTP:
+  //   1. verifica se o e-mail já existe (Auth)
+  //   2. NÃO existe  -> cria conta + doc Firestore + senha + e-mail de acesso
+  //   3. JÁ existe   -> se está subindo de plano (gratuito->completo), atualiza
+  //                     o doc e avisa por e-mail (sem trocar a senha)
+  //   4. retorna status explícito pro n8n (nada de erro engolido)
+  //
+  // Protegido por token secreto compartilhado (LBW_WEBHOOK_SECRET) no header
+  // x-lbw-secret. O n8n manda esse header; sem ele (ou errado) = 401.
+  // ===============================================================
+  app.post("/api/acesso/liberar", async (req: any, res) => {
+    if (!isAdminReady()) {
+      return res.status(503).json({ error: "Firebase Admin não configurado no servidor." });
+    }
+
+    // 1) Autenticação por segredo compartilhado
+    const segredoConfig = process.env.LBW_WEBHOOK_SECRET || "";
+    const segredoRecebido = req.headers["x-lbw-secret"] || "";
+    if (!segredoConfig) {
+      return res.status(503).json({ error: "LBW_WEBHOOK_SECRET não configurado no servidor." });
+    }
+    if (segredoRecebido !== segredoConfig) {
+      return res.status(401).json({ error: "Segredo inválido." });
+    }
+
+    // 2) Dados de entrada (aceita tanto campos diretos quanto o payload cru da Hotmart)
+    const body = req.body || {};
+    const hotmartBuyer = body?.data?.buyer || {};
+    const email = String(body.email || hotmartBuyer.email || "").toLowerCase().trim();
+    const nome = String(body.nome || body.name || hotmartBuyer.name || hotmartBuyer.first_name || "").trim();
+    // plano: 'completo' (8 trilhas) ou 'gratuito' (trilha 1). Default = gratuito.
+    const planoSolicitado: "completo" | "gratuito" = body.plano === "completo" ? "completo" : "gratuito";
+
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "E-mail ausente ou inválido no payload." });
+    }
+
+    const FORMACOES = {
+      gratuito: ["projetos-melhoria-introdutoria"],
+      completo: ["projetos-melhoria-completo"], // libera tudo (o app trata 'completo' como acesso total)
+    };
+
+    try {
+      // 3) Verifica se já existe no Firebase Auth (fonte da verdade pra login)
+      let userRecord: any = null;
+      try {
+        userRecord = await adminAuth().getUserByEmail(email);
+      } catch (e: any) {
+        if (e?.code !== "auth/user-not-found") throw e;
+      }
+
+      const usersCol = adminFirestore().collection("users");
+
+      // ---- CASO A: usuário NÃO existe -> cria do zero ----
+      if (!userRecord) {
+        const senhaProvisoria = Math.random().toString(36).slice(-10);
+        const novo = await adminAuth().createUser({
+          email,
+          password: senhaProvisoria,
+          displayName: nome || undefined,
+        });
+        await usersCol.doc(novo.uid).set({
+          uid: novo.uid,
+          email,
+          nome: nome || "",
+          tipoUsuario: "aluno",
+          plano: planoSolicitado,
+          formacoes: FORMACOES[planoSolicitado],
+          creditoIA: {
+            limite: planoSolicitado === "completo" ? 1000 : 100,
+            usado: 0,
+            resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+          },
+          criadoEm: new Date().toISOString(),
+          origem: planoSolicitado === "completo" ? "compra-hotmart" : "gratuito-landing",
+        });
+        const emailEnviado = await sendAcessoEmail({
+          para: email, nome, senhaProvisoria, plano: planoSolicitado, contexto: "novo",
+        });
+        console.log(`[acesso/liberar] CRIADO ${email} (${planoSolicitado}) email=${emailEnviado}`);
+        return res.json({ ok: true, status: "criado", uid: novo.uid, email, plano: planoSolicitado, emailEnviado });
+      }
+
+      // ---- CASO B: usuário JÁ existe ----
+      const uid = userRecord.uid;
+      const docRef = usersCol.doc(uid);
+      const snap = await docRef.get();
+      const planoAtual = snap.exists ? (snap.data() as any)?.plano : null;
+
+      // Garante que o doc Firestore exista (se a conta só estava no Auth, regulariza)
+      if (!snap.exists) {
+        await docRef.set({
+          uid, email, nome: nome || userRecord.displayName || "",
+          tipoUsuario: "aluno",
+          plano: planoSolicitado,
+          formacoes: FORMACOES[planoSolicitado],
+          creditoIA: { limite: planoSolicitado === "completo" ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
+          criadoEm: new Date().toISOString(),
+          origem: "regularizado",
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
+        console.log(`[acesso/liberar] REGULARIZADO ${email} (${planoSolicitado})`);
+        return res.json({ ok: true, status: "regularizado", uid, email, plano: planoSolicitado, emailEnviado });
+      }
+
+      // Subindo de gratuito -> completo (ou comprou pago): atualiza plano
+      if (planoSolicitado === "completo" && planoAtual !== "completo") {
+        await docRef.set({ plano: "completo", formacoes: FORMACOES.completo }, { merge: true });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "completo", contexto: "upgrade" });
+        console.log(`[acesso/liberar] UPGRADE ${email}: ${planoAtual} -> completo`);
+        return res.json({ ok: true, status: "atualizado-completo", uid, email, plano: "completo", emailEnviado });
+      }
+
+      // Já tinha o plano pedido (ou já é completo): nada a fazer, não duplica nem reenvia senha
+      console.log(`[acesso/liberar] JA_EXISTIA ${email} (plano atual: ${planoAtual})`);
+      return res.json({ ok: true, status: "ja-existia", uid, email, plano: planoAtual });
+    } catch (err: any) {
+      console.error("[acesso/liberar] ERRO:", err?.message || err);
+      return res.status(500).json({ error: err?.message || "Falha ao liberar acesso." });
     }
   });
 
