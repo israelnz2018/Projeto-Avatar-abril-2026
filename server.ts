@@ -89,9 +89,11 @@ async function startServer() {
   }
 
 
-  // E-mail de acesso enviado quando o n8n libera um aluno (compra grátis/pago).
-  // contexto: 'novo' (conta criada, manda senha) | 'upgrade' (virou completo) |
-  //           'existente' (regularizado). Usa o mesmo SMTP Hostinger.
+  // E-mail de acesso — 3 textos distintos (aprovados pelo Israel):
+  //   1) novo + gratuito   → boas-vindas Trilha 1 + lista das outras 7
+  //   2) novo + completo   → boas-vindas com as 8 trilhas já liberadas
+  //   3) upgrade           → "você desbloqueou tudo" (sem senha, já tem login)
+  // Usa o mesmo SMTP Hostinger.
   async function sendAcessoEmail(params: {
     para: string;
     nome?: string;
@@ -110,31 +112,107 @@ async function startServer() {
     }
     const linkApp = process.env.APP_URL || "https://app.educacaopelotrabalho.com";
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
-    const planoLabel = params.plano === "completo" ? "Plano Completo (8 trilhas)" : "Plano Gratuito (Trilha 1)";
 
-    const titulo =
-      params.contexto === "upgrade" ? "Seu acesso foi liberado — Plano Completo LBW" :
-      "Seu acesso à LBW está liberado 🎉";
+    // Tipo de e-mail: upgrade > pago > gratuito
+    const tipo: "gratis" | "pago" | "upgrade" =
+      params.contexto === "upgrade" ? "upgrade" :
+      params.plano === "completo" ? "pago" : "gratis";
 
-    const introHtml =
-      params.contexto === "upgrade"
-        ? `Boa notícia, ${primeiroNome}! Seu acesso foi atualizado para o <strong>Plano Completo</strong> — agora você tem as <strong>8 trilhas</strong> liberadas. Use o mesmo login de sempre.`
-        : params.contexto === "existente"
-        ? `Olá ${primeiroNome}! Seu acesso à plataforma <strong>LBW</strong> está liberado. Use o seu login de sempre para entrar.`
-        : `Olá ${primeiroNome}! Sua conta na plataforma <strong>LBW</strong> foi criada. Abaixo estão seus dados de acesso.`;
+    // ----- blocos reutilizáveis -----
+    const linha = (n: string, txt: string) =>
+      `<p style="margin:0 0 12px 0;font-size:14px;"><strong>${n}</strong> ${txt}</p>`;
 
-    // Bloco de credenciais só quando há senha nova (conta recém-criada)
-    const credenciaisHtml = params.senhaProvisoria
-      ? `<div style="background: #F0F2FA; border-left: 4px solid #0033CC; padding: 16px 20px; margin: 20px 0;">
-           <p style="margin: 0 0 8px 0; font-size: 13px; color: #1E2D6E; font-weight: bold;">SEUS DADOS DE ACESSO</p>
-           <p style="margin: 4px 0;"><strong>E-mail:</strong> ${params.para}</p>
-           <p style="margin: 4px 0;"><strong>Senha provisória:</strong> <code style="background:#fff;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-family:monospace;">${params.senhaProvisoria}</code></p>
-           <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Recomendamos trocar a senha no primeiro acesso.</p>
-         </div>`
-      : `<div style="background: #F0F2FA; border-left: 4px solid #0033CC; padding: 16px 20px; margin: 20px 0;">
-           <p style="margin: 4px 0;"><strong>E-mail de acesso:</strong> ${params.para}</p>
-           <p style="margin: 4px 0; font-size: 13px; color:#666;">Use a senha que você já criou. Esqueceu? Use "Esqueci minha senha" na tela de login.</p>
-         </div>`;
+    const trilha1 = "<strong>Chegar em uma área nova e entregar rápido</strong> — entenda como qualquer área funciona (SIPOC, RACI, organograma, indicadores) e mostre valor já nas primeiras semanas.";
+    const trilha2 = "<strong>Recomendar melhorias com dados</strong> — faça a pergunta certa antes do gráfico e use análises gráficas e estatísticas pra transformar números em recomendação que o chefe aprova.";
+    const trilha3 = "<strong>Conduzir mudanças com menos resistência</strong> — leve sua ideia adiante sem virar inimigo do time (mapa de stakeholders, jornada ADKAR).";
+    const trilha4 = "<strong>Apresentações que convencem</strong> — estruture sua recomendação no frame executivo e seja ouvido pela diretoria.";
+    const trilha5 = "<strong>Antecipar riscos</strong> — enxergue o problema antes dele acontecer com FMEA e as boas práticas do PMI para gestão de riscos.";
+    const trilha6 = "<strong>Cultura Lean</strong> — entenda o Sistema Toyota de Produção e aprenda a enxergar e eliminar os 3 inimigos da eficiência: Muri, Mura e Muda (sobrecarga, irregularidade e desperdício).";
+    const trilha7 = "<strong>Estatística aplicada a negócios</strong> — causa raiz com dados, testes de hipótese, regressão e controle de processo, sem precisar programar.";
+    const trilha8 = "<strong>Especialista em Gestão de Projetos de Melhoria</strong> — o topo: conduza projetos complexos de ponta a ponta, integrando tudo o que aprendeu.";
+
+    const mentorBloco =
+      `<p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>Mentor Israel (IA)</strong> — um mentor que responde como eu responderia: ele busca a resposta primeiro nos meus próprios vídeos e materiais, com base nos meus 20 anos de experiência. Não é uma IA genérica da internet — é o meu jeito de pensar, à sua disposição.</p>`;
+    const comunidadeBloco =
+      `<p style="margin:0 0 12px 0;font-size:14px;">👥 <strong>Comunidade LBW</strong> — pergunte, troque experiências e sugira melhorias junto com outros profissionais.</p>`;
+    const dashboardBloco =
+      `<p style="margin:0 0 12px 0;font-size:14px;">📈 <strong>Dashboard</strong> — acompanhe seu progresso e seus resultados num lugar só.</p>`;
+
+    // ----- monta cada e-mail -----
+    let titulo: string;
+    let planoLabel: string;
+    let introHtml: string;
+    let credenciaisHtml: string;
+    let botaoLabel: string;
+    let corpoHtml: string;
+
+    // Credenciais: com senha (novatos) ou sem (upgrade)
+    const credComSenha = `
+      <div style="background:#F0F2FA;border-left:4px solid #0033CC;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 8px 0;font-size:13px;color:#1E2D6E;font-weight:bold;">SEUS DADOS DE ACESSO</p>
+        <p style="margin:4px 0;"><strong>E-mail:</strong> ${params.para}</p>
+        <p style="margin:4px 0;"><strong>Senha provisória:</strong> <code style="background:#fff;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-family:monospace;">${params.senhaProvisoria || ""}</code></p>
+        <p style="margin:10px 0 0 0;font-size:12px;color:#b45309;">⚠️ Por segurança, você vai criar a sua própria senha no primeiro acesso.</p>
+      </div>`;
+    const credSemSenha = `
+      <div style="background:#F0F2FA;border-left:4px solid #0033CC;padding:16px 20px;margin:20px 0;">
+        <p style="margin:0 0 4px 0;font-size:13px;color:#1E2D6E;font-weight:bold;">SEU ACESSO</p>
+        <p style="margin:4px 0;">Entre com o <strong>mesmo login de sempre</strong>: ${params.para}</p>
+      </div>`;
+
+    if (tipo === "gratis") {
+      titulo = "Seu acesso gratuito à LBW está liberado 🎉";
+      planoLabel = "Plano Gratuito (Trilha 1)";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso à plataforma <strong>LBW</strong> está liberado. Você começa pela <strong>Trilha 1 — Como Chegar em uma Área Nova e Entregar Resultado Rapidamente</strong>.`;
+      credenciaisHtml = credComSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎥 <strong>Vídeo-aulas</strong> — práticas e direto ao ponto, no seu ritmo.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🛠️ <strong>Ferramentas de gestão</strong> — SIPOC, RACI, Organograma e mais, pra usar em casos reais (você não só assiste, você executa).</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎯 <strong>Resolução de problemas</strong> — identifique os melhores projetos da sua área, execute e implemente as soluções — e se destaque de verdade no seu trabalho.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Análise de dados</strong> — transforme números em decisão com gráficos, sem precisar de Excel avançado.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado da Trilha 1</strong> — ao concluir a trilha (respeitando o tempo mínimo), você recebe seu certificado.</p>
+        ${dashboardBloco}
+        ${mentorBloco}
+        ${comunidadeBloco}
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+        <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">E TEM MAIS 7 TRILHAS ESPERANDO POR VOCÊ:</p>
+        ${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}`;
+    } else if (tipo === "pago") {
+      titulo = "Bem-vindo à Formação completa LBW 🚀 seu acesso está liberado";
+      planoLabel = "Plano Completo (8 trilhas)";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Que bom ter você aqui. Seu acesso ao <strong>Plano Completo da LBW</strong> está liberado — você tem <strong>todas as 8 trilhas</strong> e a plataforma inteira na mão, da primeira semana numa área nova até conduzir projetos complexos de ponta a ponta.`;
+      credenciaisHtml = credComSenha;
+      botaoLabel = "ACESSAR MINHA FORMAÇÃO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">SUA JORNADA COMPLETA — AS 8 TRILHAS:</p>
+        ${linha("1.", trilha1)}${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+        <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">E AINDA:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado em cada trilha</strong> — ao concluir uma trilha (respeitando o tempo mínimo), você recebe o certificado. São 8 certificados ao longo da jornada.</p>
+        ${dashboardBloco}
+        ${mentorBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Comece pela Trilha 1 e siga no seu ritmo. Está tudo liberado.</p>`;
+    } else {
+      // upgrade
+      titulo = "Você desbloqueou tudo 🚀 acesso completo liberado — LBW";
+      planoLabel = "Plano Completo (8 trilhas)";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Parabéns pela decisão — e obrigado pela confiança. Seu acesso acaba de ser <strong>atualizado para o Plano Completo</strong>: as <strong>8 trilhas</strong> e a plataforma inteira agora estão liberadas pra você.`;
+      credenciaisHtml = credSemSenha;
+      botaoLabel = "ENTRAR NA MINHA FORMAÇÃO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">AGORA É TUDO SEU — AS 8 TRILHAS:</p>
+        ${linha("1.", trilha1)}${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+        <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">E AINDA:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado em cada trilha</strong> — ao concluir uma trilha (respeitando o tempo mínimo), você recebe o certificado. São 8 certificados ao longo da jornada.</p>
+        ${dashboardBloco}
+        ${mentorBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Você já conhece a Trilha 1. Agora é seguir em frente — está tudo liberado.</p>`;
+    }
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #2A2F3A;">
@@ -145,14 +223,13 @@ async function startServer() {
         <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 6px 6px;">
           <p style="font-size:15px;">${introHtml}</p>
           ${credenciaisHtml}
-          <p style="margin:28px 0;text-align:center;">
-            <a href="${linkApp}" style="background:#0033CC;color:#fff;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:15px;">ACESSAR MEU CURSO</a>
+          <p style="margin:24px 0;text-align:center;">
+            <a href="${linkApp}" style="background:#0033CC;color:#fff;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;font-size:15px;">${botaoLabel}</a>
           </p>
-          <p style="font-size:13px;color:#666;text-align:center;">
-            O acesso é por aqui: <a href="${linkApp}" style="color:#0033CC;">${linkApp}</a>
-          </p>
+          ${corpoHtml}
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-          <p style="font-size:12px;color:#9CA3AF;">Dúvidas? Responda este e-mail.<br>Equipe LBW · Learning by Working</p>
+          <p style="font-size:13px;color:#666;">Qualquer dúvida, responda este e-mail.<br><strong>Israel Souza</strong> · Equipe LBW</p>
+          <p style="font-size:12px;color:#9CA3AF;">O acesso é por aqui: <a href="${linkApp}" style="color:#0033CC;">${linkApp}</a></p>
         </div>
       </div>`;
 
