@@ -194,8 +194,8 @@ const PASSOS = [
 
 const PLATAFORMA = [
   ['🎬', 'Vídeo-aulas práticas', 'Cada conceito vira ação imediata na ferramenta — você aplica enquanto aprende.'],
-  ['🧰', 'Ferramentas que executam', 'SIPOC, RACI, Ishikawa, plano de ação, esforço × impacto. Preenchidas com o seu projeto.'],
-  ['📈', 'Análise de dados no-code', 'Pareto, histograma, capabilidade, regressão — sem abrir Excel.'],
+  ['🧰', 'Ferramentas que executam', 'SIPOC, RACI, Ishikawa, plano de ação, esforço × impacto, etc. Preenchidas com o seu projeto.'],
+  ['📈', 'Análise de dados — do básico ao avançado', 'O software LBW faz todo o trabalho estatístico para você.'],
   ['📊', 'Dashboard do projeto', 'Acompanhe o andamento de cada projeto de melhoria num painel visual.'],
   ['💬', 'Comunidade LBW', 'Tire dúvidas, compartilhe projetos e aprenda com outros profissionais na mesma jornada.'],
   ['📑', 'Slides prontos em PPT', 'Toda ferramenta exporta uma apresentação pronta pra levar à liderança.'],
