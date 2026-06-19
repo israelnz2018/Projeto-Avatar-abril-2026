@@ -40,8 +40,13 @@ export default function MarketingView() {
       if (r.ok) { setTokenOk(true); setTokenMsg('Conectado ao Hostinger Reach com sucesso.'); }
       else {
         setTokenOk(false);
-        const partes = [b?.error, b?.dica, b?.detalhe && `Resposta: ${typeof b.detalhe === 'string' ? b.detalhe : JSON.stringify(b.detalhe)}`].filter(Boolean);
-        setTokenMsg(partes.join('  ·  ') || `Falha (HTTP ${r.status}).`);
+        let diag = '';
+        if (b?.diagnostico) {
+          const d = b.diagnostico;
+          diag = ` | Diagnóstico — reach:${d.reach?.status} profiles:${d.profiles?.status} domains:${d.domains?.status} billing:${d.billing?.status}`;
+        }
+        const partes = [b?.error, b?.dica].filter(Boolean);
+        setTokenMsg((partes.join('  ·  ') || `Falha (HTTP ${r.status}).`) + diag);
       }
     } catch (e: any) {
       setTokenOk(false); setTokenMsg(e?.message || 'Erro de conexão.');
