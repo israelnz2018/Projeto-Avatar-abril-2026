@@ -175,11 +175,16 @@ export default function LandingComecar() {
           <div>
             <span className="eyebrow">🎁 100% grátis · sem cartão</span>
             <h1>Sua primeira entrega <span className="grad">em 1 semana. De graça.</span></h1>
-            <p className="lead">Traga um problema da sua área, use 5 ferramentas guiadas e saia com uma análise pronta pra mostrar ao seu chefe — sem assistir 40 horas de teoria antes.</p>
+            <p className="lead">Em vez de estudar 40 horas de teoria, você <b style={{ color: '#fff' }}>aprende fazendo</b>. A primeira trilha resolve dois problemas reais de quem está começando:</p>
+            <ul className="checklist">
+              <li><span className="c">①</span> <span><b style={{ color: '#fff' }}>Chegar numa área (ou empresa) nova</b> e se adaptar rápido, sem se perder.</span></li>
+              <li><span className="c">②</span> <span><b style={{ color: '#fff' }}>Resolver os problemas do dia a dia</b> de forma estruturada — e mostrar resultado.</span></li>
+            </ul>
+            <p className="lead" style={{ marginTop: 18, marginBottom: 8, fontSize: 15, color: 'var(--txt2)' }}>O que você leva, de graça:</p>
             <ul className="checklist">
               <li><span className="c">✓</span> A primeira trilha completa, liberada na hora</li>
-              <li><span className="c">✓</span> 5 ferramentas que se preenchem com o seu projeto</li>
-              <li><span className="c">✓</span> Mentor Israel digital incluído</li>
+              <li><span className="c">✓</span> Acesso ao software LBW para gerar seus gráficos e análises</li>
+              <li><span className="c">✓</span> Mentor Israel digital + comunidade pra tirar dúvidas</li>
               <li><span className="c">✓</span> Certificado da Trilha 1 ao concluir</li>
             </ul>
           </div>
