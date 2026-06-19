@@ -546,17 +546,29 @@ async function startServer() {
   }
 
   // GET /api/reach/groups — lista os grupos de contato do Reach (admin). Útil pra ver IDs.
+  // Diagnóstico: repassa status + corpo cru da Hostinger pra entender 404/401/403.
   app.get("/api/reach/groups", requireAdmin, async (_req: any, res) => {
     const token = process.env.HOSTINGER_API_TOKEN;
     if (!token) return res.status(503).json({ error: "HOSTINGER_API_TOKEN não configurado no Railway." });
+    const url = `${REACH_BASE}/api/reach/v1/contacts/groups`;
     try {
-      const r = await fetch(`${REACH_BASE}/api/reach/v1/contacts/groups`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+      const raw = await r.text();
+      let parsed: any = null;
+      try { parsed = JSON.parse(raw); } catch { /* corpo não-JSON */ }
+      if (r.ok) return res.status(200).json({ ok: true, data: parsed ?? raw });
+      // Erro: devolve detalhe pra UI mostrar o motivo real
+      return res.status(r.status).json({
+        error: `Hostinger respondeu HTTP ${r.status} em ${url}`,
+        detalhe: parsed ?? raw?.slice(0, 500),
+        dica: r.status === 404
+          ? "404 = a API não encontrou o recurso Reach nesta conta. Possível: produto Reach/Email Marketing não ativo na conta do token, ou token sem escopo pra Reach."
+          : r.status === 401 ? "401 = token inválido/expirado."
+          : r.status === 403 ? "403 = token sem permissão pra Reach."
+          : undefined,
       });
-      const data = await r.json().catch(() => ({}));
-      return res.status(r.status).json(data);
     } catch (err: any) {
-      return res.status(500).json({ error: err?.message || "Erro ao listar grupos." });
+      return res.status(500).json({ error: err?.message || "Erro ao chamar a Hostinger." });
     }
   });
 

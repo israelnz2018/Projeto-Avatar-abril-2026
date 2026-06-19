@@ -36,11 +36,12 @@ export default function MarketingView() {
     setChecking(true); setTokenOk(null); setTokenMsg('');
     try {
       const r = await authedFetch('/api/reach/groups');
+      const b = await r.json().catch(() => ({}));
       if (r.ok) { setTokenOk(true); setTokenMsg('Conectado ao Hostinger Reach com sucesso.'); }
       else {
-        const b = await r.json().catch(() => ({}));
         setTokenOk(false);
-        setTokenMsg(b?.error || `Falha (HTTP ${r.status}). Verifique o token no Railway.`);
+        const partes = [b?.error, b?.dica, b?.detalhe && `Resposta: ${typeof b.detalhe === 'string' ? b.detalhe : JSON.stringify(b.detalhe)}`].filter(Boolean);
+        setTokenMsg(partes.join('  ·  ') || `Falha (HTTP ${r.status}).`);
       }
     } catch (e: any) {
       setTokenOk(false); setTokenMsg(e?.message || 'Erro de conexão.');
