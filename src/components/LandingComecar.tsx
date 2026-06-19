@@ -92,8 +92,8 @@ function LeadForm() {
   const enviar = async () => {
     const n = nome.trim();
     const e = email.trim();
-    if (!n) { setState('err'); setMsg('Por favor, informe seu nome.'); return; }
-    if (!e || e.indexOf('@') < 0) { setState('err'); setMsg('Informe um e-mail válido.'); return; }
+    if (n.length < 2) { setState('err'); setMsg('Por favor, informe seu nome.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setState('err'); setMsg('Informe um e-mail válido.'); return; }
     setState('sending'); setMsg('');
     try {
       const r = await fetch(WEBHOOK_GRATUITO, {

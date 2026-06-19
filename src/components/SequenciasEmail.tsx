@@ -14,7 +14,7 @@
  *  POST /api/newsletter/enviar       → { assunto, corpo, publico }
  *  GET  /api/newsletter/historico    → envios passados
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Mail, Power, Play, Send, Clock, History, CheckCircle2, BarChart3, MousePointerClick, Eye } from 'lucide-react';
 import { auth } from '../lib/firebase';
 
@@ -51,39 +51,33 @@ const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: str
   pago:   { nome: 'Pago',   desc: 'Newsletter semanal · manual', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
 
-/** Caixa de ajuda com as marcações, exibida ao lado de onde se escreve o e-mail. */
-function AjudaMarcacoes() {
+// Marcações disponíveis. 'insere' é o trecho colado ao clicar.
+const MARCACOES = [
+  { rotulo: '{nome}', insere: '{nome}', dica: 'primeiro nome da pessoa' },
+  { rotulo: '[titulo: ...]', insere: '[titulo: ESCREVA O TÍTULO AQUI]', dica: 'título de destaque' },
+  { rotulo: '[botao: ...]', insere: '[botao: TEXTO DO BOTÃO | https://SEU-LINK]', dica: 'botão clicável (quantos quiser)' },
+  { rotulo: '[video: ...]', insere: '[video: https://youtube.com/watch?v=SEU-VIDEO]', dica: 'capa do vídeo do YouTube' },
+];
+
+/**
+ * Caixa de ajuda: cada marcação é um BOTÃO. Ao clicar, o trecho é inserido no
+ * último campo de texto que você editou (onde está o cursor). Sem copiar/colar.
+ */
+function AjudaMarcacoes({ onInserir }: { onInserir: (txt: string) => void }) {
   return (
     <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700 leading-relaxed">
-      <div className="font-bold text-blue-900 mb-1.5">📌 O que você pode usar no texto (tudo opcional):</div>
-      <ul className="space-y-1.5">
-        <li>
-          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">{'{nome}'}</code>
-          {' '}→ vira o primeiro nome da pessoa. Ex: <i>Oi {'{nome}'}, tudo bem?</i>
-        </li>
-        <li>
-          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">[titulo: seu título aqui]</code>
-          {' '}→ um título grande de destaque. <b>Use quando quiser; sem isso, não aparece título.</b>
-        </li>
-        <li>
-          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">[botao: Texto do botão | https://link]</code>
-          {' '}→ um botão clicável. Escreva <b>o texto que quiser</b> antes do <b>|</b> e <b>o link que quiser</b> depois.
-          Pode colocar <b>quantos botões quiser</b>, um por linha.
-        </li>
-        <li>
-          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">[video: link do YouTube]</code>
-          {' '}→ mostra a capa do vídeo com um ▶ que abre o YouTube ao clicar.
-        </li>
-      </ul>
-      <div className="mt-2 pt-2 border-t border-blue-200 text-[11px] text-gray-500">
-        Exemplo completo:<br />
-        <code className="block bg-white border border-blue-100 rounded p-2 mt-1 font-mono whitespace-pre-wrap">{`[titulo: Bem-vindo!]
-
-Oi {nome}, que bom te ver aqui.
-
-[video: https://youtube.com/watch?v=ABC123]
-
-[botao: Começar agora | https://app.educacaopelotrabalho.com]`}</code>
+      <div className="font-bold text-blue-900 mb-2">👆 Clique pra inserir no texto (tudo opcional):</div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {MARCACOES.map((m) => (
+          <button key={m.rotulo} type="button" onClick={() => onInserir(m.insere)} title={`Inserir — ${m.dica}`}
+            className="inline-flex items-center gap-1 bg-white border border-blue-300 hover:bg-blue-100 hover:border-blue-400 px-2 py-1 rounded font-mono text-blue-800 transition">
+            <span className="text-blue-400">＋</span> {m.rotulo}
+          </button>
+        ))}
+      </div>
+      <div className="text-[11px] text-gray-500">
+        Ex: <code className="bg-white border border-blue-100 px-1 rounded">[botao: Começar agora | https://app.educacaopelotrabalho.com]</code> —
+        o que vem antes do <b>|</b> é o texto do botão, depois é o link. Edite os trechos em MAIÚSCULA após inserir.
       </div>
     </div>
   );
@@ -95,6 +89,28 @@ export default function SequenciasEmail() {
   const [tpl, setTpl] = useState<TemplateConfig | null>(null);
   const [tplSalvando, setTplSalvando] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
+
+  // Último textarea de corpo que recebeu foco — alvo da inserção de marcações.
+  const corpoAtivoRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /**
+   * Insere `trecho` na posição do cursor do último campo de corpo focado e
+   * dispara o onChange (via setter nativo) pra o React atualizar o estado.
+   */
+  const inserirNoCorpo = (trecho: string) => {
+    const ta = corpoAtivoRef.current;
+    if (!ta) { setMsg('Clique primeiro no texto do e-mail onde quer inserir.'); return; }
+    const ini = ta.selectionStart ?? ta.value.length;
+    const fim = ta.selectionEnd ?? ta.value.length;
+    const novo = ta.value.slice(0, ini) + trecho + ta.value.slice(fim);
+    // seta o valor pelo setter nativo pra o React "ver" a mudança e chamar onChange
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(ta, novo);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    // reposiciona o cursor logo após o trecho inserido
+    const pos = ini + trecho.length;
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(pos, pos); });
+  };
   const [status, setStatus] = useState<StatusResp | null>(null);
   const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[] } | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -300,9 +316,10 @@ export default function SequenciasEmail() {
                 <input type="text" value={e.assunto} onChange={(ev) => setEmail(aba, idx, { assunto: ev.target.value })}
                   placeholder="Assunto" className="w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg text-sm" />
                 <textarea value={e.corpo} onChange={(ev) => setEmail(aba, idx, { corpo: ev.target.value })} rows={5}
+                  onFocus={(ev) => { corpoAtivoRef.current = ev.target; }}
                   placeholder={'Texto do e-mail. Uma linha em branco entre parágrafos.'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm leading-relaxed" />
-                <AjudaMarcacoes />
+                <AjudaMarcacoes onInserir={inserirNoCorpo} />
               </div>
             ))}
           </div>
@@ -332,9 +349,10 @@ export default function SequenciasEmail() {
           <input type="text" value={nlAssunto} onChange={(e) => setNlAssunto(e.target.value)}
             placeholder="Assunto" className="w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg text-sm" />
           <textarea value={nlCorpo} onChange={(e) => setNlCorpo(e.target.value)} rows={7}
+            onFocus={(e) => { corpoAtivoRef.current = e.target; }}
             placeholder={'Texto da newsletter. Uma linha em branco entre parágrafos.'}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm leading-relaxed" />
-          <div className="mb-3"><AjudaMarcacoes /></div>
+          <div className="mb-3"><AjudaMarcacoes onInserir={inserirNoCorpo} /></div>
           <button onClick={enviarNewsletter} disabled={nlEnviando}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
             <Send className={`w-4 h-4 ${nlEnviando ? 'animate-pulse' : ''}`} /> {nlEnviando ? 'Enviando…' : 'Enviar newsletter'}

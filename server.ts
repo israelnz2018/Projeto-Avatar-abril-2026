@@ -666,6 +666,23 @@ async function startServer() {
 
   function esc(s: string) { return String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+  // Primeiro nome da pessoa, ou "" se não houver.
+  function primeiroNomeDe(nome?: string): string {
+    return String(nome || "").trim().split(/\s+/)[0] || "";
+  }
+
+  // Substitui {nome} no texto. Se a pessoa não tem nome, usa uma saudação genérica:
+  // "Oi {nome}," vira "Olá," e "{nome}" sozinho vira "tudo bem". Evita "Oi ,".
+  function aplicarNome(texto: string, nome?: string): string {
+    const pn = primeiroNomeDe(nome);
+    if (pn) return texto.replace(/\{nome\}/g, pn);
+    // sem nome: trata os padrões comuns de saudação pra não ficar esquisito
+    return texto
+      .replace(/\boi,?\s*\{nome\}/gi, "Olá")
+      .replace(/\bol[áa],?\s*\{nome\}/gi, "Olá")
+      .replace(/\{nome\}/g, "tudo bem");
+  }
+
   // Extrai o ID de um link do YouTube (watch?v=, youtu.be/, /embed/).
   function youtubeId(url: string): string | null {
     const m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
@@ -936,8 +953,7 @@ async function startServer() {
       if (!alvo) { resumo.pulados++; continue; }
 
       const chave = `${estagio}_${alvo.idx + 1}`;
-      const nome = (u.nome || "").split(" ")[0] || "";
-      const corpoTxt = String(alvo.email.corpo).replace(/\{nome\}/g, nome);
+      const corpoTxt = aplicarNome(String(alvo.email.corpo), u.nome);
       const corpoHtml = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template);
 
       if (dryRun) {
@@ -1075,15 +1091,21 @@ async function startServer() {
   // Cada envio é salvo em newsletters/{id} pra você reabrir e reenviar.
   // ===============================================================
 
-  function emailsPorPublico(docs: any[], publico: string): string[] {
-    const set = new Set<string>();
+  function emailsPorPublico(docs: any[], publico: string): { email: string; nome: string }[] {
+    const vistos = new Set<string>();
+    const lista: { email: string; nome: string }[] = [];
     docs.forEach((d) => {
       const u = d.data ? d.data() : d;
       if (!u?.email || String(u.email).indexOf("@") < 0) return;
       const estagio = classificarUsuario(u);
-      if (publico === "todos" || estagio === publico) set.add(String(u.email).trim().toLowerCase());
+      if (publico === "todos" || estagio === publico) {
+        const email = String(u.email).trim().toLowerCase();
+        if (vistos.has(email)) return;
+        vistos.add(email);
+        lista.push({ email, nome: u.nome || "" });
+      }
     });
-    return Array.from(set);
+    return lista;
   }
 
   // POST /api/newsletter/enviar — body { assunto, corpo, publico }
@@ -1095,25 +1117,25 @@ async function startServer() {
     try {
       const template = await lerTemplate();
       const snap = await adminFirestore().collection("users").get();
-      const emails = emailsPorPublico(snap.docs, alvo);
+      const destinatarios = emailsPorPublico(snap.docs, alvo);
       let enviados = 0, falhas = 0;
       const erros: any[] = [];
-      for (const to of emails) {
-        const corpoTxt = String(corpo);
+      for (const dest of destinatarios) {
+        const corpoTxt = aplicarNome(String(corpo), dest.nome);
         const html = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template);
-        const r = await resendSend({ to, subject: assunto, html });
+        const r = await resendSend({ to: dest.email, subject: assunto, html });
         if (r.ok) enviados++;
-        else { falhas++; if (erros.length < 10) erros.push({ to, status: r.status, body: String(r.body).slice(0, 200) }); }
+        else { falhas++; if (erros.length < 10) erros.push({ to: dest.email, status: r.status, body: String(r.body).slice(0, 200) }); }
         await new Promise((ok) => setTimeout(ok, 130));
       }
       // salva no histórico
       const ref = adminFirestore().collection("newsletters").doc();
       await ref.set({
         id: ref.id, assunto, corpo, publico: alvo,
-        total: emails.length, enviados, falhas,
+        total: destinatarios.length, enviados, falhas,
         enviadoEm: new Date().toISOString(),
       });
-      return res.json({ id: ref.id, total: emails.length, enviados, falhas, erros });
+      return res.json({ id: ref.id, total: destinatarios.length, enviados, falhas, erros });
     } catch (err: any) {
       console.error("[POST /api/newsletter/enviar] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao enviar newsletter." });
