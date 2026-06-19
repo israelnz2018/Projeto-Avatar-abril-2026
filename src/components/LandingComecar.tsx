@@ -170,7 +170,7 @@ export default function LandingComecar() {
         <div className="herogrid">
           <div>
             <span className="eyebrow">🎁 100% grátis · sem cartão</span>
-            <h1>Sua primeira entrega <span className="grad">em 1 semana. De graça.</span></h1>
+            <h1>Sua primeira entrega <span className="grad">em 1 semana.</span></h1>
             <p className="lead">Em vez de estudar 40 horas de teoria, você <b style={{ color: '#fff' }}>aprende fazendo</b>. A primeira trilha resolve dois problemas reais de quem está começando:</p>
             <ul className="checklist">
               <li><span className="c">①</span> <span><b style={{ color: '#fff' }}>Chegar numa área (ou empresa) nova</b> e se adaptar rápido, sem se perder.</span></li>

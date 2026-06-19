@@ -328,6 +328,25 @@ export default function App() {
     );
   }
 
+  // SITE PÚBLICO (vitrine) — bypass total do login.
+  // O domínio SEM "app." (educacaopelotrabalho.com / www) mostra APENAS a Jornada,
+  // sem login. O app de verdade fica em app.educacaopelotrabalho.com (inalterado).
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
+    if (isSitePublico) {
+      return (
+        <Router>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
+            <Routes>
+              <Route path="*" element={<JornadaPrincipal />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      );
+    }
+  }
+
   // Rota PÚBLICA de verificação de certificado — bypass do login.
   // Recrutador/colega abre /verificar/{certId} sem precisar de conta.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/verificar/')) {
