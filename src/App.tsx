@@ -17,7 +17,6 @@ import {
   Users,
   Users2,
   Key,
-  Compass,
   Unlock,
   Megaphone
 } from 'lucide-react';
@@ -74,7 +73,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     : 'Starter';
 
   const menuItems = [
-    { name: 'Sua Jornada', path: '/', icon: Compass },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
@@ -333,8 +331,12 @@ export default function App() {
   // sem login. O app de verdade fica em app.educacaopelotrabalho.com (inalterado).
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
+    const path = window.location.pathname;
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
-    if (isSitePublico) {
+    // As landings de venda/captação e a verificação de certificado têm prioridade
+    // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
+    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/');
+    if (isSitePublico && !rotaReservada) {
       return (
         <Router>
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
@@ -402,7 +404,7 @@ export default function App() {
               </div>
             }>
             <Routes>
-              <Route path="/" element={<JornadaPrincipal />} />
+              <Route path="/" element={<Navigate to="/projects" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />
