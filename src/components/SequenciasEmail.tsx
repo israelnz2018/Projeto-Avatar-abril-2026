@@ -51,6 +51,44 @@ const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: str
   pago:   { nome: 'Pago',   desc: 'Newsletter semanal · manual', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
 
+/** Caixa de ajuda com as marcações, exibida ao lado de onde se escreve o e-mail. */
+function AjudaMarcacoes() {
+  return (
+    <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700 leading-relaxed">
+      <div className="font-bold text-blue-900 mb-1.5">📌 O que você pode usar no texto (tudo opcional):</div>
+      <ul className="space-y-1.5">
+        <li>
+          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">{'{nome}'}</code>
+          {' '}→ vira o primeiro nome da pessoa. Ex: <i>Oi {'{nome}'}, tudo bem?</i>
+        </li>
+        <li>
+          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">[titulo: seu título aqui]</code>
+          {' '}→ um título grande de destaque. <b>Use quando quiser; sem isso, não aparece título.</b>
+        </li>
+        <li>
+          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">[botao: Texto do botão | https://link]</code>
+          {' '}→ um botão clicável. Escreva <b>o texto que quiser</b> antes do <b>|</b> e <b>o link que quiser</b> depois.
+          Pode colocar <b>quantos botões quiser</b>, um por linha.
+        </li>
+        <li>
+          <code className="bg-white border border-blue-200 px-1.5 py-0.5 rounded font-mono">[video: link do YouTube]</code>
+          {' '}→ mostra a capa do vídeo com um ▶ que abre o YouTube ao clicar.
+        </li>
+      </ul>
+      <div className="mt-2 pt-2 border-t border-blue-200 text-[11px] text-gray-500">
+        Exemplo completo:<br />
+        <code className="block bg-white border border-blue-100 rounded p-2 mt-1 font-mono whitespace-pre-wrap">{`[titulo: Bem-vindo!]
+
+Oi {nome}, que bom te ver aqui.
+
+[video: https://youtube.com/watch?v=ABC123]
+
+[botao: Começar agora | https://app.educacaopelotrabalho.com]`}</code>
+      </div>
+    </div>
+  );
+}
+
 export default function SequenciasEmail() {
   const [aba, setAba] = useState<Aba>('gratis');
   const [engaj, setEngaj] = useState<EngajItem[]>([]);
@@ -240,14 +278,8 @@ export default function SequenciasEmail() {
       {/* sequência (lead/gratis) */}
       {(aba === 'lead' || aba === 'gratis') && seqs && (
         <div>
-          <p className="text-xs text-gray-500 mb-1">
+          <p className="text-xs text-gray-500 mb-3">
             {META[aba].desc}. O dia é contado a partir do cadastro. Desligue um e-mail sem apagá-lo pelo botão à direita.
-          </p>
-          <p className="text-[11px] text-gray-400 mb-3">
-            No texto você pode usar: <code className="bg-gray-100 px-1 rounded">[titulo: ...]</code> ·{' '}
-            <code className="bg-gray-100 px-1 rounded">[botao: Texto | link]</code> ·{' '}
-            <code className="bg-gray-100 px-1 rounded">[video: link-youtube]</code> ·{' '}
-            <code className="bg-gray-100 px-1 rounded">{'{nome}'}</code>
           </p>
           <div className="space-y-3">
             {seqs[aba].map((e, idx) => (
@@ -267,9 +299,10 @@ export default function SequenciasEmail() {
                 </div>
                 <input type="text" value={e.assunto} onChange={(ev) => setEmail(aba, idx, { assunto: ev.target.value })}
                   placeholder="Assunto" className="w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg text-sm" />
-                <textarea value={e.corpo} onChange={(ev) => setEmail(aba, idx, { corpo: ev.target.value })} rows={4}
-                  placeholder={'Texto do e-mail. Use {nome} pro primeiro nome.\nUma linha em branco entre parágrafos.'}
+                <textarea value={e.corpo} onChange={(ev) => setEmail(aba, idx, { corpo: ev.target.value })} rows={5}
+                  placeholder={'Texto do e-mail. Uma linha em branco entre parágrafos.'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm leading-relaxed" />
+                <AjudaMarcacoes />
               </div>
             ))}
           </div>
@@ -283,13 +316,8 @@ export default function SequenciasEmail() {
       {/* newsletter (pago) */}
       {aba === 'pago' && (
         <div>
-          <p className="text-xs text-gray-500 mb-1">
+          <p className="text-xs text-gray-500 mb-3">
             Newsletter manual. Escreva e dispare quando quiser. Cada envio fica no histórico pra reenviar.
-          </p>
-          <p className="text-[11px] text-gray-400 mb-3">
-            No texto você pode usar: <code className="bg-gray-100 px-1 rounded">[titulo: ...]</code> ·{' '}
-            <code className="bg-gray-100 px-1 rounded">[botao: Texto | link]</code> ·{' '}
-            <code className="bg-gray-100 px-1 rounded">[video: link-youtube]</code>
           </p>
           <div className="flex items-center gap-2 mb-3">
             <label className="text-sm text-gray-700">Enviar para:</label>
@@ -305,7 +333,8 @@ export default function SequenciasEmail() {
             placeholder="Assunto" className="w-full px-3 py-2 mb-2 border border-gray-300 rounded-lg text-sm" />
           <textarea value={nlCorpo} onChange={(e) => setNlCorpo(e.target.value)} rows={7}
             placeholder={'Texto da newsletter. Uma linha em branco entre parágrafos.'}
-            className="w-full px-3 py-2 mb-3 border border-gray-300 rounded-lg text-sm leading-relaxed" />
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm leading-relaxed" />
+          <div className="mb-3"><AjudaMarcacoes /></div>
           <button onClick={enviarNewsletter} disabled={nlEnviando}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
             <Send className={`w-4 h-4 ${nlEnviando ? 'animate-pulse' : ''}`} /> {nlEnviando ? 'Enviando…' : 'Enviar newsletter'}
