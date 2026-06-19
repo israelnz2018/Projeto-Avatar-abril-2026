@@ -640,22 +640,100 @@ async function startServer() {
     }
   }
 
-  // Envolve o texto da campanha num layout com a marca LBW + rodapé.
-  function campanhaHtml(corpoHtml: string) {
+  // Configuração editável do template de e-mail (aba Template, na UI).
+  // Vive em config/marketingTemplate; cai nos defaults abaixo se não existir.
+  // Template GLOBAL: só cabeçalho (cor + marca), cor padrão dos botões e rodapé.
+  // Título e botões são decididos por e-mail (marcações no corpo), não aqui.
+  type TemplateConfig = {
+    headerCor: string; headerTitulo: string; headerSubtitulo: string;
+    botaoCor: string; rodapeTexto: string;
+  };
+  const TEMPLATE_DEFAULT: TemplateConfig = {
+    headerCor: "#1E2D6E",
+    headerTitulo: "Learning by Working",
+    headerSubtitulo: "Educação pelo Trabalho",
+    botaoCor: "#0033CC",
+    rodapeTexto: "Você recebe este e-mail porque se cadastrou na plataforma LBW.\nLearning by Working — Educação pelo Trabalho · contact@learningbyworking.com",
+  };
+
+  async function lerTemplate(): Promise<TemplateConfig> {
+    try {
+      const snap = await adminFirestore().collection("config").doc("marketingTemplate").get();
+      if (snap.exists) return { ...TEMPLATE_DEFAULT, ...(snap.data() as any) };
+    } catch (e) { /* default */ }
+    return TEMPLATE_DEFAULT;
+  }
+
+  function esc(s: string) { return String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  // Extrai o ID de um link do YouTube (watch?v=, youtu.be/, /embed/).
+  function youtubeId(url: string): string | null {
+    const m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  // Marcações OPCIONAIS que o admin escreve no corpo de cada e-mail, decididas
+  // e-mail por e-mail (não no template global):
+  //   [titulo: Texto]            -> título de destaque
+  //   [botao: Texto | https://…] -> botão clicável (quantos quiser)
+  //   [video: link-youtube]      -> capa do vídeo clicável (e-mail não toca embutido)
+  // O botaoCor vem do template (cor padrão dos botões).
+  function aplicarMarcacoes(corpoHtml: string, botaoCor: string): string {
+    let out = corpoHtml;
+
+    // [titulo: ...]
+    out = out.replace(/\[titulo:\s*([^\]]+)\]/gi, (_f, txt) =>
+      `<h2 style="color:#1E2D6E; font-size:21px; font-weight:bold; margin:8px 0 14px 0;">${esc(String(txt).trim())}</h2>`);
+
+    // [botao: Texto | link]  (aceita vários no mesmo e-mail)
+    out = out.replace(/\[botao:\s*([^\]]+)\]/gi, (_f, conteudo) => {
+      const partes = String(conteudo).split("|");
+      const texto = (partes[0] || "").trim();
+      const link = (partes[1] || "").trim();
+      if (!texto || !link) return "";
+      return `<div style="margin:14px 0;"><a href="${esc(link)}" style="display:inline-block; background:${esc(botaoCor)}; color:#fff; text-decoration:none; font-weight:bold; font-size:15px; padding:13px 26px; border-radius:8px;">${esc(texto)}</a></div>`;
+    });
+
+    // [video: link]
+    out = out.replace(/\[video:\s*([^\]]+)\]/gi, (_f, url) => {
+      const id = youtubeId(String(url).trim());
+      if (!id) return "";
+      const thumb = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+      const link = `https://www.youtube.com/watch?v=${id}`;
+      return `
+        <a href="${link}" style="display:block; max-width:480px; margin:12px auto; position:relative; text-decoration:none;">
+          <img src="${thumb}" alt="Assistir ao vídeo" width="480" style="width:100%; max-width:480px; border-radius:10px; display:block;" />
+          <span style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,.75); color:#fff; width:64px; height:44px; border-radius:10px; text-align:center; line-height:44px; font-size:22px;">&#9658;</span>
+        </a>`;
+    });
+
+    return out;
+  }
+
+  // Envolve o corpo (HTML já pronto) no layout da marca, usando a config do template.
+  // Título e botões são marcações no próprio corpo (por e-mail), não no template.
+  function campanhaHtmlCom(corpoHtmlRaw: string, t: TemplateConfig) {
+    const corpoHtml = aplicarMarcacoes(corpoHtmlRaw, t.botaoCor); // [titulo:]/[botao:]/[video:]
+    const rodape = esc(t.rodapeTexto).replace(/\n/g, "<br/>");
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#ffffff; color:#2A2F3A;">
-        <div style="background:#1E2D6E; padding:20px 24px;">
-          <span style="color:#fff; font-weight:bold; font-size:18px; letter-spacing:.5px;">Learning by Working</span>
-          <span style="color:#9FC0FF; font-size:13px;"> · Educação pelo Trabalho</span>
+        <div style="background:${esc(t.headerCor)}; padding:20px 24px;">
+          <span style="color:#fff; font-weight:bold; font-size:18px; letter-spacing:.5px;">${esc(t.headerTitulo)}</span>
+          ${t.headerSubtitulo ? `<span style="color:#ffffffcc; font-size:13px;"> · ${esc(t.headerSubtitulo)}</span>` : ""}
         </div>
         <div style="padding:28px 24px; font-size:15px; line-height:1.6;">
           ${corpoHtml}
         </div>
         <div style="padding:20px 24px; border-top:1px solid #eee; font-size:12px; color:#9CA3AF;">
-          Você recebe este e-mail porque se cadastrou na plataforma LBW.<br/>
-          Learning by Working — Educação pelo Trabalho · contact@learningbyworking.com
+          ${rodape}
         </div>
       </div>`;
+  }
+
+  // Versão síncrona com defaults — mantém compatibilidade com chamadas existentes.
+  // (As que querem o template editado devem passar a config via campanhaHtmlCom.)
+  function campanhaHtml(corpoHtml: string) {
+    return campanhaHtmlCom(corpoHtml, TEMPLATE_DEFAULT);
   }
 
   // GET /api/campanha/teste — confere se o Resend está configurado (admin).
@@ -822,6 +900,7 @@ async function startServer() {
   async function processarEnviosDiarios(opts: { dryRun?: boolean } = {}) {
     const dryRun = !!opts.dryRun;
     const seqs = await lerSequencias();
+    const template = await lerTemplate();
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
@@ -859,7 +938,7 @@ async function startServer() {
       const chave = `${estagio}_${alvo.idx + 1}`;
       const nome = (u.nome || "").split(" ")[0] || "";
       const corpoTxt = String(alvo.email.corpo).replace(/\{nome\}/g, nome);
-      const corpoHtml = campanhaHtml(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""));
+      const corpoHtml = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template);
 
       if (dryRun) {
         resumo.detalhes.push({ email: u.email, estagio, envia: chave, assunto: alvo.email.assunto });
@@ -911,6 +990,38 @@ async function startServer() {
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao salvar." });
     }
+  });
+
+  // GET /api/marketing/template — config editável do desenho dos e-mails
+  app.get("/api/marketing/template", requireAdmin, async (_req: any, res) => {
+    return res.json(await lerTemplate());
+  });
+
+  // PUT /api/marketing/template — salva a config do template
+  app.put("/api/marketing/template", requireAdmin, async (req: any, res) => {
+    const b = req.body || {};
+    const limpo: TemplateConfig = {
+      headerCor: String(b.headerCor || TEMPLATE_DEFAULT.headerCor),
+      headerTitulo: String(b.headerTitulo ?? TEMPLATE_DEFAULT.headerTitulo),
+      headerSubtitulo: String(b.headerSubtitulo ?? TEMPLATE_DEFAULT.headerSubtitulo),
+      botaoCor: String(b.botaoCor || TEMPLATE_DEFAULT.botaoCor),
+      rodapeTexto: String(b.rodapeTexto ?? TEMPLATE_DEFAULT.rodapeTexto),
+    };
+    try {
+      await adminFirestore().collection("config").doc("marketingTemplate").set(limpo);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao salvar template." });
+    }
+  });
+
+  // POST /api/marketing/template/preview — monta o HTML com um corpo de exemplo (preview)
+  app.post("/api/marketing/template/preview", requireAdmin, async (req: any, res) => {
+    const b = req.body || {};
+    const t: TemplateConfig = { ...TEMPLATE_DEFAULT, ...b };
+    const corpoTxt = String(b.corpoExemplo || "Oi {nome},\n\nEste é um exemplo de como seu e-mail vai chegar.\n\nIsrael");
+    const corpoHtml = corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join("");
+    return res.json({ html: campanhaHtmlCom(corpoHtml, t) });
   });
 
   // GET /api/marketing/status — resumo da última execução + contagem por estágio (faixa de status)
@@ -982,13 +1093,14 @@ async function startServer() {
     if (!assunto || !corpo) return res.status(400).json({ error: "assunto e corpo são obrigatórios." });
     const alvo = ["pago", "gratis", "lead", "todos"].includes(publico) ? publico : "pago";
     try {
+      const template = await lerTemplate();
       const snap = await adminFirestore().collection("users").get();
       const emails = emailsPorPublico(snap.docs, alvo);
       let enviados = 0, falhas = 0;
       const erros: any[] = [];
       for (const to of emails) {
         const corpoTxt = String(corpo);
-        const html = campanhaHtml(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""));
+        const html = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template);
         const r = await resendSend({ to, subject: assunto, html });
         if (r.ok) enviados++;
         else { falhas++; if (erros.length < 10) erros.push({ to, status: r.status, body: String(r.body).slice(0, 200) }); }

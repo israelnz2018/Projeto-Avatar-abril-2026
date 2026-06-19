@@ -30,7 +30,12 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 
 interface SeqEmail { dia: number; assunto: string; corpo: string; ativo: boolean; }
 type Pacote = 'lead' | 'gratis' | 'pago';
-type Aba = Pacote | 'engajamento';
+type Aba = Pacote | 'engajamento' | 'template';
+
+interface TemplateConfig {
+  headerCor: string; headerTitulo: string; headerSubtitulo: string;
+  botaoCor: string; rodapeTexto: string;
+}
 
 interface EngajItem { email: string; nome: string; estagio: string; cliques: number; aberturas: number; voltouAoApp: boolean; ultimoEvento: string | null; }
 
@@ -49,6 +54,9 @@ const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: str
 export default function SequenciasEmail() {
   const [aba, setAba] = useState<Aba>('gratis');
   const [engaj, setEngaj] = useState<EngajItem[]>([]);
+  const [tpl, setTpl] = useState<TemplateConfig | null>(null);
+  const [tplSalvando, setTplSalvando] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
   const [status, setStatus] = useState<StatusResp | null>(null);
   const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[] } | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -86,8 +94,38 @@ export default function SequenciasEmail() {
     } catch { /* silencioso */ }
   };
 
+  const carregarTemplate = async () => {
+    try {
+      const t = await authedFetch('/api/marketing/template').then((r) => r.json());
+      setTpl(t);
+    } catch { /* silencioso */ }
+  };
+  const atualizarPreview = async (t: TemplateConfig) => {
+    try {
+      const r = await authedFetch('/api/marketing/template/preview', {
+        method: 'POST',
+        body: JSON.stringify({ ...t, corpoExemplo: '[titulo: Bem-vindo à plataforma!]\n\nOi {nome},\n\nEste é um exemplo de como seu e-mail vai chegar. Você pode incluir um vídeo:\n\n[video: https://www.youtube.com/watch?v=dQw4w9WgXcQ]\n\nE quantos botões quiser:\n\n[botao: Acessar a plataforma | https://app.educacaopelotrabalho.com]\n\nIsrael' }),
+      });
+      const b = await r.json();
+      setPreviewHtml(b?.html || '');
+    } catch { /* silencioso */ }
+  };
+  const salvarTemplate = async () => {
+    if (!tpl) return;
+    setTplSalvando(true); setMsg('');
+    try {
+      const r = await authedFetch('/api/marketing/template', { method: 'PUT', body: JSON.stringify(tpl) });
+      setMsg(r.ok ? 'Template salvo.' : 'Erro ao salvar template.');
+    } catch (e: any) { setMsg(e?.message || 'Erro ao salvar.'); }
+    finally { setTplSalvando(false); }
+  };
+  const setTplField = (patch: Partial<TemplateConfig>) => setTpl((p) => (p ? { ...p, ...patch } : p));
+
   useEffect(() => { carregar(); carregarHistorico(); }, []);
   useEffect(() => { if (aba === 'engajamento') carregarEngajamento(); }, [aba]);
+  useEffect(() => { if (aba === 'template' && !tpl) carregarTemplate(); }, [aba]);
+  // atualiza preview sempre que o template muda (na aba template)
+  useEffect(() => { if (aba === 'template' && tpl) atualizarPreview(tpl); }, [tpl, aba]);
 
   const setEmail = (pac: 'lead' | 'gratis', idx: number, patch: Partial<SeqEmail>) => {
     setSeqs((prev) => {
@@ -191,6 +229,10 @@ export default function SequenciasEmail() {
           className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === 'engajamento' ? 'border-transparent bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
           <BarChart3 className="w-4 h-4" /> Engajamento
         </button>
+        <button onClick={() => setAba('template')}
+          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === 'template' ? 'border-transparent bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+          <Mail className="w-4 h-4" /> Template
+        </button>
       </div>
 
       {msg && <div className="mb-4 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">{msg}</div>}
@@ -198,8 +240,14 @@ export default function SequenciasEmail() {
       {/* sequência (lead/gratis) */}
       {(aba === 'lead' || aba === 'gratis') && seqs && (
         <div>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-gray-500 mb-1">
             {META[aba].desc}. O dia é contado a partir do cadastro. Desligue um e-mail sem apagá-lo pelo botão à direita.
+          </p>
+          <p className="text-[11px] text-gray-400 mb-3">
+            No texto você pode usar: <code className="bg-gray-100 px-1 rounded">[titulo: ...]</code> ·{' '}
+            <code className="bg-gray-100 px-1 rounded">[botao: Texto | link]</code> ·{' '}
+            <code className="bg-gray-100 px-1 rounded">[video: link-youtube]</code> ·{' '}
+            <code className="bg-gray-100 px-1 rounded">{'{nome}'}</code>
           </p>
           <div className="space-y-3">
             {seqs[aba].map((e, idx) => (
@@ -235,8 +283,13 @@ export default function SequenciasEmail() {
       {/* newsletter (pago) */}
       {aba === 'pago' && (
         <div>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-gray-500 mb-1">
             Newsletter manual. Escreva e dispare quando quiser. Cada envio fica no histórico pra reenviar.
+          </p>
+          <p className="text-[11px] text-gray-400 mb-3">
+            No texto você pode usar: <code className="bg-gray-100 px-1 rounded">[titulo: ...]</code> ·{' '}
+            <code className="bg-gray-100 px-1 rounded">[botao: Texto | link]</code> ·{' '}
+            <code className="bg-gray-100 px-1 rounded">[video: link-youtube]</code>
           </p>
           <div className="flex items-center gap-2 mb-3">
             <label className="text-sm text-gray-700">Enviar para:</label>
@@ -340,6 +393,67 @@ export default function SequenciasEmail() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* template (desenho global do e-mail) */}
+      {aba === 'template' && tpl && (
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* coluna de edição */}
+          <div>
+            <p className="text-xs text-gray-500 mb-3">
+              Desenho aplicado a <b>todos</b> os e-mails. Título e botões você decide por e-mail,
+              escrevendo no corpo: <code className="bg-gray-100 px-1 rounded">[titulo: ...]</code>,{' '}
+              <code className="bg-gray-100 px-1 rounded">[botao: Texto | link]</code>,{' '}
+              <code className="bg-gray-100 px-1 rounded">[video: link-youtube]</code>.
+            </p>
+
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cabeçalho — cor de fundo</label>
+            <div className="flex items-center gap-2 mb-3">
+              <input type="color" value={tpl.headerCor} onChange={(e) => setTplField({ headerCor: e.target.value })}
+                className="w-10 h-9 rounded border border-gray-300 p-0.5" />
+              <input type="text" value={tpl.headerCor} onChange={(e) => setTplField({ headerCor: e.target.value })}
+                className="w-28 px-2 py-1.5 border border-gray-300 rounded text-sm font-mono" />
+            </div>
+
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cabeçalho — título</label>
+            <input type="text" value={tpl.headerTitulo} onChange={(e) => setTplField({ headerTitulo: e.target.value })}
+              className="w-full px-3 py-2 mb-3 border border-gray-300 rounded-lg text-sm" />
+
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cabeçalho — subtítulo</label>
+            <input type="text" value={tpl.headerSubtitulo} onChange={(e) => setTplField({ headerSubtitulo: e.target.value })}
+              className="w-full px-3 py-2 mb-3 border border-gray-300 rounded-lg text-sm" />
+
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Cor padrão dos botões</label>
+            <div className="flex items-center gap-2 mb-3">
+              <input type="color" value={tpl.botaoCor} onChange={(e) => setTplField({ botaoCor: e.target.value })}
+                className="w-10 h-9 rounded border border-gray-300 p-0.5" />
+              <input type="text" value={tpl.botaoCor} onChange={(e) => setTplField({ botaoCor: e.target.value })}
+                className="w-28 px-2 py-1.5 border border-gray-300 rounded text-sm font-mono" />
+            </div>
+
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Rodapé</label>
+            <textarea value={tpl.rodapeTexto} onChange={(e) => setTplField({ rodapeTexto: e.target.value })} rows={3}
+              className="w-full px-3 py-2 mb-3 border border-gray-300 rounded-lg text-sm leading-relaxed" />
+
+            <button onClick={salvarTemplate} disabled={tplSalvando}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+              <CheckCircle2 className="w-4 h-4" /> {tplSalvando ? 'Salvando…' : 'Salvar template'}
+            </button>
+          </div>
+
+          {/* coluna de preview */}
+          <div>
+            <div className="text-xs font-bold text-gray-600 uppercase mb-2">Pré-visualização</div>
+            <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-100 p-3">
+              {previewHtml
+                ? <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                : <p className="text-xs text-gray-400 p-4">Gerando preview…</p>}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">
+              Exemplo com título, vídeo e botão. No envio real, {'{nome}'} vira o nome da pessoa.
+            </p>
+          </div>
         </div>
       )}
     </div>
