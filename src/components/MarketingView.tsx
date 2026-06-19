@@ -79,7 +79,7 @@ export default function MarketingView() {
   };
 
   const criarContasConvidados = async () => {
-    if (!window.confirm('Criar contas de acesso COMPLETO (grátis até 31/12/2026) para todos os contatos do Reach?\n\nCada um recebe uma senha provisória. Você vê a lista email→senha pra enviar.')) return;
+    if (!window.confirm('Criar contas de acesso COMPLETO (grátis até 31/12/2026) para todos os contatos do Reach?\n\nTodos recebem a MESMA senha temporária (LBW2026) e são obrigados a trocá-la no 1º acesso.')) return;
     setCriando(true); setReativacao(null); setReativErro('');
     try {
       const r = await authedFetch('/api/reativacao/criar-contas', { method: 'POST' });
@@ -203,8 +203,9 @@ export default function MarketingView() {
         <h2 className="font-semibold text-gray-900 mb-1">3. Criar acessos dos convidados (até 31/12/2026)</h2>
         <p className="text-sm text-gray-500 mb-4">
           Cria conta de <b>acesso completo grátis</b> (válido até 31 de dezembro de 2026) para
-          todos os contatos do Reach, cada um com uma senha provisória. Depois você baixa a
-          lista <b>email → senha</b> pra enviar o e-mail de convite. Rodar de novo é seguro (não duplica).
+          todos os contatos do Reach. Todos recebem a <b>mesma senha temporária</b> (<code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-indigo-700">LBW2026</code>),
+          então você manda <b>um único e-mail igual pra todos</b>. No primeiro acesso o aluno é
+          obrigado a criar a própria senha. Rodar de novo é seguro (não duplica).
         </p>
         <button
           onClick={criarContasConvidados}
@@ -217,6 +218,10 @@ export default function MarketingView() {
 
         {reativacao && (
           <>
+            <div className="mt-5 flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
+              <span className="text-sm text-indigo-900">Senha temporária de todos (use no e-mail de convite):</span>
+              <code className="bg-white px-3 py-1 rounded font-mono font-bold text-indigo-700 border border-indigo-200">LBW2026</code>
+            </div>
             <div className="mt-5 grid grid-cols-4 gap-3">
               {[
                 ['Total', reativacao.total, 'text-gray-900'],

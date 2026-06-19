@@ -719,11 +719,14 @@ async function startServer() {
       }
       const unicos = Array.from(new Set(emails)).filter((e) => e.indexOf("@") > 0);
 
-      // 2) cria/atualiza cada conta como completo + validade, com senha provisória própria
+      // 2) cria/atualiza cada conta como completo + validade.
+      // Senha temporária ÚNICA (igual pra todos) -> permite um e-mail de convite em massa idêntico.
+      // senhaProvisoria:true força a troca obrigatória no 1º login (App.tsx + DefinirSenha.tsx).
+      const SENHA_CONVITE = "LBW2026";
       const credenciais: { email: string; senha: string; status: string }[] = [];
       let criados = 0, atualizados = 0, falhas = 0;
       for (const email of unicos) {
-        const senha = Math.random().toString(36).slice(-4) + Math.random().toString(36).slice(-4); // 8 chars
+        const senha = SENHA_CONVITE;
         try {
           let uid: string, novo = false;
           try { uid = (await adminAuth().getUserByEmail(email)).uid; await adminAuth().updateUser(uid, { password: senha }); }
@@ -741,6 +744,7 @@ async function startServer() {
             formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
             creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
             criadoEm: base.criadoEm || new Date().toISOString(),
+            senhaProvisoria: true, // força troca obrigatória no 1º acesso (senha LBW2026 é compartilhada)
           }, { merge: true });
           credenciais.push({ email, senha, status: novo ? "criado" : "atualizado" });
           novo ? criados++ : atualizados++;
