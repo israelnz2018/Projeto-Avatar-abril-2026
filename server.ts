@@ -871,18 +871,168 @@ async function startServer() {
   type SeqEmail = { dia: number; assunto: string; corpo: string; ativo: boolean };
   type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[] };
 
+  // Conteúdo inicial das sequências (editável pela tela). Tom "Carta do Israel":
+  // 1ª pessoa, casos reais, dor antes da solução, sem hype.
+  // LEAD (5 e-mails, dias 0/2/4/7/10): sobe o nível de consciência (Schwartz):
+  //   inconsciente -> consciente do problema -> da solução -> do produto -> mais consciente.
+  // GRÁTIS (7 e-mails, dias 0/3/7/11/15/19/24): um por trilha (trilhas 2 a 8 do app).
+  const APP_URL = "https://app.educacaopelotrabalho.com";
   const SEQUENCIAS_DEFAULT: Sequencias = {
     lead: [
-      { dia: 0, ativo: true, assunto: "Seu acesso está pronto — entra aqui", corpo: "Oi {nome},\n\nVocê pediu acesso à plataforma mas ainda não entrou. Tá tudo pronto te esperando.\n\nÉ só entrar e dar uma volta.\n\nIsrael" },
-      { dia: 2, ativo: true, assunto: "Ainda dá tempo de começar", corpo: "Oi {nome},\n\nReparei que você ainda não entrou. Em 5 minutos você já mexe na primeira ferramenta.\n\nIsrael" },
-      { dia: 5, ativo: true, assunto: "O que você está perdendo", corpo: "Oi {nome},\n\nDeixa eu te mostrar rapidinho o que tem lá dentro.\n\nIsrael" },
+      {
+        dia: 0, ativo: true,
+        assunto: "Você pediu seu acesso — e ele está aqui te esperando",
+        corpo:
+          "[titulo: Seu acesso já está liberado]\n\n" +
+          "Oi {nome},\n\n" +
+          "Aqui é o Israel. Você deixou seu e-mail pra entrar na plataforma, e eu vim pessoalmente garantir que você não perca isso.\n\n" +
+          "Deixa eu te contar por que criei tudo isso. Passei 27 anos dentro de fábrica — Ford, Braskem e outras — resolvendo problema de verdade, daqueles que custam milhões. Em um único projeto na Braskem, o que a gente fez economizou mais de 20 milhões por ano. E uma coisa ficou clara pra mim nesses anos: ninguém te ensina, na prática, a chegar numa área nova e entregar resultado rápido. Você aprende no susto, errando na frente do chefe.\n\n" +
+          "Foi pra isso que montei a plataforma. Pra você não passar por esse sufoco.\n\n" +
+          "Seu primeiro acesso já está liberado. Entra, dá uma volta, sem compromisso.\n\n" +
+          "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
+          "Te encontro lá dentro.\n\nIsrael",
+      },
+      {
+        dia: 2, ativo: true,
+        assunto: "A pergunta que separa quem cresce de quem trava",
+        corpo:
+          "Oi {nome},\n\n" +
+          "Deixa eu te fazer uma pergunta honesta: quando você entra numa área nova — emprego novo, setor novo, projeto novo — quanto tempo você leva até realmente entender como aquilo funciona e começar a entregar algo que as pessoas notem?\n\n" +
+          "A maioria leva meses. Anda no escuro, com medo de perguntar o óbvio, esperando \"pegar o jeito\". E enquanto isso o chefe observa.\n\n" +
+          "Eu vi isso acontecer com centenas de profissionais — treinei mais de 200 engenheiros na Ford. Os que cresciam rápido não eram os mais inteligentes. Eram os que tinham um MÉTODO pra entender a área e achar onde estava o problema, em vez de chutar.\n\n" +
+          "Esse método existe. Não é dom, é técnica. E é exatamente o que você vai encontrar lá dentro.\n\n" +
+          "[botao: Quero ver o método | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 4, ativo: true,
+        assunto: "Não é sobre trabalhar mais. É sobre enxergar melhor",
+        corpo:
+          "Oi {nome},\n\n" +
+          "Tem um engano que custa caro pra muita gente boa: achar que pra se destacar no trabalho é preciso trabalhar mais horas, responder e-mail à meia-noite, viver cansado.\n\n" +
+          "Não é. Quem se destaca é quem ENXERGA o que os outros não veem — o desperdício escondido, a causa real de um problema, a melhoria que ninguém tinha percebido. E isso se aprende com ferramentas simples: um SIPOC pra entender um processo, um Ishikawa pra achar a causa raiz, um diagrama de esforço x impacto pra decidir onde mexer primeiro.\n\n" +
+          "Parece coisa de \"engenheiro de fábrica\"? É exatamente o contrário. Funciona em qualquer área — RH, financeiro, vendas, operação, saúde. O que muda é só onde você aplica.\n\n" +
+          "Na plataforma essas ferramentas estão prontas pra você usar no SEU trabalho, hoje. Não é teoria — você preenche e usa.\n\n" +
+          "[botao: Ver as ferramentas | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 7, ativo: true,
+        assunto: "Por que eu não te cobro nada pra você começar",
+        corpo:
+          "Oi {nome},\n\n" +
+          "Você deve estar se perguntando: se isso é tão útil, por que o primeiro acesso é de graça?\n\n" +
+          "Resposta honesta: porque eu sei que, se você experimentar de verdade, você vai entender o valor melhor do que qualquer promessa minha. Eu não preciso te convencer com palavra bonita — preciso que você USE.\n\n" +
+          "A Trilha 1 — 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente' — está liberada pra você sem pagar nada. São 5 fases, da hora de entender a área até comunicar suas ideias com profissionalismo. É o kit de sobrevivência que eu gostaria de ter tido aos 25 anos.\n\n" +
+          "Você só precisa de uma coisa: entrar e começar. Quem começa, continua.\n\n" +
+          "[botao: Começar a Trilha 1 | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 10, ativo: true,
+        assunto: "{nome}, vou ser direto com você",
+        corpo:
+          "Oi {nome},\n\n" +
+          "Faz uns dias que liberei seu acesso e você ainda não entrou. Tudo bem — a vida é corrida, eu entendo. Mas deixa eu ser direto, do jeito que eu falaria com um colega.\n\n" +
+          "Esse acesso não vai te servir de nada parado. Conhecimento que você não usa é igual ferramenta encostada na prateleira: ocupa espaço e não muda nada.\n\n" +
+          "Eu não quero te encher de e-mail. Esse é o último da série. Então fica o convite, de coração: reserve 15 minutos hoje, entre, e faça a primeira fase da Trilha 1. Só isso. Se não fizer sentido pra você, tudo bem. Mas faça pelo menos uma vez, pra decidir com base no que você viu — não no que deixou de ver.\n\n" +
+          "[botao: Entrar agora (15 min) | " + APP_URL + "]\n\n" +
+          "Conto com você.\n\nIsrael",
+      },
     ],
     gratis: [
-      { dia: 0, ativo: true, assunto: "Bem-vindo! Comece por aqui", corpo: "Oi {nome},\n\nQue bom te ver por aqui. Deixa eu te mostrar o primeiro passo.\n\nIsrael" },
-      { dia: 2, ativo: true, assunto: "A ferramenta que todo mundo ama", corpo: "Oi {nome},\n\nHoje quero te mostrar o SIPOC na prática.\n\nIsrael" },
-      { dia: 5, ativo: true, assunto: "Caso real: como apliquei isso", corpo: "Oi {nome},\n\nDeixa eu te contar uma história de chão de fábrica.\n\nIsrael" },
-      { dia: 9, ativo: true, assunto: "O que você ganha com o completo", corpo: "Oi {nome},\n\nVocê já viu bastante coisa. Tem muito mais no plano completo.\n\nIsrael" },
-      { dia: 14, ativo: true, assunto: "Última dica + um convite", corpo: "Oi {nome},\n\nFechando nossa sequência com uma última dica.\n\nIsrael" },
+      {
+        dia: 0, ativo: true,
+        assunto: "Você entrou — agora deixa eu te guiar",
+        corpo:
+          "[titulo: Bem-vindo de verdade]\n\n" +
+          "Oi {nome},\n\n" +
+          "Que bom que você entrou. Isso já te coloca à frente da maioria — muita gente pede acesso e nunca aparece.\n\n" +
+          "Você está na Trilha 1, 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente'. Meu conselho: não tente ver tudo de uma vez. Faça a Fase 1 — entender como sua área funciona — e aplique no seu trabalho real essa semana. Uma ferramenta usada vale mais que dez assistidas.\n\n" +
+          "Nas próximas semanas vou te mandar um e-mail por vez, cada um te mostrando uma trilha diferente da plataforma — análise de dados, apresentações que convencem, conduzir mudanças, estatística aplicada e mais. Pra você ver até onde dá pra ir.\n\n" +
+          "Por hoje, só uma missão: termine a Fase 1.\n\n" +
+          "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 3, ativo: true,
+        assunto: "Quando o chefe pede \"me mostra os números\"",
+        corpo:
+          "[titulo: Trilha — Recomendar melhorias com base em dados]\n\n" +
+          "Oi {nome},\n\n" +
+          "Deixa eu adivinhar uma cena que você já viveu: você teve uma boa ideia, levou pro chefe, e ele perguntou — \"e os dados? me mostra os números\". E você travou.\n\n" +
+          "Acontece com quase todo mundo. O problema não é falta de dado — é não saber transformar dado em argumento. Eu já vi projeto excelente morrer porque a pessoa não soube mostrar o número certo na hora certa.\n\n" +
+          "A trilha 'Como Recomendar Melhorias com Base em Análise de Dados' resolve isso, sem você precisar virar especialista em Excel ou programação. Pareto que convence, histograma sem mistério, e — o mais importante — a pergunta certa ANTES do gráfico. Porque 80% das análises começam erradas justamente aí.\n\n" +
+          "É o tipo de habilidade que faz o chefe parar de duvidar e começar a aprovar.\n\n" +
+          "[botao: Conhecer essa trilha | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 7, ativo: true,
+        assunto: "Boa ideia que ninguém entende não vale nada",
+        corpo:
+          "[titulo: Trilha — Apresentações que convencem]\n\n" +
+          "Oi {nome},\n\n" +
+          "Uma verdade dura que aprendi em 27 anos: a melhor ideia da sala perde pra ideia mais bem APRESENTADA. Injusto? Talvez. Real? Todo dia.\n\n" +
+          "Já vi gente brilhante ser ignorada numa reunião porque travou, se enrolou, ou mostrou um slide confuso. E vi gente mediana brilhar só porque soube contar a história com clareza.\n\n" +
+          "A trilha 'Como Criar Apresentações que Convencem' te ensina a estrutura SCQA — a mesma que a McKinsey usa há 40 anos — pra montar um argumento que prende. E mostra como antecipar as 3 perguntas que a diretoria SEMPRE faz, pra você nunca mais ser pego de surpresa. Tem até como gerar um PPT executivo em 1 clique dentro do app, economizando suas 4 horas de montagem.\n\n" +
+          "Não é sobre falar bonito. É sobre não deixar uma boa ideia morrer por falta de jeito.\n\n" +
+          "[botao: Ver a trilha de apresentações | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 11, ativo: true,
+        assunto: "Por que as pessoas resistem mesmo quando você tem razão",
+        corpo:
+          "[titulo: Trilha — Conduzir mudanças com menos resistência]\n\n" +
+          "Oi {nome},\n\n" +
+          "Talvez a coisa mais frustrante do mundo corporativo: você tem razão, prova com dados que sua ideia é melhor — e mesmo assim o time resiste, arrasta o pé, volta pro 'como era antes'.\n\n" +
+          "Demorei anos pra entender uma coisa: mostrar dado NÃO convence pessoas. Pessoas mudam por outros motivos — e existe um método pra conduzir isso. Chama-se ADKAR, e eu uso em todo projeto de mudança que toco.\n\n" +
+          "A trilha 'Como Conduzir Mudanças com Menos Resistência' te dá o mapa de stakeholders honesto (quem te apoia, quem te enfrenta, quem está em cima do muro), os 4 scripts pra conversa difícil com quem resiste, e como sobreviver aos 90 dias críticos depois que a mudança começa.\n\n" +
+          "Liderança técnica de verdade não é mandar. É fazer o outro querer ir junto.\n\n" +
+          "[botao: Conhecer essa trilha | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 15, ativo: true,
+        assunto: "O que toda empresa diz que faz (e quase ninguém faz direito)",
+        corpo:
+          "[titulo: Trilha — Cultura Lean na prática]\n\n" +
+          "Oi {nome},\n\n" +
+          "\"Aqui a gente é Lean.\" Você provavelmente já ouviu isso em alguma empresa. E provavelmente percebeu que, na prática, quase ninguém sabe o que isso significa de verdade.\n\n" +
+          "Lean virou buzzword. Mas no fundo é a coisa mais concreta que existe: enxergar os 8 desperdícios que estão na sua semana agora, ir onde o trabalho acontece (o gemba), e melhorar um pouquinho todo dia. Eu construí carreira em cima disso.\n\n" +
+          "A trilha 'Cultura Lean na Prática' te ensina a PENSAR Lean antes de aplicar Lean — os 5 princípios, os 8 desperdícios, os 5 porquês pra achar causa raiz sem chutar, e o detalhe que quase ninguém domina: quando otimizar e quando NÃO otimizar (porque nem tudo merece esforço).\n\n" +
+          "É o olhar que, uma vez treinado, você não desliga mais.\n\n" +
+          "[botao: Ver a trilha Lean | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 19, ativo: true,
+        assunto: "O profissional que enxerga o problema antes dele estourar",
+        corpo:
+          "[titulo: Trilha — Antecipar riscos antes que virem problemas]\n\n" +
+          "Oi {nome},\n\n" +
+          "Tem um tipo de profissional que toda empresa quer e poucas têm: aquele que enxerga o problema ANTES dele estourar. Que olha pro projeto e diz \"isso aqui vai dar ruim por causa disso\" — e acerta.\n\n" +
+          "Isso não é sorte nem intuição mágica. É método. É saber ler o radar antes de apertar o botão.\n\n" +
+          "A trilha 'Como Antecipar Riscos Antes que Virem Problemas' te ensina exatamente isso: mapear o que pode dar errado, priorizar pelo que é mais grave e mais provável, e agir antes — não depois do incêndio. É a diferença entre o profissional que apaga fogo (e vive estressado) e o que previne o fogo (e vira referência).\n\n" +
+          "Quem antecipa risco ganha uma fama silenciosa e poderosa: a de ser confiável.\n\n" +
+          "[botao: Conhecer essa trilha | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      {
+        dia: 24, ativo: true,
+        assunto: "Estatística que vira decisão (não relatório que ninguém lê)",
+        corpo:
+          "[titulo: Trilha — Estatística aplicada a negócios]\n\n" +
+          "Oi {nome},\n\n" +
+          "Chegamos na trilha mais hardcore — e eu guardei ela pro fim de propósito.\n\n" +
+          "Tem uma fronteira que separa o profissional bom do profissional raro: saber usar estatística pra DECIDIR, não pra encher relatório. A maioria tem medo de estatística porque associou aquilo a fórmula e prova de faculdade. Mas estatística aplicada é outra coisa — é a ferramenta mais poderosa que existe pra parar de decidir no 'achismo'.\n\n" +
+          "A trilha 'Como Fazer Análises Estatísticas Aplicadas a Negócios' te leva da análise descritiva até inferência e previsão — controle de processo, capacidade, testes de hipótese, regressão — tudo no-code, traduzido pra linguagem de negócio. É o nível de quem senta na mesa de decisão e é OUVIDO.\n\n" +
+          "Você começou comigo entendendo como chegar numa área nova. Agora você viu até onde dá pra ir: virar a referência técnica que todo mundo procura.\n\n" +
+          "Tudo isso — as 8 trilhas completas — está no Plano Completo. Se você chegou até aqui lendo, você é exatamente o tipo de pessoa que aproveita cada uma delas.\n\n" +
+          "[botao: Ver o Plano Completo | " + APP_URL + "]\n\n" +
+          "Foi uma honra te acompanhar nessas semanas.\n\nIsrael",
+      },
     ],
   };
 
