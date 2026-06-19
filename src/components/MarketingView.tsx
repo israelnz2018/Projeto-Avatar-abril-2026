@@ -10,6 +10,7 @@
 import React, { useState } from 'react';
 import { Megaphone, RefreshCw, CheckCircle2, AlertTriangle, Users, Send } from 'lucide-react';
 import { auth } from '../lib/firebase';
+import SequenciasEmail from './SequenciasEmail';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -302,6 +303,9 @@ export default function MarketingView() {
           </div>
         )}
       </div>
+
+      {/* Sequências de e-mail por estágio (Lead / Grátis / Pago) */}
+      <SequenciasEmail />
 
       <p className="text-xs text-gray-400 mt-6 leading-relaxed">
         Os contatos também são espelhados no Hostinger Reach (sincronização acima).

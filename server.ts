@@ -759,6 +759,338 @@ async function startServer() {
     }
   });
 
+  // ===============================================================
+  // SEQUÊNCIAS DE E-MAIL AUTOMÁTICAS (Lead + Grátis) — o "motor"
+  // -----------------------------------------------------------------
+  // Estágio de cada usuário (decidido pelo estado ATUAL no Firestore):
+  //   lead   = conta gratuita que NUNCA acessou  (sem primeiroAcessoEm, plano != completo)
+  //   gratis = conta gratuita que JÁ acessou      (com primeiroAcessoEm, plano != completo)
+  //   pago   = plano completo                      (newsletter é manual, não entra aqui)
+  // Um cron diário varre os users, classifica cada um, vê quantos dias desde o
+  // cadastro e envia o e-mail da sequência que "vence" hoje — se ainda não foi
+  // enviado (marca em users/{uid}.emailSequencia.{pacote}_{n}). Idempotente.
+  // As sequências (textos/dias) vivem em config/marketingSequencias pra serem
+  // editáveis pela tela (Fase 2). Se o doc não existir, usa os defaults abaixo.
+  // ===============================================================
+
+  type SeqEmail = { dia: number; assunto: string; corpo: string; ativo: boolean };
+  type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[] };
+
+  const SEQUENCIAS_DEFAULT: Sequencias = {
+    lead: [
+      { dia: 0, ativo: true, assunto: "Seu acesso está pronto — entra aqui", corpo: "Oi {nome},\n\nVocê pediu acesso à plataforma mas ainda não entrou. Tá tudo pronto te esperando.\n\nÉ só entrar e dar uma volta.\n\nIsrael" },
+      { dia: 2, ativo: true, assunto: "Ainda dá tempo de começar", corpo: "Oi {nome},\n\nReparei que você ainda não entrou. Em 5 minutos você já mexe na primeira ferramenta.\n\nIsrael" },
+      { dia: 5, ativo: true, assunto: "O que você está perdendo", corpo: "Oi {nome},\n\nDeixa eu te mostrar rapidinho o que tem lá dentro.\n\nIsrael" },
+    ],
+    gratis: [
+      { dia: 0, ativo: true, assunto: "Bem-vindo! Comece por aqui", corpo: "Oi {nome},\n\nQue bom te ver por aqui. Deixa eu te mostrar o primeiro passo.\n\nIsrael" },
+      { dia: 2, ativo: true, assunto: "A ferramenta que todo mundo ama", corpo: "Oi {nome},\n\nHoje quero te mostrar o SIPOC na prática.\n\nIsrael" },
+      { dia: 5, ativo: true, assunto: "Caso real: como apliquei isso", corpo: "Oi {nome},\n\nDeixa eu te contar uma história de chão de fábrica.\n\nIsrael" },
+      { dia: 9, ativo: true, assunto: "O que você ganha com o completo", corpo: "Oi {nome},\n\nVocê já viu bastante coisa. Tem muito mais no plano completo.\n\nIsrael" },
+      { dia: 14, ativo: true, assunto: "Última dica + um convite", corpo: "Oi {nome},\n\nFechando nossa sequência com uma última dica.\n\nIsrael" },
+    ],
+  };
+
+  async function lerSequencias(): Promise<Sequencias> {
+    try {
+      const snap = await adminFirestore().collection("config").doc("marketingSequencias").get();
+      if (snap.exists) {
+        const d = snap.data() as any;
+        return {
+          lead: Array.isArray(d?.lead) ? d.lead : SEQUENCIAS_DEFAULT.lead,
+          gratis: Array.isArray(d?.gratis) ? d.gratis : SEQUENCIAS_DEFAULT.gratis,
+        };
+      }
+    } catch (e) { /* cai no default */ }
+    return SEQUENCIAS_DEFAULT;
+  }
+
+  function classificarUsuario(u: any): "lead" | "gratis" | "pago" | null {
+    if (!u || !u.email) return null;
+    if (u.plano === "completo") return "pago";
+    if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null; // não recebem sequência
+    return u.primeiroAcessoEm ? "gratis" : "lead";
+  }
+
+  function diasDesde(iso: string): number {
+    const t = Date.parse(iso);
+    if (isNaN(t)) return -1;
+    return Math.floor((Date.now() - t) / (24 * 3600 * 1000));
+  }
+
+  // Processa um ciclo de envios. Retorna um resumo (e detalhes pra log/teste).
+  async function processarEnviosDiarios(opts: { dryRun?: boolean } = {}) {
+    const dryRun = !!opts.dryRun;
+    const seqs = await lerSequencias();
+    const resumo = {
+      rodadoEm: new Date().toISOString(), dryRun,
+      analisados: 0, enviados: 0, falhas: 0, pulados: 0,
+      porPacote: { lead: 0, gratis: 0 } as Record<string, number>,
+      detalhes: [] as any[],
+    };
+
+    const snap = await adminFirestore().collection("users").get();
+    for (const doc of snap.docs) {
+      const u = doc.data() as any;
+      resumo.analisados++;
+      const estagio = classificarUsuario(u);
+      if (estagio !== "lead" && estagio !== "gratis") { resumo.pulados++; continue; }
+
+      const seq = seqs[estagio];
+      const base = u.criadoEm || u.primeiroAcessoEm;
+      if (!base) { resumo.pulados++; continue; }
+      const dias = diasDesde(base);
+      if (dias < 0) { resumo.pulados++; continue; }
+
+      const jaEnviados = (u.emailSequencia && typeof u.emailSequencia === "object") ? u.emailSequencia : {};
+
+      // Acha o e-mail da sequência que "vence" hoje: dia <= dias, ativo, ainda não enviado.
+      // Pega o de maior 'dia' elegível (se o cron atrasou, manda o mais recente devido — não floda).
+      let alvo: { idx: number; email: SeqEmail } | null = null;
+      seq.forEach((email, idx) => {
+        const chave = `${estagio}_${idx + 1}`;
+        if (!email.ativo) return;
+        if (jaEnviados[chave]) return;
+        if (email.dia > dias) return;
+        if (!alvo || email.dia > alvo.email.dia) alvo = { idx, email };
+      });
+      if (!alvo) { resumo.pulados++; continue; }
+
+      const chave = `${estagio}_${alvo.idx + 1}`;
+      const nome = (u.nome || "").split(" ")[0] || "";
+      const corpoTxt = String(alvo.email.corpo).replace(/\{nome\}/g, nome);
+      const corpoHtml = campanhaHtml(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""));
+
+      if (dryRun) {
+        resumo.detalhes.push({ email: u.email, estagio, envia: chave, assunto: alvo.email.assunto });
+        resumo.enviados++; resumo.porPacote[estagio]++;
+        continue;
+      }
+
+      const r = await resendSend({ to: u.email, subject: alvo.email.assunto, html: corpoHtml });
+      if (r.ok) {
+        // marca como enviado SÓ se deu certo (senão tenta de novo amanhã — proteção defensiva)
+        await doc.ref.set({ emailSequencia: { ...jaEnviados, [chave]: new Date().toISOString() } }, { merge: true });
+        resumo.enviados++; resumo.porPacote[estagio]++;
+        resumo.detalhes.push({ email: u.email, estagio, enviou: chave, ok: true });
+      } else {
+        resumo.falhas++;
+        resumo.detalhes.push({ email: u.email, estagio, enviou: chave, ok: false, erro: r.status + " " + String(r.body).slice(0, 120) });
+      }
+      await new Promise((ok) => setTimeout(ok, 130)); // ~7/seg, respeita rate limit
+    }
+
+    // guarda a última execução pra a faixa de status da tela (Fase 2)
+    try {
+      await adminFirestore().collection("config").doc("marketingMotorStatus").set({
+        ...resumo, detalhes: resumo.detalhes.slice(0, 50),
+      });
+    } catch (e) { /* não-crítico */ }
+    console.log(`[motor-email] rodado dryRun=${dryRun} analisados=${resumo.analisados} enviados=${resumo.enviados} falhas=${resumo.falhas} pulados=${resumo.pulados}`);
+    return resumo;
+  }
+
+  // GET /api/marketing/sequencias — lê as sequências (tela Fase 2)
+  app.get("/api/marketing/sequencias", requireAdmin, async (_req: any, res) => {
+    return res.json(await lerSequencias());
+  });
+
+  // PUT /api/marketing/sequencias — salva as sequências editadas (tela Fase 2)
+  app.put("/api/marketing/sequencias", requireAdmin, async (req: any, res) => {
+    const { lead, gratis } = req.body || {};
+    if (!Array.isArray(lead) || !Array.isArray(gratis)) return res.status(400).json({ error: "lead e gratis precisam ser arrays." });
+    const limpa = (arr: any[]): SeqEmail[] => arr.map((e) => ({
+      dia: Math.max(0, parseInt(e?.dia, 10) || 0),
+      assunto: String(e?.assunto || ""),
+      corpo: String(e?.corpo || ""),
+      ativo: e?.ativo !== false,
+    }));
+    try {
+      await adminFirestore().collection("config").doc("marketingSequencias").set({ lead: limpa(lead), gratis: limpa(gratis) });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao salvar." });
+    }
+  });
+
+  // GET /api/marketing/status — resumo da última execução + contagem por estágio (faixa de status)
+  app.get("/api/marketing/status", requireAdmin, async (_req: any, res) => {
+    try {
+      const [statusSnap, usersSnap] = await Promise.all([
+        adminFirestore().collection("config").doc("marketingMotorStatus").get(),
+        adminFirestore().collection("users").get(),
+      ]);
+      const contagem = { lead: 0, gratis: 0, pago: 0 };
+      usersSnap.docs.forEach((d) => {
+        const c = classificarUsuario(d.data());
+        if (c && c in contagem) (contagem as any)[c]++;
+      });
+      return res.json({ ultimaExecucao: statusSnap.exists ? statusSnap.data() : null, contagem });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao ler status." });
+    }
+  });
+
+  // POST /api/marketing/rodar-agora — dispara o motor na hora (teste). ?dry=1 só simula.
+  app.post("/api/marketing/rodar-agora", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY && !req.query.dry) {
+      return res.status(503).json({ error: "RESEND_API_KEY não configurada (use ?dry=1 pra simular)." });
+    }
+    try {
+      const resumo = await processarEnviosDiarios({ dryRun: req.query.dry === "1" });
+      return res.json(resumo);
+    } catch (err: any) {
+      console.error("[POST /api/marketing/rodar-agora] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao rodar o motor." });
+    }
+  });
+
+  // Agendador: roda 1x/dia (~06:00). Checa de hora em hora se já rodou hoje.
+  // Processo único no Railway, então não há risco de execução duplicada.
+  let ultimoDiaProcessado = "";
+  const HORA_ALVO = 6;
+  setInterval(() => {
+    const agora = new Date();
+    const diaHoje = agora.toISOString().slice(0, 10);
+    if (agora.getHours() >= HORA_ALVO && ultimoDiaProcessado !== diaHoje) {
+      ultimoDiaProcessado = diaHoje;
+      processarEnviosDiarios().catch((e) => console.error("[motor-email] erro no ciclo agendado:", e?.message || e));
+    }
+  }, 60 * 60 * 1000); // a cada hora
+
+  // ===============================================================
+  // NEWSLETTER (pacote Pago) — envio manual + histórico pra reenviar
+  // Público-alvo por filtro: 'pago' (completo), 'gratis', 'lead' ou 'todos'.
+  // Cada envio é salvo em newsletters/{id} pra você reabrir e reenviar.
+  // ===============================================================
+
+  function emailsPorPublico(docs: any[], publico: string): string[] {
+    const set = new Set<string>();
+    docs.forEach((d) => {
+      const u = d.data ? d.data() : d;
+      if (!u?.email || String(u.email).indexOf("@") < 0) return;
+      const estagio = classificarUsuario(u);
+      if (publico === "todos" || estagio === publico) set.add(String(u.email).trim().toLowerCase());
+    });
+    return Array.from(set);
+  }
+
+  // POST /api/newsletter/enviar — body { assunto, corpo, publico }
+  app.post("/api/newsletter/enviar", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
+    const { assunto, corpo, publico } = req.body || {};
+    if (!assunto || !corpo) return res.status(400).json({ error: "assunto e corpo são obrigatórios." });
+    const alvo = ["pago", "gratis", "lead", "todos"].includes(publico) ? publico : "pago";
+    try {
+      const snap = await adminFirestore().collection("users").get();
+      const emails = emailsPorPublico(snap.docs, alvo);
+      let enviados = 0, falhas = 0;
+      const erros: any[] = [];
+      for (const to of emails) {
+        const corpoTxt = String(corpo);
+        const html = campanhaHtml(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""));
+        const r = await resendSend({ to, subject: assunto, html });
+        if (r.ok) enviados++;
+        else { falhas++; if (erros.length < 10) erros.push({ to, status: r.status, body: String(r.body).slice(0, 200) }); }
+        await new Promise((ok) => setTimeout(ok, 130));
+      }
+      // salva no histórico
+      const ref = adminFirestore().collection("newsletters").doc();
+      await ref.set({
+        id: ref.id, assunto, corpo, publico: alvo,
+        total: emails.length, enviados, falhas,
+        enviadoEm: new Date().toISOString(),
+      });
+      return res.json({ id: ref.id, total: emails.length, enviados, falhas, erros });
+    } catch (err: any) {
+      console.error("[POST /api/newsletter/enviar] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao enviar newsletter." });
+    }
+  });
+
+  // GET /api/newsletter/historico — lista os envios passados (mais recentes primeiro)
+  app.get("/api/newsletter/historico", requireAdmin, async (_req: any, res) => {
+    try {
+      const snap = await adminFirestore().collection("newsletters").get();
+      const lista = snap.docs
+        .map((d) => d.data())
+        .sort((a: any, b: any) => String(b.enviadoEm).localeCompare(String(a.enviadoEm)));
+      return res.json({ historico: lista });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao ler histórico." });
+    }
+  });
+
+  // ===============================================================
+  // TRACKING — webhook do Resend (abertura/clique) + painel de engajamento.
+  // O Resend chama este endpoint a cada evento. Identificamos o usuário pelo
+  // e-mail em data.to[0] e incrementamos contadores no perfil.
+  //
+  // ⚠️ ABERTURA é métrica IMPRECISA (Apple Mail infla, Gmail esconde imagens).
+  // CLIQUE é confiável. A tela mostra os dois, mas avisa sobre a abertura.
+  // ===============================================================
+
+  // Webhook é PÚBLICO (o Resend não manda idToken). Validação leve por segredo
+  // opcional em RESEND_WEBHOOK_SECRET (?s=...), pra evitar chamadas aleatórias.
+  app.post("/api/webhooks/resend", async (req: any, res) => {
+    const segredo = process.env.RESEND_WEBHOOK_SECRET;
+    if (segredo && req.query.s !== segredo) return res.status(401).json({ error: "segredo inválido" });
+    if (!isAdminReady()) return res.status(200).json({ ok: false, skipped: "admin não pronto" });
+
+    try {
+      const evt = req.body || {};
+      const tipo = String(evt.type || "");
+      const to = evt?.data?.to;
+      const email = (Array.isArray(to) ? to[0] : to) ? String(Array.isArray(to) ? to[0] : to).toLowerCase().trim() : "";
+      if (!email) return res.status(200).json({ ok: true, ignored: "sem destinatário" });
+
+      const campo = tipo === "email.clicked" ? "cliques" : tipo === "email.opened" ? "aberturas" : null;
+      if (!campo) return res.status(200).json({ ok: true, ignored: tipo });
+
+      // acha o usuário por e-mail
+      const q = await adminFirestore().collection("users").where("email", "==", email).limit(1).get();
+      if (q.empty) return res.status(200).json({ ok: true, ignored: "usuário não encontrado" });
+      const ref = q.docs[0].ref;
+      const atual = (q.docs[0].data() as any)?.engajamento || {};
+      await ref.set({
+        engajamento: {
+          aberturas: (atual.aberturas || 0) + (campo === "aberturas" ? 1 : 0),
+          cliques: (atual.cliques || 0) + (campo === "cliques" ? 1 : 0),
+          ultimoEvento: new Date().toISOString(),
+          ultimoTipo: tipo,
+        },
+      }, { merge: true });
+      return res.status(200).json({ ok: true });
+    } catch (err: any) {
+      console.error("[webhook resend] erro:", err?.message || err);
+      return res.status(200).json({ ok: false }); // 200 sempre, pra o Resend não re-tentar infinito
+    }
+  });
+
+  // GET /api/marketing/engajamento — usuários ordenados por engajamento (por pessoa)
+  app.get("/api/marketing/engajamento", requireAdmin, async (_req: any, res) => {
+    try {
+      const snap = await adminFirestore().collection("users").get();
+      const lista = snap.docs.map((d) => {
+        const u = d.data() as any;
+        const eng = u.engajamento || {};
+        return {
+          email: u.email, nome: u.nome || "",
+          estagio: classificarUsuario(u),
+          cliques: eng.cliques || 0,
+          aberturas: eng.aberturas || 0,
+          voltouAoApp: !!u.primeiroAcessoEm,
+          ultimoEvento: eng.ultimoEvento || null,
+        };
+      }).filter((x) => x.estagio); // só quem está num estágio do funil
+      // ordena por engajamento: cliques primeiro (confiável), depois aberturas
+      lista.sort((a, b) => (b.cliques - a.cliques) || (b.aberturas - a.aberturas));
+      return res.json({ usuarios: lista });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao ler engajamento." });
+    }
+  });
+
   // Mock Database State
   let projects: any[] = [];
   let datasets: any[] = [];
