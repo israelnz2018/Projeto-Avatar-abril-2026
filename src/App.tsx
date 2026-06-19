@@ -348,7 +348,7 @@ export default function App() {
       </Suspense>
     );
   }
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/comecar')) {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/trilhagratis')) {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-emerald-900 border-t-emerald-500 rounded-full animate-spin" /></div>}>
         <LandingComecar />
