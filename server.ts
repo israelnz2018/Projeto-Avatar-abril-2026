@@ -616,6 +616,83 @@ async function startServer() {
     }
   });
 
+  // ===============================================================
+  // Campanhas via RESEND — envio em massa pros leads do Firestore.
+  // NÃO mexe no SMTP existente (sendWelcomeEmail/sendAcessoEmail seguem iguais).
+  // Token na env RESEND_API_KEY. Remetente RESEND_FROM (default contact@learningbyworking.com).
+  // ===============================================================
+  const RESEND_FROM = process.env.RESEND_FROM || "LBW <contact@learningbyworking.com>";
+
+  // Envia 1 email via API do Resend. Retorna {ok, status, body}.
+  async function resendSend(params: { to: string; subject: string; html: string }) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) return { ok: false, status: 0, body: "RESEND_API_KEY não configurada." };
+    try {
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({ from: RESEND_FROM, to: params.to, subject: params.subject, html: params.html }),
+      });
+      const text = await r.text();
+      return { ok: r.ok, status: r.status, body: text };
+    } catch (err: any) {
+      return { ok: false, status: 0, body: err?.message || "erro de rede" };
+    }
+  }
+
+  // Envolve o texto da campanha num layout com a marca LBW + rodapé.
+  function campanhaHtml(corpoHtml: string) {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#ffffff; color:#2A2F3A;">
+        <div style="background:#1E2D6E; padding:20px 24px;">
+          <span style="color:#fff; font-weight:bold; font-size:18px; letter-spacing:.5px;">Learning by Working</span>
+          <span style="color:#9FC0FF; font-size:13px;"> · Educação pelo Trabalho</span>
+        </div>
+        <div style="padding:28px 24px; font-size:15px; line-height:1.6;">
+          ${corpoHtml}
+        </div>
+        <div style="padding:20px 24px; border-top:1px solid #eee; font-size:12px; color:#9CA3AF;">
+          Você recebe este e-mail porque se cadastrou na plataforma LBW.<br/>
+          Learning by Working — Educação pelo Trabalho · contact@learningbyworking.com
+        </div>
+      </div>`;
+  }
+
+  // GET /api/campanha/teste — confere se o Resend está configurado (admin).
+  app.get("/api/campanha/teste", requireAdmin, async (_req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ ok: false, error: "RESEND_API_KEY não configurada no Railway." });
+    return res.json({ ok: true, from: RESEND_FROM });
+  });
+
+  // POST /api/campanha/enviar — dispara uma campanha pra todos os leads do Firestore (admin).
+  // Body: { assunto, corpo (texto ou html), html?: boolean }. Envia em lote com pausa.
+  app.post("/api/campanha/enviar", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
+    const { assunto, corpo, html } = req.body || {};
+    if (!assunto || !corpo) return res.status(400).json({ error: "assunto e corpo são obrigatórios." });
+    // texto simples → parágrafos; html → usa direto
+    const corpoHtml = html ? String(corpo) : String(corpo).split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join("");
+    const finalHtml = campanhaHtml(corpoHtml);
+    try {
+      const snap = await adminFirestore().collection("users").get();
+      const emails = Array.from(new Set(
+        snap.docs.map((d) => d.data()).filter((u: any) => u?.email && String(u.email).indexOf("@") > 0).map((u: any) => String(u.email).trim().toLowerCase())
+      ));
+      let enviados = 0, falhas = 0;
+      const erros: any[] = [];
+      for (const to of emails) {
+        const r = await resendSend({ to, subject: assunto, html: finalHtml });
+        if (r.ok) enviados++;
+        else { falhas++; if (erros.length < 10) erros.push({ to, status: r.status, body: r.body?.slice(0, 200) }); }
+        await new Promise((ok) => setTimeout(ok, 120)); // ~8/seg
+      }
+      return res.json({ total: emails.length, enviados, falhas, erros });
+    } catch (err: any) {
+      console.error("[POST /api/campanha/enviar] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao enviar campanha." });
+    }
+  });
+
   // Mock Database State
   let projects: any[] = [];
   let datasets: any[] = [];
