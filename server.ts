@@ -545,40 +545,28 @@ async function startServer() {
     }
   }
 
-  // GET /api/reach/groups — lista os grupos de contato do Reach (admin). Útil pra ver IDs.
-  // Diagnóstico: repassa status + corpo cru da Hostinger pra entender 404/401/403.
+  // GET /api/reach/groups — testa a conexão listando contatos (admin).
+  // NB: usamos /contacts (funciona); /contacts/groups está bugado na Hostinger (Reach:9999).
   app.get("/api/reach/groups", requireAdmin, async (_req: any, res) => {
     const token = process.env.HOSTINGER_API_TOKEN;
     if (!token) return res.status(503).json({ error: "HOSTINGER_API_TOKEN não configurado no Railway." });
-    const auth = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-    async function probe(path: string) {
-      try {
-        const r = await fetch(`${REACH_BASE}${path}`, { headers: auth });
-        const raw = await r.text();
-        return { status: r.status, body: raw?.slice(0, 200) };
-      } catch (e: any) { return { status: 0, body: e?.message || "erro de rede" }; }
-    }
     try {
-      // Testa o MESMO token em 3 produtos pra isolar se é o token ou só o Reach
-      const [reach, profiles, domains, billing] = await Promise.all([
-        probe("/api/reach/v1/contacts/groups"),
-        probe("/api/reach/v1/profiles"),
-        probe("/api/domains/v1/portfolio"),
-        probe("/api/billing/v1/subscriptions"),
-      ]);
-      const tokenValido = [domains.status, billing.status, profiles.status, reach.status].some((s) => s !== 401 && s !== 0);
-      // Se /profiles responder ok mas /contacts/groups não, é questão de profile selecionado
-      if (reach.status >= 200 && reach.status < 300) {
-        return res.status(200).json({ ok: true, profiles });
+      const r = await fetch(`${REACH_BASE}/api/reach/v1/contacts`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      const raw = await r.text();
+      let parsed: any = null;
+      try { parsed = JSON.parse(raw); } catch { /* não-JSON */ }
+      if (r.ok) {
+        const total = Array.isArray(parsed?.data) ? parsed.data.length : undefined;
+        return res.status(200).json({ ok: true, totalNaPrimeiraPagina: total });
       }
-      let dica = "";
-      if (!tokenValido) dica = "O token parece INVÁLIDO (401 em tudo). Confira se HOSTINGER_API_TOKEN no Railway está certo, sem espaços, e salvo.";
-      else if (reach.status === 404) dica = "Token VÁLIDO (funciona em outros produtos), mas o Reach dá 404 — o produto Email Marketing/Reach provavelmente NÃO está ativo/assinado nesta conta, ou não é exposto via API. Verifique no hPanel se o Reach está ativo na MESMA conta do token.";
-      else if (reach.status === 403) dica = "Token válido mas SEM permissão pro Reach (403).";
-      return res.status(reach.status || 502).json({
-        error: `Reach respondeu HTTP ${reach.status}.`,
-        dica,
-        diagnostico: { reach, domains, billing, tokenValido },
+      return res.status(r.status).json({
+        error: `Reach respondeu HTTP ${r.status}.`,
+        dica: r.status === 401 ? "Token inválido. Confira HOSTINGER_API_TOKEN no Railway."
+          : r.status === 403 ? "Token sem permissão pro Reach."
+          : "Erro ao chamar o Reach.",
+        detalhe: parsed ?? raw?.slice(0, 300),
       });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao chamar a Hostinger." });

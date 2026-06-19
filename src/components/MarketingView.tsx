@@ -37,7 +37,7 @@ export default function MarketingView() {
     try {
       const r = await authedFetch('/api/reach/groups');
       const b = await r.json().catch(() => ({}));
-      if (r.ok) { setTokenOk(true); setTokenMsg('Conectado ao Hostinger Reach com sucesso.'); }
+      if (r.ok) { setTokenOk(true); setTokenMsg('Conectado ao Hostinger Reach com sucesso.' + (typeof b?.totalNaPrimeiraPagina === 'number' ? ` (${b.totalNaPrimeiraPagina} contatos na 1ª página)` : '')); }
       else {
         setTokenOk(false);
         let diag = '';
