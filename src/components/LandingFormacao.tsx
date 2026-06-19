@@ -101,7 +101,7 @@ const CSS = `
 @media(max-width:560px){ .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr} }
 `;
 
-type FormState = 'idle' | 'sending' | 'ok' | 'err';
+type FormState = 'idle' | 'sending' | 'ok' | 'ja-existe' | 'err';
 
 function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => void }) {
   const [nome, setNome] = useState('');
@@ -116,23 +116,39 @@ function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => voi
     if (!e || e.indexOf('@') < 0) { setState('err'); setMsg('Informe um e-mail válido.'); return; }
     setState('sending'); setMsg('');
     try {
-      await fetch(WEBHOOK_GRATUITO, {
+      const r = await fetch(WEBHOOK_GRATUITO, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: n, email: e, source }),
       });
-      // o webhook cria a conta e manda o e-mail; consideramos sucesso
-      setState('ok');
-      setMsg('Perfeito! Em instantes você receberá o acesso no seu e-mail (confira também o spam).');
+      const data = await r.json().catch(() => ({} as any));
+      // n8n retorna status: "criado" (conta nova) | "ja-existia" (já tinha conta)
+      if (data && data.status === 'ja-existia') {
+        setState('ja-existe');
+      } else {
+        setState('ok');
+        setMsg('Perfeito! Em instantes você receberá o acesso no seu e-mail (confira também o spam).');
+      }
       setNome(''); setEmail('');
       if (onSuccess) onSuccess();
     } catch {
-      // mesmo com erro de rede no front, o webhook costuma processar; mostramos sucesso suave
+      // erro de rede no front: o webhook costuma processar mesmo assim; sucesso suave
       setState('ok');
       setMsg('Tudo certo! Verifique seu e-mail (e a caixa de spam) para acessar.');
       if (onSuccess) onSuccess();
     }
   };
+
+  if (state === 'ja-existe') {
+    return (
+      <div className="formcard">
+        <div style={{ fontSize: 44, marginBottom: 12 }}>👋</div>
+        <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Você já é cadastrado!</h3>
+        <p className="msg" style={{ color: '#9FC0FF', marginTop: 0 }}>Esse e-mail já tem acesso à plataforma. É só entrar.</p>
+        <a className="btn" href="https://app.educacaopelotrabalho.com" style={{ marginTop: 18, background: 'linear-gradient(120deg,#0033CC,#2563EB)', color: '#fff' }}>Acesse direto a plataforma →</a>
+      </div>
+    );
+  }
 
   if (state === 'ok') {
     return (
