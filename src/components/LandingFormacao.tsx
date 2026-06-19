@@ -221,11 +221,6 @@ export default function LandingFormacao() {
     return () => document.removeEventListener('mouseout', onLeave);
   }, [exitArmed]);
 
-  const scrollToForm = () => {
-    const el = document.getElementById('cadastro-gratis');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
     <div className="lf">
       <style>{CSS}</style>
@@ -287,18 +282,6 @@ export default function LandingFormacao() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CADASTRO GRÁTIS (form na própria página) */}
-      <section className="sec" id="cadastro-gratis" style={{ background: 'radial-gradient(ellipse 60% 60% at 50% 0%,rgba(16,185,129,.14),transparent 60%),#070A18' }}>
-        <div className="wrap">
-          <div className="sec-head">
-            <span className="eyebrow" style={{ color: '#6ee7b7', background: 'rgba(16,185,129,.1)', borderColor: 'rgba(16,185,129,.3)' }}>🎁 Comece grátis · sem cartão</span>
-            <h2>Acesse a primeira trilha grátis</h2>
-            <p>Como se adaptar em uma nova área e como entregar resultados rápidos. Receba o acesso no seu e-mail.</p>
-          </div>
-          <LeadForm source="lf-formacao-inline" />
         </div>
       </section>
 
