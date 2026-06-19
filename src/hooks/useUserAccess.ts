@@ -44,8 +44,20 @@ export function useUserAccess() {
           coord = tipo === 'coordenador';
           empId = data.empresaId || null;
           empNome = data.empresaNome || null;
-          if (data.plano === 'completo') {
+          // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
+          // passou, o "completo" expira e o usuário volta a gratuito.
+          // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
+          const completoValido = (() => {
+            const ate = data.acessoCompletoAte;
+            if (!ate) return true; // sem validade definida
+            const dt = new Date(ate);
+            if (isNaN(dt.getTime())) return true; // data inválida: não bloqueia
+            return dt.getTime() > Date.now();
+          })();
+          if (data.plano === 'completo' && completoValido) {
             userPlano = 'completo';
+          } else if (data.plano === 'completo' && !completoValido) {
+            userPlano = 'gratuito'; // acesso expirou
           } else if (Array.isArray(data.formacoes) && data.formacoes.length > 0) {
             const temAvancada = data.formacoes.some(
               (f: string) => !f.includes('introdutoria') && !f.includes('gratuito')
