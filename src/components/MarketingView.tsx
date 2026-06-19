@@ -32,6 +32,11 @@ export default function MarketingView() {
   const [result, setResult] = useState<SyncResult | null>(null);
   const [error, setError] = useState('');
 
+  // Reativação (criar contas dos convidados)
+  const [criando, setCriando] = useState(false);
+  const [reativacao, setReativacao] = useState<{ total: number; criados: number; atualizados: number; falhas: number; credenciais: { email: string; senha: string; status: string }[] } | null>(null);
+  const [reativErro, setReativErro] = useState('');
+
   // Campanha (Resend)
   const [assunto, setAssunto] = useState('');
   const [corpo, setCorpo] = useState('');
@@ -71,6 +76,29 @@ export default function MarketingView() {
     } catch (e: any) {
       setError(e?.message || 'Erro ao sincronizar.');
     } finally { setSyncing(false); }
+  };
+
+  const criarContasConvidados = async () => {
+    if (!window.confirm('Criar contas de acesso COMPLETO (grátis até 31/12/2026) para todos os contatos do Reach?\n\nCada um recebe uma senha provisória. Você vê a lista email→senha pra enviar.')) return;
+    setCriando(true); setReativacao(null); setReativErro('');
+    try {
+      const r = await authedFetch('/api/reativacao/criar-contas', { method: 'POST' });
+      const b = await r.json().catch(() => ({}));
+      if (r.ok) setReativacao(b);
+      else setReativErro(b?.error || `Falha (HTTP ${r.status}).`);
+    } catch (e: any) {
+      setReativErro(e?.message || 'Erro ao criar contas.');
+    } finally { setCriando(false); }
+  };
+
+  const baixarCredenciais = () => {
+    if (!reativacao?.credenciais) return;
+    const linhas = ['email,senha,status', ...reativacao.credenciais.map((c) => `${c.email},${c.senha},${c.status}`)];
+    const blob = new Blob([linhas.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'credenciais-convidados.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const enviarCampanha = async () => {
@@ -170,9 +198,53 @@ export default function MarketingView() {
         )}
       </div>
 
+      {/* Reativação: criar contas dos convidados */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mt-5">
+        <h2 className="font-semibold text-gray-900 mb-1">3. Criar acessos dos convidados (até 31/12/2026)</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Cria conta de <b>acesso completo grátis</b> (válido até 31 de dezembro de 2026) para
+          todos os contatos do Reach, cada um com uma senha provisória. Depois você baixa a
+          lista <b>email → senha</b> pra enviar o e-mail de convite. Rodar de novo é seguro (não duplica).
+        </p>
+        <button
+          onClick={criarContasConvidados}
+          disabled={criando}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
+        >
+          <Users className={`w-4 h-4 ${criando ? 'animate-pulse' : ''}`} />
+          {criando ? 'Criando contas… (pode levar 1-2 min)' : 'Criar acessos dos convidados'}
+        </button>
+
+        {reativacao && (
+          <>
+            <div className="mt-5 grid grid-cols-4 gap-3">
+              {[
+                ['Total', reativacao.total, 'text-gray-900'],
+                ['Criados', reativacao.criados, 'text-emerald-600'],
+                ['Atualizados', reativacao.atualizados, 'text-blue-600'],
+                ['Falhas', reativacao.falhas, reativacao.falhas > 0 ? 'text-red-600' : 'text-gray-400'],
+              ].map(([label, val, color]) => (
+                <div key={label as string} className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+                  <div className={`text-2xl font-bold ${color}`}>{val as number}</div>
+                  <div className="text-xs text-gray-500 mt-1">{label as string}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={baixarCredenciais} className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
+              ⬇ Baixar lista email → senha (CSV)
+            </button>
+          </>
+        )}
+        {reativErro && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" /> {reativErro}
+          </div>
+        )}
+      </div>
+
       {/* Enviar campanha (Resend) */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 mt-5">
-        <h2 className="font-semibold text-gray-900 mb-1">3. Enviar campanha / newsletter</h2>
+        <h2 className="font-semibold text-gray-900 mb-1">4. Enviar campanha / newsletter</h2>
         <p className="text-sm text-gray-500 mb-4">
           Escreva e dispare um e-mail para todos os contatos cadastrados. Sai de
           <b> contact@learningbyworking.com</b> com o layout da LBW.

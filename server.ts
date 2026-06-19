@@ -693,6 +693,68 @@ async function startServer() {
     }
   });
 
+  // ===============================================================
+  // Reativação: cria contas COMPLETAS (acesso grátis até 01/10/2026) pros contatos
+  // do Reach, cada um com senha provisória própria. Retorna a lista email→senha pro
+  // admin mandar no e-mail. Idempotente: se já existe, só garante completo + validade.
+  // ===============================================================
+  const REATIVACAO_ATE = "2026-12-31T23:59:59-03:00";
+
+  app.post("/api/reativacao/criar-contas", requireAdmin, async (_req: any, res) => {
+    if (!process.env.HOSTINGER_API_TOKEN) return res.status(503).json({ error: "HOSTINGER_API_TOKEN não configurado (preciso ler os contatos do Reach)." });
+    try {
+      // 1) lê todos os emails do Reach (paginado)
+      const token = process.env.HOSTINGER_API_TOKEN;
+      const emails: string[] = [];
+      for (let page = 1; page <= 20; page++) {
+        const r = await fetch(`${REACH_BASE}/api/reach/v1/contacts?page=${page}`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        });
+        if (!r.ok) break;
+        const j: any = await r.json().catch(() => ({}));
+        const arr = Array.isArray(j?.data) ? j.data : [];
+        arr.forEach((c: any) => { if (c?.email) emails.push(String(c.email).toLowerCase().trim()); });
+        const meta = j?.meta;
+        if (!meta || meta.current_page >= Math.ceil((meta.total || 0) / (meta.per_page || 25))) break;
+      }
+      const unicos = Array.from(new Set(emails)).filter((e) => e.indexOf("@") > 0);
+
+      // 2) cria/atualiza cada conta como completo + validade, com senha provisória própria
+      const credenciais: { email: string; senha: string; status: string }[] = [];
+      let criados = 0, atualizados = 0, falhas = 0;
+      for (const email of unicos) {
+        const senha = Math.random().toString(36).slice(-4) + Math.random().toString(36).slice(-4); // 8 chars
+        try {
+          let uid: string, novo = false;
+          try { uid = (await adminAuth().getUserByEmail(email)).uid; await adminAuth().updateUser(uid, { password: senha }); }
+          catch { uid = (await adminAuth().createUser({ email, password: senha })).uid; novo = true; }
+          const ref = adminFirestore().collection("users").doc(uid);
+          const snap = await ref.get();
+          const base = snap.exists ? (snap.data() as any) : {};
+          await ref.set({
+            uid, email,
+            nome: base.nome || "",
+            tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" ? base.tipoUsuario : "aluno",
+            plano: "completo",
+            acessoCompletoAte: REATIVACAO_ATE,
+            origemAcesso: "convite-reativacao",
+            formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
+            creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
+            criadoEm: base.criadoEm || new Date().toISOString(),
+          }, { merge: true });
+          credenciais.push({ email, senha, status: novo ? "criado" : "atualizado" });
+          novo ? criados++ : atualizados++;
+        } catch (e: any) {
+          falhas++; credenciais.push({ email, senha: "", status: "falha: " + (e?.message || "") });
+        }
+      }
+      return res.json({ total: unicos.length, criados, atualizados, falhas, acessoAte: REATIVACAO_ATE, credenciais });
+    } catch (err: any) {
+      console.error("[POST /api/reativacao/criar-contas] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao criar contas." });
+    }
+  });
+
   // Mock Database State
   let projects: any[] = [];
   let datasets: any[] = [];

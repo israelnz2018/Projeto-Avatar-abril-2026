@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getInitiatives, getInitiativeConfigs } from '../services/configService';
 import type { TipoUsuario } from '../services/userService';
 
@@ -33,6 +33,10 @@ export function useUserAccess() {
         let empNome: string | null = null;
         if (userSnap.exists()) {
           const data = userSnap.data();
+          // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
+          if (!data.primeiroAcessoEm) {
+            setDoc(userRef, { primeiroAcessoEm: new Date().toISOString() }, { merge: true }).catch(() => {});
+          }
           // SÓ aceita tipoUsuario com valor válido. Não fazemos fallback pra `role`
           // porque docs antigos/inconsistentes (do n8n ou de testes) podem ter
           // `role: "user"`, `role: "admin"`, etc. e isso bagunçava permissões.
