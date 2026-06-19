@@ -234,7 +234,7 @@ export default function LandingFormacao() {
       <header className="hero">
         <div className="orb orbA" /><div className="orb orbB" />
         <div className="wrap" style={{ position: 'relative', zIndex: 2, maxWidth: 880 }}>
-          <span className="eyebrow">Learning by Working</span>
+          <span className="eyebrow">Learning by Working – Educação pelo Trabalho</span>
           <h1>Pare de apenas estudar e <span className="grad">comece a entregar resultado fazendo!</span></h1>
           <p className="lead">Traga seu problema real, use as ferramentas da nossa plataforma e entregue resultado rapidamente.</p>
           <div className="videobox">
@@ -399,7 +399,7 @@ export default function LandingFormacao() {
       <footer className="foot">
         <div className="cols">
           <div>
-            <div style={{ fontFamily: "'Space Grotesk'", fontSize: 18, fontWeight: 800, marginBottom: 10 }}>Learning by Working</div>
+            <div style={{ fontFamily: "'Space Grotesk'", fontSize: 18, fontWeight: 800, marginBottom: 10 }}>Learning by Working – Educação pelo Trabalho</div>
             <p style={{ fontSize: 13.5, color: 'var(--txt2)', lineHeight: 1.6 }}>A plataforma para gerenciar projetos de melhoria e análise de dados sem programação.</p>
           </div>
           <div>
@@ -416,7 +416,7 @@ export default function LandingFormacao() {
           </div>
         </div>
         <div style={{ maxWidth: 1100, margin: '36px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,.08)', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.7 }}>
-          Learning by Working — Sole Trader · NZBN: 9429047241657<br/>Hillsborough — Auckland, Nova Zelândia · © 2026 Learning by Working · Todos os direitos reservados
+          Learning by Working — Sole Trader · NZBN: 9429047241657<br/>Hillsborough — Auckland, Nova Zelândia · © 2026 Learning by Working – Educação pelo Trabalho · Todos os direitos reservados
         </div>
       </footer>
 
