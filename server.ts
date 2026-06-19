@@ -1389,6 +1389,11 @@ async function startServer() {
           senhaProvisoria: true, // força troca obrigatória no 1º acesso
           criadoEm: new Date().toISOString(),
           origem: planoSolicitado === "completo" ? "compra-hotmart" : "gratuito-landing",
+          // Compra completa (Hotmart) = 1 ano de acesso. Só exibição por enquanto;
+          // o rebaixamento automático ao vencer ainda é pendência (cron, Camada B).
+          ...(planoSolicitado === "completo"
+            ? { acessoCompletoAte: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString() }
+            : {}),
         });
         const emailEnviado = await sendAcessoEmail({
           para: email, nome, senhaProvisoria, plano: planoSolicitado, contexto: "novo",

@@ -77,6 +77,8 @@ export interface ListedUser {
   empresaNome?: string;
   maxAlunos?: number;
   criadoEm: string;
+  primeiroAcessoEm?: string;
+  acessoCompletoAte?: string;
   _hasDoc: boolean;
   _authCreatedAt?: string | null;
   _authDisabled?: boolean;

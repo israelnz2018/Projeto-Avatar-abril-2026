@@ -78,6 +78,38 @@ function getPlano(u: UserData): Plano {
   return formacoesAvancadas ? 'completo' : 'gratuito';
 }
 
+/**
+ * Badge de estágio do funil:
+ *   Lead         (gratuito, nunca acessou)              → vermelho
+ *   Grátis       (gratuito, já acessou)                 → amarelo
+ *   Pago         (completo da Hotmart, +1 ano)          → verde   (mostra "até DD/MM/AA")
+ *   Pago 31/12   (completo do Hostinger / reativação)   → azul se já acessou, branco se não
+ *   Coordenador  → padrão
+ */
+function getBadge(u: { primeiroAcessoEm?: string; acessoCompletoAte?: string; origemAcesso?: string }, plano: Plano): { label: string; cor: string } {
+  if (plano === 'gratuito') {
+    return u.primeiroAcessoEm
+      ? { label: 'Grátis', cor: 'bg-yellow-100 text-yellow-800 border-yellow-300' }
+      : { label: 'Lead', cor: 'bg-red-100 text-red-700 border-red-300' };
+  }
+  if (plano === 'completo') {
+    const d = u.acessoCompletoAte ? new Date(u.acessoCompletoAte) : null;
+    const dataFmt = d && !isNaN(d.getTime())
+      ? ` até ${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}`
+      : '';
+    // Convidado do Hostinger (reativação): azul só após o 1º acesso, senão neutro.
+    if (u.origemAcesso === 'convite-reativacao') {
+      const cor = u.primeiroAcessoEm
+        ? 'bg-blue-100 text-blue-700 border-blue-300'
+        : 'bg-white text-gray-600 border-gray-300';
+      return { label: `Pago${dataFmt}`, cor };
+    }
+    // Pago de verdade (Hotmart): verde, com a validade de 1 ano.
+    return { label: `Pago${dataFmt}`, cor: 'bg-green-100 text-green-700 border-green-300' };
+  }
+  return { label: PLANO_LABEL[plano], cor: PLANO_COR[plano] };
+}
+
 type Aba = 'lista' | 'equipes';
 
 export default function UserManagementView() {
@@ -494,6 +526,7 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
 }) {
   const [expanded, setExpanded] = useState(false);
   const plano = getPlano(user);
+  const badge = getBadge(user, plano);
   const pctUso = user.creditoIA.limite > 0
     ? Math.min(100, Math.round((user.creditoIA.usado / user.creditoIA.limite) * 100))
     : 0;
@@ -524,8 +557,8 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
           <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded border", TIPO_COR[user.tipoUsuario])}>
             {TIPO_LABEL[user.tipoUsuario]}
           </span>
-          <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded border", PLANO_COR[plano])}>
-            {PLANO_LABEL[plano]}
+          <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded border", badge.cor)}>
+            {badge.label}
           </span>
           {user.empresaNome && (
             <span className="text-[10px] font-bold uppercase text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-300 flex items-center gap-1">
@@ -551,6 +584,12 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">E-mail:</span> {user.email}</div>
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">UID:</span> <code className="text-xs">{user.uid}</code></div>
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">Criado em:</span> {new Date(user.criadoEm || Date.now()).toLocaleDateString()}</div>
+          <div>
+            <span className="text-gray-500 font-bold uppercase text-[10px]">1º acesso:</span>{' '}
+            {user.primeiroAcessoEm
+              ? new Date(user.primeiroAcessoEm).toLocaleDateString()
+              : <span className="text-red-600 font-semibold">nunca acessou (lead)</span>}
+          </div>
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">Tokens IA usados:</span> {user.creditoIA.usado} / {user.creditoIA.limite}</div>
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">Reset em:</span> {new Date(user.creditoIA.resetEm).toLocaleDateString()}</div>
           {user.empresaId && (

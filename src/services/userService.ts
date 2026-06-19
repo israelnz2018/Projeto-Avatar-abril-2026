@@ -35,6 +35,12 @@ export interface UserData {
   /** Atualizado a cada login (ISO string). Usado pelo Dashboard do Coordenador
    *  pra detectar alunos inativos. Pode estar ausente em docs antigos. */
   lastLogin?: string;
+  /** Carimbado no 1º login (useUserAccess). Ausente = nunca acessou (lead). */
+  primeiroAcessoEm?: string;
+  /** Validade do acesso completo (ISO). Hotmart = compra +1 ano; Hostinger = 31/12/2026. */
+  acessoCompletoAte?: string;
+  /** Origem do acesso completo. "convite-reativacao" = convidado do Hostinger. */
+  origemAcesso?: string;
   empresaId?: string;
   empresaNome?: string;
   nome?: string;
