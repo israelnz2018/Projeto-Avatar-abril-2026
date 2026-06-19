@@ -512,6 +512,97 @@ async function startServer() {
     }
   });
 
+  // ===============================================================
+  // Hostinger Reach API — sincroniza contatos do Firestore p/ email marketing
+  // Token na env HOSTINGER_API_TOKEN (Railway). Base: developers.hostinger.com
+  // Endpoint da Reach: POST /api/reach/v1/contacts  { email(req), name, surname }
+  // ===============================================================
+  const REACH_BASE = "https://developers.hostinger.com";
+
+  // Adiciona/atualiza um contato no Reach. Retorna {ok, status, body}.
+  async function reachAddContact(params: { email: string; name?: string; surname?: string; note?: string }) {
+    const token = process.env.HOSTINGER_API_TOKEN;
+    if (!token) return { ok: false, status: 0, body: "HOSTINGER_API_TOKEN não configurado." };
+    const email = (params.email || "").trim().toLowerCase();
+    if (!email || email.indexOf("@") < 0) return { ok: false, status: 0, body: "email inválido." };
+    try {
+      const r = await fetch(`${REACH_BASE}/api/reach/v1/contacts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          email,
+          name: params.name || undefined,
+          surname: params.surname || undefined,
+          note: params.note || undefined,
+        }),
+      });
+      const text = await r.text();
+      // 409/422 = contato já existe → tratamos como sucesso (idempotente)
+      const jaExiste = r.status === 409 || r.status === 422 || /exist/i.test(text);
+      return { ok: r.ok || jaExiste, status: r.status, body: text, jaExiste };
+    } catch (err: any) {
+      return { ok: false, status: 0, body: err?.message || "erro de rede" };
+    }
+  }
+
+  // GET /api/reach/groups — lista os grupos de contato do Reach (admin). Útil pra ver IDs.
+  app.get("/api/reach/groups", requireAdmin, async (_req: any, res) => {
+    const token = process.env.HOSTINGER_API_TOKEN;
+    if (!token) return res.status(503).json({ error: "HOSTINGER_API_TOKEN não configurado no Railway." });
+    try {
+      const r = await fetch(`${REACH_BASE}/api/reach/v1/contacts/groups`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json().catch(() => ({}));
+      return res.status(r.status).json(data);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao listar grupos." });
+    }
+  });
+
+  // POST /api/reach/sync-contact — adiciona UM contato (chamado pelo n8n no cadastro).
+  // Protegido por segredo simples no header x-reach-secret (env REACH_SYNC_SECRET),
+  // pois o n8n não tem idToken de admin. Body: { email, name }.
+  app.post("/api/reach/sync-contact", async (req: any, res) => {
+    const secret = process.env.REACH_SYNC_SECRET;
+    if (secret && req.headers["x-reach-secret"] !== secret) {
+      return res.status(401).json({ error: "segredo inválido." });
+    }
+    const { email, name } = req.body || {};
+    if (!email) return res.status(400).json({ error: "email obrigatório." });
+    const result = await reachAddContact({ email, name, note: "cadastro plataforma LBW" });
+    return res.status(result.ok ? 200 : 502).json(result);
+  });
+
+  // POST /api/reach/sync-all — carga inicial: empurra TODOS os leads do Firestore
+  // pro Reach (admin). Roda em lote com pausa pra não estourar rate limit.
+  app.post("/api/reach/sync-all", requireAdmin, async (_req: any, res) => {
+    if (!process.env.HOSTINGER_API_TOKEN) {
+      return res.status(503).json({ error: "HOSTINGER_API_TOKEN não configurado no Railway." });
+    }
+    try {
+      const snap = await adminFirestore().collection("users").get();
+      const contatos = snap.docs
+        .map((d) => d.data())
+        .filter((u: any) => u && u.email && String(u.email).indexOf("@") > 0)
+        .map((u: any) => ({ email: String(u.email), name: u.nome || u.displayName || "" }));
+
+      let enviados = 0, jaExistiam = 0, falhas = 0;
+      const erros: any[] = [];
+      for (const c of contatos) {
+        const r = await reachAddContact({ email: c.email, name: c.name, note: "carga inicial LBW" });
+        if (r.jaExiste) jaExistiam++;
+        else if (r.ok) enviados++;
+        else { falhas++; if (erros.length < 10) erros.push({ email: c.email, status: r.status, body: r.body }); }
+        await new Promise((ok) => setTimeout(ok, 350)); // ~3/seg, conservador
+      }
+      return res.json({ total: contatos.length, enviados, jaExistiam, falhas, erros });
+    } catch (err: any) {
+      console.error("[POST /api/reach/sync-all] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro na carga inicial." });
+    }
+  });
+
   // Mock Database State
   let projects: any[] = [];
   let datasets: any[] = [];
