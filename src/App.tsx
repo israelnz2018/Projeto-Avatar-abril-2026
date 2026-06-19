@@ -45,6 +45,7 @@ const UserManagementView = lazy(() => import('./components/UserManagementView'))
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
+const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -335,6 +336,16 @@ export default function App() {
           </Routes>
         </Suspense>
       </Router>
+    );
+  }
+
+  // Rota PÚBLICA da landing da Formação — bypass do login.
+  // Qualquer visitante abre /formacao sem precisar de conta (é uma landing de venda).
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/formacao')) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
+        <LandingFormacao />
+      </Suspense>
     );
   }
 
