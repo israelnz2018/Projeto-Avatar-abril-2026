@@ -53,7 +53,7 @@ import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
 import { DefinirSenha } from './components/DefinirSenha';
-import MenuTour, { shouldAutoOpenMenuTour } from './components/MenuTour';
+import MenuTour from './components/MenuTour';
 
 import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
@@ -62,14 +62,14 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const { projetoAtivo } = useProject();
   const { tipoUsuario, plano } = useUserAccess();
 
-  // Tour da plataforma (percorre o menu lateral). Auto nas 2 primeiras vezes + botão no menu.
+  // Tour da plataforma (percorre o menu lateral). Só abre pelo botão no menu OU
+  // por um evento global (botão na aba Projetos dispara 'lbw-open-menu-tour').
   const [menuTourOpen, setMenuTourOpen] = useState(false);
   const menuTour = { openTour: () => setMenuTourOpen(true) };
   useEffect(() => {
-    if (shouldAutoOpenMenuTour()) {
-      const t = setTimeout(() => setMenuTourOpen(true), 800);
-      return () => clearTimeout(t);
-    }
+    const abrir = () => setMenuTourOpen(true);
+    window.addEventListener('lbw-open-menu-tour', abrir);
+    return () => window.removeEventListener('lbw-open-menu-tour', abrir);
   }, []);
 
   const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];

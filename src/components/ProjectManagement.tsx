@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, Footprints, ShieldAlert, Users, LineChart, Recycle, Trophy, Mic } from 'lucide-react';
+import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, Footprints, ShieldAlert, Users, LineChart, Recycle, Trophy, Mic, HelpCircle } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { generateFullProjectPresentation } from '../services/fullProjectPresentationExporter';
 import { getUserProfile } from './UserProfile';
@@ -931,8 +931,24 @@ export default function ProjectManagement() {
         </div>
       </div>
       
-      <div className="hidden lg:block sticky top-0 h-full shrink-0">
-        <MentorSidebar 
+      <div className="hidden lg:flex flex-col gap-4 sticky top-0 h-full shrink-0">
+        {/* Botão de tour — alinhado com o banner "Plano gratuito" da coluna esquerda */}
+        <div className="shrink-0 flex justify-end">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('lbw-open-menu-tour'))}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-100 hover:border-blue-300 transition-all cursor-pointer"
+            title="Fazer o tour da plataforma"
+          >
+            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E2D6E] to-[#0033CC] flex items-center justify-center shrink-0">
+              <HelpCircle size={13} className="text-white" />
+            </span>
+            <span className="text-[11px] font-bold text-[#1E2D6E]">Não sabe por onde começar?</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] text-white text-[10px] font-black uppercase tracking-widest">
+              <Sparkles size={11} /> Iniciar tour
+            </span>
+          </button>
+        </div>
+        <MentorSidebar
           currentPhase={currentPhase}
           suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
           mentorMessage={getMentorMessage(currentPhase)}

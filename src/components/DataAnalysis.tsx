@@ -33,7 +33,7 @@ import UpgradeBanner from './UpgradeBanner';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
-import DataAnalysisTour, { hasSeenAnalysisTour } from './DataAnalysisTour';
+import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
 /**
@@ -348,14 +348,7 @@ export default function DataAnalysis() {
     getAllKnowledge().then(items => setKnowledgeItems(items)).catch(console.error);
   }, []);
 
-  // Tour: abre automaticamente na 1ª visita do aluno (uma vez, persiste em localStorage)
-  useEffect(() => {
-    if (!hasSeenAnalysisTour()) {
-      // pequeno delay pra DOM montar antes da medição dos elementos
-      const t = setTimeout(() => setTourOpen(true), 500);
-      return () => clearTimeout(t);
-    }
-  }, []);
+  // Tour da aba: só abre pelo botão "Iniciar tour" — não abre mais automaticamente.
 
   useEffect(() => {
     const carregar = async () => {
