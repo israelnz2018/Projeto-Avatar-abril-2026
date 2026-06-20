@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Play, X, Send, Loader2, CheckCircle2, Trash2, Volume2, FileText, ChevronDown, ChevronUp, MessageSquarePlus, ListVideo } from 'lucide-react';
+import { Sparkles, ArrowRight, Play, X, Send, Loader2, CheckCircle2, Trash2, Volume2, FileText, ChevronDown, ChevronUp, MessageSquarePlus, ListVideo, Lock } from 'lucide-react';
 import FeedbackModal from './FeedbackModal';
+import { useUserAccess } from '../../hooks/useUserAccess';
+import { LockedToolPopup } from '../LockedToolPopup';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../../lib/firebase';
@@ -64,6 +66,10 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const { canUseTool } = useUserAccess();
+  const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+  // Ferramenta ativa bloqueada pro aluno (gratuito) → Mentor sobre ela fica bloqueado.
+  const ferramentaBloqueada = !!activeToolId && !canUseTool(activeToolId);
   const [selectedVideo, setSelectedVideo] = useState<VideoSource | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [toolContext, setToolContext] = useState<MentorToolContext | null>(null);
@@ -199,6 +205,8 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const handleSendMessage = async () => {
     const question = inputMessage.trim();
     if (!question || isThinking) return;
+    // Trava de segurança: não deixa conversar sobre ferramenta bloqueada.
+    if (ferramentaBloqueada) { setLockedPopupOpen(true); return; }
 
     setInputMessage('');
     setIsThinking(true);
@@ -497,26 +505,37 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
           )}
         </div>
 
-        {/* Input */}
+        {/* Input — ou aviso de bloqueio quando a ferramenta ativa é bloqueada */}
         <div className="p-4 bg-white border-t border-gray-200">
-          <div className="relative">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !isThinking && handleSendMessage()}
-              disabled={isThinking}
-              placeholder={activeToolLabel ? `Pergunte sobre ${activeToolLabel}…` : 'Pergunte ao mentor…'}
-              className="w-full bg-white border border-gray-300 rounded-[8px] px-4 py-2.5 pr-10 text-[13px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
-            />
+          {ferramentaBloqueada ? (
             <button
-              onClick={handleSendMessage}
-              disabled={isThinking || !inputMessage.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              onClick={() => setLockedPopupOpen(true)}
+              className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 rounded-[8px] px-4 py-2.5 text-[13px] text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+              title="Disponível no plano completo"
             >
-              <ArrowRight size={18} />
+              <Lock size={14} className="text-gray-500" />
+              Converse com o Israel sobre {activeToolLabel || 'esta ferramenta'} no plano completo
             </button>
-          </div>
+          ) : (
+            <div className="relative">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !isThinking && handleSendMessage()}
+                disabled={isThinking}
+                placeholder={activeToolLabel ? `Pergunte sobre ${activeToolLabel}…` : 'Pergunte ao mentor…'}
+                className="w-full bg-white border border-gray-300 rounded-[8px] px-4 py-2.5 pr-10 text-[13px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={isThinking || !inputMessage.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 bg-transparent border-none cursor-pointer transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Rodapé: botão de feedback (bug / sugestão / dúvida) */}
@@ -671,6 +690,9 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Paywall — ferramenta (e Mentor sobre ela) bloqueada pro aluno gratuito */}
+      <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
     </>
   );
 };
