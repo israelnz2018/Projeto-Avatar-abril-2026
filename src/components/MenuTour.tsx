@@ -50,7 +50,7 @@ const STEPS: MenuTourStep[] = [
     image: PROJ_IMG,
     title: 'As ferramentas de cada fase',
     description: 'Cada fase traz as FERRAMENTAS daquela etapa (SIPOC, RACI, Organograma…) pra você aplicar no seu projeto.',
-    region: { xPct: 17, yPct: 56, wPct: 57, hPct: 14 },
+    region: { xPct: 17, yPct: 56, wPct: 57, hPct: 17 },
   },
   {
     image: PROJ_IMG,
@@ -187,12 +187,16 @@ export default function MenuTour({ isOpen, onClose }: Props) {
                   }}
                 />
               )}
-            </div>
 
-            {/* Card de texto — flutua num canto inferior. Vai pra ESQUERDA quando a
-                região destacada está na metade direita da imagem (ex: o Israel),
-                pra não cobrir o que está sendo explicado. */}
-            <div className={`absolute bottom-5 ${r && r.xPct > 50 ? 'left-5' : 'right-5'} bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 w-[340px] max-w-[calc(100vw-2rem)]`}>
+            {/* Card de texto — dentro do container da imagem, pra posicionar relativo
+                a ela. Quando a região destacada está na direita (ex: o Israel), o card
+                encosta logo à ESQUERDA dela (perto, sem cobrir). Senão, canto direito. */}
+            <div
+              className="absolute bottom-4 bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 w-[330px] max-w-[calc(100vw-2rem)] z-10"
+              style={r && r.xPct > 50
+                ? { right: `${100 - r.xPct + 1.5}%` }   // encosta à esquerda da região (Israel)
+                : { right: '1rem' }}
+            >
               <div className="flex items-center justify-between mb-2">
                 {Dots}
                 <button onClick={finish} className="text-gray-400 hover:text-gray-700 border-none bg-transparent cursor-pointer p-1" title="Fechar tour">
@@ -202,6 +206,7 @@ export default function MenuTour({ isOpen, onClose }: Props) {
               <h3 className="text-[17px] font-black text-slate-800 m-0 mb-2 leading-tight">{step.title}</h3>
               <p className="text-[13px] text-slate-600 leading-relaxed m-0">{step.description}</p>
               {Nav}
+            </div>
             </div>
           </div>
         </motion.div>
