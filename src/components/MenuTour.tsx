@@ -44,13 +44,13 @@ const STEPS: MenuTourStep[] = [
     image: PROJ_IMG,
     title: 'As fases do projeto',
     description: 'Dentro de um projeto, o trabalho é dividido em FASES. Você avança fase a fase, da primeira (entender a área) até a última.',
-    region: { xPct: 17, yPct: 30, wPct: 66, hPct: 24 },
+    region: { xPct: 17, yPct: 30, wPct: 57, hPct: 24 },
   },
   {
     image: PROJ_IMG,
     title: 'As ferramentas de cada fase',
     description: 'Cada fase traz as FERRAMENTAS daquela etapa (SIPOC, RACI, Organograma…) e os vídeos de apoio pra usar cada uma.',
-    region: { xPct: 17, yPct: 56, wPct: 66, hPct: 18 },
+    region: { xPct: 17, yPct: 56, wPct: 57, hPct: 18 },
   },
   {
     image: PROJ_IMG,
@@ -177,8 +177,10 @@ export default function MenuTour({ isOpen, onClose }: Props) {
               )}
             </div>
 
-            {/* Card de texto — flutua no canto inferior direito, sobre o fundo escuro */}
-            <div className="absolute bottom-5 right-5 bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 w-[340px] max-w-[calc(100vw-2rem)]">
+            {/* Card de texto — flutua num canto inferior. Vai pra ESQUERDA quando a
+                região destacada está na metade direita da imagem (ex: o Israel),
+                pra não cobrir o que está sendo explicado. */}
+            <div className={`absolute bottom-5 ${r && r.xPct > 50 ? 'left-5' : 'right-5'} bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 w-[340px] max-w-[calc(100vw-2rem)]`}>
               <div className="flex items-center justify-between mb-2">
                 {Dots}
                 <button onClick={finish} className="text-gray-400 hover:text-gray-700 border-none bg-transparent cursor-pointer p-1" title="Fechar tour">
