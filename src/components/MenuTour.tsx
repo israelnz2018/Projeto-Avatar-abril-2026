@@ -64,6 +64,12 @@ const STEPS: MenuTourStep[] = [
     description: 'À direita fica o agente Israel digital, associado à ferramenta que você está usando. Ele te orienta com respostas baseadas nos vídeos do próprio Israel.',
     region: { xPct: 76, yPct: 6, wPct: 23, hPct: 90 },
   },
+  // --- Volta pra tela real: o botão de feedback no rodapé do Israel ---
+  {
+    selector: '[data-tour-id="proj-reportar"]',
+    title: 'Reportar, sugerir ou perguntar',
+    description: 'Achou um problema, tem uma sugestão ou uma dúvida? Use este botão pra falar com a gente — sua opinião ajuda a melhorar a plataforma.',
+  },
 ];
 
 const COUNT_KEY = 'lbw-menu-tour-count-v1';

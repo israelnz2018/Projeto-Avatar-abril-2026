@@ -948,15 +948,19 @@ export default function ProjectManagement() {
             </span>
           </button>
         </div>
-        <MentorSidebar
-          currentPhase={currentPhase}
-          suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
-          mentorMessage={getMentorMessage(currentPhase)}
-          activeToolId={activeToolId}
-          activeToolLabel={activeToolLabel}
-          projectId={selectedProject?.id || null}
-          projectName={selectedProject?.name || null}
-       />
+        {/* min-h-0 faz o sidebar respeitar a altura disponível (abaixo do botão de
+            tour) em vez de estourar — assim o rodapé "Reportar/Sugerir" aparece. */}
+        <div className="flex-1 min-h-0">
+          <MentorSidebar
+            currentPhase={currentPhase}
+            suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
+            mentorMessage={getMentorMessage(currentPhase)}
+            activeToolId={activeToolId}
+            activeToolLabel={activeToolLabel}
+            projectId={selectedProject?.id || null}
+            projectName={selectedProject?.name || null}
+          />
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
