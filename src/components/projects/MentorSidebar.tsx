@@ -10,8 +10,8 @@ import { savePendingQuestion } from '../../services/pendingQuestionsService';
 import { getToolContext, MentorToolContext } from '../../services/mentorContextService';
 import {
   saveMentorConversation,
-  getConversationsByProject,
-  clearProjectConversations,
+  getUserConversations,
+  clearUserToolConversations,
   MentorConversation
 } from '../../services/mentorConversationsService';
 
@@ -161,13 +161,15 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
     });
   }, [activeToolId]);
 
-  // Carrega histórico ao mudar de projeto
+  // Carrega histórico do ALUNO na ferramenta ativa (userId + projectId + toolId).
+  // Só mostra as conversas DELE relacionadas à ferramenta que está aberta.
   useEffect(() => {
-    if (!projectId) {
+    const uid = auth.currentUser?.uid;
+    if (!projectId || !uid) {
       setMessages([]);
       return;
     }
-    getConversationsByProject(projectId).then((convs: MentorConversation[]) => {
+    getUserConversations(uid, projectId, activeToolId || undefined).then((convs: MentorConversation[]) => {
       const restored: Message[] = [];
       convs.forEach(c => {
         restored.push({ role: 'user', content: c.question });
@@ -187,7 +189,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
     }).catch(err => {
       console.error('Erro ao carregar histórico:', err);
     });
-  }, [projectId]);
+  }, [projectId, activeToolId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -294,8 +296,10 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   };
 
   const handleClearHistory = async () => {
-    if (!projectId) return;
-    const ok = await clearProjectConversations(projectId);
+    const uid = auth.currentUser?.uid;
+    if (!projectId || !uid) return;
+    // Apaga só as conversas do ALUNO na ferramenta ativa (nunca de outros usuários).
+    const ok = await clearUserToolConversations(uid, projectId, activeToolId || undefined);
     if (ok) {
       setMessages([]);
       setShowClearConfirm(false);
@@ -327,7 +331,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
             <button
               onClick={() => setShowClearConfirm(true)}
               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer border-none bg-transparent"
-              title="Limpar histórico deste projeto"
+              title="Apagar minhas conversas desta ferramenta"
             >
               <Trash2 size={14} />
             </button>
@@ -551,10 +555,10 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                   <Trash2 size={24} />
                 </div>
                 <h4 className="text-center font-bold text-gray-800 mb-2">
-                  Limpar histórico do Mentor?
+                  Limpar suas conversas{activeToolLabel ? ` de ${activeToolLabel}` : ''}?
                 </h4>
                 <p className="text-center text-sm text-gray-600 mb-6">
-                  Todas as conversas com o Mentor LBW deste projeto serão apagadas. Esta ação não pode ser desfeita.
+                  Suas conversas com o Mentor LBW{activeToolLabel ? ` relacionadas a ${activeToolLabel}` : ' deste projeto'} serão apagadas. Só as suas — as de outras pessoas não são afetadas. Esta ação não pode ser desfeita.
                 </p>
                 <div className="flex gap-2">
                   <button

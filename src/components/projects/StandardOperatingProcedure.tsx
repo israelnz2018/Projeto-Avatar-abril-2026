@@ -1,7 +1,97 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { Save, Info, Plus, Trash2, FileText, ChevronDown, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
+import { Save, Info, Plus, Trash2, FileText, ChevronDown, ChevronRight, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
+
+// Exemplos prontos exibidos no modal "Ver exemplo" — read-only, NÃO tocam nos
+// dados do aluno. Um de ESCRITÓRIO, outro de MANUFATURA. Servem só pra consulta:
+// mostram como um POP completo fica preenchido de ponta a ponta.
+const SOP_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    header: {
+      title: 'Abertura de Solicitação de Compra',
+      code: 'POP-SUP-014',
+      version: '2.0',
+      department: 'Suprimentos',
+      author: 'Analista de Compras',
+      approver: 'Gerente de Suprimentos',
+    },
+    objective: 'Padronizar a abertura de solicitações de compra para garantir que todo pedido tenha justificativa, orçamento aprovado e dados completos antes de seguir para cotação, reduzindo retrabalho e atrasos.',
+    scope: 'Aplica-se a todas as áreas que solicitam compra de materiais ou serviços, exceto compras emergenciais (tratadas no POP-SUP-020).',
+    definitions: [
+      { term: 'SC', definition: 'Solicitação de Compra — documento que inicia o processo de aquisição.' },
+      { term: 'Centro de Custo', definition: 'Código contábil que identifica a área que arcará com a despesa.' },
+    ],
+    responsibilities: [
+      { role: 'Solicitante', responsibility: 'Preencher a SC com justificativa e centro de custo corretos.' },
+      { role: 'Gestor da área', responsibility: 'Aprovar ou recusar a SC dentro de 2 dias úteis.' },
+      { role: 'Comprador', responsibility: 'Conferir os dados e iniciar a cotação após aprovação.' },
+    ],
+    processSteps: [
+      'Acessar o sistema e abrir uma nova Solicitação de Compra.',
+      'Preencher item, quantidade, justificativa e centro de custo.',
+      'Anexar especificação técnica ou referência do item.',
+      'Enviar a SC para aprovação do gestor da área.',
+      'Após aprovação, a SC segue automaticamente para o comprador.',
+    ],
+    controlPoints: [
+      { step: 'Preenchimento da SC', criteria: 'Centro de custo válido e justificativa preenchida (campos obrigatórios).' },
+      { step: 'Aprovação do gestor', criteria: 'Aprovar somente dentro da alçada orçamentária da área.' },
+    ],
+    risks: [
+      { risk: 'SC sem orçamento disponível', control: 'Bloqueio automático do sistema se o centro de custo estiver sem saldo.' },
+      { risk: 'Especificação incompleta gera compra errada', control: 'Campo de anexo obrigatório antes do envio.' },
+    ],
+    records: [
+      { name: 'Solicitação de Compra aprovada', location: 'Sistema ERP — módulo Compras', retention: '5 anos' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    header: {
+      title: 'Setup de Troca de Ferramenta na Prensa',
+      code: 'POP-PROD-031',
+      version: '3.1',
+      department: 'Produção',
+      author: 'Líder de Produção',
+      approver: 'Engenheiro de Processo',
+    },
+    objective: 'Padronizar a troca de ferramenta na prensa para reduzir o tempo de setup, garantir a segurança do operador e assegurar a conformidade dimensional da primeira peça produzida.',
+    scope: 'Aplica-se às prensas P-01 a P-04 do setor de estamparia. Não cobre manutenção corretiva da prensa (ver POP-MAN-009).',
+    definitions: [
+      { term: 'Setup', definition: 'Conjunto de atividades para preparar a máquina para produzir um novo item.' },
+      { term: 'Primeira peça', definition: 'Peça produzida logo após o setup, usada para validar o ajuste.' },
+    ],
+    responsibilities: [
+      { role: 'Operador', responsibility: 'Executar o setup seguindo a sequência e usar os EPIs.' },
+      { role: 'Inspetor da Qualidade', responsibility: 'Validar a primeira peça antes de liberar a produção.' },
+      { role: 'Líder de Produção', responsibility: 'Garantir que a ferramenta correta esteja disponível.' },
+    ],
+    processSteps: [
+      'Desligar a prensa e aplicar o bloqueio de segurança (LOTO).',
+      'Remover a ferramenta atual e registrar o contador de golpes.',
+      'Instalar a nova ferramenta conforme a ficha de setup.',
+      'Ajustar altura e pressão conforme parâmetros do item.',
+      'Produzir a primeira peça e enviar para inspeção.',
+      'Liberar a produção somente após aprovação da primeira peça.',
+    ],
+    controlPoints: [
+      { step: 'Bloqueio de segurança', criteria: 'LOTO aplicado e confirmado antes de qualquer intervenção.' },
+      { step: 'Aprovação da primeira peça', criteria: 'Medidas críticas dentro da tolerância do desenho.' },
+    ],
+    risks: [
+      { risk: 'Prensa acionada durante o setup', control: 'Bloqueio LOTO obrigatório — chave sob posse do operador.' },
+      { risk: 'Produzir lote fora de especificação', control: 'Liberação condicionada à aprovação da primeira peça pela Qualidade.' },
+    ],
+    records: [
+      { name: 'Ficha de setup preenchida', location: 'Pasta do setor — arquivo físico e digital', retention: '3 anos' },
+      { name: 'Registro de aprovação da 1ª peça', location: 'Sistema da Qualidade', retention: '3 anos' },
+    ],
+  },
+];
 
 interface SOPHeader {
   title: string;
@@ -123,6 +213,9 @@ export default function StandardOperatingProcedure({ onSave, initialData, onGene
     responsibilities: false, processSteps: true, flowchart: false, controlPoints: false,
     risks: false, records: false, review: false, attachments: false
   });
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   useEffect(() => {
     if (initialData) {
@@ -270,6 +363,13 @@ export default function StandardOperatingProcedure({ onSave, initialData, onGene
                 <p className="text-xs text-[#666]">Documente o processo melhorado para garantir a padronização.</p>
               </div>
             </div>
+            <button
+              onClick={() => setShowExemplo(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 bg-white cursor-pointer shrink-0"
+            >
+              <BookOpen size={14} />
+              Ver exemplo
+            </button>
             <button data-save-trigger onClick={handleSave} className="hidden" />
           </div>
 
@@ -833,6 +933,140 @@ export default function StandardOperatingProcedure({ onSave, initialData, onGene
         </div>
       </div>
     </div>
-  </div>
-);
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (() => {
+        const ex = SOP_EXEMPLOS[exemploIdx];
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowExemplo(false)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+                <div className="flex items-center gap-3">
+                  <BookOpen size={20} className="text-blue-600" />
+                  <div>
+                    <h3 className="text-base font-black text-gray-800 m-0">Exemplo de POP</h3>
+                    <p className="text-xs text-gray-500 m-0">{ex.header.title}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowExemplo(false)}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Abas — Escritório / Manufatura */}
+              <div className="flex gap-2 px-6 pt-4">
+                {SOP_EXEMPLOS.map((e, i) => (
+                  <button
+                    key={e.id}
+                    onClick={() => setExemploIdx(i)}
+                    className={cn(
+                      'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                      exemploIdx === i
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                    )}
+                  >
+                    {e.rotulo}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* Cabeçalho */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    ['Título', ex.header.title], ['Código', ex.header.code], ['Versão', ex.header.version],
+                    ['Departamento', ex.header.department], ['Autor', ex.header.author], ['Aprovador', ex.header.approver],
+                  ].map(([rotulo, valor]) => (
+                    <div key={rotulo} className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{rotulo}</div>
+                      <div className="text-[13px] text-gray-700 leading-snug">{valor}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <ExemploBloco titulo="Objetivo"><p className="text-[13px] text-gray-700 leading-relaxed m-0">{ex.objective}</p></ExemploBloco>
+                <ExemploBloco titulo="Escopo"><p className="text-[13px] text-gray-700 leading-relaxed m-0">{ex.scope}</p></ExemploBloco>
+
+                <ExemploBloco titulo="Definições">
+                  <ul className="space-y-1 m-0 pl-0 list-none">
+                    {ex.definitions.map((d, i) => (
+                      <li key={i} className="text-[13px] text-gray-700"><strong>{d.term}:</strong> {d.definition}</li>
+                    ))}
+                  </ul>
+                </ExemploBloco>
+
+                <ExemploBloco titulo="Responsabilidades">
+                  <ul className="space-y-1 m-0 pl-0 list-none">
+                    {ex.responsibilities.map((r, i) => (
+                      <li key={i} className="text-[13px] text-gray-700"><strong>{r.role}:</strong> {r.responsibility}</li>
+                    ))}
+                  </ul>
+                </ExemploBloco>
+
+                <ExemploBloco titulo="Etapas do Processo">
+                  <ol className="space-y-1 m-0 pl-5">
+                    {ex.processSteps.map((s, i) => (
+                      <li key={i} className="text-[13px] text-gray-700 leading-snug">{s}</li>
+                    ))}
+                  </ol>
+                </ExemploBloco>
+
+                <ExemploBloco titulo="Pontos de Controle">
+                  <ul className="space-y-1 m-0 pl-0 list-none">
+                    {ex.controlPoints.map((c, i) => (
+                      <li key={i} className="text-[13px] text-gray-700"><strong>{c.step}:</strong> {c.criteria}</li>
+                    ))}
+                  </ul>
+                </ExemploBloco>
+
+                <ExemploBloco titulo="Riscos e Controles">
+                  <ul className="space-y-1 m-0 pl-0 list-none">
+                    {ex.risks.map((r, i) => (
+                      <li key={i} className="text-[13px] text-gray-700"><strong>Risco:</strong> {r.risk} — <strong>Controle:</strong> {r.control}</li>
+                    ))}
+                  </ul>
+                </ExemploBloco>
+
+                <ExemploBloco titulo="Registros">
+                  <ul className="space-y-1 m-0 pl-0 list-none">
+                    {ex.records.map((r, i) => (
+                      <li key={i} className="text-[13px] text-gray-700">{r.name} · <span className="text-gray-500">{r.location} · retenção {r.retention}</span></li>
+                    ))}
+                  </ul>
+                </ExemploBloco>
+
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                  <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                  <p className="text-xs text-amber-800 leading-relaxed m-0">
+                    Este é um exemplo só pra <strong>consulta</strong> — ele <strong>não altera</strong> o seu POP.
+                    Use como referência de como preencher cada seção.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// Bloco de seção dentro do modal de exemplo do POP (título + conteúdo).
+function ExemploBloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h4 className="text-[11px] font-black uppercase tracking-wider text-blue-700 mb-1.5 m-0">{titulo}</h4>
+      <div className="bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">{children}</div>
+    </div>
+  );
 }

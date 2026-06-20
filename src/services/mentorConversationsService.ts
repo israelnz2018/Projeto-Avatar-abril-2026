@@ -116,3 +116,55 @@ export async function clearProjectConversations(projectId: string): Promise<bool
     return false;
   }
 }
+
+/**
+ * Conversas do ALUNO (userId) em um projeto, opcionalmente de UMA ferramenta (toolId).
+ * Usado pelo Israel IA da aba Projetos pra exibir só o que é do aluno + ferramenta ativa.
+ */
+export async function getUserConversations(
+  userId: string,
+  projectId: string,
+  toolId?: string
+): Promise<MentorConversation[]> {
+  try {
+    const filtros = [
+      where('userId', '==', userId),
+      where('projectId', '==', projectId),
+      ...(toolId ? [where('toolId', '==', toolId)] : []),
+    ];
+    const q = query(collection(db, MENTOR_CONVERSATIONS_COLLECTION), ...filtros);
+    const snap = await getDocs(q);
+    const convs = snap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, ...data, timestamp: data.timestamp?.toDate?.() || new Date() } as MentorConversation;
+    });
+    // ordena por tempo no cliente (evita exigir índice composto no Firestore)
+    return convs.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, MENTOR_CONVERSATIONS_COLLECTION);
+    return [];
+  }
+}
+
+/**
+ * Apaga as conversas do ALUNO (userId) em um projeto e ferramenta específicos.
+ * O aluno só apaga o que é dele e da ferramenta que está vendo — nunca de outros.
+ */
+export async function clearUserToolConversations(
+  userId: string,
+  projectId: string,
+  toolId?: string
+): Promise<boolean> {
+  try {
+    const conversations = await getUserConversations(userId, projectId, toolId);
+    await Promise.all(
+      conversations.map(c =>
+        c.id ? deleteDoc(doc(db, MENTOR_CONVERSATIONS_COLLECTION, c.id)) : Promise.resolve()
+      )
+    );
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, MENTOR_CONVERSATIONS_COLLECTION);
+    return false;
+  }
+}
