@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Wrench, Video, Sparkles, FolderKanban, Lock, ArrowRight } from 'lucide-react';
+import { Wrench, Video, Sparkles, FolderKanban, Lock, ArrowRight, HelpCircle } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserContentScope, useUserUsageStats } from '../../hooks/useDashboardData';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -29,6 +29,9 @@ import {
   Pill,
 } from './_shared';
 import VideoProgressSection from './VideoProgressSection';
+import GuidedTour from '../tour/GuidedTour';
+import { useTour } from '../tour/useTour';
+import { DASHBOARD_TOUR } from '../tour/tourSteps';
 
 interface Props {
   nome?: string | null;
@@ -39,6 +42,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
   const { plano } = useUserAccess();
   const scope = useUserContentScope(uid);
   const stats = useUserUsageStats(uid);
+  const dashboardTour = useTour('dashboard');
 
   if (scope.loading || stats.loading) return <DashboardLoading />;
   if (scope.error) return <DashboardError message={scope.error.message} />;
@@ -68,7 +72,18 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="mb-10"
+        data-tour-id="dashboard-header"
       >
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={dashboardTour.openTour}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors cursor-pointer bg-white"
+          >
+            <HelpCircle size={14} />
+            Tour
+          </button>
+        </div>
+
         <SectionLabel live rightSlot={<>Plano · {plano}</>}>
           Seu Dashboard
         </SectionLabel>
@@ -240,6 +255,8 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
 
       {/* ====== Progresso de vídeos por trilha (apenas trilhas acessíveis ao Starter) ====== */}
       <VideoProgressSection accessibleInitiatives={scope.data.initiatives} />
+
+      <GuidedTour isOpen={dashboardTour.isOpen} onClose={dashboardTour.closeTour} steps={DASHBOARD_TOUR} />
     </DashboardShell>
   );
 }

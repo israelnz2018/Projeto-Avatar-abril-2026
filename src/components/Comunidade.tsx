@@ -22,6 +22,9 @@ import {
 import { cn } from '../lib/utils';
 import { auth } from '../lib/firebase';
 import UpgradeBanner from './UpgradeBanner';
+import GuidedTour from './tour/GuidedTour';
+import { useTour } from './tour/useTour';
+import { COMUNIDADE_TOUR } from './tour/tourSteps';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
@@ -709,6 +712,7 @@ function NotificationsBell() {
 // ===== Página =====
 export default function Comunidade() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const comunidadeTour = useTour('comunidade');
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('timeline');
   const [tipoFiltro, setTipoFiltro] = useState<PostTipo | 'todos'>('todos');
@@ -797,8 +801,15 @@ export default function Comunidade() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={comunidadeTour.openTour}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors cursor-pointer bg-white"
+          >
+            <HelpCircle size={14} /> Tour
+          </button>
           <NotificationsBell />
           <button
+            data-tour-id="com-publicar"
             onClick={() => setNovoAberto(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest cursor-pointer border-none transition"
           >
@@ -871,7 +882,7 @@ export default function Comunidade() {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div data-tour-id="com-feed" className="space-y-6">
           {/* Fixados — sempre no topo */}
           {pinned.length > 0 && (
             <div className="space-y-3">
@@ -912,6 +923,8 @@ export default function Comunidade() {
       <AnimatePresence>
         {novoAberto && <NovoPostModal onClose={() => setNovoAberto(false)} />}
       </AnimatePresence>
+
+      <GuidedTour isOpen={comunidadeTour.isOpen} onClose={comunidadeTour.closeTour} steps={COMUNIDADE_TOUR} />
     </div>
   );
 }
