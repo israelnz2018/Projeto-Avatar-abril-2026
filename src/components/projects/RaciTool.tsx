@@ -94,11 +94,11 @@ const RACI_EXEMPLOS = [
     processo: 'Inspeção de Qualidade de Produto Fabricado',
     papeis: ['Operador', 'Inspetor da Qualidade', 'Eng. da Qualidade', 'Supervisor de Produção'],
     linhas: [
-      { atividade: 'Coletar amostra da produção', raci: ['R', 'C', 'I', 'A'] },
-      { atividade: 'Medir características críticas', raci: ['I', 'R/A', 'C', 'I'] },
+      { atividade: 'Coletar amostra da produção', raci: ['I', 'R', 'A', 'C'] },
+      { atividade: 'Medir características críticas', raci: ['I', 'R', 'A', 'I'] },
       { atividade: 'Comparar com a especificação', raci: ['I', 'R', 'A', 'I'] },
-      { atividade: 'Decidir aprovar ou reprovar o lote', raci: ['I', 'C', 'R/A', 'I'] },
-      { atividade: 'Registrar resultado e liberar/segregar', raci: ['C', 'R/A', 'I', 'I'] },
+      { atividade: 'Decidir aprovar ou reprovar o lote', raci: ['I', 'R', 'A/C', 'I'] },
+      { atividade: 'Registrar resultado e liberar/segregar', raci: ['I', 'R', 'A', 'R/C'] },
     ],
   },
 ];
