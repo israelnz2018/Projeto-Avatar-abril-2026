@@ -153,12 +153,17 @@ export default function MenuTour({ isOpen, onClose }: Props) {
       <AnimatePresence>
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[300] bg-slate-900/85 flex flex-col items-center justify-center p-4"
+          className="fixed inset-0 z-[300] bg-slate-900/90 flex items-center justify-center p-3"
         >
-          <div className="relative w-full max-w-5xl">
-            {/* Imagem grande */}
-            <div className="relative rounded-xl overflow-hidden shadow-2xl border border-white/10">
-              <img src={step.image} alt={step.title} className="w-full block" />
+          {/* Imagem ocupa quase a tela toda (largura e altura) */}
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className="relative inline-block max-w-full max-h-full rounded-xl overflow-hidden shadow-2xl border border-white/10">
+              <img
+                src={step.image}
+                alt={step.title}
+                className="block max-w-full"
+                style={{ maxHeight: '94vh' }}
+              />
               {/* Região destacada (anel) sobre a imagem */}
               {r && (
                 <div
@@ -172,8 +177,8 @@ export default function MenuTour({ isOpen, onClose }: Props) {
               )}
             </div>
 
-            {/* Card de texto abaixo da imagem */}
-            <div className="mt-4 bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 max-w-2xl mx-auto">
+            {/* Card de texto — flutua no canto inferior direito, sobre o fundo escuro */}
+            <div className="absolute bottom-5 right-5 bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 w-[340px] max-w-[calc(100vw-2rem)]">
               <div className="flex items-center justify-between mb-2">
                 {Dots}
                 <button onClick={finish} className="text-gray-400 hover:text-gray-700 border-none bg-transparent cursor-pointer p-1" title="Fechar tour">
