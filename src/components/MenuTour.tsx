@@ -59,6 +59,12 @@ const STEPS: MenuTourStep[] = [
     region: { xPct: 17, yPct: 70, wPct: 40, hPct: 10 },
   },
   {
+    image: '/tour-video.png',
+    title: 'Pule pra parte que interessa',
+    description: 'Ao assistir uma videoaula, use o ÍNDICE DO CONTEÚDO pra clicar e ir direto pra parte que você quer ver — sem precisar assistir tudo.',
+    region: { xPct: 64, yPct: 18, wPct: 35, hPct: 78 },
+  },
+  {
     image: PROJ_IMG,
     title: 'O Israel digital',
     description: 'À direita fica o agente Israel digital, associado à ferramenta que você está usando. Ele te orienta com respostas baseadas nos vídeos do próprio Israel.',

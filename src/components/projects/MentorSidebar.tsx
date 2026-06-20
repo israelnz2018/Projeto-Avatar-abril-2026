@@ -77,6 +77,9 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [videoSummary, setVideoSummary] = useState<Array<{ time: string; topic: string }>>([]);
   const [seekToSec, setSeekToSec] = useState<number>(0);
+  // Incrementa a cada clique no índice — garante que o player recarregue no tempo
+  // certo MESMO se o aluno clicar no mesmo item de novo (key muda sempre).
+  const [seekNonce, setSeekNonce] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Carrega o índice clicável do vídeo selecionado.
@@ -626,26 +629,10 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                 </button>
               </div>
 
-              {/* Conteúdo: player à esquerda, índice à direita */}
+              {/* Conteúdo: índice à esquerda, player à direita */}
               <div className="flex flex-col lg:flex-row min-h-0 flex-1">
-                {/* Player */}
-                <div className="lg:flex-1 bg-black flex items-center">
-                  <div className="w-full aspect-video">
-                    <iframe
-                      key={`${selectedVideo.id}-${seekToSec}`}
-                      width="100%"
-                      height="100%"
-                      src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?autoplay=1&start=${seekToSec}&rel=0&modestbranding=1`}
-                      title={selectedVideo.title}
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                </div>
-
-                {/* Sumário clicável */}
-                <div className="lg:w-[340px] lg:border-l border-gray-200 bg-gray-50 flex flex-col">
+                {/* Sumário clicável (à ESQUERDA) */}
+                <div className="lg:w-[340px] lg:border-r border-gray-200 bg-gray-50 flex flex-col">
                   <div className="px-4 py-3 border-b border-gray-200 bg-white">
                     <h4 className="font-bold text-[13px] text-gray-800 flex items-center gap-2 m-0">
                       <ListVideo size={16} className="text-blue-600" />
@@ -664,7 +651,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                         return (
                           <button
                             key={i}
-                            onClick={() => setSeekToSec(sec)}
+                            onClick={() => { setSeekToSec(sec); setSeekNonce(n => n + 1); }}
                             className={cn(
                               'w-full text-left text-[12px] p-2 rounded transition-colors flex gap-2 items-start cursor-pointer border',
                               active
@@ -683,6 +670,22 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                         );
                       })
                     )}
+                  </div>
+                </div>
+
+                {/* Player (à DIREITA) */}
+                <div className="lg:flex-1 bg-black flex items-center">
+                  <div className="w-full aspect-video">
+                    <iframe
+                      key={`${selectedVideo.id}-${seekToSec}-${seekNonce}`}
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?autoplay=1&start=${seekToSec}&rel=0&modestbranding=1`}
+                      title={selectedVideo.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
                   </div>
                 </div>
               </div>
