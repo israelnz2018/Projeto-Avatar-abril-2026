@@ -453,6 +453,7 @@ export default function ProjectManagement() {
       
       // Select the new project
       setSelectedProject(project as Project);
+      setProjetoAtivo(project as Project); // sincroniza o "Projeto Ativo" do menu lateral
       setCurrentPhase(firstPhase);
       toast.success("Projeto criado com sucesso!");
     } catch (error: any) {
@@ -475,6 +476,7 @@ export default function ProjectManagement() {
       await deleteProject(projectToDelete);
       if (selectedProject?.id === projectToDelete) {
         setSelectedProject(null);
+        setProjetoAtivo(null); // limpa o "Projeto Ativo" do menu lateral
         setCurrentPhase(null);
       }
       fetchProjects();
@@ -531,7 +533,9 @@ export default function ProjectManagement() {
       await updateProjectName(projectToRename.id, novoNome);
       // Atualiza o selecionado na hora se for o mesmo
       if (selectedProject?.id === projectToRename.id) {
-        setSelectedProject({ ...selectedProject, name: novoNome });
+        const renomeado = { ...selectedProject, name: novoNome };
+        setSelectedProject(renomeado);
+        setProjetoAtivo(renomeado); // sincroniza o nome no menu lateral
       }
       await fetchProjects();
       toast.success('Projeto renomeado.');
