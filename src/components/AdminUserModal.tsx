@@ -18,20 +18,11 @@ interface AdminUserModalProps {
 const PLANOS: Plano[] = ['gratuito', 'completo', 'coordenador'];
 const TIPOS: TipoUsuario[] = ['aluno', 'coordenador', 'admin'];
 
-const FORMACOES_DEFAULT = [
-  'projetos-melhoria-introdutoria',
-  'lean-six-sigma-yellow',
-  'lean-six-sigma-green',
-  'lean-six-sigma-black',
-  'pmi-fundamentos',
-];
-
 export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }: AdminUserModalProps) {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [tipoUsuario, setTipoUsuario] = useState<TipoUsuario>('aluno');
   const [plano, setPlano] = useState<Plano>('gratuito');
-  const [formacoesText, setFormacoesText] = useState('projetos-melhoria-introdutoria');
   const [empresaId, setEmpresaId] = useState('');
   const [empresaNome, setEmpresaNome] = useState('');
   const [maxAlunos, setMaxAlunos] = useState<number | ''>('');
@@ -55,7 +46,6 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
       setEmail(user.email);
       setTipoUsuario(user.tipoUsuario);
       setPlano((user.plano as Plano) || 'gratuito');
-      setFormacoesText((user.formacoes || []).join('\n'));
       setEmpresaId(user.empresaId || '');
       setEmpresaNome(user.empresaNome || '');
       setMaxAlunos(user.maxAlunos ?? '');
@@ -65,7 +55,6 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
       setEmail('');
       setTipoUsuario('aluno');
       setPlano('gratuito');
-      setFormacoesText('projetos-melhoria-introdutoria');
       setEmpresaId('');
       setEmpresaNome('');
       setMaxAlunos('');
@@ -82,15 +71,15 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
     }
     setSaving(true);
     setErro(null);
-    const formacoes = formacoesText.split('\n').map(s => s.trim()).filter(Boolean);
     try {
       if (mode === 'create') {
+        // formacoes não é enviado: o backend deriva do plano (gratuito = trilha 1,
+        // completo = tudo), garantindo coerência. Ver /api/admin/users.
         const result = await adminCreateUser({
           email: email.trim().toLowerCase(),
           nome: nome.trim(),
           tipoUsuario: tipoUsuario === 'coordenador' ? 'coordenador' : 'aluno',
           plano,
-          formacoes,
           empresaId: empresaId.trim() || undefined,
           empresaNome: empresaNome.trim() || undefined,
           maxAlunos: typeof maxAlunos === 'number' ? maxAlunos : undefined,
@@ -103,7 +92,6 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
           nome: nome.trim(),
           tipoUsuario,
           plano,
-          formacoes,
           empresaId: empresaId.trim() || undefined,
           empresaNome: empresaNome.trim() || undefined,
           maxAlunos: typeof maxAlunos === 'number' ? maxAlunos : undefined,
@@ -252,19 +240,11 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-gray-700 uppercase block mb-1">
-                  Formações <span className="text-gray-400 normal-case font-normal">(uma por linha)</span>
-                </label>
-                <textarea
-                  rows={4}
-                  value={formacoesText}
-                  onChange={e => setFormacoesText(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm font-mono"
-                  placeholder={'projetos-melhoria-introdutoria\nlean-six-sigma-yellow'}
-                />
-                <p className="text-[10px] text-gray-500 mt-1">
-                  Sugestões: {FORMACOES_DEFAULT.map(f => <code key={f} className="bg-gray-100 px-1 rounded mx-0.5">{f}</code>)}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+                <p className="text-[11px] text-blue-800 leading-relaxed m-0">
+                  O <strong>plano</strong> define o acesso automaticamente:
+                  <strong> Gratuito</strong> = só a Trilha 1 · <strong>Completo</strong> = todas as trilhas.
+                  As formações são ajustadas sozinhas — não precisa digitar nada.
                 </p>
               </div>
 

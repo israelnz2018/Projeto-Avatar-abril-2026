@@ -378,6 +378,12 @@ async function startServer() {
     }
     const senhaProvisoria = Math.random().toString(36).slice(-10);
     const tipo = tipoUsuario === "coordenador" ? "coordenador" : "aluno";
+    // Plano é a fonte de verdade; formacoes derivam dele (regra binária:
+    // gratuito = trilha 1; resto = completo). Ignora o campo formacoes digitado.
+    const planoFinal = plano || (tipo === "coordenador" ? "coordenador" : "gratuito");
+    const formacoesFinal = planoFinal === "gratuito"
+      ? ["projetos-melhoria-introdutoria"]
+      : ["projetos-melhoria-completo"];
     try {
       const userRecord = await adminAuth().createUser({
         email: email.toLowerCase().trim(),
@@ -389,10 +395,8 @@ async function startServer() {
         email: userRecord.email || email.toLowerCase().trim(),
         nome: nome || "",
         tipoUsuario: tipo,
-        plano: plano || (tipo === "coordenador" ? "coordenador" : "gratuito"),
-        formacoes: Array.isArray(formacoes) && formacoes.length > 0
-          ? formacoes
-          : ["projetos-melhoria-introdutoria"],
+        plano: planoFinal,
+        formacoes: formacoesFinal,
         creditoIA: {
           limite: 100,
           usado: 0,
@@ -447,6 +451,15 @@ async function startServer() {
       ];
       for (const k of allowed) {
         if (updates[k] !== undefined) firestoreUpdate[k] = updates[k];
+      }
+      // COERÊNCIA: o plano é a fonte de verdade. A regra é binária —
+      // gratuito = trilha 1; completo/coordenador = tudo. As formacoes são
+      // DERIVADAS do plano, nunca digitadas, pra nunca ficarem contraditórias
+      // (o que fazia o app classificar errado, ex: gratuito virando completo).
+      if (firestoreUpdate.plano !== undefined) {
+        firestoreUpdate.formacoes = firestoreUpdate.plano === "gratuito"
+          ? ["projetos-melhoria-introdutoria"]
+          : ["projetos-melhoria-completo"];
       }
       if (Object.keys(firestoreUpdate).length > 0) {
         await adminFirestore().collection("users").doc(uid).set(firestoreUpdate, { merge: true });
