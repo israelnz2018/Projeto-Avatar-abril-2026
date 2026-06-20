@@ -561,10 +561,27 @@ export default function ProjectManagement() {
             </div>
           ) : (
             <div>
+              {/* Linha do topo: dropdown de projetos + botão "Novo Projeto" (dentro de um projeto) */}
+              <div className="flex items-stretch gap-2">
+              {selectedProject && (
+                <button
+                  onClick={() => {
+                    setSelectedProject(null);
+                    setProjetoAtivo(null);
+                    setIsProjectsListOpen(false);
+                    setSelectedParentInitiativeId(null);
+                  }}
+                  className="shrink-0 flex items-center gap-2 px-4 rounded-2xl text-white text-[13px] font-bold cursor-pointer transition-all hover:opacity-90"
+                  style={{ background: `linear-gradient(135deg, ${LBW.navy}, ${LBW.blue})`, boxShadow: '0 4px 12px -4px rgba(30, 45, 110, 0.3)' }}
+                  title="Criar um novo projeto"
+                >
+                  <Plus size={16} /> Novo projeto
+                </button>
+              )}
               {/* Header do dropdown (sempre visível) */}
               <button
                 onClick={() => setIsProjectsListOpen(!isProjectsListOpen)}
-                className="w-full bg-white border border-gray-100 hover:border-blue-200 rounded-2xl px-5 py-3 flex items-center justify-between cursor-pointer transition-all group"
+                className="flex-1 bg-white border border-gray-100 hover:border-blue-200 rounded-2xl px-5 py-3 flex items-center justify-between cursor-pointer transition-all group"
                 style={{ boxShadow: '0 4px 12px -4px rgba(30, 45, 110, 0.1)' }}
               >
                 <div className="flex items-center gap-3">
@@ -591,6 +608,7 @@ export default function ProjectManagement() {
                   <ChevronDown size={18} style={{ color: LBW.blue }} />
                 </motion.div>
               </button>
+              </div>
 
               {/* Lista expandida */}
               <AnimatePresence>
