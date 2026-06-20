@@ -73,12 +73,12 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     : 'Starter';
 
   const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
+    { name: 'Educação', path: '/education', icon: GraduationCap },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2 },
-    { name: 'Educação', path: '/education', icon: GraduationCap },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     ...(isAdmin || isCoordenador ? [
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
     ] : []),
