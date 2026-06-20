@@ -19,10 +19,7 @@ import { Toaster, toast } from 'sonner';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
 import UpgradeBanner from './UpgradeBanner';
-import { Lock, HelpCircle } from 'lucide-react';
-import GuidedTour from './tour/GuidedTour';
-import { useTour } from './tour/useTour';
-import { PROJECTS_TOUR } from './tour/tourSteps';
+import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
@@ -351,7 +348,6 @@ export default function ProjectManagement() {
   const [generatingPPTId, setGeneratingPPTId] = useState<string | null>(null);
 
   const { canUseInitiative } = useUserAccess();
-  const projectsTour = useTour('projetos');
 
   const isAdmin = auth.currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
 
@@ -551,18 +547,9 @@ export default function ProjectManagement() {
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4">
-        <div className="flex items-center justify-between shrink-0 gap-3">
-          <UpgradeBanner variant="compact" className="flex-1" mensagem="Plano gratuito: libere todas as ferramentas dos seus projetos." />
-          <button
-            onClick={projectsTour.openTour}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors cursor-pointer bg-white"
-            title="Ver o tour desta aba"
-          >
-            <HelpCircle size={14} /> Tour
-          </button>
-        </div>
+        <UpgradeBanner variant="compact" className="shrink-0" mensagem="Plano gratuito: libere todas as ferramentas dos seus projetos." />
         {/* Top Section: Meus Projetos Ativos (DROPDOWN) */}
-        <div className="shrink-0" data-tour-id="proj-lista">
+        <div className="shrink-0">
           {loading ? (
             <div className="flex items-center gap-3 py-4 text-gray-400 text-xs italic bg-white rounded-2xl border border-gray-100 justify-center">
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -783,7 +770,7 @@ export default function ProjectManagement() {
                   </div>
 
                   {/* Lista de trilhas — clique abre o popup direto */}
-                  <div className="space-y-2 mb-2" data-tour-id="proj-trilhas">
+                  <div className="space-y-2 mb-2">
                     {initiatives
                       .filter(i => !i.parentId)
                       .sort((a, b) => {
@@ -944,8 +931,8 @@ export default function ProjectManagement() {
         </div>
       </div>
       
-      <div className="hidden lg:block sticky top-0 h-full shrink-0" data-tour-id="proj-mentor">
-        <MentorSidebar
+      <div className="hidden lg:block sticky top-0 h-full shrink-0">
+        <MentorSidebar 
           currentPhase={currentPhase}
           suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
           mentorMessage={getMentorMessage(currentPhase)}
@@ -1065,7 +1052,6 @@ export default function ProjectManagement() {
         )}
       </AnimatePresence>
       <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
-      <GuidedTour isOpen={projectsTour.isOpen} onClose={projectsTour.closeTour} steps={PROJECTS_TOUR} />
     </div>
   );
 }

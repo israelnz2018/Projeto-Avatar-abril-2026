@@ -24,12 +24,8 @@ import {
   Lock,
   Check,
   Award,
-  HelpCircle,
 } from 'lucide-react';
 import { cn, youtubeThumb } from '@/src/lib/utils';
-import GuidedTour from './tour/GuidedTour';
-import { useTour } from './tour/useTour';
-import { EDUCACAO_TOUR } from './tour/tourSteps';
 import UpgradeBanner from './UpgradeBanner';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
@@ -52,7 +48,6 @@ import type { Initiative } from '../types';
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
-  const educacaoTour = useTour('educacao');
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [activePlaylist, setActivePlaylist] = useState('Todas');
@@ -271,13 +266,6 @@ export default function LearningView() {
       <UpgradeBanner mensagem="Você vê os vídeos da trilha gratuita. Libere todos os cursos e vídeos." />
       {/* Toolbar discreto — só busca + grid/list, sem título */}
       <div className="flex items-center justify-end gap-3">
-        <button
-          onClick={educacaoTour.openTour}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 text-xs font-bold hover:bg-blue-50 transition-colors cursor-pointer bg-white"
-        >
-          <HelpCircle size={14} />
-          Tour
-        </button>
         <div className="flex items-center bg-white p-1 rounded-lg border border-[#e5e7eb]">
           <button
             onClick={() => setViewMode('grid')}
@@ -313,7 +301,7 @@ export default function LearningView() {
       </div>
 
       {/* Grid de cards de trilhas — estilo Sua Jornada */}
-      <div data-tour-id="learning-trails-grid" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
         {categories.map((cat, idx) => {
           const isActive = activeCategory === cat;
           const isTodos = cat === 'Todos';
@@ -518,7 +506,7 @@ export default function LearningView() {
           <p className="text-gray-400 text-sm">Adicione vídeos na Base de Conhecimento para vê-los aqui.</p>
         </div>
       ) : (
-        <div data-tour-id="learning-videos-grid" className={cn(
+        <div className={cn(
           "grid gap-6",
           viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
         )}>
@@ -689,8 +677,6 @@ export default function LearningView() {
       )}
 
       <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
-
-      <GuidedTour isOpen={educacaoTour.isOpen} onClose={educacaoTour.closeTour} steps={EDUCACAO_TOUR} />
     </div>
   );
 }

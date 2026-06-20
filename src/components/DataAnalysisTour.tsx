@@ -102,7 +102,7 @@ const STEPS: TourStep[] = [
 ];
 
 const COUNT_KEY = 'lbw-analysis-tour-count-v1';
-const AUTO_LIMIT = 2; // mostra automaticamente nas 2 primeiras visitas, depois só manual (botão "?")
+const AUTO_LIMIT = 1; // mostra automaticamente só na 1ª visita, depois só manual (botão "?")
 
 /** True se o aluno já viu o tour automaticamente o número máximo de vezes. */
 export function hasSeenAnalysisTour(): boolean {

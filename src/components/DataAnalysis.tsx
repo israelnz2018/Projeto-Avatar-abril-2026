@@ -33,10 +33,7 @@ import UpgradeBanner from './UpgradeBanner';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
-import DataAnalysisTour from './DataAnalysisTour';
-import GuidedTour from './tour/GuidedTour';
-import { useTour } from './tour/useTour';
-import { DATA_OVERVIEW_TOUR } from './tour/tourSteps';
+import DataAnalysisTour, { hasSeenAnalysisTour } from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
 /**
@@ -345,14 +342,20 @@ export default function DataAnalysis() {
   const [salvandoTudo, setSalvandoTudo] = useState(false);
   const [modalSubstituirPlanilha, setModalSubstituirPlanilha] = useState(false);
   const [modalSucessoSalvar, setModalSucessoSalvar] = useState<string | null>(null);
-  const [tourOpen, setTourOpen] = useState(false); // tour DETALHADO (10 passos) — só via botão
-  const overviewTour = useTour('analysis-overview'); // tour SUPERFICIAL — abre automático (2 visitas)
+  const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => {
     getAllKnowledge().then(items => setKnowledgeItems(items)).catch(console.error);
   }, []);
 
-  // (o tour superficial é disparado pelo useTour acima; o detalhado fica no botão "Iniciar tour")
+  // Tour: abre automaticamente na 1ª visita do aluno (uma vez, persiste em localStorage)
+  useEffect(() => {
+    if (!hasSeenAnalysisTour()) {
+      // pequeno delay pra DOM montar antes da medição dos elementos
+      const t = setTimeout(() => setTourOpen(true), 500);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   useEffect(() => {
     const carregar = async () => {
@@ -1438,7 +1441,7 @@ export default function DataAnalysis() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-4">
           {/* Tour banner — coluna esquerda (mesma largura do preview da tabela abaixo) */}
           <div className="lg:col-span-2">
-            <div data-tour-id="tour-detalhado" className="inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-100">
+            <div className="inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-100">
               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E2D6E] to-[#0033CC] flex items-center justify-center shrink-0">
                 <HelpCircle size={13} className="text-white" />
               </div>
@@ -2649,8 +2652,6 @@ export default function DataAnalysis() {
         </div>
       )}
       <DataAnalysisTour isOpen={tourOpen} onClose={() => setTourOpen(false)} />
-      {/* Tour superficial (automático nas 2 primeiras visitas) — aponta pro detalhado */}
-      <GuidedTour isOpen={overviewTour.isOpen} onClose={overviewTour.closeTour} steps={DATA_OVERVIEW_TOUR} />
     </div>
   );
 }
