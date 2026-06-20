@@ -22,12 +22,17 @@ interface MenuTourStep {
 
 const STEPS: MenuTourStep[] = [
   {
-    selector: '[data-tour-id="proj-coluna"]',
-    title: 'Comece por aqui',
-    description: 'Em cima ficam os seus projetos já ativos (clique pra abrir e continuar). Embaixo, a lista de trilhas — cada uma resolve um tipo de problema. Escolha uma trilha pra criar um novo projeto.',
+    selector: '[data-tour-id="proj-ativos"]',
+    title: 'Seus projetos',
+    description: 'Aqui em cima ficam os projetos que você já começou. Clique pra abrir, trocar entre eles ou continuar de onde parou.',
   },
   {
-    selector: '[data-tour-id="proj-coluna"]',
+    selector: '[data-tour-id="proj-trilhas"]',
+    title: 'Escolha uma trilha',
+    description: 'Estas são as trilhas disponíveis — cada uma resolve um tipo de problema. Clique na que combina com o que você quer melhorar pra criar um novo projeto.',
+  },
+  {
+    selector: '[data-tour-id="proj-trilhas"]',
     title: 'Como funciona um projeto',
     description: 'Ao abrir um projeto, cada trilha tem FASES; cada fase traz as FERRAMENTAS daquela etapa; e à direita fica o agente Israel digital, associado a cada ferramenta pra te orientar.',
     image: '/tour-projetos.png',
