@@ -4,7 +4,7 @@ import {
   Send, ArrowRight, Sparkles, Clock, HelpCircle,
   TrendingUp, BarChart3, Activity, Play, ChevronRight, Compass,
   X, FolderTree, BookOpen, Wand2,
-  Footprints, ShieldAlert, Users, LineChart, Mic, Recycle, Trophy,
+  Footprints, ShieldAlert, Users, LineChart, Mic, Recycle, Trophy, Lock,
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,8 @@ import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedV
 import { getInitiatives } from '../services/configService';
 import type { Initiative } from '../types';
 import { getGlobalKnowledge, getTrilhaKnowledge, getAllKnowledge } from '../knowledge/loader';
+import { useUserAccess } from '../hooks/useUserAccess';
+import { LockedToolPopup } from './LockedToolPopup';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC', light: '#F0F2FA', ink: '#2A2F3A', white: '#FFFFFF' };
 
@@ -259,15 +261,15 @@ function HeroCard({ cat, type, tag, variant, icon: Icon, i, onClick }: {
 
 // NineCard — card do grid 3×3 do hero. Texto grande, centralizado, sem número/ícone.
 // Usa o gradiente da trilha correspondente, suavizado com camada branca pra ficar menos agressivo.
-function NineCard({ card, i, onClick, compact = false }: {
-  card: TrilhaHeroCard; i: number; onClick: () => void; compact?: boolean;
+function NineCard({ card, i, onClick, compact = false, locked = false }: {
+  card: TrilhaHeroCard; i: number; onClick: () => void; compact?: boolean; locked?: boolean;
 }) {
   return (
     <motion.button
       initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.12 + i * 0.035, type: 'spring', stiffness: 260, damping: 22 }}
-      whileHover={{ y: -2, scale: 1.02 }}
+      whileHover={{ y: -2, scale: locked ? 1 : 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className="group relative rounded-2xl overflow-hidden flex items-center justify-center cursor-pointer text-white px-4"
@@ -277,12 +279,20 @@ function NineCard({ card, i, onClick, compact = false }: {
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: `0 12px 28px -18px ${card.glow}, 0 4px 14px -10px rgba(0,0,0,0.18)`,
         height: compact ? 76 : 96,
+        opacity: locked ? 0.6 : 1,
       }}
+      title={locked ? 'Disponível no plano completo' : undefined}
     >
       {/* Glow decorativo (mais sutil agora) */}
       <div aria-hidden className="absolute -top-10 -right-10 w-28 h-28 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(closest-side, rgba(255,255,255,0.35), transparent 70%)' }}
       />
+      {/* Cadeado no canto quando bloqueado */}
+      {locked && (
+        <div className="absolute top-2 right-2 bg-black/35 rounded-full p-1.5 z-10">
+          <Lock size={13} className="text-white" />
+        </div>
+      )}
       {/* Label — único elemento, centralizado e maior */}
       <p className="relative font-semibold tracking-tight m-0 text-center"
         style={{
@@ -460,6 +470,20 @@ export default function ChatAssistant() {
   // INLINE no mesmo hero (sem trocar de view — tudo cabe em 1 dobra).
   const [pickedCard, setPickedCard] = useState<TrilhaHeroCard | null>(null);
   const heroChatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Bloqueio por plano: o aluno gratuito só usa a trilha free; as outras 7 ficam
+  // com cadeado e abrem o paywall ao clicar (igual ao resto do app).
+  const { plano, isAdmin, canUseInitiative } = useUserAccess();
+  const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+  // Um card é bloqueado se: não é admin, plano não é completo, e a iniciativa
+  // correspondente (casada pelo número no nome) NÃO é free no Firestore.
+  const isCardLocked = (card: TrilhaHeroCard): boolean => {
+    if (isAdmin || plano === 'completo') return false;
+    const num = parseInt(card.num, 10);
+    const init = allInitiatives.find(i => parseInt(i.name, 10) === num);
+    if (!init) return card.id !== 'ferramentas-dia-a-dia'; // fallback: só a trilha 1 livre
+    return !canUseInitiative(init.id, allInitiatives);
+  };
   // Lista REAL de trilhas (do Firestore) — injetada no system prompt pra IA não inventar nome de trilha
   // que não existe. Carrega 1× ao montar; admin pode adicionar/renomear/remover e basta o aluno
   // recarregar a página pra IA enxergar.
@@ -749,9 +773,13 @@ export default function ChatAssistant() {
 
                     {/* Grid 3×3 — cabe tudo na 1ª dobra */}
                     <div className="grid grid-cols-3 gap-2.5 mb-4">
-                      {TRILHA_HERO_CARDS.map((card, i) => (
-                        <NineCard key={card.id} card={card} i={i} onClick={() => handleTrilhaPickClick(card)} />
-                      ))}
+                      {TRILHA_HERO_CARDS.map((card, i) => {
+                        const locked = isCardLocked(card);
+                        return (
+                        <NineCard key={card.id} card={card} i={i} locked={locked}
+                          onClick={() => { if (locked) { setLockedPopupOpen(true); } else { handleTrilhaPickClick(card); } }} />
+                        );
+                      })}
                     </div>
 
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -1195,6 +1223,9 @@ export default function ChatAssistant() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Paywall — trilha bloqueada pro aluno gratuito */}
+      <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
     </div>
   );
 }
