@@ -18,7 +18,8 @@ import {
   Users2,
   Key,
   Unlock,
-  Megaphone
+  Megaphone,
+  HelpCircle
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -52,6 +53,7 @@ import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
 import { DefinirSenha } from './components/DefinirSenha';
+import MenuTour, { shouldAutoOpenMenuTour } from './components/MenuTour';
 
 import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
@@ -59,6 +61,16 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { projetoAtivo } = useProject();
   const { tipoUsuario, plano } = useUserAccess();
+
+  // Tour da plataforma (percorre o menu lateral). Auto nas 2 primeiras vezes + botão no menu.
+  const [menuTourOpen, setMenuTourOpen] = useState(false);
+  const menuTour = { openTour: () => setMenuTourOpen(true) };
+  useEffect(() => {
+    if (shouldAutoOpenMenuTour()) {
+      const t = setTimeout(() => setMenuTourOpen(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, []);
 
   const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
@@ -169,6 +181,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
             <Link
               key={item.path}
               to={item.path}
+              data-tour-id={`menu-${item.path}`}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-lg transition-colors",
                 location.pathname === item.path ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
@@ -178,6 +191,16 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
               {isSidebarOpen && <span>{item.name}</span>}
             </Link>
           ))}
+          {/* Botão pra rever o tour do menu, sempre disponível */}
+          <button
+            onClick={() => menuTour.openTour()}
+            data-tour-id="menu-tour-btn"
+            className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-gray-700 text-gray-300 border-none bg-transparent cursor-pointer"
+            title="Fazer o tour da plataforma"
+          >
+            <HelpCircle size={20} />
+            {isSidebarOpen && <span>Tour da plataforma</span>}
+          </button>
         </nav>
 
         {/* Rodapé: CTA de compra — só para aluno gratuito */}
@@ -207,6 +230,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           {children}
         </div>
       </main>
+
+      {/* Tour da plataforma (percorre o menu lateral) */}
+      <MenuTour isOpen={menuTourOpen} onClose={() => setMenuTourOpen(false)} />
     </div>
   );
 }
