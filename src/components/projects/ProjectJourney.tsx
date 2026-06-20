@@ -198,6 +198,8 @@ useEffect(() => {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeEntry[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<KnowledgeEntry | null>(null);
   const [seekTime, setSeekTime] = useState<number>(0);
+  // Garante que clicar no mesmo item do índice recarregue o vídeo no tempo certo.
+  const [seekNonce, setSeekNonce] = useState<number>(0);
 
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [reportType, setReportType] = useState<'word' | 'ppt' | null>(null);
@@ -667,6 +669,7 @@ useEffect(() => {
     const handleSeek = (timeStr: string) => {
       const seconds = parseTimeToSeconds(timeStr);
       setSeekTime(seconds);
+      setSeekNonce(n => n + 1); // força o player a recarregar mesmo no mesmo tempo
     };
 
     return (
@@ -737,19 +740,7 @@ useEffect(() => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 aspect-video bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800">
-                  <iframe
-                    key={`${selectedVideo.id}-${seekTime}`}
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?start=${seekTime}&autoplay=1`}
-                    title={selectedVideo.title}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-
+                {/* Índice à ESQUERDA */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col h-full max-h-[350px]">
                   <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <Clock size={12} className="text-blue-500" />
@@ -776,6 +767,20 @@ useEffect(() => {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Vídeo à DIREITA */}
+                <div className="lg:col-span-2 aspect-video bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800">
+                  <iframe
+                    key={`${selectedVideo.id}-${seekTime}-${seekNonce}`}
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?start=${seekTime}&autoplay=1`}
+                    title={selectedVideo.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
                 </div>
               </div>
             </motion.div>
