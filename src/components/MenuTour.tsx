@@ -49,8 +49,14 @@ const STEPS: MenuTourStep[] = [
   {
     image: PROJ_IMG,
     title: 'As ferramentas de cada fase',
-    description: 'Cada fase traz as FERRAMENTAS daquela etapa (SIPOC, RACI, Organograma…) e os vídeos de apoio pra usar cada uma.',
-    region: { xPct: 17, yPct: 56, wPct: 57, hPct: 18 },
+    description: 'Cada fase traz as FERRAMENTAS daquela etapa (SIPOC, RACI, Organograma…) pra você aplicar no seu projeto.',
+    region: { xPct: 17, yPct: 56, wPct: 57, hPct: 14 },
+  },
+  {
+    image: PROJ_IMG,
+    title: 'Os vídeos de apoio',
+    description: 'Cada ferramenta tem VÍDEOS DE APOIO do Israel — é só clicar pra assistir e aprender a usar a ferramenta na prática.',
+    region: { xPct: 17, yPct: 70, wPct: 40, hPct: 10 },
   },
   {
     image: PROJ_IMG,
