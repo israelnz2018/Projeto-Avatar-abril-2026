@@ -1,7 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Sparkles, Loader2, Trash2, X, Check } from 'lucide-react';
+import { Plus, Sparkles, Loader2, Trash2, X, Check, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { TableToolbar } from './TableToolbar';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesmas colunas reais do Plano de Controle (inclui checkbox Saídas/Entradas e select Método de controle).
+const CP_EX_COLS: { id: string; label: string; type: 'text' | 'checkbox' | 'select' }[] = [
+  { id: 'process', label: 'Variável do projeto', type: 'text' },
+  { id: 'processStep', label: 'Etapa do processo', type: 'text' },
+  { id: 'isOutput', label: 'Saídas', type: 'checkbox' },
+  { id: 'isInput', label: 'Entradas', type: 'checkbox' },
+  { id: 'specifications', label: 'Especificações do processo', type: 'text' },
+  { id: 'measurementTechnique', label: 'Técnica de medição', type: 'text' },
+  { id: 'msaResult', label: 'Resultado MSA', type: 'text' },
+  { id: 'sampleSize', label: 'Tamanho da amostra', type: 'text' },
+  { id: 'sampleFrequency', label: 'Frequência da amostra', type: 'text' },
+  { id: 'controlMethod', label: 'Método de controle', type: 'select' },
+  { id: 'responsible', label: 'Responsável', type: 'text' },
+  { id: 'reactionPlan', label: 'Plano de reação', type: 'text' },
+];
+
+const CP_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Plano de controle — Emissão de notas fiscais',
+    linhas: [
+      { process: 'Prazo de emissão da NF', processStep: 'Faturamento do pedido', isOutput: 'X', isInput: '', specifications: 'Emitir em até 4h após aprovação', measurementTechnique: 'Log de tempo do ERP', msaResult: 'OK', sampleSize: '100% das NFs', sampleFrequency: 'Diária', controlMethod: 'Detectar Defeito', responsible: 'Ana (Faturamento)', reactionPlan: 'Acionar supervisor e priorizar emissão pendente' },
+      { process: 'Dados de cadastro', processStep: 'Validação do pedido', isOutput: '', isInput: 'X', specifications: 'CNPJ, CFOP e valor corretos', measurementTechnique: 'Checklist no ERP', msaResult: 'N/A', sampleSize: '100% dos pedidos', sampleFrequency: 'Por pedido', controlMethod: 'Prevenir Causa', responsible: 'Carlos (Supervisor)', reactionPlan: 'Bloquear faturamento e corrigir cadastro' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Plano de controle — Injeção plástica',
+    linhas: [
+      { process: 'Peso da peça', processStep: 'Injeção na máquina 03', isOutput: 'X', isInput: '', specifications: '25,0 g ± 0,3 g', measurementTechnique: 'Balança calibrada 0,01g', msaResult: 'R&R 8%', sampleSize: '5 peças/cavidade', sampleFrequency: 'A cada hora', controlMethod: 'Detectar Causa', responsible: 'Marcos (Processo)', reactionPlan: 'Ajustar dosagem e segregar peças fora de spec' },
+      { process: 'Temperatura do molde', processStep: 'Setup da injetora', isOutput: '', isInput: 'X', specifications: '40 °C ± 5 °C', measurementTechnique: 'Termopar do CLP', msaResult: 'OK', sampleSize: 'Contínuo (CEP)', sampleFrequency: 'Online', controlMethod: 'Prevenir Causa', responsible: 'Operador da linha', reactionPlan: 'Parar a injetora e acionar manutenção' },
+    ],
+  },
+];
 
 interface Column {
   id: string;
@@ -106,6 +144,10 @@ export default function ControlPlan({ onSave, initialData, onGenerateAI, isGener
 
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
 
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
+
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), data: columns.reduce((acc, col) => ({ ...acc, [col.id]: '' }), {}) }]);
   };
@@ -159,6 +201,12 @@ export default function ControlPlan({ onSave, initialData, onGenerateAI, isGener
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest mb-1">Fase Controlar</p>
           <h2 className="text-xl font-bold text-gray-800">Plano de Controle</h2>
         </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
       <TableToolbar
@@ -301,6 +349,99 @@ export default function ControlPlan({ onSave, initialData, onGenerateAI, isGener
           onSave({ items, columns: columnsWithWidths });
         }} className="hidden" />
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Plano de Controle</h3>
+                  <p className="text-xs text-gray-500 m-0">{CP_EXEMPLOS[exemploIdx].titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {CP_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-[#ccc] rounded-lg">
+                <table className="border-collapse" style={{ minWidth: 1600, width: 'max-content' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b' }}>
+                      {CP_EX_COLS.map((c) => (
+                        <th key={c.id} className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-normal break-words" style={{ color: '#94a3b8', borderBottom: '1px solid #334155', minWidth: c.type === 'checkbox' ? 70 : 130 }}>
+                          {c.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CP_EXEMPLOS[exemploIdx].linhas.map((linha: any, idx) => (
+                      <tr key={idx} style={{ borderBottom: '0.5px solid #e2e8f0' }} className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}>
+                        {CP_EX_COLS.map((c) => (
+                          <td key={c.id} className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words" style={{ minWidth: c.type === 'checkbox' ? 70 : 130 }}>
+                            {c.type === 'checkbox' ? (
+                              <div className="flex items-center justify-center">
+                                {linha[c.id] === 'X' ? (
+                                  <span className="w-6 h-6 rounded-md border-2 border-blue-600 bg-blue-50 flex items-center justify-center">
+                                    <Check size={14} className="text-blue-600" />
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </div>
+                            ) : (
+                              linha[c.id]
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

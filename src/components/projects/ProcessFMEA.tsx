@@ -14,7 +14,9 @@ import {
   Activity,
   TrendingUp,
   Sparkles,
-  Loader2
+  Loader2,
+  BookOpen,
+  X
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -90,9 +92,36 @@ const DETECTION_TABLE = [
   { score: 1, title: "Quase Certa", desc: "Controle certamente detectará a falha." }
 ];
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesmas colunas reais do FMEA; os campos S/O/D geram RPN, AP, S×O e RPN' calculados.
+const FMEA_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'FMEA — Processo de faturamento',
+    linhas: [
+      { processStep: 'Emissão de nota fiscal', failureMode: 'NF emitida com CFOP errado', failureEffect: 'Multa fiscal e devolução pelo cliente', severity: 8, failureCause: 'Cadastro de produto desatualizado', occurrence: 4, currentControls: 'Conferência manual antes do envio', detection: 6, recommendedActions: 'Validação automática de CFOP no ERP', responsible: 'Carlos (TI/Fiscal)', deadline: '30/08', status: 'yellow', newSeverity: 8, newOccurrence: 2, newDetection: 3 },
+      { processStep: 'Aprovação de pedido', failureMode: 'Pedido aprovado sem limite de crédito', failureEffect: 'Inadimplência e perda financeira', severity: 7, failureCause: 'Falha na checagem de crédito', occurrence: 3, currentControls: 'Análise manual pelo financeiro', detection: 4, recommendedActions: 'Bloqueio automático por limite no sistema', responsible: 'Financeiro', deadline: '15/09', status: 'green', newSeverity: 7, newOccurrence: 2, newDetection: 2 },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'FMEA — Linha de injeção plástica',
+    linhas: [
+      { processStep: 'Injeção da peça', failureMode: 'Peça com rebarba excessiva', failureEffect: 'Refugo e parada para retrabalho', severity: 6, failureCause: 'Pressão de injeção fora da faixa', occurrence: 6, currentControls: 'Inspeção visual por amostragem', detection: 7, recommendedActions: 'Monitoramento online de pressão (CEP)', responsible: 'Marcos (Processo)', deadline: '25/08', status: 'red', newSeverity: 6, newOccurrence: 3, newDetection: 3 },
+      { processStep: 'Setup do molde', failureMode: 'Molde montado com temperatura incorreta', failureEffect: 'Variação dimensional do lote', severity: 9, failureCause: 'Falta de padrão de aquecimento', occurrence: 3, currentControls: 'Checklist de setup', detection: 5, recommendedActions: 'Aquecimento automático com travamento', responsible: 'Manutenção', deadline: '10/09', status: 'yellow', newSeverity: 9, newOccurrence: 2, newDetection: 2 },
+    ],
+  },
+];
+
 export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ProcessFMEAProps) {
   const d = initialData?.toolData || initialData;
   const [activeTab, setActiveTab] = useState<'fmea' | 'reference' | 'config' | 'explanation'>('fmea');
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
   const [fontSize, setFontSize] = useState(d?.fontSize || 11);
   const [lineHeight, setLineHeight] = useState(d?.lineHeight || 40);
   
@@ -302,6 +331,12 @@ export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGener
         </div>
         
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
           {/* Adjustments */}
           <div className="flex items-center gap-4 bg-white border border-[#ddd] rounded-[4px] px-3 py-1">
             <div className="flex items-center gap-2" title="Tamanho da Letra">
@@ -1058,6 +1093,119 @@ export default function ProcessFMEA({ onSave, initialData, onGenerateAI, isGener
 
       <button data-save-trigger onClick={handleSave} className="hidden" />
     </div>
+
+    {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+    {showExemplo && (
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setShowExemplo(false)}
+      >
+        <div
+          className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[88vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center gap-3">
+              <BookOpen size={20} className="text-blue-600" />
+              <div>
+                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de FMEA</h3>
+                <p className="text-xs text-gray-500 m-0">{FMEA_EXEMPLOS[exemploIdx].titulo}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExemplo(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Abas — Escritório / Manufatura */}
+          <div className="flex gap-2 px-6 pt-4">
+            {FMEA_EXEMPLOS.map((ex, i) => (
+              <button
+                key={ex.id}
+                onClick={() => setExemploIdx(i)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                  exemploIdx === i
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {ex.rotulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            <div className="overflow-x-auto border border-[#ccc] rounded-lg">
+              <table className="border-collapse" style={{ tableLayout: 'fixed', minWidth: 1800, width: 'max-content' }}>
+                <thead>
+                  <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #1E293B' }}>
+                    <th className="px-2 py-3 font-bold text-left min-w-[90px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Processo</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[90px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Falha</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[90px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Efeito</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#991B1B', background: '#FEE2E2' }}>S</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[90px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Causa</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#9A3412', background: '#FED7AA' }}>O</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[90px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Controles</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#1E40AF', background: '#DBEAFE' }}>D</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>RPN</th>
+                    <th className="px-2 py-3 font-bold text-center w-[35px] text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>AP</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#0F172A', background: '#E2E8F0' }}>S×O</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[110px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Ações Recomendadas</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[70px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Resp.</th>
+                    <th className="px-2 py-3 font-bold text-left min-w-[70px] text-[10px] uppercase tracking-wider" style={{ color: '#475569' }}>Prazo</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>S'</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>O'</th>
+                    <th className="px-2 py-3 font-bold text-center w-[45px] text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>D'</th>
+                    <th className="px-2 py-3 font-bold text-center w-[50px] text-[10px] uppercase tracking-wider" style={{ color: '#065F46', background: '#D1FAE5' }}>RPN'</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FMEA_EXEMPLOS[exemploIdx].linhas.map((row: any, idx) => {
+                    const rpn = row.severity * row.occurrence * row.detection;
+                    const criticality = row.severity * row.occurrence;
+                    const ap = calculateAP(row.severity, row.occurrence, row.detection);
+                    const newRPN = row.newSeverity * row.newOccurrence * row.newDetection;
+                    return (
+                      <tr key={idx} className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-gray-50')}>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.processStep}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.failureMode}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.failureEffect}</td>
+                        <td className="p-2 border border-[#eee] text-center font-bold text-gray-800">{row.severity}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.failureCause}</td>
+                        <td className="p-2 border border-[#eee] text-center font-bold text-gray-800">{row.occurrence}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.currentControls}</td>
+                        <td className="p-2 border border-[#eee] text-center font-bold text-gray-800">{row.detection}</td>
+                        <td className={cn('p-2 border border-[#eee] text-center font-bold bg-gray-50/50', getStatusColor(rpn, 'rpn') === 'red' ? 'text-red-600' : getStatusColor(rpn, 'rpn') === 'yellow' ? 'text-yellow-600' : 'text-green-600')}>{rpn}</td>
+                        <td className={cn('p-2 border border-[#eee] text-center font-bold bg-gray-50/50', getAPColor(ap) === 'red' ? 'text-red-600' : getAPColor(ap) === 'yellow' ? 'text-yellow-600' : 'text-green-600')}>{ap.charAt(0)}</td>
+                        <td className={cn('p-2 border border-[#eee] text-center font-bold bg-gray-50/50', getStatusColor(criticality, 'criticality') === 'red' ? 'text-red-600' : getStatusColor(criticality, 'criticality') === 'yellow' ? 'text-yellow-600' : 'text-green-600')}>{criticality}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.recommendedActions}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.responsible}</td>
+                        <td className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">{row.deadline}</td>
+                        <td className="p-2 border border-[#eee] text-center font-bold text-gray-800 bg-green-50/30">{row.newSeverity}</td>
+                        <td className="p-2 border border-[#eee] text-center font-bold text-gray-800 bg-green-50/30">{row.newOccurrence}</td>
+                        <td className="p-2 border border-[#eee] text-center font-bold text-gray-800 bg-green-50/30">{row.newDetection}</td>
+                        <td className={cn('p-2 border border-[#eee] text-center font-bold bg-gray-900', newRPN > thresholds.rpn.yellow ? 'text-red-400' : newRPN > thresholds.rpn.green ? 'text-yellow-400' : 'text-green-400')}>{newRPN}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+              <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+              <p className="text-xs text-amber-800 leading-relaxed m-0">
+                Este exemplo é só pra consulta — não altera os seus dados. (S' / O' / D' = avaliação após as ações.)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }

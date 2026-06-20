@@ -7,6 +7,7 @@ import ReactFlow, {
   type Connection, type Edge, type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { BookOpen, X, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface ProcessMapperProps {
@@ -274,6 +275,49 @@ const LaneNode = ({ id, data, selected }: any) => {
 
 const nodeTypes = { step: StepNode, decision: DecisionNode, start: StartEndNode, end: StartEndNode, lane: LaneNode };
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Cada passo do processo em sequência, com o tipo (início/etapa/decisão/fim).
+type ExemploPassoTipo = 'start' | 'step' | 'decision' | 'end';
+const PROCESS_EXEMPLOS: {
+  id: string;
+  rotulo: string;
+  processo: string;
+  passos: { tipo: ExemploPassoTipo; texto: string }[];
+}[] = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    processo: 'Atendimento a Solicitação de Reembolso',
+    passos: [
+      { tipo: 'start', texto: 'Funcionário envia pedido de reembolso' },
+      { tipo: 'step', texto: 'Recepção confere notas e comprovantes' },
+      { tipo: 'decision', texto: 'Documentação está completa?' },
+      { tipo: 'step', texto: 'Devolve ao funcionário para correção (se não)' },
+      { tipo: 'step', texto: 'Gestor aprova o valor' },
+      { tipo: 'step', texto: 'Financeiro lança o pagamento' },
+      { tipo: 'end', texto: 'Reembolso pago e arquivado' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    processo: 'Produção de Lote na Linha de Montagem',
+    passos: [
+      { tipo: 'start', texto: 'Ordem de produção liberada' },
+      { tipo: 'step', texto: 'Separar matéria-prima do almoxarifado' },
+      { tipo: 'step', texto: 'Realizar setup da máquina' },
+      { tipo: 'step', texto: 'Produzir peça-piloto' },
+      { tipo: 'decision', texto: 'Peça aprovada na inspeção?' },
+      { tipo: 'step', texto: 'Ajustar parâmetros e refazer (se não)' },
+      { tipo: 'step', texto: 'Produzir o lote completo' },
+      { tipo: 'end', texto: 'Lote liberado para expedição' },
+    ],
+  },
+];
+
+const EXEMPLO_TIPO_LABEL: Record<ExemploPassoTipo, string> = { start: 'Início', step: 'Atividade', decision: 'Decisão', end: 'Fim' };
+const EXEMPLO_TIPO_DOT: Record<ExemploPassoTipo, string> = { start: 'bg-indigo-600', step: 'bg-blue-500', decision: 'bg-amber-500', end: 'bg-slate-800' };
+
 const initialNodes: Node[] = [];
 
 const initialEdges: Edge[] = [];
@@ -286,6 +330,10 @@ export default function ProcessMapper({ onSave, initialData, onClearAIData }: Pr
   const [aiGenerated, setAiGenerated] = useState(initialData?.isGenerated || false);
   const [editingEdge, setEditingEdge] = useState<string | null>(null);
   const [edgeLabelInput, setEdgeLabelInput] = useState('');
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   const isToolEmpty = nodes.length === 0;
   const selectedNodes = nodes.filter(n => n.selected);
@@ -531,6 +579,13 @@ export default function ProcessMapper({ onSave, initialData, onClearAIData }: Pr
 
           <div className="flex-1" />
 
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+
           <button data-save-trigger onClick={handleSave} className="hidden" />
         </div>
 
@@ -618,6 +673,88 @@ export default function ProcessMapper({ onSave, initialData, onClearAIData }: Pr
           </ReactFlow>
         </div>
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Mapeamento de Processo</h3>
+                  <p className="text-xs text-gray-500 m-0">{PROCESS_EXEMPLOS[exemploIdx].processo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {PROCESS_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            {/* Passos em sequência */}
+            <div className="p-6">
+              <div className="flex flex-col gap-0">
+                {PROCESS_EXEMPLOS[exemploIdx].passos.map((p, i, arr) => (
+                  <div key={i}>
+                    <div
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-lg border',
+                        p.tipo === 'start' && 'bg-indigo-50 border-indigo-200',
+                        p.tipo === 'end' && 'bg-slate-100 border-slate-300',
+                        p.tipo === 'decision' && 'bg-amber-50 border-amber-200',
+                        p.tipo === 'step' && 'bg-white border-slate-200'
+                      )}
+                    >
+                      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', EXEMPLO_TIPO_DOT[p.tipo])} />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 w-16 shrink-0">
+                        {EXEMPLO_TIPO_LABEL[p.tipo]}
+                      </span>
+                      <span className="text-sm font-bold text-slate-800">{p.texto}</span>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className="flex justify-center py-1 text-slate-300 text-lg leading-none">↓</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — <strong>não altera os seus dados</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

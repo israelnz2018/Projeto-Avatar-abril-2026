@@ -1,8 +1,115 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { Plus, CheckCircle2, Settings, Info, X, GripVertical, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle2, Settings, Info, X, GripVertical, Sparkles, Loader2, Trash2, BookOpen } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useResizableTable } from '@/src/hooks/useResizableTable';
 import { TableToolbar } from './TableToolbar';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesmas colunas reais da ferramenta 5W2H.
+const ACTION5W2H_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Reduzir atraso na emissão de notas fiscais',
+    linhas: [
+      {
+        description: 'Padronizar conferência de pedidos',
+        what: 'Criar checklist de validação antes do faturamento',
+        why: 'Erros de cadastro causam retrabalho e atraso na NF',
+        where: 'Setor de Faturamento',
+        when: 'Até 30/07',
+        who: 'Ana (Faturamento)',
+        how: 'Checklist digital integrado ao ERP',
+        howMuch: 'R$ 0 (uso do sistema atual)',
+        status: { state: 'green', progress: '100%' },
+      },
+      {
+        description: 'Treinar equipe no novo fluxo',
+        what: 'Treinamento sobre o checklist e prazos',
+        why: 'Garantir adesão e reduzir dúvidas recorrentes',
+        where: 'Sala de reunião / online',
+        when: 'Até 10/08',
+        who: 'Carlos (Supervisor)',
+        how: 'Workshop de 2h + material de apoio',
+        howMuch: 'R$ 300 (material)',
+        status: { state: 'blue', progress: '60%' },
+      },
+      {
+        description: 'Monitorar tempo médio de emissão',
+        what: 'Acompanhar indicador semanal de prazo',
+        why: 'Validar se a melhoria reduziu o atraso',
+        where: 'Painel de indicadores',
+        when: 'Semanal a partir de 15/08',
+        who: 'Ana (Faturamento)',
+        how: 'Relatório automático do ERP',
+        howMuch: 'R$ 0',
+        status: { state: 'yellow', progress: '20%' },
+      },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Reduzir refugo na linha de injeção plástica',
+    linhas: [
+      {
+        description: 'Ajustar parâmetros da injetora',
+        what: 'Revisar temperatura e pressão de injeção',
+        why: 'Parâmetros fora da faixa geram peças com rebarba',
+        where: 'Injetora 03 — Setor de Injeção',
+        when: 'Até 25/07',
+        who: 'Marcos (Processo)',
+        how: 'Estudo DOE e padronização da folha de processo',
+        howMuch: 'R$ 1.200 (horas de engenharia)',
+        status: { state: 'green', progress: '100%' },
+      },
+      {
+        description: 'Implantar inspeção na primeira peça',
+        what: 'Aprovar setup antes de liberar o lote',
+        why: 'Detectar desvio de molde antes da produção em massa',
+        where: 'Posto de inspeção da Injeção',
+        when: 'Até 05/08',
+        who: 'Juliana (Qualidade)',
+        how: 'Gabarito de medição + registro no apontamento',
+        howMuch: 'R$ 800 (gabarito)',
+        status: { state: 'blue', progress: '50%' },
+      },
+      {
+        description: 'Manutenção preventiva do molde',
+        what: 'Limpeza e revisão dos canais do molde',
+        why: 'Molde sujo aumenta a taxa de refugo',
+        where: 'Ferramentaria',
+        when: 'Mensal a partir de 01/08',
+        who: 'Equipe de Manutenção',
+        how: 'Plano de manutenção preventiva (TPM)',
+        howMuch: 'R$ 600/mês',
+        status: { state: 'yellow', progress: '0%' },
+      },
+    ],
+  },
+];
+
+const EX5W2H_COLS: { id: string; title: string }[] = [
+  { id: 'description', title: 'Ação / Variável' },
+  { id: 'what', title: 'O que? (What)' },
+  { id: 'why', title: 'Por que? (Why)' },
+  { id: 'where', title: 'Onde? (Where)' },
+  { id: 'when', title: 'Quando? (When)' },
+  { id: 'who', title: 'Quem? (Who)' },
+  { id: 'how', title: 'Como? (How)' },
+  { id: 'howMuch', title: 'Quanto? (How Much)' },
+  { id: 'status', title: 'Status da Ação' },
+];
+
+const EX_STATUS_LABEL: Record<string, string> = {
+  green: 'Concluído', blue: 'Em andamento', yellow: 'Atrasado', red: 'Cancelado',
+};
+const EX_STATUS_CLS: Record<string, string> = {
+  green: 'text-green-700 bg-green-50 border-green-200',
+  blue: 'text-blue-700 bg-blue-50 border-blue-200',
+  yellow: 'text-yellow-700 bg-yellow-50 border-yellow-200',
+  red: 'text-red-700 bg-red-50 border-red-200',
+};
 
 interface Column {
   id: string;
@@ -40,6 +147,10 @@ export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGe
 
   const [columns, setColumns] = useState<Column[]>(d?.columns || defaultColumns);
   const [actions, setActions] = useState<Action[]>(d?.actions || [{ id: crypto.randomUUID(), description: '', what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: { state: 'green', progress: '0%' } }]);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
   const isToolEmpty = actions.length === 0 || (actions.length === 1 && !actions[0].description && !actions[0].what);
 
   useEffect(() => {
@@ -118,10 +229,16 @@ export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGe
         <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
             <Settings className="text-[#3b82f6]" size={20} />
         </div>
-        <div>
+        <div className="flex-1">
             <h2 className="text-lg font-bold text-[#333]">Plano de Ação Estratégico (5W2H)</h2>
             <p className="text-xs text-[#666] uppercase tracking-wider font-medium">Gestão de Iniciativas</p>
         </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
       <TableToolbar
@@ -261,6 +378,93 @@ export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGe
         <button data-save-trigger onClick={() => onSave({ columns, actions })} className="hidden" />
       </div>
     </div>
+
+    {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+    {showExemplo && (
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setShowExemplo(false)}
+      >
+        <div
+          className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[88vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center gap-3">
+              <BookOpen size={20} className="text-blue-600" />
+              <div>
+                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Plano de Ação 5W2H</h3>
+                <p className="text-xs text-gray-500 m-0">{ACTION5W2H_EXEMPLOS[exemploIdx].titulo}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExemplo(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Abas — Escritório / Manufatura */}
+          <div className="flex gap-2 px-6 pt-4">
+            {ACTION5W2H_EXEMPLOS.map((ex, i) => (
+              <button
+                key={ex.id}
+                onClick={() => setExemploIdx(i)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                  exemploIdx === i
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {ex.rotulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            <div className="overflow-x-auto border border-[#ccc] rounded-lg">
+              <table className="w-full border-collapse" style={{ minWidth: 1100 }}>
+                <thead>
+                  <tr className="bg-[#1f2937] text-white">
+                    {EX5W2H_COLS.map((c) => (
+                      <th key={c.id} className="p-3 border border-gray-700 font-bold text-left text-[11px] uppercase tracking-wider whitespace-normal break-words" style={{ minWidth: 130 }}>
+                        {c.title}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ACTION5W2H_EXEMPLOS[exemploIdx].linhas.map((linha: any, idx) => (
+                    <tr key={idx} className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}>
+                      {EX5W2H_COLS.map((c) => (
+                        <td key={c.id} className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">
+                          {c.id === 'status' ? (
+                            <span className={cn('inline-block px-2 py-1 rounded-[4px] border text-[11px] font-bold', EX_STATUS_CLS[linha.status?.state || 'green'])}>
+                              {EX_STATUS_LABEL[linha.status?.state || 'green']} · {linha.status?.progress || '0%'}
+                            </span>
+                          ) : (
+                            linha[c.id]
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+              <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+              <p className="text-xs text-amber-800 leading-relaxed m-0">
+                Este exemplo é só pra consulta — não altera os seus dados.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }

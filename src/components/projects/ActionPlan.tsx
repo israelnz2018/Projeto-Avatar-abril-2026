@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { CheckCircle2, Plus, Trash2, Settings, Edit2, Save, ChevronDown, Info, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle2, Plus, Trash2, Settings, Edit2, Save, ChevronDown, Info, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface Column {
@@ -8,6 +8,49 @@ interface Column {
   type: 'text' | 'status';
   isDefault?: boolean;
 }
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesmas colunas reais do Plano de Ação: Variável, O que?, Quando?, Quem?, Status.
+const ACTIONPLAN_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Reduzir reclamações no atendimento ao cliente',
+    linhas: [
+      { variable: 'Tempo de resposta ao chamado', what: 'Implantar SLA de resposta em até 4h', when: 'Até 31/07', who: 'Equipe de Suporte', status: { state: 'green', progress: '100%' } },
+      { variable: 'Clareza das respostas', what: 'Criar base de respostas padrão (FAQ interno)', when: 'Até 15/08', who: 'Bruna (Qualidade)', status: { state: 'blue', progress: '70%' } },
+      { variable: 'Satisfação (CSAT)', what: 'Enviar pesquisa pós-atendimento', when: 'A partir de 20/08', who: 'Marketing', status: { state: 'yellow', progress: '10%' } },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Reduzir paradas não programadas na linha de montagem',
+    linhas: [
+      { variable: 'Falha na esteira transportadora', what: 'Implantar manutenção preventiva semanal', when: 'A partir de 01/08', who: 'Equipe de Manutenção', status: { state: 'green', progress: '100%' } },
+      { variable: 'Falta de peças no posto', what: 'Definir kanban de abastecimento', when: 'Até 12/08', who: 'Logística Interna', status: { state: 'blue', progress: '50%' } },
+      { variable: 'Tempo médio de parada (MTTR)', what: 'Treinar operadores em troca rápida', when: 'Até 25/08', who: 'Líder de Produção', status: { state: 'yellow', progress: '20%' } },
+    ],
+  },
+];
+
+const EXAP_COLS: { id: string; title: string }[] = [
+  { id: 'variable', title: 'Variável Estudada' },
+  { id: 'what', title: 'O que?' },
+  { id: 'when', title: 'Quando?' },
+  { id: 'who', title: 'Quem?' },
+  { id: 'status', title: 'Status' },
+];
+
+const EXAP_STATUS_LABEL: Record<string, string> = {
+  green: 'Concluído', blue: 'Em andamento', yellow: 'Atrasado', red: 'Cancelado',
+};
+const EXAP_STATUS_CLS: Record<string, string> = {
+  green: 'text-green-700 bg-green-50 border-green-200',
+  blue: 'text-blue-700 bg-blue-50 border-blue-200',
+  yellow: 'text-yellow-700 bg-yellow-50 border-yellow-200',
+  red: 'text-red-700 bg-red-50 border-red-200',
+};
 
 interface Action {
   id: string;
@@ -51,6 +94,10 @@ export default function ActionPlan({ onSave, initialData, onGenerateAI, isGenera
   
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [tempColumnTitle, setTempColumnTitle] = useState('');
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   useEffect(() => {
     if (initialData) {
@@ -220,6 +267,12 @@ export default function ActionPlan({ onSave, initialData, onGenerateAI, isGenera
         
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+          <button
             onClick={addColumn}
             className="flex items-center gap-1 px-3 py-1.5 bg-white border border-[#ddd] hover:bg-gray-50 text-[#666] text-[12px] font-bold rounded-[4px] transition-all cursor-pointer shadow-sm"
           >
@@ -376,6 +429,93 @@ export default function ActionPlan({ onSave, initialData, onGenerateAI, isGenera
 
         <button data-save-trigger onClick={() => onSave({ columns, actions })} className="hidden" />
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Plano de Ação</h3>
+                  <p className="text-xs text-gray-500 m-0">{ACTIONPLAN_EXEMPLOS[exemploIdx].titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {ACTIONPLAN_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-[#ccc] rounded-lg">
+                <table className="w-full border-collapse min-w-[700px]">
+                  <thead>
+                    <tr className="bg-[#1f2937] text-white">
+                      {EXAP_COLS.map((c) => (
+                        <th key={c.id} className="p-3 border border-gray-700 font-bold text-left text-[11px] uppercase tracking-wider min-w-[140px] whitespace-normal break-words">
+                          {c.title}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ACTIONPLAN_EXEMPLOS[exemploIdx].linhas.map((linha: any, idx) => (
+                      <tr key={idx} className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}>
+                        {EXAP_COLS.map((c) => (
+                          <td key={c.id} className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words">
+                            {c.id === 'status' ? (
+                              <span className={cn('inline-block px-2 py-1 rounded-[4px] border text-[11px] font-bold', EXAP_STATUS_CLS[linha.status?.state || 'green'])}>
+                                {EXAP_STATUS_LABEL[linha.status?.state || 'green']} · {linha.status?.progress || '0%'}
+                              </span>
+                            ) : (
+                              linha[c.id]
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

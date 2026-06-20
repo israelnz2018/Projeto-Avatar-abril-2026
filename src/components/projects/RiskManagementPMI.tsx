@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, Shield, BarChart3, List, Plus, Trash2, Save, Info, CheckCircle2, LayoutGrid, Target, Users, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { AlertTriangle, Shield, BarChart3, List, Plus, Trash2, Save, Info, CheckCircle2, LayoutGrid, Target, Users, Clock, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -73,6 +73,31 @@ const INITIAL_RISKS: Risk[] = [
   }
 ];
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Campos reais da interface Risk: probabilidade/impacto (1-5), estratégia, plano de resposta.
+const RISK_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    projeto: 'Implantação de Portal de Autoatendimento de RH',
+    riscos: [
+      { id: 'R01', description: 'Resistência dos colaboradores ao autoatendimento', cause: 'Hábito de resolver tudo presencialmente com o RH', impact: 'Baixa adesão e ROI do portal comprometido', category: 'Organizacional', probability: 4, impactLevel: 3, strategy: 'Mitigar', actionPlan: 'Campanha interna de comunicação + treinamentos guiados nas primeiras semanas.', owner: 'Gerente de RH' },
+      { id: 'R02', description: 'Falha na integração com o sistema de folha', cause: 'Documentação técnica desatualizada da API legada', impact: 'Dados incorretos de holerite exibidos aos colaboradores', category: 'Técnico', probability: 3, impactLevel: 5, strategy: 'Mitigar', actionPlan: 'Realizar prova de conceito (PoC) da integração antes do go-live.', owner: 'Arquiteto de TI' },
+      { id: 'R03', description: 'Atraso na entrega do fornecedor da plataforma low-code', cause: 'Fila de demandas do fornecedor externo', impact: 'Postergação do cronograma em até 1 mês', category: 'Externo', probability: 2, impactLevel: 4, strategy: 'Transferir', actionPlan: 'Incluir cláusula de SLA e multa no contrato com o fornecedor.', owner: 'PMO' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    projeto: 'Modernização da Linha de Injeção Plástica',
+    riscos: [
+      { id: 'R01', description: 'Atraso na entrega das injetoras importadas', cause: 'Problemas logísticos e alfandegários', impact: 'Paralisação da fase de instalação e atraso no ramp-up', category: 'Externo', probability: 3, impactLevel: 4, strategy: 'Mitigar', actionPlan: 'Antecipar pedido em 60 dias e acompanhar despacho aduaneiro semanalmente.', owner: 'Gerente de Suprimentos' },
+      { id: 'R02', description: 'Curva de aprendizado lenta dos operadores', cause: 'Tecnologia nova com interface diferente da atual', impact: 'Aumento temporário de refugo após a partida', category: 'Organizacional', probability: 4, impactLevel: 3, strategy: 'Mitigar', actionPlan: 'Treinamento prático com o fornecedor + período de operação assistida.', owner: 'Supervisor de Produção' },
+      { id: 'R03', description: 'Falha de integração dos sensores IoT com o dashboard', cause: 'Incompatibilidade de protocolo dos sensores', impact: 'Perda de dados de OEE em tempo real', category: 'Técnico', probability: 2, impactLevel: 5, strategy: 'Evitar', actionPlan: 'Homologar sensores compatíveis antes da compra e testar em bancada.', owner: 'Eng. de Automação' },
+    ],
+  },
+];
+
 export default function RiskManagementPMI({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: RiskManagementPMIProps) {
   const [activeTab, setActiveTab] = useState<'plan' | 'register' | 'analysis'>('plan');
   const [planData, setPlanData] = useState(initialData?.plan || {
@@ -82,6 +107,10 @@ export default function RiskManagementPMI({ onSave, initialData, onGenerateAI, i
     tools: 'Matriz de Riscos, Heatmap, Simulação de Monte Carlo simplificada.'
   });
   const [risks, setRisks] = useState<Risk[]>(initialData?.risks || INITIAL_RISKS);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   const isToolEmpty = risks.length === 0 || (risks.length === 3 && risks[0].id === 'R01' && risks[0].description === 'Atraso na entrega de equipamentos críticos');
 
@@ -195,12 +224,20 @@ export default function RiskManagementPMI({ onSave, initialData, onGenerateAI, i
             <p className="text-sm text-gray-500 font-medium">Gerenciamento de incertezas na fase de Planejamento.</p>
           </div>
         </div>
-        <button 
-          onClick={handleSave}
-          className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 shadow-lg shadow-red-100 flex items-center gap-2 transition-all"
-        >
-          <Save size={18} /> Salvar Plano de Riscos
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 shadow-lg shadow-red-100 flex items-center gap-2 transition-all"
+          >
+            <Save size={18} /> Salvar Plano de Riscos
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -578,6 +615,101 @@ export default function RiskManagementPMI({ onSave, initialData, onGenerateAI, i
           </p>
         </div>
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Plano de Riscos PMI</h3>
+                  <p className="text-xs text-gray-500 m-0">{RISK_EXEMPLOS[exemploIdx].projeto}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {RISK_EXEMPLOS.map((e, i) => (
+                <button
+                  key={e.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {e.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                      <th className="p-3 w-12">ID</th>
+                      <th className="p-3 w-56">Risco & Causa</th>
+                      <th className="p-3 w-28">Categoria</th>
+                      <th className="p-3 w-20 text-center">Prob / Imp</th>
+                      <th className="p-3 w-20">Nível</th>
+                      <th className="p-3 w-28">Estratégia</th>
+                      <th className="p-3 w-56">Plano de Resposta</th>
+                      <th className="p-3 w-28">Responsável</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {RISK_EXEMPLOS[exemploIdx].riscos.map((r) => {
+                      const level = getRiskLevel(r.probability, r.impactLevel);
+                      return (
+                        <tr key={r.id} className="align-top">
+                          <td className="p-3 text-xs font-black text-gray-400">{r.id}</td>
+                          <td className="p-3">
+                            <p className="text-xs font-bold text-gray-800 m-0">{r.description}</p>
+                            <p className="text-[10px] italic text-gray-500 m-0 mt-1">Causa: {r.cause}</p>
+                          </td>
+                          <td className="p-3 text-[11px] font-bold text-gray-700">{r.category}</td>
+                          <td className="p-3 text-center text-xs font-bold text-gray-700">{r.probability} / {r.impactLevel}</td>
+                          <td className="p-3">
+                            <span className={cn('px-2 py-1 rounded text-[9px] font-black uppercase', level.color, level.text)}>{level.label}</span>
+                          </td>
+                          <td className="p-3 text-[11px] font-bold text-gray-700">{r.strategy}</td>
+                          <td className="p-3 text-xs text-gray-700">{r.actionPlan}</td>
+                          <td className="p-3 text-[11px] font-bold text-gray-700">{r.owner}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Plus, Trash2, Save, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
+import { Users, Plus, Trash2, Save, ArrowRight, Sparkles, Loader2, BookOpen, X, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 type Level = 'Baixo' | 'Médio' | 'Alto';
@@ -35,6 +35,33 @@ const ROLE_DESIRED_ENGAGEMENT: Record<string, EngagementLevel> = {
   'Patrocinador (Sponsor)': 'Apoiador',
   'Outros': 'Neutro'
 };
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Campos reais da interface Stakeholder: poder/interesse (Baixo/Médio/Alto) e engajamento.
+const STAKEHOLDER_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    projeto: 'Implantação de Portal de Autoatendimento de RH',
+    stakeholders: [
+      { name: 'Diretor de Gente & Gestão', area: 'Diretoria', role: 'Patrocinador (Sponsor)', power: 'Alto', interest: 'Alto', engagement: 'Apoiador', estrategia: 'Gerenciar de Perto' },
+      { name: 'Analistas de RH', area: 'Recursos Humanos', role: 'Equipe do Projeto', power: 'Médio', interest: 'Alto', engagement: 'Neutro', estrategia: 'Gerenciar de Perto' },
+      { name: 'Gerente de TI', area: 'Tecnologia', role: 'Stakeholders (Partes Interessadas)', power: 'Alto', interest: 'Médio', estrategia: 'Manter Satisfeito', engagement: 'Apoiador' },
+      { name: 'Colaboradores em geral', area: 'Toda a empresa', role: 'Outros', power: 'Baixo', interest: 'Alto', engagement: 'Desconhece', estrategia: 'Manter Informado' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    projeto: 'Modernização da Linha de Injeção Plástica',
+    stakeholders: [
+      { name: 'Diretor Industrial', area: 'Diretoria', role: 'Patrocinador (Sponsor)', power: 'Alto', interest: 'Alto', engagement: 'Líder', estrategia: 'Gerenciar de Perto' },
+      { name: 'Supervisor de Produção', area: 'Produção', role: 'Equipe do Projeto', power: 'Médio', interest: 'Alto', engagement: 'Apoiador', estrategia: 'Gerenciar de Perto' },
+      { name: 'Operadores da injeção', area: 'Chão de fábrica', role: 'Outros', power: 'Baixo', interest: 'Alto', engagement: 'Resistente', estrategia: 'Manter Informado' },
+      { name: 'Gerente Financeiro', area: 'Finanças', role: 'Stakeholders (Partes Interessadas)', power: 'Alto', interest: 'Baixo', engagement: 'Neutro', estrategia: 'Manter Satisfeito' },
+    ],
+  },
+];
 
 const ROLES = Object.keys(ROLE_DESIRED_ENGAGEMENT);
 const ENGAGEMENT_LEVELS: EngagementLevel[] = ['Desconhece', 'Resistente', 'Neutro', 'Apoiador', 'Líder'];
@@ -94,6 +121,10 @@ const ResizableHeader = ({ children, initialWidth, minWidth, className }: { chil
 export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: StakeholderAnalysisPMIProps) {
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>(initialData?.stakeholders || []);
   const isToolEmpty = stakeholders.length === 0;
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   useEffect(() => {
     if (initialData?.stakeholders) {
@@ -218,12 +249,20 @@ export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerate
               <p className="text-xs text-[#666]">Identifique e analise as partes interessadas do projeto tradicional.</p>
             </div>
           </div>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-[4px] text-xs font-bold hover:bg-green-700 transition-all"
-          >
-            <Save size={14} /> Salvar Análise
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowExemplo(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+            >
+              <BookOpen size={14} /> Ver exemplo
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-[4px] text-xs font-bold hover:bg-green-700 transition-all"
+            >
+              <Save size={14} /> Salvar Análise
+            </button>
+          </div>
         </div>
 
         <div className="p-6 overflow-x-auto">
@@ -520,6 +559,101 @@ export default function StakeholderAnalysisPMI({ onSave, initialData, onGenerate
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Análise de Stakeholders PMI</h3>
+                  <p className="text-xs text-gray-500 m-0">{STAKEHOLDER_EXEMPLOS[exemploIdx].projeto}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {STAKEHOLDER_EXEMPLOS.map((e, i) => (
+                <button
+                  key={e.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {e.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                      <th className="p-3">Nome / Área</th>
+                      <th className="p-3">Função no Projeto</th>
+                      <th className="p-3 text-center">Poder</th>
+                      <th className="p-3 text-center">Interesse</th>
+                      <th className="p-3 text-center">Engajamento Atual</th>
+                      <th className="p-3">Estratégia</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {STAKEHOLDER_EXEMPLOS[exemploIdx].stakeholders.map((s, i) => (
+                      <tr key={i} className="align-top">
+                        <td className="p-3">
+                          <p className="text-sm font-bold text-gray-800 m-0">{s.name}</p>
+                          <p className="text-[11px] text-gray-500 m-0">{s.area}</p>
+                        </td>
+                        <td className="p-3 text-xs text-gray-700">{s.role}</td>
+                        <td className="p-3 text-center text-xs font-bold text-gray-700">{s.power}</td>
+                        <td className="p-3 text-center text-xs font-bold text-gray-700">{s.interest}</td>
+                        <td className="p-3 text-center text-xs font-bold text-gray-700">{s.engagement}</td>
+                        <td className="p-3">
+                          <span className={cn('text-[10px] px-2 py-1 rounded font-bold border whitespace-nowrap',
+                            s.estrategia === 'Gerenciar de Perto' ? 'bg-red-50 text-red-700 border-red-200' :
+                            s.estrategia === 'Manter Satisfeito' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            s.estrategia === 'Manter Informado' ? 'bg-green-50 text-green-700 border-green-200' :
+                            'bg-purple-50 text-purple-700 border-purple-200'
+                          )}>
+                            {s.estrategia}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

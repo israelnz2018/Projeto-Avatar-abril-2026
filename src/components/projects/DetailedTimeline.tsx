@@ -4,7 +4,7 @@ import {
   TrendingUp, TrendingDown, ChevronDown, ChevronRight, 
   Sparkles, X, Check, LayoutDashboard, ListTodo, 
   History, AlertTriangle, Target, Calendar, Info, Settings,
-  Loader2
+  Loader2, BookOpen
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -105,11 +105,80 @@ const DEFAULT_STRUCTURE: PhaseActivities[] = [
   { id: 'control', name: 'Controlar', activities: [], isOpen: false, weight: 15 },
 ];
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Atividades detalhadas por fase, com início/fim, responsável e status realistas.
+const DETALHADO_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    projeto: 'Redução do Tempo de Aprovação de Pedidos de Compra',
+    fases: [
+      {
+        name: 'Definir',
+        atividades: [
+          { text: 'Desenvolver o Project Charter do projeto', inicio: '03/02/2026', fim: '07/02/2026', responsavel: 'Analista de Processos', status: 'Concluída' },
+          { text: 'Mapear stakeholders e criar plano de comunicação', inicio: '08/02/2026', fim: '14/02/2026', responsavel: 'Gerente de Compras', status: 'Concluída' },
+          { text: 'Definir escopo e metas do projeto', inicio: '15/02/2026', fim: '18/02/2026', responsavel: 'Sponsor', status: 'Em Andamento' },
+        ],
+      },
+      {
+        name: 'Medir',
+        atividades: [
+          { text: 'Coletar tempos de cada etapa da aprovação', inicio: '19/02/2026', fim: '05/03/2026', responsavel: 'Analista de Processos', status: 'Em Andamento' },
+          { text: 'Elaborar plano de coleta de dados', inicio: '06/03/2026', fim: '12/03/2026', responsavel: 'Analista de Dados', status: 'Não Iniciada' },
+          { text: 'Mapear o processo atual (As-Is)', inicio: '13/03/2026', fim: '20/03/2026', responsavel: 'Analista de Processos', status: 'Não Iniciada' },
+        ],
+      },
+      {
+        name: 'Analisar',
+        atividades: [
+          { text: 'Identificar gargalos com Pareto dos atrasos', inicio: '23/03/2026', fim: '10/04/2026', responsavel: 'Analista de Dados', status: 'Não Iniciada' },
+          { text: 'Aplicar 5 Porquês nas causas críticas', inicio: '13/04/2026', fim: '07/05/2026', responsavel: 'Equipe do Projeto', status: 'Não Iniciada' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    projeto: 'Redução de Refugo na Linha de Injeção Plástica',
+    fases: [
+      {
+        name: 'Definir',
+        atividades: [
+          { text: 'Definir o problema e impacto no refugo', inicio: '06/01/2026', fim: '10/01/2026', responsavel: 'Eng. de Processo', status: 'Concluída' },
+          { text: 'Criar SIPOC da linha de injeção', inicio: '11/01/2026', fim: '16/01/2026', responsavel: 'Supervisor de Produção', status: 'Concluída' },
+          { text: 'Reunião de kick off com a equipe de chão de fábrica', inicio: '17/01/2026', fim: '21/01/2026', responsavel: 'Líder de Célula', status: 'Em Andamento' },
+        ],
+      },
+      {
+        name: 'Medir',
+        atividades: [
+          { text: 'Coletar dados de refugo por turno e molde', inicio: '22/01/2026', fim: '07/02/2026', responsavel: 'Operador / Apontamento', status: 'Em Andamento' },
+          { text: 'Realizar análise do sistema de medição (MSA)', inicio: '08/02/2026', fim: '15/02/2026', responsavel: 'Eng. da Qualidade', status: 'Não Iniciada' },
+          { text: 'Calcular capacidade do processo (Cp/Cpk)', inicio: '16/02/2026', fim: '22/02/2026', responsavel: 'Eng. de Processo', status: 'Não Iniciada' },
+        ],
+      },
+      {
+        name: 'Analisar',
+        atividades: [
+          { text: 'Construir Ishikawa das causas de refugo', inicio: '23/02/2026', fim: '12/03/2026', responsavel: 'Equipe da Qualidade', status: 'Não Iniciada' },
+          { text: 'Validar causas raízes com dados do processo', inicio: '13/03/2026', fim: '08/04/2026', responsavel: 'Eng. de Processo', status: 'Não Iniciada' },
+        ],
+      },
+    ],
+  },
+];
+
 export default function DetailedTimeline({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI, onClearAIData }: DetailedTimelineProps) {
   const [activeTab, setActiveTab] = useState<'activities' | 'dashboard' | 'analysis'>('activities');
   const [phases, setPhases] = useState<PhaseActivities[]>(initialData?.phases || DEFAULT_STRUCTURE);
   const isToolEmpty = phases.every(p => p.activities.length === 0);
   const [editingActivity, setEditingActivity] = useState<{ phaseId: string, activityId: string } | null>(null);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   // Auto-resize textareas when phases or editing state change
   useEffect(() => {
@@ -354,13 +423,21 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline, o
           </button>
         </div>
 
-        <button
-          onClick={applySuggestions}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-tight hover:bg-blue-100 transition-all border-none cursor-pointer"
-        >
-          <Sparkles size={14} />
-          Sugerir Atividades
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+          <button
+            onClick={applySuggestions}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-tight hover:bg-blue-100 transition-all border-none cursor-pointer"
+          >
+            <Sparkles size={14} />
+            Sugerir Atividades
+          </button>
+        </div>
       </div>
 
       {activeTab === 'activities' && (
@@ -763,6 +840,101 @@ export default function DetailedTimeline({ onSave, initialData, macroTimeline, o
                     <strong>Variação de Cronograma:</strong> A diferença absoluta entre o que foi feito (EV) e o que era planejado (PV).
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Atividades Detalhadas</h3>
+                  <p className="text-xs text-gray-500 m-0">{DETALHADO_EXEMPLOS[exemploIdx].projeto}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {DETALHADO_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 space-y-4">
+              {DETALHADO_EXEMPLOS[exemploIdx].fases.map((fase, fi) => (
+                <div key={fi} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <h4 className="font-bold text-gray-800 text-sm m-0">{fase.name}</h4>
+                  </div>
+                  <table className="w-full text-[12px]">
+                    <thead className="bg-gray-50/50">
+                      <tr>
+                        <th className="text-left p-2 font-black uppercase tracking-wider text-[9px] text-gray-500">Atividade</th>
+                        <th className="text-left p-2 font-black uppercase tracking-wider text-[9px] text-gray-500">Início</th>
+                        <th className="text-left p-2 font-black uppercase tracking-wider text-[9px] text-gray-500">Fim</th>
+                        <th className="text-left p-2 font-black uppercase tracking-wider text-[9px] text-gray-500">Responsável</th>
+                        <th className="text-left p-2 font-black uppercase tracking-wider text-[9px] text-gray-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fase.atividades.map((a, ai) => (
+                        <tr key={ai} className="border-t border-gray-100">
+                          <td className="p-2 text-gray-800">{a.text}</td>
+                          <td className="p-2 font-mono text-gray-600 whitespace-nowrap">{a.inicio}</td>
+                          <td className="p-2 font-mono text-gray-600 whitespace-nowrap">{a.fim}</td>
+                          <td className="p-2 text-gray-600 whitespace-nowrap">{a.responsavel}</td>
+                          <td className="p-2">
+                            <span className={cn(
+                              'px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap',
+                              a.status === 'Concluída' ? 'bg-green-100 text-green-700' :
+                              a.status === 'Em Andamento' ? 'bg-blue-100 text-blue-700' :
+                              'bg-gray-100 text-gray-600'
+                            )}>
+                              {a.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
               </div>
             </div>
           </div>

@@ -1,11 +1,42 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckCircle2, BarChart3, FileText, Printer, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, BarChart3, FileText, Printer, Sparkles, Loader2, BookOpen, X, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
 interface BeforeAfterProps {
   onSave: (data: any) => void;
   initialData?: any;
 }
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesma estrutura real: Antes/Depois com dados quantitativos e subjetivos.
+const BA_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Atendimento ao cliente — antes e depois da padronização',
+    before: {
+      quant: ['Tempo médio de resposta: 9h', '32 reclamações/mês', 'CSAT: 3,1 de 5'],
+      subj: ['Clientes reclamavam de respostas confusas', 'Equipe sem padrão de resposta', 'Retrabalho constante por dúvidas repetidas'],
+    },
+    after: {
+      quant: ['Tempo médio de resposta: 3h', '11 reclamações/mês', 'CSAT: 4,4 de 5'],
+      subj: ['Respostas claras com base no FAQ interno', 'Equipe segue SLA definido', 'Queda forte de dúvidas repetidas'],
+    },
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Injeção plástica — antes e depois do ajuste de processo',
+    before: {
+      quant: ['Refugo: 8,5% da produção', 'Paradas não programadas: 6/semana', 'OEE: 62%'],
+      subj: ['Peças com rebarba frequente', 'Setup demorado e sem padrão', 'Operadores sem inspeção de primeira peça'],
+    },
+    after: {
+      quant: ['Refugo: 2,1% da produção', 'Paradas não programadas: 1/semana', 'OEE: 81%'],
+      subj: ['Parâmetros padronizados na folha de processo', 'Inspeção da primeira peça antes do lote', 'Manutenção preventiva do molde implantada'],
+    },
+  },
+];
 
 export default function BeforeAfterTool({ onSave, initialData }: BeforeAfterProps) {
   const [data, setData] = useState(initialData || {
@@ -16,6 +47,10 @@ export default function BeforeAfterTool({ onSave, initialData }: BeforeAfterProp
   const [showReport, setShowReport] = useState(false);
   const [reportText, setReportText] = useState('');
   const [isImproving, setIsImproving] = useState(false);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   const addItem = (side: 'before' | 'after', field: 'quant' | 'subj', value: string) => {
     if (!value.trim()) return;
@@ -123,6 +158,12 @@ Retorne apenas o texto melhorado.`;
         <div className="flex items-center gap-3 border-b border-[#eee] pb-4">
           <BarChart3 className="text-blue-500" size={24} />
           <h2 className="text-[1.25rem] font-bold text-[#333]">Antes x Depois</h2>
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -193,6 +234,104 @@ Retorne apenas o texto melhorado.`;
               Melhorar com IA
             </button>
             <button onClick={() => window.print()} className="bg-gray-200 text-gray-800 px-4 py-2 rounded flex items-center hover:bg-gray-300"><Printer size={16} className="mr-2"/> Imprimir/Salvar PDF</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Antes x Depois</h3>
+                  <p className="text-xs text-gray-500 m-0">{BA_EXEMPLOS[exemploIdx].titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {BA_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6 md:border-r border-[#eee] md:pr-8">
+                  <h3 className="text-[14px] font-black text-gray-700 uppercase tracking-widest">Antes</h3>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Dados Quantitativos</label>
+                    <ul className="space-y-1 mt-2">
+                      {BA_EXEMPLOS[exemploIdx].before.quant.map((item, i) => (
+                        <li key={i} className="bg-gray-50 p-2 rounded text-[13px]">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Dados Subjetivos</label>
+                    <ul className="space-y-1 mt-2">
+                      {BA_EXEMPLOS[exemploIdx].before.subj.map((item, i) => (
+                        <li key={i} className="bg-gray-50 p-2 rounded text-[13px]">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="text-[14px] font-black text-gray-700 uppercase tracking-widest">Depois</h3>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Dados Quantitativos</label>
+                    <ul className="space-y-1 mt-2">
+                      {BA_EXEMPLOS[exemploIdx].after.quant.map((item, i) => (
+                        <li key={i} className="bg-green-50 p-2 rounded text-[13px]">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Dados Subjetivos</label>
+                    <ul className="space-y-1 mt-2">
+                      {BA_EXEMPLOS[exemploIdx].after.subj.map((item, i) => (
+                        <li key={i} className="bg-green-50 p-2 rounded text-[13px]">• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

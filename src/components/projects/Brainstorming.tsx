@@ -1,8 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpCircle, Target, Edit2, X as CloseIcon, Sparkles, Loader2 } from 'lucide-react';
+import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpCircle, Target, Edit2, X as CloseIcon, Sparkles, Loader2, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Cada exemplo traz ideias agrupadas pelas categorias 6M reais da ferramenta.
+const BRAINSTORMING_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    brainstormingType: 'Problema pra resolver',
+    brainstormingTopic: 'Por que as propostas comerciais demoram tanto pra sair?',
+    ideas: [
+      { text: 'Analistas não têm treinamento no sistema de precificação', category: 'Mão de Obra' },
+      { text: 'Equipe sobrecarregada em fim de mês', category: 'Mão de Obra' },
+      { text: 'Não existe modelo padrão de proposta', category: 'Método' },
+      { text: 'Aprovação de desconto passa por 3 níveis', category: 'Método' },
+      { text: 'Tabela de preços desatualizada', category: 'Material' },
+      { text: 'Sistema de CRM lento e travando', category: 'Máquina' },
+      { text: 'Falta indicador de tempo médio de emissão', category: 'Medição' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    brainstormingType: 'Problema pra resolver',
+    brainstormingTopic: 'Por que o refugo da linha de injeção está alto?',
+    ideas: [
+      { text: 'Operadores novos sem treinamento de setup', category: 'Mão de Obra' },
+      { text: 'Parâmetros de injeção ajustados "no olho"', category: 'Método' },
+      { text: 'Resina com umidade acima do especificado', category: 'Material' },
+      { text: 'Molde com desgaste sem manutenção', category: 'Máquina' },
+      { text: 'Temperatura do galpão variando muito', category: 'Meio Ambiente' },
+      { text: 'Não há medição de refugo por turno', category: 'Medição' },
+    ],
+  },
+];
 
 interface BrainstormingProps {
   onSave: (data: any) => void;
@@ -79,6 +113,10 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
 
   const [newIdea, setNewIdea] = useState('');
   const [author, setAuthor] = useState('');
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   // ===== Geração de causas a partir do Mapa de Processo (IA enxuta) =====
   const [isGenerating, setIsGenerating] = useState(false);
@@ -228,12 +266,20 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
       )}
 
       <div className="bg-white p-8 border border-[#ccc] rounded-[4px] shadow-sm space-y-8">
-        <div className="flex items-center gap-3 border-b border-[#eee] pb-4">
-          <Lightbulb className="text-yellow-500" size={24} />
-          <div>
-            <h2 className="text-[1.25rem] font-bold text-[#333]">Brainstorming</h2>
-            <p className="text-[12px] text-[#666]">Colete opiniões e ideias sobre possíveis causas e variáveis do processo.</p>
+        <div className="flex items-center justify-between border-b border-[#eee] pb-4">
+          <div className="flex items-center gap-3">
+            <Lightbulb className="text-yellow-500" size={24} />
+            <div>
+              <h2 className="text-[1.25rem] font-bold text-[#333]">Brainstorming</h2>
+              <p className="text-[12px] text-[#666]">Colete opiniões e ideias sobre possíveis causas e variáveis do processo.</p>
+            </div>
           </div>
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0 shrink-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
         </div>
 
         {/* Configuration Area */}
@@ -417,6 +463,95 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
 
         <button data-save-trigger onClick={handleSave} className="hidden" />
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Brainstorming</h3>
+                  <p className="text-xs text-gray-500 m-0">{BRAINSTORMING_EXEMPLOS[exemploIdx].brainstormingTopic}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {BRAINSTORMING_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Tipo de Brainstorming</span>
+                  <p className="text-[13px] font-bold text-gray-800 p-3 bg-gray-50 border border-[#eee] rounded-[4px] m-0">{BRAINSTORMING_EXEMPLOS[exemploIdx].brainstormingType}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">O que é / Objetivo</span>
+                  <p className="text-[13px] text-gray-800 p-3 bg-gray-50 border border-[#eee] rounded-[4px] m-0">{BRAINSTORMING_EXEMPLOS[exemploIdx].brainstormingTopic}</p>
+                </div>
+              </div>
+
+              {/* Ideias agrupadas por categoria (6M) */}
+              <div className="space-y-4">
+                {CATEGORIES.map((cat) => {
+                  const ideasDaCat = BRAINSTORMING_EXEMPLOS[exemploIdx].ideas.filter(i => i.category === cat);
+                  if (ideasDaCat.length === 0) return null;
+                  return (
+                    <div key={cat} className="border border-[#eee] rounded-[8px] overflow-hidden">
+                      <div className="bg-gray-50 px-4 py-2 flex items-center gap-2 border-b border-[#eee]">
+                        <Tag size={13} className="text-blue-500" />
+                        <span className="text-[12px] font-black text-[#333] uppercase tracking-wider">{cat}</span>
+                        <span className="text-[11px] text-gray-400">({ideasDaCat.length})</span>
+                      </div>
+                      <ul className="divide-y divide-[#f5f5f5] m-0 p-0 list-none">
+                        {ideasDaCat.map((idea, idx) => (
+                          <li key={idx} className="px-4 py-2.5 text-[13px] text-[#333] font-medium">{idea.text}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -164,6 +164,33 @@ const ENGAGEMENT_LEVELS: EngagementLevel[] = [
   'Líder'
 ];
 
+// ===== Exemplo "Ver exemplo" (read-only) =====
+// Caso único (escritório / mudança administrativa), usado nas 5 telas ADKAR.
+// O exemplo é ACUMULATIVO: cada tela mostra as fases preenchidas até a fase dela.
+const ADKAR_FASES = [
+  { key: 'awareness',     letra: 'A', nome: 'Awareness (Consciência)' },
+  { key: 'desire',        letra: 'D', nome: 'Desire (Desejo)' },
+  { key: 'knowledge',     letra: 'K', nome: 'Knowledge (Conhecimento)' },
+  { key: 'ability',       letra: 'A', nome: 'Ability (Habilidade)' },
+  { key: 'reinforcement', letra: 'R', nome: 'Reinforcement (Reforço)' },
+] as const;
+
+const ADKAR_EXEMPLO = {
+  caso: 'Implantação de novo sistema de gestão (ERP) no time administrativo',
+  stakeholders: [
+    { nome: 'Mariana — Gerente Administrativo',    papel: 'Patrocinador da área', awareness: 'Verde' as AdkarLevel,    desire: 'Verde' as AdkarLevel,    knowledge: 'Verde' as AdkarLevel,   ability: 'Verde' as AdkarLevel,   reinforcement: 'Verde' as AdkarLevel },
+    { nome: 'Rafael — Analista Sênior Financeiro', papel: 'Team Member / SME',     awareness: 'Amarelo' as AdkarLevel,  desire: 'Amarelo' as AdkarLevel,  knowledge: 'Verde' as AdkarLevel,   ability: 'Verde' as AdkarLevel,   reinforcement: 'Verde' as AdkarLevel },
+    { nome: 'Carlos — Coordenador de TI',          papel: 'Process Owner',         awareness: 'Verde' as AdkarLevel,    desire: 'Verde' as AdkarLevel,    knowledge: 'Amarelo' as AdkarLevel, ability: 'Verde' as AdkarLevel,   reinforcement: 'Verde' as AdkarLevel },
+    { nome: 'Júlia — Assistente Administrativo',   papel: 'Operador / Frontline',  awareness: 'Vermelho' as AdkarLevel, desire: 'Amarelo' as AdkarLevel,  knowledge: 'Amarelo' as AdkarLevel, ability: 'Amarelo' as AdkarLevel, reinforcement: 'Verde' as AdkarLevel },
+  ],
+};
+
+const adkarChipColor = (nivel: AdkarLevel): string =>
+  nivel === 'Verde' ? 'bg-green-500 text-white' :
+  nivel === 'Amarelo' ? 'bg-amber-400 text-white' :
+  nivel === 'Vermelho' ? 'bg-red-500 text-white' :
+  'bg-gray-100 text-gray-300 border border-gray-200';
+
 const ResizableHeader = ({ children, initialWidth, minWidth, className }: { children: React.ReactNode, initialWidth: number, minWidth?: number, className?: string }) => {
   const [width, setWidth] = useState(initialWidth);
   const [isResizing, setIsResizing] = useState(false);
@@ -347,6 +374,9 @@ export default function ImproveAdkar({
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isEngagementRoleGuideOpen, setIsEngagementRoleGuideOpen] = useState(false);
+  const [showExemplo, setShowExemplo] = useState(false);
+  // Quantas fases ADKAR aparecem preenchidas neste exemplo (acumulativo por tela).
+  const EXEMPLO_FASES_VISIVEIS = 4; // Improve = Awareness + Desire + Knowledge + Ability
  
   useEffect(() => {
     console.log('🔍 ImproveAdkar useEffect:', {
@@ -542,6 +572,13 @@ export default function ImproveAdkar({
             )}
           </div>
         </div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
         <div className="hidden md:block text-right">
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Status Ability</p>
           <div className="flex gap-1 mt-1 justify-end">
@@ -562,6 +599,7 @@ export default function ImproveAdkar({
               );
             })}
           </div>
+        </div>
         </div>
       </div>
 
@@ -1074,6 +1112,90 @@ export default function ImproveAdkar({
           </>
         )}
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não altera os dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de ADKAR — Ability (Habilidade)</h3>
+                  <p className="text-xs text-gray-500 m-0">{ADKAR_EXEMPLO.caso}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-[12px] border-collapse">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-2 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600" style={{ minWidth: 220 }}>
+                        Stakeholder
+                      </th>
+                      {ADKAR_FASES.map((f) => (
+                        <th key={f.nome} className="p-2 border-b border-gray-200 text-center" title={f.nome} style={{ minWidth: 56 }}>
+                          <div className="text-[12px] font-black text-gray-700">{f.letra}</div>
+                          <div className="text-[8px] font-normal text-gray-400">{f.key.slice(0, 3)}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ADKAR_EXEMPLO.stakeholders.map((s, idx) => (
+                      <tr key={idx} className="border-b border-gray-100">
+                        <td className="p-2 align-top">
+                          <p className="text-[12px] font-bold text-gray-800 m-0 leading-tight">{s.nome}</p>
+                          <p className="text-[10px] text-gray-400 m-0">{s.papel}</p>
+                        </td>
+                        {ADKAR_FASES.map((f, fi) => {
+                          const visivel = fi < EXEMPLO_FASES_VISIVEIS;
+                          const nivel = (s as any)[f.key] as AdkarLevel;
+                          return (
+                            <td key={f.key} className="p-1 text-center">
+                              <span className={cn(
+                                'inline-flex w-7 h-7 rounded-full items-center justify-center mx-auto font-black text-[11px]',
+                                visivel ? adkarChipColor(nivel) : 'bg-gray-50 text-gray-300 border border-gray-100'
+                              )}>
+                                {visivel
+                                  ? (nivel === 'Verde' ? '✓' : nivel === 'Amarelo' ? '~' : '✕')
+                                  : '—'}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — <strong>não altera os seus dados</strong>. Repare como o ADKAR evolui:
+                  cada fase preenche mais uma etapa da jornada. Verde = no nível esperado, Amarelo = falta 1 nível,
+                  Vermelho = resistência. As fases ainda não trabalhadas aparecem em cinza ("—").
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

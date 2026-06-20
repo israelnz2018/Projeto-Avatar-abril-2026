@@ -30,9 +30,48 @@ import {
   Globe2,
   ArrowRight,
 } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { AIPromptCard } from './ToolWrapper';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Cada exemplo usa um perfil real ('Atividades') e seus campos reais:
+// contexto (minhaFuncao) + itens com 4 vozes (rótulos do ITEM_CONFIG) + oportunidade.
+const IDEA_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    perfil: 'Atividades' as const,
+    minhaFuncao: 'Analista de Faturamento',
+    itens: [
+      {
+        nome: 'Emitir notas fiscais do fechamento mensal',
+        voz1: 'Perco horas conferindo dados que chegam errados de outras áreas.',
+        voz2: 'Meu gerente reclama que o faturamento fecha sempre no limite do prazo.',
+        voz3: 'Colegas dependem da minha nota pronta pra liberar o pedido.',
+        voz4: 'O cliente reclama quando a nota sai com dados divergentes.',
+        oportunidade: 'Reduzir o retrabalho de conferência criando uma validação na entrada dos dados.',
+      },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    perfil: 'Atividades' as const,
+    minhaFuncao: 'Operador de Injeção Plástica',
+    itens: [
+      {
+        nome: 'Fazer o setup do molde no início do turno',
+        voz1: 'Demoro pra acertar os parâmetros e perco peças até estabilizar.',
+        voz2: 'Meu supervisor cobra que o setup leva tempo demais.',
+        voz3: 'O turno seguinte reclama que pego a máquina já ajustada de outro jeito.',
+        voz4: 'A qualidade aponta refugo alto nas primeiras peças após o setup.',
+        oportunidade: 'Padronizar os parâmetros de setup por molde pra reduzir as peças perdidas no arranque.',
+      },
+    ],
+  },
+];
 
 interface ImprovementProjectIdeaProps {
   onSave: (data: any, options?: { silent?: boolean }) => void;
@@ -219,6 +258,10 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
 
   const [generatedProjects, setGeneratedProjects] = useState<any[]>(initialData?.generatedProjects ? normalizeProjects(initialData.generatedProjects) : []);
   const [nivelFilter, setNivelFilter] = useState<string>('Todos');
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   useEffect(() => {
     if (initialData) {
@@ -408,9 +451,109 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
   const canGenerate = sec1Filled && temItemValido;
   const progressPercent = (sectionsStatus.filter(s => s.filled).length / 2) * 100;
 
+  // Modal "Ver exemplo" — definido uma vez, reusado nos dois returns (seleção + form).
+  const exemploModal = showExemplo && (
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={() => setShowExemplo(false)}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-3">
+            <BookOpen size={20} className="text-blue-600" />
+            <div>
+              <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Ideia de Projeto de Melhoria</h3>
+              <p className="text-xs text-gray-500 m-0">Foco: Suas atividades · {IDEA_EXEMPLOS[exemploIdx].minhaFuncao}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowExemplo(false)}
+            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Abas — Escritório / Manufatura */}
+        <div className="flex gap-2 px-6 pt-4">
+          {IDEA_EXEMPLOS.map((ex, i) => (
+            <button
+              key={ex.id}
+              onClick={() => setExemploIdx(i)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                exemploIdx === i
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+              )}
+            >
+              {ex.rotulo}
+            </button>
+          ))}
+        </div>
+
+        {(() => {
+          const ex = IDEA_EXEMPLOS[exemploIdx];
+          const cfg = ITEM_CONFIG[ex.perfil];
+          return (
+            <div className="p-6 space-y-6 text-left">
+              {/* Seção 1 — contexto */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-2">
+                <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest block">Sua função / cargo na organização</span>
+                <p className="text-sm font-bold text-gray-700 p-3 bg-[#f8fafc] border border-gray-200 rounded-xl m-0">{ex.minhaFuncao}</p>
+              </div>
+
+              {/* Seção 2 — itens com 4 vozes + oportunidade */}
+              {ex.itens.map((item, idx) => (
+                <div key={idx} className="rounded-2xl border-2 border-gray-100 bg-white p-5 space-y-5">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-black">{idx + 1}</span>
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest block">{cfg.itemLabel}</span>
+                    <p className="text-sm font-bold text-gray-700 p-3 bg-[#f8fafc] border border-gray-200 rounded-xl m-0">{item.nome}</p>
+                  </div>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
+                    <p className="text-xs font-bold text-blue-800 m-0">Os problemas deste item — por 4 ângulos diferentes:</p>
+                    {cfg.vozes.map((voz) => (
+                      <div key={voz.campo} className="space-y-1.5">
+                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest block">{voz.label}</span>
+                        <p className="text-sm text-gray-700 p-3 bg-white border border-gray-200 rounded-xl m-0">{item[voz.campo as 'voz1' | 'voz2' | 'voz3' | 'voz4']}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest block">Oportunidade de melhoria que você enxerga aqui</span>
+                    <p className="text-sm text-gray-700 p-3 bg-[#f8fafc] border border-gray-200 rounded-xl m-0">{item.oportunidade}</p>
+                  </div>
+                </div>
+              ))}
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+
   if (!userProfile) {
     return (
       <div className="max-w-5xl mx-auto p-12 space-y-12 text-center bg-[#f8fafc] min-h-screen">
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+        </div>
         <div className="space-y-4">
           <h2 className="text-3xl font-black text-gray-900 tracking-tight">Antes de tudo: qual é o ESCOPO da melhoria que você quer?</h2>
           <p className="text-gray-500 font-medium italic">Vou fazer perguntas diferentes pra cada caso. Escolhe o que descreve melhor a sua situação.</p>
@@ -461,6 +604,8 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
 
         {/* Popup de recomendação de trilha REMOVIDO (a pedido) — clicar no
             perfil leva direto pra ferramenta, sem interrupção. */}
+
+        {exemploModal}
       </div>
     );
   }
@@ -498,13 +643,21 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setUserProfile(null)}
-          className="text-xs font-black text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 uppercase tracking-widest"
-        >
-          <UserCircle size={14} />
-          Trocar Foco
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+          <button
+            onClick={() => setUserProfile(null)}
+            className="text-xs font-black text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 uppercase tracking-widest"
+          >
+            <UserCircle size={14} />
+            Trocar Foco
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-10 pb-20">
@@ -838,6 +991,8 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           </div>
         )}
       </div>
+
+      {exemploModal}
     </div>
   );
 }

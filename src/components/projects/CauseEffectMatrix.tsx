@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CheckCircle2, Info, Plus, Trash2, HelpCircle, BarChart2, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle2, Info, Plus, Trash2, HelpCircle, BarChart2, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { 
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, 
@@ -16,6 +16,46 @@ interface CauseEffectMatrixProps {
   onClearAIData?: () => void;
 }
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// outputs = indicadores Y (com importância 1-10); causas = X's com nota (0-10) por Y + esforço.
+const CE_EXEMPLOS: {
+  id: string;
+  rotulo: string;
+  outputs: { name: string; importance: number }[];
+  causes: { id: string; name: string; scores: number[]; effort: number }[];
+}[] = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    outputs: [
+      { name: 'Prazo de Entrega', importance: 10 },
+      { name: 'Satisfação do Cliente', importance: 9 },
+      { name: 'Custo Operacional', importance: 7 },
+    ],
+    causes: [
+      { id: 'X01', name: 'Aprovações manuais em várias etapas', scores: [9, 7, 5], effort: 6 },
+      { id: 'X02', name: 'Sistema legado lento', scores: [8, 8, 3], effort: 7 },
+      { id: 'X03', name: 'Falta de padrão nos documentos', scores: [5, 6, 4], effort: 2 },
+      { id: 'X04', name: 'Equipe sem treinamento na ferramenta', scores: [4, 5, 2], effort: 3 },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    outputs: [
+      { name: 'Produtividade', importance: 10 },
+      { name: 'Índice de Defeitos', importance: 9 },
+      { name: 'Segurança', importance: 8 },
+    ],
+    causes: [
+      { id: 'X01', name: 'Variação na matéria-prima', scores: [7, 9, 2], effort: 6 },
+      { id: 'X02', name: 'Manutenção preventiva inadequada', scores: [9, 7, 6], effort: 5 },
+      { id: 'X03', name: 'Setup de máquina demorado', scores: [8, 3, 1], effort: 4 },
+      { id: 'X04', name: 'Falta de EPI padronizado', scores: [2, 3, 9], effort: 2 },
+    ],
+  },
+];
+
 export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz de Causa e Efeito", onGenerateAI, isGeneratingAI, onClearAIData }: CauseEffectMatrixProps) {
   const d = initialData?.toolData || initialData;
   const [outputs, setOutputs] = useState<any[]>(d?.outputs || [
@@ -26,6 +66,10 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
   const [causes, setCauses] = useState<any[]>(d?.causes || []);
   const isToolEmpty = causes.length === 0;
   const [view, setView] = useState<'matrix' | 'scatter' | 'pareto'>('matrix');
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
   const [colWidths, setColWidths] = useState<Record<string, number>>(d?.colWidths || {
     id: 60,
     name: 300,
@@ -229,7 +273,12 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
         <div className="flex justify-between items-center mb-2">
           <div className="text-[#003366] font-bold text-[24px]">L&W</div>
           <div className="text-[#003366] font-bold text-[20px] uppercase tracking-wider">ANALISAR / MEDIR</div>
-          <div className="w-[60px]"></div>
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
         </div>
         <h2 className="text-[28px] font-bold text-[#003366] whitespace-pre-wrap max-w-4xl mx-auto">{title}</h2>
       </div>
@@ -674,6 +723,121 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
 
       </div>
     </div>
+
+    {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+    {showExemplo && (
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setShowExemplo(false)}
+      >
+        <div
+          className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center gap-3">
+              <BookOpen size={20} className="text-[#003366]" />
+              <div>
+                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Matriz de Causa e Efeito</h3>
+                <p className="text-xs text-gray-500 m-0">X's do processo × Indicadores (Y)</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExemplo(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Abas — Escritório / Manufatura */}
+          <div className="flex gap-2 px-6 pt-4">
+            {CE_EXEMPLOS.map((ex, i) => (
+              <button
+                key={ex.id}
+                onClick={() => setExemploIdx(i)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                  exemploIdx === i
+                    ? 'bg-[#1f2937] text-white border-[#1f2937]'
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {ex.rotulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-[#ccc] text-[12px]">
+                <thead>
+                  <tr className="bg-[#f5f5f5]">
+                    <th className="border border-[#ccc] p-2 font-bold text-[#333]">ID</th>
+                    <th className="border border-[#ccc] p-2 text-left font-bold text-[#333]" style={{ minWidth: 200 }}>X's do Processo (Entradas)</th>
+                    {CE_EXEMPLOS[exemploIdx].outputs.map((y, i) => (
+                      <th key={i} className="border border-[#ccc] p-2 bg-[#e3f2fd] text-center">
+                        <div className="font-bold text-[10px] uppercase leading-tight">{y.name}</div>
+                        <div className="text-[9px] text-[#999] uppercase mt-1">Imp.: <span className="font-bold text-[#003366]">{y.importance}</span></div>
+                      </th>
+                    ))}
+                    <th className="border border-[#ccc] p-2 font-bold text-[#003366] bg-[#e8f5e9]">TOTAL</th>
+                    <th className="border border-[#ccc] p-2 font-bold text-[#333]">Esforço</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const ex = CE_EXEMPLOS[exemploIdx];
+                    const totals = ex.causes.map(c =>
+                      c.scores.reduce((acc, s, idx) => acc + s * (ex.outputs[idx]?.importance || 0), 0)
+                    );
+                    const maxTotal = Math.max(...totals);
+                    return ex.causes.map((cause, cIdx) => {
+                      const total = totals[cIdx];
+                      const isWinner = total === maxTotal;
+                      return (
+                        <tr key={cause.id} className={isWinner ? 'bg-green-50' : ''}>
+                          <td className="border border-[#ccc] p-2 text-center font-mono text-[#999]">{cause.id}</td>
+                          <td className="border border-[#ccc] p-2 text-gray-800">{cause.name}</td>
+                          {cause.scores.map((s, yIdx) => (
+                            <td key={yIdx} className="border border-[#ccc] p-2 text-center">
+                              <span className={cn(
+                                'font-bold',
+                                s >= 8 ? 'text-blue-600' : s >= 4 ? 'text-green-600' : s >= 1 ? 'text-orange-600' : 'text-gray-400'
+                              )}>{s}</span>
+                            </td>
+                          ))}
+                          <td className={cn(
+                            'border border-[#ccc] p-2 text-center font-bold bg-[#e8f5e9] text-[15px]',
+                            isWinner ? 'text-green-700' : 'text-[#003366]'
+                          )}>{total}</td>
+                          <td className="border border-[#ccc] p-2 text-center">
+                            <span className={cn(
+                              'text-[10px] font-bold uppercase px-2 py-1 rounded-[2px]',
+                              cause.effort >= 5 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                            )}>
+                              {cause.effort >= 5 ? 'Alto' : 'Baixo'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+              <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+              <p className="text-xs text-amber-800 leading-relaxed m-0">
+                Cada X recebe uma nota de correlação (0-10) com cada indicador Y. O TOTAL multiplica a nota pela importância do Y.
+                Os X's com maior total e menor esforço são os ganhos rápidos. Este exemplo é só pra consulta — não altera os seus dados.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }

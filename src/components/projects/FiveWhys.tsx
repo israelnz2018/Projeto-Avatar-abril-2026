@@ -1,6 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, CheckCircle2, HelpCircle, Sparkles, X, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, HelpCircle, Sparkles, X, Loader2, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Cada exemplo é uma cadeia de 5 Porquês encadeados, no MESMO formato da ferramenta.
+const FIVE_WHYS_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    problem: 'O fechamento contábil do mês atrasou 4 dias úteis.',
+    whys: [
+      'Porque os lançamentos de notas fiscais chegaram incompletos ao financeiro.',
+      'Porque várias áreas enviaram as notas só no último dia do mês.',
+      'Porque não existe um prazo interno definido pra envio das notas.',
+      'Porque ninguém foi designado como responsável por cobrar esse prazo.',
+      'Porque o processo de fechamento nunca foi formalmente mapeado e padronizado.',
+    ],
+    rootCause: 'Ausência de um processo de fechamento padronizado, com prazos internos e responsável definido pela cobrança.',
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    problem: 'A linha de montagem parou por 2 horas no turno da manhã.',
+    whys: [
+      'Porque a esteira transportadora travou no meio da produção.',
+      'Porque o motor da esteira superaqueceu e desarmou.',
+      'Porque o rolamento do motor estava sem lubrificação.',
+      'Porque a lubrificação preventiva não foi feita no prazo previsto.',
+      'Porque o plano de manutenção preventiva não estava sendo seguido nem auditado.',
+    ],
+    rootCause: 'Falha na execução e no acompanhamento do plano de manutenção preventiva dos equipamentos da linha.',
+  },
+];
 
 interface FiveWhysProps {
   onSave: (data: any) => void;
@@ -22,6 +53,10 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
   const [chains, setChains] = useState<WhyChain[]>(d?.chains || [
     { id: '1', problem: '', whys: ['', '', '', '', ''], rootCause: '' }
   ]);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
   const isToolEmpty = chains.length === 0 || (chains.length === 1 && !chains[0].problem && chains[0].whys.every(w => !w));
 
   useEffect(() => {
@@ -119,6 +154,12 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
           <HelpCircle className="text-[#3b82f6]" size={24} />
           <h2 className="text-[1.25rem] font-bold text-[#333]">Análise dos 5 Porquês</h2>
         </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
       {isGeneratingAI && (
@@ -264,6 +305,93 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
 
       <button data-save-trigger onClick={() => onSave({ chains })} className="hidden" />
     </div>
+
+    {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+    {showExemplo && (
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setShowExemplo(false)}
+      >
+        <div
+          className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center gap-3">
+              <BookOpen size={20} className="text-blue-600" />
+              <div>
+                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de 5 Porquês</h3>
+                <p className="text-xs text-gray-500 m-0">{FIVE_WHYS_EXEMPLOS[exemploIdx].problem}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExemplo(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Abas — Escritório / Manufatura */}
+          <div className="flex gap-2 px-6 pt-4">
+            {FIVE_WHYS_EXEMPLOS.map((ex, i) => (
+              <button
+                key={ex.id}
+                onClick={() => setExemploIdx(i)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                  exemploIdx === i
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {ex.rotulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            <div className="p-6 bg-[#f9f9f9] rounded-[8px] border border-[#eee] space-y-6">
+              <div>
+                <label className="block text-[11px] font-bold text-[#666] uppercase tracking-wider mb-2">
+                  Problema / Efeito
+                </label>
+                <div className="w-full bg-white border border-[#ccc] rounded-[4px] px-4 py-2 text-[14px] text-gray-800">
+                  {FIVE_WHYS_EXEMPLOS[exemploIdx].problem}
+                </div>
+              </div>
+
+              <div className="space-y-4 pl-4 border-l-2 border-[#3b82f6]">
+                {FIVE_WHYS_EXEMPLOS[exemploIdx].whys.map((why, wIdx) => (
+                  <div key={wIdx} className="space-y-1">
+                    <label className="block text-[10px] font-bold text-[#3b82f6] uppercase tracking-wider">
+                      {wIdx + 1}º Porquê?
+                    </label>
+                    <p className="text-sm font-medium text-gray-800 px-2 py-1 m-0">{why}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-[#eff6ff] p-4 rounded-[4px] border border-[#bfdbfe]">
+                <label className="block text-[11px] font-bold text-[#1e40af] uppercase tracking-wider mb-2">
+                  Causa Raiz Identificada
+                </label>
+                <p className="text-[14px] text-gray-800 m-0 bg-white border border-[#bfdbfe] rounded-[4px] px-4 py-2">
+                  {FIVE_WHYS_EXEMPLOS[exemploIdx].rootCause}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+              <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+              <p className="text-xs text-amber-800 leading-relaxed m-0">
+                Este exemplo é só pra consulta — não altera os seus dados.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }

@@ -1,7 +1,52 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { Target, CheckCircle2, Printer, Download, Sparkles, Plus, Trash2, Image as ImageIcon, X, Loader2 } from 'lucide-react';
+import { Target, CheckCircle2, Printer, Download, Sparkles, Plus, Trash2, Image as ImageIcon, X, Loader2, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toPng } from 'html-to-image';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Espelham as seções reais do Contrato do Projeto (charter).
+const CHARTER_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    title: 'REDUZIR O TEMPO DE EMISSÃO DE PROPOSTAS COMERCIAIS',
+    area: 'COMERCIAL',
+    leader: 'ANA SOUZA',
+    champion: 'DIRETOR COMERCIAL',
+    problemDefinition: 'As propostas comerciais para novos clientes demoram em média 5 dias úteis para serem enviadas, acima do aceitável pelo mercado. Há retrabalho na precificação e ausência de modelo padrão.',
+    problemHistory: 'Nos últimos 6 meses, o tempo médio de emissão ficou entre 4 e 6 dias úteis. Cerca de 20% dos clientes desistiram antes de receber a proposta.',
+    goalDefinition: 'Reduzir o tempo médio de emissão de propostas de 5 dias úteis para no máximo 1 dia útil em 3 meses.',
+    scopeIn: 'Propostas para novos clientes da carteira comercial.',
+    scopeOut: 'Renovações de contrato e propostas de licitação pública.',
+    businessContributions: 'Aumento estimado de 15% na taxa de conversão e redução de horas de retrabalho da equipe comercial, com ganho estimado de R$ 120 mil/ano.',
+    stakeholders: [
+      { role: 'Patrocinador / Sponsor', name: 'Diretor Comercial', definition: 'A', measurement: 'P', analysis: 'P', improvement: 'A', control: 'P' },
+      { role: 'Process Owner', name: 'Gerente Comercial', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+      { role: 'Team Member / SME', name: 'Analista de Precificação', definition: 'P', measurement: 'A', analysis: 'A', improvement: 'A', control: 'P' },
+      { role: 'Team Member / SME', name: 'Analista de Vendas', definition: 'A', measurement: 'A', analysis: 'P', improvement: 'A', control: 'A' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    title: 'REDUZIR O ÍNDICE DE REFUGO NA LINHA DE INJEÇÃO PLÁSTICA',
+    area: 'PRODUÇÃO - LINHA 3',
+    leader: 'CARLOS LIMA',
+    champion: 'GERENTE DE PRODUÇÃO',
+    problemDefinition: 'O índice de refugo da linha de injeção plástica 3 está em 8%, acima da meta de 2%, gerando desperdício de matéria-prima e retrabalho. Peças saem com rebarba e falha de preenchimento.',
+    problemHistory: 'Nos últimos 3 meses o refugo oscilou entre 7% e 9%. O desperdício de resina representou cerca de R$ 18 mil/mês.',
+    goalDefinition: 'Reduzir o índice de refugo de 8% para no máximo 2% em 3 meses.',
+    scopeIn: 'Processo de injeção plástica da linha 3 (moldes A, B e C).',
+    scopeOut: 'Linhas 1 e 2 e processos de acabamento e pintura.',
+    businessContributions: 'Redução estimada de R$ 200 mil/ano em desperdício de matéria-prima e aumento da produtividade pela diminuição de paradas para retrabalho.',
+    stakeholders: [
+      { role: 'Patrocinador / Sponsor', name: 'Gerente de Produção', definition: 'A', measurement: 'P', analysis: 'P', improvement: 'A', control: 'A' },
+      { role: 'Process Owner', name: 'Supervisor da Linha 3', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'A' },
+      { role: 'Team Member / SME', name: 'Engenheiro de Processo', definition: 'A', measurement: 'A', analysis: 'A', improvement: 'A', control: 'P' },
+      { role: 'Operador / Frontline', name: 'Operador de Injeção', definition: 'P', measurement: 'A', analysis: 'P', improvement: 'A', control: 'A' },
+    ],
+  },
+];
 
 interface ProjectCharterProps {
   onSave: (data: any) => void;
@@ -195,6 +240,10 @@ export default function ProjectCharter({
 
   const [isPrinting, setIsPrinting] = useState(false);
 
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
+
   const handlePrint = async () => {
     const element = document.getElementById('project-charter-print');
     if (!element) return;
@@ -300,6 +349,20 @@ export default function ProjectCharter({
 
       {/* Hidden save trigger for ToolWrapper */}
       <button data-save-trigger onClick={() => onSave(data)} className="hidden" />
+
+      {/* Header de ações — "Ver exemplo" (fora do print) */}
+      <div className="flex items-center justify-between no-print">
+        <div className="flex items-center gap-3">
+          <Target className="text-blue-600" size={22} />
+          <h2 className="text-[1.1rem] font-black text-[#333] m-0">Contrato do Projeto</h2>
+        </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
+      </div>
 
       <div id="project-charter-print" className="bg-white p-4 shadow-lg border border-gray-200 max-w-[210mm] mx-auto print:shadow-none print:p-0 print:m-0 print:border-none font-sans text-black">
         
@@ -670,6 +733,169 @@ export default function ProjectCharter({
           }
         }
       `}} />
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="no-print fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Contrato do Projeto</h3>
+                  <p className="text-xs text-gray-500 m-0">{CHARTER_EXEMPLOS[exemploIdx].title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {CHARTER_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            {(() => {
+              const ex = CHARTER_EXEMPLOS[exemploIdx];
+              return (
+                <div className="p-6">
+                  <div className="border border-gray-300 text-black text-[12px]">
+                    {/* Título / Área / Líder / Champion */}
+                    <div className="flex border-b border-gray-300">
+                      <div className="w-[40%] border-r border-gray-300 p-2">
+                        <span className="block text-[9px] font-black uppercase text-gray-500">Título do Projeto</span>
+                        <span className="font-bold uppercase">{ex.title}</span>
+                      </div>
+                      <div className="w-[20%] border-r border-gray-300 p-2">
+                        <span className="block text-[9px] font-black uppercase text-gray-500">Área/Planta</span>
+                        <span className="font-bold uppercase">{ex.area}</span>
+                      </div>
+                      <div className="w-[20%] border-r border-gray-300 p-2">
+                        <span className="block text-[9px] font-black uppercase text-gray-500">Líder</span>
+                        <span className="font-bold uppercase">{ex.leader}</span>
+                      </div>
+                      <div className="w-[20%] p-2">
+                        <span className="block text-[9px] font-black uppercase text-gray-500">Champion</span>
+                        <span className="font-bold uppercase">{ex.champion}</span>
+                      </div>
+                    </div>
+
+                    {/* Definição do problema */}
+                    <div className="flex border-b border-gray-300">
+                      <div className="w-[30%] bg-gray-100 border-r border-gray-300 p-2 flex items-center">
+                        <span className="text-[10px] font-black uppercase">Definição Operacional do Problema</span>
+                      </div>
+                      <div className="w-[70%] p-2">{ex.problemDefinition}</div>
+                    </div>
+
+                    {/* Histórico do problema */}
+                    <div className="border-b border-gray-300">
+                      <div className="bg-gray-100 text-center border-b border-gray-300 py-1">
+                        <span className="text-[10px] font-black uppercase">Histórico do Problema</span>
+                      </div>
+                      <div className="p-2">{ex.problemHistory}</div>
+                    </div>
+
+                    {/* Meta + Escopo */}
+                    <div className="flex border-b border-gray-300">
+                      <div className="w-1/2 border-r border-gray-300">
+                        <div className="bg-gray-100 text-center border-b border-gray-300 py-1">
+                          <span className="text-[10px] font-black uppercase">Definição da Meta</span>
+                        </div>
+                        <div className="p-2">{ex.goalDefinition}</div>
+                      </div>
+                      <div className="w-1/2">
+                        <div className="bg-gray-100 text-center border-b border-gray-300 py-1">
+                          <span className="text-[10px] font-black uppercase">Escopo (Dentro/Fora)</span>
+                        </div>
+                        <div className="p-2 space-y-1">
+                          <p className="m-0"><strong>IN:</strong> {ex.scopeIn}</p>
+                          <p className="m-0"><strong>OUT:</strong> {ex.scopeOut}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contribuições */}
+                    <div className="border-b border-gray-300">
+                      <div className="bg-gray-100 text-center border-b border-gray-300 py-1">
+                        <span className="text-[10px] font-black uppercase">Contribuições para o Negócio</span>
+                      </div>
+                      <div className="p-2">{ex.businessContributions}</div>
+                    </div>
+
+                    {/* Stakeholders */}
+                    <div>
+                      <div className="bg-gray-100 text-center border-b border-gray-300 py-1">
+                        <span className="text-[10px] font-black uppercase">Equipe de Trabalho e Stakeholders</span>
+                      </div>
+                      <table className="w-full text-[11px] border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-300">
+                            <th className="border-r border-gray-300 p-1 text-left font-black">Função</th>
+                            <th className="border-r border-gray-300 p-1 text-left font-black">Nome</th>
+                            <th className="border-r border-gray-300 p-1 text-center font-black w-[8%]">D</th>
+                            <th className="border-r border-gray-300 p-1 text-center font-black w-[8%]">M</th>
+                            <th className="border-r border-gray-300 p-1 text-center font-black w-[8%]">A</th>
+                            <th className="border-r border-gray-300 p-1 text-center font-black w-[8%]">I</th>
+                            <th className="p-1 text-center font-black w-[8%]">C</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ex.stakeholders.map((row, idx) => (
+                            <tr key={idx} className="border-b border-gray-200">
+                              <td className="border-r border-gray-300 p-1 font-bold">{row.role}</td>
+                              <td className="border-r border-gray-300 p-1">{row.name}</td>
+                              {(['definition', 'measurement', 'analysis', 'improvement', 'control'] as const).map((field) => (
+                                <td key={field} className="border-r border-gray-300 p-1 text-center font-black">{row[field]}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="px-2 py-1 border-t border-gray-200">
+                        <p className="text-[9px] text-gray-500 font-bold m-0">
+                          <span className="font-black text-gray-700">A</span> = Participação Ativa &nbsp;&nbsp;
+                          <span className="font-black text-gray-700">P</span> = Participação Passiva
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                    <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                    <p className="text-xs text-amber-800 leading-relaxed m-0">
+                      Este exemplo é só pra consulta — não altera os seus dados.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

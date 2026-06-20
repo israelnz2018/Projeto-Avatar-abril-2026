@@ -11,7 +11,10 @@ import {
   Sparkles,
   Search,
   Save,
-  Loader2
+  Loader2,
+  BookOpen,
+  X,
+  Info
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -68,6 +71,51 @@ const HeaderRow = ({ title, className, isCompleted }: { title: string; className
   </div>
 );
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesma estrutura real do formulário: variable, operationalDefinition,
+// observationDescription e identifiedCause (é causa raiz?).
+type ExemploObs = { variable: string; operationalDefinition: string; observationDescription: string; identifiedCause: boolean };
+const GEMBA_EXEMPLOS: { id: string; rotulo: string; contexto: string; obs: ExemploObs[] }[] = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    contexto: 'Atendimento ao cliente — fila no balcão',
+    obs: [
+      {
+        variable: 'Tempo de espera na fila',
+        operationalDefinition: 'Minutos entre a chegada do cliente e o início do atendimento, medido por senha.',
+        observationDescription: 'Observei que, das 11h às 13h, apenas 2 dos 5 guichês ficam abertos. A fila chega a 14 pessoas e a espera passa de 25 minutos no horário de almoço.',
+        identifiedCause: true,
+      },
+      {
+        variable: 'Retrabalho por documento incompleto',
+        operationalDefinition: 'Nº de atendimentos interrompidos por falta de documento do cliente.',
+        observationDescription: 'Em 1 hora, 4 clientes voltaram para casa buscar documento. Não há aviso prévio na entrada sobre o que trazer.',
+        identifiedCause: false,
+      },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    contexto: 'Linha de usinagem — setup de máquina',
+    obs: [
+      {
+        variable: 'Tempo de setup do torno',
+        operationalDefinition: 'Minutos entre a última peça boa do lote anterior e a primeira peça boa do novo.',
+        observationDescription: 'Cronometrei 3 setups: média de 47 min. O operador procura ferramentas em gavetas diferentes e busca o desenho na sala da supervisão a cada troca.',
+        identifiedCause: true,
+      },
+      {
+        variable: 'Organização do posto de trabalho',
+        operationalDefinition: 'Presença de ferramentas e gabaritos no local de uso (padrão 5S).',
+        observationDescription: 'O carrinho de ferramentas fica a 8 metros da máquina. Não há sombra/marcação de posição. O operador caminha várias vezes por troca.',
+        identifiedCause: false,
+      },
+    ],
+  },
+];
+
 export default function DirectObservationForm({ onSave, initialData, allProjectData, onGenerateAI, isGeneratingAI, onClearAIData }: DirectObservationFormProps) {
   const d = initialData?.toolData || initialData;
   // Qualitative variables from Data Collection Plan
@@ -100,6 +148,10 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   });
 
   const isToolEmpty = observations.length === 0 || (observations.length === 1 && !observations[0].variable && !observations[0].observationDescription);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   // Sync with initialData (important for AI generation and Clearing)
   useEffect(() => {
@@ -241,6 +293,12 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
 
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <HeaderRow title="Observação Direta" isCompleted={isCompleted} className="flex-1" />
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
         <button data-save-trigger onClick={handleSave} className="hidden" />
       </div>
 
@@ -409,6 +467,97 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
 
       <div className="pt-10">
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Observação Direta (Gemba)</h3>
+                  <p className="text-xs text-gray-500 m-0">{GEMBA_EXEMPLOS[exemploIdx].contexto}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {GEMBA_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            {/* Formulários de observação preenchidos */}
+            <div className="p-6 space-y-5">
+              {GEMBA_EXEMPLOS[exemploIdx].obs.map((o, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-7 h-7 rounded-lg bg-slate-800 text-white flex items-center justify-center font-black text-xs shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-black text-slate-800 uppercase tracking-tight truncate">{o.variable}</span>
+                    </div>
+                    <span className={cn(
+                      'flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0',
+                      o.identifiedCause ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-500'
+                    )}>
+                      <CheckCircle2 size={12} />
+                      {o.identifiedCause ? 'É Causa Raiz' : 'Não confirmada'}
+                    </span>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Definição operacional</p>
+                      <p className="text-sm text-slate-600 m-0">{o.operationalDefinition}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                        <Search size={12} className="text-blue-500" /> O que viu (observação direta)
+                      </p>
+                      <p className="text-sm text-slate-700 m-0 bg-slate-50 border border-slate-100 rounded-xl p-3 leading-relaxed">
+                        {o.observationDescription}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — <strong>não altera os seus dados</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

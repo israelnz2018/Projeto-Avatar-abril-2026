@@ -1,7 +1,44 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, CheckCircle2, X, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle2, X, Sparkles, Loader2, Trash2, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { TableToolbar } from './TableToolbar';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesmas colunas reais do Plano de Coleta de Dados.
+const DCP_EX_COLS: { id: string; label: string }[] = [
+  { id: 'variable', label: 'Variável' },
+  { id: 'priority', label: 'Prioridade' },
+  { id: 'operationalDefinition', label: 'Definição Operacional' },
+  { id: 'msa', label: 'MSA' },
+  { id: 'method', label: 'Método de medição' },
+  { id: 'stratification', label: 'Estratificação' },
+  { id: 'responsible', label: 'Responsável' },
+  { id: 'when', label: 'Quando' },
+  { id: 'howMany', label: 'Quantas' },
+];
+
+const DCP_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Coleta de dados — Processo de emissão de notas fiscais',
+    linhas: [
+      { variable: 'Tempo de emissão da NF', priority: 'Alta', operationalDefinition: 'Tempo em minutos entre o pedido aprovado e a NF emitida, medido pelo log do ERP', msa: 'OK', method: 'Quantitativa', stratification: 'Por turno e por operador', responsible: 'Ana (Faturamento)', when: 'Diário, por 4 semanas', howMany: '100% das NFs do período' },
+      { variable: 'Erros de cadastro', priority: 'Alta', operationalDefinition: 'Nº de NFs devolvidas por dado incorreto (CNPJ, CFOP, valor)', msa: 'N/A', method: 'Quantitativa', stratification: 'Por tipo de erro', responsible: 'Carlos (Supervisor)', when: 'Diário, por 4 semanas', howMany: 'Todas as devoluções' },
+      { variable: 'Satisfação do solicitante', priority: 'Média', operationalDefinition: 'Avaliação 1 a 5 sobre clareza e prazo do faturamento', msa: 'N/A', method: 'Qualitativa', stratification: 'Por área solicitante', responsible: 'Bruna (Qualidade)', when: 'Semanal', howMany: 'Amostra de 30/semana' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Coleta de dados — Linha de injeção plástica',
+    linhas: [
+      { variable: 'Peso da peça injetada', priority: 'Alta', operationalDefinition: 'Massa em gramas medida em balança calibrada (0,01g)', msa: 'R&R < 10%', method: 'Quantitativa', stratification: 'Por cavidade do molde', responsible: 'Marcos (Processo)', when: 'A cada hora', howMany: '5 peças/hora por cavidade' },
+      { variable: 'Taxa de refugo', priority: 'Alta', operationalDefinition: '% de peças reprovadas sobre o total produzido no turno', msa: 'N/A', method: 'Quantitativa', stratification: 'Por turno e por defeito', responsible: 'Juliana (Qualidade)', when: 'Por turno', howMany: '100% da produção' },
+      { variable: 'Aparência da peça', priority: 'Média', operationalDefinition: 'Inspeção visual contra padrão-limite (rebarba, mancha, falha)', msa: 'Atributo (kappa)', method: 'Qualitativa', stratification: 'Por molde', responsible: 'Inspetor da Qualidade', when: 'A cada lote', howMany: 'Amostra de 20/lote' },
+    ],
+  },
+];
 
 interface Column {
   id: string;
@@ -106,6 +143,10 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
 
   const [editingHeader, setEditingHeader] = useState<string | null>(null);
 
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
+
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), data: columns.reduce((acc, col) => ({ ...acc, [col.id]: '' }), {}) }]);
   };
@@ -153,6 +194,12 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest mb-1">Fase Medir</p>
           <h2 className="text-xl font-bold text-gray-800">Plano de Coleta de Dados</h2>
         </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
       <TableToolbar
@@ -280,6 +327,87 @@ export default function DataCollectionPlan({ onSave, initialData, onGenerateAI, 
             onSave({ items, columns: columnsWithWidths });
           }} className="hidden" />
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Plano de Coleta de Dados</h3>
+                  <p className="text-xs text-gray-500 m-0">{DCP_EXEMPLOS[exemploIdx].titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {DCP_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto border border-[#ccc] rounded-lg">
+                <table className="border-collapse" style={{ minWidth: 1200, width: 'max-content' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b' }}>
+                      {DCP_EX_COLS.map((c) => (
+                        <th key={c.id} className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-normal break-words" style={{ color: '#94a3b8', borderBottom: '1px solid #334155', minWidth: 110 }}>
+                          {c.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DCP_EXEMPLOS[exemploIdx].linhas.map((linha: any, idx) => (
+                      <tr key={idx} style={{ borderBottom: '0.5px solid #e2e8f0' }} className={cn(idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}>
+                        {DCP_EX_COLS.map((c) => (
+                          <td key={c.id} className="p-2 border border-[#eee] text-[12px] text-gray-800 align-top whitespace-normal break-words" style={{ minWidth: 110 }}>
+                            {linha[c.id]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

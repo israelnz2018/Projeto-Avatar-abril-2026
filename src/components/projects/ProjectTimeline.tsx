@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Save, Info, Settings, Sparkles, X, Check, ShieldCheck, Loader2, Trash2 } from 'lucide-react';
+import { Calendar, Save, Info, Settings, Sparkles, X, Check, ShieldCheck, Loader2, Trash2, BookOpen } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,6 +30,37 @@ const DEFAULT_PHASES: PhaseTimeline[] = [
   { id: 'control', name: 'Controlar', startDate: '', endDate: '', color: 'bg-blue-500' },
 ];
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Cada fase do DMAIC com datas de início/fim realistas e duração calculada.
+const CRONOGRAMA_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    projeto: 'Redução do Tempo de Aprovação de Pedidos de Compra',
+    inicio: '03/02/2026',
+    fases: [
+      { name: 'Definir',   inicio: '03/02/2026', fim: '18/02/2026', dias: 15 },
+      { name: 'Medir',     inicio: '19/02/2026', fim: '20/03/2026', dias: 30 },
+      { name: 'Analisar',  inicio: '23/03/2026', fim: '07/05/2026', dias: 45 },
+      { name: 'Melhorar',  inicio: '08/05/2026', fim: '07/07/2026', dias: 60 },
+      { name: 'Controlar', inicio: '08/07/2026', fim: '07/08/2026', dias: 30 },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    projeto: 'Redução de Refugo na Linha de Injeção Plástica',
+    inicio: '06/01/2026',
+    fases: [
+      { name: 'Definir',   inicio: '06/01/2026', fim: '21/01/2026', dias: 15 },
+      { name: 'Medir',     inicio: '22/01/2026', fim: '22/02/2026', dias: 30 },
+      { name: 'Analisar',  inicio: '23/02/2026', fim: '08/04/2026', dias: 45 },
+      { name: 'Melhorar',  inicio: '09/04/2026', fim: '08/06/2026', dias: 60 },
+      { name: 'Controlar', inicio: '09/06/2026', fim: '09/07/2026', dias: 30 },
+    ],
+  },
+];
+
 export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ProjectTimelineProps) {
   const translatePhaseName = (name: string) => {
     const translations: Record<string, string> = {
@@ -49,6 +80,11 @@ export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isG
   });
 
   const isToolEmpty = !projectStartDate && phases.every(p => !p.startDate && !p.endDate);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
+
   const [showRecommendationPrompt, setShowRecommendationPrompt] = useState(false);
   const [pendingStartDate, setPendingStartDate] = useState('');
 
@@ -230,10 +266,17 @@ export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isG
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowExemplo(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+            >
+              <BookOpen size={14} /> Ver exemplo
+            </button>
+
             <div className="flex items-center gap-2">
               <label className="text-sm font-bold text-gray-700">Início do Projeto:</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 value={projectStartDate}
                 onChange={(e) => handleStartDateChange(e.target.value)}
                 className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -350,6 +393,93 @@ export default function ProjectTimeline({ onSave, initialData, onGenerateAI, isG
           </p>
         </div>
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Cronograma Macro</h3>
+                  <p className="text-xs text-gray-500 m-0">{CRONOGRAMA_EXEMPLOS[exemploIdx].projeto}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {CRONOGRAMA_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4 text-xs text-gray-500">
+                Início do projeto: <strong className="text-gray-700">{CRONOGRAMA_EXEMPLOS[exemploIdx].inicio}</strong>
+              </div>
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-[12px]">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-3 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600">Fase</th>
+                      <th className="text-left p-3 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600">Início</th>
+                      <th className="text-left p-3 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600">Fim</th>
+                      <th className="text-left p-3 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600">Duração</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CRONOGRAMA_EXEMPLOS[exemploIdx].fases.map((f, idx) => (
+                      <tr key={idx} className="border-b border-gray-100">
+                        <td className="p-3">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
+                            <span className="font-bold text-gray-800">{f.name}</span>
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-gray-700">{f.inicio}</td>
+                        <td className="p-3 font-mono text-gray-700">{f.fim}</td>
+                        <td className="p-3 text-gray-600">{f.dias} dias</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

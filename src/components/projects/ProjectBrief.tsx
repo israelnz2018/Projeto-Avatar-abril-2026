@@ -1,7 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, Trash2 } from 'lucide-react';
+import { Target, CheckCircle2, FileText, Image as ImageIcon, X, Sparkles, Loader2, AlertTriangle, Trash2, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// As chaves batem com os ids reais das perguntas (q1..q12) usadas na ferramenta.
+const BRIEF_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    titulo: 'Reduzir o tempo de emissão de propostas comerciais',
+    answers: {
+      q6: 'Reduzir o tempo de emissão de propostas comerciais',
+      q1: 'Emissão de propostas comerciais para novos clientes',
+      q2: 'As propostas demoram em média 5 dias para serem enviadas, e o cliente muitas vezes desiste antes de receber.',
+      q3: 'Equipe comercial, área de precificação, financeiro e jurídico.',
+      q4: 'Retrabalho na precificação, idas e vindas por e-mail e falta de um modelo padrão de proposta.',
+      q5: 'Risco financeiro: perda de vendas por demora e risco de enviar preço errado ao cliente.',
+      q7: 'Reduzir o tempo médio de emissão de 5 dias para no máximo 1 dia útil.',
+      q8: 'Mais propostas enviadas no prazo, aumento na taxa de conversão e menos retrabalho da equipe.',
+      q10: 'Mapear o fluxo atual da proposta e criar um modelo padrão com preços pré-aprovados.',
+      q12: 'Ajuda para mapear o processo e definir indicadores de acompanhamento.',
+    },
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    titulo: 'Reduzir o índice de refugo na linha de injeção plástica',
+    answers: {
+      q6: 'Reduzir o índice de refugo na linha de injeção plástica',
+      q1: 'Processo de injeção plástica da linha 3',
+      q2: 'O índice de refugo está em 8%, bem acima da meta de 2%, gerando desperdício de matéria-prima.',
+      q3: 'Operadores da linha 3, manutenção, qualidade e engenharia de processo.',
+      q4: 'Peças saindo com rebarba e falha de preenchimento, exigindo separação e retrabalho.',
+      q5: 'Risco financeiro pelo desperdício de material e risco de enviar peça defeituosa ao cliente.',
+      q7: 'Reduzir o índice de refugo de 8% para no máximo 2% em 3 meses.',
+      q8: 'Menos desperdício de matéria-prima, mais produtividade e menos paradas para retrabalho.',
+      q10: 'Coletar dados de refugo por turno e por molde e analisar as principais causas.',
+      q12: 'Ajuda para organizar a coleta de dados e analisar as causas raiz dos defeitos.',
+    },
+  },
+];
 
 interface ProjectBriefProps {
   onSave: (data: any, options?: { silent?: boolean }) => void;
@@ -40,6 +79,10 @@ export default function ProjectBrief({
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     initialData?.selectedProject || ''
   );
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   const isToolEmpty = Object.values(answers).every(val => !val) && images.length === 0;
 
@@ -247,7 +290,15 @@ export default function ProjectBrief({
             <FileText className="text-blue-600" size={24} />
             <h2 className="text-[1.25rem] font-bold text-[#333]">Entendendo o Problema</h2>
           </div>
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Define Phase</div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowExemplo(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+            >
+              <BookOpen size={14} /> Ver exemplo
+            </button>
+            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Define Phase</div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
@@ -332,6 +383,71 @@ export default function ProjectBrief({
           </button>
         </div>
       </div>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Entendendo o Problema</h3>
+                  <p className="text-xs text-gray-500 m-0">{BRIEF_EXEMPLOS[exemploIdx].titulo}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {BRIEF_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 space-y-5">
+              {questions.map((q) => (
+                <div key={q.id} className="space-y-1.5">
+                  <label className="block text-[12px] font-bold text-[#666] leading-tight">{q.label}</label>
+                  <div className="w-full px-4 py-2 border border-[#ccc] rounded-[4px] text-[13px] bg-gray-50 text-gray-800 whitespace-pre-wrap break-words">
+                    {BRIEF_EXEMPLOS[exemploIdx].answers[q.id as keyof typeof BRIEF_EXEMPLOS[number]['answers']] || '-'}
+                  </div>
+                </div>
+              ))}
+
+              <div className="mt-2 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — não altera os seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

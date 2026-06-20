@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, CheckCircle2, Type, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Type, Sparkles, Loader2, BookOpen, X, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { distribuirCausasNos6M } from '@/src/services/claudeAiService';
@@ -45,7 +45,40 @@ const CATEGORY_COLORS = [
 ];
  
 const FONT_SIZES = [12, 13, 14, 15, 16, 18];
- 
+
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesma estrutura real: brainstormingType, problem (cabeça do peixe) e causes por categoria (6M).
+const ISHIKAWA_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    brainstormingType: 'Problema para investigar',
+    problem: 'Notas fiscais emitidas com erro, gerando retrabalho e atraso no faturamento',
+    causes: {
+      'Método': ['Não há conferência dupla antes da emissão', 'Cadastro de cliente preenchido sem padrão'],
+      'Máquina': ['Sistema de emissão trava em horário de pico', 'Integração ERP × portal da prefeitura falha'],
+      'Medida': ['Não se mede a taxa de erro por emissor', 'Sem indicador de tempo de faturamento'],
+      'Mão de obra': ['Equipe nova sem treinamento no sistema', 'Alta rotatividade no setor fiscal'],
+      'Material': ['Tabela de impostos desatualizada', 'Dados do pedido vêm incompletos da venda'],
+      'Meio ambiente': ['Pico de demanda no fim do mês', 'Interrupções constantes por telefone'],
+    },
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    brainstormingType: 'Problema para investigar',
+    problem: 'Alto índice de peças refugadas na linha de usinagem (acima de 4%)',
+    causes: {
+      'Método': ['Parâmetros de corte não padronizados', 'Setup feito sem checklist'],
+      'Máquina': ['Desgaste da ferramenta sem troca programada', 'Folga no fuso do torno CNC'],
+      'Medida': ['Paquímetro descalibrado', 'Inspeção por amostragem pequena demais'],
+      'Mão de obra': ['Operador sem treino no novo programa', 'Turno da noite sem supervisão técnica'],
+      'Material': ['Lote de matéria-prima fora de especificação', 'Variação na dureza do aço recebido'],
+      'Meio ambiente': ['Temperatura do galpão eleva no verão', 'Vibração de máquina vizinha'],
+    } as Record<string, string[]>,
+  },
+];
+
 export default function Ishikawa({ onSave, initialData, allProjectData }: IshikawaProps) {
   const d = initialData?.toolData || initialData;
  
@@ -68,7 +101,11 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
   const [problem, setProblem] = useState<string>(d?.problem || '');
   const [fontSize, setFontSize] = useState<number>(d?.fontSize || 13);
   const [columnHeight, setColumnHeight] = useState<number>(d?.columnHeight || 0);
- 
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
+
   const isResizing = useRef(false);
   const startY = useRef(0);
   const startHeight = useRef(0);
@@ -391,9 +428,15 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
             ))}
           </select>
         </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
         <button data-save-trigger onClick={handleSave} className="hidden" />
       </div>
- 
+
       {/* Diagrama em formato kanban-espinha */}
       <div
         className="bg-white border border-gray-200 rounded-lg shadow-sm p-6"
@@ -483,6 +526,100 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
       </div>
  
       {/* Botão final salvar removido conforme solicitado */}
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Diagrama de Ishikawa (6M)</h3>
+                  <p className="text-xs text-gray-500 m-0">{ISHIKAWA_EXEMPLOS[exemploIdx].problem}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {ISHIKAWA_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6">
+              {/* Cabeça do peixe — problema */}
+              <div className="mb-4 p-4 rounded-xl border-2" style={{ background: '#FAECE7', borderColor: '#D85A30' }}>
+                <p className="text-[10px] font-black uppercase tracking-widest m-0 mb-1" style={{ color: '#993C1D' }}>
+                  {ISHIKAWA_EXEMPLOS[exemploIdx].brainstormingType}
+                </p>
+                <p className="text-sm font-bold m-0" style={{ color: '#4A1B0C' }}>
+                  {ISHIKAWA_EXEMPLOS[exemploIdx].problem}
+                </p>
+              </div>
+
+              {/* 6 categorias em grid, cada uma com suas causas */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {['Método', 'Máquina', 'Medida', 'Mão de obra', 'Material', 'Meio ambiente'].map((cat, idx) => {
+                  const c = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
+                  const list = ISHIKAWA_EXEMPLOS[exemploIdx].causes[cat] || [];
+                  return (
+                    <div key={cat} style={{ background: c.bg, borderRadius: 8, padding: 12 }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span style={{ fontSize: 11, color: c.label, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                          {cat}
+                        </span>
+                        <span style={{ fontSize: 11, color: c.label, fontWeight: 700 }}>{list.length}</span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {list.map((cause, ci) => (
+                          <div
+                            key={ci}
+                            style={{ background: '#fff', border: `0.5px solid ${c.border}`, borderRadius: 6, padding: '6px 9px', fontSize: 12, color: c.text, lineHeight: 1.4 }}
+                          >
+                            {cause}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — <strong>não altera os seus dados</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

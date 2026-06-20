@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HelpCircle, X, GripVertical, CheckCircle2, Target, Plus, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { HelpCircle, X, GripVertical, CheckCircle2, Target, Plus, Sparkles, Loader2, Trash2, BookOpen, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { useResizableTable } from '@/src/hooks/useResizableTable';
 import { TableToolbar } from './TableToolbar';
@@ -18,6 +18,33 @@ interface Column {
   isScore: boolean;
 }
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Cada item tem a oportunidade + Rapidez, Autonomia, Benefício (1/3/5). Resultado = soma.
+const RAB_EXEMPLOS = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    itens: [
+      { description: 'Criar modelo padrão de proposta comercial', rapidez: 5, autonomia: 5, beneficio: 5 },
+      { description: 'Automatizar lembrete de cobrança por e-mail', rapidez: 5, autonomia: 3, beneficio: 5 },
+      { description: 'Digitalizar arquivo físico de contratos', rapidez: 3, autonomia: 3, beneficio: 3 },
+      { description: 'Implantar novo sistema de CRM', rapidez: 1, autonomia: 1, beneficio: 5 },
+      { description: 'Revisar layout da sala de reuniões', rapidez: 5, autonomia: 5, beneficio: 1 },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    itens: [
+      { description: 'Padronizar checklist de troca de turno', rapidez: 5, autonomia: 5, beneficio: 5 },
+      { description: 'Implantar 5S na bancada de montagem', rapidez: 5, autonomia: 3, beneficio: 5 },
+      { description: 'Instalar sensor de parada na esteira', rapidez: 3, autonomia: 3, beneficio: 5 },
+      { description: 'Trocar fornecedor de matéria-prima crítica', rapidez: 1, autonomia: 1, beneficio: 3 },
+      { description: 'Repintar faixas de segurança do piso', rapidez: 5, autonomia: 5, beneficio: 1 },
+    ],
+  },
+];
+
 export default function RABTool({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: RABProps) {
   const d = initialData?.toolData || initialData;
   const defaultColumns: Column[] = [
@@ -32,6 +59,10 @@ export default function RABTool({ onSave, initialData, onGenerateAI, isGeneratin
   const [rows, setRows] = useState<any[]>(d?.opportunities || []);
   const isToolEmpty = rows.length === 0 || (rows.length === 1 && !rows[0].description);
   const [isSorted, setIsSorted] = useState(false);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   useEffect(() => {
     if (initialData) {
@@ -124,10 +155,16 @@ export default function RABTool({ onSave, initialData, onGenerateAI, isGeneratin
       <div className="bg-white p-6 border border-[#ccc] rounded-lg shadow-sm space-y-4">
         <div className="flex items-center gap-3 border-b border-[#eee] pb-4 mb-4">
         <Target className="text-blue-500" size={24} />
-        <div>
+        <div className="flex-1">
           <h2 className="text-lg font-bold text-[#333]">Matriz de Priorização RAB</h2>
           <p className="text-xs text-[#666]">Priorize as melhores oportunidades.</p>
         </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
       <TableToolbar
@@ -337,14 +374,104 @@ export default function RABTool({ onSave, initialData, onGenerateAI, isGeneratin
           Adicionar Item
         </button>
 
-        <button 
-          onClick={() => onSave({ opportunities: rows, columns, columnWidths })} 
+        <button
+          onClick={() => onSave({ opportunities: rows, columns, columnWidths })}
           className="bg-green-600 text-white px-6 py-2 rounded-lg font-black uppercase text-xs tracking-widest flex items-center hover:bg-green-700 transition-all ml-auto"
         >
           <CheckCircle2 size={16} className="mr-2" /> Salvar Matriz
         </button>
       </div>
     </div>
+
+    {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+    {showExemplo && (
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={() => setShowExemplo(false)}
+      >
+        <div
+          className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <div className="flex items-center gap-3">
+              <BookOpen size={20} className="text-blue-600" />
+              <div>
+                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Matriz RAB</h3>
+                <p className="text-xs text-gray-500 m-0">Rapidez + Autonomia + Benefício</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExemplo(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Abas — Escritório / Manufatura */}
+          <div className="flex gap-2 px-6 pt-4">
+            {RAB_EXEMPLOS.map((ex, i) => (
+              <button
+                key={ex.id}
+                onClick={() => setExemploIdx(i)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                  exemploIdx === i
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                )}
+              >
+                {ex.rotulo}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-6">
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-[12px]">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left p-2 border-b border-gray-200 font-black uppercase tracking-wider text-[10px] text-gray-600" style={{ minWidth: 240 }}>Problema / Oportunidade</th>
+                    <th className="p-2 border-b border-gray-200 text-center text-[10px] font-black uppercase text-gray-600">Rapidez</th>
+                    <th className="p-2 border-b border-gray-200 text-center text-[10px] font-black uppercase text-gray-600">Autonomia</th>
+                    <th className="p-2 border-b border-gray-200 text-center text-[10px] font-black uppercase text-gray-600">Benefício</th>
+                    <th className="p-2 border-b border-gray-200 text-center text-[10px] font-black uppercase text-blue-700">Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const itens = [...RAB_EXEMPLOS[exemploIdx].itens];
+                    const maxRes = Math.max(...itens.map(it => it.rapidez + it.autonomia + it.beneficio));
+                    return itens.map((it, idx) => {
+                      const res = it.rapidez + it.autonomia + it.beneficio;
+                      const isWinner = res === maxRes;
+                      return (
+                        <tr key={idx} className={`border-b border-gray-100 ${isWinner ? 'bg-green-50' : ''}`}>
+                          <td className="p-2 text-[12px] text-gray-800">{it.description}</td>
+                          <td className="p-2 text-center font-bold text-gray-700">{it.rapidez}</td>
+                          <td className="p-2 text-center font-bold text-gray-700">{it.autonomia}</td>
+                          <td className="p-2 text-center font-bold text-gray-700">{it.beneficio}</td>
+                          <td className={`p-2 text-center font-black text-base ${isWinner ? 'text-green-600' : 'text-blue-700'}`}>{res}</td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+              <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+              <p className="text-xs text-amber-800 leading-relaxed m-0">
+                Cada nota vai de 1 (baixo) a 5 (alto). O resultado é a soma de Rapidez + Autonomia + Benefício — quanto maior, mais prioritário.
+                Este exemplo é só pra consulta — não altera os seus dados.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 );
 }

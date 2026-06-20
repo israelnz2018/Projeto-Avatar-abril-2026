@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, Trash2, ChevronDown, ChevronRight, Edit3, 
   LayoutGrid, List, FileText, Download, Share2,
-  Users, Info, Maximize2, Minimize2, Save, AlertCircle, Sparkles, Loader2
+  Users, Info, Maximize2, Minimize2, Save, AlertCircle, Sparkles, Loader2, BookOpen, X
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -88,12 +88,60 @@ const DEFAULT_WBS: WBSItem = {
   ]
 };
 
+// Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
+// Mesma estrutura real do WBS: pacotes de trabalho com código e hierarquia (nível).
+type ExemploWBSNode = { level: number; code: string; name: string };
+const WBS_EXEMPLOS: { id: string; rotulo: string; projeto: string; nodes: ExemploWBSNode[] }[] = [
+  {
+    id: 'escritorio',
+    rotulo: 'Escritório',
+    projeto: 'Implantação de Novo Sistema de Faturamento',
+    nodes: [
+      { level: 0, code: '1.0', name: 'Implantação de Novo Sistema de Faturamento' },
+      { level: 1, code: '1.1', name: 'Iniciação' },
+      { level: 2, code: '1.1.1', name: 'Termo de Abertura' },
+      { level: 2, code: '1.1.2', name: 'Mapa de Stakeholders' },
+      { level: 1, code: '1.2', name: 'Planejamento' },
+      { level: 2, code: '1.2.1', name: 'Levantamento de Requisitos Fiscais' },
+      { level: 2, code: '1.2.2', name: 'Cronograma de Migração' },
+      { level: 1, code: '1.3', name: 'Execução' },
+      { level: 2, code: '1.3.1', name: 'Configuração do Sistema' },
+      { level: 2, code: '1.3.2', name: 'Treinamento da Equipe Fiscal' },
+      { level: 1, code: '1.4', name: 'Encerramento' },
+      { level: 2, code: '1.4.1', name: 'Aceite e Go-Live' },
+    ],
+  },
+  {
+    id: 'manufatura',
+    rotulo: 'Manufatura',
+    projeto: 'Instalação de Nova Linha de Montagem',
+    nodes: [
+      { level: 0, code: '1.0', name: 'Instalação de Nova Linha de Montagem' },
+      { level: 1, code: '1.1', name: 'Engenharia e Projeto' },
+      { level: 2, code: '1.1.1', name: 'Layout da Linha' },
+      { level: 2, code: '1.1.2', name: 'Especificação de Equipamentos' },
+      { level: 1, code: '1.2', name: 'Aquisição' },
+      { level: 2, code: '1.2.1', name: 'Compra de Máquinas' },
+      { level: 2, code: '1.2.2', name: 'Contratação de Instalação' },
+      { level: 1, code: '1.3', name: 'Montagem e Comissionamento' },
+      { level: 2, code: '1.3.1', name: 'Instalação Física' },
+      { level: 2, code: '1.3.2', name: 'Testes de Aceitação (SAT)' },
+      { level: 1, code: '1.4', name: 'Start-up de Produção' },
+      { level: 2, code: '1.4.1', name: 'Produção-Piloto e Ramp-up' },
+    ],
+  },
+];
+
 export default function WBSTool({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: WBSToolProps) {
   const [wbs, setWbs] = useState<WBSItem>(initialData?.wbs || DEFAULT_WBS);
   const isToolEmpty = wbs.name === 'Novo Projeto' && wbs.children.length === 5 && wbs.children[0].name === 'Iniciação';
   const [viewMode, setViewMode] = useState<'tree' | 'outline'>('tree');
   const [editingItem, setEditingItem] = useState<WBSItem | null>(null);
   const [showDictionary, setShowDictionary] = useState<string | null>(null);
+
+  // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
+  const [showExemplo, setShowExemplo] = useState(false);
+  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   // Auto-generate codes recursively
   const updateCodes = (item: WBSItem, parentCode: string = ''): WBSItem => {
@@ -379,7 +427,13 @@ export default function WBSTool({ onSave, initialData, onGenerateAI, isGeneratin
               <List size={16} /> Lista
             </button>
           </div>
-          <button 
+          <button
+            onClick={() => setShowExemplo(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
+          >
+            <BookOpen size={14} /> Ver exemplo
+          </button>
+          <button
             onClick={() => window.print()}
             className="p-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-all"
             title="Imprimir / Exportar PDF"
@@ -559,6 +613,81 @@ export default function WBSTool({ onSave, initialData, onGenerateAI, isGeneratin
           </div>
         )}
       </AnimatePresence>
+
+      {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}
+      {showExemplo && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowExemplo(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} className="text-blue-600" />
+                <div>
+                  <h3 className="text-base font-black text-gray-800 m-0">Exemplo de WBS (Estrutura Analítica)</h3>
+                  <p className="text-xs text-gray-500 m-0">{WBS_EXEMPLOS[exemploIdx].projeto}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowExemplo(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Abas — Escritório / Manufatura */}
+            <div className="flex gap-2 px-6 pt-4">
+              {WBS_EXEMPLOS.map((ex, i) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setExemploIdx(i)}
+                  className={cn(
+                    'px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border-2 cursor-pointer',
+                    exemploIdx === i
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  {ex.rotulo}
+                </button>
+              ))}
+            </div>
+
+            {/* Hierarquia indentada (visão Lista do WBS) */}
+            <div className="p-6">
+              <div className="space-y-1.5">
+                {WBS_EXEMPLOS[exemploIdx].nodes.map((n, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'flex items-center gap-3 p-2 rounded-lg border',
+                      n.level === 0 ? 'bg-blue-600 text-white border-blue-700' :
+                      n.level === 1 ? 'bg-blue-50 text-blue-900 border-blue-100' :
+                      'bg-white text-gray-800 border-gray-100'
+                    )}
+                    style={{ marginLeft: `${n.level * 24}px` }}
+                  >
+                    <span className="text-[10px] font-mono font-bold opacity-70 w-12 shrink-0">{n.code}</span>
+                    <span className="text-sm font-bold flex-1">{n.name}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
+                <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                <p className="text-xs text-amber-800 leading-relaxed m-0">
+                  Este exemplo é só pra consulta — <strong>não altera os seus dados</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media print {
