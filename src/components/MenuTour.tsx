@@ -1,26 +1,34 @@
 /**
- * MenuTour — tour único da plataforma que percorre o MENU LATERAL.
- * Destaca cada aba do menu (spotlight) e explica pra que serve. O passo de
- * Projetos mostra uma imagem da tela de dentro do projeto (fases → ferramentas
- * → vídeo de suporte), sem precisar de um projeto aberto.
+ * MenuTour — tour da aba Projetos. Dois modos de passo:
  *
- * Disparo: automático nas 2 primeiras vezes (localStorage) + botão "Tour da
- * plataforma" no menu lateral, sempre disponível.
+ *  A) Passo "na tela real": destaca (spotlight) um elemento da página viva via
+ *     `selector` (data-tour-id). Usado pra Projetos ativos e lista de trilhas.
  *
- * NÃO mexe no tour da aba Data & Analysis (que é separado e detalhado).
+ *  B) Passo "na imagem": mostra a imagem da tela de dentro do projeto em GRANDE
+ *     (quase tela cheia) e destaca uma REGIÃO dela via `region` (coordenadas em %
+ *     relativas à imagem). Usado pra explicar fases / ferramentas / agente Israel.
+ *
+ * Disparo: só manual (botão na aba Projetos dispara o evento 'lbw-open-menu-tour').
+ * NÃO mexe no tour da aba Data & Analysis (separado).
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight, ChevronLeft } from 'lucide-react';
 
+interface ImgRegion { xPct: number; yPct: number; wPct: number; hPct: number; }
+
 interface MenuTourStep {
-  selector: string;
   title: string;
   description: string;
-  image?: string; // imagem opcional exibida no tooltip (ex: tela de Projetos)
+  selector?: string;        // modo A: destaca elemento real da página
+  image?: string;           // modo B: imagem grande de fundo
+  region?: ImgRegion;       // modo B: região da imagem a destacar (em %)
 }
 
+const PROJ_IMG = '/tour-projetos.png';
+
 const STEPS: MenuTourStep[] = [
+  // --- Modo A: tela real ---
   {
     selector: '[data-tour-id="proj-ativos"]',
     title: 'Seus projetos',
@@ -31,16 +39,29 @@ const STEPS: MenuTourStep[] = [
     title: 'Escolha uma trilha',
     description: 'Estas são as trilhas disponíveis — cada uma resolve um tipo de problema. Clique na que combina com o que você quer melhorar pra criar um novo projeto.',
   },
+  // --- Modo B: imagem grande da tela de dentro do projeto, com 3 regiões ---
   {
-    selector: '[data-tour-id="proj-trilhas"]',
-    title: 'Como funciona um projeto',
-    description: 'Ao abrir um projeto, cada trilha tem FASES; cada fase traz as FERRAMENTAS daquela etapa; e à direita fica o agente Israel digital, associado a cada ferramenta pra te orientar.',
-    image: '/tour-projetos.png',
+    image: PROJ_IMG,
+    title: 'As fases do projeto',
+    description: 'Dentro de um projeto, o trabalho é dividido em FASES. Você avança fase a fase, da primeira (entender a área) até a última.',
+    region: { xPct: 17, yPct: 30, wPct: 66, hPct: 24 },
+  },
+  {
+    image: PROJ_IMG,
+    title: 'As ferramentas de cada fase',
+    description: 'Cada fase traz as FERRAMENTAS daquela etapa (SIPOC, RACI, Organograma…) e os vídeos de apoio pra usar cada uma.',
+    region: { xPct: 17, yPct: 56, wPct: 66, hPct: 18 },
+  },
+  {
+    image: PROJ_IMG,
+    title: 'O Israel digital',
+    description: 'À direita fica o agente Israel digital, associado à ferramenta que você está usando. Ele te orienta com respostas baseadas nos vídeos do próprio Israel.',
+    region: { xPct: 76, yPct: 6, wPct: 23, hPct: 90 },
   },
 ];
 
 const COUNT_KEY = 'lbw-menu-tour-count-v1';
-const AUTO_LIMIT = 2; // automático nas 2 primeiras vezes
+const AUTO_LIMIT = 2;
 
 export function shouldAutoOpenMenuTour(): boolean {
   try { return (parseInt(localStorage.getItem(COUNT_KEY) || '0', 10) || 0) < AUTO_LIMIT; }
@@ -67,14 +88,16 @@ export default function MenuTour({ isOpen, onClose }: Props) {
   const [stepIdx, setStepIdx] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
-  // Só os passos cujo alvo existe no menu (ex: admin tem mais itens; gratuito não).
-  const steps = isOpen ? STEPS.filter(s => document.querySelector(s.selector)) : STEPS;
+  // No modo A, só mantém passos cujo alvo existe na página.
+  const steps = isOpen
+    ? STEPS.filter(s => s.image || (s.selector && document.querySelector(s.selector)))
+    : STEPS;
   const safeSteps = steps.length > 0 ? steps : STEPS;
 
   const measure = useCallback(() => {
     const step = safeSteps[stepIdx];
-    if (!step) return;
-    setRect(getRect(step.selector));
+    if (!step || step.image) { setRect(null); return; } // modo B não usa rect de DOM
+    setRect(step.selector ? getRect(step.selector) : null);
   }, [stepIdx, safeSteps]);
 
   useEffect(() => {
@@ -100,30 +123,86 @@ export default function MenuTour({ isOpen, onClose }: Props) {
   const next = () => { if (isLast) finish(); else setStepIdx(s => s + 1); };
   const prev = () => setStepIdx(s => Math.max(0, s - 1));
 
+  // ---- Barra de progresso + navegação (compartilhada pelos dois modos) ----
+  const Nav = (
+    <div className="flex items-center justify-between gap-2 mt-4">
+      <button onClick={prev} disabled={isFirst} className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed border-none bg-transparent cursor-pointer flex items-center gap-1 transition-colors">
+        <ChevronLeft size={14} /> Voltar
+      </button>
+      <span className="text-[10px] font-bold text-slate-400">{stepIdx + 1} / {safeSteps.length}</span>
+      <button onClick={next} className="px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none cursor-pointer flex items-center gap-1 transition-colors shadow-md">
+        {isLast ? 'Concluir' : 'Próximo'}
+        {!isLast && <ChevronRight size={14} />}
+      </button>
+    </div>
+  );
+
+  const Dots = (
+    <div className="flex items-center gap-1.5">
+      {safeSteps.map((_, i) => (
+        <span key={i} className="block h-1 rounded-full transition-all"
+          style={{ width: i === stepIdx ? 18 : 6, background: i === stepIdx ? '#0033CC' : i < stepIdx ? '#93C5FD' : '#E5E7EB' }} />
+      ))}
+    </div>
+  );
+
+  // =================== MODO B: imagem grande com região destacada ===================
+  if (step.image) {
+    const r = step.region;
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[300] bg-slate-900/85 flex flex-col items-center justify-center p-4"
+        >
+          <div className="relative w-full max-w-5xl">
+            {/* Imagem grande */}
+            <div className="relative rounded-xl overflow-hidden shadow-2xl border border-white/10">
+              <img src={step.image} alt={step.title} className="w-full block" />
+              {/* Região destacada (anel) sobre a imagem */}
+              {r && (
+                <div
+                  className="absolute pointer-events-none rounded-lg"
+                  style={{
+                    left: `${r.xPct}%`, top: `${r.yPct}%`, width: `${r.wPct}%`, height: `${r.hPct}%`,
+                    border: '3px solid #0033CC',
+                    boxShadow: '0 0 0 9999px rgba(15,23,42,0.55), 0 0 18px rgba(0,51,204,0.9)',
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Card de texto abaixo da imagem */}
+            <div className="mt-4 bg-white rounded-2xl shadow-2xl border border-blue-100 p-5 max-w-2xl mx-auto">
+              <div className="flex items-center justify-between mb-2">
+                {Dots}
+                <button onClick={finish} className="text-gray-400 hover:text-gray-700 border-none bg-transparent cursor-pointer p-1" title="Fechar tour">
+                  <X size={16} />
+                </button>
+              </div>
+              <h3 className="text-[17px] font-black text-slate-800 m-0 mb-2 leading-tight">{step.title}</h3>
+              <p className="text-[13px] text-slate-600 leading-relaxed m-0">{step.description}</p>
+              {Nav}
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  // =================== MODO A: spotlight na tela real ===================
   const PAD = 8;
-  const TOOLTIP_W = step.image ? 460 : 360;
-  // Posiciona o tooltip onde houver espaço: à direita do alvo se couber, senão
-  // à esquerda; se o alvo for largo (ocupa o centro), centraliza na tela.
-  let top: number;
-  let left: number;
-  if (!rect) {
-    top = 100; left = 100;
-  } else {
+  const TOOLTIP_W = 360;
+  let top: number; let left: number;
+  if (!rect) { top = 100; left = 100; }
+  else {
     const espacoDireita = window.innerWidth - rect.right;
     const espacoEsquerda = rect.left;
-    if (espacoDireita >= TOOLTIP_W + 24) {
-      left = rect.right + 20;
-      top = rect.top;
-    } else if (espacoEsquerda >= TOOLTIP_W + 24) {
-      left = rect.left - TOOLTIP_W - 20;
-      top = rect.top;
-    } else {
-      // alvo largo: centraliza horizontalmente, tooltip logo abaixo do topo do alvo
-      left = (window.innerWidth - TOOLTIP_W) / 2;
-      top = Math.min(rect.top + 24, window.innerHeight - 360);
-    }
+    if (espacoDireita >= TOOLTIP_W + 24) { left = rect.right + 20; top = rect.top; }
+    else if (espacoEsquerda >= TOOLTIP_W + 24) { left = rect.left - TOOLTIP_W - 20; top = rect.top; }
+    else { left = (window.innerWidth - TOOLTIP_W) / 2; top = Math.min(rect.bottom + 16, window.innerHeight - 320); }
     left = Math.max(16, Math.min(window.innerWidth - TOOLTIP_W - 16, left));
-    top = Math.max(16, Math.min(top, window.innerHeight - 340));
+    top = Math.max(16, Math.min(top, window.innerHeight - 320));
   }
 
   return (
@@ -132,7 +211,6 @@ export default function MenuTour({ isOpen, onClose }: Props) {
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 z-[300]"
       >
-        {/* Overlay com spotlight no item do menu */}
         <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <mask id="menu-tour-spotlight">
@@ -153,7 +231,6 @@ export default function MenuTour({ isOpen, onClose }: Props) {
           )}
         </svg>
 
-        {/* Tooltip */}
         <motion.div
           key={stepIdx}
           initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }}
@@ -162,40 +239,14 @@ export default function MenuTour({ isOpen, onClose }: Props) {
         >
           <div className="p-5">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                {safeSteps.map((_, i) => (
-                  <span key={i} className="block h-1 rounded-full transition-all"
-                    style={{ width: i === stepIdx ? 18 : 6, background: i === stepIdx ? '#0033CC' : i < stepIdx ? '#93C5FD' : '#E5E7EB' }} />
-                ))}
-              </div>
+              {Dots}
               <button onClick={finish} className="text-gray-400 hover:text-gray-700 border-none bg-transparent cursor-pointer p-1" title="Pular tour">
                 <X size={16} />
               </button>
             </div>
-
             <h3 className="text-[17px] font-black text-slate-800 m-0 mb-2 leading-tight">{step.title}</h3>
-
-            {step.image && (
-              <img
-                src={step.image}
-                alt={step.title}
-                className="w-full rounded-lg border border-gray-200 mb-3"
-                style={{ boxShadow: '0 6px 18px -10px rgba(0,0,0,0.3)' }}
-              />
-            )}
-
-            <p className="text-[13px] text-slate-600 leading-relaxed m-0 mb-4">{step.description}</p>
-
-            <div className="flex items-center justify-between gap-2">
-              <button onClick={prev} disabled={isFirst} className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed border-none bg-transparent cursor-pointer flex items-center gap-1 transition-colors">
-                <ChevronLeft size={14} /> Voltar
-              </button>
-              <span className="text-[10px] font-bold text-slate-400">{stepIdx + 1} / {safeSteps.length}</span>
-              <button onClick={next} className="px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white border-none cursor-pointer flex items-center gap-1 transition-colors shadow-md">
-                {isLast ? 'Concluir' : 'Próximo'}
-                {!isLast && <ChevronRight size={14} />}
-              </button>
-            </div>
+            <p className="text-[13px] text-slate-600 leading-relaxed m-0">{step.description}</p>
+            {Nav}
           </div>
         </motion.div>
       </motion.div>
