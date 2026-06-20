@@ -18,8 +18,7 @@ import {
   Users2,
   Key,
   Unlock,
-  Megaphone,
-  HelpCircle
+  Megaphone
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -65,7 +64,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   // Tour da plataforma (percorre o menu lateral). Só abre pelo botão no menu OU
   // por um evento global (botão na aba Projetos dispara 'lbw-open-menu-tour').
   const [menuTourOpen, setMenuTourOpen] = useState(false);
-  const menuTour = { openTour: () => setMenuTourOpen(true) };
   useEffect(() => {
     const abrir = () => setMenuTourOpen(true);
     window.addEventListener('lbw-open-menu-tour', abrir);
@@ -191,16 +189,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
               {isSidebarOpen && <span>{item.name}</span>}
             </Link>
           ))}
-          {/* Botão pra rever o tour do menu, sempre disponível */}
-          <button
-            onClick={() => menuTour.openTour()}
-            data-tour-id="menu-tour-btn"
-            className="w-full flex items-center gap-3 p-3 rounded-lg transition-colors hover:bg-gray-700 text-gray-300 border-none bg-transparent cursor-pointer"
-            title="Fazer o tour da plataforma"
-          >
-            <HelpCircle size={20} />
-            {isSidebarOpen && <span>Tour da plataforma</span>}
-          </button>
         </nav>
 
         {/* Rodapé: CTA de compra — só para aluno gratuito */}

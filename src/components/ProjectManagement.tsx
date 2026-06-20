@@ -546,10 +546,10 @@ export default function ProjectManagement() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4" data-tour-id="proj-coluna">
         <UpgradeBanner variant="compact" className="shrink-0" mensagem="Plano gratuito: libere todas as ferramentas dos seus projetos." />
         {/* Top Section: Meus Projetos Ativos (DROPDOWN) */}
-        <div className="shrink-0">
+        <div className="shrink-0" data-tour-id="proj-ativos">
           {loading ? (
             <div className="flex items-center gap-3 py-4 text-gray-400 text-xs italic bg-white rounded-2xl border border-gray-100 justify-center">
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -770,7 +770,7 @@ export default function ProjectManagement() {
                   </div>
 
                   {/* Lista de trilhas — clique abre o popup direto */}
-                  <div className="space-y-2 mb-2">
+                  <div className="space-y-2 mb-2" data-tour-id="proj-trilhas">
                     {initiatives
                       .filter(i => !i.parentId)
                       .sort((a, b) => {

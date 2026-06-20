@@ -22,36 +22,15 @@ interface MenuTourStep {
 
 const STEPS: MenuTourStep[] = [
   {
-    selector: '[data-tour-id="menu-/projects"]',
-    title: 'Projetos',
-    description:
-      'O coração da plataforma. Você escolhe uma trilha e cria um projeto. Cada trilha tem FASES; cada fase traz as FERRAMENTAS daquela etapa; e cada ferramenta tem um VÍDEO de suporte do Israel pra te guiar.',
+    selector: '[data-tour-id="proj-coluna"]',
+    title: 'Comece por aqui',
+    description: 'Em cima ficam os seus projetos já ativos (clique pra abrir e continuar). Embaixo, a lista de trilhas — cada uma resolve um tipo de problema. Escolha uma trilha pra criar um novo projeto.',
+  },
+  {
+    selector: '[data-tour-id="proj-coluna"]',
+    title: 'Como funciona um projeto',
+    description: 'Ao abrir um projeto, cada trilha tem FASES; cada fase traz as FERRAMENTAS daquela etapa; e à direita fica o agente Israel digital, associado a cada ferramenta pra te orientar.',
     image: '/tour-projetos.png',
-  },
-  {
-    selector: '[data-tour-id="menu-/analysis"]',
-    title: 'Data & Analysis',
-    description: 'Aqui você faz as análises gráficas e estatísticas dos seus dados — sem precisar programar. Sobe a planilha e o Mentor gera os gráficos e a interpretação.',
-  },
-  {
-    selector: '[data-tour-id="menu-/education"]',
-    title: 'Educação',
-    description: 'Acesso aos vídeos com as explicações do Israel, organizados por tema. É onde você aprende a teoria por trás de cada ferramenta.',
-  },
-  {
-    selector: '[data-tour-id="menu-/chat"]',
-    title: 'AI Assistant',
-    description: 'Converse com o assistente pra descobrir qual trilha resolve o seu desafio. Ele te ouve e recomenda o melhor caminho.',
-  },
-  {
-    selector: '[data-tour-id="menu-/comunidade"]',
-    title: 'Comunidade LBW',
-    description: 'Troque experiências com outros alunos — dúvidas, conquistas e aprendizados. Quanto mais você participa, mais aprende.',
-  },
-  {
-    selector: '[data-tour-id="menu-/dashboard"]',
-    title: 'Dashboard',
-    description: 'Acompanhe seu progresso na plataforma — o que você já fez e o que vem a seguir.',
   },
 ];
 
@@ -117,13 +96,30 @@ export default function MenuTour({ isOpen, onClose }: Props) {
   const prev = () => setStepIdx(s => Math.max(0, s - 1));
 
   const PAD = 8;
-  // Tooltip aparece à DIREITA do item de menu destacado.
-  const TOOLTIP_W = step.image ? 460 : 340;
-  let top = rect ? rect.top : 100;
-  let left = rect ? rect.right + 20 : 100;
-  // clamp vertical e horizontal
-  left = Math.min(left, window.innerWidth - TOOLTIP_W - 16);
-  top = Math.max(16, Math.min(top, window.innerHeight - 320));
+  const TOOLTIP_W = step.image ? 460 : 360;
+  // Posiciona o tooltip onde houver espaço: à direita do alvo se couber, senão
+  // à esquerda; se o alvo for largo (ocupa o centro), centraliza na tela.
+  let top: number;
+  let left: number;
+  if (!rect) {
+    top = 100; left = 100;
+  } else {
+    const espacoDireita = window.innerWidth - rect.right;
+    const espacoEsquerda = rect.left;
+    if (espacoDireita >= TOOLTIP_W + 24) {
+      left = rect.right + 20;
+      top = rect.top;
+    } else if (espacoEsquerda >= TOOLTIP_W + 24) {
+      left = rect.left - TOOLTIP_W - 20;
+      top = rect.top;
+    } else {
+      // alvo largo: centraliza horizontalmente, tooltip logo abaixo do topo do alvo
+      left = (window.innerWidth - TOOLTIP_W) / 2;
+      top = Math.min(rect.top + 24, window.innerHeight - 360);
+    }
+    left = Math.max(16, Math.min(window.innerWidth - TOOLTIP_W - 16, left));
+    top = Math.max(16, Math.min(top, window.innerHeight - 340));
+  }
 
   return (
     <AnimatePresence>
