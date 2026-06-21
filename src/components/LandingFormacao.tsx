@@ -391,7 +391,13 @@ export default function LandingFormacao() {
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#9FC0FF', marginBottom: 14 }}>Institucional</div>
-            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 2.1 }}>Quem somos<br/>Contato<br/>Pacotes corporativos<br/>Termos de uso<br/>Política de privacidade</div>
+            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 2.1 }}>
+              <a href="/quem-somos" target="_blank" rel="noopener noreferrer">Quem somos</a><br/>
+              <a href="/contato" target="_blank" rel="noopener noreferrer">Contato</a><br/>
+              <a href="/pacotes-corporativos" target="_blank" rel="noopener noreferrer">Pacotes corporativos</a><br/>
+              <a href="/termos" target="_blank" rel="noopener noreferrer">Termos de uso</a><br/>
+              <a href="/privacidade" target="_blank" rel="noopener noreferrer">Política de privacidade</a>
+            </div>
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#9FC0FF', marginBottom: 14 }}>Fale com a gente</div>

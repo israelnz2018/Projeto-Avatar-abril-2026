@@ -48,6 +48,7 @@ const CertificatePage = lazy(() => import('./components/CertificatePage').then(m
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
 const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
+const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -349,7 +350,8 @@ export default function App() {
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
     // As landings de venda/captação e a verificação de certificado têm prioridade
     // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
-    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/');
+    const ROTAS_INSTITUCIONAIS = ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
     if (isSitePublico && !rotaReservada) {
       return (
         <Router>
@@ -390,6 +392,14 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-emerald-900 border-t-emerald-500 rounded-full animate-spin" /></div>}>
         <LandingComecar />
+      </Suspense>
+    );
+  }
+  // Páginas institucionais públicas (links do rodapé) — bypass do login.
+  if (typeof window !== 'undefined' && ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'].some(r => window.location.pathname.startsWith(r))) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
+        <LandingInstitucional />
       </Suspense>
     );
   }

@@ -489,7 +489,11 @@ function RodapeInstitucional() {
         <div>
           <div style={eyebrow}>Institucional</div>
           <div style={{ fontSize: 13, color: txt2, lineHeight: 2.1 }}>
-            Quem somos<br/>Contato<br/>Pacotes corporativos<br/>Termos de uso<br/>Política de privacidade
+            <a href="/quem-somos" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Quem somos</a><br/>
+            <a href="/contato" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Contato</a><br/>
+            <a href="/pacotes-corporativos" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Pacotes corporativos</a><br/>
+            <a href="/termos" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Termos de uso</a><br/>
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Política de privacidade</a>
           </div>
         </div>
         <div>
