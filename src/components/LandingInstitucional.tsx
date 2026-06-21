@@ -41,15 +41,15 @@ function Quem() {
       <p>A <strong>Learning by Working — Educação pelo Trabalho</strong> nasceu de uma constatação simples: ninguém aprende a resolver problema de verdade só assistindo aula. Aprende fazendo.</p>
       <p>Somos uma plataforma de educação corporativa aplicada que une vídeo-aulas, ferramentas que executam o trabalho com você e um mentor digital baseado na experiência real do nosso fundador, Israel Souza — mais de 20 anos resolvendo problemas em multinacionais de bebida, automotiva, petroquímica, equipamentos médicos e setor público.</p>
       <h2>Missão</h2>
-      <p>Formar profissionais capazes de resolver problemas e entregar resultado com método — da adaptação a uma área nova até se tornarem especialistas em gerenciamento de projetos de melhoria, aprendendo na prática.</p>
+      <p>Formar profissionais capazes de resolver problemas e entregar resultados tangíveis com rapidez — da adaptação a uma área nova até se tornarem especialistas em gerenciamento de projetos de melhoria, aprendendo na prática.</p>
       <h2>Visão</h2>
-      <p>Ser a referência em educação aplicada para quem quer evoluir tecnicamente na carreira: uma jornada completa, das ferramentas do dia a dia ao domínio de projetos de melhoria complexos.</p>
+      <p>Ser a referência em educação aplicada para quem quer evoluir na carreira técnica e em gestão — formando, por uma jornada completa e prática, especialistas em gerenciamento de projetos de melhoria.</p>
       <h2>Valores</h2>
       <ul>
         <li><strong>Prática acima da teoria</strong> — ensinamos o que funciona no mundo real e já foi aplicado.</li>
         <li><strong>Resultado de verdade</strong> — o que importa é o que o profissional entrega, não o certificado na parede.</li>
         <li><strong>Simplicidade</strong> — método claro e ferramentas que executam com você, sem jargão.</li>
-        <li><strong>Honestidade</strong> — sem hype: prático, real e concreto.</li>
+        <li><strong>Transparência</strong> — sem romantismo ou faz de conta no mundo corporativo.</li>
         <li><strong>Evolução contínua</strong> — cada trilha acrescenta uma camada, até o ápice de especialista em gerenciamento de projetos de melhoria.</li>
       </ul>
       <h2>Como fazemos</h2>
