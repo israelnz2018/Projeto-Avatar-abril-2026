@@ -102,6 +102,13 @@ function Termos() {
       <p>Para usar o Serviço você cria uma conta com nome e e-mail válidos. Você é responsável por manter a confidencialidade da sua senha e por toda atividade na sua conta.</p>
       <h2>2. Acesso gratuito e pago</h2>
       <p>Oferecemos uma trilha gratuita e planos pagos com acesso ampliado. O acesso pago é concedido conforme o plano adquirido e pode ter prazo de validade informado no momento da compra.</p>
+      <h2>2.1. Sobre o acesso gratuito</h2>
+      <p>O acesso gratuito pode ocorrer de duas formas, e em ambas <strong>não há cobrança</strong>:</p>
+      <ul>
+        <li><strong>Trilha 1 gratuita:</strong> liberada para qualquer pessoa que se cadastre com nome e e-mail, sem necessidade de cartão. Inclui a primeira trilha completa, o software LBW, o Mentor Israel digital e o certificado da Trilha 1.</li>
+        <li><strong>Acesso completo como cortesia:</strong> em ações pontuais (ex: convidados, parceiros ou promoções), podemos conceder acesso completo às 8 trilhas de forma gratuita. Esse acesso de cortesia pode ter <strong>prazo de validade</strong> informado no momento da concessão; ao fim do prazo, a conta retorna automaticamente ao acesso gratuito (Trilha 1), sem cobrança.</li>
+      </ul>
+      <p>O acesso gratuito é pessoal e intransferível e segue as mesmas regras de uso adequado descritas neste documento.</p>
       <h2>3. Uso adequado</h2>
       <p>Você concorda em não compartilhar suas credenciais, não copiar ou redistribuir o conteúdo, e usar o Serviço apenas para fins legais e pessoais (ou conforme o pacote corporativo contratado).</p>
       <h2>4. Propriedade intelectual</h2>

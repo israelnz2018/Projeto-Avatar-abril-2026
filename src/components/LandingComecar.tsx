@@ -232,7 +232,7 @@ export default function LandingComecar() {
           <div>
             <span className="eyebrow">🎁 100% grátis · sem cartão</span>
             <h1>Sua primeira entrega <span className="grad">nos primeiros 30 dias.</span></h1>
-            <p className="lead">Em vez de estudar 40 horas de teoria, você <b style={{ color: '#fff' }}>aprende fazendo</b>. A primeira trilha resolve dois problemas reais de quem está começando:</p>
+            <p className="lead">Em vez de estudar dezenas e dezenas de horas de teoria, você <b style={{ color: '#fff' }}>aprende fazendo</b>. A primeira trilha resolve dois problemas reais de quem está começando:</p>
             <ul className="checklist">
               <li><span className="c">①</span> <span><b style={{ color: '#fff' }}>Chegar numa área (ou empresa) nova</b> e se adaptar rápido, sem se perder.</span></li>
               <li><span className="c">②</span> <span><b style={{ color: '#fff' }}>Resolver os problemas do dia a dia</b> de forma estruturada — e mostrar resultado.</span></li>
@@ -253,7 +253,7 @@ export default function LandingComecar() {
       <section className="sec" style={{ background: 'linear-gradient(180deg,#070A18,#0a1024)' }}>
         <div className="wrap">
           <div className="sec-head">
-            <span className="eyebrow">Trilha 1 · grátis pra sempre</span>
+            <span className="eyebrow">Trilha 1 · acesse agora mesmo!</span>
             <h2>As ferramentas que você <span className="grad">já usa de graça</span></h2>
             <p>Tudo isso liberado na primeira trilha — você aplica no seu próprio trabalho enquanto aprende.</p>
           </div>
@@ -283,7 +283,7 @@ export default function LandingComecar() {
             </div>
             <div className="triocard">
               <div className="imgph">imagem</div>
-              <div className="body"><div className="e">🏅</div><h3>Certificado da Trilha 1</h3><p>Conclua no tempo mínimo (cerca de 30 dias) e leve o certificado da sua primeira trilha — de graça.</p></div>
+              <div className="body"><div className="e">🏅</div><h3>Certificado da Trilha 1</h3><p>Conclua no seu próprio tempo e leve o certificado da sua primeira trilha — de graça.</p></div>
             </div>
           </div>
         </div>
@@ -294,14 +294,14 @@ export default function LandingComecar() {
         <div className="about">
           <div className="photo">foto do Israel</div>
           <div>
-            <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(159,192,255,.08)', borderColor: 'rgba(159,192,255,.22)' }}>Quem te ensina</span>
+            <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(159,192,255,.08)', borderColor: 'rgba(159,192,255,.22)' }}>Seu consultor</span>
             <h2 style={{ fontSize: 28, margin: '14px 0 12px' }}>Olá, sou o <span className="gradblue">Israel Souza</span></h2>
-            <p style={{ color: 'var(--txt)', lineHeight: 1.6 }}>Mais de 20 anos resolvendo problema de verdade em multinacionais de bebida, automotiva, petroquímica e setor público. Não ensino teoria — ensino o que apliquei na prática e gerou resultado real.</p>
+            <p style={{ color: 'var(--txt)', lineHeight: 1.6 }}>Mais de 20 anos resolvendo problema de verdade em multinacionais de bebida, automotiva, petroquímica, equipamentos médicos e setor público. Não ensino teoria — ensino o que apliquei na prática e que gerou resultado real.</p>
             <div className="badges">
               <div className="bdg"><div className="n">20+</div><div className="l">anos de prática</div></div>
               <div className="bdg"><div className="n">4</div><div className="l">multinacionais</div></div>
               <div className="bdg"><div className="n">+1.500</div><div className="l">profissionais formados</div></div>
-              <div className="bdg"><div className="n">US$ 20MM</div><div className="l">em ganhos/ano</div></div>
+              <div className="bdg" style={{ flexBasis: '100%' }}><div className="n">+US$ 20MM</div><div className="l">em ganhos nos meus projetos ou dos meus mentorados</div></div>
             </div>
           </div>
         </div>
@@ -313,7 +313,7 @@ export default function LandingComecar() {
           <div className="sec-head">
             <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(159,192,255,.08)', borderColor: 'rgba(159,192,255,.22)' }}>Depois da trilha 1…</span>
             <h2>A trilha 1 é só o começo da <span className="gradblue">jornada</span></h2>
-            <p>Quando quiser ir além, a formação completa abre mais 7 trilhas — cada uma acrescenta uma camada nova até você virar especialista em projetos de melhoria.</p>
+            <p>Quando quiser ir além, a formação completa abre mais 7 trilhas — cada uma acrescenta uma camada nova até você virar especialista em gerenciamento de projetos de melhoria.</p>
           </div>
         </div>
         <div className="wrap netwrap">
