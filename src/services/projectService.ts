@@ -162,21 +162,25 @@ export const getAllProjectToolData = async (projectId: string) => {
   }
 };
 
-export const deleteProjectToolData = async (projectId: string, toolType: string) => {
+export const deleteProjectToolData = async (projectId: string, toolType: string, toolId?: string) => {
   const path = `projects/${projectId}/data/${toolType}`;
   try {
     const dataRef = doc(db, 'projects', projectId, 'data', toolType);
     await deleteDoc(dataRef);
-    
-    // Also remove from completedTools if it exists
+
+    // Remove de completedTools. O 'verde' é gravado pelo toolId puro
+    // (markToolAsCompleted), mas a chave de dados pode ser storageKey
+    // (ex: "Fase_toolId" pra ferramentas fora da fase padrão). Por isso
+    // removemos tanto o storageKey quanto o toolId, pra não deixar o
+    // status preso em verde após excluir os dados.
     const projectRef = doc(db, 'projects', projectId);
     const projectSnap = await getDoc(projectRef);
     if (projectSnap.exists()) {
-      const completedTools = projectSnap.data().completedTools || [];
-      if (completedTools.includes(toolType)) {
-        await updateDoc(projectRef, {
-          completedTools: completedTools.filter((id: string) => id !== toolType)
-        });
+      const completedTools: string[] = projectSnap.data().completedTools || [];
+      const remover = new Set([toolType, ...(toolId ? [toolId] : [])]);
+      const novo = completedTools.filter((id: string) => !remover.has(id));
+      if (novo.length !== completedTools.length) {
+        await updateDoc(projectRef, { completedTools: novo });
       }
     }
   } catch (error) {

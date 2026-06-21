@@ -545,7 +545,7 @@ useEffect(() => {
       const phaseId = filteredPhases[currentPhaseIndex].id;
       const storageKey = getToolStorageKey(activeToolId, phaseId);
       
-      await deleteProjectToolData(projectId, storageKey);
+      await deleteProjectToolData(projectId, storageKey, activeToolId);
       
       setProjectData(prev => {
         const updated = { ...prev };
