@@ -39,12 +39,22 @@ function Quem() {
   return (
     <>
       <p>A <strong>Learning by Working — Educação pelo Trabalho</strong> nasceu de uma constatação simples: ninguém aprende a resolver problema de verdade só assistindo aula. Aprende fazendo.</p>
-      <p>Somos uma plataforma de educação aplicada que une vídeo-aulas, ferramentas que executam o trabalho com você e um mentor digital baseado na experiência real do nosso fundador, Israel Souza — mais de 20 anos resolvendo problemas em multinacionais de bebida, automotiva, petroquímica e setor público.</p>
-      <h2>O que nos move</h2>
-      <p>Transformar profissionais comuns em pessoas que chegam numa área nova, entendem o problema, entregam resultado rápido e sabem mostrar o valor do que fizeram — sem depender de teoria que não se aplica no dia a dia.</p>
+      <p>Somos uma plataforma de educação corporativa aplicada que une vídeo-aulas, ferramentas que executam o trabalho com você e um mentor digital baseado na experiência real do nosso fundador, Israel Souza — mais de 20 anos resolvendo problemas em multinacionais de bebida, automotiva, petroquímica, equipamentos médicos e setor público.</p>
+      <h2>Missão</h2>
+      <p>Formar profissionais capazes de resolver problemas e entregar resultado com método — da adaptação a uma área nova até se tornarem especialistas em gerenciamento de projetos de melhoria, aprendendo na prática.</p>
+      <h2>Visão</h2>
+      <p>Ser a referência em educação aplicada para quem quer evoluir tecnicamente na carreira: uma jornada completa, das ferramentas do dia a dia ao domínio de projetos de melhoria complexos.</p>
+      <h2>Valores</h2>
+      <ul>
+        <li><strong>Prática acima da teoria</strong> — ensinamos o que funciona no mundo real e já foi aplicado.</li>
+        <li><strong>Resultado de verdade</strong> — o que importa é o que o profissional entrega, não o certificado na parede.</li>
+        <li><strong>Simplicidade</strong> — método claro e ferramentas que executam com você, sem jargão.</li>
+        <li><strong>Honestidade</strong> — sem hype: prático, real e concreto.</li>
+        <li><strong>Evolução contínua</strong> — cada trilha acrescenta uma camada, até o ápice de especialista em gerenciamento de projetos de melhoria.</li>
+      </ul>
       <h2>Como fazemos</h2>
       <ul>
-        <li>Trilhas práticas, do básico ao nível especialista em projetos de melhoria.</li>
+        <li>Trilhas práticas que se complementam — da adaptação a uma área nova até o nível de especialista em gerenciamento de projetos de melhoria.</li>
         <li>Ferramentas (SIPOC, RACI, Ishikawa, análise de dados e muito mais) que se preenchem com o seu projeto real.</li>
         <li>O Mentor Israel digital, que responde com base nos vídeos do próprio Israel.</li>
       </ul>
