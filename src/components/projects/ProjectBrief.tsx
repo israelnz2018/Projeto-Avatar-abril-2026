@@ -86,34 +86,47 @@ export default function ProjectBrief({
 
   const isToolEmpty = Object.values(answers).every(val => !val) && images.length === 0;
 
+  // GUT = gravidade × urgência × tendência (produto). RAB = rapidez + autonomia
+  // + benefício (soma). Lê os campos reais; se faltar algum, ignora no cálculo.
+  const calcGut = (p: any): number | null => {
+    const g = Number(p?.gravidade), u = Number(p?.urgencia), t = Number(p?.tendencia);
+    if ([g, u, t].some(n => isNaN(n))) return null;
+    return g * u * t;
+  };
+  const calcRab = (p: any): number | null => {
+    const r = Number(p?.rapidez), a = Number(p?.autonomia), b = Number(p?.beneficio);
+    if ([r, a, b].some(n => isNaN(n))) return null;
+    return r + a + b;
+  };
+
   const getUniqueProjects = () => {
     const allTitles = new Set<string>();
-    const combined: { title: string }[] = [];
+    const combined: { title: string; score: number | null; fonte: string }[] = [];
 
-    // Fonte 1 — Ideia de Projetos
+    // Fonte 1 — Ideia de Projetos (sem pontuação)
     ideaProjects.forEach((p: any) => {
       const title = p?.title?.trim();
       if (title && !allTitles.has(title)) {
         allTitles.add(title);
-        combined.push({ title });
+        combined.push({ title, score: null, fonte: 'Ideia' });
       }
     });
 
-    // Fonte 2 — GUT
+    // Fonte 2 — GUT (mostra o valor G×U×T na mesma linha)
     gutProjects.forEach((p: any) => {
       const title = p?.description?.trim();
       if (title && !allTitles.has(title)) {
         allTitles.add(title);
-        combined.push({ title });
+        combined.push({ title, score: calcGut(p), fonte: 'GUT' });
       }
     });
 
-    // Fonte 3 — RAB
+    // Fonte 3 — RAB (mostra o valor R+A+B na mesma linha)
     rabProjects.forEach((p: any) => {
       const title = p?.description?.trim();
       if (title && !allTitles.has(title)) {
         allTitles.add(title);
-        combined.push({ title });
+        combined.push({ title, score: calcRab(p), fonte: 'RAB' });
       }
     });
 
@@ -231,7 +244,9 @@ export default function ProjectBrief({
                 </option>
               )}
               {projectIdeas.map((p, idx) => (
-                <option key={idx} value={p.title}>{p.title}</option>
+                <option key={idx} value={p.title}>
+                  {p.score != null ? `${p.title}  ·  ${p.fonte}: ${p.score}` : p.title}
+                </option>
               ))}
             </select>
 
