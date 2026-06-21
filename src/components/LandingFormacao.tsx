@@ -395,7 +395,7 @@ export default function LandingFormacao() {
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#9FC0FF', marginBottom: 14 }}>Fale com a gente</div>
-            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 1.9 }}><a href="mailto:contact@learningbyworking.com">contact@learningbyworking.com</a><br/>LinkedIn</div>
+            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 1.9 }}><a href="mailto:contact@learningbyworking.com">contact@learningbyworking.com</a><br/><a href="https://www.linkedin.com/in/israel-cavalcanti-de-souza-mbb-pmp-mba-9244a320/" target="_blank" rel="noopener noreferrer">LinkedIn</a></div>
           </div>
         </div>
         <div style={{ maxWidth: 1100, margin: '36px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,.08)', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.7 }}>
