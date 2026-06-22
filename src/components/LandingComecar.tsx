@@ -9,11 +9,55 @@
  *
  * Mesma linguagem visual da /formacao, com destaque VERDE (grátis).
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useInView } from 'motion/react';
 import {
   Network, ListChecks, Users, BarChart3, GitBranch, Lightbulb, Fish, LineChart,
   Sparkles, Grid3x3, HelpCircle, Scale, ClipboardList, ArrowLeftRight,
 } from 'lucide-react';
+
+/** Revela o conteúdo com fade + slide-up quando entra na viewport (1x). */
+function Reveal({ children, delay = 0, y = 26, className, style }: {
+  children: React.ReactNode; delay?: number; y?: number; className?: string; style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: '-12% 0px' });
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      style={style}
+      initial={{ opacity: 0, y }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/**
+ * Parallax leve do site inteiro: escreve --mx/--my (-1..1) na raiz conforme o
+ * mouse. Elementos usam essas vars no transform via CSS — sem re-render React.
+ */
+function useMouseParallax(ref: React.RefObject<HTMLElement>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || window.matchMedia('(hover: none)').matches) return;
+    let raf = 0;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const mx = (e.clientX / window.innerWidth - 0.5) * 2;
+        const my = (e.clientY / window.innerHeight - 0.5) * 2;
+        el.style.setProperty('--mx', mx.toFixed(3));
+        el.style.setProperty('--my', my.toFixed(3));
+      });
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => { window.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
+  }, [ref]);
+}
 
 const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
 
@@ -117,6 +161,41 @@ const CSS = `
   .lc .about{grid-template-columns:1fr;gap:20px}
 }
 @media(max-width:560px){ .lc .tgrid{grid-template-columns:1fr 1fr} .lc .duo,.lc .trio{grid-template-columns:1fr} }
+/* ====== MOVIMENTO / VIDA ====== */
+.lc{--mx:0;--my:0}
+/* orbs do hero seguem o mouse (parallax suave) + respiram */
+.lc .orb{transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.lc .orbA{transform:translate(calc(var(--mx)*26px),calc(var(--my)*26px))}
+.lc .orbB{transform:translate(calc(var(--mx)*-32px),calc(var(--my)*-22px))}
+/* form card flutua de leve seguindo o mouse */
+.lc .formcard{transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.lc .herogrid:hover .formcard{transform:translate(calc(var(--mx)*-8px),calc(var(--my)*-8px))}
+/* hover nos cards do catálogo e dos 3 blocos */
+.lc .toolcard{transition:transform .25s cubic-bezier(.22,1,.36,1),border-color .25s,background .25s}
+.lc .toolcard:hover{transform:translateY(-4px);border-color:rgba(16,185,129,.6);background:rgba(16,185,129,.08)}
+.lc .triocard{transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s}
+.lc .triocard:hover{transform:translateY(-6px);box-shadow:0 26px 54px -24px rgba(0,0,0,.7);border-color:rgba(16,185,129,.4)}
+/* badges do "sobre" reagem ao mouse */
+.lc .about .bdg{transition:transform .25s cubic-bezier(.22,1,.36,1),border-color .25s}
+.lc .about .bdg:hover{transform:translateY(-3px) scale(1.03);border-color:rgba(159,192,255,.5)}
+/* foto e photo placeholder seguem o mouse de leve */
+.lc .about .photo{transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.lc .about:hover .photo{transform:translate(calc(var(--mx)*6px),calc(var(--my)*6px)) scale(1.01)}
+/* botões com brilho que percorre */
+.lc .btn-green,.lc .btn-blue{position:relative;overflow:hidden}
+.lc .btn-green::after,.lc .btn-blue::after{content:'';position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:lc-shine 4.5s ease-in-out infinite}
+@keyframes lc-shine{0%,60%{left:-120%}80%,100%{left:130%}}
+/* trilhas Netflix correndo sozinhas pra esquerda (pausa no hover) */
+.lc .netwrap{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.lc .nettrack{animation:lc-netscroll 60s linear infinite}
+.lc .netwrap:hover .nettrack{animation-play-state:paused}
+@keyframes lc-netscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.lc .netcard{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.lc .netcard:hover{transform:translateY(-8px) scale(1.04);box-shadow:0 28px 56px -22px rgba(0,0,0,.8);z-index:2}
+@media(prefers-reduced-motion:reduce){
+  .lc .cattrack,.lc .nettrack,.lc .btn-green::after,.lc .btn-blue::after{animation:none}
+  .lc .orbA,.lc .orbB,.lc .formcard,.lc .about .photo{transform:none}
+}
 `;
 
 type FormState = 'idle' | 'sending' | 'ok' | 'ja-existe' | 'err';
@@ -178,7 +257,7 @@ function LeadForm() {
       <input type="email" placeholder="Seu melhor e-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left', margin: '4px 0 14px', fontSize: 13, color: 'var(--txt)', cursor: 'pointer' }}>
         <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, accentColor: '#10B981', cursor: 'pointer' }} />
-        <span>Li e concordo com os <a href="#" target="_blank" rel="noopener noreferrer" style={{ color: '#6ee7b7', textDecoration: 'underline' }}>termos e condições</a> do acesso gratuito.</span>
+        <span>Li e concordo com os <a href="/termos" target="_blank" rel="noopener noreferrer" style={{ color: '#6ee7b7', textDecoration: 'underline' }}>termos e condições</a> do acesso gratuito.</span>
       </label>
       {msg && <p className="msg" style={{ color: '#fca5a5', marginTop: 0, marginBottom: 8 }}>{msg}</p>}
       <button className="send" onClick={enviar} disabled={state === 'sending'}>
@@ -221,8 +300,10 @@ const TRILHAS_NET = [
 ];
 
 export default function LandingComecar() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useMouseParallax(rootRef);
   return (
-    <div className="lc">
+    <div className="lc" ref={rootRef}>
       <style>{CSS}</style>
 
       {/* HERO com form fixo */}
@@ -252,11 +333,11 @@ export default function LandingComecar() {
       {/* TRILHA 1 — catálogo de ferramentas (carrossel) */}
       <section className="sec" style={{ background: 'linear-gradient(180deg,#070A18,#0a1024)' }}>
         <div className="wrap">
-          <div className="sec-head">
+          <Reveal className="sec-head">
             <span className="eyebrow">Trilha 1 · acesse agora mesmo!</span>
             <h2>As ferramentas que você <span className="grad">já usa de graça</span></h2>
             <p>Tudo isso liberado na primeira trilha — você aplica no seu próprio trabalho enquanto aprende.</p>
-          </div>
+          </Reveal>
         </div>
         {/* Carrossel infinito: a lista é duplicada pra o loop ser contínuo */}
         <div className="catwrap">
@@ -273,25 +354,25 @@ export default function LandingComecar() {
         {/* 3 blocos: vídeos · mentor · certificado (imagem no topo) */}
         <div className="wrap" style={{ marginTop: 36 }}>
           <div className="trio">
-            <div className="triocard">
+            <Reveal className="triocard" delay={0}>
               <div className="imgph">imagem</div>
               <div className="body"><div className="e">🎬</div><h3>Vídeo-aulas de cada ferramenta</h3><p>Para cada ferramenta há vídeos do Israel ensinando quando usar e como preencher — é só clicar e assistir no ponto que interessa.</p></div>
-            </div>
-            <div className="triocard">
+            </Reveal>
+            <Reveal className="triocard" delay={0.1}>
               <div className="imgph">imagem</div>
               <div className="body"><div className="e">🤖</div><h3>Mentor Israel digital incluído</h3><p>Responde como o próprio Israel responderia, com base nos nossos vídeos e no método LBW. Te ajuda a destravar o seu projeto.</p></div>
-            </div>
-            <div className="triocard">
+            </Reveal>
+            <Reveal className="triocard" delay={0.2}>
               <div className="imgph">imagem</div>
               <div className="body"><div className="e">🏅</div><h3>Certificado da Trilha 1</h3><p>Conclua no seu próprio tempo e leve o certificado da sua primeira trilha — de graça.</p></div>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
       {/* SOBRE O ISRAEL (enxuto) */}
       <section className="sec" style={{ background: '#070A18' }}>
-        <div className="about">
+        <Reveal className="about">
           <div className="photo">foto do Israel</div>
           <div>
             <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(159,192,255,.08)', borderColor: 'rgba(159,192,255,.22)' }}>Seu consultor</span>
@@ -304,22 +385,22 @@ export default function LandingComecar() {
               <div className="bdg" style={{ flexBasis: '100%' }}><div className="n">+US$ 20MM</div><div className="l">em ganhos nos meus projetos ou dos meus mentorados</div></div>
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* UPSELL — 8 trilhas estilo Netflix (carrossel) */}
       <section className="sec" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 0%,rgba(0,51,204,.14),transparent 60%),#070A18' }}>
         <div className="wrap">
-          <div className="sec-head">
+          <Reveal className="sec-head">
             <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(159,192,255,.08)', borderColor: 'rgba(159,192,255,.22)' }}>Depois da trilha 1…</span>
             <h2>A trilha 1 é só o começo da <span className="gradblue">jornada</span></h2>
             <p>Quando quiser ir além, a formação completa abre mais 7 trilhas — cada uma acrescenta uma camada nova até você virar especialista em gerenciamento de projetos de melhoria.</p>
-          </div>
+          </Reveal>
         </div>
-        <div className="wrap netwrap">
-          <div className="nettrack">
-            {TRILHAS_NET.map((t) => (
-              <div className="netcard" key={t.n} style={{ background: t.bg, borderColor: t.topo ? 'rgba(159,192,255,.45)' : undefined }}>
+        <div className="netwrap">
+          <div className="nettrack" style={{ display: 'flex', gap: 16, width: 'max-content', padding: '0 2px' }}>
+            {[...TRILHAS_NET, ...TRILHAS_NET].map((t, i) => (
+              <div className="netcard" key={i} style={{ background: t.bg, borderColor: t.topo ? 'rgba(159,192,255,.45)' : undefined }}>
                 {t.free && <span className="nbadge" style={{ background: '#04241a', color: '#6ee7b7' }}>GRÁTIS</span>}
                 {t.topo && <span className="nbadge" style={{ background: '#1E2D6E', color: '#fff', border: '1px solid rgba(159,192,255,.5)' }}>🏆 LBW</span>}
                 <div className="nnum">{t.n}</div>
@@ -336,12 +417,12 @@ export default function LandingComecar() {
 
       {/* CTA FINAL */}
       <section className="final">
-        <div className="wrap" style={{ maxWidth: 600 }}>
+        <Reveal className="wrap" style={{ maxWidth: 600 }}>
           <h2>Comece ainda hoje.</h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,.9)', marginBottom: 28 }}>Sua primeira entrega de verdade tá a um passo de um clique. Sem cartão, sem enrolação.</p>
           <a className="btn" href="#topo" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ background: '#fff', color: '#059669', fontSize: 17, padding: '18px 42px' }}>Criar minha conta grátis →</a>
           <p style={{ marginTop: 16, fontSize: 14, color: 'rgba(255,255,255,.8)' }}>🎁 Trilha 1 completa + vídeo-aulas para cada ferramenta + software LBW + Mentor Israel digital + certificado</p>
-        </div>
+        </Reveal>
       </section>
 
       {/* FOOTER */}
