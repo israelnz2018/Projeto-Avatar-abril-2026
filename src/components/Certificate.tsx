@@ -82,9 +82,21 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
       <style>{`
         @media print {
           @page { size: A4 landscape; margin: 0; }
-          html, body { background: white !important; }
+          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
           .no-print { display: none !important; }
-          .cert-paper { box-shadow: none !important; border-radius: 0 !important; max-width: 100% !important; width: 100% !important; page-break-after: avoid; }
+          /* A folha preenche o A4 paisagem inteiro (297×210mm), página única. */
+          .cert-paper {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            position: fixed !important;
+            top: 0 !important; left: 0 !important;
+            width: 297mm !important;
+            height: 210mm !important;
+            max-width: none !important;
+            aspect-ratio: auto !important;
+            page-break-after: avoid;
+            page-break-inside: avoid;
+          }
           .cert-bg-print { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
