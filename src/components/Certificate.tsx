@@ -82,24 +82,32 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
       <style>{`
         @media print {
           @page { size: A4 landscape; margin: 0; }
-          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+          html, body {
+            background: white !important;
+            margin: 0 !important; padding: 0 !important;
+            width: 297mm !important; height: 210mm !important;
+            overflow: hidden !important;
+          }
           .no-print { display: none !important; }
-          /* Esconde TUDO na página… */
+          /* Esconde TUDO… */
           body * { visibility: hidden !important; }
-          /* …e mostra apenas a folha do certificado e seu conteúdo. */
+          /* …e mostra só a folha do certificado. */
           .cert-paper, .cert-paper * { visibility: visible !important; }
-          /* A folha preenche o A4 paisagem inteiro (297×210mm), página única. */
+          /* A folha preenche o A4 paisagem, página única (altura < 210mm evita 2ª folha). */
           .cert-paper {
             box-shadow: none !important;
             border-radius: 0 !important;
-            position: fixed !important;
+            position: absolute !important;
             top: 0 !important; left: 0 !important;
             width: 297mm !important;
-            height: 210mm !important;
+            height: 209mm !important;
             max-width: none !important;
             aspect-ratio: auto !important;
-            page-break-after: avoid;
-            page-break-inside: avoid;
+            overflow: hidden !important;
+            break-after: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
           }
           .cert-bg-print { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
@@ -189,20 +197,12 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>Consultor Sênior em Melhoria de Processos e Negócios</p>
           </div>
 
-          {/* QR (canto inferior esquerdo, dentro da moldura) */}
-          <div className="absolute flex items-end gap-2" style={{ left: '5%', bottom: '12%', maxWidth: '30%' }}>
-            <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0', flexShrink: 0 }}>
+          {/* QR + verificação: QR em cima, texto logo abaixo alinhado ao início do QR */}
+          <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '8%' }}>
+            <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
             </div>
-            <div style={{ textAlign: 'left', minWidth: 0 }}>
-              <p className="m-0" style={{ fontSize: 'clamp(6px,0.8vw,8.5px)', fontWeight: 700, letterSpacing: '0.1em', color: '#5B6472' }}>VERIFIQUE EM</p>
-              <p className="m-0" style={{ fontSize: 'clamp(6px,0.8vw,8.5px)', fontFamily: 'monospace', color: '#5B6472', whiteSpace: 'nowrap' }}>{verifyUrl.replace(/^https?:\/\//, '').replace(/\/verificar\/.*$/, '')}</p>
-            </div>
-          </div>
-
-          {/* Rodapé: link completo de verificação + Nº, numa linha só na base */}
-          <div className="absolute w-full text-center" style={{ bottom: '3.5%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: '#8A94A6', whiteSpace: 'nowrap' }}>
+            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: '#5B6472', whiteSpace: 'nowrap' }}>
               {verifyUrl.replace(/^https?:\/\//, '')} · Nº {certId}
             </p>
           </div>
