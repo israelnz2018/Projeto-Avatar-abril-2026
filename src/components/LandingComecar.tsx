@@ -132,7 +132,7 @@ const CSS = `
 /* 3 blocos (vídeos/mentor/certificado) com imagem no topo */
 .lc .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .lc .triocard{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
-.lc .triocard .imgph{aspect-ratio:16/9;width:100%;object-fit:cover;background:linear-gradient(150deg,#101a3a,#0a0f22);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px}
+.lc .triocard .imgph{aspect-ratio:4/3;width:100%;object-fit:cover;object-position:top;background:linear-gradient(150deg,#101a3a,#0a0f22);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px}
 .lc .triocard .body{padding:22px}
 .lc .triocard .e{font-size:24px;margin-bottom:10px}
 .lc .triocard h3{font-size:17px;font-weight:700;margin-bottom:8px}
