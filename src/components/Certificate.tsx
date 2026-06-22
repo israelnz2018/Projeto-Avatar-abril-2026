@@ -84,6 +84,10 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           @page { size: A4 landscape; margin: 0; }
           html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
           .no-print { display: none !important; }
+          /* Esconde TUDO na página… */
+          body * { visibility: hidden !important; }
+          /* …e mostra apenas a folha do certificado e seu conteúdo. */
+          .cert-paper, .cert-paper * { visibility: visible !important; }
           /* A folha preenche o A4 paisagem inteiro (297×210mm), página única. */
           .cert-paper {
             box-shadow: none !important;
