@@ -235,15 +235,6 @@ useEffect(() => {
     }
   };
 
-  // Aviso nativo do browser ao fechar aba / refresh com dados sujos.
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isToolDirty) { e.preventDefault(); e.returnValue = ''; }
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isToolDirty]);
-
   // Ao trocar de ferramenta, zera o dirty (o ToolWrapper remonta limpo).
   useEffect(() => { setIsToolDirty(false); }, [activeToolId]);
 

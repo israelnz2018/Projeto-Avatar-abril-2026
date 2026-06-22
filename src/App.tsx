@@ -278,18 +278,6 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      const mensagem = "⚠️ Salve suas análises e gráficos agora, pois serão perdidos ao sair!";
-      e.preventDefault();
-      e.returnValue = mensagem;
-      return mensagem;
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-
-  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
