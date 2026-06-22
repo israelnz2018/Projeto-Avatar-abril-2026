@@ -144,16 +144,24 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
         {/* Camada de texto, posicionada em % sobre a arte (escala junto com a folha) */}
         <div className="absolute inset-0" style={{ color: LBW.navy }}>
 
+          {/* Logomarca LBW (topo centro) */}
+          <div className="absolute w-full flex flex-col items-center" style={{ top: '7%' }}>
+            <img src="/favicon.png" alt="Learning by Working" style={{ height: 'clamp(20px,3vw,34px)', width: 'auto' }} />
+            <span style={{ fontSize: 'clamp(7px,1vw,11px)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase', color: '#5B6472', marginTop: 4 }}>
+              Educação pelo Trabalho
+            </span>
+          </div>
+
           {/* Eyebrow */}
-          <div className="absolute w-full text-center" style={{ top: '15%' }}>
+          <div className="absolute w-full text-center" style={{ top: '21%' }}>
             <span style={{ fontSize: 'clamp(8px,1.2vw,12px)', letterSpacing: '0.34em', fontWeight: 700, color: '#5B6472' }}>
               CERTIFICADO DE CONCLUSÃO
             </span>
           </div>
 
           {/* Título da trilha */}
-          <div className="absolute w-full px-[16%] text-center" style={{ top: '21%' }}>
-            <h1 className="m-0 leading-[1.05]" style={{ fontWeight: 800, fontSize: 'clamp(18px,3.1vw,36px)', color: LBW.navy }}>
+          <div className="absolute w-full px-[16%] text-center" style={{ top: '27%' }}>
+            <h1 className="m-0 leading-[1.05]" style={{ fontWeight: 800, fontSize: 'clamp(18px,3.0vw,34px)', color: LBW.navy }}>
               {nomeTrilha}
             </h1>
           </div>
