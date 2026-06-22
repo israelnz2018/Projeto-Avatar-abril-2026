@@ -19,12 +19,28 @@ import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
 const TOKENS_REAIS_POR_LBW = 1000;
-const LIMITE_GRATIS = 200;
 
-/** Plano que NÃO sofre bloqueio de crédito por enquanto. */
-function isPlanoIlimitado(plano?: string, tipoUsuario?: string): boolean {
-  if (tipoUsuario === 'admin' || tipoUsuario === 'coordenador') return true;
-  return plano === 'completo' || plano === 'coordenador';
+// Limites mensais (tokens LBW) por tipo de acesso.
+const LIMITE_GRATIS = 200;          // plano gratuito (Trilha 1)
+const LIMITE_CORTESIA = 500;        // completo gratuito (convidados/cortesia)
+const LIMITE_PAGANTE = 1000;        // completo pago (Hotmart)
+
+/** admin/coordenador não sofrem bloqueio de crédito. */
+function isPlanoIlimitado(tipoUsuario?: string): boolean {
+  return tipoUsuario === 'admin' || tipoUsuario === 'coordenador';
+}
+
+/** Marcas que indicam acesso completo concedido como CORTESIA (não pagante). */
+function isCortesia(data: any): boolean {
+  const origem = String(data?.origemAcesso || '');
+  return origem.length > 0; // hoje só cortesias setam origemAcesso (ex: convite-reativacao)
+}
+
+/** Limite mensal (tokens LBW) conforme o tipo de acesso do usuário. */
+function limitePorAcesso(data: any): number {
+  const plano = data?.plano;
+  if (plano === 'completo') return isCortesia(data) ? LIMITE_CORTESIA : LIMITE_PAGANTE;
+  return LIMITE_GRATIS; // gratuito (ou ausente)
 }
 
 /** Próxima data de reset: agora + 30 dias (ISO). Mesma convenção do userService. */
@@ -57,21 +73,26 @@ export async function canUseAI(): Promise<CreditStatus> {
     if (!snap.exists()) return liberadoFallback;
 
     const data = snap.data() as any;
-    if (isPlanoIlimitado(data?.plano, data?.tipoUsuario)) {
+    if (isPlanoIlimitado(data?.tipoUsuario)) {
       return { allowed: true, usado: 0, limite: 0, restante: 0, ilimitado: true };
     }
 
     const credito = data?.creditoIA || {};
-    const limite = typeof credito.limite === 'number' && credito.limite > 0 ? credito.limite : LIMITE_GRATIS;
+    // Limite é derivado do tipo de acesso (gratuito 200 / cortesia 500 / pagante 1000).
+    const limite = limitePorAcesso(data);
     let usado = typeof credito.usado === 'number' ? credito.usado : 0;
 
     // Reset mensal: se a data de reset (ISO) já passou (ou está ausente), zera o
     // consumo e agenda o próximo reset (+30 dias). Mesma convenção do userService.
     const resetEm = typeof credito.resetEm === 'string' ? credito.resetEm : '';
     const venceu = !resetEm || new Date(resetEm).getTime() <= Date.now();
-    if (venceu) {
-      usado = 0;
-      try { await updateDoc(ref, { 'creditoIA.usado': 0, 'creditoIA.resetEm': proximoReset() }); } catch { /* best-effort */ }
+    // Mantém creditoIA.limite no doc sincronizado com o limite derivado, pra o
+    // painel /users exibir o valor correto (200 / 500 / 1000).
+    const limiteDessincronizado = credito.limite !== limite;
+    if (venceu || limiteDessincronizado) {
+      const patch: Record<string, any> = { 'creditoIA.limite': limite };
+      if (venceu) { usado = 0; patch['creditoIA.usado'] = 0; patch['creditoIA.resetEm'] = proximoReset(); }
+      try { await updateDoc(ref, patch); } catch { /* best-effort */ }
     }
 
     const restante = Math.max(0, limite - usado);
