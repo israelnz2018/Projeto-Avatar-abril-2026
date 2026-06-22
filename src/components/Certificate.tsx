@@ -186,7 +186,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           <div className="absolute w-full text-center" style={{ top: '69%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: LBW.navy }}>Israel Cavalcanti de Souza</p>
             <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: LBW.navy }}>CEO Learning by Working</p>
-            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>Consultor Sênior em Melhoria de Negócios</p>
+            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>Consultor Sênior em Melhoria de Processos e Negócios</p>
           </div>
 
           {/* QR (canto inferior esquerdo, dentro da moldura) */}
