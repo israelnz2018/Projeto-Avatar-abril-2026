@@ -18,7 +18,8 @@ import {
   Users2,
   Key,
   Unlock,
-  Megaphone
+  Megaphone,
+  Award
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -43,6 +44,7 @@ const KnowledgeManagerView = lazy(() => import('./components/KnowledgeManagerVie
 const ProjectToolsConfig = lazy(() => import('./components/ProjectToolsConfig'));
 const UserManagementView = lazy(() => import('./components/UserManagementView'));
 const MarketingView = lazy(() => import('./components/MarketingView'));
+const CertificadosView = lazy(() => import('./components/CertificadosView'));
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
@@ -95,6 +97,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ] : []),
     ...(isAdmin ? [
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
+      { name: 'Certificados', path: '/certificados', icon: Award },
       { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
@@ -427,6 +430,7 @@ export default function App() {
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />
+              <Route path="/certificados" element={<CertificadosView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
