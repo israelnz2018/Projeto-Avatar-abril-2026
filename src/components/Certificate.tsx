@@ -44,6 +44,19 @@ const CARGA_HORARIA: Record<number, number> = {
   1: 16, 2: 40, 3: 8, 4: 12, 5: 8, 6: 16, 7: 60, 8: 120,
 };
 
+// Título FORMAL exibido no certificado (mais profissional que o nome comercial
+// da landing). Indexado pelo número da trilha.
+const TITULO_CERTIFICADO: Record<number, string> = {
+  1: 'Integração e Resolução de Problemas do Dia a Dia',
+  2: 'Recomendação de Melhoria com Base em Dados',
+  3: 'Gestão de Mudanças e Engajamento de Pessoas',
+  4: 'Apresentações Eficazes',
+  5: 'Gerenciamento de Risco Baseado em FMEA e PMI',
+  6: 'Fundamentos Lean e Eliminação dos Desperdícios',
+  7: 'Estatística Aplicada à Tomada de Decisão',
+  8: 'Formação em Gestão de Projetos de Melhoria',
+};
+
 function formatDataPorExtenso(iso: string): string {
   // Sempre no fuso do Brasil (America/Sao_Paulo), independente de onde o app roda.
   const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -60,7 +73,8 @@ function formatDataPorExtenso(iso: string): string {
 export default function Certificate({ alunoNome, initiativeName, issuedAt, certId, mode = 'student' }: Props) {
   const numero = extractTrilhaNumero(initiativeName);
   const carga = CARGA_HORARIA[numero];
-  const nomeTrilha = initiativeName.replace(/^\d+\s*[-·]\s*/, '');
+  // Usa o título formal do certificado; cai pro nome da trilha se não houver mapa.
+  const nomeTrilha = TITULO_CERTIFICADO[numero] || initiativeName.replace(/^\d+\s*[-·]\s*/, '');
   const [copied, setCopied] = useState(false);
 
   const verifyUrl = `${window.location.origin}/verificar/${certId}`;
