@@ -147,7 +147,8 @@ const CSS = `
 .lc .netcard .netimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 /* sobre você (enxuto) */
 .lc .about{display:grid;grid-template-columns:.5fr 1fr;gap:32px;align-items:center;max-width:900px;margin:0 auto}
-.lc .about .photo{aspect-ratio:1;border-radius:18px;background:linear-gradient(150deg,#1E2D6E,#0a0f22);border:1px solid rgba(159,192,255,.25);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px;text-align:center;padding:12px}
+.lc .about .photo{aspect-ratio:1;border-radius:18px;background:linear-gradient(150deg,#1E2D6E,#0a0f22);border:1px solid rgba(159,192,255,.25);display:flex;align-items:flex-end;justify-content:center;color:var(--txt2);font-size:13px;text-align:center;overflow:hidden}
+.lc .about .photo img{width:100%;height:100%;object-fit:contain;object-position:bottom}
 .lc .about .badges{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
 .lc .about .bdg{background:rgba(159,192,255,.08);border:1px solid rgba(159,192,255,.22);border-radius:11px;padding:10px 14px}
 .lc .about .bdg .n{font-family:'Space Grotesk';font-size:20px;font-weight:700;color:#9FC0FF}
@@ -372,7 +373,7 @@ export default function LandingComecar() {
       {/* SOBRE O ISRAEL (enxuto) */}
       <section className="sec" style={{ background: '#070A18' }}>
         <Reveal className="about">
-          <div className="photo">foto do Israel</div>
+          <div className="photo"><img src="/avatar-israel.png" alt="Israel Souza" loading="lazy" /></div>
           <div>
             <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(159,192,255,.08)', borderColor: 'rgba(159,192,255,.22)' }}>Seu consultor</span>
             <h2 style={{ fontSize: 28, margin: '14px 0 12px' }}>Olá, sou o <span className="gradblue">Israel Souza</span></h2>
