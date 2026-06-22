@@ -145,7 +145,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
         <div className="absolute inset-0" style={{ color: LBW.navy }}>
 
           {/* Logomarca LBW (topo centro) */}
-          <div className="absolute w-full flex flex-col items-center" style={{ top: '7%' }}>
+          <div className="absolute w-full flex flex-col items-center" style={{ top: '9%' }}>
             <img src="/favicon.png" alt="Learning by Working" style={{ height: 'clamp(20px,3vw,34px)', width: 'auto' }} />
             <span style={{ fontSize: 'clamp(7px,1vw,11px)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase', color: '#5B6472', marginTop: 4 }}>
               Educação pelo Trabalho
@@ -174,21 +174,28 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             </p>
           </div>
 
-          {/* Carga horária + data (acima da zona das credenciais do Israel ~70%) */}
-          <div className="absolute w-full text-center" style={{ top: '60%' }}>
+          {/* Carga horária + data */}
+          <div className="absolute w-full text-center" style={{ top: '58%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(8px,1.2vw,12.5px)', color: '#3A4150' }}>
               {carga ? <>Carga horária de <b>{carga} horas</b> · </> : null}{formatDataPorExtenso(issuedAt)}
             </p>
           </div>
 
+          {/* Credenciais do Israel (acima da assinatura manuscrita da imagem ~85%) */}
+          <div className="absolute w-full text-center" style={{ top: '72%' }}>
+            <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: LBW.navy }}>Israel Cavalcanti de Souza</p>
+            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: LBW.navy }}>CEO Learning by Working</p>
+            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>Consultor Sênior em Melhoria de Negócios</p>
+          </div>
+
           {/* QR + nº de verificação (canto inferior esquerdo, dentro da moldura) */}
-          <div className="absolute flex items-end gap-2" style={{ left: '7%', bottom: '12%' }}>
-            <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
+          <div className="absolute flex items-end gap-2" style={{ left: '7%', bottom: '9%', maxWidth: '34%' }}>
+            <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0', flexShrink: 0 }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
             </div>
-            <div style={{ textAlign: 'left' }}>
+            <div style={{ textAlign: 'left', minWidth: 0 }}>
               <p className="m-0" style={{ fontSize: 'clamp(6px,0.8vw,8.5px)', fontWeight: 700, letterSpacing: '0.1em', color: '#5B6472' }}>VERIFIQUE EM</p>
-              <p className="m-0" style={{ fontSize: 'clamp(6px,0.8vw,8.5px)', fontFamily: 'monospace', color: '#5B6472' }}>{verifyUrl.replace(/^https?:\/\//, '')}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(6px,0.8vw,8.5px)', fontFamily: 'monospace', color: '#5B6472', wordBreak: 'break-all', lineHeight: 1.3 }}>{verifyUrl.replace(/^https?:\/\//, '')}</p>
               <p className="m-0 mt-0.5" style={{ fontSize: 'clamp(6px,0.8vw,8.5px)', fontFamily: 'monospace', color: '#8A94A6' }}>Nº {certId}</p>
             </div>
           </div>
