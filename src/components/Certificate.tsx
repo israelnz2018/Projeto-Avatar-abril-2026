@@ -197,13 +197,13 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>Consultor Sênior em Melhoria de Processos e Negócios</p>
           </div>
 
-          {/* QR + verificação: QR em cima, texto logo abaixo alinhado ao início do QR */}
-          <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '11%' }}>
+          {/* QR + verificação: QR em cima, texto em 2 linhas logo abaixo */}
+          <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '13%' }}>
             <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
             </div>
-            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: '#5B6472', whiteSpace: 'nowrap' }}>
-              {verifyUrl.replace(/^https?:\/\//, '')} · Nº {certId}
+            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: '#5B6472', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+              {verifyUrl.replace(/^https?:\/\//, '')}<br />Nº {certId}
             </p>
           </div>
         </div>

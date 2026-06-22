@@ -94,6 +94,25 @@ const CSS = `
 .lf .modal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(5,7,15,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:20px}
 .lf .modal .box{position:relative;max-width:440px;width:100%;background:linear-gradient(170deg,#101a3a,#0a0f22);border:1px solid rgba(159,192,255,.25);border-radius:22px;padding:38px 32px;text-align:center}
 .lf .modal .x{position:absolute;top:14px;right:18px;background:none;border:none;color:#888;font-size:28px;cursor:pointer;line-height:1}
+/* carrossel cinematográfico das trilhas (imagens circulando) */
+.lf .netwrap{overflow:hidden;padding:6px 0 12px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.lf .nettrack{display:flex;gap:16px;width:max-content;padding:0 8px;animation:lf-netscroll 60s linear infinite}
+.lf .netwrap:hover .nettrack{animation-play-state:paused}
+@keyframes lf-netscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.lf .netcard{flex-shrink:0;width:288px;height:432px;border-radius:16px;overflow:hidden;position:relative;border:1px solid var(--line);background:#05070F;transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s}
+.lf .netcard:hover{transform:translateY(-8px) scale(1.04);box-shadow:0 28px 56px -22px rgba(0,0,0,.8);z-index:2}
+.lf .netcard .netimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+/* movimento / vida */
+.lf{--mx:0;--my:0}
+.lf .orb{transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.lf .orbA{transform:translate(calc(var(--mx)*26px),calc(var(--my)*26px))}
+.lf .orbB{transform:translate(calc(var(--mx)*-30px),calc(var(--my)*-20px))}
+.lf .step,.lf .pcard,.lf .qa{transition:transform .25s cubic-bezier(.22,1,.36,1),border-color .25s,box-shadow .25s}
+.lf .step:hover,.lf .pcard:hover{transform:translateY(-5px);border-color:rgba(159,192,255,.4);box-shadow:0 22px 48px -26px rgba(0,0,0,.7)}
+.lf .btn-primary{position:relative;overflow:hidden}
+.lf .btn-primary::after{content:'';position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:lf-shine 4.5s ease-in-out infinite}
+@keyframes lf-shine{0%,60%{left:-120%}80%,100%{left:130%}}
+@media(prefers-reduced-motion:reduce){ .lf .nettrack,.lf .btn-primary::after{animation:none} .lf .orbA,.lf .orbB{transform:none} }
 @media(max-width:900px){
   .lf .hero h1{font-size:34px}
   .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr 1fr}
@@ -175,14 +194,14 @@ function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => voi
 }
 
 const TRILHAS = [
-  { n: '01', nome: 'Chegar numa área nova e entregar rápido', tag: 'Comece aqui', bg: 'linear-gradient(150deg,#10B981,#064a32)', free: true },
-  { n: '02', nome: 'Recomendar melhorias com dados', tag: 'Análises gráficas e estatísticas', bg: 'linear-gradient(150deg,#22D3EE,#0e4a8a)' },
-  { n: '03', nome: 'Conduzir mudanças com menos resistência', tag: 'Gestão de mudança', bg: 'linear-gradient(150deg,#F59E0B,#7a3b06)' },
-  { n: '04', nome: 'Apresentações que convencem a liderança', tag: 'Comunicação executiva', bg: 'linear-gradient(150deg,#EC4899,#6b1239)' },
-  { n: '05', nome: 'Antecipar riscos antes que virem problema', tag: 'FMEA · boas práticas PMI', bg: 'linear-gradient(150deg,#EF4444,#5e1414)' },
-  { n: '06', nome: 'Cultura Lean — identificar desperdícios e o Sistema Toyota de Produção', tag: 'Muri · Mura · Muda', bg: 'linear-gradient(150deg,#8B5CF6,#3a1e6e)' },
-  { n: '07', nome: 'Realizar estudos e análises estatísticas pontuais', tag: 'Sem programar', bg: 'linear-gradient(150deg,#A855F7,#2e1065)' },
-  { n: '08', nome: 'Especialista em Gestão de Projetos de Melhoria', tag: 'O topo da jornada', bg: 'linear-gradient(150deg,#0033CC,#1E2D6E)', topo: true },
+  { n: '01', nome: 'Chegar numa área nova e entregar rápido', tag: 'Comece aqui', img: '/trilhas/trilha-01.png', free: true },
+  { n: '02', nome: 'Recomendar melhorias com dados', tag: 'Análises gráficas e estatísticas', img: '/trilhas/trilha-02.png' },
+  { n: '03', nome: 'Conduzir mudanças com menos resistência', tag: 'Gestão de mudança', img: '/trilhas/trilha-03.png' },
+  { n: '04', nome: 'Apresentações que convencem a liderança', tag: 'Comunicação executiva', img: '/trilhas/trilha-04.png' },
+  { n: '05', nome: 'Antecipar riscos antes que virem problema', tag: 'FMEA · boas práticas PMI', img: '/trilhas/trilha-05.png' },
+  { n: '06', nome: 'Cultura Lean — identificar desperdícios e o Sistema Toyota de Produção', tag: 'Muri · Mura · Muda', img: '/trilhas/trilha-06.png' },
+  { n: '07', nome: 'Realizar estudos e análises estatísticas pontuais', tag: 'Sem programar', img: '/trilhas/trilha-07.png' },
+  { n: '08', nome: 'Especialista em Gestão de Projetos de Melhoria', tag: 'O topo da jornada', img: '/trilhas/trilha-08.png', topo: true },
 ];
 
 const PASSOS = [
@@ -213,6 +232,7 @@ const FAQ = [
 export default function LandingFormacao() {
   const [showExit, setShowExit] = useState(false);
   const [exitArmed, setExitArmed] = useState(true);
+  const rootRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const onLeave = (e: MouseEvent) => {
@@ -222,8 +242,24 @@ export default function LandingFormacao() {
     return () => document.removeEventListener('mouseout', onLeave);
   }, [exitArmed]);
 
+  // Parallax leve do site inteiro (orbs seguem o mouse via --mx/--my).
+  React.useEffect(() => {
+    const el = rootRef.current;
+    if (!el || window.matchMedia('(hover: none)').matches) return;
+    let raf = 0;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        el.style.setProperty('--mx', ((e.clientX / window.innerWidth - 0.5) * 2).toFixed(3));
+        el.style.setProperty('--my', ((e.clientY / window.innerHeight - 0.5) * 2).toFixed(3));
+      });
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => { window.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
+  }, []);
+
   return (
-    <div className="lf">
+    <div className="lf" ref={rootRef}>
       <style>{CSS}</style>
 
       {/* HERO */}
@@ -272,14 +308,13 @@ export default function LandingFormacao() {
             <h2>8 trilhas, <span className="grad">uma jornada só</span></h2>
             <p>Modelo camada-cebola: cada trilha mantém tudo da anterior e acrescenta uma camada nova. Da sua primeira semana numa área até conduzir projetos complexos de ponta a ponta.</p>
           </div>
-          <div className="tgrid">
-            {TRILHAS.map((t) => (
-              <div className="tcard" key={t.n} style={{ background: t.bg, borderColor: t.topo ? 'rgba(159,192,255,.45)' : undefined }}>
-                {t.free && <span className="badge" style={{ background: '#04241a', color: '#6ee7b7' }}>GRÁTIS</span>}
-                {t.topo && <span className="badge" style={{ background: '#1E2D6E', color: '#fff', border: '1px solid rgba(159,192,255,.5)' }}>🏆 FORMAÇÃO LBW</span>}
-                <div className="num">{t.n}</div>
-                <div className="nome">{t.nome}</div>
-                <span className="tag">{t.tag}</span>
+        </div>
+        {/* Carrossel cinematográfico das trilhas (circulando) */}
+        <div className="netwrap">
+          <div className="nettrack">
+            {[...TRILHAS, ...TRILHAS].map((t, i) => (
+              <div className="netcard" key={i} style={{ borderColor: t.topo ? 'rgba(159,192,255,.45)' : undefined }}>
+                <img className="netimg" src={t.img} alt={`Trilha ${t.n} — ${t.nome}`} loading="lazy" />
               </div>
             ))}
           </div>
@@ -322,7 +357,7 @@ export default function LandingFormacao() {
       {/* FUNDADOR */}
       <section className="sec" style={{ background: '#070A18' }}>
         <div className="wrap split" style={{ gridTemplateColumns: '.8fr 1.2fr' }}>
-          <div><img src="https://placehold.co/600x720/1E2D6E/9FC0FF?text=Israel+Souza" alt="Israel Souza" /></div>
+          <div><img src="/avatar-israel.png" alt="Israel Souza" style={{ background: 'linear-gradient(150deg,#1E2D6E,#0a0f22)', objectFit: 'contain' }} /></div>
           <div>
             <span className="eyebrow">Quem é seu consultor?</span>
             <h2 style={{ fontSize: 34, margin: '16px 0' }}>Mais 20 anos resolvendo problema de verdade</h2>
