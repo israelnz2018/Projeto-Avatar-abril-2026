@@ -228,14 +228,15 @@ function Termos() {
       <p>4.5. A transmissão do Curso ao Aluno ocorrerá, exclusivamente, na Plataforma ou em outra indicada pela Learning by Working, sendo proibido o armazenamento, download ou gravação das videoaulas.</p>
       <p>4.6. Você deverá se atentar às regras específicas para participação no(s) Evento(s) organizado(s) pela Learning by Working que seja(m) de seu interesse, observando assim informações e datas divulgadas na Plataforma.</p>
       <p>4.7. O serviço disponibilizado na Plataforma depende da funcionalidade simultânea de diversos fatores, alguns alheios ao controle da Learning by Working, tais como a interação de servidores e serviços de telecomunicações de terceiros, a adequação dos equipamentos do Usuário, competindo a este observar os requisitos mínimos para acesso ao serviço almejado.</p>
-      <p>4.8. O Aluno poderá exercer, no prazo de 07 (sete) dias, a contar da disponibilização de acesso ao Curso selecionado, seu direito de arrependimento, previsto no artigo 49 da Lei 8.078/1990 (Código de Defesa do Consumidor). Dessa forma, o Aluno poderá requerer o cancelamento do acesso ao curso adquirido e a devolução dos valores pagos, através da plataforma de hospedagem dos nossos cursos, a Hotmart (site www.hotmart.com).</p>
-      <h3>4.9. Software LBW (bônus educacional)</h3>
-      <p>Como bônus adicional ao curso do Método GATE, o Aluno poderá ter acesso ao software LBW (Learning by Working), uma ferramenta de apoio à realização de análises estatísticas e gráficas. O software é fornecido de forma complementar, não sendo parte integrante do contrato principal de prestação de serviços educacionais. A Learning by Working reserva-se o direito de modificar, suspender ou descontinuar o software a qualquer momento, sem aviso prévio e sem gerar obrigações de ressarcimento, já que se trata de um recurso bônus.</p>
-      <p>O acesso ao LBW é pessoal, intransferível e restrito ao período de acesso ao curso. A Learning by Working não possui acesso aos dados inseridos pelo Aluno nas análises geradas, visualizando apenas informações cadastrais (nome, e-mail e ferramentas utilizadas). As análises geradas pelo software são baseadas em modelos estatísticos e podem variar conforme os dados inseridos, podendo inclusive ser alteradas sem aviso prévio.</p>
-      <p>A responsabilidade pelo uso dos resultados é exclusiva do Aluno, que deverá validar qualquer insight ou recomendação do software por meio de testes controlados, antes de aplicá-los em ambiente profissional. A Learning by Working não se responsabiliza por quaisquer danos, perdas ou prejuízos decorrentes da adoção das análises geradas.</p>
+      <p>4.8. Os pagamentos e eventuais reembolsos são processados exclusivamente pela <strong>Hotmart</strong> (www.hotmart.com), que atua unicamente como plataforma de pagamento e reembolso. O Aluno poderá exercer, no prazo de 07 (sete) dias, a contar da disponibilização do acesso, seu direito de arrependimento, previsto no artigo 49 da Lei 8.078/1990 (Código de Defesa do Consumidor), requerendo o cancelamento e a devolução dos valores pagos diretamente pela Hotmart.</p>
+      <h3>4.9. Plataforma LBW e Software LBW</h3>
+      <p>Para fins destes Termos: a <strong>Plataforma LBW</strong> compreende todo o ambiente Learning by Working — as trilhas, os vídeos, as ferramentas, o mentor digital e os demais recursos; o <strong>Software LBW</strong> refere-se especificamente à área de <strong>análise de dados (aba "Data & Analysis")</strong>, voltada à realização de análises estatísticas e gráficas.</p>
+      <p>A Learning by Working reserva-se o direito de criar, modificar, atualizar, suspender ou descontinuar trilhas, ferramentas, o Software LBW ou quaisquer recursos da Plataforma a qualquer momento, sem aviso prévio e sem gerar obrigações de ressarcimento. O acesso é pessoal, intransferível e restrito ao período de acesso contratado.</p>
+      <p>A Learning by Working não acessa o conteúdo dos dados inseridos pelo Aluno nas análises e ferramentas, visualizando apenas informações cadastrais (nome, e-mail e recursos utilizados). Os resultados do Software LBW são gerados por modelos estatísticos e linguagem de programação — não utilizam inteligência artificial — podendo variar conforme os dados inseridos e conter imprecisões (inclusive arredondamentos e casas decimais).</p>
+      <p>A responsabilidade pelo uso dos resultados é exclusiva do Aluno, que deverá validar qualquer insight ou recomendação por meio de testes controlados, antes de aplicá-los em ambiente profissional. A Learning by Working não se responsabiliza por quaisquer danos, perdas ou prejuízos decorrentes da adoção das análises geradas.</p>
       <p>O e-mail informado pelo Aluno poderá ser utilizado para comunicações promocionais e informativas relacionadas à Learning by Working, conforme a Política de Privacidade.</p>
-      <h3>4.10. Comunidade de alunos na Hotmart</h3>
-      <p>Ao adquirir um Curso da Learning by Working, o Aluno terá acesso a uma comunidade exclusiva dentro da plataforma Hotmart, com objetivo educacional, colaborativo e de suporte. A participação nesta comunidade é um benefício adicional e gratuito, sem caráter contratual.</p>
+      <h3>4.10. Comunidade de alunos</h3>
+      <p>A Learning by Working poderá disponibilizar uma comunidade de alunos com objetivo educacional, colaborativo e de suporte. A participação é um benefício adicional e gratuito, sem caráter contratual.</p>
       <p>O Aluno compromete-se a manter uma conduta respeitosa e ética, sendo vedado: (i) o compartilhamento de conteúdos ofensivos, discriminatórios ou com fins comerciais (spam); (ii) a divulgação de dados de terceiros sem autorização; (iii) o uso indevido de informações compartilhadas no grupo.</p>
       <p>A comunidade é um <strong>ambiente aberto a todos os participantes — usuários pagantes e gratuitos</strong> — onde o que for publicado fica visível aos demais. Por isso, o Usuário <strong>não deve compartilhar nenhuma informação sensível, confidencial ou sigilosa</strong> — sua, de terceiros ou de sua empresa — sendo o único responsável pelo conteúdo que publicar.</p>
       <p>A Learning by Working poderá moderar, restringir ou remover participantes que descumprirem estas regras, sem aviso prévio e sem direito a reembolso. A empresa também se reserva o direito de encerrar ou suspender a comunidade a qualquer momento, conforme critérios internos.</p>
@@ -323,7 +324,7 @@ function Privacidade() {
       <ul>
         <li>Gerenciar seu acesso ao curso online, certificações e conteúdos educacionais</li>
         <li>Liberar e monitorar o uso do software LBW</li>
-        <li>Permitir sua participação na comunidade de alunos dentro da plataforma Hotmart</li>
+        <li>Permitir sua participação na comunidade de alunos</li>
         <li>Convidar e organizar sua participação em reuniões ao vivo via Zoom</li>
         <li>Enviar comunicações promocionais, conteúdos gratuitos e ofertas da Learning by Working</li>
         <li>Melhoria do sistema e divulgação/marketing, incluindo o uso de conteúdos, depoimentos e interações geradas na Plataforma</li>
@@ -340,7 +341,7 @@ function Privacidade() {
       <h2>4. Compartilhamento de dados</h2>
       <p>Seus dados poderão ser compartilhados com:</p>
       <ul>
-        <li>Hotmart, responsável pelo processamento do pagamento e liberação de acesso ao curso</li>
+        <li>Hotmart, exclusivamente para processamento de pagamento e reembolso</li>
         <li>Plataformas de e-mail marketing, para envio de comunicações informativas e promocionais</li>
         <li>Plataforma Zoom, para realização de reuniões ao vivo</li>
         <li>Autoridades públicas, caso haja exigência legal ou judicial</li>
