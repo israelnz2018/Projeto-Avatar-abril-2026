@@ -11,6 +11,7 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useInView } from 'motion/react';
+import RodapeInstitucional from './RodapeInstitucional';
 import {
   Network, ListChecks, Users, BarChart3, GitBranch, Lightbulb, Fish, LineChart,
   Sparkles, Grid3x3, HelpCircle, Scale, ClipboardList, ArrowLeftRight,
@@ -425,36 +426,8 @@ export default function LandingComecar() {
         </Reveal>
       </section>
 
-      {/* FOOTER */}
-      <footer className="foot">
-        <div className="cols">
-          <div>
-            <div style={{ fontFamily: "'Space Grotesk'", fontSize: 18, fontWeight: 800, marginBottom: 10 }}>Learning by Working – Educação pelo Trabalho</div>
-            <p style={{ fontSize: 13.5, color: 'var(--txt2)', lineHeight: 1.6 }}>A plataforma para gerenciar projetos de melhoria e análise de dados sem programação.</p>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#6ee7b7', marginBottom: 14 }}>Trilhas</div>
-            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 2 }}>01 · Entregar rápido<br/>02 · Decidir com dados<br/>03 · Conduzir mudanças<br/>04 · Apresentações<br/>05 · Antecipar riscos<br/>06 · Cultura Lean<br/>07 · Estatística aplicada<br/>08 · Gestão de Projetos</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#6ee7b7', marginBottom: 14 }}>Institucional</div>
-            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 2.1 }}>
-              <a href="/quem-somos" target="_blank" rel="noopener noreferrer">Quem somos</a><br/>
-              <a href="/contato" target="_blank" rel="noopener noreferrer">Contato</a><br/>
-              <a href="/pacotes-corporativos" target="_blank" rel="noopener noreferrer">Pacotes corporativos</a><br/>
-              <a href="/termos" target="_blank" rel="noopener noreferrer">Termos de uso</a><br/>
-              <a href="/privacidade" target="_blank" rel="noopener noreferrer">Política de privacidade</a>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: '#6ee7b7', marginBottom: 14 }}>Fale com a gente</div>
-            <div style={{ fontSize: 13, color: 'var(--txt2)', lineHeight: 1.9 }}><a href="mailto:contact@learningbyworking.com">contact@learningbyworking.com</a><br/><a href="https://www.linkedin.com/in/israel-cavalcanti-de-souza-mbb-pmp-mba-9244a320/" target="_blank" rel="noopener noreferrer">LinkedIn</a></div>
-          </div>
-        </div>
-        <div style={{ maxWidth: 1100, margin: '36px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,.08)', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.7 }}>
-          Learning by Working — Sole Trader · NZBN: 9429047241657<br/>Hillsborough — Auckland, Nova Zelândia · © 2026 Learning by Working – Educação pelo Trabalho · Todos os direitos reservados
-        </div>
-      </footer>
+      {/* FOOTER — componente único compartilhado */}
+      <RodapeInstitucional />
     </div>
   );
 }

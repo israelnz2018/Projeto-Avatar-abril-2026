@@ -34,6 +34,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Quote, ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import UpgradeBanner from './UpgradeBanner';
+import RodapeInstitucional from './RodapeInstitucional';
 import {
   TRILHAS,
   type Trilha,
@@ -455,61 +456,5 @@ function ManifestoRodape() {
   );
 }
 
-// =============================================================================
-// RODAPÉ INSTITUCIONAL — réplica do rodapé das landings (grátis/paga).
-// Estilos inline pra ficar idêntico sem depender do CSS da landing.
-// =============================================================================
-
-function RodapeInstitucional() {
-  const txt2 = 'rgba(255,255,255,.55)';
-  const eyebrow: React.CSSProperties = {
-    fontSize: 12, fontWeight: 800, letterSpacing: '.16em',
-    textTransform: 'uppercase', color: '#6ee7b7', marginBottom: 14,
-  };
-  return (
-    <footer style={{ background: '#070A18', borderTop: '1px solid rgba(255,255,255,.08)', padding: '56px 24px 40px' }}>
-      <div style={{
-        maxWidth: 1100, margin: '0 auto', display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 32,
-      }}>
-        <div>
-          <div style={{ fontFamily: "'Space Grotesk'", fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 10 }}>
-            Learning by Working – Educação pelo Trabalho
-          </div>
-          <p style={{ fontSize: 13.5, color: txt2, lineHeight: 1.6, margin: 0 }}>
-            A plataforma para gerenciar projetos de melhoria e análise de dados sem programação.
-          </p>
-        </div>
-        <div>
-          <div style={eyebrow}>Trilhas</div>
-          <div style={{ fontSize: 13, color: txt2, lineHeight: 2 }}>
-            01 · Entregar rápido<br/>02 · Decidir com dados<br/>03 · Conduzir mudanças<br/>04 · Apresentações<br/>05 · Antecipar riscos<br/>06 · Cultura Lean<br/>07 · Estatística aplicada<br/>08 · Gestão de Projetos
-          </div>
-        </div>
-        <div>
-          <div style={eyebrow}>Institucional</div>
-          <div style={{ fontSize: 13, color: txt2, lineHeight: 2.1 }}>
-            <a href="/quem-somos" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Quem somos</a><br/>
-            <a href="/contato" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Contato</a><br/>
-            <a href="/pacotes-corporativos" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Pacotes corporativos</a><br/>
-            <a href="/termos" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Termos de uso</a><br/>
-            <a href="/privacidade" target="_blank" rel="noopener noreferrer" style={{ color: txt2 }}>Política de privacidade</a>
-          </div>
-        </div>
-        <div>
-          <div style={eyebrow}>Fale com a gente</div>
-          <div style={{ fontSize: 13, color: txt2, lineHeight: 1.9 }}>
-            <a href="mailto:contact@learningbyworking.com" style={{ color: txt2 }}>contact@learningbyworking.com</a><br/>LinkedIn
-          </div>
-        </div>
-      </div>
-      <div style={{
-        maxWidth: 1100, margin: '36px auto 0', paddingTop: 24,
-        borderTop: '1px solid rgba(255,255,255,.08)', fontSize: 12,
-        color: 'rgba(255,255,255,.4)', lineHeight: 1.7,
-      }}>
-        Learning by Working — Sole Trader · NZBN: 9429047241657<br/>Hillsborough — Auckland, Nova Zelândia · © 2026 Learning by Working – Educação pelo Trabalho · Todos os direitos reservados
-      </div>
-    </footer>
-  );
-}
+// Rodapé institucional: agora é o componente único compartilhado
+// (src/components/RodapeInstitucional.tsx), importado no topo deste arquivo.
