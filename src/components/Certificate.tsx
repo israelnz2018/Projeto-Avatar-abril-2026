@@ -161,8 +161,8 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           </div>
 
           {/* Eyebrow */}
-          <div className="absolute w-full text-center" style={{ top: '20%' }}>
-            <span style={{ fontSize: 'clamp(8px,1.2vw,12px)', letterSpacing: '0.34em', fontWeight: 700, color: '#5B6472' }}>
+          <div className="absolute w-full text-center" style={{ top: '19.5%' }}>
+            <span style={{ fontSize: 'clamp(11px,1.7vw,18px)', letterSpacing: '0.3em', fontWeight: 800, color: '#5B6472' }}>
               CERTIFICADO DE CONCLUSÃO
             </span>
           </div>
@@ -198,7 +198,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           </div>
 
           {/* QR + verificação: QR em cima, texto logo abaixo alinhado ao início do QR */}
-          <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '8%' }}>
+          <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '11%' }}>
             <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
             </div>
