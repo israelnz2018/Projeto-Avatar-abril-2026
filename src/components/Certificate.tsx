@@ -145,29 +145,29 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
         <div className="absolute inset-0" style={{ color: LBW.navy }}>
 
           {/* Eyebrow */}
-          <div className="absolute w-full text-center" style={{ top: '23%' }}>
+          <div className="absolute w-full text-center" style={{ top: '15%' }}>
             <span style={{ fontSize: 'clamp(8px,1.2vw,12px)', letterSpacing: '0.34em', fontWeight: 700, color: '#5B6472' }}>
               CERTIFICADO DE CONCLUSÃO
             </span>
           </div>
 
-          {/* Título da trilha (cobre o "Análise Preditiva" do modelo) */}
-          <div className="absolute w-full px-[16%] text-center" style={{ top: '28%' }}>
-            <h1 className="m-0 leading-[1.05]" style={{ fontWeight: 800, fontSize: 'clamp(20px,3.4vw,40px)', color: LBW.navy }}>
+          {/* Título da trilha */}
+          <div className="absolute w-full px-[16%] text-center" style={{ top: '21%' }}>
+            <h1 className="m-0 leading-[1.05]" style={{ fontWeight: 800, fontSize: 'clamp(18px,3.1vw,36px)', color: LBW.navy }}>
               {nomeTrilha}
             </h1>
           </div>
 
           {/* "concluída por" + nome do aluno */}
-          <div className="absolute w-full text-center px-[14%]" style={{ top: '52%' }}>
+          <div className="absolute w-full text-center px-[14%]" style={{ top: '44%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: '#5B6472' }}>concluída com êxito por</p>
-            <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(22px,3.4vw,40px)', color: LBW.blue }}>
+            <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
               {alunoNome}
             </p>
           </div>
 
-          {/* Carga horária + data */}
-          <div className="absolute w-full text-center" style={{ top: '70%' }}>
+          {/* Carga horária + data (acima da zona das credenciais do Israel ~70%) */}
+          <div className="absolute w-full text-center" style={{ top: '60%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(8px,1.2vw,12.5px)', color: '#3A4150' }}>
               {carga ? <>Carga horária de <b>{carga} horas</b> · </> : null}{formatDataPorExtenso(issuedAt)}
             </p>
