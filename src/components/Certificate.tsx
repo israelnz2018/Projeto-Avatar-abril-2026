@@ -45,9 +45,16 @@ const CARGA_HORARIA: Record<number, number> = {
 };
 
 function formatDataPorExtenso(iso: string): string {
-  const d = new Date(iso);
+  // Sempre no fuso do Brasil (America/Sao_Paulo), independente de onde o app roda.
   const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+  const partes = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo', day: 'numeric', month: 'numeric', year: 'numeric',
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => partes.find((p) => p.type === t)?.value || '';
+  const dia = parseInt(get('day'), 10);
+  const mes = parseInt(get('month'), 10) - 1;
+  const ano = get('year');
+  return `${dia} de ${meses[mes]} de ${ano}`;
 }
 
 export default function Certificate({ alunoNome, initiativeName, issuedAt, certId, mode = 'student' }: Props) {
