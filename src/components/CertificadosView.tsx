@@ -22,7 +22,7 @@ const TRILHAS = [
   '8 - Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
 ];
 
-const ALUNO_EXEMPLO = 'Maria Silva';
+const ALUNO_EXEMPLO = 'Francisco Cavalcanti de Souza';
 const DATA_EXEMPLO = '2026-06-22T12:00:00.000Z';
 
 export default function CertificadosView() {
