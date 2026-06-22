@@ -178,7 +178,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           {/* Frase de conclusão (trilha + carga + aprovação) */}
           <div className="absolute w-full text-center px-[15%]" style={{ top: '46%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(10px,1.45vw,16px)', color: '#3A4150', lineHeight: 1.5 }}>
-              concluiu com êxito a formação <b style={{ color: LBW.navy }}>{nomeTrilha}</b>
+              concluiu com êxito a formação <b style={{ color: LBW.navy, textTransform: 'uppercase' }}>{nomeTrilha}</b>
               {carga ? <>, com carga horária de <b style={{ color: LBW.navy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
             </p>
           </div>
