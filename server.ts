@@ -1334,6 +1334,8 @@ async function startServer() {
     const lead = {
       nome,
       funcao: String(b.funcao || "").trim(),
+      email: String(b.email || "").trim(),
+      telefone: String(b.telefone || "").trim(),
       empresa,
       site: String(b.site || "").trim(),
       qtdTreinandos: String(b.qtdTreinandos || "").trim(),
@@ -1351,6 +1353,8 @@ async function startServer() {
           `<p><strong>Novo lead corporativo</strong></p>`,
           `<p><strong>Nome:</strong> ${esc(lead.nome)}</p>`,
           `<p><strong>Função:</strong> ${esc(lead.funcao)}</p>`,
+          `<p><strong>E-mail:</strong> ${esc(lead.email)}</p>`,
+          `<p><strong>Telefone/WhatsApp:</strong> ${esc(lead.telefone)}</p>`,
           `<p><strong>Empresa:</strong> ${esc(lead.empresa)}</p>`,
           `<p><strong>Site:</strong> ${esc(lead.site)}</p>`,
           `<p><strong>Funcionários a treinar:</strong> ${esc(lead.qtdTreinandos)}</p>`,

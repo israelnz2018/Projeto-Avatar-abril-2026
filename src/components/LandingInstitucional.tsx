@@ -105,7 +105,7 @@ const SUPORTE_OPCOES = [
 ];
 
 function Pacotes() {
-  const [form, setForm] = React.useState({ nome: '', funcao: '', empresa: '', site: '', qtdTreinandos: '', detalhes: '' });
+  const [form, setForm] = React.useState({ nome: '', funcao: '', empresa: '', email: '', telefone: '', site: '', qtdTreinandos: '', detalhes: '' });
   const [suporte, setSuporte] = React.useState<string[]>([]);
   const [estado, setEstado] = React.useState<'idle' | 'enviando' | 'ok' | 'erro'>('idle');
   const [erro, setErro] = React.useState('');
@@ -117,6 +117,17 @@ function Pacotes() {
   const enviar = async () => {
     if (form.nome.trim().length < 2 || form.empresa.trim().length < 2) {
       setEstado('erro'); setErro('Informe pelo menos seu nome e a empresa.'); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setEstado('erro'); setErro('Informe um e-mail válido para contato.'); return;
+    }
+    // Telefone é opcional, mas SE preenchido precisa ser um número BR válido
+    // (10 ou 11 dígitos: DDD + número). Ignora máscara, conta só os dígitos.
+    if (form.telefone.trim()) {
+      const digitos = form.telefone.replace(/\D/g, '');
+      if (digitos.length < 10 || digitos.length > 11) {
+        setEstado('erro'); setErro('Telefone inválido. Use DDD + número (ex: (11) 91234-5678) ou deixe em branco.'); return;
+      }
     }
     setEstado('enviando'); setErro('');
     try {
@@ -160,9 +171,11 @@ function Pacotes() {
       <p>Preencha os dados abaixo e a gente entra em contato para montar a melhor solução para a sua empresa.</p>
       <div className="card">
         <div className="fgrid">
-          <div className="fld"><label>Seu nome</label><input value={form.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Nome completo" /></div>
+          <div className="fld"><label>Seu nome *</label><input value={form.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Nome completo" /></div>
           <div className="fld"><label>Sua função na empresa</label><input value={form.funcao} onChange={(e) => set('funcao', e.target.value)} placeholder="Ex: Gerente de Qualidade" /></div>
-          <div className="fld"><label>Empresa</label><input value={form.empresa} onChange={(e) => set('empresa', e.target.value)} placeholder="Nome da empresa" /></div>
+          <div className="fld"><label>E-mail *</label><input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="seu@email.com" /></div>
+          <div className="fld"><label>Telefone / WhatsApp (opcional)</label><input value={form.telefone} onChange={(e) => set('telefone', e.target.value)} placeholder="(11) 90000-0000" /></div>
+          <div className="fld"><label>Empresa *</label><input value={form.empresa} onChange={(e) => set('empresa', e.target.value)} placeholder="Nome da empresa" /></div>
           <div className="fld"><label>Site da empresa</label><input value={form.site} onChange={(e) => set('site', e.target.value)} placeholder="www.suaempresa.com" /></div>
           <div className="fld" style={{ gridColumn: '1 / -1' }}><label>Quantos funcionários receberão o treinamento?</label><input value={form.qtdTreinandos} onChange={(e) => set('qtdTreinandos', e.target.value)} placeholder="Ex: 25" /></div>
         </div>

@@ -11,6 +11,8 @@ interface CorpLead {
   id: string;
   nome: string;
   funcao?: string;
+  email?: string;
+  telefone?: string;
   empresa: string;
   site?: string;
   qtdTreinandos?: string;
@@ -78,17 +80,33 @@ export default function LeadsCorporativos() {
                 </div>
                 <div className="text-[11px] text-gray-400">{new Date(l.criadoEm).toLocaleString('pt-BR')}</div>
               </div>
-              <div className="text-xs text-gray-600 mt-2">
-                <span className="font-semibold">Funcionários a treinar:</span> {l.qtdTreinandos || '—'}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mt-3 text-xs text-gray-600">
+                {l.email && (
+                  <div><span className="font-semibold">E-mail:</span> <a href={`mailto:${l.email}`} className="text-blue-600">{l.email}</a></div>
+                )}
+                {l.telefone && (
+                  <div><span className="font-semibold">Telefone/WhatsApp:</span> {l.telefone}</div>
+                )}
+                <div><span className="font-semibold">Funcionários a treinar:</span> {l.qtdTreinandos || '—'}</div>
               </div>
+
               {l.suporte && l.suporte.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {l.suporte.map((s, i) => (
-                    <span key={i} className="text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-md px-2 py-0.5">{s}</span>
-                  ))}
+                <div className="mt-2">
+                  <div className="text-[11px] font-semibold text-gray-500 mb-1">Suporte desejado:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {l.suporte.map((s, i) => (
+                      <span key={i} className="text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-md px-2 py-0.5">{s}</span>
+                    ))}
+                  </div>
                 </div>
               )}
-              {l.detalhes && <p className="text-xs text-gray-600 mt-2 italic">"{l.detalhes}"</p>}
+              {l.detalhes && (
+                <div className="mt-2">
+                  <div className="text-[11px] font-semibold text-gray-500 mb-0.5">Detalhes:</div>
+                  <p className="text-xs text-gray-600 italic">"{l.detalhes}"</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
