@@ -153,31 +153,32 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           </div>
 
           {/* Eyebrow */}
-          <div className="absolute w-full text-center" style={{ top: '21%' }}>
+          <div className="absolute w-full text-center" style={{ top: '20%' }}>
             <span style={{ fontSize: 'clamp(8px,1.2vw,12px)', letterSpacing: '0.34em', fontWeight: 700, color: '#5B6472' }}>
               CERTIFICADO DE CONCLUSÃO
             </span>
           </div>
 
-          {/* Título da trilha */}
-          <div className="absolute w-full px-[16%] text-center" style={{ top: '27%' }}>
-            <h1 className="m-0 leading-[1.05]" style={{ fontWeight: 800, fontSize: 'clamp(18px,3.0vw,34px)', color: LBW.navy }}>
-              {nomeTrilha}
-            </h1>
-          </div>
-
-          {/* "concluída por" + nome do aluno */}
-          <div className="absolute w-full text-center px-[14%]" style={{ top: '44%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: '#5B6472' }}>concluída com êxito por</p>
+          {/* Certificamos que + nome do aluno */}
+          <div className="absolute w-full text-center px-[14%]" style={{ top: '27%' }}>
+            <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: '#5B6472' }}>Certificamos que</p>
             <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
               {alunoNome}
             </p>
           </div>
 
-          {/* Carga horária + data */}
-          <div className="absolute w-full text-center" style={{ top: '58%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(8px,1.2vw,12.5px)', color: '#3A4150' }}>
-              {carga ? <>Carga horária de <b>{carga} horas</b> · </> : null}{formatDataPorExtenso(issuedAt)}
+          {/* Frase de conclusão (trilha + carga + aprovação) */}
+          <div className="absolute w-full text-center px-[15%]" style={{ top: '46%' }}>
+            <p className="m-0" style={{ fontSize: 'clamp(10px,1.45vw,16px)', color: '#3A4150', lineHeight: 1.5 }}>
+              concluiu com êxito a formação <b style={{ color: LBW.navy }}>{nomeTrilha}</b>
+              {carga ? <>, com carga horária de <b style={{ color: LBW.navy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
+            </p>
+          </div>
+
+          {/* Data */}
+          <div className="absolute w-full text-center" style={{ top: '62%' }}>
+            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', color: '#5B6472' }}>
+              {formatDataPorExtenso(issuedAt)}
             </p>
           </div>
 
