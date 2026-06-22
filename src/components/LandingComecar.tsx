@@ -132,7 +132,7 @@ const CSS = `
 /* 3 blocos (vídeos/mentor/certificado) com imagem no topo */
 .lc .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .lc .triocard{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
-.lc .triocard .imgph{aspect-ratio:16/9;background:linear-gradient(150deg,#101a3a,#0a0f22);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px}
+.lc .triocard .imgph{aspect-ratio:16/9;width:100%;object-fit:cover;background:linear-gradient(150deg,#101a3a,#0a0f22);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px}
 .lc .triocard .body{padding:22px}
 .lc .triocard .e{font-size:24px;margin-bottom:10px}
 .lc .triocard h3{font-size:17px;font-weight:700;margin-bottom:8px}
@@ -354,11 +354,11 @@ export default function LandingComecar() {
         <div className="wrap" style={{ marginTop: 36 }}>
           <div className="trio">
             <Reveal className="triocard" delay={0}>
-              <div className="imgph">imagem</div>
+              <img className="imgph" src="/trilhas/bloco-videoaulas.png" alt="Vídeo-aula do Israel" loading="lazy" />
               <div className="body"><div className="e">🎬</div><h3>Vídeo-aulas de cada ferramenta</h3><p>Para cada ferramenta há vídeos do Israel ensinando quando usar e como preencher — é só clicar e assistir no ponto que interessa.</p></div>
             </Reveal>
             <Reveal className="triocard" delay={0.1}>
-              <div className="imgph">imagem</div>
+              <img className="imgph" src="/trilhas/bloco-mentor.png" alt="Mentor Israel digital respondendo no chat" loading="lazy" />
               <div className="body"><div className="e">🤖</div><h3>Mentor Israel digital incluído</h3><p>Responde como o próprio Israel responderia, com base nos nossos vídeos e no método LBW. Te ajuda a destravar o seu projeto.</p></div>
             </Reveal>
             <Reveal className="triocard" delay={0.2}>
