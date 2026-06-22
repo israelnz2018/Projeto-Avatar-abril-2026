@@ -48,20 +48,41 @@ interface TierStyle {
   textMuted: string;
   isDark: boolean;
   selo?: string;         // texto extra (T9)
+  wave: string;          // cor principal das ondas (varia por trilha)
+  waveDark: string;      // tom escuro da onda
+  gold: string;          // dourado (moldura/selo/assinatura)
 }
 
+const GOLD = '#C9A24B';
+const GOLD_DK = '#9A7A2E';
+
+// Carga horária por trilha (definida pelo Israel: vídeo real × ~2-2,7, cobrindo
+// exercícios, pesquisa e revisão — dentro da boa prática de cursos livres no Brasil).
+const CARGA_HORARIA: Record<number, number> = {
+  1: 16, 2: 40, 3: 8, 4: 12, 5: 8, 6: 16, 7: 60, 8: 120,
+};
+
 function getTierStyle(numero: number): TierStyle {
+  // Base comum: fundo branco, texto navy, moldura e selo dourados (modelo Canva).
+  // O que muda por trilha é a COR DAS ONDAS (wave). A T8 fica navy (igual ao modelo).
+  const base = {
+    bg: '#FFFFFF', text: LBW.ink, textMuted: '#5B6472', isDark: false,
+    gold: GOLD, border: GOLD,
+  };
+  const make = (wave: string, waveDark: string): TierStyle => ({
+    ...base, wave, waveDark, ribbon: wave, accent: LBW.navy,
+  });
   switch (numero) {
-    case 1: return { bg: '#FAFBFC', ribbon: '#E2E8F0', border: '#CBD5E1', accent: LBW.navy, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 2: return { bg: '#F2F6FC', ribbon: '#C7D2FE', border: '#A5B4FC', accent: LBW.blue, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 3: return { bg: '#EBF5FB', ribbon: '#93C5FD', border: '#60A5FA', accent: LBW.blue, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 4: return { bg: '#E5ECFA', ribbon: '#93C5FD', border: '#3B82F6', accent: LBW.blue, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 5: return { bg: '#DDE5F3', ribbon: '#8597C4', border: '#6B7BA8', accent: LBW.navy, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 6: return { bg: '#FFFFFF', ribbon: '#1E2D6E', border: LBW.navy, accent: LBW.navy, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 7: return { bg: '#FFFFFF', ribbon: LBW.blue, border: LBW.blue, accent: LBW.blue, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 8: return { bg: '#F2FAF5', ribbon: '#34D399', border: '#10B981', accent: LBW.navy, text: LBW.ink, textMuted: '#475569', isDark: false };
-    case 9: return { bg: '#0B1538', ribbon: LBW.champagne, border: LBW.champagne, accent: LBW.champagne, text: '#FFFFFF', textMuted: 'rgba(255,255,255,0.72)', isDark: true, selo: 'ÂNCORA · FORMAÇÃO LBW' };
-    default: return { bg: '#FFFFFF', ribbon: '#E2E8F0', border: '#CBD5E1', accent: LBW.navy, text: LBW.ink, textMuted: '#475569', isDark: false };
+    case 1: return make('#10B981', '#064a32');   // verde
+    case 2: return make('#0EA5C9', '#0e4a6a');   // ciano
+    case 3: return make('#E08A0B', '#7a3b06');   // âmbar
+    case 4: return make('#DB2777', '#6b1239');   // rosa
+    case 5: return make('#DC2626', '#5e1414');   // vermelho
+    case 6: return make('#0D9488', '#064E3B');   // teal
+    case 7: return make('#7C3AED', '#2e1065');   // violeta
+    case 8: return { ...base, wave: LBW.navy, waveDark: '#0A1538', ribbon: LBW.navy, accent: LBW.navy, selo: 'FORMAÇÃO LBW' };
+    case 9: return { ...base, wave: LBW.navy, waveDark: '#0A1538', ribbon: LBW.navy, accent: LBW.navy, selo: 'FORMAÇÃO LBW' };
+    default: return { ...base, wave: LBW.navy, waveDark: '#0A1538', ribbon: LBW.navy, accent: LBW.navy };
   }
 }
 
@@ -161,59 +182,54 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           fontFamily: "'Geist', ui-sans-serif, system-ui, sans-serif",
         }}
       >
-        {/* Decoração de canto — faixas geométricas */}
-        <div aria-hidden className="absolute top-0 right-0 w-48 h-48"
-          style={{
-            background: `linear-gradient(135deg, transparent 0%, transparent 50%, ${tier.ribbon} 50%, ${tier.ribbon} 100%)`,
-            opacity: tier.isDark ? 0.85 : 0.65,
-          }}
-        />
-        <div aria-hidden className="absolute bottom-0 left-0 w-32 h-32"
-          style={{
-            background: `linear-gradient(315deg, transparent 0%, transparent 50%, ${tier.ribbon} 50%, ${tier.ribbon} 100%)`,
-            opacity: tier.isDark ? 0.85 : 0.5,
-          }}
-        />
+        {/* Ondas fluidas nos cantos (sup-esq e inf-dir) — cor da trilha + dourado */}
+        <svg aria-hidden viewBox="0 0 926 654" preserveAspectRatio="none"
+          className="absolute inset-0 w-full h-full pointer-events-none">
+          {/* Canto superior esquerdo */}
+          <path d="M0,0 L300,0 C190,70 150,150 120,250 C95,335 40,360 0,300 Z" fill={tier.waveDark} />
+          <path d="M0,0 L235,0 C150,60 120,135 96,225 C74,300 30,315 0,250 Z" fill={tier.wave} />
+          <path d="M0,0 L300,0 C190,70 150,150 120,250 C95,335 40,360 0,300" fill="none" stroke={tier.gold} strokeWidth="3" opacity="0.9" />
+          {/* Canto inferior direito */}
+          <path d="M926,654 L626,654 C736,584 776,504 806,404 C831,319 886,294 926,354 Z" fill={tier.waveDark} />
+          <path d="M926,654 L691,654 C776,594 806,519 830,429 C852,354 896,339 926,404 Z" fill={tier.wave} />
+          <path d="M926,654 L626,654 C736,584 776,504 806,404 C831,319 886,294 926,354" fill="none" stroke={tier.gold} strokeWidth="3" opacity="0.9" />
+        </svg>
 
-        {/* Linhas finas decorativas (pattern de "circuitos" sutil) */}
-        <svg aria-hidden className="absolute inset-0 pointer-events-none" style={{ opacity: tier.isDark ? 0.18 : 0.08 }}>
-          <defs>
-            <pattern id={`grid-${certId}`} width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke={tier.accent} strokeWidth="0.4" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill={`url(#grid-${certId})`} />
+        {/* Moldura dourada dupla */}
+        <div aria-hidden className="absolute pointer-events-none" style={{ inset: 16, border: `2px solid ${tier.gold}`, borderRadius: 4 }} />
+        <div aria-hidden className="absolute pointer-events-none" style={{ inset: 22, border: `1px solid ${tier.gold}66`, borderRadius: 3 }} />
+
+        {/* Selo dourado (canto superior direito) */}
+        <svg aria-hidden width="76" height="76" viewBox="0 0 76 76" className="absolute" style={{ top: 34, right: 40 }}>
+          <g>
+            {Array.from({ length: 16 }).map((_, k) => (
+              <rect key={k} x="36" y="2" width="4" height="12" rx="1" fill={tier.gold}
+                transform={`rotate(${k * 22.5} 38 38)`} opacity="0.85" />
+            ))}
+            <circle cx="38" cy="38" r="24" fill={tier.gold} />
+            <circle cx="38" cy="38" r="24" fill="none" stroke={GOLD_DK} strokeWidth="1.5" />
+            <circle cx="38" cy="38" r="18" fill="none" stroke="#FFFFFF" strokeWidth="1" opacity="0.5" />
+            <text x="38" y="35" textAnchor="middle" fontSize="9" fontWeight="800" fill="#FFFFFF" fontFamily="Geist, sans-serif">LBW</text>
+            <text x="38" y="46" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="#FFFFFF" fontFamily="Geist, sans-serif" opacity="0.9">CERT.</text>
+          </g>
         </svg>
 
         {/* Conteúdo */}
         <div className="relative h-full flex flex-col px-12 py-10 md:px-16 md:py-12">
 
-          {/* TOPO — LBW logo + cert ID */}
-          <div className="flex items-start justify-between mb-6 md:mb-8">
+          {/* TOPO — logomarca LBW + selo da formação */}
+          <div className="flex items-start justify-between mb-6 md:mb-8" style={{ paddingRight: 90 }}>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-9 h-9 rounded flex items-center justify-center font-black text-base"
-                  style={{ background: tier.accent, color: tier.isDark ? LBW.navy : '#FFFFFF' }}>
-                  L
-                </div>
-                <div>
-                  <p className="text-[16px] md:text-[18px] font-black tracking-tight leading-none m-0" style={{ color: tier.isDark ? '#FFFFFF' : LBW.navy }}>
-                    LEARNING BY WORKING
-                  </p>
-                  <p className="text-[10px] md:text-[11px] font-bold tracking-[0.2em] uppercase m-0 mt-0.5" style={{ color: tier.textMuted }}>
-                    Educação pelo Trabalho
-                  </p>
-                </div>
-              </div>
+              <img src="/favicon.png" alt="Learning by Working" style={{ height: 30, width: 'auto', display: 'block', marginBottom: 4 }} />
+              <p className="text-[10px] md:text-[11px] font-bold tracking-[0.2em] uppercase m-0" style={{ color: tier.textMuted }}>
+                Educação pelo Trabalho
+              </p>
               {tier.selo && (
-                <p className="text-[10px] md:text-[11px] font-black tracking-[0.32em] uppercase mt-3" style={{ color: tier.accent }}>
+                <p className="text-[10px] md:text-[11px] font-black tracking-[0.32em] uppercase mt-2" style={{ color: tier.gold }}>
                   {tier.selo}
                 </p>
               )}
             </div>
-            <p className="text-[10px] md:text-[11px] font-mono font-bold tracking-wider" style={{ color: tier.textMuted }}>
-              Nº {certId}
-            </p>
           </div>
 
           {/* CORPO */}
@@ -242,6 +258,12 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             <h2 className="text-[20px] md:text-[26px] font-black tracking-tight m-0 leading-tight max-w-3xl" style={{ color: tier.text }}>
               {initiativeName.replace(/^\d+\s*[-·]\s*/, '')}
             </h2>
+
+            {CARGA_HORARIA[numero] && (
+              <p className="text-[12px] md:text-[13px] m-0 mt-4" style={{ color: tier.textMuted }}>
+                Carga horária: <span style={{ fontWeight: 700, color: tier.text }}>{CARGA_HORARIA[numero]} horas</span>
+              </p>
+            )}
           </div>
 
           {/* RODAPÉ — data + assinatura + QR */}
@@ -252,9 +274,12 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
               <p className="text-[11px] md:text-[12px] m-0 mb-6" style={{ color: tier.textMuted }}>
                 São Paulo, {formatDataPorExtenso(issuedAt)}
               </p>
-              <div className="w-56 border-t" style={{ borderColor: tier.text + '60' }} />
-              <p className="text-[13px] md:text-[14px] font-black tracking-tight m-0 mt-2 leading-tight" style={{ color: tier.text }}>
+              <p className="m-0 mb-1 leading-none" style={{ fontFamily: "'Instrument Serif', 'Georgia', serif", fontStyle: 'italic', fontSize: 30, color: tier.gold }}>
                 Israel Souza
+              </p>
+              <div className="w-56 border-t" style={{ borderColor: tier.gold }} />
+              <p className="text-[13px] md:text-[14px] font-black tracking-tight m-0 mt-2 leading-tight" style={{ color: tier.text }}>
+                Israel Cavalcanti de Souza
               </p>
               <p className="text-[10px] md:text-[11px] font-medium m-0 mt-1" style={{ color: tier.textMuted }}>
                 Lean Six Sigma Master Black Belt · PMP · MBA
