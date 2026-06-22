@@ -142,11 +142,10 @@ const CSS = `
 .lc .netwrap::-webkit-scrollbar{height:8px}
 .lc .netwrap::-webkit-scrollbar-thumb{background:rgba(159,192,255,.3);border-radius:4px}
 .lc .nettrack{display:flex;gap:16px;width:max-content;padding:0 2px}
-.lc .netcard{scroll-snap-align:start;flex-shrink:0;width:230px;height:300px;border-radius:16px;padding:20px;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;border:1px solid var(--line);transition:transform .25s,box-shadow .25s;cursor:default}
+.lc .netcard{scroll-snap-align:start;flex-shrink:0;width:240px;height:360px;border-radius:16px;overflow:hidden;position:relative;border:1px solid var(--line);transition:transform .25s,box-shadow .25s;cursor:default;background:#05070F}
 .lc .netcard:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 24px 50px -20px rgba(0,0,0,.7)}
-.lc .netcard .nnum{font-family:'Space Grotesk';font-size:54px;font-weight:700;line-height:1;color:rgba(255,255,255,.95)}
-.lc .netcard .nnome{font-size:15px;font-weight:800;line-height:1.22;margin-top:12px;color:#fff}
-.lc .netcard .nbadge{position:absolute;top:14px;right:14px;font-size:10px;font-weight:800;letter-spacing:.06em;padding:5px 9px;border-radius:6px}
+.lc .netcard .netimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.lc .netcard .nbadge{position:absolute;top:14px;right:14px;z-index:2;font-size:10px;font-weight:800;letter-spacing:.06em;padding:5px 9px;border-radius:6px}
 /* sobre você (enxuto) */
 .lc .about{display:grid;grid-template-columns:.5fr 1fr;gap:32px;align-items:center;max-width:900px;margin:0 auto}
 .lc .about .photo{aspect-ratio:1;border-radius:18px;background:linear-gradient(150deg,#1E2D6E,#0a0f22);border:1px solid rgba(159,192,255,.25);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:13px;text-align:center;padding:12px}
@@ -290,14 +289,14 @@ const FERRAMENTAS = [
 
 // 8 trilhas com NOMES REAIS (do trilhas.ts), casadas pelo número 01-08.
 const TRILHAS_NET = [
-  { n: '01', nome: 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente', bg: 'linear-gradient(150deg,#10B981,#064a32)', free: true },
-  { n: '02', nome: 'Como Recomendar Melhorias com Base em Análise de Dados', bg: 'linear-gradient(150deg,#22D3EE,#0e4a8a)' },
-  { n: '03', nome: 'Como Conduzir Mudanças com Menos Resistência', bg: 'linear-gradient(150deg,#F59E0B,#7a3b06)' },
-  { n: '04', nome: 'Como Criar Apresentações que Convencem', bg: 'linear-gradient(150deg,#EC4899,#6b1239)' },
-  { n: '05', nome: 'Como Antecipar Riscos Antes que Virem Problemas', bg: 'linear-gradient(150deg,#EF4444,#5e1414)' },
-  { n: '06', nome: 'Cultura Lean na Prática', bg: 'linear-gradient(150deg,#8B5CF6,#3a1e6e)' },
-  { n: '07', nome: 'Como Fazer Análises Estatísticas Aplicadas a Negócios', bg: 'linear-gradient(150deg,#A855F7,#2e1065)' },
-  { n: '08', nome: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria', bg: 'linear-gradient(150deg,#0033CC,#1E2D6E)', topo: true },
+  { n: '01', nome: 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente', img: '/trilhas/trilha-01.png', free: true },
+  { n: '02', nome: 'Como Recomendar Melhorias com Base em Análise de Dados', img: '/trilhas/trilha-02.png' },
+  { n: '03', nome: 'Como Conduzir Mudanças com Menos Resistência', img: '/trilhas/trilha-03.png' },
+  { n: '04', nome: 'Como Criar Apresentações que Convencem', img: '/trilhas/trilha-04.png' },
+  { n: '05', nome: 'Como Antecipar Riscos Antes que Virem Problemas', img: '/trilhas/trilha-05.png' },
+  { n: '06', nome: 'Cultura Lean na Prática', img: '/trilhas/trilha-06.png' },
+  { n: '07', nome: 'Como Fazer Análises Estatísticas Aplicadas a Negócios', img: '/trilhas/trilha-07.png' },
+  { n: '08', nome: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria', img: '/trilhas/trilha-08.png', topo: true },
 ];
 
 export default function LandingComecar() {
@@ -401,11 +400,10 @@ export default function LandingComecar() {
         <div className="netwrap">
           <div className="nettrack" style={{ display: 'flex', gap: 16, width: 'max-content', padding: '0 2px' }}>
             {[...TRILHAS_NET, ...TRILHAS_NET].map((t, i) => (
-              <div className="netcard" key={i} style={{ background: t.bg, borderColor: t.topo ? 'rgba(159,192,255,.45)' : undefined }}>
+              <div className="netcard" key={i} style={{ borderColor: t.topo ? 'rgba(159,192,255,.45)' : undefined }}>
+                <img className="netimg" src={t.img} alt={`Trilha ${t.n} — ${t.nome}`} loading="lazy" />
                 {t.free && <span className="nbadge" style={{ background: '#04241a', color: '#6ee7b7' }}>GRÁTIS</span>}
                 {t.topo && <span className="nbadge" style={{ background: '#1E2D6E', color: '#fff', border: '1px solid rgba(159,192,255,.5)' }}>🏆 LBW</span>}
-                <div className="nnum">{t.n}</div>
-                <div className="nnome">{t.nome}</div>
               </div>
             ))}
           </div>
