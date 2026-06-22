@@ -43,14 +43,14 @@ const LANGS = [{ code: 'pt-BR', flag: '🇧🇷', label: 'PT' }, { code: 'en-US'
 //   05 Riscos + 06 Lean (refinamento) → 07 Estatística (profundidade) →
 //   08 Especialista (âncora — Master Black Belt + PMP)
 const TRILHA_HERO_CARDS = [
-  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Chegar numa área nova e já entregar resultado',           gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
-  { id: 'dados-do-dia-a-dia',              num: '02', icon: BarChart3,   label: 'Gerar recomendações baseadas em dados',                    gradient: 'linear-gradient(135deg, #22D3EE 0%, #2563EB 55%, #1E3A8A 100%)', glow: 'rgba(34, 211, 238, 0.45)'  },
-  { id: 'mudanca-com-menos-resistencia',   num: '03', icon: Users,       label: 'Conduzir mudanças com menos resistência',                  gradient: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 55%, #7F1D1D 100%)', glow: 'rgba(245, 158, 11, 0.45)'  },
-  { id: 'apresentar-recomendacao',         num: '04', icon: Mic,         label: 'Criar apresentações que convencem',                        gradient: 'linear-gradient(135deg, #FB923C 0%, #EF4444 55%, #9F1239 100%)', glow: 'rgba(249, 115, 22, 0.45)'  },
-  { id: 'analise-risco-mudanca',           num: '05', icon: ShieldAlert, label: 'Antecipar riscos antes de executar',                       gradient: 'linear-gradient(135deg, #EF4444 0%, #BE123C 55%, #0F172A 100%)', glow: 'rgba(239, 68, 68, 0.45)'   },
-  { id: 'perfil-gestor-lean',              num: '06', icon: Recycle,     label: 'Conhecer a cultura Lean na prática',                       gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #064E3B 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
-  { id: 'problema-cronico',                num: '07', icon: LineChart,   label: 'Estudos pontuais com estatística aplicada',                gradient: 'linear-gradient(135deg, #C084FC 0%, #7C3AED 55%, #312E81 100%)', glow: 'rgba(168, 85, 247, 0.45)'  },
-  { id: 'especialista-projetos-complexos', num: '08', icon: Trophy,      label: 'Gerenciar projetos de melhoria complexos',                 gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
+  { id: 'ferramentas-dia-a-dia',           num: '01', icon: Footprints,  label: 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente',           gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 55%, #312E81 100%)', glow: 'rgba(59, 130, 246, 0.45)'  },
+  { id: 'dados-do-dia-a-dia',              num: '02', icon: BarChart3,   label: 'Como Recomendar Melhorias com Base em Análise de Dados',                  gradient: 'linear-gradient(135deg, #22D3EE 0%, #2563EB 55%, #1E3A8A 100%)', glow: 'rgba(34, 211, 238, 0.45)'  },
+  { id: 'mudanca-com-menos-resistencia',   num: '03', icon: Users,       label: 'Como Conduzir Mudanças com Menos Resistência',                            gradient: 'linear-gradient(135deg, #FBBF24 0%, #EA580C 55%, #7F1D1D 100%)', glow: 'rgba(245, 158, 11, 0.45)'  },
+  { id: 'apresentar-recomendacao',         num: '04', icon: Mic,         label: 'Como Criar Apresentações que Convencem',                                  gradient: 'linear-gradient(135deg, #FB923C 0%, #EF4444 55%, #9F1239 100%)', glow: 'rgba(249, 115, 22, 0.45)'  },
+  { id: 'analise-risco-mudanca',           num: '05', icon: ShieldAlert, label: 'Como Antecipar Riscos Antes que Virem Problemas',                         gradient: 'linear-gradient(135deg, #EF4444 0%, #BE123C 55%, #0F172A 100%)', glow: 'rgba(239, 68, 68, 0.45)'   },
+  { id: 'perfil-gestor-lean',              num: '06', icon: Recycle,     label: 'Cultura Lean na Prática',                                                 gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #064E3B 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
+  { id: 'problema-cronico',                num: '07', icon: LineChart,   label: 'Como Fazer Análises Estatísticas Aplicadas a Negócios',                   gradient: 'linear-gradient(135deg, #C084FC 0%, #7C3AED 55%, #312E81 100%)', glow: 'rgba(168, 85, 247, 0.45)'  },
+  { id: 'especialista-projetos-complexos', num: '08', icon: Trophy,      label: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',        gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
 ] as const;
 
 type TrilhaHeroCard = typeof TRILHA_HERO_CARDS[number];
@@ -293,16 +293,27 @@ function NineCard({ card, i, onClick, compact = false, locked = false }: {
           <Lock size={13} className="text-white" />
         </div>
       )}
-      {/* Label — único elemento, centralizado e maior */}
-      <p className="relative font-semibold tracking-tight m-0 text-center"
-        style={{
-          color: 'rgba(255,255,255,1)',
-          textShadow: '0 1px 3px rgba(0,0,0,0.35), 0 0 1px rgba(0,0,0,0.25)',
-          fontSize: compact ? '15px' : '18px',
-          lineHeight: 1.1,
-        }}>
-        {card.label}
-      </p>
+      {/* Número da trilha + nome real, centralizados */}
+      <div className="relative flex items-center gap-2.5 px-1">
+        <span aria-hidden className="font-bold leading-none flex-shrink-0"
+          style={{
+            fontFamily: "'Space Grotesk', 'Geist', sans-serif",
+            color: 'rgba(255,255,255,0.9)',
+            textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            fontSize: compact ? '22px' : '28px',
+          }}>
+          {card.num}
+        </span>
+        <p className="font-semibold tracking-tight m-0 text-left"
+          style={{
+            color: 'rgba(255,255,255,1)',
+            textShadow: '0 1px 3px rgba(0,0,0,0.35), 0 0 1px rgba(0,0,0,0.25)',
+            fontSize: compact ? '12px' : '13.5px',
+            lineHeight: 1.15,
+          }}>
+          {card.label}
+        </p>
+      </div>
     </motion.button>
   );
 }
@@ -415,37 +426,6 @@ function TypingIndicator() {
   );
 }
 
-function HeroComposer({ value, setValue, onSend }: { value: string; setValue: (v: string) => void; onSend: () => void }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.55 }}
-      className="max-w-3xl mx-auto w-full rounded-[24px] bg-white/85 backdrop-blur-xl border border-black/[0.06] overflow-hidden"
-      style={{ boxShadow: `0 18px 50px -22px ${LBW.navy}33` }}
-    >
-      <textarea value={value} rows={3}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (value.trim().length >= 10) onSend(); } }}
-        placeholder="Descreva seu problema em texto livre — quanto mais detalhes, melhor o diagnóstico."
-        className="w-full p-5 text-[14px] resize-none outline-none placeholder:text-stone-400 bg-transparent leading-relaxed max-h-[160px]"
-        style={{ color: LBW.ink }}
-      />
-      <div className="flex items-center justify-between px-5 py-3 border-t border-stone-200/60 bg-white/50">
-        <span className="text-[11px] text-stone-500">
-          {value.trim().length > 0 ? `${value.trim().length} caracteres` : 'Mínimo 30 caracteres para análise'}
-        </span>
-        <motion.button onClick={onSend} disabled={value.trim().length < 10}
-          whileHover={value.trim().length >= 10 ? { scale: 1.03 } : {}}
-          whileTap={value.trim().length >= 10 ? { scale: 0.97 } : {}}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, boxShadow: value.trim().length >= 10 ? `0 8px 20px -8px ${LBW.blue}88` : 'none' }}
-        >
-          Enviar <Send size={12} />
-        </motion.button>
-      </div>
-    </motion.div>
-  );
-}
-
 export default function ChatAssistant() {
   const navigate = useNavigate();
   const userName = (localStorage.getItem('usuarioEmail')?.split('@')[0] || 'aluno').split('.')[0];
@@ -459,7 +439,6 @@ export default function ChatAssistant() {
   const [dir, setDir] = useState<1 | -1>(1);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
-  const [input, setInput] = useState('');
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [showAiTyping, setShowAiTyping] = useState(false);
@@ -632,7 +611,7 @@ export default function ChatAssistant() {
   };
 
   const resetToHero = () => {
-    setView('hero'); setNavPath([]); setActiveVideoId(null); setChat([]); setInput('');
+    setView('hero'); setNavPath([]); setActiveVideoId(null); setChat([]);
     setPickedCard(null); setChatInput('');
   };
 
@@ -650,36 +629,6 @@ export default function ChatAssistant() {
       setSpeakingId(m.id);
       window.speechSynthesis.speak(u);
     } catch { setSpeakingId(null); }
-  };
-
-  const sendFromHero = async () => {
-    if (input.trim().length < 10) return;
-    const txt = input.trim();
-    setInput('');
-    setChat([{ id: String(Date.now()), role: 'user', text: txt }]);
-    go('chat', 1);
-    setShowAiTyping(true);
-    try {
-      // Texto livre passa pelo MESMO fluxo dos 9 cards: Israel faz follow-ups (até 3)
-      // e recomenda UMA das trilhas REAIS da plataforma pelo nome exato.
-      // Como não sabemos qual trilha ainda, injetamos TODAS pra IA escolher.
-      const trilhasCtx = buildTrilhasContexto();
-      const knowledgeBlock = getAllKnowledge();
-      const reply = await callGemini(
-        (knowledgeBlock ? `=== CONHECIMENTO DA PLATAFORMA (use isso pra responder, NÃO invente) ===\n${knowledgeBlock}\n\n=== FIM DO CONHECIMENTO ===\n\n` : '') +
-        `Você é o Israel, mentor LBW. O aluno descreveu o que precisa:\n\n"${txt}"\n\n` +
-        (trilhasCtx ? `${trilhasCtx}\n\n` : '') +
-        `Sua tarefa: se a descrição já deixa claro qual trilha indicar, faça UMA pergunta de confirmação curta (1-2 linhas) e depois recomende a trilha. ` +
-        `Se a descrição é ambígua (pode ser mais de uma trilha), faça 1 pergunta curta pra desempatar. NUNCA mais de 3 perguntas no total — chegando lá, recomende.\n\n` +
-        `Tom: 1ª pessoa do Israel, direto, sem buzzword, sem JSON. ` +
-        `Quando for recomendar, escreva entre aspas o nome EXATO da trilha da lista acima.\n\n` +
-        `IMPORTANTE: seu único objetivo é orientar a MELHOR TRILHA. Não sugira próximos passos, ferramentas específicas, planos de ação, "primeira coisa a fazer", checklist nada disso. Foco TOTAL em: qual trilha resolve o problema do aluno.\n\n` +
-        `Responda em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`
-      );
-      setChat(c => [...c, { id: String(Date.now() + 1), role: 'ai', text: reply }]);
-    } catch {
-      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar. Tente novamente.' }]);
-    } finally { setShowAiTyping(false); }
   };
 
   const sendChat = async () => {
@@ -782,16 +731,11 @@ export default function ChatAssistant() {
                       })}
                     </div>
 
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      transition={{ delay: 0.4 }} className="flex items-center gap-3 mb-2 max-w-3xl mx-auto w-full">
-                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
-                      <span className="text-[10px] font-bold tracking-[0.22em] uppercase text-stone-500 whitespace-nowrap">
-                        Ou descreva em texto livre
-                      </span>
-                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
-                    </motion.div>
-
-                    <HeroComposer value={input} setValue={setInput} onSend={sendFromHero} />
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                      className="text-center text-[12px] text-stone-500 mt-1 mb-2 max-w-3xl mx-auto w-full">
+                      Escolha uma trilha acima para começar a conversar com o Israel.
+                    </motion.p>
                   </>
                 )}
 
@@ -910,6 +854,10 @@ export default function ChatAssistant() {
                             <Send size={13} />
                           </motion.button>
                         </div>
+                        <p className="text-[11px] text-stone-500 leading-snug mt-2 px-1">
+                          Use este campo para <strong>perguntas gerais sobre esta trilha</strong>. Para dúvidas específicas
+                          (por exemplo, sobre uma ferramenta), use o <strong>Agente Israel Digital</strong> dentro do seu projeto — a resposta será mais precisa.
+                        </p>
                       </div>
                     </div>
                   </>
