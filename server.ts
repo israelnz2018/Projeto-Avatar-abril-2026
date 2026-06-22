@@ -1319,6 +1319,72 @@ async function startServer() {
   });
 
   // ===============================================================
+  // LEADS CORPORATIVOS — formulário público da página /pacotes-corporativos.
+  // Salva no Firestore (coleção corporate_leads) E avisa por e-mail (Resend).
+  // O admin vê os leads na aba Marketing (GET abaixo, protegido).
+  // ===============================================================
+  app.post("/api/lead-corporativo", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado." });
+    const b = req.body || {};
+    const nome = String(b.nome || "").trim();
+    const empresa = String(b.empresa || "").trim();
+    if (nome.length < 2 || empresa.length < 2) {
+      return res.status(400).json({ error: "Informe nome e empresa." });
+    }
+    const lead = {
+      nome,
+      funcao: String(b.funcao || "").trim(),
+      empresa,
+      site: String(b.site || "").trim(),
+      qtdTreinandos: String(b.qtdTreinandos || "").trim(),
+      suporte: Array.isArray(b.suporte) ? b.suporte.map((s: any) => String(s)) : [],
+      detalhes: String(b.detalhes || "").trim(),
+      criadoEm: new Date().toISOString(),
+    };
+    try {
+      const ref = adminFirestore().collection("corporate_leads").doc();
+      await ref.set({ id: ref.id, ...lead });
+
+      // Avisa por e-mail (não bloqueia o sucesso se o e-mail falhar)
+      try {
+        const linhas = [
+          `<p><strong>Novo lead corporativo</strong></p>`,
+          `<p><strong>Nome:</strong> ${esc(lead.nome)}</p>`,
+          `<p><strong>Função:</strong> ${esc(lead.funcao)}</p>`,
+          `<p><strong>Empresa:</strong> ${esc(lead.empresa)}</p>`,
+          `<p><strong>Site:</strong> ${esc(lead.site)}</p>`,
+          `<p><strong>Funcionários a treinar:</strong> ${esc(lead.qtdTreinandos)}</p>`,
+          `<p><strong>Suporte desejado:</strong> ${esc(lead.suporte.join(", "))}</p>`,
+          lead.detalhes ? `<p><strong>Detalhes:</strong> ${esc(lead.detalhes)}</p>` : "",
+        ].join("");
+        await resendSend({
+          to: "contact@learningbyworking.com",
+          subject: `Lead corporativo — ${lead.empresa}`,
+          html: campanhaHtml(linhas),
+        });
+      } catch (e) { /* e-mail não-crítico */ }
+
+      return res.json({ ok: true, id: ref.id });
+    } catch (err: any) {
+      console.error("[POST /api/lead-corporativo] erro:", err?.message || err);
+      return res.status(500).json({ error: "Erro ao enviar. Tente novamente." });
+    }
+  });
+
+  // GET /api/leads-corporativos — lista os leads (admin, aba Marketing)
+  app.get("/api/leads-corporativos", requireAdmin, async (_req: any, res) => {
+    try {
+      const snap = await adminFirestore().collection("corporate_leads").get();
+      const leads = snap.docs
+        .map((d) => d.data())
+        .sort((a: any, b: any) => String(b.criadoEm).localeCompare(String(a.criadoEm)));
+      return res.json({ leads });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao ler leads." });
+    }
+  });
+
+  // ===============================================================
   // TRACKING — webhook do Resend (abertura/clique) + painel de engajamento.
   // O Resend chama este endpoint a cada evento. Identificamos o usuário pelo
   // e-mail em data.to[0] e incrementamos contadores no perfil.
