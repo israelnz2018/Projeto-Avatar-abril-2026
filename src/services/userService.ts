@@ -29,6 +29,9 @@ export interface UserData {
     limite: number;
     usado: number;
     resetEm: string;
+    /** Aluno solicitou aumento de crédito (visível no painel /users). */
+    solicitouMais?: boolean;
+    solicitadoEm?: string;
   };
   tipoUsuario: TipoUsuario;
   criadoEm: string;

@@ -103,6 +103,25 @@ export async function canUseAI(): Promise<CreditStatus> {
 }
 
 /**
+ * Aluno solicita aumento de crédito. Grava no próprio doc do usuário
+ * (creditoIA.solicitouMais + data) — o admin vê no painel /users, sem e-mail.
+ * Retorna true se gravou.
+ */
+export async function solicitarMaisCredito(): Promise<boolean> {
+  try {
+    const user = auth.currentUser;
+    if (!user) return false;
+    await updateDoc(doc(db, 'users', user.uid), {
+      'creditoIA.solicitouMais': true,
+      'creditoIA.solicitadoEm': new Date().toISOString(),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Registra o consumo de uma chamada de IA (em tokens LBW), incrementando
  * creditoIA.usado. Best-effort, fire-and-forget.
  */

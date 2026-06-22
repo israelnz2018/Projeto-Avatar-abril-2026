@@ -66,6 +66,9 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  // Crédito de IA esgotado → mostra botão de solicitar mais.
+  const [creditoEsgotado, setCreditoEsgotado] = useState(false);
+  const [solicitouCredito, setSolicitouCredito] = useState(false);
   const { canUseTool } = useUserAccess();
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   // Ferramenta ativa bloqueada pro aluno (gratuito) → Mentor sobre ela fica bloqueado.
@@ -271,17 +274,24 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
       }
     } catch (error: any) {
       const limite = error?.name === 'CreditExhaustedError';
+      if (limite) setCreditoEsgotado(true);
       console.error('Erro ao consultar mentor:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: limite
-          ? 'Você usou todo o seu crédito de conversa com a IA gratuito deste mês — ele se renova no mês que vem. Você continua usando as ferramentas normalmente; para conversar sem limites, conheça a formação completa.'
+          ? 'Seu limite mensal de conversa com a IA chegou ao fim. Ele se renova automaticamente no próximo mês. Você continua usando todas as ferramentas normalmente. Se realmente precisar de mais créditos agora, use o botão abaixo.'
           : 'Desculpe, ocorreu um erro. Tente novamente em instantes.',
         level: 3
       }]);
     } finally {
       setIsThinking(false);
     }
+  };
+
+  const handleSolicitarCredito = async () => {
+    const { solicitarMaisCredito } = await import('../../services/tokenCreditService');
+    await solicitarMaisCredito();
+    setSolicitouCredito(true);
   };
 
   const handleRequestDirectAnswer = async (msgIndex: number) => {
@@ -524,6 +534,20 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
             </button>
           ) : (
             <div className="relative">
+              {creditoEsgotado && (
+                solicitouCredito ? (
+                  <div className="mb-2 rounded-[8px] px-3 py-2.5 text-[12px] leading-relaxed"
+                    style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.35)', color: '#065f46' }}>
+                    ✅ Enviamos sua solicitação ao Israel. Ele vai avaliar em até <strong>2 dias úteis</strong>.
+                  </div>
+                ) : (
+                  <button onClick={handleSolicitarCredito}
+                    className="w-full mb-2 rounded-[8px] px-3 py-2.5 text-[12.5px] font-semibold text-white cursor-pointer"
+                    style={{ background: 'linear-gradient(135deg, #0033CC, #1E2D6E)' }}>
+                    Preciso de mais créditos →
+                  </button>
+                )
+              )}
               <input
                 type="text"
                 value={inputMessage}

@@ -441,6 +441,9 @@ export default function ChatAssistant() {
 
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
+  // Limite de crédito de IA atingido → mostra aviso + botão de solicitar mais.
+  const [creditoEsgotado, setCreditoEsgotado] = useState(false);
+  const [solicitouCredito, setSolicitouCredito] = useState(false);
   const [showAiTyping, setShowAiTyping] = useState(false);
   const [lang, setLang] = useState('pt-BR');
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -657,10 +660,20 @@ export default function ChatAssistant() {
       setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: reply }]);
     } catch (err: any) {
       const limite = err?.name === 'CreditExhaustedError';
-      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: limite
-        ? 'Você usou todo o seu crédito de IA gratuito deste mês. Ele se renova no mês que vem. Para conversar sem limites e liberar todas as trilhas, conheça a formação completa. (Você continua usando as ferramentas normalmente.)'
-        : 'Erro ao conectar.' }]);
+      if (limite) {
+        setCreditoEsgotado(true);
+        setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text:
+          'Seu limite mensal de conversa com a IA chegou ao fim. Ele se renova automaticamente no próximo mês. Você continua usando todas as ferramentas normalmente. Se realmente precisar de mais créditos agora, use o botão abaixo.' }]);
+      } else {
+        setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar.' }]);
+      }
     } finally { setShowAiTyping(false); }
+  };
+
+  const handleSolicitarCredito = async () => {
+    const { solicitarMaisCredito } = await import('../services/tokenCreditService');
+    await solicitarMaisCredito();
+    setSolicitouCredito(true);
   };
 
   if (!configLoaded) return (
@@ -833,6 +846,23 @@ export default function ChatAssistant() {
                           </motion.div>
                         )}
                       </div>
+
+                      {creditoEsgotado && (
+                        <div className="px-3 pt-2.5 flex-shrink-0">
+                          {solicitouCredito ? (
+                            <div className="rounded-xl px-4 py-3 text-[12.5px] leading-relaxed"
+                              style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.35)', color: '#065f46' }}>
+                              ✅ Enviamos sua solicitação ao Israel. Ele vai avaliar em até <strong>2 dias úteis</strong> e, se fizer sentido, aumenta o seu limite.
+                            </div>
+                          ) : (
+                            <button onClick={handleSolicitarCredito}
+                              className="w-full rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white cursor-pointer"
+                              style={{ background: `linear-gradient(135deg, ${LBW.blue}, ${LBW.navy})`, boxShadow: `0 8px 20px -10px ${LBW.blue}88` }}>
+                              Preciso de mais créditos →
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="px-3 py-2.5 border-t border-stone-200/60 bg-white/70 flex-shrink-0">
                         <div className="flex items-end gap-2 bg-white border border-stone-200 rounded-xl px-3 py-2">

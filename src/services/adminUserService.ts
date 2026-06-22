@@ -72,7 +72,7 @@ export interface ListedUser {
   tipoUsuario: 'admin' | 'coordenador' | 'aluno';
   plano?: 'gratuito' | 'completo' | 'coordenador';
   formacoes: string[];
-  creditoIA: { limite: number; usado: number; resetEm: string };
+  creditoIA: { limite: number; usado: number; resetEm: string; solicitouMais?: boolean; solicitadoEm?: string };
   empresaId?: string;
   empresaNome?: string;
   maxAlunos?: number;

@@ -183,6 +183,8 @@ export default function UserManagementView() {
               limite: typeof u.creditoIA.limite === 'number' ? u.creditoIA.limite : 100,
               usado: typeof u.creditoIA.usado === 'number' ? u.creditoIA.usado : 0,
               resetEm: u.creditoIA.resetEm || new Date().toISOString(),
+              solicitouMais: !!u.creditoIA.solicitouMais,
+              solicitadoEm: u.creditoIA.solicitadoEm,
             }
           : { limite: 100, usado: 0, resetEm: new Date().toISOString() },
       });
@@ -574,6 +576,12 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
               {user.creditoIA.usado}/{user.creditoIA.limite}
             </span>
           </div>
+          {user.creditoIA.solicitouMais && (
+            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700"
+              title={user.creditoIA.solicitadoEm ? `Solicitou em ${new Date(user.creditoIA.solicitadoEm).toLocaleDateString('pt-BR')}` : 'Solicitou mais créditos'}>
+              ⏳ Pediu + créditos
+            </span>
+          )}
           <ChevronDown size={16} className={cn("text-gray-400 transition-transform ml-1", expanded && "rotate-180")} />
         </div>
       </button>
