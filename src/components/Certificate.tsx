@@ -174,7 +174,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           </div>
 
           {/* QR + nº de verificação (canto inferior esquerdo, dentro da moldura) */}
-          <div className="absolute flex items-end gap-2" style={{ left: '7%', bottom: '7%' }}>
+          <div className="absolute flex items-end gap-2" style={{ left: '7%', bottom: '12%' }}>
             <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
             </div>
