@@ -269,11 +269,14 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
           ));
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      const limite = error?.name === 'CreditExhaustedError';
       console.error('Erro ao consultar mentor:', error);
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Desculpe, ocorreu um erro. Tente novamente em instantes.',
+        content: limite
+          ? 'Você usou todo o seu crédito de conversa com a IA gratuito deste mês — ele se renova no mês que vem. Você continua usando as ferramentas normalmente; para conversar sem limites, conheça a formação completa.'
+          : 'Desculpe, ocorreu um erro. Tente novamente em instantes.',
         level: 3
       }]);
     } finally {

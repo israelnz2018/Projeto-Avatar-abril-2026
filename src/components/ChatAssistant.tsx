@@ -655,8 +655,11 @@ export default function ChatAssistant() {
         `Responda agora em ${lang === 'en-US' ? 'inglês' : lang === 'es-ES' ? 'espanhol' : 'português'}.`
       );
       setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: reply }]);
-    } catch {
-      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: 'Erro ao conectar.' }]);
+    } catch (err: any) {
+      const limite = err?.name === 'CreditExhaustedError';
+      setChat(c => [...c, { id: String(Date.now()+1), role: 'ai', text: limite
+        ? 'Você usou todo o seu crédito de IA gratuito deste mês. Ele se renova no mês que vem. Para conversar sem limites e liberar todas as trilhas, conheça a formação completa. (Você continua usando as ferramentas normalmente.)'
+        : 'Erro ao conectar.' }]);
     } finally { setShowAiTyping(false); }
   };
 

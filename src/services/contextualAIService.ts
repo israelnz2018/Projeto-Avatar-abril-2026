@@ -138,7 +138,8 @@ Retorne APENAS JSON válido no formato:
       confidence: parsed.confidence ?? 0,
       usedVideoIds: parsed.usedVideoIds ?? []
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === 'CreditExhaustedError') throw error; // deixa subir p/ a UI
     console.error('[contextualAI] Erro mentor com contexto:', error);
     return { found: false, answer: '', confidence: 0, usedVideoIds: [] };
   }
@@ -174,6 +175,7 @@ Tom: amigável, técnico, em português do Brasil. 2 a 4 parágrafos.`;
     });
     return text || 'Não consegui gerar uma resposta agora. Tente novamente em alguns instantes.';
   } catch (err: any) {
+    if (err?.name === 'CreditExhaustedError') throw err; // deixa subir p/ a UI
     console.error('[contextualAI] erro no nível 3:', err);
     return 'Não consegui acessar o mentor IA neste momento. Tente novamente em instantes ou use a aba **AI Assistant** no menu lateral.';
   }

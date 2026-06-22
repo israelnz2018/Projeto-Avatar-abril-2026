@@ -85,8 +85,7 @@ export async function callAnthropic(opts: AnthropicCallOpts): Promise<AnthropicR
  * Conveniência: chama Anthropic esperando JSON puro de volta.
  * Faz parse e devolve o objeto. Se vier markdown com ```json ... ```, extrai.
  */
-export async function callAnthropicJSON<T = any>(opts: AnthropicCallOpts): Promise<T> {
-  const { text } = await callAnthropic(opts);
+function parseJsonFromText<T>(text: string): T {
   const cleaned = text
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -100,4 +99,17 @@ export async function callAnthropicJSON<T = any>(opts: AnthropicCallOpts): Promi
     if (m) return JSON.parse(m[1]);
     throw new Error(`Resposta da Anthropic não é JSON válido: ${cleaned.slice(0, 200)}`);
   }
+}
+
+export async function callAnthropicJSON<T = any>(opts: AnthropicCallOpts): Promise<T> {
+  const { text } = await callAnthropic(opts);
+  return parseJsonFromText<T>(text);
+}
+
+/** Igual ao callAnthropicJSON, mas devolve também o usage (pra contabilizar crédito). */
+export async function callAnthropicJSONWithUsage<T = any>(
+  opts: AnthropicCallOpts,
+): Promise<{ result: T; usage: { inputTokens: number; outputTokens: number } }> {
+  const { text, usage } = await callAnthropic(opts);
+  return { result: parseJsonFromText<T>(text), usage };
 }

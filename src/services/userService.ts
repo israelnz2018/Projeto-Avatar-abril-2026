@@ -123,7 +123,7 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
     email,
     formacoes,
     creditoIA: {
-      limite: 100,
+      limite: 200,
       usado: 0,
       resetEm: calcularProximoReset(),
     },
