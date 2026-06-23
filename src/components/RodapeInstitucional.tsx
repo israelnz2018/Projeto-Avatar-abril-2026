@@ -33,7 +33,14 @@ export default function RodapeInstitucional() {
         <div>
           <div style={tituloCol}>Trilhas</div>
           <div style={{ fontSize: 13, color: TXT2, lineHeight: 2 }}>
-            01 · Entregar rápido<br/>02 · Decidir com dados<br/>03 · Conduzir mudanças<br/>04 · Apresentações<br/>05 · Antecipar riscos<br/>06 · Cultura Lean<br/>07 · Estatística aplicada<br/>08 · Gestão de Projetos
+            01 · Como Chegar em uma Área Nova e Entregar Resultado Rapidamente<br/>
+            02 · Como Recomendar Melhorias com Base em Análise de Dados<br/>
+            03 · Como Conduzir Mudanças com Menos Resistência<br/>
+            04 · Como Criar Apresentações que Convencem<br/>
+            05 · Como Antecipar Riscos Antes que Virem Problemas<br/>
+            06 · Cultura Lean na Prática<br/>
+            07 · Como Fazer Análises Estatísticas Aplicadas a Negócios<br/>
+            08 · Como Se Tornar um Especialista em Gestão de Projetos de Melhoria
           </div>
         </div>
         <div>
