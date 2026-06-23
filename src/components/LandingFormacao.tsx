@@ -357,7 +357,7 @@ export default function LandingFormacao() {
       {/* FUNDADOR */}
       <section className="sec" style={{ background: '#070A18' }}>
         <div className="wrap split" style={{ gridTemplateColumns: '.8fr 1.2fr' }}>
-          <div><img src="/avatar-israel.png" alt="Israel Souza" style={{ background: 'linear-gradient(150deg,#1E2D6E,#0a0f22)', objectFit: 'contain' }} /></div>
+          <div><img src="/israel-foto.png" alt="Israel Souza" style={{ objectFit: 'cover', aspectRatio: '3/4' }} /></div>
           <div>
             <span className="eyebrow">Quem é seu consultor?</span>
             <h2 style={{ fontSize: 34, margin: '16px 0' }}>Mais 20 anos resolvendo problema de verdade</h2>
