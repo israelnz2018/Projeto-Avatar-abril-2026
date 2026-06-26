@@ -334,16 +334,23 @@ async function startServer() {
     if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado." });
     try {
       // Gera o link oficial de redefinição (válido mesmo se o usuário existir).
+      const appUrl = process.env.APP_URL || "https://app.educacaopelotrabalho.com";
       let link: string | null = null;
       try {
-        const appUrl = process.env.APP_URL || "https://app.educacaopelotrabalho.com";
+        // 1ª tentativa: com continueUrl (precisa do domínio autorizado no Firebase).
         link = await adminAuth().generatePasswordResetLink(email, { url: appUrl });
       } catch (e: any) {
-        // Usuário não existe (auth/user-not-found) → resposta genérica, sem vazar.
         if (e?.code === "auth/user-not-found") {
-          return res.json({ ok: true });
+          return res.json({ ok: true }); // não revela se o e-mail existe
         }
-        throw e;
+        // 2ª tentativa: SEM a opção url (evita falha por dominio nao autorizado).
+        console.warn("[/api/reset-senha] retry sem url; erro inicial:", e?.code || e?.message);
+        try {
+          link = await adminAuth().generatePasswordResetLink(email);
+        } catch (e2: any) {
+          if (e2?.code === "auth/user-not-found") return res.json({ ok: true });
+          throw e2;
+        }
       }
 
       // Envia o e-mail pelo nosso SMTP (mesmo dos convites).
