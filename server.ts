@@ -384,9 +384,14 @@ async function startServer() {
       }
       return res.json({ ok: true });
     } catch (err: any) {
+      // E-mail inexistente pode vir como user-not-found OU como internal-error
+      // ("Unable to create the email action link") — em ambos, não revelamos nada.
+      const msg = String(err?.message || "");
+      if (err?.code === "auth/user-not-found" || msg.includes("Unable to create the email action link")) {
+        return res.json({ ok: true });
+      }
       console.error("[POST /api/reset-senha] erro:", err?.message || err);
-      // _debug temporário pra diagnóstico (remover depois)
-      return res.status(500).json({ error: "Erro ao processar. Tente novamente.", _debug: { code: err?.code, message: err?.message } });
+      return res.status(500).json({ error: "Erro ao processar. Tente novamente." });
     }
   });
 
