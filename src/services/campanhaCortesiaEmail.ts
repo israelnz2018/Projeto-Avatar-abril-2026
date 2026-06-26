@@ -9,7 +9,7 @@ const GOLD = '#C9A24B';
 const INK = '#2A2F3A';
 const LIGHT = '#F0F2FA';
 
-export const CAMPANHA_ASSUNTO = 'Seu acesso gratuito à plataforma LBW — meu presente até 31/12 🎁';
+export const CAMPANHA_ASSUNTO = 'Seu acesso gratuito à plataforma LBW — meu presente para você 🎁';
 
 const TRILHAS = [
   '01 · Como Chegar em uma Área Nova e Entregar Resultado Rapidamente',
@@ -38,7 +38,6 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
       </div>
       <div style="height:4px;background:linear-gradient(90deg,${GOLD},#E7C977,${GOLD});"></div>
       <div style="padding:34px 34px 10px;">
-        <h1 style="font-size:22px;color:${NAVY};margin:0 0 18px;font-weight:800;">Meu presente para você! 🎁</h1>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">Olá!</p>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">
           Aqui é o <strong>Israel Souza</strong>. Você já esteve comigo em algum momento — seja
