@@ -38,7 +38,7 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
       </div>
       <div style="height:4px;background:linear-gradient(90deg,${GOLD},#E7C977,${GOLD});"></div>
       <div style="padding:34px 34px 10px;">
-        <h1 style="font-size:22px;color:${NAVY};margin:0 0 18px;font-weight:800;">Um presente meu pra você 🎁</h1>
+        <h1 style="font-size:22px;color:${NAVY};margin:0 0 18px;font-weight:800;">Meu presente para você! 🎁</h1>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">Olá!</p>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">
           Aqui é o <strong>Israel Souza</strong>. Você já esteve comigo em algum momento — seja
@@ -57,10 +57,10 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
           <div style="font-size:14px;margin:4px 0;"><strong>Senha provisória:</strong>
             <code style="background:#fff;border:1px solid #ccd;border-radius:4px;padding:3px 8px;font-family:monospace;">LBW2026</code>
           </div>
-          <div style="font-size:12px;color:#7A828F;margin-top:8px;">Recomendo trocar a senha no primeiro acesso.</div>
+          <div style="font-size:12px;color:#7A828F;margin-top:8px;">É obrigatório trocar a senha no primeiro acesso.</div>
         </div>
-        <div style="text-align:center;margin:26px 0;">
-          <a href="${APP}" style="background:linear-gradient(120deg,${BLUE},#2563EB);color:#fff;text-decoration:none;font-weight:bold;font-size:16px;padding:15px 38px;border-radius:10px;display:inline-block;">Entrar na plataforma →</a>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${APP}" style="background:linear-gradient(120deg,${BLUE},#2563EB);color:#fff;text-decoration:none;font-weight:bold;font-size:17px;padding:17px 44px;border-radius:12px;display:inline-block;box-shadow:0 8px 22px -8px rgba(0,51,204,.5);">Acessar a plataforma LBW →</a>
         </div>
         <h2 style="font-size:17px;color:${NAVY};margin:30px 0 6px;font-weight:800;">O que você tem acesso</h2>
         <p style="font-size:14px;line-height:1.6;color:#5B6472;margin:0 0 12px;">Tudo liberado, sem pagar nada:</p>
@@ -77,17 +77,16 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
           <h2 style="font-size:16px;color:${NAVY};margin:0 0 12px;font-weight:800;">Em troca, te peço só 3 coisas 🤝</h2>
           <div style="font-size:14px;line-height:1.6;margin:0 0 10px;"><strong>1.</strong> Participe da <strong>comunidade</strong>.</div>
           <div style="font-size:14px;line-height:1.6;margin:0 0 10px;"><strong>2.</strong> Me ajude reportando <strong>sugestões de melhoria, bugs</strong> e o que achar que pode melhorar.</div>
-          <div style="font-size:14px;line-height:1.6;margin:0;"><strong>3.</strong> <em>(obrigatório para gerar o certificado)</em> Antes de fazer a prova de cada trilha, escreva um <strong>breve depoimento</strong> sobre a plataforma — pode ser positivo ou negativo, quero a sua opinião sincera. Esse depoimento poderá ser usado nas minhas redes sociais para divulgar o trabalho.</div>
+          <div style="font-size:14px;line-height:1.6;margin:0;"><strong>3.</strong> Antes de fazer a prova de cada trilha, escreva um <strong>breve depoimento</strong> sobre a plataforma — pode ser positivo ou negativo, quero a sua opinião sincera. Esse depoimento poderá ser usado nas minhas redes sociais para divulgar o trabalho.</div>
         </div>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">É isso. Aproveite de verdade — foi feito pra você. Qualquer dúvida, é só responder este e-mail.</p>
         <p style="font-size:15px;line-height:1.65;margin:18px 0 4px;">Um abraço,</p>
-        <p style="font-size:15px;line-height:1.4;margin:0;"><strong>Israel Souza</strong><br>
+        <p style="font-size:15px;line-height:1.4;margin:0;"><strong>Israel Cavalcanti de Souza</strong><br>
           <span style="font-size:13px;color:#5B6472;">CEO Learning by Working · Consultor Sênior em Melhoria de Processos e Negócios</span></p>
       </div>
       <div style="background:#05070F;padding:22px 32px;text-align:center;">
         <div style="font-size:12px;color:#8A94A6;line-height:1.6;">
-          Learning by Working — Educação pelo Trabalho<br>
-          Acesso cortesia válido até 31/12/2026. Se não quiser mais receber, é só responder pedindo.
+          Learning by Working — Educação pelo Trabalho
         </div>
       </div>
     </div>
