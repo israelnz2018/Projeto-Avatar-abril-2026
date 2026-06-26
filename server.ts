@@ -385,7 +385,8 @@ async function startServer() {
       return res.json({ ok: true });
     } catch (err: any) {
       console.error("[POST /api/reset-senha] erro:", err?.message || err);
-      return res.status(500).json({ error: "Erro ao processar. Tente novamente." });
+      // _debug temporário pra diagnóstico (remover depois)
+      return res.status(500).json({ error: "Erro ao processar. Tente novamente.", _debug: { code: err?.code, message: err?.message } });
     }
   });
 
