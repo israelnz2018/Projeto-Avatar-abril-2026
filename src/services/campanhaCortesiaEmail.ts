@@ -59,7 +59,9 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
           <div style="font-size:12px;color:#7A828F;margin-top:8px;">É obrigatório trocar a senha no primeiro acesso.</div>
         </div>
         <div style="text-align:center;margin:28px 0;">
-          <a href="${APP}" style="background:linear-gradient(120deg,${BLUE},#2563EB);color:#fff;text-decoration:none;font-weight:bold;font-size:17px;padding:17px 44px;border-radius:12px;display:inline-block;box-shadow:0 8px 22px -8px rgba(0,51,204,.5);">Acessar a plataforma LBW →</a>
+          <a href="${APP}" style="background-color:#0033CC;color:#ffffff;text-decoration:none;font-weight:bold;font-size:17px;padding:17px 44px;border-radius:12px;display:inline-block;mso-padding-alt:0;">
+            <span style="color:#ffffff;">Acessar a plataforma LBW →</span>
+          </a>
         </div>
         <h2 style="font-size:17px;color:${NAVY};margin:30px 0 6px;font-weight:800;">O que você tem acesso</h2>
         <p style="font-size:14px;line-height:1.6;color:#5B6472;margin:0 0 12px;">Tudo liberado, sem pagar nada:</p>
