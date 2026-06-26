@@ -41,8 +41,8 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">Olá!</p>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">
           Aqui é o <strong>Israel Cavalcanti de Souza</strong>. Você já esteve comigo em algum momento — seja
-          acompanhando meus conteúdos no <strong>YouTube</strong>, seja em um dos meus
-          <strong>cursos na Hotmart</strong>. E é justamente por isso que estou te escrevendo.
+          acompanhando meus conteúdos no <strong>YouTube</strong> ou no <strong>LinkedIn</strong>, seja em um
+          dos meus <strong>cursos na Hotmart</strong>. E é justamente por isso que estou te escrevendo.
         </p>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">
           Eu desenvolvi a plataforma <strong>LBW — Learning by Working</strong> para levar tudo o que
