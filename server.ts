@@ -362,18 +362,39 @@ async function startServer() {
       if (host && user && pass && link) {
         const primeiroNome = email.split("@")[0];
         const html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #2A2F3A;">
-            <h2 style="color: #1E2D6E;">Redefinição de senha</h2>
-            <p>Olá ${primeiroNome},</p>
-            <p>Recebemos um pedido para redefinir a senha da sua conta no <strong>Learning by Working</strong>.</p>
-            <p style="margin: 28px 0;">
-              <a href="${link}" style="background: #0033CC; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Criar nova senha</a>
-            </p>
-            <p style="font-size: 13px; color: #5B6472;">Ou copie e cole este link no navegador:</p>
-            <p style="font-size: 12px; color: #5B6472; word-break: break-all;">${link}</p>
-            <p style="font-size: 12px; color: #9CA3AF; margin-top: 28px;">Se não foi você que pediu, pode ignorar este e-mail — sua senha continua a mesma.</p>
-            <p style="font-size: 12px; color: #9CA3AF;">Equipe LBW · Learning by Working — Educação pelo Trabalho</p>
-          </div>
+        <!DOCTYPE html>
+        <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+        <body style="margin:0;padding:0;background:#eef1f8;font-family:'Segoe UI',Arial,sans-serif;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f8;padding:32px 16px;">
+            <tr><td align="center">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px -12px rgba(30,45,110,.35);">
+                <!-- Header -->
+                <tr><td style="background:linear-gradient(135deg,#1E2D6E,#0033CC);padding:32px 32px 26px;text-align:center;">
+                  <img src="https://www.educacaopelotrabalho.com/favicon.png" alt="Learning by Working" width="150" style="display:inline-block;max-width:150px;filter:brightness(0) invert(1);" />
+                  <div style="color:rgba(255,255,255,.85);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;margin-top:10px;">Educação pelo Trabalho</div>
+                </td></tr>
+                <!-- Body -->
+                <tr><td style="padding:36px 36px 8px;">
+                  <h1 style="margin:0 0 18px;color:#1E2D6E;font-size:22px;font-weight:800;">Redefinição de senha</h1>
+                  <p style="margin:0 0 14px;color:#2A2F3A;font-size:15px;line-height:1.6;">Olá <strong>${primeiroNome}</strong>,</p>
+                  <p style="margin:0 0 26px;color:#3A4150;font-size:15px;line-height:1.6;">Recebemos um pedido para redefinir a senha da sua conta no <strong>Learning by Working</strong>. Clique no botão abaixo para criar uma nova senha:</p>
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 26px;"><tr><td align="center" style="border-radius:12px;background:linear-gradient(120deg,#0033CC,#2563EB);">
+                    <a href="${link}" target="_blank" style="display:inline-block;padding:15px 38px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;border-radius:12px;">Criar nova senha →</a>
+                  </td></tr></table>
+                  <p style="margin:0 0 6px;color:#8A94A6;font-size:12px;">Ou copie e cole este link no navegador:</p>
+                  <p style="margin:0 0 24px;color:#5B6472;font-size:12px;word-break:break-all;background:#f4f6fc;border:1px solid #e2e8f4;border-radius:8px;padding:10px 12px;">${link}</p>
+                </td></tr>
+                <!-- Footer -->
+                <tr><td style="padding:0 36px 32px;">
+                  <div style="border-top:1px solid #eceff6;padding-top:20px;">
+                    <p style="margin:0 0 6px;color:#9CA3AF;font-size:12px;line-height:1.6;">Se não foi você que pediu, pode ignorar este e-mail — sua senha continua a mesma.</p>
+                    <p style="margin:0;color:#9CA3AF;font-size:12px;">© 2026 Learning by Working — Educação pelo Trabalho</p>
+                  </div>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body></html>
         `;
         try {
           const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
