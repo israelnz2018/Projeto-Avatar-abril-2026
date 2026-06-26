@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import {
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   User
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -61,18 +60,27 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const handleRecuperarSenha = () => {
+  const handleRecuperarSenha = async () => {
     const emailPrompt = prompt("Digite seu e-mail para recuperar a senha:");
     if (!emailPrompt) return;
-
-    sendPasswordResetEmail(auth, emailPrompt)
-      .then(() => {
-        alert("📧 Se este e-mail estiver cadastrado, você receberá um link para redefinir sua senha.");
-      })
-      .catch((error: any) => {
-        console.error("Erro ao enviar email de redefinição:", error);
-        alert("❌ Erro ao enviar email de redefinição: " + error.message);
+    try {
+      // Envia pelo NOSSO servidor (SMTP do domínio) — chega na caixa de entrada,
+      // diferente do remetente padrão do Firebase que cai no spam.
+      const r = await fetch("/api/reset-senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailPrompt.trim() }),
       });
+      if (r.ok) {
+        alert("📧 Se este e-mail estiver cadastrado, você receberá um link para redefinir sua senha. Confira também o spam.");
+      } else {
+        const d = await r.json().catch(() => ({}));
+        alert("❌ " + (d?.error || "Erro ao enviar. Tente novamente."));
+      }
+    } catch (error: any) {
+      console.error("Erro ao solicitar redefinição:", error);
+      alert("❌ Erro de conexão. Tente novamente.");
+    }
   };
 
   return (

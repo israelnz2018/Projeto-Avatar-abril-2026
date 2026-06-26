@@ -322,6 +322,66 @@ async function startServer() {
     }
   });
 
+  // POST /api/reset-senha — "Esqueci minha senha" público.
+  // O Firebase Admin gera o link de redefinição e o NOSSO SMTP (Hostinger) envia
+  // o e-mail — do nosso domínio, evitando o spam do remetente padrão do Firebase.
+  // Sempre responde ok (não revela se o e-mail existe).
+  app.post("/api/reset-senha", async (req: any, res) => {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Informe um e-mail válido." });
+    }
+    if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado." });
+    try {
+      // Gera o link oficial de redefinição (válido mesmo se o usuário existir).
+      let link: string | null = null;
+      try {
+        const appUrl = process.env.APP_URL || "https://app.educacaopelotrabalho.com";
+        link = await adminAuth().generatePasswordResetLink(email, { url: appUrl });
+      } catch (e: any) {
+        // Usuário não existe (auth/user-not-found) → resposta genérica, sem vazar.
+        if (e?.code === "auth/user-not-found") {
+          return res.json({ ok: true });
+        }
+        throw e;
+      }
+
+      // Envia o e-mail pelo nosso SMTP (mesmo dos convites).
+      const host = process.env.SMTP_HOST;
+      const port = parseInt(process.env.SMTP_PORT || "465", 10);
+      const user = process.env.SMTP_USER;
+      const pass = process.env.SMTP_PASS;
+      const from = process.env.SMTP_FROM || user;
+      if (host && user && pass && link) {
+        const primeiroNome = email.split("@")[0];
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #2A2F3A;">
+            <h2 style="color: #1E2D6E;">Redefinição de senha</h2>
+            <p>Olá ${primeiroNome},</p>
+            <p>Recebemos um pedido para redefinir a senha da sua conta no <strong>Learning by Working</strong>.</p>
+            <p style="margin: 28px 0;">
+              <a href="${link}" style="background: #0033CC; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Criar nova senha</a>
+            </p>
+            <p style="font-size: 13px; color: #5B6472;">Ou copie e cole este link no navegador:</p>
+            <p style="font-size: 12px; color: #5B6472; word-break: break-all;">${link}</p>
+            <p style="font-size: 12px; color: #9CA3AF; margin-top: 28px;">Se não foi você que pediu, pode ignorar este e-mail — sua senha continua a mesma.</p>
+            <p style="font-size: 12px; color: #9CA3AF;">Equipe LBW · Learning by Working — Educação pelo Trabalho</p>
+          </div>
+        `;
+        try {
+          const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+          await transporter.sendMail({ from, to: email, subject: "Redefinição de senha — Learning by Working", html });
+        } catch (err: any) {
+          console.error("[/api/reset-senha] Erro SMTP:", err?.message || err);
+        }
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[POST /api/reset-senha] erro:", err?.message || err);
+      return res.status(500).json({ error: "Erro ao processar. Tente novamente." });
+    }
+  });
+
   // POST /api/admin/users/:uid/complete-profile — cria doc Firestore pra um usuário
   // que só existia no Firebase Auth ("órfão"). Aplica defaults razoáveis.
   app.post("/api/admin/users/:uid/complete-profile", requireAdmin, async (req: any, res) => {
