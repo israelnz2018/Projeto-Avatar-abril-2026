@@ -12,6 +12,7 @@ import { Megaphone, RefreshCw, CheckCircle2, AlertTriangle, Users, Send } from '
 import { auth } from '../lib/firebase';
 import SequenciasEmail from './SequenciasEmail';
 import LeadsCorporativos from './LeadsCorporativos';
+import CampanhaCortesia from './CampanhaCortesia';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -307,6 +308,9 @@ export default function MarketingView() {
 
       {/* Sequências de e-mail por estágio (Lead / Grátis / Pago) */}
       <SequenciasEmail />
+
+      {/* Campanha de cortesia (acesso grátis até 31/12) — com envio de teste */}
+      <CampanhaCortesia />
 
       {/* Leads do formulário de Pacotes Corporativos */}
       <LeadsCorporativos />

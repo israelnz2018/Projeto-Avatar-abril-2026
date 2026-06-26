@@ -866,6 +866,22 @@ async function startServer() {
     return res.json({ ok: true, from: RESEND_FROM });
   });
 
+  // POST /api/campanha/teste — envia UM e-mail (HTML pronto) pra um destinatário só.
+  // Pra testar a campanha antes do disparo em massa. Body: { to, assunto, html }.
+  app.post("/api/campanha/teste", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
+    const { to, assunto, html } = req.body || {};
+    if (!to || !assunto || !html) return res.status(400).json({ error: "to, assunto e html são obrigatórios." });
+    try {
+      const r = await resendSend({ to: String(to).trim(), subject: String(assunto), html: String(html) });
+      if (r.ok) return res.json({ ok: true, to });
+      return res.status(502).json({ ok: false, status: r.status, body: String(r.body).slice(0, 300) });
+    } catch (err: any) {
+      console.error("[POST /api/campanha/teste] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao enviar teste." });
+    }
+  });
+
   // POST /api/campanha/enviar — dispara uma campanha pra todos os leads do Firestore (admin).
   // Body: { assunto, corpo (texto ou html), html?: boolean }. Envia em lote com pausa.
   app.post("/api/campanha/enviar", requireAdmin, async (req: any, res) => {
