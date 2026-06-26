@@ -33,7 +33,7 @@ export async function exportProjectTimelineSlide(
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
 
-  const phases = (toolData?.phases || []) as Array<{
+  const phases = (Array.isArray(toolData?.phases) ? toolData.phases : []) as Array<{
     id: string; name: string; startDate: string; endDate: string;
   }>;
 
@@ -110,11 +110,14 @@ export async function exportProjectTimelineSlide(
       fontFace: 'Calibri', fontSize: 8, bold: true, color: '6B7280',
       valign: 'middle',
     });
-    // Linha de grade
-    slide.addShape('line', {
-      x: mx, y: TY + HEADER_H, w: 0, h: (ROW_H + ROW_GAP) * phases.length,
-      line: { color: 'E8ECF4', width: 0.5 },
-    });
+    // Linha de grade — só desenha se houver fases (evita linha de altura zero,
+    // que dispara erro de reparo no PowerPoint quando phases.length === 0).
+    if (phases.length > 0) {
+      slide.addShape('line', {
+        x: mx, y: TY + HEADER_H, w: 0, h: (ROW_H + ROW_GAP) * phases.length,
+        line: { color: 'E8ECF4', width: 0.5 },
+      });
+    }
   });
 
   // Linha base horizontal

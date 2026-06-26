@@ -47,7 +47,7 @@ export async function exportIshikawaSlide(
   slide.addText('PROBLEMA', {
     x: TX + TW - PROB_W, y: SPINE_Y - PROB_H / 2 + 0.04,
     w: PROB_W, h: 0.20,
-    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.BLUE,
+    fontFace: 'Calibri', fontSize: 7.5, bold: true, color: 'C7D2FF',
     align: 'center', charSpacing: 2,
   });
   slide.addText(toolData.problem || '(problema não informado)', {
@@ -127,7 +127,8 @@ export async function exportIshikawaSlide(
 
     // Causas da categoria
     const key = Object.keys(causes).find(k => normalize(k) === normalize(cat.name));
-    const list = key ? (causes[key] || []).filter((c: string) => c && c.trim()) : [];
+    const raw = key ? causes[key] : null;
+    const list = Array.isArray(raw) ? raw.filter((c: string) => c && typeof c === 'string' && c.trim()) : [];
 
     if (list.length > 0) {
       const items = list.slice(0, 5).map(c => ({

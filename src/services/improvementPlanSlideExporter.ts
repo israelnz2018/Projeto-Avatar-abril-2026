@@ -26,8 +26,11 @@ interface Phase {
 function calcPhaseMetrics(phase: Phase) {
   const today = new Date().getTime();
 
+  // Garante array antes de iterar (Firestore pode trazer activities ausente/não-array).
+  const activities = Array.isArray(phase.activities) ? phase.activities : [];
+
   // Datas vêm das próprias atividades (auto-suficiente, não depende do cronograma macro)
-  const dates = phase.activities
+  const dates = activities
     .flatMap(a => [a.plannedStartDate, a.plannedEndDate])
     .filter(d => d && d.length > 0)
     .map(d => new Date(d as string).getTime())
@@ -45,8 +48,8 @@ function calcPhaseMetrics(phase: Phase) {
   }
   const pv = pvFactor * phase.weight;
 
-  const totalWeight = phase.activities.reduce((sum, a) => sum + a.weight, 0);
-  const earnedWeight = phase.activities.reduce((sum, a) => {
+  const totalWeight = activities.reduce((sum, a) => sum + a.weight, 0);
+  const earnedWeight = activities.reduce((sum, a) => {
     const progress = a.status === 'Completed' ? 1 : a.status === 'In Progress' ? 0.5 : 0;
     return sum + (a.weight * progress);
   }, 0);

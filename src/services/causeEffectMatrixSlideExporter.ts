@@ -17,7 +17,8 @@ interface Cause {
 }
 
 function calcTotal(cause: Cause, outputs: Output[]): number {
-  return cause.scores.reduce((acc, score, idx) => {
+  const scores = Array.isArray(cause.scores) ? cause.scores : [];
+  return scores.reduce((acc, score, idx) => {
     return acc + (score * (outputs[idx]?.importance || 0));
   }, 0);
 }
@@ -210,7 +211,7 @@ export async function exportCauseEffectMatrixSlide(
 
   slide.addText('PRIORIDADE ALTA', {
     x: SC_PLOT_X + 0.04, y: SC_PLOT_Y + 0.02, w: SC_PLOT_W / 2 - 0.08, h: 0.14,
-    fontFace: 'Calibri', fontSize: 6.5, bold: true, color: '86EFAC',
+    fontFace: 'Calibri', fontSize: 6.5, bold: true, color: '16A34A',
   });
 
   slide.addText('ESFORÇO →', {

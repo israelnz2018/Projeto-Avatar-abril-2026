@@ -116,7 +116,7 @@ export async function exportCharterSlide(
     x: COL2_X, y: Y3, w: COL_W, h: H3,
     fill: { color: THEME.LIGHT },
     line: { color: THEME.CHIP_BD, width: 0.8 },
-    rectRadius: 0.05, lineDash: 'dash',
+    rectRadius: 0.05,
   });
   slide.addShape('rect', {
     x: COL2_X, y: Y3, w: 0.06, h: H3,
@@ -132,15 +132,25 @@ export async function exportCharterSlide(
     line: { color: 'D1D5E8', width: 0.3 },
   });
 
-  const images: string[] = toolData?.images || [];
-  if (images.length > 0) {
-    slide.addImage({
-      data: images[0],
-      x: COL2_X + 0.20, y: Y3 + 0.42,
-      w: COL_W - 0.40, h: H3 - 0.54,
-      sizing: { type: 'contain', w: COL_W - 0.40, h: H3 - 0.54 },
-    });
-  } else {
+  const images: string[] = Array.isArray(toolData?.images) ? toolData.images : [];
+  const firstImg = images.length > 0 ? images[0] : null;
+  let imgOk = false;
+  if (firstImg && typeof firstImg === 'string' && firstImg.length > 100) {
+    try {
+      // Garante o prefixo data:image/png;base64, (sem ele o PPT quebra).
+      const imgData = firstImg.startsWith('data:') ? firstImg : `data:image/png;base64,${firstImg}`;
+      slide.addImage({
+        data: imgData,
+        x: COL2_X + 0.20, y: Y3 + 0.42,
+        w: COL_W - 0.40, h: H3 - 0.54,
+        sizing: { type: 'contain', w: COL_W - 0.40, h: H3 - 0.54 },
+      });
+      imgOk = true;
+    } catch (err) {
+      console.error('[charterSlideExporter] erro ao adicionar imagem:', err);
+    }
+  }
+  if (!imgOk) {
     slide.addText('(nenhuma imagem adicionada no Charter)', {
       x: COL2_X + 0.14, y: Y3 + 0.40, w: COL_W - 0.20, h: H3 - 0.50,
       fontFace: 'Calibri', fontSize: 8.5, color: THEME.MUTED,

@@ -118,7 +118,7 @@ export async function exportImproveAdkarSlide(
   options: { pres?: pptxgen } = {}
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
-  const stakeholders: any[] = toolData?.stakeholders || [];
+  const stakeholders: any[] = Array.isArray(toolData?.stakeholders) ? toolData.stakeholders : [];
   const core = stakeholders.filter(s => s.type === 'Core Team');
   const impacted = stakeholders.filter(s => s.type === 'Impactado');
 

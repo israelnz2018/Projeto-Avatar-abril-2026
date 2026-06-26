@@ -258,21 +258,27 @@ export async function exportProcessMapSlide(
     const lineColor = THEME.NAVY;
     const lineWidth = 1.2;
 
-    // Desenha todos os segmentos exceto o último sem ponta de seta
+    // Desenha todos os segmentos exceto o último sem ponta de seta.
+    // Pula segmentos degenerados (w e h ~zero), que disparam erro de reparo no PowerPoint.
+    // A ponta de seta vai no último segmento NÃO-degenerado desenhado.
+    const segs: Array<{ x: number; y: number; w: number; h: number }> = [];
     for (let i = 0; i < path.length - 1; i++) {
-      const p1 = path[i];
-      const p2 = path[i + 1];
-      const isLast = i === path.length - 2;
-
+      const dw = path[i + 1].x - path[i].x;
+      const dh = path[i + 1].y - path[i].y;
+      if (Math.abs(dw) < 0.05 && Math.abs(dh) < 0.05) continue;
+      segs.push({ x: path[i].x, y: path[i].y, w: dw, h: dh });
+    }
+    segs.forEach((s, i) => {
+      const isLast = i === segs.length - 1;
       slide.addShape('line', {
-        x: p1.x, y: p1.y, w: p2.x - p1.x, h: p2.y - p1.y,
+        x: s.x, y: s.y, w: s.w, h: s.h,
         line: {
           color: lineColor,
           width: lineWidth,
           ...(isLast ? { endArrowType: 'triangle' as any } : {}),
         },
       });
-    }
+    });
 
     // Label da seta (ex: Sim/Não) — posiciona no primeiro segmento
     const edgeLabel = edge.label || edge.data?.label || '';
@@ -296,7 +302,7 @@ export async function exportProcessMapSlide(
         w: 0.44, h: 0.16,
         fontFace: 'Calibri', fontSize: 7, bold: true,
         color: labelColor,
-        align: 'center',
+        align: 'center', shrinkText: true,
       });
     }
   });

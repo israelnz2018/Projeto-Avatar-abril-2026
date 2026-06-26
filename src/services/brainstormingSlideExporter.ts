@@ -224,7 +224,7 @@ export async function exportBrainstormingSlide(
 
     slide.addShape('line', {
       x: startX, y: startY, w, h,
-      line: { color: THEME.BLUE, width: 0.75, transparency: 50 },
+      line: { color: '8AA0E5', width: 0.75 },
     });
   });
 
