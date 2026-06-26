@@ -32,9 +32,9 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
   return `
   <div style="margin:0;padding:0;background:#EEF1F8;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:${INK};">
-      <div style="background:linear-gradient(135deg,${NAVY},${BLUE});padding:34px 32px;text-align:center;">
-        <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-.5px;">Learning by Working</div>
-        <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#9FC0FF;margin-top:4px;">Educação pelo Trabalho</div>
+      <div style="background-color:${NAVY};padding:34px 32px;text-align:center;">
+        <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-.5px;">Learning by Working</div>
+        <div style="font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#ffffff;margin-top:6px;">Educação pelo Trabalho</div>
       </div>
       <div style="height:4px;background:linear-gradient(90deg,${GOLD},#E7C977,${GOLD});"></div>
       <div style="padding:34px 34px 10px;">
