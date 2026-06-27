@@ -19,8 +19,33 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  // Erro de "chunk velho": acontece quando saiu um deploy novo e o navegador
+  // ainda tem o index antigo, então tenta buscar um arquivo de aba que já não
+  // existe (hash mudou). Em vez de mostrar a tela vermelha, recarrega 1x sozinho.
+  private static isStaleChunkError(error: Error | null): boolean {
+    const msg = String(error?.message || '');
+    return (
+      /Failed to fetch dynamically imported module/i.test(msg) ||
+      /error loading dynamically imported module/i.test(msg) ||
+      /Importing a module script failed/i.test(msg) ||
+      /'?text\/html'?.*not a valid JavaScript MIME type/i.test(msg)
+    );
+  }
+
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+
+    if (ErrorBoundary.isStaleChunkError(error)) {
+      // Guarda na sessão pra não entrar em loop de reload se o problema persistir.
+      const KEY = 'lbw-stale-reloaded';
+      if (!sessionStorage.getItem(KEY)) {
+        sessionStorage.setItem(KEY, '1');
+        window.location.reload();
+      }
+    } else {
+      // Erro normal (não de versão): limpa o flag pra futuros reloads automáticos funcionarem.
+      try { sessionStorage.removeItem('lbw-stale-reloaded'); } catch {}
+    }
   }
 
   public render() {
