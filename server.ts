@@ -912,6 +912,59 @@ async function startServer() {
   });
 
   // ===============================================================
+  // POST /api/campanha/cortesia — disparo SEGURO da campanha cortesia.
+  // Dispara SÓ pros usuários cortesia (acesso completo até 31/12/2026, via
+  // convite-reativacao), NUNCA pros excluídos abaixo. O front manda o HTML
+  // já montado (mesmo template do teste). Body: { assunto, html, dryRun?: boolean }.
+  // dryRun=true → só retorna a lista de quem receberia, sem enviar nada.
+  // ===============================================================
+  const CAMPANHA_EXCLUIR = new Set([
+    "emerson.franco.coach@gmail.com",
+    "mariananz2018@gmail.com",
+    "israelnz2018@hotmail.com",
+    "israel@learningbyworking.com",
+  ]);
+  function isCortesia(u: any): boolean {
+    const ate = String(u?.acessoCompletoAte || "");
+    return u?.origemAcesso === "convite-reativacao" || ate.startsWith("2026-12-31");
+  }
+
+  app.post("/api/campanha/cortesia", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
+    const { assunto, html, dryRun } = req.body || {};
+    if (!assunto || !html) return res.status(400).json({ error: "assunto e html são obrigatórios." });
+    try {
+      const snap = await adminFirestore().collection("users").get();
+      const emails = Array.from(new Set(
+        snap.docs
+          .map((d) => d.data())
+          .filter((u: any) => u?.email && String(u.email).indexOf("@") > 0)
+          .filter((u: any) => isCortesia(u))
+          .map((u: any) => String(u.email).trim().toLowerCase())
+          .filter((email: string) => !CAMPANHA_EXCLUIR.has(email))
+      ));
+
+      // dryRun: não envia, só mostra quem receberia (pra conferência).
+      if (dryRun) return res.json({ dryRun: true, total: emails.length, emails });
+
+      let enviados = 0, falhas = 0;
+      const erros: any[] = [];
+      for (const to of emails) {
+        // Personaliza o HTML com o e-mail do destinatário (bloco "dados de acesso").
+        const htmlPersonalizado = String(html).replace(/__EMAIL_DESTINO__/g, to);
+        const r = await resendSend({ to, subject: String(assunto), html: htmlPersonalizado });
+        if (r.ok) enviados++;
+        else { falhas++; if (erros.length < 10) erros.push({ to, status: r.status, body: String(r.body).slice(0, 200) }); }
+        await new Promise((ok) => setTimeout(ok, 120)); // ~8/seg
+      }
+      return res.json({ total: emails.length, enviados, falhas, erros });
+    } catch (err: any) {
+      console.error("[POST /api/campanha/cortesia] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao disparar a campanha cortesia." });
+    }
+  });
+
+  // ===============================================================
   // Reativação: cria contas COMPLETAS (acesso grátis até 01/10/2026) pros contatos
   // do Reach, cada um com senha provisória própria. Retorna a lista email→senha pro
   // admin mandar no e-mail. Idempotente: se já existe, só garante completo + validade.

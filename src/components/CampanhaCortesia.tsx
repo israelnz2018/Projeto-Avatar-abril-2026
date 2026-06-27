@@ -24,6 +24,11 @@ export default function CampanhaCortesia() {
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // Disparo em massa (cortesia) — confirmação em 2 passos.
+  const [disparando, setDisparando] = useState(false);
+  const [previa, setPrevia] = useState<string[] | null>(null);
+  const [resultadoMassa, setResultadoMassa] = useState<{ ok: boolean; msg: string } | null>(null);
+
   const enviarTeste = async () => {
     const to = emailTeste.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
@@ -41,6 +46,41 @@ export default function CampanhaCortesia() {
       setResultado({ ok: false, msg: e?.message || 'Erro ao enviar.' });
     } finally {
       setEnviando(false);
+    }
+  };
+
+  // Passo 1: prévia (dryRun) — mostra a lista exata de quem receberia, sem enviar.
+  const verPrevia = async () => {
+    setDisparando(true); setResultadoMassa(null); setPrevia(null);
+    try {
+      // mesmo template do teste; o e-mail de cada destinatário é injetado pelo server.
+      const html = campanhaCortesiaHtml('__EMAIL_DESTINO__');
+      const r = await authedPost('/api/campanha/cortesia', { assunto: CAMPANHA_ASSUNTO, html, dryRun: true });
+      const b = await r.json().catch(() => ({}));
+      if (r.ok && Array.isArray(b.emails)) setPrevia(b.emails);
+      else setResultadoMassa({ ok: false, msg: b?.error || 'Falha ao carregar a prévia.' });
+    } catch (e: any) {
+      setResultadoMassa({ ok: false, msg: e?.message || 'Erro ao carregar a prévia.' });
+    } finally {
+      setDisparando(false);
+    }
+  };
+
+  // Passo 2: disparo de verdade — só depois da prévia + confirmação dupla.
+  const dispararMassa = async () => {
+    const n = previa?.length || 0;
+    if (!window.confirm(`Confirmar o disparo da campanha cortesia para ${n} pessoas? Esta ação é IRREVERSÍVEL.`)) return;
+    setDisparando(true); setResultadoMassa(null);
+    try {
+      const html = campanhaCortesiaHtml('__EMAIL_DESTINO__');
+      const r = await authedPost('/api/campanha/cortesia', { assunto: CAMPANHA_ASSUNTO, html });
+      const b = await r.json().catch(() => ({}));
+      if (r.ok) setResultadoMassa({ ok: true, msg: `Disparo concluído: ${b.enviados} enviados, ${b.falhas} falhas (de ${b.total}).` });
+      else setResultadoMassa({ ok: false, msg: b?.error || 'Falha no disparo.' });
+    } catch (e: any) {
+      setResultadoMassa({ ok: false, msg: e?.message || 'Erro no disparo.' });
+    } finally {
+      setDisparando(false);
     }
   };
 
@@ -83,9 +123,50 @@ export default function CampanhaCortesia() {
         )}
       </div>
 
-      <p className="text-xs text-gray-400 mt-3">
-        O disparo em massa (pros 80) será liberado depois que você aprovar o teste.
-      </p>
+      {/* ── DISPARO EM MASSA (cortesia) ── */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mt-4">
+        <div className="text-sm font-semibold text-amber-900 mb-1">Disparo em massa (cortesia)</div>
+        <p className="text-xs text-amber-800 mb-3">
+          Envia só pros usuários cortesia (acesso completo até 31/12). Emerson, Mariana e seus e-mails ficam <strong>sempre fora</strong>.
+          Veja a lista antes de disparar.
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={verPrevia}
+            disabled={disparando}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-amber-300 text-amber-900 text-sm font-semibold hover:bg-amber-100 disabled:opacity-60"
+          >
+            {disparando && !previa ? 'Carregando…' : 'Ver quem vai receber'}
+          </button>
+
+          {previa && (
+            <button
+              onClick={dispararMassa}
+              disabled={disparando || previa.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+            >
+              <Send className="w-4 h-4" /> {disparando ? 'Disparando…' : `Disparar agora (${previa.length})`}
+            </button>
+          )}
+        </div>
+
+        {previa && (
+          <div className="mt-3 text-xs bg-white border border-amber-200 rounded-lg p-3 max-h-44 overflow-y-auto">
+            <div className="font-semibold text-gray-700 mb-1">{previa.length} destinatário(s):</div>
+            <ul className="space-y-0.5 text-gray-600">
+              {previa.map((e) => <li key={e}>{e}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {resultadoMassa && (
+          <div className={`mt-3 text-sm rounded-lg px-3 py-2 flex items-start gap-2 ${resultadoMassa.ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            {resultadoMassa.ok ? <CheckCircle2 className="w-4 h-4 mt-0.5" /> : <AlertTriangle className="w-4 h-4 mt-0.5" />}
+            <span>{resultadoMassa.msg}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
