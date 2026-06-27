@@ -2079,7 +2079,7 @@ export default function ToolWrapper({
               )}
             >
               <Presentation size={15} />
-              PPT
+              Gerar PPT (versão beta)
             </button>
 
             {/* Excel (Special case for Charter) */}
@@ -2192,7 +2192,7 @@ export default function ToolWrapper({
                       onClick={exportPPT}
                       className="flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-gray-700 hover:bg-gray-100 rounded-xl transition-all border-2 border-gray-100 bg-white cursor-pointer"
                     >
-                      <Presentation size={16} /> PPT
+                      <Presentation size={16} /> Gerar PPT (versão beta)
                     </button>
                     <button
                       onClick={() => {
