@@ -876,18 +876,32 @@ export default function DataAnalysis() {
   };
 
   const handleAskAI = async () => {
-    if (!pergunta.trim() || results.length === 0) return;
+    // Feedback claro em vez de falhar em silêncio.
+    if (!pergunta.trim()) {
+      exibirModalErro("Digite uma pergunta antes de clicar em Perguntar.");
+      return;
+    }
+    if (results.length === 0) {
+      exibirModalErro("Gere uma análise ou gráfico primeiro. A pergunta é sobre o resultado já gerado — escolha um gráfico/análise, clique em Executar e depois pergunte aqui.");
+      return;
+    }
 
     const result = results[0];
     const formData = new FormData();
     formData.append("pergunta", pergunta);
     formData.append("tipo", result.analise ? "analise" : "grafico");
 
+    setIsProcessing(true);
     try {
       const response = await fetch(`${ANALISES_API}/v2/pergunta`, {
         method: 'POST',
         body: formData
       });
+
+      if (!response.ok) {
+        const txt = await response.text().catch(() => '');
+        throw new Error(`Servidor respondeu ${response.status}. ${txt.slice(0, 160)}`);
+      }
 
       const data = await response.json();
       if (data.resposta) {
@@ -897,10 +911,14 @@ export default function DataAnalysis() {
             : r
         ));
         setPergunta("");
+      } else {
+        exibirModalErro("A IA não retornou uma resposta. Tente reformular a pergunta.");
       }
     } catch (error) {
       console.error("AI Question error:", error);
       exibirModalErro(`❌ Erro ao enviar: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -1968,10 +1986,11 @@ export default function DataAnalysis() {
           />
           <button
             onClick={handleAskAI}
-            className="inline-flex items-center gap-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white px-6 py-2.5 transition-colors font-black text-[12px] uppercase tracking-widest border-none cursor-pointer"
+            disabled={isProcessing}
+            className="inline-flex items-center gap-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white px-6 py-2.5 transition-colors font-black text-[12px] uppercase tracking-widest border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Sparkles size={13} />
-            Perguntar
+            <Sparkles size={13} className={isProcessing ? 'animate-spin' : ''} />
+            {isProcessing ? 'Perguntando…' : 'Perguntar'}
           </button>
         </div>
 
