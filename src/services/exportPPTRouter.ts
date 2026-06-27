@@ -27,6 +27,7 @@ import { exportActionPlan5w2hSlide } from './actionPlan5w2hSlideExporter';
 import { exportControlPlanSlide } from './controlPlanSlideExporter';
 import { exportStatisticalAnalysisSlide } from './statisticalAnalysisSlideExporter';
 import { exportGutSlide } from './gutSlideExporter';
+import { exportRabSlide } from './rabSlideExporter';
 
 import { generateFullPPTReport } from './reportService';
 
@@ -153,6 +154,10 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   gut: {
     exporter: exportGutSlide,
     successMsg: 'Slide da Matriz GUT gerado!',
+  },
+  rab: {
+    exporter: exportRabSlide,
+    successMsg: 'Slide da Matriz RAB gerado!',
   },
 };
 
