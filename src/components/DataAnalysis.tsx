@@ -1956,7 +1956,7 @@ export default function DataAnalysis() {
         {/* Question Section — Perguntar (secondary) */}
         <div data-tour-id="perguntar" className="flex flex-col md:flex-row md:items-center gap-0 border border-blue-100 rounded-lg overflow-hidden bg-white shadow-sm">
           <label className="font-bold whitespace-nowrap px-4 py-2.5 bg-blue-50 border-r border-blue-100 text-[12px] text-[#1E2D6E]">
-            Pergunta (apenas estatística):
+            Pergunta (estatística e gráficos):
           </label>
           <input
             type="text"
