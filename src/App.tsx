@@ -419,7 +419,7 @@ export default function App() {
               </div>
             }>
             <Routes>
-              <Route path="/" element={<Navigate to="/projects" replace />} />
+              <Route path="/" element={<Navigate to="/education" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />
