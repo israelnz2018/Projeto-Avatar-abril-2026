@@ -41,7 +41,7 @@ function getTipoProjeto(initiativeName: string | undefined): {
     // Badge + subtítulo descrevem o TIPO de projeto de cada trilha.
     case 1: // Como Chegar em uma Área Nova e Já Entregar Resultado
       return {
-        label: 'Projeto de Estudo',
+        label: 'Projeto de Melhoria',
         subtitle: 'adequação e pequenas melhorias',
         descricao: 'Vamos conhecer as ferramentas básicas (SIPOC, 5W2H, Brainstorming) aplicadas num caso real seu.',
         placeholder: 'Ex: Conhecer as ferramentas no setor de compras',
