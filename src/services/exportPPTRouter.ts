@@ -28,6 +28,7 @@ import { exportControlPlanSlide } from './controlPlanSlideExporter';
 import { exportStatisticalAnalysisSlide } from './statisticalAnalysisSlideExporter';
 import { exportGutSlide } from './gutSlideExporter';
 import { exportRabSlide } from './rabSlideExporter';
+import { exportRaciSlide } from './raciSlideExporter';
 
 import { generateFullPPTReport } from './reportService';
 
@@ -158,6 +159,10 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   rab: {
     exporter: exportRabSlide,
     successMsg: 'Slide da Matriz RAB gerado!',
+  },
+  raci: {
+    exporter: exportRaciSlide,
+    successMsg: 'Slide da Matriz RACI gerado!',
   },
 };
 
