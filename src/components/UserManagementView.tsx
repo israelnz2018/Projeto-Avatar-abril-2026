@@ -68,6 +68,24 @@ const PLANO_COR: Record<Plano, string> = {
   coordenador: 'bg-blue-100 text-blue-700 border-blue-300',
 };
 
+/** Chip de status de engajamento: colorido quando aconteceu, cinza apagado quando não. */
+function EngajaChip({ ativo, label, cor }: { ativo: boolean; label: string; cor: 'amber' | 'blue' | 'green' }) {
+  const cores: Record<string, string> = {
+    amber: 'bg-amber-100 text-amber-700 border-amber-300',
+    blue: 'bg-blue-100 text-blue-700 border-blue-300',
+    green: 'bg-green-100 text-green-700 border-green-300',
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+        ativo ? cores[cor] : 'bg-gray-50 text-gray-300 border-gray-200'
+      }`}
+    >
+      {ativo ? '✓' : '○'} {label}
+    </span>
+  );
+}
+
 function getPlano(u: UserData): Plano {
   if (u.plano === 'coordenador' || u.tipoUsuario === 'coordenador') return 'coordenador';
   if (u.plano === 'completo') return 'completo';
@@ -308,6 +326,36 @@ export default function UserManagementView() {
 
       {aba === 'lista' ? (
         <>
+          {/* Painel de engajamento da campanha (funil cortesia) */}
+          {(() => {
+            const cortesia = users.filter(u => (u as any).origemAcesso === 'convite-reativacao' || String((u as any).acessoCompletoAte || '').startsWith('2026-12-31'));
+            if (cortesia.length === 0) return null;
+            const abriu = cortesia.filter(u => ((u as any).engajamento?.aberturas || 0) > 0).length;
+            const clicou = cortesia.filter(u => ((u as any).engajamento?.cliques || 0) > 0).length;
+            const acessou = cortesia.filter(u => !!u.primeiroAcessoEm).length;
+            const trocou = cortesia.filter(u => (u as any).senhaProvisoria === false).length;
+            const pct = (n: number) => cortesia.length ? Math.round((n / cortesia.length) * 100) : 0;
+            const Card = ({ label, n, cor }: { label: string; n: number; cor: string }) => (
+              <div className="flex-1 min-w-[120px] bg-white border border-gray-200 rounded-lg p-3 text-center">
+                <div className={`text-2xl font-black ${cor}`}>{n}</div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{label}</div>
+                <div className="text-[10px] text-gray-400">{pct(n)}% de {cortesia.length}</div>
+              </div>
+            );
+            return (
+              <div className="bg-blue-50 border border-blue-200 rounded-[4px] p-4 mb-3">
+                <div className="text-xs font-bold text-blue-900 uppercase tracking-wide mb-2">📧 Campanha cortesia — engajamento</div>
+                <div className="flex flex-wrap gap-2">
+                  <Card label="Convidados" n={cortesia.length} cor="text-gray-700" />
+                  <Card label="Abriram e-mail" n={abriu} cor="text-amber-600" />
+                  <Card label="Clicaram no link" n={clicou} cor="text-blue-600" />
+                  <Card label="Acessaram o app" n={acessou} cor="text-green-600" />
+                  <Card label="Trocaram senha" n={trocou} cor="text-green-700" />
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="bg-white border border-[#ccc] rounded-[4px] p-4 flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -516,7 +564,12 @@ export default function UserManagementView() {
 /* ------------ UserRow (read-only) ------------ */
 
 function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword, isResetting, onCompletarPerfil, isCompletando }: {
-  user: UserData & { _hasDoc?: boolean; _authCreatedAt?: string | null };
+  user: UserData & {
+    _hasDoc?: boolean;
+    _authCreatedAt?: string | null;
+    senhaProvisoria?: boolean | string;
+    engajamento?: { aberturas?: number; cliques?: number; ultimoEvento?: string; ultimoTipo?: string };
+  };
   isAdmin: boolean;
   onSendEmail: () => void;
   onEdit?: () => void;
@@ -597,6 +650,33 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
             {user.primeiroAcessoEm
               ? new Date(user.primeiroAcessoEm).toLocaleDateString()
               : <span className="text-red-600 font-semibold">nunca acessou (lead)</span>}
+          </div>
+
+          {/* Engajamento da campanha (e-mail + acesso ao app) */}
+          <div className="md:col-span-2">
+            <span className="text-gray-500 font-bold uppercase text-[10px]">Engajamento:</span>{' '}
+            <span className="inline-flex flex-wrap gap-1.5 align-middle">
+              <EngajaChip
+                ativo={!!(user.engajamento && (user.engajamento.aberturas || 0) > 0)}
+                label="Abriu o e-mail"
+                cor="amber"
+              />
+              <EngajaChip
+                ativo={!!(user.engajamento && (user.engajamento.cliques || 0) > 0)}
+                label="Clicou no link"
+                cor="blue"
+              />
+              <EngajaChip
+                ativo={!!user.primeiroAcessoEm}
+                label="Acessou o app"
+                cor="green"
+              />
+              <EngajaChip
+                ativo={user.senhaProvisoria === false}
+                label="Trocou a senha"
+                cor="green"
+              />
+            </span>
           </div>
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">Tokens IA usados:</span> {user.creditoIA.usado} / {user.creditoIA.limite}</div>
           <div><span className="text-gray-500 font-bold uppercase text-[10px]">Reset em:</span> {new Date(user.creditoIA.resetEm).toLocaleDateString()}</div>

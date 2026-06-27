@@ -79,6 +79,9 @@ export interface ListedUser {
   criadoEm: string;
   primeiroAcessoEm?: string;
   acessoCompletoAte?: string;
+  origemAcesso?: string;
+  senhaProvisoria?: boolean | string;
+  engajamento?: { aberturas?: number; cliques?: number; ultimoEvento?: string; ultimoTipo?: string };
   _hasDoc: boolean;
   _authCreatedAt?: string | null;
   _authDisabled?: boolean;
