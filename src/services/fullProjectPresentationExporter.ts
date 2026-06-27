@@ -207,9 +207,23 @@ function resolveHandlerKey(toolId: string): string | null {
   return null;
 }
 
-function getToolData(projectData: any, toolId: string): { localData: any; aiReport: any } | null {
+// Uma ferramenta usada fora da sua fase padrão é salva no Firestore com a chave
+// composta `${phaseId}_${toolId}` (ver getToolStorageKey em ProjectJourney). Aqui
+// resolvemos a chave real dos dados tentando o toolId puro e depois os prefixos de fase.
+function resolveDataKey(projectData: any, toolId: string): string | null {
   const docKey = DATA_DOC_MAP[toolId] || toolId;
-  const raw = projectData[docKey];
+  if (projectData[docKey]) return docKey;
+  for (const phaseId of DEFAULT_PHASE_ORDER) {
+    const composite = `${phaseId}_${docKey}`;
+    if (projectData[composite]) return composite;
+  }
+  return null;
+}
+
+function getToolData(projectData: any, toolId: string): { localData: any; aiReport: any } | null {
+  const dataKey = resolveDataKey(projectData, toolId);
+  if (!dataKey) return null;
+  const raw = projectData[dataKey];
   if (!raw) return null;
   const localData = raw.toolData || raw;
   return { localData, aiReport: raw.aiReport };
@@ -261,7 +275,7 @@ export async function generateFullProjectPresentation(
     id: p.id,
     label: p.label,
     tools: p.toolIds
-      .filter(tid => projectData[tid])
+      .filter(tid => resolveDataKey(projectData, tid))
       .map(tid => {
         const key = resolveHandlerKey(tid);
         return key ? (TOOL_HANDLERS[key].successMsg.replace(/^Slide d[oa] /, '').replace(/^Apresentação /, '').replace(/ gerad[oa]!?$/, '')) : tid;
@@ -274,7 +288,7 @@ export async function generateFullProjectPresentation(
   let toolsExported = 0;
 
   for (const phase of phasesWithTools) {
-    const phaseToolsWithData = phase.toolIds.filter(tid => projectData[tid]);
+    const phaseToolsWithData = phase.toolIds.filter(tid => resolveDataKey(projectData, tid));
     if (phaseToolsWithData.length === 0) continue;
 
     const phaseIdx = DEFAULT_PHASE_ORDER.indexOf(phase.id);

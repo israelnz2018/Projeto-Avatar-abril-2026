@@ -26,6 +26,7 @@ import { exportFmeaSlide } from './fmeaSlideExporter';
 import { exportActionPlan5w2hSlide } from './actionPlan5w2hSlideExporter';
 import { exportControlPlanSlide } from './controlPlanSlideExporter';
 import { exportStatisticalAnalysisSlide } from './statisticalAnalysisSlideExporter';
+import { exportGutSlide } from './gutSlideExporter';
 
 import { generateFullPPTReport } from './reportService';
 
@@ -148,6 +149,10 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   statisticalAnalysis: {
     exporter: exportStatisticalAnalysisSlide,
     successMsg: 'Slides da Análise Gráfica e Estatística gerados!',
+  },
+  gut: {
+    exporter: exportGutSlide,
+    successMsg: 'Slide da Matriz GUT gerado!',
   },
 };
 
