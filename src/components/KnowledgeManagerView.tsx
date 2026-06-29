@@ -193,6 +193,9 @@ const AVAILABLE_ANALYSES = [
   { id: 'calculoProbabilidade', name: 'Cálculo de probabilidade' },
 ];
 
+const TOOL_NAME_BY_ID: Record<string, string> = Object.fromEntries(AVAILABLE_TOOLS.map(t => [t.id, t.name]));
+const ANALYSIS_NAME_BY_ID: Record<string, string> = Object.fromEntries(AVAILABLE_ANALYSES.map(a => [a.id, a.name]));
+
 type ModalConfig = {
   isOpen: boolean;
   type: 'editCourse' | 'deleteCourse' | 'editPlaylist' | 'deletePlaylist' | 'movePlaylist' | 'editVideo' | 'deleteVideo' | 'importTranscript';
@@ -308,11 +311,16 @@ function SortableVideoRow({
                       : 'Importar Transcrição'}
                 </button>
               </div>
-              {item.associatedTools && item.associatedTools.length > 0 && (
+              {((item.associatedTools && item.associatedTools.length > 0) || (item.associatedAnalyses && item.associatedAnalyses.length > 0)) && (
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {item.associatedTools.map(toolId => (
-                    <span key={toolId} className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-100">
-                      {toolId}
+                  {(item.associatedTools || []).map(toolId => (
+                    <span key={`tool-${toolId}`} className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-100">
+                      {TOOL_NAME_BY_ID[toolId] || toolId}
+                    </span>
+                  ))}
+                  {(item.associatedAnalyses || []).map(analysisId => (
+                    <span key={`analysis-${analysisId}`} className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-100">
+                      {ANALYSIS_NAME_BY_ID[analysisId] || analysisId}
                     </span>
                   ))}
                 </div>
