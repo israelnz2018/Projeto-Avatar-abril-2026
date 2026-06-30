@@ -654,17 +654,24 @@ export default function LearningView() {
                           </div>
                         </div>
                         {/* Vídeo à direita */}
-                        <div className="flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg order-2">
+                        <div
+                          className="relative flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg order-2"
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
                           <iframe
                             ref={iframeRef}
                             width="100%"
                             height="100%"
-                            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1`}
+                            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1`}
                             title={item.title}
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                           ></iframe>
+                          {/* Overlay topo: esconde título clicável, "Assistir no YouTube" e botão
+                              compartilhar (todos ficam na barra superior). Não cobre os controles
+                              de baixo (play/barra/fullscreen), que continuam funcionando. */}
+                          <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
                         </div>
                       </div>
                     </motion.div>
