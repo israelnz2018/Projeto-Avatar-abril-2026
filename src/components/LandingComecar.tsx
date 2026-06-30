@@ -15,14 +15,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
-const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
+// Custom element do player VTurb (smartplayer v4). Declarado para o TSX aceitar a tag.
+// React 19 + jsx:react-jsx → o namespace JSX vive no módulo 'react' (não no global).
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'vturb-smartplayer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & { id?: string };
+    }
+  }
+}
 
-/**
- * URL do player da VSL de entrada (2-3 min).
- * Troque pelo embed do seu player (Panda/Kinescope recomendado; YouTube funciona).
- * Deixe vazio ('') para exibir o placeholder de "vídeo em breve".
- */
-const VSL_EMBED_URL = '';
+// Player VTurb da VSL de entrada. ID e URL do script são únicos deste vídeo.
+const VTURB_PLAYER_ID = 'vid-6a436782c5811825580124b2';
+const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a436782c5811825580124b2/v4/player.js';
+
+const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
 
 /**
  * Parallax leve dos orbs do hero: escreve --mx/--my (-1..1) na raiz conforme o
@@ -72,9 +79,6 @@ const CSS = `
 .lc .hero .sub{font-size:18px;color:var(--txt);line-height:1.55;max-width:600px;margin:0 auto 30px}
 .lc .vsl{position:relative;max-width:860px;margin:0 auto;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid rgba(16,185,129,.35);background:linear-gradient(160deg,#101a3a,#0a0f22);box-shadow:0 34px 80px -34px rgba(16,185,129,.45)}
 .lc .vsl iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.lc .vsl .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.lc .play{width:70px;height:70px;border-radius:50%;background:rgba(16,185,129,.18);border:1px solid rgba(110,231,183,.5);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
-.lc .play::after{content:'';width:0;height:0;border-left:20px solid #6ee7b7;border-top:13px solid transparent;border-bottom:13px solid transparent;margin-left:5px}
 .lc .arrow{text-align:center;color:#6ee7b7;font-size:26px;padding:20px 0 2px}
 /* form */
 .lc .formsec{padding:14px 20px 52px;background:linear-gradient(180deg,#070A18,#0a1024)}
@@ -204,6 +208,32 @@ export default function LandingComecar() {
   const rootRef = useRef<HTMLDivElement>(null);
   useMouseParallax(rootRef);
 
+  // Carrega o player VTurb só nesta página (tráfego frio cai direto aqui).
+  // Os preload ficam escopados ao landing — fora dele seriam baixados à toa.
+  useEffect(() => {
+    // Preload dos assets pesados do player (player.js, lib smartplayer, vídeo .m3u8).
+    const preloads: Array<[string, 'script' | 'fetch']> = [
+      [VTURB_SCRIPT_SRC, 'script'],
+      ['https://scripts.converteai.net/lib/js/smartplayer-wc/v4/smartplayer.js', 'script'],
+      ['https://cdn.converteai.net/21190591-631c-400a-94ca-b1400c31d918/6a43673a1bc2953e6736ed7f/main.m3u8', 'fetch'],
+    ];
+    for (const [href, as] of preloads) {
+      if (document.querySelector(`link[rel="preload"][href="${href}"]`)) continue;
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = as;
+      link.href = href;
+      document.head.appendChild(link);
+    }
+
+    // Injeta o script do player uma única vez (guard anti-duplicação).
+    if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
+    const s = document.createElement('script');
+    s.src = VTURB_SCRIPT_SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
   return (
     <div className="lc" ref={rootRef}>
       <style>{CSS}</style>
@@ -216,16 +246,9 @@ export default function LandingComecar() {
           <h1>Sua primeira entrega de verdade <span className="grad">nos primeiros 30 dias.</span></h1>
           <p className="sub">Aperte o play. Em poucos minutos você entende como sair da teoria e começar a entregar resultado de verdade — já na primeira trilha, de graça.</p>
           <div className="vsl">
-            {VSL_EMBED_URL ? (
-              <iframe src={VSL_EMBED_URL} title="VSL de entrada" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
-            ) : (
-              <div className="ph">
-                <div style={{ textAlign: 'center' }}>
-                  <div className="play" />
-                  <div style={{ fontSize: 13, color: 'var(--txt2)' }}>▶ Seu vídeo de apresentação (2-3 min)</div>
-                </div>
-              </div>
-            )}
+            <vturb-smartplayer id={VTURB_PLAYER_ID} style={{ display: 'block', margin: '0 auto', width: '100%' }}>
+              <div className="vturb-player-placeholder" style={{ position: 'relative', width: '100%', padding: '56.25% 0 0', zIndex: 0, backgroundColor: 'black' }} />
+            </vturb-smartplayer>
           </div>
         </div>
       </header>
