@@ -761,17 +761,22 @@ useEffect(() => {
                 </div>
 
                 {/* Vídeo à DIREITA */}
-                <div className="lg:col-span-2 aspect-video bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800">
+                <div
+                  className="relative lg:col-span-2 aspect-video bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800"
+                  onContextMenu={(e) => e.preventDefault()}
+                >
                   <iframe
                     key={`${selectedVideo.id}-${seekTime}-${seekNonce}`}
                     width="100%"
                     height="100%"
-                    src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?start=${seekTime}&autoplay=1`}
+                    src={`https://www.youtube-nocookie.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?start=${seekTime}&autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`}
                     title={selectedVideo.title}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
+                  {/* Overlay: esconde título/compartilhar/"Assistir no YouTube" da barra superior */}
+                  <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
                 </div>
               </div>
             </motion.div>

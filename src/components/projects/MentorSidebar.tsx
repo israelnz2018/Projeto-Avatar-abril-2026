@@ -702,17 +702,22 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
 
                 {/* Player (à DIREITA) */}
                 <div className="lg:flex-1 bg-black flex items-center">
-                  <div className="w-full aspect-video">
+                  <div
+                    className="relative w-full aspect-video"
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
                     <iframe
                       key={`${selectedVideo.id}-${seekToSec}-${seekNonce}`}
                       width="100%"
                       height="100%"
-                      src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?autoplay=1&start=${seekToSec}&rel=0&modestbranding=1`}
+                      src={`https://www.youtube-nocookie.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?autoplay=1&start=${seekToSec}&rel=0&modestbranding=1&iv_load_policy=3`}
                       title={selectedVideo.title}
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
+                    {/* Overlay: esconde título/compartilhar/"Assistir no YouTube" da barra superior */}
+                    <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
                   </div>
                 </div>
               </div>

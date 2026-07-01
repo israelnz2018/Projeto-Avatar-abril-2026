@@ -1537,16 +1537,21 @@ export default function DataAnalysis() {
                         <X size={12} />
                       </button>
                     </div>
-                    <div className="aspect-video bg-black rounded overflow-hidden">
+                    <div
+                      className="relative aspect-video bg-black rounded overflow-hidden"
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
                       <iframe
                         width="100%"
                         height="100%"
-                        src={`https://www.youtube.com/embed/${getYoutubeId(selectedAnalysisVideo.sourceUrl)}?autoplay=1`}
+                        src={`https://www.youtube-nocookie.com/embed/${getYoutubeId(selectedAnalysisVideo.sourceUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`}
                         title={selectedAnalysisVideo.title}
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       />
+                      {/* Overlay: esconde título/compartilhar/"Assistir no YouTube" da barra superior */}
+                      <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
                     </div>
                   </motion.div>
                 )}
@@ -1906,16 +1911,21 @@ export default function DataAnalysis() {
                       </button>
                     </div>
                   </div>
-                  <div className="aspect-video bg-black rounded overflow-hidden">
+                  <div
+                    className="relative aspect-video bg-black rounded overflow-hidden"
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
                     <iframe
                       width="100%"
                       height="100%"
-                      src={`https://www.youtube.com/embed/${getYoutubeId(selectedAnalysisVideo.sourceUrl)}?autoplay=1`}
+                      src={`https://www.youtube-nocookie.com/embed/${getYoutubeId(selectedAnalysisVideo.sourceUrl)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`}
                       title={selectedAnalysisVideo.title}
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
+                    {/* Overlay: esconde título/compartilhar/"Assistir no YouTube" da barra superior */}
+                    <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
                   </div>
                   {selectedAnalysisVideo.summary && selectedAnalysisVideo.summary.length > 0 && (
                     <div className="mt-2 border-t border-gray-100 pt-2">
