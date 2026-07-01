@@ -673,7 +673,7 @@ export default function LearningView() {
                           <div style={{ position: 'absolute', bottom: 0, left: 0, width: 70, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
                           {/* Overlay canto inferior DIREITO: bloqueia o logo "YouTube" clicável.
                               (fullscreen segue disponível por duplo-clique no vídeo) */}
-                          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 200, height: 75, zIndex: 20, pointerEvents: 'auto' }} />
+                          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 80, zIndex: 20, pointerEvents: 'auto' }} />
                         </div>
                       </div>
                     </motion.div>
