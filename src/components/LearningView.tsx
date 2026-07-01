@@ -668,10 +668,13 @@ export default function LearningView() {
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                           ></iframe>
-                          {/* Overlay topo: esconde título clicável, "Assistir no YouTube" e botão
-                              compartilhar (todos ficam na barra superior). Não cobre os controles
-                              de baixo (play/barra/fullscreen), que continuam funcionando. */}
+                          {/* Overlay topo: esconde título clicável e botão compartilhar. */}
                           <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
+                          {/* Overlay canto inferior ESQUERDO: esconde o botão de copiar link (🔗). */}
+                          <div className="absolute bottom-0 left-0 w-[52px] h-[44px] z-10" />
+                          {/* Overlay canto inferior DIREITO: esconde o logo "YouTube" clicável.
+                              (fullscreen segue disponível por duplo-clique no vídeo) */}
+                          <div className="absolute bottom-0 right-0 w-[95px] h-[44px] z-10" />
                         </div>
                       </div>
                     </motion.div>

@@ -775,8 +775,10 @@ useEffect(() => {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
-                  {/* Overlay: esconde título/compartilhar/"Assistir no YouTube" da barra superior */}
+                  {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
                   <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
+                  <div className="absolute bottom-0 left-0 w-[52px] h-[44px] z-10" />
+                  <div className="absolute bottom-0 right-0 w-[95px] h-[44px] z-10" />
                 </div>
               </div>
             </motion.div>
