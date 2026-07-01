@@ -11,3 +11,5 @@ secrets/
 
 # Configuração local do Claude Code (não vai pro repo)
 .claude/
+DataAnalysis.tsx.backup
+*.backup
