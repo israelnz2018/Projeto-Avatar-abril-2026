@@ -717,9 +717,9 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                       allowFullScreen
                     />
                     {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
-                    <div className="absolute top-0 left-0 right-0 h-[60px] z-10" />
-                    <div className="absolute bottom-0 left-0 w-[52px] h-[44px] z-10" />
-                    <div className="absolute bottom-0 right-0 w-[95px] h-[44px] z-10" />
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, width: 70, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 130, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
                   </div>
                 </div>
               </div>
