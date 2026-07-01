@@ -1551,8 +1551,8 @@ export default function DataAnalysis() {
                       />
                       {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, width: 70, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
-                      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 80, zIndex: 20, pointerEvents: 'auto' }} />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, width: 140, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
+                      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
                     </div>
                   </motion.div>
                 )}
@@ -1926,8 +1926,8 @@ export default function DataAnalysis() {
                     />
                     {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, width: 70, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
-                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 80, zIndex: 20, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, width: 140, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
                   </div>
                   {selectedAnalysisVideo.summary && selectedAnalysisVideo.summary.length > 0 && (
                     <div className="mt-2 border-t border-gray-100 pt-2">

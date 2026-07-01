@@ -717,8 +717,8 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                     />
                     {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, width: 70, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
-                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 80, zIndex: 20, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, width: 140, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
                   </div>
                 </div>
               </div>
