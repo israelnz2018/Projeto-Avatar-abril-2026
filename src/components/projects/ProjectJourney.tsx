@@ -777,7 +777,7 @@ useEffect(() => {
                   {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
                   <div style={{ position: 'absolute', bottom: 0, left: 0, width: 70, height: 50, zIndex: 20, pointerEvents: 'auto' }} />
-                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 200, height: 55, zIndex: 20, pointerEvents: 'auto' }} />
+                  <div style={{ position: 'absolute', bottom: 0, right: 0, width: 200, height: 75, zIndex: 20, pointerEvents: 'auto' }} />
                 </div>
               </div>
             </motion.div>
