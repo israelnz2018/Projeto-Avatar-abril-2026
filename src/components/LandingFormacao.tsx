@@ -123,6 +123,11 @@ const CSS = `
   .lf .split,.lf .foot .cols,.lf .plans-grid{grid-template-columns:1fr;gap:28px}
 }
 @media(max-width:560px){ .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr} }
+/* Corrige o visual dos botoes de checkout Hotmart: o CSS injetado da Hotmart
+   (hotmart-fb) apagava o texto. Forca os nossos estilos de volta. */
+.lf a.hotmart-fb.btn{color:#0033CC !important;text-shadow:none !important;filter:none !important;opacity:1 !important;text-decoration:none !important}
+.lf a.hotmart-fb.btn-primary{color:#fff !important}
+.lf a.hotmart-fb::before,.lf a.hotmart-fb::after{display:none !important}
 /* Reveal ao rolar: elementos entram com fade + leve deslize de baixo pra cima */
 .lf .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
 .lf .reveal.is-visible{opacity:1;transform:none}
