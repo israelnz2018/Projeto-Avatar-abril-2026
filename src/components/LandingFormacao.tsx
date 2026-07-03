@@ -17,7 +17,7 @@ const VTURB_PLAYER_ID = 'vid-6a476a65f6de1f8601713a37';
 const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a476a65f6de1f8601713a37/v4/player.js';
 
 const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
-const HOTMART = 'https://pay.hotmart.com/N102603781W?bid=1781388122214';
+const HOTMART = 'https://pay.hotmart.com/N102603781W?checkoutMode=2&bid=1781388122214';
 
 const CSS = `
 .lf{--ink:#070A18;--line:rgba(255,255,255,.10);--txt:rgba(255,255,255,.72);--txt2:rgba(255,255,255,.5)}
@@ -275,6 +275,25 @@ export default function LandingFormacao() {
     document.head.appendChild(s);
   }, []);
 
+  // Injeta o widget de checkout da Hotmart (popup) uma única vez.
+  React.useEffect(() => {
+    const SRC = 'https://static.hotmart.com/checkout/widget.min.js';
+    if (!document.querySelector(`script[src="${SRC}"]`)) {
+      const s = document.createElement('script');
+      s.src = SRC;
+      s.async = true;
+      document.head.appendChild(s);
+    }
+    const CSS = 'https://static.hotmart.com/css/hotmart-fb.min.css';
+    if (!document.querySelector(`link[href="${CSS}"]`)) {
+      const l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.type = 'text/css';
+      l.href = CSS;
+      document.head.appendChild(l);
+    }
+  }, []);
+
   // Reveal ao rolar: marca os blocos-alvo e revela quando entram na viewport.
   React.useEffect(() => {
     const root = rootRef.current;
@@ -436,7 +455,7 @@ export default function LandingFormacao() {
               <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
               <div className="price">R$ 497 <span style={{ fontSize: 15, color: 'var(--txt2)', fontWeight: 500 }}>/ acesso completo</span></div>
               <div style={{ fontSize: 15, color: 'var(--txt2)', marginTop: 2, marginBottom: 26 }}>de <s>R$ 1.500</s> por R$ 497</div>
-              <a className="btn btn-primary" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
+              <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Consultor em Melhoria de Processos e Negócios</h3>
@@ -474,7 +493,7 @@ export default function LandingFormacao() {
         <div className="wrap" style={{ maxWidth: 600 }}>
           <h2>Sua próxima entrega começa aqui.</h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,.85)', marginBottom: 30 }}>Pare de colecionar cursos. Comece a resolver problema de verdade e a mostrar resultado.</p>
-          <a className="btn" href={HOTMART} style={{ background: '#fff', color: '#0033CC', fontSize: 17, padding: '18px 42px' }}>Quero a formação completa →</a>
+          <a className="btn hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ background: '#fff', color: '#0033CC', fontSize: 17, padding: '18px 42px' }}>Quero a formação completa →</a>
         </div>
       </section>
 
