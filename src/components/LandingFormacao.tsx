@@ -281,7 +281,7 @@ export default function LandingFormacao() {
         <div className="wrap" style={{ position: 'relative', zIndex: 2, maxWidth: 880 }}>
           <span className="eyebrow">Learning by Working – Educação pelo Trabalho</span>
           <h1>Pare de apenas estudar e <span className="grad">comece a entregar resultado fazendo!</span></h1>
-          <p className="lead">Traga seu problema real, use as ferramentas da nossa plataforma e entregue resultado rapidamente.</p>
+          <p className="lead">Veja o vídeo abaixo e saiba quais são as maiores habilidades técnicas e gerenciais que você deve aprender para ser desejado pelas maiores e melhores empresas para se trabalhar, seja no Brasil ou no mundo.</p>
           <div className="videobox">
             <vturb-smartplayer
               id={VTURB_PLAYER_ID}
@@ -295,7 +295,6 @@ export default function LandingFormacao() {
           </div>
           <div className="cta-row">
             <a className="btn btn-primary" href="#planos">Quero a formação completa →</a>
-            <a className="btn btn-ghost" href="#metodo">▷ Ver como funciona</a>
           </div>
         </div>
       </header>
@@ -360,7 +359,7 @@ export default function LandingFormacao() {
       {/* MENTOR */}
       <section className="sec" style={{ background: 'radial-gradient(ellipse 60% 70% at 80% 50%,rgba(0,51,204,.18),transparent 60%),#070A18' }}>
         <div className="wrap split">
-          <div><img src="https://placehold.co/720x540/0d1326/9FC0FF?text=Mentor+Israel" alt="Mentor Israel" /></div>
+          <div><img src="/avatar-israel.png" alt="Mentor Israel digital" style={{ width: '100%', maxWidth: 480, display: 'block', margin: '0 auto', objectFit: 'contain' }} /></div>
           <div>
             <span className="eyebrow">Mentor Israel digital</span>
             <h2 style={{ fontSize: 34, margin: '16px 0' }}>É como ter o Israel <span className="grad">do seu lado</span></h2>
@@ -379,7 +378,7 @@ export default function LandingFormacao() {
           <div>
             <span className="eyebrow">Quem é seu consultor?</span>
             <h2 style={{ fontSize: 34, margin: '16px 0' }}>Mais 20 anos resolvendo problema de verdade</h2>
-            <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 16 }}>Não sou professor de teoria. Ensino apenas o que aplico e já apliquei na prática. Trabalhar em empresas de <b style={{ color: '#fff' }}>bebida, automotiva, petroquímica e governamental</b> me ajudou a adquirir vasta experiência tanto em chão de fábrica como em atividades de escritório — que geraram mais de <b style={{ color: '#fff' }}>US$ 20 milhões/ano</b> em ganhos reais dos meus projetos ou dos projetos dos meus mentorados.</p>
+            <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 16 }}>Não sou professor de teoria. Ensino apenas o que aplico e já apliquei na prática. Trabalhar em empresas de <b style={{ color: '#fff' }}>equipamentos médicos, bebida, automotiva, petroquímica e governamental</b> me ajudou a adquirir vasta experiência tanto em chão de fábrica como em atividades de escritório — que geraram mais de <b style={{ color: '#fff' }}>US$ 20 milhões/ano</b> em ganhos reais dos meus projetos ou dos projetos dos meus mentorados.</p>
             <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 8 }}>Treinei mais de <b style={{ color: '#fff' }}>1.500 profissionais</b> — e percebi que o que falta não é certificado. É saber chegar numa área, se adaptar rapidamente, entender como investigar um problema, entregar resultado com o mínimo de resistência, e saber apresentar os resultados. É isso que essa formação ensina.</p>
             <div className="stats">
               <div><div className="n">20</div><div className="l">anos de prática</div></div>
