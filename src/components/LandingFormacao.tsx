@@ -398,7 +398,7 @@ export default function LandingFormacao() {
             <h2>Escolha o seu caminho</h2>
             <p>Da formação completa até se tornar consultor e representante da LBW.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'stretch', maxWidth: 1000, margin: '0 auto' }} className="plans-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: '#9FC0FF' }}>Formação Completa</h3>
               <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>As 8 trilhas, todas as ferramentas e o caminho inteiro até virar especialista.</p>
@@ -419,7 +419,16 @@ export default function LandingFormacao() {
               <div className="li">✓ Training the Trainer — forme e conduza outros profissionais</div>
               <div className="li">✓ Acesso à plataforma LBW para usar na sua própria empresa</div>
               <div className="li" style={{ marginBottom: 26 }}>✓ Torne-se representante comercial da plataforma LBW</div>
-              <a className="btn btn-primary" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Exclusivo para alunos</a>
+              <span className="btn btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', cursor: 'default', opacity: 0.85 }}>Exclusivo para alunos</span>
+            </div>
+            <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: '#9FC0FF' }}>Plataforma LBW Empresarial</h3>
+              <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>Leve a LBW para dentro da sua organização e gerencie a excelência operacional pela plataforma.</p>
+              <div className="li">✓ Use a plataforma LBW para todos os seus funcionários</div>
+              <div className="li">✓ Consultoria técnica e gerencial</div>
+              <div className="li">✓ Adicione os seus próprios treinamentos na plataforma</div>
+              <div className="li" style={{ marginBottom: 26 }}>✓ Gerencie todo o programa de excelência operacional da sua empresa pela plataforma LBW</div>
+              <a className="btn btn-primary" href="/pacotes-corporativos" style={{ display: 'block', textAlign: 'center', width: '100%' }}>Entrar em contato</a>
             </div>
           </div>
         </div>
