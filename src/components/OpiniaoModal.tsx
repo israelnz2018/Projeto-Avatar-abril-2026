@@ -14,7 +14,7 @@ import { getOpiniaoItens, salvarOpiniao } from '../services/opiniaoService';
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
 export default function OpiniaoModal({
-  uid, alunoNome, alunoEmail, trilha, trilhaTitulo, onDone, onCancel,
+  uid, alunoNome, alunoEmail, trilha, trilhaTitulo, onDone, onCancel, obrigatorioSemSaida = false,
 }: {
   uid: string;
   alunoNome: string;
@@ -24,6 +24,8 @@ export default function OpiniaoModal({
   /** Chamado após salvar com sucesso — segue para a prova. */
   onDone: () => void;
   onCancel: () => void;
+  /** Trilha 1 do aluno gratuito: depoimento obrigatório, sem botão de pular. */
+  obrigatorioSemSaida?: boolean;
 }) {
   const [itens, setItens] = useState<string[]>([]);
   const [notas, setNotas] = useState<Record<string, number>>({});
@@ -107,6 +109,13 @@ export default function OpiniaoModal({
             Sua opinião sincera nos ajuda muito a melhorar. Leva menos de 1 minuto — e é o que
             nos permite continuar evoluindo por você.
           </p>
+          {obrigatorioSemSaida && (
+            <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-3 leading-relaxed">
+              Como o seu acesso a esta primeira trilha é <b>gratuito</b>, pedimos com todo o carinho
+              que compartilhe sua avaliação antes de seguir para a prova. É a nossa forma de continuar
+              oferecendo conteúdo de qualidade de graça. 💙
+            </p>
+          )}
         </div>
 
         {/* Corpo */}
@@ -169,9 +178,11 @@ export default function OpiniaoModal({
 
         {/* Rodapé */}
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-          <button onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">
-            Agora não
-          </button>
+          {!obrigatorioSemSaida && (
+            <button onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">
+              Agora não
+            </button>
+          )}
           <button
             onClick={handleEnviar}
             disabled={saving || !todasPreenchidas}

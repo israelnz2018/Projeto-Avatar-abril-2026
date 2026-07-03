@@ -180,6 +180,8 @@ export default function AvaliacaoView() {
             alunoEmail={auth.currentUser?.email || ''}
             trilha={opiniaoTrilha}
             trilhaTitulo={quiz.titulo}
+            /* Trilha 1 do aluno gratuito: depoimento obrigatório, sem opção de pular. */
+            obrigatorioSemSaida={opiniaoTrilha === 1 && plano !== 'completo' && !isAdmin}
             onCancel={() => setOpiniaoTrilha(null)}
             onDone={() => { const t = opiniaoTrilha; setOpiniaoTrilha(null); setActiveQuizTrilha(t); }}
           />
