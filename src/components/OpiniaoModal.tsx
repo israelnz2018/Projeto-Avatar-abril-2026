@@ -33,10 +33,18 @@ export default function OpiniaoModal({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
+  const [enviado, setEnviado] = useState(false); // mostra tela de agradecimento
 
   useEffect(() => {
     getOpiniaoItens().then(setItens).finally(() => setLoading(false));
   }, []);
+
+  // Depois do agradecimento, redireciona para a prova.
+  useEffect(() => {
+    if (!enviado) return;
+    const t = setTimeout(() => onDone(), 2600);
+    return () => clearTimeout(t);
+  }, [enviado, onDone]);
 
   const todasPreenchidas = itens.length > 0 && itens.every((it) => (notas[it] ?? 0) >= 1);
 
@@ -53,13 +61,12 @@ export default function OpiniaoModal({
         comentario: comentario.trim(),
         autorizaDivulgacao: autoriza,
       });
-      onDone();
     } catch (e) {
+      // Não trava o aluno se o Firestore falhar — agradece e segue mesmo assim.
       console.error('[OpiniaoModal] salvar:', e);
-      // Não trava o aluno se o Firestore falhar — segue para a prova.
-      onDone();
     } finally {
       setSaving(false);
+      setEnviado(true); // mostra o agradecimento e redireciona
     }
   };
 
@@ -70,6 +77,25 @@ export default function OpiniaoModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-8 overflow-hidden"
       >
+        {enviado ? (
+          /* Tela de agradecimento — some sozinha e redireciona para a prova */
+          <div className="px-6 py-12 text-center">
+            <motion.div
+              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}
+              className="w-20 h-20 rounded-full mx-auto mb-5 flex items-center justify-center bg-emerald-100">
+              <Heart size={40} className="fill-emerald-500 text-emerald-500" />
+            </motion.div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Muito obrigado, {alunoNome.split(' ')[0]}! 🙏</h2>
+            <p className="text-gray-600 leading-relaxed max-w-sm mx-auto">
+              Sua opinião é muito importante para nós e nos ajuda a melhorar cada vez mais.
+            </p>
+            <p className="text-gray-500 text-sm mt-4 flex items-center justify-center gap-2">
+              <Loader2 size={16} className="animate-spin" />
+              Você será redirecionado para realizar a avaliação…
+            </p>
+          </div>
+        ) : (
+        <>
         {/* Cabeçalho */}
         <div className="px-6 pt-6 pb-4 text-center border-b border-gray-100">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(0,51,204,.1)' }}>
@@ -155,6 +181,8 @@ export default function OpiniaoModal({
             {saving ? <><Loader2 size={16} className="animate-spin" /> Enviando…</> : 'Enviar e começar a avaliação →'}
           </button>
         </div>
+        </>
+        )}
       </motion.div>
     </div>
   );
