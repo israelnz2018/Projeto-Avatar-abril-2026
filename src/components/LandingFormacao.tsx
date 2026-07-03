@@ -123,6 +123,10 @@ const CSS = `
   .lf .split,.lf .foot .cols,.lf .plans-grid{grid-template-columns:1fr;gap:28px}
 }
 @media(max-width:560px){ .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr} }
+/* Reveal ao rolar: elementos entram com fade + leve deslize de baixo pra cima */
+.lf .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
+.lf .reveal.is-visible{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){ .lf .reveal{opacity:1;transform:none;transition:none} }
 `;
 
 type FormState = 'idle' | 'sending' | 'ok' | 'ja-existe' | 'err';
@@ -269,6 +273,30 @@ export default function LandingFormacao() {
     s.src = VTURB_SCRIPT_SRC;
     s.async = true;
     document.head.appendChild(s);
+  }, []);
+
+  // Reveal ao rolar: marca os blocos-alvo e revela quando entram na viewport.
+  React.useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    // Não anima o hero (topo) nem o carrossel de trilhas (.nettrack já se move).
+    const targets = Array.from(
+      root.querySelectorAll('.sec-head, .plan, .split > div, .step, .feat, .formcard, .pcard, .qa, .stats')
+    ) as HTMLElement[];
+    targets.forEach((el) => el.classList.add('reveal'));
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-visible');
+            io.unobserve(e.target); // anima uma vez só
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+    );
+    targets.forEach((el) => io.observe(el));
+    return () => io.disconnect();
   }, []);
 
   return (
