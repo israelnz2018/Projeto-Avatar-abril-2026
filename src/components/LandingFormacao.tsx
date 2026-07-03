@@ -400,14 +400,14 @@ export default function LandingFormacao() {
           </div>
           <div className="plan">
             <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: '#9FC0FF' }}>Formação Completa</h3>
-            <div className="price">R$ 497 <span style={{ fontSize: 15, color: 'var(--txt2)', fontWeight: 500 }}>/ acesso completo</span></div>
-            <div style={{ fontSize: 15, color: 'var(--txt2)', marginTop: 2, marginBottom: 8 }}>de <s>R$ 1.500</s> por R$ 497</div>
             <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>As 8 trilhas, todas as ferramentas e o caminho inteiro até virar especialista.</p>
             <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
             <div className="li">✓ Todas as ferramentas + análise de dados completa</div>
             <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
             <div className="li">✓ Mentor Israel digital ilimitado</div>
-            <div className="li" style={{ marginBottom: 26 }}>✓ Certificado de cada uma das 8 trilhas</div>
+            <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
+            <div className="price">R$ 497 <span style={{ fontSize: 15, color: 'var(--txt2)', fontWeight: 500 }}>/ acesso completo</span></div>
+            <div style={{ fontSize: 15, color: 'var(--txt2)', marginTop: 2, marginBottom: 26 }}>de <s>R$ 1.500</s> por R$ 497</div>
             <a className="btn btn-primary" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
           </div>
         </div>
