@@ -45,6 +45,8 @@ const ProjectToolsConfig = lazy(() => import('./components/ProjectToolsConfig'))
 const UserManagementView = lazy(() => import('./components/UserManagementView'));
 const MarketingView = lazy(() => import('./components/MarketingView'));
 const CertificadosView = lazy(() => import('./components/CertificadosView'));
+const AvaliacaoView = lazy(() => import('./components/AvaliacaoView'));
+const AvaliacaoAdminView = lazy(() => import('./components/AvaliacaoAdminView'));
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
@@ -89,6 +91,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
     { name: 'Educação', path: '/education', icon: GraduationCap },
+    { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2 },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -97,6 +100,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ] : []),
     ...(isAdmin ? [
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
+      { name: 'Avaliação ADMIN', path: '/avaliacao-admin', icon: ClipboardList },
       { name: 'Certificados', path: '/certificados', icon: Award },
       { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
@@ -431,6 +435,8 @@ export default function App() {
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />
               <Route path="/certificados" element={<CertificadosView />} />
+              <Route path="/avaliacao" element={<AvaliacaoView />} />
+              <Route path="/avaliacao-admin" element={<AvaliacaoAdminView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
