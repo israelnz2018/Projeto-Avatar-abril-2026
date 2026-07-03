@@ -401,7 +401,6 @@ export default function LandingFormacao() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Formação Completa</h3>
-              <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>As 8 trilhas, todas as ferramentas e o caminho inteiro até virar especialista.</p>
               <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
               <div className="li">✓ Todas as ferramentas + análise de dados completa</div>
               <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
@@ -413,7 +412,6 @@ export default function LandingFormacao() {
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Consultor em Melhoria de Processos e Negócios</h3>
-              <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>Tudo da Formação Completa — e mais o preparo para atuar como consultor e representar a LBW.</p>
               <div className="li">✓ Tudo da Formação Completa</div>
               <div className="li">✓ Como implementar um programa de melhoria contínua em uma organização</div>
               <div className="li">✓ Training the Trainer — forme e conduza outros profissionais</div>
@@ -423,7 +421,6 @@ export default function LandingFormacao() {
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Plataforma LBW Empresarial</h3>
-              <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>Leve a LBW para dentro da sua organização e gerencie a excelência operacional pela plataforma.</p>
               <div className="li">✓ Use a plataforma LBW para todos os seus funcionários</div>
               <div className="li">✓ Consultoria técnica e gerencial</div>
               <div className="li">✓ Adicione os seus próprios treinamentos na plataforma</div>
