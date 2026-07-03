@@ -12,6 +12,10 @@
 import React, { useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
+// Player VTurb (smartplayer v4) da VSL da formação. ID e script são únicos deste vídeo.
+const VTURB_PLAYER_ID = 'vid-6a476a65f6de1f8601713a37';
+const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a476a65f6de1f8601713a37/v4/player.js';
+
 const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
 const HOTMART = 'https://pay.hotmart.com/N102603781W?bid=1781388122214';
 
@@ -258,6 +262,15 @@ export default function LandingFormacao() {
     return () => { window.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
   }, []);
 
+  // Injeta o script do player VTurb uma única vez (evita duplicar em re-render).
+  React.useEffect(() => {
+    if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
+    const s = document.createElement('script');
+    s.src = VTURB_SCRIPT_SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
   return (
     <div className="lf" ref={rootRef}>
       <style>{CSS}</style>
@@ -270,10 +283,15 @@ export default function LandingFormacao() {
           <h1>Pare de apenas estudar e <span className="grad">comece a entregar resultado fazendo!</span></h1>
           <p className="lead">Traga seu problema real, use as ferramentas da nossa plataforma e entregue resultado rapidamente.</p>
           <div className="videobox">
-            <div style={{ textAlign: 'center' }}>
-              <div className="play" />
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,.55)' }}>▶ Espaço reservado para o seu vídeo</div>
-            </div>
+            <vturb-smartplayer
+              id={VTURB_PLAYER_ID}
+              style={{ display: 'block', margin: '0 auto', width: '100%' }}
+            >
+              <div
+                className="vturb-player-placeholder"
+                style={{ position: 'relative', width: '100%', padding: '56.25% 0 0', zIndex: 0, backgroundColor: 'black' }}
+              />
+            </vturb-smartplayer>
           </div>
           <div className="cta-row">
             <a className="btn btn-primary" href="#planos">Quero a formação completa →</a>
