@@ -359,7 +359,7 @@ export default function LandingFormacao() {
       {/* MENTOR */}
       <section className="sec" style={{ background: 'radial-gradient(ellipse 60% 70% at 80% 50%,rgba(0,51,204,.18),transparent 60%),#070A18' }}>
         <div className="wrap split">
-          <div><img src="/avatar-israel.png" alt="Mentor Israel digital" style={{ width: '100%', maxWidth: 480, display: 'block', margin: '0 auto', objectFit: 'contain' }} /></div>
+          <div><img src="/avatar-israel.png" alt="Mentor Israel digital" style={{ width: '100%', maxWidth: 480, aspectRatio: '1 / 1', display: 'block', margin: '0 auto', objectFit: 'contain' }} /></div>
           <div>
             <span className="eyebrow">Mentor Israel digital</span>
             <h2 style={{ fontSize: 34, margin: '16px 0' }}>É como ter o Israel <span className="grad">do seu lado</span></h2>
