@@ -120,7 +120,7 @@ const CSS = `
 @media(max-width:900px){
   .lf .hero h1{font-size:34px}
   .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr 1fr}
-  .lf .split,.lf .foot .cols{grid-template-columns:1fr;gap:28px}
+  .lf .split,.lf .foot .cols,.lf .plans-grid{grid-template-columns:1fr;gap:28px}
 }
 @media(max-width:560px){ .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr} }
 `;
@@ -395,20 +395,32 @@ export default function LandingFormacao() {
         <div className="wrap">
           <div className="sec-head">
             <span className="eyebrow">Comece hoje</span>
-            <h2>A formação completa</h2>
-            <p>O caminho inteiro até virar especialista — as 8 trilhas, todas as ferramentas.</p>
+            <h2>Escolha o seu caminho</h2>
+            <p>Da formação completa até se tornar consultor e representante da LBW.</p>
           </div>
-          <div className="plan">
-            <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: '#9FC0FF' }}>Formação Completa</h3>
-            <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>As 8 trilhas, todas as ferramentas e o caminho inteiro até virar especialista.</p>
-            <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
-            <div className="li">✓ Todas as ferramentas + análise de dados completa</div>
-            <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
-            <div className="li">✓ Mentor Israel digital ilimitado</div>
-            <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
-            <div className="price">R$ 497 <span style={{ fontSize: 15, color: 'var(--txt2)', fontWeight: 500 }}>/ acesso completo</span></div>
-            <div style={{ fontSize: 15, color: 'var(--txt2)', marginTop: 2, marginBottom: 26 }}>de <s>R$ 1.500</s> por R$ 497</div>
-            <a className="btn btn-primary" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'stretch', maxWidth: 1000, margin: '0 auto' }} className="plans-grid">
+            <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: '#9FC0FF' }}>Formação Completa</h3>
+              <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>As 8 trilhas, todas as ferramentas e o caminho inteiro até virar especialista.</p>
+              <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
+              <div className="li">✓ Todas as ferramentas + análise de dados completa</div>
+              <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
+              <div className="li">✓ Mentor Israel digital ilimitado</div>
+              <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
+              <div className="price">R$ 497 <span style={{ fontSize: 15, color: 'var(--txt2)', fontWeight: 500 }}>/ acesso completo</span></div>
+              <div style={{ fontSize: 15, color: 'var(--txt2)', marginTop: 2, marginBottom: 26 }}>de <s>R$ 1.500</s> por R$ 497</div>
+              <a className="btn btn-primary" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
+            </div>
+            <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: '#9FC0FF' }}>Consultor em Melhoria de Processos e Negócios</h3>
+              <p style={{ fontSize: 14, color: 'var(--txt)', marginBottom: 24 }}>Tudo da Formação Completa — e mais o preparo para atuar como consultor e representar a LBW.</p>
+              <div className="li">✓ Tudo da Formação Completa</div>
+              <div className="li">✓ Como implementar um programa de melhoria contínua em uma organização</div>
+              <div className="li">✓ Training the Trainer — forme e conduza outros profissionais</div>
+              <div className="li">✓ Acesso à plataforma LBW para usar na sua própria empresa</div>
+              <div className="li" style={{ marginBottom: 26 }}>✓ Torne-se representante comercial da plataforma LBW</div>
+              <a className="btn btn-primary" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Exclusivo para alunos</a>
+            </div>
           </div>
         </div>
       </section>
