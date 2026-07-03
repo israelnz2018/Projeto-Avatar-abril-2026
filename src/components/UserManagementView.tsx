@@ -86,6 +86,30 @@ function EngajaChip({ ativo, label, cor }: { ativo: boolean; label: string; cor:
   );
 }
 
+/**
+ * Indicador COMPACTO de engajamento pra linha principal — mostra o funil de 3 passos
+ * (cadastrou → acessou o app → trocou a senha provisória) como 3 pontinhos coloridos.
+ * Verde = feito, cinza = pendente. Passa o mouse pra ver o rótulo.
+ */
+function EngajamentoMini({ acessou, trocouSenha }: { acessou: boolean; trocouSenha: boolean }) {
+  // Nível de engajamento: 0 = só cadastrou, 1 = acessou, 2 = trocou senha (engajado).
+  const nivel = trocouSenha ? 2 : acessou ? 1 : 0;
+  const label = nivel === 2 ? 'Engajado (trocou senha)' : nivel === 1 ? 'Acessou o app' : 'Só cadastrou (lead)';
+  const passos = [
+    { on: true, t: 'Cadastrou' },            // sempre true (existe no sistema)
+    { on: acessou, t: 'Acessou o app' },
+    { on: trocouSenha, t: 'Trocou a senha' },
+  ];
+  return (
+    <span className="inline-flex items-center gap-1" title={`Engajamento: ${label}`}>
+      {passos.map((p, i) => (
+        <span key={i}
+          className={cn('w-2 h-2 rounded-full', p.on ? 'bg-green-500' : 'bg-gray-200')} />
+      ))}
+    </span>
+  );
+}
+
 function getPlano(u: UserData): Plano {
   if (u.plano === 'coordenador' || u.tipoUsuario === 'coordenador') return 'coordenador';
   if (u.plano === 'completo') return 'completo';
@@ -230,7 +254,7 @@ export default function UserManagementView() {
   }, [users]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter(u => {
+    const filtered = users.filter(u => {
       if (filterTipo !== 'todos' && u.tipoUsuario !== filterTipo) return false;
       if (filterPlano !== 'todos' && getPlano(u) !== filterPlano) return false;
       if (filterEmpresa !== 'todos') {
@@ -246,6 +270,12 @@ export default function UserManagementView() {
         );
       }
       return true;
+    });
+    // Mais novos primeiro: ordena por data de criação (desc). Sem data vai pro fim.
+    return filtered.sort((a, b) => {
+      const ta = a.criadoEm ? new Date(a.criadoEm).getTime() : 0;
+      const tb = b.criadoEm ? new Date(b.criadoEm).getTime() : 0;
+      return tb - ta;
     });
   }, [users, search, filterTipo, filterPlano, filterEmpresa]);
 
@@ -326,36 +356,6 @@ export default function UserManagementView() {
 
       {aba === 'lista' ? (
         <>
-          {/* Painel de engajamento da campanha (funil cortesia) */}
-          {(() => {
-            const cortesia = users.filter(u => (u as any).origemAcesso === 'convite-reativacao' || String((u as any).acessoCompletoAte || '').startsWith('2026-12-31'));
-            if (cortesia.length === 0) return null;
-            const abriu = cortesia.filter(u => ((u as any).engajamento?.aberturas || 0) > 0).length;
-            const clicou = cortesia.filter(u => ((u as any).engajamento?.cliques || 0) > 0).length;
-            const acessou = cortesia.filter(u => !!u.primeiroAcessoEm).length;
-            const trocou = cortesia.filter(u => (u as any).senhaProvisoria === false).length;
-            const pct = (n: number) => cortesia.length ? Math.round((n / cortesia.length) * 100) : 0;
-            const Card = ({ label, n, cor }: { label: string; n: number; cor: string }) => (
-              <div className="flex-1 min-w-[120px] bg-white border border-gray-200 rounded-lg p-3 text-center">
-                <div className={`text-2xl font-black ${cor}`}>{n}</div>
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{label}</div>
-                <div className="text-[10px] text-gray-400">{pct(n)}% de {cortesia.length}</div>
-              </div>
-            );
-            return (
-              <div className="bg-blue-50 border border-blue-200 rounded-[4px] p-4 mb-3">
-                <div className="text-xs font-bold text-blue-900 uppercase tracking-wide mb-2">📧 Campanha cortesia — engajamento</div>
-                <div className="flex flex-wrap gap-2">
-                  <Card label="Convidados" n={cortesia.length} cor="text-gray-700" />
-                  <Card label="Abriram e-mail" n={abriu} cor="text-amber-600" />
-                  <Card label="Clicaram no link" n={clicou} cor="text-blue-600" />
-                  <Card label="Acessaram o app" n={acessou} cor="text-green-600" />
-                  <Card label="Trocaram senha" n={trocou} cor="text-green-700" />
-                </div>
-              </div>
-            );
-          })()}
-
           <div className="bg-white border border-[#ccc] rounded-[4px] p-4 flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -615,6 +615,13 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
           <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded border", badge.cor)}>
             {badge.label}
           </span>
+          {/* Engajamento resumido: acessou o app? trocou a senha provisória? */}
+          {user.tipoUsuario === 'aluno' && (
+            <EngajamentoMini
+              acessou={!!user.primeiroAcessoEm}
+              trocouSenha={user.senhaProvisoria === false}
+            />
+          )}
           {user.empresaNome && (
             <span className="text-[10px] font-bold uppercase text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-300 flex items-center gap-1">
               <Briefcase size={10} /> {user.empresaNome}
