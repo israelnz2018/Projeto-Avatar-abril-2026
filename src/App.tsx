@@ -47,6 +47,7 @@ const MarketingView = lazy(() => import('./components/MarketingView'));
 const CertificadosView = lazy(() => import('./components/CertificadosView'));
 const AvaliacaoView = lazy(() => import('./components/AvaliacaoView'));
 const AvaliacaoAdminView = lazy(() => import('./components/AvaliacaoAdminView'));
+const OpinioesAdminView = lazy(() => import('./components/OpinioesAdminView'));
 const ApiSettingsView = lazy(() => import('./components/ApiSettingsView'));
 const CertificatePage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.CertificatePage })));
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
@@ -101,6 +102,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ...(isAdmin ? [
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
       { name: 'Avaliação ADMIN', path: '/avaliacao-admin', icon: ClipboardList },
+      { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
       { name: 'Certificados', path: '/certificados', icon: Award },
       { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
@@ -437,6 +439,7 @@ export default function App() {
               <Route path="/certificados" element={<CertificadosView />} />
               <Route path="/avaliacao" element={<AvaliacaoView />} />
               <Route path="/avaliacao-admin" element={<AvaliacaoAdminView />} />
+              <Route path="/opinioes" element={<OpinioesAdminView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />

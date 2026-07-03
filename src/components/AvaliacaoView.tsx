@@ -29,6 +29,7 @@ import {
 import { getAllQuizzes, type QuizConfig } from '../services/quizService';
 import QuizRunner from './QuizRunner';
 import Certificate from './Certificate';
+import OpiniaoModal from './OpiniaoModal';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
@@ -58,6 +59,8 @@ export default function AvaliacaoView() {
   const [alunoNome, setAlunoNome] = useState('Aluno LBW');
   const [activeQuizTrilha, setActiveQuizTrilha] = useState<number | null>(null);
   const [justPassedTrilha, setJustPassedTrilha] = useState<number | null>(null);
+  // Trilha cujo depoimento (obrigatório) está sendo pedido, antes de abrir a prova.
+  const [opiniaoTrilha, setOpiniaoTrilha] = useState<number | null>(null);
 
   const uid = auth.currentUser?.uid;
 
@@ -160,11 +163,28 @@ export default function AvaliacaoView() {
             bloco={b}
             index={i}
             certAluno={alunoNome}
-            onStart={() => setActiveQuizTrilha(b.quiz.trilha)}
+            onStart={() => setOpiniaoTrilha(b.quiz.trilha)}
             showCongrats={justPassedTrilha === b.quiz.trilha}
           />
         ))}
       </div>
+
+      {/* Pop-up de depoimento obrigatório — abre antes da prova */}
+      {opiniaoTrilha !== null && uid && (() => {
+        const quiz = quizzes.find((q) => q.trilha === opiniaoTrilha);
+        if (!quiz) return null;
+        return (
+          <OpiniaoModal
+            uid={uid}
+            alunoNome={alunoNome}
+            alunoEmail={auth.currentUser?.email || ''}
+            trilha={opiniaoTrilha}
+            trilhaTitulo={quiz.titulo}
+            onCancel={() => setOpiniaoTrilha(null)}
+            onDone={() => { const t = opiniaoTrilha; setOpiniaoTrilha(null); setActiveQuizTrilha(t); }}
+          />
+        );
+      })()}
     </div>
   );
 }

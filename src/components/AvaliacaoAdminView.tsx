@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { Save, Plus, Trash2, Check, ChevronDown, RotateCcw } from 'lucide-react';
 import { getQuiz, saveQuiz, type QuizConfig, type QuizQuestion } from '../services/quizService';
 import { DEFAULT_QUIZZES } from '../services/quizSeed';
+import { getOpiniaoItens, saveOpiniaoItens } from '../services/opiniaoService';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 const TRILHAS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -26,6 +27,21 @@ export default function AvaliacaoAdminView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
+  // Itens de opinião (depoimento pré-prova) — config global editável.
+  const [opiniaoItens, setOpiniaoItens] = useState<string[]>([]);
+  const [opiniaoMsg, setOpiniaoMsg] = useState('');
+
+  useEffect(() => {
+    getOpiniaoItens().then(setOpiniaoItens).catch(() => {});
+  }, []);
+
+  const handleSaveItens = async () => {
+    try {
+      await saveOpiniaoItens(opiniaoItens);
+      setOpiniaoMsg('✓ Itens salvos.');
+      setTimeout(() => setOpiniaoMsg(''), 3000);
+    } catch { setOpiniaoMsg('✗ Erro ao salvar itens.'); }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -118,6 +134,40 @@ export default function AvaliacaoAdminView() {
             <Save size={16} /> {saving ? 'Salvando…' : 'Salvar prova'}
           </button>
         </div>
+      </div>
+
+      {/* Itens do depoimento (opinião pré-prova) — global, editável */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h2 className="font-bold text-gray-800">Depoimento pré-prova — itens avaliados (nota 1-5)</h2>
+            <p className="text-xs text-gray-400">Aparecem no pop-up que o aluno preenche antes de cada avaliação. Vale para todas as trilhas.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {opiniaoMsg && <span className={`text-sm font-bold ${opiniaoMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{opiniaoMsg}</span>}
+            <button onClick={handleSaveItens} className="px-3 py-2 rounded-lg text-white text-sm font-bold flex items-center gap-2" style={{ background: LBW.blue }}>
+              <Save size={15} /> Salvar itens
+            </button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {opiniaoItens.map((item, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-400 w-5">{i + 1}</span>
+              <input value={item}
+                onChange={(e) => setOpiniaoItens((arr) => arr.map((x, j) => (j === i ? e.target.value : x)))}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
+              <button onClick={() => setOpiniaoItens((arr) => arr.filter((_, j) => j !== i))}
+                className="p-1.5 text-red-300 hover:text-red-500">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button onClick={() => setOpiniaoItens((arr) => [...arr, 'Novo item'])}
+          className="text-xs font-bold text-blue-600 flex items-center gap-1 mt-3">
+          <Plus size={13} /> Adicionar item
+        </button>
       </div>
 
       {/* Seletor de trilha */}
