@@ -88,6 +88,8 @@ const CSS = `
 .lf .plan-foot{margin-top:auto}
 /* nota de reforço abaixo do botao (preenche o vazio dos blocos 2 e 3) */
 .lf .plan-note{font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:12px;line-height:1.5}
+/* badge do titulo — padronizado: mesma altura (2 linhas) nos 3 blocos, centralizado */
+.lf .plan-badge{display:flex;align-items:center;justify-content:center;text-align:center;min-height:64px;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#BFD4FF;background:rgba(0,51,204,.22);border:1px solid rgba(159,192,255,.35);border-radius:16px;padding:10px 16px;margin-bottom:18px;line-height:1.3}
 .lf .plan .price{font-family:'Space Grotesk';font-size:32px;font-weight:700;margin:12px 0 4px;white-space:nowrap}
 .lf .plan .li{font-size:14.5px;color:rgba(255,255,255,.85);margin-bottom:12px}
 /* form */
@@ -470,7 +472,7 @@ export default function LandingFormacao() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
-              <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Formação Completa</h3>
+              <h3 className="plan-badge">Formação Completa</h3>
               <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
               <div className="li">✓ Todas as ferramentas + análise de dados completa</div>
               <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
@@ -482,27 +484,33 @@ export default function LandingFormacao() {
                   12x <span style={{ fontSize: 20 }}>de</span> R$ 61,74
                 </div>
                 <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 597 à vista</div>
-                <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
+                <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo</a>
                 <p className="plan-note">🔒 Compra segura via Hotmart · Acesso imediato · 7 dias de garantia</p>
               </div>
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
-              <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Consultor em Melhoria de Processos e Negócios</h3>
+              <h3 className="plan-badge">Consultor em Melhoria de Processos</h3>
               <div className="li">✓ Tudo da Formação Completa</div>
               <div className="li">✓ Como implementar um programa de melhoria contínua em uma organização</div>
               <div className="li">✓ Training the Trainer — forme e conduza outros profissionais</div>
+              <div className="li">✓ Como revisar projetos de melhoria dos alunos</div>
               <div className="li">✓ Acesso à plataforma LBW para usar na sua própria empresa</div>
               <div className="li" style={{ marginBottom: 26 }}>✓ Torne-se representante comercial da plataforma LBW</div>
               <div className="plan-foot">
+                <div className="price" style={{ margin: '0 0 2px' }}>
+                  12x <span style={{ fontSize: 20 }}>de</span> R$ 310,25
+                </div>
+                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 3.000 à vista</div>
                 <span className="btn btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', cursor: 'default', opacity: 0.85 }}>Exclusivo para alunos</span>
                 <p className="plan-note">Disponível para quem já concluiu a Formação Completa</p>
               </div>
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
-              <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Plataforma LBW Empresarial</h3>
+              <h3 className="plan-badge">Plataforma LBW Empresarial</h3>
               <div className="li">✓ Use a plataforma LBW para todos os seus funcionários</div>
               <div className="li">✓ Consultoria técnica e gerencial</div>
               <div className="li">✓ Adicione os seus próprios treinamentos na plataforma</div>
+              <div className="li">✓ Ajuste a nossa plataforma às suas necessidades</div>
               <div className="li" style={{ marginBottom: 26 }}>✓ Gerencie todo o programa de excelência operacional da sua empresa pela plataforma LBW</div>
               <div className="plan-foot">
                 <a className="btn btn-primary" href="/pacotes-corporativos" style={{ display: 'block', textAlign: 'center', width: '100%' }}>Entrar em contato</a>
