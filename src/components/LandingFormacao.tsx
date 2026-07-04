@@ -76,7 +76,7 @@ const CSS = `
 .lf .stats .l{font-size:13px;color:var(--txt2)}
 /* plano */
 .lf .plan{position:relative;max-width:480px;margin:0 auto;border-radius:22px;padding:38px 34px;background:linear-gradient(160deg,rgba(30,45,110,.6),rgba(7,10,24,.4));border:1.5px solid rgba(159,192,255,.45);box-shadow:0 40px 90px -34px rgba(0,51,204,.6)}
-.lf .plan .price{font-family:'Space Grotesk';font-size:46px;font-weight:700;margin:12px 0 4px}
+.lf .plan .price{font-family:'Space Grotesk';font-size:32px;font-weight:700;margin:12px 0 4px;white-space:nowrap}
 .lf .plan .li{font-size:14.5px;color:rgba(255,255,255,.85);margin-bottom:12px}
 /* form */
 .lf .formcard{max-width:460px;margin:0 auto;text-align:center}
@@ -469,7 +469,7 @@ export default function LandingFormacao() {
               <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
               <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 2 }}>de <s>R$ 1.500</s> por</div>
               <div className="price" style={{ margin: '0 0 2px' }}>
-                12x <span style={{ fontSize: 30 }}>de</span> R$ 61,74
+                12x <span style={{ fontSize: 20 }}>de</span> R$ 61,74
               </div>
               <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 597 à vista</div>
               <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
