@@ -271,13 +271,24 @@ export default function LandingFormacao() {
   const [exitArmed, setExitArmed] = useState(true);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  // Dispara "InitiateCheckout" no Pixel quando o usuário clica para comprar.
+  // Dispara "InitiateCheckout" quando o usuário clica para comprar (vai pro Hotmart).
   // É o evento que a campanha de VENDAS otimiza (separado do "Lead" do grátis).
   const trackCheckout = () => {
     try {
       const w = window as any;
       if (typeof w.fbq === 'function') {
         w.fbq('track', 'InitiateCheckout', { content_name: 'formacao-completa', value: 597, currency: 'BRL' });
+      }
+    } catch { /* silencioso */ }
+  };
+
+  // Dispara "ViewContent" quando o usuário clica no CTA do topo (rola até os planos).
+  // Mede INTERESSE (foi ver o preço) — topo do funil, diferente da intenção de compra.
+  const trackViewOffer = () => {
+    try {
+      const w = window as any;
+      if (typeof w.fbq === 'function') {
+        w.fbq('track', 'ViewContent', { content_name: 'formacao-planos' });
       }
     } catch { /* silencioso */ }
   };
@@ -381,7 +392,7 @@ export default function LandingFormacao() {
             </vturb-smartplayer>
           </div>
           <div className="cta-row">
-            <a className="btn btn-primary btn-hero-cta" href="#planos">Quero a formação completa</a>
+            <a className="btn btn-primary btn-hero-cta" href="#planos" onClick={trackViewOffer}>Quero a formação completa</a>
           </div>
         </div>
       </header>
