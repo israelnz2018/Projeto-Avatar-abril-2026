@@ -28,8 +28,16 @@ const CSS = `
 .lf .eyebrow{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#9FC0FF;background:rgba(159,192,255,.08);border:1px solid rgba(159,192,255,.22);padding:9px 18px;border-radius:999px}
 .lf .grad{background:linear-gradient(95deg,#fff,#9FC0FF 55%,#3B82F6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .lf .sec{padding:56px 20px}
-.lf .btn{display:inline-block;font-weight:700;font-size:16px;padding:16px 34px;border-radius:13px;text-decoration:none;cursor:pointer;border:none}
-.lf .btn-primary{background:linear-gradient(120deg,#0033CC,#2563EB);color:#fff;box-shadow:0 14px 38px -10px rgba(37,99,235,.7)}
+.lf .btn{display:inline-block;font-weight:700;font-size:16px;padding:16px 34px;border-radius:13px;text-decoration:none;cursor:pointer;border:none;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s,filter .22s}
+.lf .btn-primary{position:relative;overflow:hidden;background:linear-gradient(135deg,#2563EB 0%,#0033CC 55%,#1E2D6E 100%);color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.25) inset, 0 -10px 24px -12px rgba(0,0,0,.5) inset, 0 18px 40px -12px rgba(37,99,235,.65), 0 4px 12px -4px rgba(0,51,204,.5);
+  border:1px solid rgba(159,192,255,.35)}
+.lf .btn-primary:hover{transform:translateY(-3px);filter:brightness(1.08);
+  box-shadow:0 1px 0 rgba(255,255,255,.3) inset, 0 -10px 24px -12px rgba(0,0,0,.5) inset, 0 26px 56px -12px rgba(37,99,235,.8), 0 6px 16px -4px rgba(0,51,204,.6)}
+.lf .btn-primary:active{transform:translateY(-1px)}
+/* brilho que atravessa o botao no hover */
+.lf .btn-primary::before{content:'';position:absolute;top:0;left:-140%;width:55%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-18deg);transition:left .6s ease}
+.lf .btn-primary:hover::before{left:150%}
 .lf .btn-ghost{background:rgba(255,255,255,.06);color:#fff;border:1px solid var(--line)}
 /* hero */
 .lf .hero{position:relative;text-align:center;padding:64px 20px 56px;overflow:hidden}
@@ -75,7 +83,11 @@ const CSS = `
 .lf .stats .n{font-family:'Space Grotesk';font-size:30px;font-weight:700;color:#9FC0FF}
 .lf .stats .l{font-size:13px;color:var(--txt2)}
 /* plano */
-.lf .plan{position:relative;max-width:480px;margin:0 auto;border-radius:22px;padding:38px 34px;background:linear-gradient(160deg,rgba(30,45,110,.6),rgba(7,10,24,.4));border:1.5px solid rgba(159,192,255,.45);box-shadow:0 40px 90px -34px rgba(0,51,204,.6)}
+.lf .plan{position:relative;display:flex;flex-direction:column;max-width:480px;margin:0 auto;border-radius:22px;padding:38px 34px;background:linear-gradient(160deg,rgba(30,45,110,.6),rgba(7,10,24,.4));border:1.5px solid rgba(159,192,255,.45);box-shadow:0 40px 90px -34px rgba(0,51,204,.6)}
+/* empurra o rodape (preço + botao + nota) pra base — alinha os 3 CTAs na mesma linha */
+.lf .plan-foot{margin-top:auto}
+/* nota de reforço abaixo do botao (preenche o vazio dos blocos 2 e 3) */
+.lf .plan-note{font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:12px;line-height:1.5}
 .lf .plan .price{font-family:'Space Grotesk';font-size:32px;font-weight:700;margin:12px 0 4px;white-space:nowrap}
 .lf .plan .li{font-size:14.5px;color:rgba(255,255,255,.85);margin-bottom:12px}
 /* form */
@@ -127,7 +139,9 @@ const CSS = `
    (hotmart-fb) apagava o texto. Forca os nossos estilos de volta. */
 .lf a.hotmart-fb.btn{color:#0033CC !important;text-shadow:none !important;filter:none !important;opacity:1 !important;text-decoration:none !important}
 .lf a.hotmart-fb.btn-primary{color:#fff !important}
-.lf a.hotmart-fb::before,.lf a.hotmart-fb::after{display:none !important}
+/* Remove só os pseudo-elementos que a Hotmart injeta (ela usa content com texto).
+   Nosso brilho ::before usa content:'' — preservamos ele. */
+.lf a.hotmart-fb::after{display:none !important}
 /* CTA do hero (logo abaixo do VSL): maior e com pulso sutil pra chamar quem acabou de assistir */
 .lf .btn-hero-cta{font-size:19px;padding:18px 44px;animation:lf-cta-pulse 2.6s ease-in-out infinite}
 @keyframes lf-cta-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
@@ -467,12 +481,15 @@ export default function LandingFormacao() {
               <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
               <div className="li">✓ Mentor Israel digital ilimitado</div>
               <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
-              <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 2 }}>de <s>R$ 1.500</s> por</div>
-              <div className="price" style={{ margin: '0 0 2px' }}>
-                12x <span style={{ fontSize: 20 }}>de</span> R$ 61,74
+              <div className="plan-foot">
+                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 2 }}>de <s>R$ 1.500</s> por</div>
+                <div className="price" style={{ margin: '0 0 2px' }}>
+                  12x <span style={{ fontSize: 20 }}>de</span> R$ 61,74
+                </div>
+                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 597 à vista</div>
+                <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
+                <p className="plan-note">🔒 Compra segura via Hotmart · Acesso imediato · 7 dias de garantia</p>
               </div>
-              <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 597 à vista</div>
-              <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo →</a>
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Consultor em Melhoria de Processos e Negócios</h3>
@@ -481,7 +498,10 @@ export default function LandingFormacao() {
               <div className="li">✓ Training the Trainer — forme e conduza outros profissionais</div>
               <div className="li">✓ Acesso à plataforma LBW para usar na sua própria empresa</div>
               <div className="li" style={{ marginBottom: 26 }}>✓ Torne-se representante comercial da plataforma LBW</div>
-              <span className="btn btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', cursor: 'default', opacity: 0.85 }}>Exclusivo para alunos</span>
+              <div className="plan-foot">
+                <span className="btn btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', cursor: 'default', opacity: 0.85 }}>Exclusivo para alunos</span>
+                <p className="plan-note">Disponível para quem já concluiu a Formação Completa</p>
+              </div>
             </div>
             <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 style={{ display: 'inline-block', fontSize: 13, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: '#BFD4FF', background: 'rgba(0,51,204,.22)', border: '1px solid rgba(159,192,255,.35)', borderRadius: 999, padding: '8px 16px', marginBottom: 18 }}>Plataforma LBW Empresarial</h3>
@@ -489,7 +509,10 @@ export default function LandingFormacao() {
               <div className="li">✓ Consultoria técnica e gerencial</div>
               <div className="li">✓ Adicione os seus próprios treinamentos na plataforma</div>
               <div className="li" style={{ marginBottom: 26 }}>✓ Gerencie todo o programa de excelência operacional da sua empresa pela plataforma LBW</div>
-              <a className="btn btn-primary" href="/pacotes-corporativos" style={{ display: 'block', textAlign: 'center', width: '100%' }}>Entrar em contato</a>
+              <div className="plan-foot">
+                <a className="btn btn-primary" href="/pacotes-corporativos" style={{ display: 'block', textAlign: 'center', width: '100%' }}>Entrar em contato</a>
+                <p className="plan-note">Planos sob medida para times e empresas · Fale com nosso time</p>
+              </div>
             </div>
           </div>
         </div>
