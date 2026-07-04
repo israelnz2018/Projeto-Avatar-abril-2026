@@ -499,10 +499,9 @@ export default function LandingFormacao() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
             <div className="plan plan-featured" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 className="plan-badge">Formação Completa</h3>
-              <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
+              <div className="li">✓ Vídeo aula das 8 trilhas — da base ao topo da jornada</div>
               <div className="li">✓ Todas as ferramentas de gerenciamento de projetos de melhoria</div>
               <div className="li">✓ Software estatístico com análise de dados completa</div>
-              <div className="li">✓ Vídeo aula para cada trilha</div>
               <div className="li">✓ Dashboard, comunidade e slides em PPT de cada ferramenta preenchida</div>
               <div className="li">✓ Mentor Israel digital ilimitado</div>
               <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
