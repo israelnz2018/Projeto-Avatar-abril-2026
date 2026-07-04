@@ -517,6 +517,8 @@ export default function LandingFormacao() {
               <div className="li">✓ Ajuste a nossa plataforma às suas necessidades</div>
               <div className="li" style={{ marginBottom: 26 }}>✓ Gerencie todo o programa de excelência operacional da sua empresa pela plataforma LBW</div>
               <div className="plan-foot">
+                <div className="price" style={{ margin: '0 0 2px' }}>SOB CONSULTA</div>
+                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>valor sob medida para sua empresa</div>
                 <a className="btn btn-primary" href="/pacotes-corporativos" style={{ display: 'block', textAlign: 'center', width: '100%' }}>Entrar em contato</a>
                 <p className="plan-note">Planos sob medida para times e empresas · Fale com nosso time</p>
               </div>
