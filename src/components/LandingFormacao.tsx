@@ -128,6 +128,10 @@ const CSS = `
 .lf a.hotmart-fb.btn{color:#0033CC !important;text-shadow:none !important;filter:none !important;opacity:1 !important;text-decoration:none !important}
 .lf a.hotmart-fb.btn-primary{color:#fff !important}
 .lf a.hotmart-fb::before,.lf a.hotmart-fb::after{display:none !important}
+/* CTA do hero (logo abaixo do VSL): maior e com pulso sutil pra chamar quem acabou de assistir */
+.lf .btn-hero-cta{font-size:19px;padding:18px 44px;animation:lf-cta-pulse 2.6s ease-in-out infinite}
+@keyframes lf-cta-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+@media(prefers-reduced-motion:reduce){ .lf .btn-hero-cta{animation:none} }
 /* Reveal ao rolar: elementos entram com fade + leve deslize de baixo pra cima */
 .lf .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
 .lf .reveal.is-visible{opacity:1;transform:none}
@@ -346,7 +350,12 @@ export default function LandingFormacao() {
             </vturb-smartplayer>
           </div>
           <div className="cta-row">
-            <a className="btn btn-primary" href="#planos">Quero a formação completa →</a>
+            <a className="btn btn-primary btn-hero-cta" href="#planos">
+              Quero a formação completa
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 500, opacity: 0.9, marginTop: 2 }}>
+                12x de R$ 61,74 · ver planos ↓
+              </span>
+            </a>
           </div>
         </div>
       </header>
