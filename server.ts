@@ -1030,6 +1030,55 @@ async function startServer() {
     }
   });
 
+  // POST /api/reativacao/criar-um — concede acesso completo grátis (até 31/12/2026)
+  // para UMA pessoa (nome + email). Cria no Firebase se não existir, ou atualiza
+  // se já existir. Senha padrão LBW2026 (troca obrigatória no 1º acesso) e envia
+  // o e-mail de acesso. Usado no painel de Marketing pra quem procura pelo LinkedIn.
+  app.post("/api/reativacao/criar-um", requireAdmin, async (req: any, res) => {
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    const nome = String(req.body?.nome || "").trim();
+    if (!email || email.indexOf("@") < 0) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
+    const SENHA_CONVITE = "LBW2026";
+    try {
+      // 1) Cria no Auth se não existir; se existir, redefine a senha padrão.
+      let uid: string, novo = false;
+      try {
+        uid = (await adminAuth().getUserByEmail(email)).uid;
+        await adminAuth().updateUser(uid, { password: SENHA_CONVITE, ...(nome ? { displayName: nome } : {}) });
+      } catch {
+        uid = (await adminAuth().createUser({ email, password: SENHA_CONVITE, ...(nome ? { displayName: nome } : {}) })).uid;
+        novo = true;
+      }
+      // 2) Cria/atualiza o doc Firestore: completo + validade até 31/12 + senha provisória.
+      const ref = adminFirestore().collection("users").doc(uid);
+      const snap = await ref.get();
+      const base = snap.exists ? (snap.data() as any) : {};
+      await ref.set({
+        uid, email,
+        nome: nome || base.nome || "",
+        tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" ? base.tipoUsuario : "aluno",
+        plano: "completo",
+        acessoCompletoAte: REATIVACAO_ATE,
+        origemAcesso: "convite-reativacao",
+        formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
+        creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
+        criadoEm: base.criadoEm || new Date().toISOString(),
+        senhaProvisoria: true,
+      }, { merge: true });
+      // 3) Envia o e-mail de acesso (com a senha padrão).
+      const emailEnviado = await sendAcessoEmail({
+        para: email, nome, senhaProvisoria: SENHA_CONVITE, plano: "completo", contexto: novo ? "novo" : "existente",
+      });
+      console.log(`[reativacao/criar-um] ${novo ? "CRIADO" : "ATUALIZADO"} ${email} email=${emailEnviado}`);
+      return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, senha: SENHA_CONVITE, emailEnviado, acessoAte: REATIVACAO_ATE });
+    } catch (err: any) {
+      console.error("[POST /api/reativacao/criar-um] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao conceder acesso." });
+    }
+  });
+
   // ===============================================================
   // SEQUÊNCIAS DE E-MAIL AUTOMÁTICAS (Lead + Grátis) — o "motor"
   // -----------------------------------------------------------------

@@ -40,6 +40,34 @@ export default function MarketingView() {
   const [reativacao, setReativacao] = useState<{ total: number; criados: number; atualizados: number; falhas: number; credenciais: { email: string; senha: string; status: string }[] } | null>(null);
   const [reativErro, setReativErro] = useState('');
 
+  // Conceder acesso cortesia individual (nome + email) — item 3
+  const [cortNome, setCortNome] = useState('');
+  const [cortEmail, setCortEmail] = useState('');
+  const [cortLoading, setCortLoading] = useState(false);
+  const [cortResult, setCortResult] = useState<{ status: string; email: string; emailEnviado: boolean } | null>(null);
+  const [cortErro, setCortErro] = useState('');
+
+  const concederCortesia = async () => {
+    setCortErro(''); setCortResult(null);
+    if (!cortEmail.trim() || cortEmail.indexOf('@') < 0) { setCortErro('Informe um e-mail válido.'); return; }
+    setCortLoading(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const r = await fetch('/api/reativacao/criar-um', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ nome: cortNome.trim(), email: cortEmail.trim() }),
+      });
+      const b = await r.json();
+      if (r.ok) { setCortResult(b); setCortNome(''); setCortEmail(''); }
+      else setCortErro(b?.error || `Falha (HTTP ${r.status}).`);
+    } catch (e: any) {
+      setCortErro(e?.message || 'Erro ao conceder acesso.');
+    } finally {
+      setCortLoading(false);
+    }
+  };
+
   // Campanha (Resend)
   const [assunto, setAssunto] = useState('');
   const [corpo, setCorpo] = useState('');
@@ -201,23 +229,69 @@ export default function MarketingView() {
         )}
       </div>
 
-      {/* Reativação: criar contas dos convidados */}
+      {/* Conceder acesso cortesia individual (LinkedIn etc.) */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 mt-5">
-        <h2 className="font-semibold text-gray-900 mb-1">3. Criar acessos dos convidados (até 31/12/2026)</h2>
+        <h2 className="font-semibold text-gray-900 mb-1">3. Conceder acesso completo grátis (até 31/12/2026)</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Cria conta de <b>acesso completo grátis</b> (válido até 31 de dezembro de 2026) para
-          todos os contatos do Reach. Todos recebem a <b>mesma senha temporária</b> (<code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-indigo-700">LBW2026</code>),
-          então você manda <b>um único e-mail igual pra todos</b>. No primeiro acesso o aluno é
-          obrigado a criar a própria senha. Rodar de novo é seguro (não duplica).
+          Dê <b>acesso completo grátis</b> (válido até 31 de dezembro de 2026) para <b>uma pessoa</b> —
+          ideal para quem te procura pelo LinkedIn. Funciona tanto para quem <b>já tem cadastro</b> quanto
+          para quem <b>nunca deu os dados</b>: o sistema cria no Firebase se não existir, ou atualiza se já
+          existir. A pessoa recebe o e-mail com a senha padrão <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-indigo-700">LBW2026</code>
+          {' '}e troca no primeiro acesso.
         </p>
-        <button
-          onClick={criarContasConvidados}
-          disabled={criando}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
-        >
-          <Users className={`w-4 h-4 ${criando ? 'animate-pulse' : ''}`} />
-          {criando ? 'Criando contas… (pode levar 1-2 min)' : 'Criar acessos dos convidados'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+          <label className="flex-1">
+            <span className="text-xs font-bold text-gray-500 uppercase">Nome completo</span>
+            <input value={cortNome} onChange={(e) => setCortNome(e.target.value)} placeholder="Ex: Maria Silva"
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </label>
+          <label className="flex-1">
+            <span className="text-xs font-bold text-gray-500 uppercase">E-mail</span>
+            <input value={cortEmail} onChange={(e) => setCortEmail(e.target.value)} type="email" placeholder="email@exemplo.com"
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </label>
+          <button
+            onClick={concederCortesia}
+            disabled={cortLoading}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 whitespace-nowrap"
+          >
+            <Users className={`w-4 h-4 ${cortLoading ? 'animate-pulse' : ''}`} />
+            {cortLoading ? 'Concedendo…' : 'Conceder acesso'}
+          </button>
+        </div>
+
+        {cortResult && (
+          <div className="mt-4 flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+            <span>✓</span>
+            <span>
+              Acesso <b>{cortResult.status}</b> para <b>{cortResult.email}</b> (completo até 31/12/2026, senha <b>LBW2026</b>).{' '}
+              {cortResult.emailEnviado
+                ? 'E-mail enviado.'
+                : '⚠️ E-mail não enviado — passe a senha LBW2026 direto pra pessoa (ex: pelo LinkedIn).'}
+            </span>
+          </div>
+        )}
+        {cortErro && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" /> {cortErro}
+          </div>
+        )}
+
+        {/* Opção secundária: criar em massa (todos do Reach) */}
+        <details className="mt-5">
+          <summary className="text-sm font-semibold text-gray-600 cursor-pointer">Criar acessos em massa (todos os contatos do Reach)</summary>
+          <div className="mt-3">
+            <p className="text-sm text-gray-500 mb-3">Cria/atualiza acesso completo até 31/12/2026 para <b>todos</b> os contatos do Reach de uma vez. Rodar de novo é seguro (não duplica).</p>
+            <button
+              onClick={criarContasConvidados}
+              disabled={criando}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
+            >
+              <Users className={`w-4 h-4 ${criando ? 'animate-pulse' : ''}`} />
+              {criando ? 'Criando contas… (pode levar 1-2 min)' : 'Criar acessos em massa'}
+            </button>
+          </div>
+        </details>
 
         {reativacao && (
           <>
