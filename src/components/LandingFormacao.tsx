@@ -271,6 +271,17 @@ export default function LandingFormacao() {
   const [exitArmed, setExitArmed] = useState(true);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
+  // Dispara "InitiateCheckout" no Pixel quando o usuário clica para comprar.
+  // É o evento que a campanha de VENDAS otimiza (separado do "Lead" do grátis).
+  const trackCheckout = () => {
+    try {
+      const w = window as any;
+      if (typeof w.fbq === 'function') {
+        w.fbq('track', 'InitiateCheckout', { content_name: 'formacao-completa', value: 597, currency: 'BRL' });
+      }
+    } catch { /* silencioso */ }
+  };
+
   React.useEffect(() => {
     const onLeave = (e: MouseEvent) => {
       if (exitArmed && e.clientY <= 0) { setShowExit(true); setExitArmed(false); }
@@ -488,7 +499,7 @@ export default function LandingFormacao() {
                   12x <span style={{ fontSize: 20 }}>de</span> R$ 61,74
                 </div>
                 <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 597 à vista</div>
-                <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo</a>
+                <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} onClick={trackCheckout} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo</a>
                 <p className="plan-note">🔒 Compra segura via Hotmart · Acesso imediato · 7 dias de garantia</p>
               </div>
             </div>
@@ -542,7 +553,7 @@ export default function LandingFormacao() {
         <div className="wrap" style={{ maxWidth: 600 }}>
           <h2>Sua próxima entrega começa aqui.</h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,.85)', marginBottom: 30 }}>Pare de colecionar cursos. Comece a resolver problema de verdade e a mostrar resultado.</p>
-          <a className="btn hotmart-fb hotmart__button-checkout" href={HOTMART} style={{ background: '#fff', color: '#0033CC', fontSize: 17, padding: '18px 42px' }}>Quero a formação completa →</a>
+          <a className="btn hotmart-fb hotmart__button-checkout" href={HOTMART} onClick={trackCheckout} style={{ background: '#fff', color: '#0033CC', fontSize: 17, padding: '18px 42px' }}>Quero a formação completa →</a>
         </div>
       </section>
 
