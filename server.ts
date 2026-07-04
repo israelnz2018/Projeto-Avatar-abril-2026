@@ -7,6 +7,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
 import { YoutubeTranscript } from "youtube-transcript";
 import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore } from "./src/lib/firebaseAdmin";
+import { campanhaCortesiaHtml, CAMPANHA_ASSUNTO } from "./src/services/campanhaCortesiaEmail";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1067,10 +1068,15 @@ async function startServer() {
         criadoEm: base.criadoEm || new Date().toISOString(),
         senhaProvisoria: true,
       }, { merge: true });
-      // 3) Envia o e-mail de acesso (com a senha padrão).
-      const emailEnviado = await sendAcessoEmail({
-        para: email, nome, senhaProvisoria: SENHA_CONVITE, plano: "completo", contexto: novo ? "novo" : "existente",
-      });
+      // 3) Envia o MESMO e-mail de cortesia usado na campanha (via Resend) —
+      // "Seu acesso gratuito à plataforma LBW — meu presente para você 🎁".
+      let emailEnviado = false;
+      try {
+        const r = await resendSend({ to: email, subject: CAMPANHA_ASSUNTO, html: campanhaCortesiaHtml(email) });
+        emailEnviado = r.ok;
+      } catch (e) {
+        console.error("[reativacao/criar-um] falha no envio Resend:", e);
+      }
       console.log(`[reativacao/criar-um] ${novo ? "CRIADO" : "ATUALIZADO"} ${email} email=${emailEnviado}`);
       return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, senha: SENHA_CONVITE, emailEnviado, acessoAte: REATIVACAO_ATE });
     } catch (err: any) {
