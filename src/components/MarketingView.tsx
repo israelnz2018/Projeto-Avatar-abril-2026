@@ -40,27 +40,40 @@ export default function MarketingView() {
   const [reativacao, setReativacao] = useState<{ total: number; criados: number; atualizados: number; falhas: number; credenciais: { email: string; senha: string; status: string }[] } | null>(null);
   const [reativErro, setReativErro] = useState('');
 
-  // Conceder acesso cortesia individual (nome + email) — item 3
-  const [cortNome, setCortNome] = useState('');
-  const [cortEmail, setCortEmail] = useState('');
+  // Conceder acesso cortesia — lista de pessoas (nome + email) — item 3
+  const [cortPessoas, setCortPessoas] = useState<{ nome: string; email: string }[]>([{ nome: '', email: '' }]);
   const [cortLoading, setCortLoading] = useState(false);
-  const [cortResult, setCortResult] = useState<{ status: string; email: string; emailEnviado: boolean } | null>(null);
+  const [cortResults, setCortResults] = useState<{ email: string; status: string; emailEnviado: boolean; ok: boolean }[]>([]);
   const [cortErro, setCortErro] = useState('');
 
+  const setPessoa = (i: number, campo: 'nome' | 'email', valor: string) =>
+    setCortPessoas((arr) => arr.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)));
+  const addPessoa = () => setCortPessoas((arr) => [...arr, { nome: '', email: '' }]);
+  const removePessoa = (i: number) => setCortPessoas((arr) => arr.filter((_, j) => j !== i));
+
   const concederCortesia = async () => {
-    setCortErro(''); setCortResult(null);
-    if (!cortEmail.trim() || cortEmail.indexOf('@') < 0) { setCortErro('Informe um e-mail válido.'); return; }
+    setCortErro(''); setCortResults([]);
+    const validas = cortPessoas.filter((p) => p.email.trim() && p.email.indexOf('@') > 0);
+    if (validas.length === 0) { setCortErro('Informe ao menos um e-mail válido.'); return; }
     setCortLoading(true);
     try {
       const token = await auth.currentUser?.getIdToken();
-      const r = await fetch('/api/reativacao/criar-um', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nome: cortNome.trim(), email: cortEmail.trim() }),
-      });
-      const b = await r.json();
-      if (r.ok) { setCortResult(b); setCortNome(''); setCortEmail(''); }
-      else setCortErro(b?.error || `Falha (HTTP ${r.status}).`);
+      const results: { email: string; status: string; emailEnviado: boolean; ok: boolean }[] = [];
+      for (const p of validas) {
+        try {
+          const r = await fetch('/api/reativacao/criar-um', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ nome: p.nome.trim(), email: p.email.trim() }),
+          });
+          const b = await r.json();
+          results.push({ email: p.email.trim(), status: r.ok ? b.status : (b?.error || 'falha'), emailEnviado: !!b.emailEnviado, ok: r.ok });
+        } catch (e: any) {
+          results.push({ email: p.email.trim(), status: e?.message || 'erro de rede', emailEnviado: false, ok: false });
+        }
+      }
+      setCortResults(results);
+      if (results.every((r) => r.ok)) setCortPessoas([{ nome: '', email: '' }]); // limpa se todos deram certo
     } catch (e: any) {
       setCortErro(e?.message || 'Erro ao conceder acesso.');
     } finally {
@@ -239,36 +252,48 @@ export default function MarketingView() {
           existir. A pessoa recebe o e-mail com a senha padrão <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-indigo-700">LBW2026</code>
           {' '}e troca no primeiro acesso.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-          <label className="flex-1">
-            <span className="text-xs font-bold text-gray-500 uppercase">Nome completo</span>
-            <input value={cortNome} onChange={(e) => setCortNome(e.target.value)} placeholder="Ex: Maria Silva"
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-          </label>
-          <label className="flex-1">
-            <span className="text-xs font-bold text-gray-500 uppercase">E-mail</span>
-            <input value={cortEmail} onChange={(e) => setCortEmail(e.target.value)} type="email" placeholder="email@exemplo.com"
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-          </label>
+        <div className="space-y-2">
+          {cortPessoas.map((p, i) => (
+            <div key={i} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+              <input value={p.nome} onChange={(e) => setPessoa(i, 'nome', e.target.value)} placeholder="Nome completo"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+              <input value={p.email} onChange={(e) => setPessoa(i, 'email', e.target.value)} type="email" placeholder="email@exemplo.com"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+              {cortPessoas.length > 1 && (
+                <button onClick={() => removePessoa(i)} className="px-3 py-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 text-sm shrink-0" title="Remover">✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 mt-3">
+          <button onClick={addPessoa} className="text-sm font-semibold text-blue-600 hover:text-blue-700">+ adicionar mais uma pessoa</button>
           <button
             onClick={concederCortesia}
             disabled={cortLoading}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 whitespace-nowrap ml-auto"
           >
             <Users className={`w-4 h-4 ${cortLoading ? 'animate-pulse' : ''}`} />
-            {cortLoading ? 'Concedendo…' : 'Conceder acesso'}
+            {cortLoading ? 'Concedendo…' : `Conceder acesso${cortPessoas.filter(p => p.email.trim()).length > 1 ? ' a todos' : ''}`}
           </button>
         </div>
 
-        {cortResult && (
-          <div className="mt-4 flex items-start gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
-            <span>✓</span>
-            <span>
-              Acesso <b>{cortResult.status}</b> para <b>{cortResult.email}</b> (completo até 31/12/2026, senha <b>LBW2026</b>).{' '}
-              {cortResult.emailEnviado
-                ? 'E-mail enviado.'
-                : '⚠️ E-mail não enviado — passe a senha LBW2026 direto pra pessoa (ex: pelo LinkedIn).'}
-            </span>
+        {cortResults.length > 0 && (
+          <div className="mt-4 space-y-1.5">
+            {cortResults.map((r, i) => (
+              <div key={i} className={`flex items-start gap-2 text-sm rounded-lg px-4 py-2.5 border ${r.ok ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+                <span>{r.ok ? '✓' : '✗'}</span>
+                <span>
+                  <b>{r.email}</b> — {r.ok
+                    ? <>
+                        {r.status === 'atualizado'
+                          ? <>já tinha cadastro — <b>acesso atualizado</b> para completo</>
+                          : <>novo cadastro criado — <b>acesso completo</b></>}
+                        {' '}(até 31/12/2026, senha <b>LBW2026</b>). {r.emailEnviado ? 'E-mail enviado.' : '⚠️ E-mail não saiu — passe a senha LBW2026 pela pessoa.'}
+                      </>
+                    : <>{r.status}</>}
+                </span>
+              </div>
+            ))}
           </div>
         )}
         {cortErro && (
