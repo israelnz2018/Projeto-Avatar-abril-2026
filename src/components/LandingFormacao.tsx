@@ -90,6 +90,10 @@ const CSS = `
 .lf .plan-note{font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;margin-top:12px;line-height:1.5}
 /* badge do titulo — padronizado: mesma altura (2 linhas) nos 3 blocos, centralizado */
 .lf .plan-badge{display:flex;align-items:center;justify-content:center;text-align:center;min-height:64px;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#BFD4FF;background:rgba(0,51,204,.22);border:1px solid rgba(159,192,255,.35);border-radius:16px;padding:10px 16px;margin-bottom:18px;line-height:1.3}
+/* bloco 1 em destaque: borda brilhante que pulsa suavemente pra chamar atencao */
+.lf .plan-featured{border:2px solid rgba(120,170,255,.85);box-shadow:0 0 0 1px rgba(120,170,255,.4), 0 0 34px -4px rgba(59,130,246,.65), 0 40px 90px -34px rgba(0,51,204,.6);animation:lf-glow 3.2s ease-in-out infinite}
+@keyframes lf-glow{0%,100%{box-shadow:0 0 0 1px rgba(120,170,255,.35), 0 0 30px -6px rgba(59,130,246,.5), 0 40px 90px -34px rgba(0,51,204,.6)}50%{box-shadow:0 0 0 1px rgba(120,170,255,.6), 0 0 44px -2px rgba(59,130,246,.85), 0 40px 90px -34px rgba(0,51,204,.6)}}
+@media(prefers-reduced-motion:reduce){ .lf .plan-featured{animation:none} }
 .lf .plan .price{font-family:'Space Grotesk';font-size:32px;font-weight:700;margin:12px 0 4px;white-space:nowrap}
 .lf .plan .li{font-size:14.5px;color:rgba(255,255,255,.85);margin-bottom:12px}
 /* form */
@@ -471,7 +475,7 @@ export default function LandingFormacao() {
             <p>Da formação completa até se tornar consultor e representante da LBW.</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
-            <div className="plan" style={{ margin: 0, maxWidth: 'none' }}>
+            <div className="plan plan-featured" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 className="plan-badge">Formação Completa</h3>
               <div className="li">✓ As 8 trilhas — da base ao topo da jornada</div>
               <div className="li">✓ Todas as ferramentas + análise de dados completa</div>
@@ -501,7 +505,7 @@ export default function LandingFormacao() {
                   12x <span style={{ fontSize: 20 }}>de</span> R$ 310,25
                 </div>
                 <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 3.000 à vista</div>
-                <span className="btn btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', cursor: 'default', opacity: 0.85 }}>Exclusivo para alunos</span>
+                <span className="btn btn-primary" style={{ display: 'block', textAlign: 'center', width: '100%', cursor: 'default' }}>Exclusivo para alunos</span>
                 <p className="plan-note">Disponível para quem já concluiu a Formação Completa</p>
               </div>
             </div>
