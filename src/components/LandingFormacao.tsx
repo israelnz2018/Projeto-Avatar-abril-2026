@@ -364,12 +364,7 @@ export default function LandingFormacao() {
             </vturb-smartplayer>
           </div>
           <div className="cta-row">
-            <a className="btn btn-primary btn-hero-cta" href="#planos">
-              Quero a formação completa
-              <span style={{ display: 'block', fontSize: 13, fontWeight: 500, opacity: 0.9, marginTop: 2 }}>
-                12x de R$ 61,74 · ver planos ↓
-              </span>
-            </a>
+            <a className="btn btn-primary btn-hero-cta" href="#planos">Quero a formação completa</a>
           </div>
         </div>
       </header>
