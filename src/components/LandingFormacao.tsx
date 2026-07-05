@@ -154,6 +154,10 @@ const CSS = `
 }
 /* titulo de secao (fundador/mentor) — 34px desktop, encolhe no mobile via @media acima */
 .lf .h2-mobile{font-size:34px;font-weight:800}
+/* mobile: foto do fundador centralizada e num tamanho agradavel (nao gigante) */
+@media(max-width:900px){
+  .lf .fundador-split > div:first-child img{max-width:280px;margin:0 auto;display:block}
+}
 /* Corrige o visual dos botoes de checkout Hotmart: o CSS injetado da Hotmart
    (hotmart-fb) apagava o texto. Forca os nossos estilos de volta. */
 .lf a.hotmart-fb.btn{color:#0033CC !important;text-shadow:none !important;filter:none !important;opacity:1 !important;text-decoration:none !important}
@@ -484,11 +488,14 @@ export default function LandingFormacao() {
 
       {/* FUNDADOR */}
       <section className="sec" style={{ background: '#070A18' }}>
-        <div className="wrap split" style={{ gridTemplateColumns: '.8fr 1.2fr' }}>
+        {/* Eyebrow no topo (aparece antes de tudo, principalmente no mobile) */}
+        <div className="wrap" style={{ textAlign: 'center', marginBottom: 22 }}>
+          <span className="eyebrow">Quem é seu consultor?</span>
+        </div>
+        <div className="wrap split fundador-split" style={{ gridTemplateColumns: '.8fr 1.2fr' }}>
           <div><img src="/israel-foto.png" alt="Israel Souza" style={{ objectFit: 'cover', aspectRatio: '3/4' }} /></div>
           <div>
-            <span className="eyebrow">Quem é seu consultor?</span>
-            <h2 className="h2-mobile" style={{ margin: '16px 0' }}>Mais de 20 anos resolvendo problemas de verdade</h2>
+            <h2 className="h2-mobile" style={{ margin: '0 0 16px' }}>Mais de 20 anos resolvendo problemas de verdade</h2>
             <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 16 }}>Não sou professor de teoria. Ensino apenas o que aplico e já apliquei na prática. Trabalhar em empresas de <b style={{ color: '#fff' }}>equipamentos médicos, bebida, automotiva, petroquímica e governamental</b> me ajudou a adquirir vasta experiência tanto em chão de fábrica como em atividades de escritório, que geraram mais de <b style={{ color: '#fff' }}>US$ 20MM</b> em ganhos gerados pelos projetos dos meus alunos e pelos meus próprios projetos.</p>
             <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 8 }}>Treinei mais de <b style={{ color: '#fff' }}>1.500 profissionais</b> e percebi que o que falta não é certificado na parede. É saber chegar numa área, se adaptar rapidamente, entender como investigar um problema, entregar resultado com o mínimo de resistência, e saber apresentar os resultados. É isso que essa formação ensina.</p>
             <div className="stats">
