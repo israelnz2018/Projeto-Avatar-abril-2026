@@ -141,8 +141,19 @@ const CSS = `
   .lf .hero h1{font-size:34px}
   .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr 1fr}
   .lf .split,.lf .foot .cols,.lf .plans-grid{grid-template-columns:1fr;gap:28px}
+  /* no mobile os 3 planos empilham; centraliza cada card com largura confortavel */
+  .lf .plan{max-width:440px}
 }
-@media(max-width:560px){ .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr} }
+@media(max-width:560px){
+  .lf .steps,.lf .tgrid,.lf .pgrid{grid-template-columns:1fr}
+  /* celular: reduz titulos e preco pra caber bonito, sem cortar */
+  .lf .hero h1{font-size:29px}
+  .lf .plan{padding:30px 24px}
+  .lf .plan .price{font-size:28px}
+  .lf .sec h2, .lf .final h2, .lf .h2-mobile{font-size:26px}
+}
+/* titulo de secao (fundador/mentor) — 34px desktop, encolhe no mobile via @media acima */
+.lf .h2-mobile{font-size:34px;font-weight:800}
 /* Corrige o visual dos botoes de checkout Hotmart: o CSS injetado da Hotmart
    (hotmart-fb) apagava o texto. Forca os nossos estilos de volta. */
 .lf a.hotmart-fb.btn{color:#0033CC !important;text-shadow:none !important;filter:none !important;opacity:1 !important;text-decoration:none !important}
@@ -462,7 +473,7 @@ export default function LandingFormacao() {
           <div><img src="/ia-israel-digital.png" alt="Mentor Israel digital — chat" style={{ width: '100%', maxWidth: 360, aspectRatio: '432 / 662', display: 'block', margin: '0 auto', objectFit: 'contain', borderRadius: 12 }} /></div>
           <div>
             <span className="eyebrow">Mentor Israel digital</span>
-            <h2 style={{ fontSize: 34, margin: '16px 0' }}>É como ter o Israel <span className="grad">do seu lado</span></h2>
+            <h2 className="h2-mobile" style={{ margin: '16px 0' }}>É como ter o Israel <span className="grad">do seu lado</span></h2>
             <p style={{ color: 'var(--txt)', lineHeight: 1.6, marginBottom: 18 }}>O Mentor Israel digital responde sua pergunta com base nas respostas dos nossos próprios vídeos que você tem acesso. Ou seja, não é uma resposta de IA, e sim a resposta do <b style={{ color: '#fff' }}>próprio Israel</b>.</p>
             <div className="feat"><span className="c">✓</span><span>Responde com as mesmas palavras e a experiência do Israel</span></div>
             <div className="feat"><span className="c">✓</span><span>A resposta está relacionada à ferramenta que você está usando no momento</span></div>
@@ -477,7 +488,7 @@ export default function LandingFormacao() {
           <div><img src="/israel-foto.png" alt="Israel Souza" style={{ objectFit: 'cover', aspectRatio: '3/4' }} /></div>
           <div>
             <span className="eyebrow">Quem é seu consultor?</span>
-            <h2 style={{ fontSize: 34, margin: '16px 0' }}>Mais de 20 anos resolvendo problemas de verdade</h2>
+            <h2 className="h2-mobile" style={{ margin: '16px 0' }}>Mais de 20 anos resolvendo problemas de verdade</h2>
             <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 16 }}>Não sou professor de teoria. Ensino apenas o que aplico e já apliquei na prática. Trabalhar em empresas de <b style={{ color: '#fff' }}>equipamentos médicos, bebida, automotiva, petroquímica e governamental</b> me ajudou a adquirir vasta experiência tanto em chão de fábrica como em atividades de escritório, que geraram mais de <b style={{ color: '#fff' }}>US$ 20MM</b> em ganhos gerados pelos projetos dos meus alunos e pelos meus próprios projetos.</p>
             <p style={{ color: 'var(--txt)', lineHeight: 1.65, marginBottom: 8 }}>Treinei mais de <b style={{ color: '#fff' }}>1.500 profissionais</b> e percebi que o que falta não é certificado na parede. É saber chegar numa área, se adaptar rapidamente, entender como investigar um problema, entregar resultado com o mínimo de resistência, e saber apresentar os resultados. É isso que essa formação ensina.</p>
             <div className="stats">
