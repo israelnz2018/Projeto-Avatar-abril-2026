@@ -1161,27 +1161,13 @@ async function startServer() {
   // Enquanto isso aponta pra página de vendas — ajuste no painel Marketing quando tiver o link.
   const DESCONTO_URL = "https://www.educacaopelotrabalho.com/formacao";
   const SEQUENCIAS_DEFAULT: Sequencias = {
+    // LEAD (4 e-mails, dias 0/2/5/8): quem cadastrou e nunca acessou. O e-mail de
+    // boas-vindas + senha NÃO está aqui de propósito: o n8n já manda ele no cadastro
+    // (sendAcessoEmail/sendWelcomeEmail entregam LBW2026). Esta sequência começa no
+    // 2º toque pra não duplicar. Sobe o nível de consciência até o CTA final.
     lead: [
       {
-        // DESLIGADO: o n8n já manda o e-mail de boas-vindas + senha no cadastro
-        // (sendAcessoEmail). Este duplicaria. A sequência do lead começa no #2.
-        dia: 0, ativo: false,
-        assunto: "Seu acesso está pronto, {nome}",
-        corpo:
-          "[titulo: Seu acesso já está liberado]\n\n" +
-          "Oi {nome},\n\n" +
-          "Aqui é o Israel. Você deixou seu e-mail pra entrar na plataforma, e ele já está pronto pra você.\n\n" +
-          "Pra entrar, use o seu e-mail e esta senha:\n\n" +
-          "Senha provisória: LBW2026\n\n" +
-          "No primeiro acesso a plataforma pede pra você criar a sua própria senha. Leva 10 segundos.\n\n" +
-          "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
-          "Ninguém te ensina, na prática, a chegar numa área nova e já entregar resultado. A gente aprende no susto, errando na frente do chefe. Eu passei por isso, e montei tudo isso pra encurtar esse caminho pra você.\n\n" +
-          "Entra, dá uma volta, sem compromisso. E se tiver qualquer dúvida, é só responder este e-mail, eu leio.\n\n" +
-          "Te encontro lá dentro.\n\nIsrael\n\n" +
-          "P.S. Achou este e-mail no Spam ou na aba Promoções? Arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos. Assim os próximos e-mails com os vídeos chegam direto pra você, sem se perder. Tem muita coisa boa vindo.",
-      },
-      {
-        dia: 2, ativo: true,
+        dia: 0, ativo: true,
         assunto: "Por que uns crescem rápido e outros travam",
         corpo:
           "Oi {nome},\n\n" +
@@ -1194,7 +1180,7 @@ async function startServer() {
           "P.S. Sua senha continua a mesma: LBW2026. É só entrar. E se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
       },
       {
-        dia: 4, ativo: true,
+        dia: 2, ativo: true,
         assunto: "Trabalhar mais não é o caminho",
         corpo:
           "Oi {nome},\n\n" +
@@ -1208,7 +1194,7 @@ async function startServer() {
           "P.S. Entra com seu e-mail e a senha LBW2026, a plataforma te guia no resto.",
       },
       {
-        dia: 7, ativo: true,
+        dia: 5, ativo: true,
         assunto: "Por que o seu acesso é de graça",
         corpo:
           "Oi {nome},\n\n" +
@@ -1221,7 +1207,7 @@ async function startServer() {
           "P.S. É só o seu e-mail e a senha LBW2026. A primeira fase leva uns 15 minutos.",
       },
       {
-        dia: 10, ativo: true,
+        dia: 8, ativo: true,
         assunto: "{nome}, vou ser direto",
         corpo:
           "Oi {nome},\n\n" +
@@ -1630,13 +1616,16 @@ async function startServer() {
 
       const seq = seqs[estagio];
       // Data-base da régua de dias, por estágio:
+      //  - emailReguaInicioEm: se existir, TEM PRIORIDADE (usado pra "zerar" a régua de
+      //    quem já estava na base sem tocar em criadoEm/primeiroAcessoEm).
       //  - gratis: conta a partir do PRIMEIRO ACESSO (quando virou gratis) — a régua
       //    "recomeça do zero" na transição, então todo gratis faz a jornada do #1.
       //  - lead/pago7/pago: conta a partir do cadastro/compra (criadoEm). Os emails do
       //    pago começam no dia 13, então a pessoa migra de pago7 pra pago naturalmente.
-      const base = estagio === "gratis"
-        ? (u.primeiroAcessoEm || u.criadoEm)
-        : (u.criadoEm || u.primeiroAcessoEm);
+      const base = u.emailReguaInicioEm
+        || (estagio === "gratis"
+          ? (u.primeiroAcessoEm || u.criadoEm)
+          : (u.criadoEm || u.primeiroAcessoEm));
       if (!base) { resumo.pulados++; continue; }
       const dias = diasDesde(base);
       if (dias < 0) { resumo.pulados++; continue; }
