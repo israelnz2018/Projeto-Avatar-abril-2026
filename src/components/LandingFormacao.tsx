@@ -83,6 +83,8 @@ const CSS = `
 .lf .stats .n{font-family:'Space Grotesk';font-size:30px;font-weight:700;color:#9FC0FF}
 .lf .stats .l{font-size:13px;color:var(--txt2)}
 /* plano */
+/* grid dos 3 planos: 3 colunas no desktop (o mobile vira 1 coluna via @media abaixo) */
+.lf .plans-grid{grid-template-columns:1fr 1fr 1fr}
 .lf .plan{position:relative;display:flex;flex-direction:column;max-width:480px;margin:0 auto;border-radius:22px;padding:38px 34px;background:linear-gradient(160deg,rgba(30,45,110,.6),rgba(7,10,24,.4));border:1.5px solid rgba(159,192,255,.45);box-shadow:0 40px 90px -34px rgba(0,51,204,.6)}
 /* empurra o rodape (preço + botao + nota) pra base — alinha os 3 CTAs na mesma linha */
 .lf .plan-foot{margin-top:auto}
@@ -496,7 +498,7 @@ export default function LandingFormacao() {
             <h2>Escolha o seu caminho</h2>
             <p>Da formação completa até se tornar consultor e representante da LBW.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
+          <div style={{ display: 'grid', gap: 28, alignItems: 'stretch', maxWidth: 1100, margin: '0 auto' }} className="plans-grid">
             <div className="plan plan-featured" style={{ margin: 0, maxWidth: 'none' }}>
               <h3 className="plan-badge">Formação Completa</h3>
               <div className="li">✓ Vídeo aula das 8 trilhas — da base ao topo da jornada</div>
