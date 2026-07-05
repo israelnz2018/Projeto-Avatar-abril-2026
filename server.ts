@@ -1129,20 +1129,20 @@ async function startServer() {
           "Ninguém te ensina, na prática, a chegar numa área nova e já entregar resultado. A gente aprende no susto, errando na frente do chefe. Eu passei por isso, e montei tudo isso pra encurtar esse caminho pra você.\n\n" +
           "Entra, dá uma volta, sem compromisso. E se tiver qualquer dúvida, é só responder este e-mail, eu leio.\n\n" +
           "Te encontro lá dentro.\n\nIsrael\n\n" +
-          "P.S. Não achou este e-mail de primeira? Salve o meu contato pra não perder os próximos, tem muita coisa boa vindo.",
+          "P.S. Achou este e-mail no Spam ou na aba Promoções? Arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos. Assim os próximos e-mails com os vídeos chegam direto pra você, sem se perder. Tem muita coisa boa vindo.",
       },
       {
         dia: 2, ativo: true,
         assunto: "Por que uns crescem rápido e outros travam",
         corpo:
           "Oi {nome},\n\n" +
-          "Uma pergunta honesta: quando você entra numa área nova, emprego, setor ou projeto —, quanto tempo leva até entender como aquilo funciona e entregar algo que as pessoas notem?\n\n" +
+          "Uma pergunta honesta: quando você entra numa área nova, seja emprego, setor ou projeto, quanto tempo leva até entender como aquilo funciona e entregar algo que as pessoas notem?\n\n" +
           "A maioria leva meses. Anda no escuro, com medo de perguntar o óbvio. E o chefe observando.\n\n" +
           "Treinei mais de 200 engenheiros na Ford. Os que cresciam rápido não eram os mais inteligentes, eram os que tinham um método pra entender a área e achar o problema, em vez de chutar.\n\n" +
           "Esse método não é dom, é técnica. E está pronto pra você lá dentro.\n\n" +
           "[botao: Ver o método | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Sua senha continua a mesma: LBW2026. É só entrar.",
+          "P.S. Sua senha continua a mesma: LBW2026. É só entrar. E se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
       },
       {
         dia: 4, ativo: true,
@@ -1199,7 +1199,7 @@ async function startServer() {
           "Por hoje, só uma missão: termine a Fase 1.\n\n" +
           "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Qualquer dúvida, é só responder este e-mail. Eu leio.",
+          "P.S. Achou este e-mail no Spam ou na aba Promoções? Arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos. Assim os próximos e-mails com os vídeos chegam direto pra você. E qualquer dúvida, é só responder aqui. Eu leio.",
       },
       // 2 — TRILHA A (nutre): dados
       {
@@ -1213,7 +1213,8 @@ async function startServer() {
           "A trilha 'Como Recomendar Melhorias com Base em Análise de Dados' resolve isso, sem você precisar virar especialista em Excel ou programação. Pareto que convence, histograma sem mistério, e o mais importante: a pergunta certa ANTES do gráfico. Porque 80% das análises começam erradas justamente aí.\n\n" +
           "É o tipo de habilidade que faz o chefe parar de duvidar e começar a aprovar.\n\n" +
           "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
-          "Israel",
+          "Israel\n\n" +
+          "P.S. Se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
       },
       // 3 — TRILHA B (nutre): apresentações
       {
@@ -1349,7 +1350,7 @@ async function startServer() {
           "Então meu pedido é simples: entra agora, dá uma volta, e faz a primeira fase da Trilha 1. São 15 minutos.\n\n" +
           "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
           "Qualquer dúvida, responde este e-mail. Eu leio, e eu respondo.\n\nIsrael\n\n" +
-          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui.",
+          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui. E se este e-mail caiu no Spam ou em Promoções, arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos, assim os próximos chegam direto pra você.",
       },
       // 2 — ATIVAÇÃO (dia 3) — primeiro resultado rápido, dentro do prazo de reembolso
       {
@@ -1364,7 +1365,7 @@ async function startServer() {
           "Não deixa pra depois. Depois vira nunca, e eu não quero isso pra você.\n\n" +
           "[botao: Abrir a Trilha 1 agora | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você.",
+          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você. E se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos chegam certinho pra você.",
       },
       // 3 — CONFIRMAÇÃO DE VALOR (dia 6) — fecha a janela de reembolso com a pessoa convencida
       {
@@ -1535,7 +1536,13 @@ async function startServer() {
       if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago") { resumo.pulados++; continue; }
 
       const seq = seqs[estagio];
-      const base = u.criadoEm || u.primeiroAcessoEm;
+      // Data-base da régua de dias, por estágio:
+      //  - gratis: conta a partir do PRIMEIRO ACESSO (quando virou gratis) — a régua
+      //    "recomeça do zero" na transição, então todo gratis faz a jornada do #1.
+      //  - lead/pago: conta a partir do cadastro/compra.
+      const base = estagio === "gratis"
+        ? (u.primeiroAcessoEm || u.criadoEm)
+        : (u.criadoEm || u.primeiroAcessoEm);
       if (!base) { resumo.pulados++; continue; }
       const dias = diasDesde(base);
       if (dias < 0) { resumo.pulados++; continue; }
