@@ -167,7 +167,7 @@ export const TRILHAS: Trilha[] = [
     nivel: 'Iniciante',
     totalEpisodios: 5,
     selo: 'COMECE AQUI',
-    cartaIsrael: `Olha, em 27 anos passei por 5 multinacionais em 2 países. Toda vez que cheguei numa empresa nova ou mudei de área, vivi a mesma coisa: os primeiros 6 meses são uma corrida entre se adaptar E entregar algo que mostre que valeu a contratação.
+    cartaIsrael: `Olha, passei por 5 multinacionais em 2 países. Toda vez que cheguei numa empresa nova ou mudei de área, vivi a mesma coisa: os primeiros 6 meses são uma corrida entre se adaptar E entregar algo que mostre que valeu a contratação.
 
 A maioria foca SÓ na adaptação e perde a janela. Quem tenta entregar antes de entender a área queima carreira logo de cara. O caminho certo é uma sequência — e é exatamente isso que esta trilha te dá: **5 fases**, na ordem.
 
@@ -304,7 +304,7 @@ Quando quiser ir mais fundo (FMEA, estatística aplicada, gestão de mudança), 
         artefato: 'Checklist de profissionalismo (postura, vestimenta, telefone, Teams, Outlook) + matriz TO/CC/BCC + 3 templates de email',
         videoIsrael: {
           duracao: '8 min',
-          resumo: 'Em 27 anos de multinacional vi gente brilhante tecnicamente travar a carreira por detalhe de postura — câmera desligada, roupa errada, celular na mão, CC mal usado. Te dou a régua de cada ponto.',
+          resumo: 'Vi muita gente brilhante tecnicamente travar a carreira por detalhe de postura — câmera desligada, roupa errada, celular na mão, CC mal usado. Te dou a régua de cada ponto.',
         },
         promptMentor: 'Tenho [reunião / call no Teams / email importante / primeiro dia] com [pessoas e seus papéis]. Me ajude com postura, o que vestir, como usar o Teams e como escrever no Outlook pra passar profissionalismo.',
         conexaoPaga: 'Trilha 5 — Conduzir Mudanças (comunicação como vetor de change management)',
@@ -465,7 +465,7 @@ A diferença entre quem sobe rápido e quem fica parado não é técnica. É a c
     nivel: 'Avançado',
     totalEpisodios: 10,
     selo: 'CULTURA',
-    cartaIsrael: `Em 27 anos passei por linha de produção da Ford, projetos $20MM/ano na Braskem, hospital, banco, escritório. E aprendi a mesma lição em todo lugar: as ferramentas Lean (5S, kanban, kaizen, A3) só funcionam quando o OLHAR vem antes.
+    cartaIsrael: `Passei por linha de produção da Ford, projetos de US$ 20MM/ano na Braskem, hospital, banco, escritório. E aprendi a mesma lição em todo lugar: as ferramentas Lean (5S, kanban, kaizen, A3) só funcionam quando o OLHAR vem antes.
 
 Tem gente que monta um quadro kanban bonito e nada muda. Tem gente que faz 5S na bancada e em 30 dias volta a bagunça. Por quê? Aplicou técnica sem ter cultura.
 
@@ -514,7 +514,7 @@ Aqui te mostro como eu treinei esse olhar — com casos reais — e como você p
     nivel: 'Avançado',
     totalEpisodios: 12,
     selo: 'FORMAÇÃO LBW',
-    cartaIsrael: `Liderar 50 projetos pequenos é DIFERENTE de liderar 1 grande. Em 27 anos aprendi: projeto complexo tem 5 forças simultâneas pra gerenciar — escopo, prazo, custo, qualidade, risco — e mais 3 invisíveis: política interna, capacidade do time, dependências externas.
+    cartaIsrael: `Liderar 50 projetos pequenos é DIFERENTE de liderar 1 grande. Aprendi na prática: projeto complexo tem 5 forças simultâneas pra gerenciar — escopo, prazo, custo, qualidade, risco — e mais 3 invisíveis: política interna, capacidade do time, dependências externas.
 
 Aqui você vai aprender o framework PMI completo, mas adaptado pro mundo real (porque PMBOK puro é teoria). Risk register que funciona, gerenciamento de stakeholders pra projetos que envolvem 5+ áreas, e como NÃO virar babá de cronograma.
 

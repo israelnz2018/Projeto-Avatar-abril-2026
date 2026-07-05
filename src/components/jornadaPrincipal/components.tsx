@@ -590,7 +590,7 @@ export function TrilhaModal({ trilha, onClose }: TrilhaModalProps) {
                     </div>
                     <div>
                       <p className="text-white font-black text-sm m-0">Israel Souza</p>
-                      <p className="text-white/50 text-[11px] font-bold uppercase tracking-wider m-0">Consultor Sênior · 27 anos</p>
+                      <p className="text-white/50 text-[11px] font-bold uppercase tracking-wider m-0">Consultor Sênior em Melhoria de Processos</p>
                     </div>
                   </div>
                 </div>
@@ -929,8 +929,9 @@ export function MentorBanner({ onCTA }: { onCTA: () => void }) {
             </span>
           </h2>
           <p className="text-base md:text-lg text-white/85 leading-relaxed max-w-2xl m-0 mb-6">
-            27 anos de carreira destilados num assistente que conhece seu projeto, suas trilhas
-            e o contexto da sua área. Pergunta o que quiser — eu respondo como se a gente
+            Toda a experiência de quem já resolveu problema de verdade em multinacional,
+            destilada num assistente que conhece seu projeto, suas trilhas e o contexto da
+            sua área. Pergunta o que quiser — eu respondo como se a gente
             estivesse num café.
           </p>
           <button

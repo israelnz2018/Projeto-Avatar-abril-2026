@@ -426,7 +426,7 @@ function ManifestoRodape() {
             </div>
             <div className="text-left">
               <p className="text-white font-black m-0">Israel Souza</p>
-              <p className="text-white/50 text-[11px] font-bold uppercase tracking-wider m-0">Consultor Sênior · 27 anos</p>
+              <p className="text-white/50 text-[11px] font-bold uppercase tracking-wider m-0">Consultor Sênior em Melhoria de Processos</p>
             </div>
           </div>
 
