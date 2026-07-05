@@ -1112,16 +1112,19 @@ async function startServer() {
     lead: [
       {
         dia: 0, ativo: true,
-        assunto: "Você pediu seu acesso — e ele está aqui te esperando",
+        assunto: "Seu acesso está pronto, {nome}",
         corpo:
           "[titulo: Seu acesso já está liberado]\n\n" +
           "Oi {nome},\n\n" +
-          "Aqui é o Israel. Você deixou seu e-mail pra entrar na plataforma, e eu vim pessoalmente garantir que você não perca isso.\n\n" +
-          "Deixa eu te contar por que criei tudo isso. Passei 27 anos dentro de fábrica — Ford, Braskem e outras — resolvendo problema de verdade, daqueles que custam milhões. Em um único projeto na Braskem, o que a gente fez economizou mais de 20 milhões por ano. E uma coisa ficou clara pra mim nesses anos: ninguém te ensina, na prática, a chegar numa área nova e entregar resultado rápido. Você aprende no susto, errando na frente do chefe.\n\n" +
-          "Foi pra isso que montei a plataforma. Pra você não passar por esse sufoco.\n\n" +
-          "Seu primeiro acesso já está liberado. Entra, dá uma volta, sem compromisso.\n\n" +
+          "Aqui é o Israel. Você deixou seu e-mail pra entrar na plataforma — e ele já está pronto pra você.\n\n" +
+          "Pra entrar, use o seu e-mail e esta senha:\n\n" +
+          "Senha provisória: LBW2026\n\n" +
+          "No primeiro acesso a plataforma pede pra você criar a sua própria senha. Leva 10 segundos.\n\n" +
           "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
-          "Te encontro lá dentro.\n\nIsrael",
+          "Em 27 anos dentro de fábrica — Ford, Braskem e outras — aprendi uma coisa: ninguém te ensina, na prática, a chegar numa área nova e entregar resultado rápido. Foi pra isso que montei tudo isso. Pra você não passar por esse sufoco.\n\n" +
+          "Entra, dá uma volta, sem compromisso. E se tiver qualquer dúvida, é só responder este e-mail — eu leio.\n\n" +
+          "Te encontro lá dentro.\n\nIsrael\n\n" +
+          "P.S. Não achou este e-mail de primeira? Salve o meu contato pra não perder os próximos — tem muita coisa boa vindo.",
       },
       {
         dia: 2, ativo: true,
@@ -1966,7 +1969,12 @@ async function startServer() {
 
       // ---- CASO A: usuário NÃO existe -> cria do zero ----
       if (!userRecord) {
-        const senhaProvisoria = Math.random().toString(36).slice(-10);
+        // GRÁTIS: senha padrão LBW2026 (facilita o acesso — o email/LinkedIn pode
+        // sempre informar a mesma senha, sem depender de achar o e-mail original).
+        // PAGO: senha aleatória (mais seguro para quem comprou). Ambos trocam no 1º acesso.
+        const senhaProvisoria = planoSolicitado === "completo"
+          ? Math.random().toString(36).slice(-10)
+          : "LBW2026";
         const novo = await adminAuth().createUser({
           email,
           password: senhaProvisoria,
