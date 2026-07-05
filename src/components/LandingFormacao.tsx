@@ -108,6 +108,16 @@ const CSS = `
 .lf .qa{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02);padding:20px 24px;margin-bottom:12px;text-align:left}
 .lf .qa h3{font-size:16px;font-weight:700;margin-bottom:8px}
 .lf .qa p{font-size:14.5px;color:var(--txt);line-height:1.55}
+/* FAQ accordion (sanfona): so uma aberta por vez, com animacao */
+.lf .qa-acc{padding:0;overflow:hidden;transition:border-color .25s,background .25s}
+.lf .qa-acc.aberta{border-color:rgba(159,192,255,.5);background:rgba(0,51,204,.06)}
+.lf .qa-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;background:none;border:none;cursor:pointer;padding:18px 22px;text-align:left;color:inherit;font-family:inherit}
+.lf .qa-q{font-size:16px;font-weight:700;color:#fff;line-height:1.4}
+.lf .qa-icon{font-size:18px;color:#7FA0E8;flex-shrink:0;transition:transform .3s ease}
+.lf .qa-acc.aberta .qa-icon{transform:rotate(180deg)}
+.lf .qa-body{max-height:0;opacity:0;overflow:hidden;transition:max-height .35s ease,opacity .3s ease,padding .35s ease;padding:0 22px}
+.lf .qa-acc.aberta .qa-body{max-height:420px;opacity:1;padding:0 22px 20px}
+.lf .qa-body p{font-size:14.5px;color:var(--txt);line-height:1.6;margin:0}
 /* final + footer */
 .lf .final{position:relative;padding:72px 20px;text-align:center;background:linear-gradient(160deg,#0033CC 0%,#1E2D6E 55%,#070A18 100%)}
 .lf .final h2{font-size:38px;font-weight:800;margin-bottom:18px}
@@ -291,6 +301,8 @@ export default function LandingFormacao() {
   const [showExit, setShowExit] = useState(false);
   const [exitArmed, setExitArmed] = useState(true);
   const rootRef = React.useRef<HTMLDivElement>(null);
+  // FAQ accordion: qual pergunta está aberta (0 = primeira aberta por padrão; -1 = nenhuma).
+  const [faqAberta, setFaqAberta] = useState(0);
 
   // Dispara "InitiateCheckout" quando o usuário clica para comprar (vai pro Hotmart).
   // É o evento que a campanha de VENDAS otimiza (separado do "Lead" do grátis).
@@ -578,9 +590,18 @@ export default function LandingFormacao() {
       <section className="sec" style={{ background: '#070A18' }}>
         <div className="wrap" style={{ maxWidth: 760 }}>
           <div className="sec-head"><span className="eyebrow">Dúvidas</span><h2>Perguntas frequentes</h2></div>
-          {FAQ.map((q) => (
-            <div className="qa" key={q[0]}><h3>{q[0]}</h3><p>{q[1]}</p></div>
-          ))}
+          {FAQ.map((q, i) => {
+            const aberta = faqAberta === i;
+            return (
+            <div className={`qa qa-acc${aberta ? ' aberta' : ''}`} key={q[0]}>
+              <button className="qa-head" onClick={() => setFaqAberta(aberta ? -1 : i)} aria-expanded={aberta}>
+                <span className="qa-q">{q[0]}</span>
+                <span className="qa-icon" aria-hidden="true">▾</span>
+              </button>
+              <div className="qa-body"><p>{q[1]}</p></div>
+            </div>
+            );
+          })}
         </div>
       </section>
 
