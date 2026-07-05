@@ -1128,50 +1128,56 @@ async function startServer() {
       },
       {
         dia: 2, ativo: true,
-        assunto: "A pergunta que separa quem cresce de quem trava",
+        assunto: "Por que uns crescem rápido e outros travam",
         corpo:
           "Oi {nome},\n\n" +
-          "Deixa eu te fazer uma pergunta honesta: quando você entra numa área nova — emprego novo, setor novo, projeto novo — quanto tempo você leva até realmente entender como aquilo funciona e começar a entregar algo que as pessoas notem?\n\n" +
-          "A maioria leva meses. Anda no escuro, com medo de perguntar o óbvio, esperando \"pegar o jeito\". E enquanto isso o chefe observa.\n\n" +
-          "Eu vi isso acontecer com centenas de profissionais — treinei mais de 200 engenheiros na Ford. Os que cresciam rápido não eram os mais inteligentes. Eram os que tinham um MÉTODO pra entender a área e achar onde estava o problema, em vez de chutar.\n\n" +
-          "Esse método existe. Não é dom, é técnica. E é exatamente o que você vai encontrar lá dentro.\n\n" +
-          "[botao: Quero ver o método | " + APP_URL + "]\n\n" +
-          "Israel",
+          "Uma pergunta honesta: quando você entra numa área nova — emprego, setor ou projeto —, quanto tempo leva até entender como aquilo funciona e entregar algo que as pessoas notem?\n\n" +
+          "A maioria leva meses. Anda no escuro, com medo de perguntar o óbvio. E o chefe observando.\n\n" +
+          "Treinei mais de 200 engenheiros na Ford. Os que cresciam rápido não eram os mais inteligentes — eram os que tinham um método pra entender a área e achar o problema, em vez de chutar.\n\n" +
+          "Esse método não é dom, é técnica. E está pronto pra você lá dentro.\n\n" +
+          "[botao: Ver o método | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Sua senha continua a mesma: LBW2026. É só entrar.",
       },
       {
         dia: 4, ativo: true,
-        assunto: "Não é sobre trabalhar mais. É sobre enxergar melhor",
+        assunto: "Trabalhar mais não é o caminho",
         corpo:
           "Oi {nome},\n\n" +
-          "Tem um engano que custa caro pra muita gente boa: achar que pra se destacar no trabalho é preciso trabalhar mais horas, responder e-mail à meia-noite, viver cansado.\n\n" +
-          "Não é. Quem se destaca é quem ENXERGA o que os outros não veem — o desperdício escondido, a causa real de um problema, a melhoria que ninguém tinha percebido. E isso se aprende com ferramentas simples: um SIPOC pra entender um processo, um Ishikawa pra achar a causa raiz, um diagrama de esforço x impacto pra decidir onde mexer primeiro.\n\n" +
-          "Parece coisa de \"engenheiro de fábrica\"? É exatamente o contrário. Funciona em qualquer área — RH, financeiro, vendas, operação, saúde. O que muda é só onde você aplica.\n\n" +
-          "Na plataforma essas ferramentas estão prontas pra você usar no SEU trabalho, hoje. Não é teoria — você preenche e usa.\n\n" +
+          "Tem um engano que custa caro pra gente boa: achar que se destacar é trabalhar mais horas, responder e-mail à meia-noite, viver cansado.\n\n" +
+          "Não é. Quem se destaca é quem enxerga o que os outros não veem — o desperdício escondido, a causa real de um problema, a melhoria que ninguém percebeu.\n\n" +
+          "Isso se aprende com ferramentas simples: um SIPOC pra entender um processo, um Ishikawa pra achar a causa raiz, um esforço x impacto pra decidir onde mexer primeiro.\n\n" +
+          "Parece coisa de fábrica? É o contrário: funciona em RH, financeiro, vendas, saúde. Muda só onde você aplica.\n\n" +
+          "Na plataforma elas estão prontas pra você usar no SEU trabalho hoje. Não é teoria — você preenche e usa.\n\n" +
           "[botao: Ver as ferramentas | " + APP_URL + "]\n\n" +
-          "Israel",
+          "Israel\n\n" +
+          "P.S. Entra com seu e-mail e a senha LBW2026 — a plataforma te guia no resto.",
       },
       {
         dia: 7, ativo: true,
-        assunto: "Por que eu não te cobro nada pra você começar",
+        assunto: "Por que o seu acesso é de graça",
         corpo:
           "Oi {nome},\n\n" +
-          "Você deve estar se perguntando: se isso é tão útil, por que o primeiro acesso é de graça?\n\n" +
-          "Resposta honesta: porque eu sei que, se você experimentar de verdade, você vai entender o valor melhor do que qualquer promessa minha. Eu não preciso te convencer com palavra bonita — preciso que você USE.\n\n" +
-          "A Trilha 1 — 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente' — está liberada pra você sem pagar nada. São 5 fases, da hora de entender a área até comunicar suas ideias com profissionalismo. É o kit de sobrevivência que eu gostaria de ter tido aos 25 anos.\n\n" +
+          "Se isso é tão útil, por que o primeiro acesso é de graça?\n\n" +
+          "Resposta honesta: porque se você experimentar de verdade, vai entender o valor melhor do que qualquer promessa minha. Não preciso te convencer com palavra bonita — preciso que você use.\n\n" +
+          "A Trilha 1 — 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente' — está liberada, sem pagar nada. São 5 fases: da hora de entender a área até comunicar suas ideias com profissionalismo. O kit de sobrevivência que eu queria ter tido aos 25.\n\n" +
           "Você só precisa de uma coisa: entrar e começar. Quem começa, continua.\n\n" +
           "[botao: Começar a Trilha 1 | " + APP_URL + "]\n\n" +
-          "Israel",
+          "Israel\n\n" +
+          "P.S. É só o seu e-mail e a senha LBW2026. A primeira fase leva uns 15 minutos.",
       },
       {
         dia: 10, ativo: true,
-        assunto: "{nome}, vou ser direto com você",
+        assunto: "{nome}, vou ser direto",
         corpo:
           "Oi {nome},\n\n" +
-          "Faz uns dias que liberei seu acesso e você ainda não entrou. Tudo bem — a vida é corrida, eu entendo. Mas deixa eu ser direto, do jeito que eu falaria com um colega.\n\n" +
-          "Esse acesso não vai te servir de nada parado. Conhecimento que você não usa é igual ferramenta encostada na prateleira: ocupa espaço e não muda nada.\n\n" +
-          "Eu não quero te encher de e-mail. Esse é o último da série. Então fica o convite, de coração: reserve 15 minutos hoje, entre, e faça a primeira fase da Trilha 1. Só isso. Se não fizer sentido pra você, tudo bem. Mas faça pelo menos uma vez, pra decidir com base no que você viu — não no que deixou de ver.\n\n" +
+          "Faz uns dias que seu acesso está liberado e você ainda não entrou. Tudo bem — a vida é corrida. Mas deixa eu ser direto, como falaria com um colega.\n\n" +
+          "Esse acesso parado não te serve de nada. Conhecimento que você não usa é ferramenta encostada na prateleira: ocupa espaço e não muda nada.\n\n" +
+          "Não quero te encher de e-mail — esse é o último da série. Então fica o convite, de coração: reserve 15 minutos hoje, entre e faça a primeira fase da Trilha 1. Só isso.\n\n" +
+          "Se não fizer sentido, tudo bem. Mas decida pelo que você viu, não pelo que deixou de ver.\n\n" +
           "[botao: Entrar agora (15 min) | " + APP_URL + "]\n\n" +
-          "Conto com você.\n\nIsrael",
+          "Conto com você.\n\nIsrael\n\n" +
+          "P.S. Seu e-mail + senha LBW2026. Se travar em qualquer coisa, responde aqui que eu te ajudo pessoalmente.",
       },
     ],
     gratis: [
