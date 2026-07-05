@@ -1100,7 +1100,7 @@ async function startServer() {
   // ===============================================================
 
   type SeqEmail = { dia: number; assunto: string; corpo: string; ativo: boolean };
-  type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[]; pago: SeqEmail[] };
+  type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
 
   // Conteúdo inicial das sequências (editável pela tela). Tom "Carta do Israel":
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
@@ -1332,11 +1332,11 @@ async function startServer() {
           "P.S. Se não for a hora, tudo bem, sua Trilha 1 continua sua. Mas se for, não deixe pra amanhã: o desconto não vai estar lá.",
       },
     ],
-    // PAGO (10 e-mails) — quem JÁ comprou o completo. Objetivo: ativação e retenção,
-    // NÃO venda. Os 3 primeiros caem dentro da janela de reembolso da Hotmart (dias
-    // 0/3/6): fazer a pessoa usar e sentir o valor antes do prazo fechar (anti-reembolso).
-    // Do dia 13 em diante vira ritmo semanal: uma trilha por semana + fechamento humano.
-    pago: [
+    // PAGO-7DIAS (3 e-mails, dias 0/3/6) — SÓ os primeiros 7 dias do comprador.
+    // Objetivo ÚNICO: evitar reembolso. Fazer a pessoa entrar, usar e sentir o valor
+    // antes do prazo da Hotmart fechar. Do 7º dia em diante a pessoa migra pro estágio
+    // "pago" (relacionamento), tratado por classificarSequencia().
+    pago7: [
       // 1 — BOAS-VINDAS (dia 0) — reduzir arrependimento, guiar o primeiro acesso
       {
         dia: 0, ativo: true,
@@ -1382,7 +1382,14 @@ async function startServer() {
           "Estou aqui pra isso dar certo pra você.\n\nIsrael\n\n" +
           "P.S. Travou em algo, achou confuso, faltou alguma coisa? Me responde. Eu quero saber, de verdade.",
       },
-      // 4 — TRILHA 2 (dia 13) — início do ritmo semanal
+    ],
+    // PAGO (7 e-mails, dias 13→55) — comprador que já passou dos 7 dias (fora do risco
+    // de reembolso). Estes são os e-mails de ROTINA: o início do ritmo semanal que segue
+    // pra sempre. Uma trilha por semana + certificado + fechamento. Os dias contam a partir
+    // da COMPRA (criadoEm). Quando os 7 acabam, dá pra ir acrescentando novos semanais aqui
+    // (ou a newsletter manual assume). É a base da comunicação contínua com quem pagou.
+    pago: [
+      // 1 — TRILHA 2 (dia 13) — início do ritmo semanal
       {
         dia: 13, ativo: true,
         assunto: "Resolver problema sem depender de Excel",
@@ -1396,7 +1403,7 @@ async function startServer() {
           "Israel\n\n" +
           "P.S. Aplica num problema real do seu trabalho enquanto faz. Aprender fazendo gruda de um jeito que só assistir nunca vai grudar.",
       },
-      // 5 — TRILHA 3 (dia 20)
+      // 2 — TRILHA 3 (dia 20)
       {
         dia: 20, ativo: true,
         assunto: "Decidir com dados, sem programar nada",
@@ -1410,7 +1417,7 @@ async function startServer() {
           "Israel\n\n" +
           "P.S. Essa é a trilha que faz você chegar numa reunião e falar com autoridade, com o número na mão.",
       },
-      // 6 — TRILHA 4 (dia 27) — desmistificar a parte hardcore
+      // 3 — TRILHA 4 (dia 27) — desmistificar a parte hardcore
       {
         dia: 27, ativo: true,
         assunto: "A estatística que assusta (e não devia)",
@@ -1425,7 +1432,7 @@ async function startServer() {
           "Israel\n\n" +
           "P.S. Empacou em algum conceito? Me responde. Já expliquei isso pra muita gente que achava que não era capaz, e era.",
       },
-      // 7 — TRILHA 5 (dia 34) — parte humana
+      // 4 — TRILHA 5 (dia 34) — parte humana
       {
         dia: 34, ativo: true,
         assunto: "Ter razão não basta. Precisa convencer",
@@ -1440,7 +1447,7 @@ async function startServer() {
           "Israel\n\n" +
           "P.S. Essa trilha muda como você é visto no trabalho. De 'o cara técnico' pra 'a pessoa que faz acontecer'.",
       },
-      // 8 — TRILHA 6 (dia 41) — o topo
+      // 5 — TRILHA 6 (dia 41) — o topo
       {
         dia: 41, ativo: true,
         assunto: "A última trilha é onde você vira referência",
@@ -1455,7 +1462,7 @@ async function startServer() {
           "Israel\n\n" +
           "P.S. Termina essa trilha e você libera o certificado. E ele vale, porque atrás dele tem competência de verdade.",
       },
-      // 9 — CERTIFICADO / PROVA DE COMPETÊNCIA (dia 48)
+      // 6 — CERTIFICADO / PROVA DE COMPETÊNCIA (dia 48)
       {
         dia: 48, ativo: true,
         assunto: "Seu certificado (e como fazer ele valer)",
@@ -1471,7 +1478,7 @@ async function startServer() {
           "Israel\n\n" +
           "P.S. Terminou tudo e quer que eu dê uma olhada em como você está se posicionando? Me responde. Fico feliz em ajudar.",
       },
-      // 10 — FECHAMENTO / RELACIONAMENTO (dia 55)
+      // 7 — FECHAMENTO / RELACIONAMENTO (dia 55)
       {
         dia: 55, ativo: true,
         assunto: "{nome}, como foi a sua jornada?",
@@ -1496,6 +1503,7 @@ async function startServer() {
         return {
           lead: Array.isArray(d?.lead) ? d.lead : SEQUENCIAS_DEFAULT.lead,
           gratis: Array.isArray(d?.gratis) ? d.gratis : SEQUENCIAS_DEFAULT.gratis,
+          pago7: Array.isArray(d?.pago7) ? d.pago7 : SEQUENCIAS_DEFAULT.pago7,
           pago: Array.isArray(d?.pago) ? d.pago : SEQUENCIAS_DEFAULT.pago,
         };
       }
@@ -1503,6 +1511,14 @@ async function startServer() {
     return SEQUENCIAS_DEFAULT;
   }
 
+  function diasDesde(iso: string): number {
+    const t = Date.parse(iso);
+    if (isNaN(t)) return -1;
+    return Math.floor((Date.now() - t) / (24 * 3600 * 1000));
+  }
+
+  // Classificação "de negócio" — usada na tela (contagem/engajamento). Trata
+  // todo comprador como "pago" (uma coisa só), pra não quebrar quem já consome.
   function classificarUsuario(u: any): "lead" | "gratis" | "pago" | null {
     if (!u || !u.email) return null;
     if (u.plano === "completo") return "pago";
@@ -1510,10 +1526,15 @@ async function startServer() {
     return u.primeiroAcessoEm ? "gratis" : "lead";
   }
 
-  function diasDesde(iso: string): number {
-    const t = Date.parse(iso);
-    if (isNaN(t)) return -1;
-    return Math.floor((Date.now() - t) / (24 * 3600 * 1000));
+  // Classificação "de sequência" — usada SÓ pelo motor de e-mails. Igual à de
+  // negócio, mas divide o comprador em duas fases pela idade da compra:
+  //   pago7 = primeiros 7 dias (0..6) — 3 e-mails anti-reembolso
+  //   pago  = do 7º dia em diante     — 7 e-mails de relacionamento
+  function classificarSequencia(u: any): "lead" | "gratis" | "pago7" | "pago" | null {
+    const base = classificarUsuario(u);
+    if (base !== "pago") return base;
+    const dias = diasDesde(u.criadoEm || u.primeiroAcessoEm || "");
+    return dias >= 0 && dias < 7 ? "pago7" : "pago";
   }
 
   // Processa um ciclo de envios. Retorna um resumo (e detalhes pra log/teste).
@@ -1524,7 +1545,7 @@ async function startServer() {
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
-      porPacote: { lead: 0, gratis: 0, pago: 0 } as Record<string, number>,
+      porPacote: { lead: 0, gratis: 0, pago7: 0, pago: 0 } as Record<string, number>,
       detalhes: [] as any[],
     };
 
@@ -1532,14 +1553,15 @@ async function startServer() {
     for (const doc of snap.docs) {
       const u = doc.data() as any;
       resumo.analisados++;
-      const estagio = classificarUsuario(u);
-      if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago") { resumo.pulados++; continue; }
+      const estagio = classificarSequencia(u);
+      if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
 
       const seq = seqs[estagio];
       // Data-base da régua de dias, por estágio:
       //  - gratis: conta a partir do PRIMEIRO ACESSO (quando virou gratis) — a régua
       //    "recomeça do zero" na transição, então todo gratis faz a jornada do #1.
-      //  - lead/pago: conta a partir do cadastro/compra.
+      //  - lead/pago7/pago: conta a partir do cadastro/compra (criadoEm). Os emails do
+      //    pago começam no dia 13, então a pessoa migra de pago7 pra pago naturalmente.
       const base = estagio === "gratis"
         ? (u.primeiroAcessoEm || u.criadoEm)
         : (u.criadoEm || u.primeiroAcessoEm);
@@ -1601,8 +1623,8 @@ async function startServer() {
 
   // PUT /api/marketing/sequencias — salva as sequências editadas (tela Fase 2)
   app.put("/api/marketing/sequencias", requireAdmin, async (req: any, res) => {
-    const { lead, gratis, pago } = req.body || {};
-    if (!Array.isArray(lead) || !Array.isArray(gratis) || !Array.isArray(pago)) return res.status(400).json({ error: "lead, gratis e pago precisam ser arrays." });
+    const { lead, gratis, pago7, pago } = req.body || {};
+    if (!Array.isArray(lead) || !Array.isArray(gratis) || !Array.isArray(pago7) || !Array.isArray(pago)) return res.status(400).json({ error: "lead, gratis, pago7 e pago precisam ser arrays." });
     const limpa = (arr: any[]): SeqEmail[] => arr.map((e) => ({
       dia: Math.max(0, parseInt(e?.dia, 10) || 0),
       assunto: String(e?.assunto || ""),
@@ -1610,7 +1632,7 @@ async function startServer() {
       ativo: e?.ativo !== false,
     }));
     try {
-      await adminFirestore().collection("config").doc("marketingSequencias").set({ lead: limpa(lead), gratis: limpa(gratis), pago: limpa(pago) });
+      await adminFirestore().collection("config").doc("marketingSequencias").set({ lead: limpa(lead), gratis: limpa(gratis), pago7: limpa(pago7), pago: limpa(pago) });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao salvar." });

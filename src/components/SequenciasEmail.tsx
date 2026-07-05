@@ -1,14 +1,15 @@
 /**
- * SequenciasEmail — gestão dos 3 pacotes de e-mail por estágio do funil.
+ * SequenciasEmail — gestão dos 4 estágios de e-mail por estágio do funil.
  * Plugado dentro da aba Marketing (MarketingView).
  *
- *  - Lead  : sequência automática pra quem cadastrou e NUNCA acessou
- *  - Grátis: sequência automática pra quem já acessou (plano gratuito)
- *  - Pago  : sequência automática (onboarding pós-compra) + newsletter MANUAL
+ *  - Lead       : sequência pra quem cadastrou e NUNCA acessou
+ *  - Grátis     : sequência pra quem já acessou (plano gratuito)
+ *  - Pago·7dias : comprou há <7 dias — 3 e-mails anti-reembolso
+ *  - Pago       : comprou há >7 dias — 7 e-mails de rotina + newsletter MANUAL
  *
  * Endpoints (server.ts):
  *  GET  /api/marketing/status        → contagem por estágio + última execução do motor
- *  GET  /api/marketing/sequencias    → { lead:[], gratis:[], pago:[] }
+ *  GET  /api/marketing/sequencias    → { lead:[], gratis:[], pago7:[], pago:[] }
  *  PUT  /api/marketing/sequencias    → salva as sequências
  *  POST /api/marketing/rodar-agora   → dispara o motor na hora (teste)
  *  POST /api/newsletter/enviar       → { assunto, corpo, publico }
@@ -29,7 +30,7 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 }
 
 interface SeqEmail { dia: number; assunto: string; corpo: string; ativo: boolean; }
-type Pacote = 'lead' | 'gratis' | 'pago';
+type Pacote = 'lead' | 'gratis' | 'pago7' | 'pago';
 type Aba = Pacote | 'engajamento' | 'template';
 
 interface TemplateConfig {
@@ -48,7 +49,8 @@ interface NewsletterItem { id: string; assunto: string; corpo: string; publico: 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
   lead:   { nome: 'Lead',   desc: 'Cadastrou mas nunca acessou', cor: '#92400E', corBg: '#FEF3C7' },
   gratis: { nome: 'Grátis', desc: 'Já acessou · plano gratuito', cor: '#065F46', corBg: '#D1FAE5' },
-  pago:   { nome: 'Pago',   desc: 'Comprou o completo · onboarding', cor: '#1E2D6E', corBg: '#DBEAFE' },
+  pago7:  { nome: 'Pago · 7 dias', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
+  pago:   { nome: 'Pago',   desc: 'Comprou · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
 
 // Marcações disponíveis. 'insere' é o trecho colado ao clicar.
@@ -112,7 +114,7 @@ export default function SequenciasEmail() {
     requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(pos, pos); });
   };
   const [status, setStatus] = useState<StatusResp | null>(null);
-  const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[]; pago: SeqEmail[] } | null>(null);
+  const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [rodando, setRodando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -132,7 +134,7 @@ export default function SequenciasEmail() {
         authedFetch('/api/marketing/sequencias').then((r) => r.json()),
       ]);
       setStatus(s);
-      setSeqs({ lead: q.lead || [], gratis: q.gratis || [], pago: q.pago || [] });
+      setSeqs({ lead: q.lead || [], gratis: q.gratis || [], pago7: q.pago7 || [], pago: q.pago || [] });
     } catch (e: any) { setMsg(e?.message || 'Erro ao carregar.'); }
   };
   const carregarHistorico = async () => {
@@ -181,7 +183,7 @@ export default function SequenciasEmail() {
   // atualiza preview sempre que o template muda (na aba template)
   useEffect(() => { if (aba === 'template' && tpl) atualizarPreview(tpl); }, [tpl, aba]);
 
-  const setEmail = (pac: 'lead' | 'gratis' | 'pago', idx: number, patch: Partial<SeqEmail>) => {
+  const setEmail = (pac: 'lead' | 'gratis' | 'pago7' | 'pago', idx: number, patch: Partial<SeqEmail>) => {
     setSeqs((prev) => {
       if (!prev) return prev;
       const arr = [...prev[pac]];
@@ -272,11 +274,11 @@ export default function SequenciasEmail() {
 
       {/* abas */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['lead', 'gratis', 'pago'] as Pacote[]).map((p) => (
+        {(['lead', 'gratis', 'pago7', 'pago'] as Pacote[]).map((p) => (
           <button key={p} onClick={() => setAba(p)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === p ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            style={aba === p ? { background: p === 'lead' ? '#F59E0B' : p === 'gratis' ? '#10B981' : '#0033CC' } : {}}>
-            {META[p].nome} {status ? `(${status.contagem[p]})` : ''}
+            style={aba === p ? { background: p === 'lead' ? '#F59E0B' : p === 'gratis' ? '#10B981' : p === 'pago7' ? '#EA580C' : '#0033CC' } : {}}>
+            {META[p].nome} {status && (p === 'lead' || p === 'gratis' || p === 'pago') ? `(${status.contagem[p]})` : ''}
           </button>
         ))}
         <button onClick={() => setAba('engajamento')}
@@ -291,18 +293,22 @@ export default function SequenciasEmail() {
 
       {msg && <div className="mb-4 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">{msg}</div>}
 
-      {/* sequência automática (lead/gratis/pago) */}
-      {(aba === 'lead' || aba === 'gratis' || aba === 'pago') && seqs && (
+      {/* sequência automática (lead/gratis/pago7/pago) */}
+      {(aba === 'lead' || aba === 'gratis' || aba === 'pago7' || aba === 'pago') && seqs && (
         <div className={aba === 'pago' ? 'mb-8' : ''}>
           {aba === 'pago' && (
             <div className="flex items-center gap-2 mb-1">
               <Play className="w-4 h-4 text-blue-700" />
-              <h3 className="text-sm font-bold text-gray-900">Sequência automática (onboarding pós-compra)</h3>
+              <h3 className="text-sm font-bold text-gray-900">Sequência automática (rotina pós-compra)</h3>
             </div>
           )}
           <p className="text-xs text-gray-500 mb-3">
-            {aba === 'pago'
-              ? 'Quem comprou o completo. O dia é contado a partir da compra. Os 3 primeiros caem dentro dos 7 dias (janela de reembolso), depois vira ritmo semanal. Desligue um e-mail sem apagá-lo pelo botão à direita.'
+            {aba === 'pago7'
+              ? 'Comprou há menos de 7 dias. Objetivo ÚNICO: evitar reembolso, fazer a pessoa usar e sentir o valor. 3 e-mails (dias 0, 3 e 6, contados da compra). No 7º dia a pessoa passa pro estágio "Pago".'
+              : aba === 'pago'
+              ? 'Comprou há mais de 7 dias. E-mails de rotina (início do ritmo semanal). O dia é contado a partir da compra. Desligue um e-mail sem apagá-lo pelo botão à direita.'
+              : aba === 'gratis'
+              ? `${META[aba].desc}. O dia é contado a partir do primeiro acesso. Desligue um e-mail sem apagá-lo pelo botão à direita.`
               : `${META[aba].desc}. O dia é contado a partir do cadastro. Desligue um e-mail sem apagá-lo pelo botão à direita.`}
           </p>
           <div className="space-y-3">
@@ -314,7 +320,7 @@ export default function SequenciasEmail() {
                     enviar
                     <input type="number" min={0} value={e.dia} onChange={(ev) => setEmail(aba, idx, { dia: Math.max(0, parseInt(ev.target.value, 10) || 0) })}
                       className="w-16 px-2 py-1 border border-gray-300 rounded-md text-center" />
-                    {aba === 'pago' ? 'dias após compra' : 'dias após cadastro'}
+                    {aba === 'pago' || aba === 'pago7' ? 'dias após compra' : aba === 'gratis' ? 'dias após 1º acesso' : 'dias após cadastro'}
                   </label>
                   <button onClick={() => setEmail(aba, idx, { ativo: !e.ativo })}
                     className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${e.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
