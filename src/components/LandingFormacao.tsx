@@ -154,8 +154,11 @@ const CSS = `
 }
 /* titulo de secao (fundador/mentor) — 34px desktop, encolhe no mobile via @media acima */
 .lf .h2-mobile{font-size:34px;font-weight:800}
-/* mobile: foto do fundador centralizada e num tamanho agradavel (nao gigante) */
+/* fundador: desktop com foto menor (.8fr) e texto maior (1.2fr) — via CSS, nao inline,
+   pra o @media <=900px (1 coluna) conseguir sobrescrever no mobile */
+.lf .fundador-split{grid-template-columns:.8fr 1.2fr}
 @media(max-width:900px){
+  .lf .fundador-split{grid-template-columns:1fr}
   .lf .fundador-split > div:first-child img{max-width:280px;margin:0 auto;display:block}
 }
 /* Corrige o visual dos botoes de checkout Hotmart: o CSS injetado da Hotmart
@@ -494,7 +497,7 @@ export default function LandingFormacao() {
         <div className="wrap" style={{ textAlign: 'center', marginBottom: 22 }}>
           <span className="eyebrow">Quem é seu consultor?</span>
         </div>
-        <div className="wrap split fundador-split" style={{ gridTemplateColumns: '.8fr 1.2fr' }}>
+        <div className="wrap split fundador-split">
           <div><img src="/israel-foto.png" alt="Israel Souza" style={{ objectFit: 'cover', aspectRatio: '3/4' }} /></div>
           <div>
             <h2 className="h2-mobile" style={{ margin: '0 0 16px' }}>Mais de 20 anos resolvendo problemas de verdade</h2>
