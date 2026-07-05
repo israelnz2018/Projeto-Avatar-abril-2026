@@ -2077,24 +2077,46 @@ async function startServer() {
     }
   });
 
-  // GET /api/marketing/engajamento — usuários ordenados por engajamento (por pessoa)
+  // GET /api/marketing/engajamento — lista de pessoas do funil pra gestão (com filtros no front).
+  // Usa classificarSequencia (mostra os 4 estágios, incl. pago7). Sem foco em cliques.
   app.get("/api/marketing/engajamento", requireAdmin, async (_req: any, res) => {
     try {
+      // Score de engajamento 0-100 — usa só sinais CONFIÁVEIS (não usa aberturas/cliques,
+      // que são imprecisos). Ideia: o quanto a pessoa demonstrou interesse real.
+      //  +40 acessou a plataforma · +45 comprou (pago/pago7) · +10 não descadastrou
+      //  ajuste por recência: lead novo (<7d) ainda "quente" ganha bônus; lead frio perde.
+      function scoreEngajamento(u: any, estagio: string): number {
+        if (u.emailOptOut === true) return 0; // descadastrou = engajamento zero
+        let s = 10; // base (ainda está na lista, não saiu)
+        if (u.primeiroAcessoEm) s += 40; // acessou de verdade — sinal forte
+        if (estagio === "pago" || estagio === "pago7") s += 45; // comprou — sinal máximo
+        // recência do cadastro (lead que acabou de entrar está mais quente)
+        const diasCad = diasDesde(u.criadoEm || u.primeiroAcessoEm || "");
+        if (!u.primeiroAcessoEm) {
+          if (diasCad >= 0 && diasCad <= 7) s += 10;        // lead novo, quente
+          else if (diasCad > 30) s -= 10;                    // lead frio, esfriou
+        }
+        return Math.max(0, Math.min(100, s));
+      }
       const snap = await adminFirestore().collection("users").get();
       const lista = snap.docs.map((d) => {
         const u = d.data() as any;
-        const eng = u.engajamento || {};
+        const estagio = classificarSequencia(u);
         return {
           email: u.email, nome: u.nome || "",
-          estagio: classificarUsuario(u),
-          cliques: eng.cliques || 0,
-          aberturas: eng.aberturas || 0,
-          voltouAoApp: !!u.primeiroAcessoEm,
-          ultimoEvento: eng.ultimoEvento || null,
+          estagio,
+          plano: u.plano || "",
+          acessou: !!u.primeiroAcessoEm,
+          optOut: u.emailOptOut === true,
+          optOutEm: u.emailOptOutEm || null,
+          cortesia: isCortesia(u),
+          criadoEm: u.criadoEm || null,
+          primeiroAcessoEm: u.primeiroAcessoEm || null,
+          score: scoreEngajamento(u, estagio || ""),
         };
       }).filter((x) => x.estagio); // só quem está num estágio do funil
-      // ordena por engajamento: cliques primeiro (confiável), depois aberturas
-      lista.sort((a, b) => (b.cliques - a.cliques) || (b.aberturas - a.aberturas));
+      // ordena por cadastro mais recente primeiro (útil pra gestão do dia a dia)
+      lista.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
       return res.json({ usuarios: lista });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao ler engajamento." });

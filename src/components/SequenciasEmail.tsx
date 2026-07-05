@@ -16,7 +16,7 @@
  *  GET  /api/newsletter/historico    → envios passados
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Mail, Power, Play, Send, Clock, History, CheckCircle2, BarChart3, MousePointerClick, Eye } from 'lucide-react';
+import { Mail, Power, Play, Send, Clock, History, CheckCircle2, BarChart3, UserX } from 'lucide-react';
 import { auth } from '../lib/firebase';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -38,7 +38,11 @@ interface TemplateConfig {
   botaoCor: string; rodapeTexto: string;
 }
 
-interface EngajItem { email: string; nome: string; estagio: string; cliques: number; aberturas: number; voltouAoApp: boolean; ultimoEvento: string | null; }
+interface EngajItem {
+  email: string; nome: string; estagio: string; plano: string;
+  acessou: boolean; optOut: boolean; optOutEm: string | null; cortesia: boolean;
+  criadoEm: string | null; primeiroAcessoEm: string | null; score: number;
+}
 
 interface StatusResp {
   contagem: { lead: number; gratis: number; pago: number };
@@ -95,6 +99,13 @@ function AjudaMarcacoes({ onInserir }: { onInserir: (txt: string) => void }) {
 export default function SequenciasEmail() {
   const [aba, setAba] = useState<Aba>('gratis');
   const [engaj, setEngaj] = useState<EngajItem[]>([]);
+  // filtros da aba engajamento
+  const [fEstagio, setFEstagio] = useState<'todos' | 'lead' | 'gratis' | 'pago7' | 'pago'>('todos');
+  const [fAcesso, setFAcesso] = useState<'todos' | 'acessou' | 'naoAcessou'>('todos');
+  const [fExtra, setFExtra] = useState<'todos' | 'optout' | 'cortesia' | 'ativos'>('todos');
+  const [fBusca, setFBusca] = useState('');
+  const [fDe, setFDe] = useState('');   // data cadastro de (YYYY-MM-DD)
+  const [fAte, setFAte] = useState(''); // data cadastro até
   const [tpl, setTpl] = useState<TemplateConfig | null>(null);
   const [tplSalvando, setTplSalvando] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -489,55 +500,190 @@ export default function SequenciasEmail() {
         </div>
       )}
 
-      {/* engajamento (por pessoa) */}
-      {aba === 'engajamento' && (
-        <div>
-          <div className="flex items-start gap-2 mb-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5">
-            <Eye className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>
-              <b>Cliques</b> são confiáveis (a pessoa clicou de verdade). <b>Aberturas são uma estimativa imprecisa</b> —
-              iPhone/Apple Mail infla (conta como aberto sem abrir) e Gmail/Outlook escondem (lê sem contar).
-              Para achar quem está engajado, confie em <b>cliques</b> e em <b>voltou ao app</b>.
-            </span>
-          </div>
-          {engaj.length === 0 ? (
-            <p className="text-xs text-gray-400">Sem dados de engajamento ainda. Eles aparecem conforme os e-mails são abertos/clicados.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
-                    <th className="py-2 pr-3">Pessoa</th>
-                    <th className="py-2 px-3">Estágio</th>
-                    <th className="py-2 px-3 text-center"><MousePointerClick className="w-3.5 h-3.5 inline" /> Cliques</th>
-                    <th className="py-2 px-3 text-center"><Eye className="w-3.5 h-3.5 inline" /> Aberturas*</th>
-                    <th className="py-2 px-3 text-center">Voltou ao app</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {engaj.map((u) => (
-                    <tr key={u.email} className="border-b border-gray-100">
-                      <td className="py-2 pr-3">
-                        <div className="font-medium text-gray-800">{u.nome || '—'}</div>
-                        <div className="text-xs text-gray-400">{u.email}</div>
-                      </td>
-                      <td className="py-2 px-3">
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-md"
-                          style={{ background: u.estagio === 'lead' ? '#FEF3C7' : u.estagio === 'gratis' ? '#D1FAE5' : '#DBEAFE', color: u.estagio === 'lead' ? '#92400E' : u.estagio === 'gratis' ? '#065F46' : '#1E2D6E' }}>
-                          {u.estagio}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-center font-bold text-gray-900">{u.cliques}</td>
-                      <td className="py-2 px-3 text-center text-gray-500">{u.aberturas}</td>
-                      <td className="py-2 px-3 text-center">{u.voltouAoApp ? '✅' : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* engajamento / gestão de pessoas (por pessoa, com filtros) */}
+      {aba === 'engajamento' && (() => {
+        const corEstagio = (est: string) =>
+          est === 'lead' ? { background: '#FEF3C7', color: '#92400E' }
+          : est === 'gratis' ? { background: '#D1FAE5', color: '#065F46' }
+          : est === 'pago7' ? { background: '#FFEDD5', color: '#9A3412' }
+          : { background: '#DBEAFE', color: '#1E2D6E' };
+        const nomeEstagio = (est: string) =>
+          est === 'pago7' ? 'pago · 7 dias' : est;
+        const fmtData = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
+        // aplica os filtros
+        const filtrados = engaj.filter((u) => {
+          if (fEstagio !== 'todos' && u.estagio !== fEstagio) return false;
+          if (fAcesso === 'acessou' && !u.acessou) return false;
+          if (fAcesso === 'naoAcessou' && u.acessou) return false;
+          if (fExtra === 'optout' && !u.optOut) return false;
+          if (fExtra === 'cortesia' && !u.cortesia) return false;
+          if (fExtra === 'ativos' && u.optOut) return false;
+          if (fBusca.trim()) {
+            const q = fBusca.trim().toLowerCase();
+            if (!(`${u.nome} ${u.email}`.toLowerCase().includes(q))) return false;
+          }
+          const dia = String(u.criadoEm || '').slice(0, 10);
+          if (fDe && dia && dia < fDe) return false;
+          if (fAte && dia && dia > fAte) return false;
+          return true;
+        });
+        const limparFiltros = () => { setFEstagio('todos'); setFAcesso('todos'); setFExtra('todos'); setFBusca(''); setFDe(''); setFAte(''); };
+        const temFiltro = fEstagio !== 'todos' || fAcesso !== 'todos' || fExtra !== 'todos' || !!fBusca || !!fDe || !!fAte;
+        // resumos (sobre o conjunto FILTRADO)
+        const scoreMedio = filtrados.length ? Math.round(filtrados.reduce((s, u) => s + (u.score || 0), 0) / filtrados.length) : 0;
+        const nDescadastrados = filtrados.filter((u) => u.optOut).length;
+        const nAcessaram = filtrados.filter((u) => u.acessou).length;
+        const corScore = (s: number) => s >= 70 ? '#10B981' : s >= 40 ? '#EA580C' : '#DC2626';
+        const fmtDataHora = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '';
+        return (
+          <div>
+            {/* barra de filtros */}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">Estágio</label>
+                  <select value={fEstagio} onChange={(e) => setFEstagio(e.target.value as any)}
+                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    <option value="todos">Todos</option>
+                    <option value="lead">Lead</option>
+                    <option value="gratis">Grátis</option>
+                    <option value="pago7">Pago · 7 dias</option>
+                    <option value="pago">Pago</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">Acesso</label>
+                  <select value={fAcesso} onChange={(e) => setFAcesso(e.target.value as any)}
+                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    <option value="todos">Todos</option>
+                    <option value="acessou">Já acessou</option>
+                    <option value="naoAcessou">Nunca acessou</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">Situação</label>
+                  <select value={fExtra} onChange={(e) => setFExtra(e.target.value as any)}
+                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm">
+                    <option value="todos">Todas</option>
+                    <option value="ativos">Recebem e-mail</option>
+                    <option value="optout">Descadastrados</option>
+                    <option value="cortesia">Cortesia</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">Cadastro de</label>
+                  <input type="date" value={fDe} onChange={(e) => setFDe(e.target.value)}
+                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">até</label>
+                  <input type="date" value={fAte} onChange={(e) => setFAte(e.target.value)}
+                    className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-1">Buscar nome/e-mail</label>
+                  <input type="text" value={fBusca} onChange={(e) => setFBusca(e.target.value)} placeholder="digite…"
+                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                {temFiltro && (
+                  <button onClick={limparFiltros} className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100">
+                    Limpar
+                  </button>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">
+                Mostrando <b className="text-gray-800">{filtrados.length}</b> de {engaj.length} pessoas
+              </div>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* cards de resumo (sobre o filtro atual) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
+                <div className="text-[11px] font-semibold text-gray-500 mb-1">Engajamento médio</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold" style={{ color: corScore(scoreMedio) }}>{scoreMedio}</span>
+                  <span className="text-xs text-gray-400">/ 100</span>
+                </div>
+                <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${scoreMedio}%`, background: corScore(scoreMedio) }} />
+                </div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
+                <div className="text-[11px] font-semibold text-gray-500 mb-1">Já acessaram</div>
+                <div className="text-2xl font-bold text-emerald-600">{nAcessaram}</div>
+                <div className="text-[11px] text-gray-400">{filtrados.length ? Math.round((nAcessaram / filtrados.length) * 100) : 0}% do filtro</div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
+                <div className="text-[11px] font-semibold text-gray-500 mb-1 flex items-center gap-1"><UserX className="w-3 h-3" /> Descadastrados</div>
+                <div className="text-2xl font-bold text-red-600">{nDescadastrados}</div>
+                <div className="text-[11px] text-gray-400">{filtrados.length ? Math.round((nDescadastrados / filtrados.length) * 100) : 0}% do filtro</div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
+                <div className="text-[11px] font-semibold text-gray-500 mb-1">Total no filtro</div>
+                <div className="text-2xl font-bold text-gray-800">{filtrados.length}</div>
+                <div className="text-[11px] text-gray-400">de {engaj.length} no funil</div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-400 mb-2 leading-relaxed">
+              <b>Engajamento (0-100):</b> baseado em sinais confiáveis, não em aberturas (que são imprecisas).
+              Acessou a plataforma (+40), comprou (+45), continua inscrito (+10), lead novo ganha bônus de recência.
+              Quem descadastrou fica em 0. Verde ≥70 · laranja 40-69 · vermelho &lt;40.
+            </p>
+
+            {engaj.length === 0 ? (
+              <p className="text-xs text-gray-400">Nenhuma pessoa no funil ainda.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
+                      <th className="py-2 pr-3">Pessoa</th>
+                      <th className="py-2 px-3">Estágio</th>
+                      <th className="py-2 px-3">Engajamento</th>
+                      <th className="py-2 px-3 text-center">Cadastro</th>
+                      <th className="py-2 px-3 text-center">Já acessou</th>
+                      <th className="py-2 px-3 text-center">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtrados.map((u) => (
+                      <tr key={u.email} className="border-b border-gray-100">
+                        <td className="py-2 pr-3">
+                          <div className="font-medium text-gray-800">{u.nome || '—'}</div>
+                          <div className="text-xs text-gray-400">{u.email}</div>
+                        </td>
+                        <td className="py-2 px-3">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-md whitespace-nowrap" style={corEstagio(u.estagio)}>
+                            {nomeEstagio(u.estagio)}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3">
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${u.score}%`, background: corScore(u.score) }} />
+                            </div>
+                            <span className="text-xs font-bold w-6 text-right" style={{ color: corScore(u.score) }}>{u.score}</span>
+                          </div>
+                        </td>
+                        <td className="py-2 px-3 text-center text-gray-600 whitespace-nowrap">{fmtData(u.criadoEm)}</td>
+                        <td className="py-2 px-3 text-center">{u.acessou ? '✅' : '—'}</td>
+                        <td className="py-2 px-3 text-center">
+                          {u.optOut
+                            ? <span className="text-xs font-semibold text-red-600 whitespace-nowrap" title={u.optOutEm ? `Saiu em ${fmtDataHora(u.optOutEm)}` : ''}>descadastrou{u.optOutEm ? ` · ${fmtDataHora(u.optOutEm)}` : ''}</span>
+                            : u.cortesia
+                            ? <span className="text-xs font-semibold text-amber-600">cortesia</span>
+                            : <span className="text-xs text-emerald-600">recebe</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* template (desenho global do e-mail) */}
       {aba === 'template' && tpl && (
