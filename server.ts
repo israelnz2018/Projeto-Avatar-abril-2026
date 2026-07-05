@@ -1163,7 +1163,9 @@ async function startServer() {
   const SEQUENCIAS_DEFAULT: Sequencias = {
     lead: [
       {
-        dia: 0, ativo: true,
+        // DESLIGADO: o n8n já manda o e-mail de boas-vindas + senha no cadastro
+        // (sendAcessoEmail). Este duplicaria. A sequência do lead começa no #2.
+        dia: 0, ativo: false,
         assunto: "Seu acesso está pronto, {nome}",
         corpo:
           "[titulo: Seu acesso já está liberado]\n\n" +
@@ -1584,11 +1586,31 @@ async function startServer() {
     return dias >= 0 && dias < 7 ? "pago7" : "pago";
   }
 
+  // Quais estágios estão LIGADos pra envio automático. Guardado em Firestore pra o Israel
+  // ligar/desligar pela tela sem deploy. Default: TODOS DESLIGADOS (posição segura).
+  type EstagiosAtivos = { lead: boolean; gratis: boolean; pago7: boolean; pago: boolean };
+  async function lerEstagiosAtivos(): Promise<EstagiosAtivos> {
+    const off = { lead: false, gratis: false, pago7: false, pago: false };
+    try {
+      const snap = await adminFirestore().collection("config").doc("marketingEstagiosAtivos").get();
+      if (!snap.exists) return off;
+      const d = snap.data() as any;
+      return {
+        lead: d?.lead === true, gratis: d?.gratis === true,
+        pago7: d?.pago7 === true, pago: d?.pago === true,
+      };
+    } catch { return off; }
+  }
+
   // Processa um ciclo de envios. Retorna um resumo (e detalhes pra log/teste).
-  async function processarEnviosDiarios(opts: { dryRun?: boolean } = {}) {
+  // opts.forcarEstagios: ignora a config e usa esses estágios (pra teste dirigido).
+  async function processarEnviosDiarios(opts: { dryRun?: boolean; forcarEstagios?: Partial<EstagiosAtivos> } = {}) {
     const dryRun = !!opts.dryRun;
     const seqs = await lerSequencias();
     const template = await lerTemplate();
+    const ativos = opts.forcarEstagios
+      ? { lead: false, gratis: false, pago7: false, pago: false, ...opts.forcarEstagios }
+      : await lerEstagiosAtivos();
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
@@ -1604,6 +1626,7 @@ async function startServer() {
       if (u.emailOptOut === true) { resumo.pulados++; continue; }
       const estagio = classificarSequencia(u);
       if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
+      if (!ativos[estagio]) { resumo.pulados++; continue; } // estágio desligado na config
 
       const seq = seqs[estagio];
       // Data-base da régua de dias, por estágio:
@@ -1664,6 +1687,49 @@ async function startServer() {
     console.log(`[motor-email] rodado dryRun=${dryRun} analisados=${resumo.analisados} enviados=${resumo.enviados} falhas=${resumo.falhas} pulados=${resumo.pulados}`);
     return resumo;
   }
+
+  // GET /api/marketing/estagios-ativos — quais estágios estão ligados pra envio
+  app.get("/api/marketing/estagios-ativos", requireAdmin, async (_req: any, res) => {
+    return res.json(await lerEstagiosAtivos());
+  });
+
+  // PUT /api/marketing/estagios-ativos — liga/desliga estágios (sem deploy)
+  app.put("/api/marketing/estagios-ativos", requireAdmin, async (req: any, res) => {
+    const b = req.body || {};
+    const limpo = { lead: b.lead === true, gratis: b.gratis === true, pago7: b.pago7 === true, pago: b.pago === true };
+    try {
+      await adminFirestore().collection("config").doc("marketingEstagiosAtivos").set(limpo);
+      return res.json({ ok: true, ...limpo });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao salvar." });
+    }
+  });
+
+  // POST /api/marketing/teste-envio — manda a sequência pra UM e-mail de teste, sem tocar
+  // na base. Envia o e-mail #N (idx) do estágio pedido pro destinatário informado.
+  app.post("/api/marketing/teste-envio", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada." });
+    const { email, estagio, idx } = req.body || {};
+    const dest = String(email || "").trim().toLowerCase();
+    const est = String(estagio || "");
+    const i = Math.max(0, parseInt(idx, 10) || 0);
+    if (!dest.includes("@")) return res.status(400).json({ error: "e-mail inválido." });
+    if (!["lead", "gratis", "pago7", "pago"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
+    try {
+      const seqs = await lerSequencias();
+      const template = await lerTemplate();
+      const arr = (seqs as any)[est] as SeqEmail[];
+      if (!arr || !arr[i]) return res.status(400).json({ error: `e-mail #${i + 1} não existe em ${est}.` });
+      const em = arr[i];
+      const corpoTxt = aplicarNome(String(em.corpo), "Israel");
+      const html = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template, dest);
+      const r = await resendSend({ to: dest, subject: `[TESTE] ${em.assunto}`, html, unsubUrl: unsubLink(dest) });
+      if (r.ok) return res.json({ ok: true, enviadoPara: dest, estagio: est, email: i + 1, assunto: em.assunto });
+      return res.status(502).json({ error: `Resend recusou: ${r.status} ${String(r.body).slice(0, 200)}` });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao enviar teste." });
+    }
+  });
 
   // GET /api/marketing/sequencias — lê as sequências (tela Fase 2)
   app.get("/api/marketing/sequencias", requireAdmin, async (_req: any, res) => {
