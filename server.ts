@@ -1108,6 +1108,11 @@ async function startServer() {
   //   inconsciente -> consciente do problema -> da solução -> do produto -> mais consciente.
   // GRÁTIS (7 e-mails, dias 0/3/7/11/15/19/24): um por trilha (trilhas 2 a 8 do app).
   const APP_URL = "https://app.educacaopelotrabalho.com";
+  // Página de vendas (preço cheio R$ 597).
+  const VENDAS_URL = "https://www.educacaopelotrabalho.com/formacao";
+  // Link do desconto (R$ 400). Trocar pelo checkout/cupom da Hotmart quando existir.
+  // Enquanto isso aponta pra página de vendas — ajuste no painel Marketing quando tiver o link.
+  const DESCONTO_URL = "https://www.educacaopelotrabalho.com/formacao";
   const SEQUENCIAS_DEFAULT: Sequencias = {
     lead: [
       {
@@ -1181,97 +1186,149 @@ async function startServer() {
       },
     ],
     gratis: [
+      // 1 — BOAS-VINDAS / ativação (sem venda)
       {
         dia: 0, ativo: true,
         assunto: "Você entrou, agora deixa eu te guiar",
         corpo:
           "[titulo: Bem-vindo de verdade]\n\n" +
           "Oi {nome},\n\n" +
-          "Que bom que você entrou. Isso já te coloca à frente da maioria, muita gente pede acesso e nunca aparece.\n\n" +
-          "Você está na Trilha 1, 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente'. Meu conselho: não tente ver tudo de uma vez. Faça a Fase 1, entender como sua área funciona, e aplique no seu trabalho real essa semana. Uma ferramenta usada vale mais que dez assistidas.\n\n" +
-          "Nas próximas semanas vou te mandar um e-mail por vez, cada um te mostrando uma trilha diferente da plataforma, análise de dados, apresentações que convencem, conduzir mudanças, estatística aplicada e mais. Pra você ver até onde dá pra ir.\n\n" +
+          "Que bom que você entrou. Isso já te coloca à frente da maioria: muita gente pede acesso e nunca aparece.\n\n" +
+          "Você está na Trilha 1, 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente'. Meu conselho: não tente ver tudo de uma vez. Faça a Fase 1, entenda como sua área funciona, e aplique no seu trabalho real essa semana. Uma ferramenta usada vale mais que dez assistidas.\n\n" +
+          "Nas próximas semanas vou te mostrar, um por vez, o que mais tem na plataforma: análise de dados, apresentações que convencem, conduzir mudanças, estatística aplicada e muito mais. Pra você ver até onde dá pra ir.\n\n" +
           "Por hoje, só uma missão: termine a Fase 1.\n\n" +
           "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
-          "Israel",
+          "Israel\n\n" +
+          "P.S. Qualquer dúvida, é só responder este e-mail. Eu leio.",
       },
+      // 2 — TRILHA A (nutre): dados
       {
         dia: 3, ativo: true,
         assunto: "Quando o chefe pede \"me mostra os números\"",
         corpo:
-          "[titulo: Trilha, Recomendar melhorias com base em dados]\n\n" +
+          "[titulo: Recomendar melhorias com base em dados]\n\n" +
           "Oi {nome},\n\n" +
-          "Deixa eu adivinhar uma cena que você já viveu: você teve uma boa ideia, levou pro chefe, e ele perguntou, \"e os dados? me mostra os números\". E você travou.\n\n" +
+          "Deixa eu adivinhar uma cena que você já viveu: você teve uma boa ideia, levou pro chefe, e ele perguntou: \"e os dados? me mostra os números\". E você travou.\n\n" +
           "Acontece com quase todo mundo. O problema não é falta de dado, é não saber transformar dado em argumento. Eu já vi projeto excelente morrer porque a pessoa não soube mostrar o número certo na hora certa.\n\n" +
-          "A trilha 'Como Recomendar Melhorias com Base em Análise de Dados' resolve isso, sem você precisar virar especialista em Excel ou programação. Pareto que convence, histograma sem mistério, e, o mais importante, a pergunta certa ANTES do gráfico. Porque 80% das análises começam erradas justamente aí.\n\n" +
+          "A trilha 'Como Recomendar Melhorias com Base em Análise de Dados' resolve isso, sem você precisar virar especialista em Excel ou programação. Pareto que convence, histograma sem mistério, e o mais importante: a pergunta certa ANTES do gráfico. Porque 80% das análises começam erradas justamente aí.\n\n" +
           "É o tipo de habilidade que faz o chefe parar de duvidar e começar a aprovar.\n\n" +
-          "[botao: Conhecer essa trilha | " + APP_URL + "]\n\n" +
+          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
           "Israel",
       },
+      // 3 — TRILHA B (nutre): apresentações
       {
         dia: 7, ativo: true,
         assunto: "Boa ideia que ninguém entende não vale nada",
         corpo:
-          "[titulo: Trilha, Apresentações que convencem]\n\n" +
+          "[titulo: Apresentações que convencem]\n\n" +
           "Oi {nome},\n\n" +
           "Uma verdade dura do mundo do trabalho: a melhor ideia da sala perde pra ideia mais bem APRESENTADA. Injusto? Talvez. Real? Todo dia.\n\n" +
           "Já vi gente brilhante ser ignorada numa reunião porque travou, se enrolou, ou mostrou um slide confuso. E vi gente mediana brilhar só porque soube contar a história com clareza.\n\n" +
           "A trilha 'Como Criar Apresentações que Convencem' te ensina a estrutura SCQA, a mesma que a McKinsey usa há 40 anos, pra montar um argumento que prende. E mostra como antecipar as 3 perguntas que a diretoria SEMPRE faz, pra você nunca mais ser pego de surpresa. Tem até como gerar um PPT executivo em 1 clique dentro do app, economizando suas 4 horas de montagem.\n\n" +
           "Não é sobre falar bonito. É sobre não deixar uma boa ideia morrer por falta de jeito.\n\n" +
-          "[botao: Ver a trilha de apresentações | " + APP_URL + "]\n\n" +
+          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
           "Israel",
       },
+      // 4 — SOFT PITCH (1º toque de venda, leve, sem desconto)
       {
         dia: 11, ativo: true,
-        assunto: "Por que as pessoas resistem mesmo quando você tem razão",
+        assunto: "Uma coisa que preciso te contar, {nome}",
         corpo:
-          "[titulo: Trilha, Conduzir mudanças com menos resistência]\n\n" +
+          "[titulo: O grátis é de propósito]\n\n" +
           "Oi {nome},\n\n" +
-          "Talvez a coisa mais frustrante do mundo corporativo: você tem razão, prova com dados que sua ideia é melhor, e mesmo assim o time resiste, arrasta o pé, volta pro 'como era antes'.\n\n" +
-          "Demorei anos pra entender uma coisa: mostrar dado NÃO convence pessoas. Pessoas mudam por outros motivos, e existe um método pra conduzir isso. Chama-se ADKAR, e eu uso em todo projeto de mudança que toco.\n\n" +
-          "A trilha 'Como Conduzir Mudanças com Menos Resistência' te dá o mapa de stakeholders honesto (quem te apoia, quem te enfrenta, quem está em cima do muro), os 4 scripts pra conversa difícil com quem resiste, e como sobreviver aos 90 dias críticos depois que a mudança começa.\n\n" +
-          "Liderança técnica de verdade não é mandar. É fazer o outro querer ir junto.\n\n" +
-          "[botao: Conhecer essa trilha | " + APP_URL + "]\n\n" +
+          "Você já viu 2 ou 3 das nossas trilhas por aqui. E talvez esteja se perguntando: por que ele libera tanta coisa de graça?\n\n" +
+          "Resposta honesta: porque eu prefiro que você EXPERIMENTE do que acredite na minha promessa. A Trilha 1 é sua, sem pagar nada. É meu jeito de te mostrar que funciona.\n\n" +
+          "Mas eu vou ser transparente com você: o grátis é a ponta do iceberg. A jornada completa, das 8 trilhas, é onde a virada de verdade acontece, do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
+          "Não precisa decidir nada hoje. Continue usando o que é seu. Só queria que você soubesse que existe um caminho inteiro à sua frente.\n\n" +
+          "[botao: Conhecer a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",
       },
+      // 5 — TRILHA C (nutre): conduzir mudanças
       {
         dia: 15, ativo: true,
-        assunto: "O que toda empresa diz que faz (e quase ninguém faz direito)",
+        assunto: "Por que as pessoas resistem mesmo quando você tem razão",
         corpo:
-          "[titulo: Trilha, Cultura Lean na prática]\n\n" +
+          "[titulo: Conduzir mudanças com menos resistência]\n\n" +
           "Oi {nome},\n\n" +
-          "\"Aqui a gente é Lean.\" Você provavelmente já ouviu isso em alguma empresa. E provavelmente percebeu que, na prática, quase ninguém sabe o que isso significa de verdade.\n\n" +
-          "Lean virou buzzword. Mas no fundo é a coisa mais concreta que existe: enxergar os 8 desperdícios que estão na sua semana agora, ir onde o trabalho acontece (o gemba), e melhorar um pouquinho todo dia. Eu construí carreira em cima disso.\n\n" +
-          "A trilha 'Cultura Lean na Prática' te ensina a PENSAR Lean antes de aplicar Lean, os 5 princípios, os 8 desperdícios, os 5 porquês pra achar causa raiz sem chutar, e o detalhe que quase ninguém domina: quando otimizar e quando NÃO otimizar (porque nem tudo merece esforço).\n\n" +
-          "É o olhar que, uma vez treinado, você não desliga mais.\n\n" +
-          "[botao: Ver a trilha Lean | " + APP_URL + "]\n\n" +
+          "Talvez a coisa mais frustrante do mundo corporativo: você tem razão, prova com dados que sua ideia é melhor, e mesmo assim o time resiste, arrasta o pé, volta pro 'como era antes'.\n\n" +
+          "Demorei pra entender uma coisa: mostrar dado NÃO convence pessoas. Pessoas mudam por outros motivos, e existe um método pra conduzir isso. Chama-se ADKAR, e eu uso em todo projeto de mudança que toco.\n\n" +
+          "A trilha 'Como Conduzir Mudanças com Menos Resistência' te dá o mapa de stakeholders honesto (quem te apoia, quem te enfrenta, quem está em cima do muro), os scripts pra conversa difícil com quem resiste, e como sobreviver aos 90 dias críticos depois que a mudança começa.\n\n" +
+          "Liderança técnica de verdade não é mandar. É fazer o outro querer ir junto.\n\n" +
+          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
           "Israel",
       },
+      // 6 — TRILHA D (nutre): estatística (a mais avançada, gera desejo)
       {
         dia: 19, ativo: true,
-        assunto: "O profissional que enxerga o problema antes dele estourar",
-        corpo:
-          "[titulo: Trilha, Antecipar riscos antes que virem problemas]\n\n" +
-          "Oi {nome},\n\n" +
-          "Tem um tipo de profissional que toda empresa quer e poucas têm: aquele que enxerga o problema ANTES dele estourar. Que olha pro projeto e diz \"isso aqui vai dar ruim por causa disso\", e acerta.\n\n" +
-          "Isso não é sorte nem intuição mágica. É método. É saber ler o radar antes de apertar o botão.\n\n" +
-          "A trilha 'Como Antecipar Riscos Antes que Virem Problemas' te ensina exatamente isso: mapear o que pode dar errado, priorizar pelo que é mais grave e mais provável, e agir antes, não depois do incêndio. É a diferença entre o profissional que apaga fogo (e vive estressado) e o que previne o fogo (e vira referência).\n\n" +
-          "Quem antecipa risco ganha uma fama silenciosa e poderosa: a de ser confiável.\n\n" +
-          "[botao: Conhecer essa trilha | " + APP_URL + "]\n\n" +
-          "Israel",
-      },
-      {
-        dia: 24, ativo: true,
         assunto: "Estatística que vira decisão (não relatório que ninguém lê)",
         corpo:
-          "[titulo: Trilha, Estatística aplicada a negócios]\n\n" +
+          "[titulo: Estatística aplicada a negócios]\n\n" +
           "Oi {nome},\n\n" +
-          "Chegamos na trilha mais hardcore, e eu guardei ela pro fim de propósito.\n\n" +
-          "Tem uma fronteira que separa o profissional bom do profissional raro: saber usar estatística pra DECIDIR, não pra encher relatório. A maioria tem medo de estatística porque associou aquilo a fórmula e prova de faculdade. Mas estatística aplicada é outra coisa, é a ferramenta mais poderosa que existe pra parar de decidir no 'achismo'.\n\n" +
-          "A trilha 'Como Fazer Análises Estatísticas Aplicadas a Negócios' te leva da análise descritiva até inferência e previsão, controle de processo, capacidade, testes de hipótese, regressão, tudo no-code, traduzido pra linguagem de negócio. É o nível de quem senta na mesa de decisão e é OUVIDO.\n\n" +
-          "Você começou comigo entendendo como chegar numa área nova. Agora você viu até onde dá pra ir: virar a referência técnica que todo mundo procura.\n\n" +
-          "Tudo isso, as 8 trilhas completas, está no Plano Completo. Se você chegou até aqui lendo, você é exatamente o tipo de pessoa que aproveita cada uma delas.\n\n" +
-          "[botao: Ver o Plano Completo | " + APP_URL + "]\n\n" +
-          "Foi uma honra te acompanhar nessas semanas.\n\nIsrael",
+          "Deixa eu te mostrar a trilha mais hardcore, e a que mais muda o patamar de quem domina.\n\n" +
+          "Tem uma fronteira que separa o profissional bom do profissional raro: saber usar estatística pra DECIDIR, não pra encher relatório. A maioria tem medo de estatística porque associou aquilo a fórmula e prova de faculdade. Mas estatística aplicada é outra coisa: é a ferramenta mais poderosa que existe pra parar de decidir no 'achismo'.\n\n" +
+          "'Como Fazer Análises Estatísticas Aplicadas a Negócios' te leva da análise descritiva até inferência, previsão, controle de processo, capacidade, testes de hipótese e regressão, tudo no-code, traduzido pra linguagem de negócio. É o nível de quem senta na mesa de decisão e é OUVIDO.\n\n" +
+          "Você começou entendendo como chegar numa área nova. Isso aqui é o outro extremo da jornada: virar a referência técnica que todo mundo procura.\n\n" +
+          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
+          "Israel",
+      },
+      // 7 — CTA VENDA (preço cheio R$ 597, ângulo 1: a jornada completa)
+      {
+        dia: 23, ativo: true,
+        assunto: "Você já provou que consegue, {nome}",
+        corpo:
+          "[titulo: A jornada completa te espera]\n\n" +
+          "Oi {nome},\n\n" +
+          "Nessas semanas você viu de perto o que a plataforma faz. Não foi promessa, foi experiência: você entrou, usou, e viu funcionar.\n\n" +
+          "Agora eu te faço um convite direto. Você viu a ponta. A formação completa é a jornada inteira, as 8 trilhas, da base ao topo:\n\n" +
+          "Entender uma empresa por dentro. Recomendar melhorias com dados. Conduzir mudanças. Apresentar como executivo. Antecipar riscos. Cultura Lean. Estatística aplicada. E o topo: gestão de projetos de melhoria.\n\n" +
+          "Mais o software estatístico, o Mentor Israel digital ilimitado, a comunidade e o certificado de cada trilha. Tudo por 12x de R$ 61,74 (ou R$ 597 à vista).\n\n" +
+          "Quem chegou lendo até aqui é exatamente quem mais aproveita.\n\n" +
+          "[botao: Quero a formação completa | " + VENDAS_URL + "]\n\n" +
+          "Israel",
+      },
+      // 8 — CTA VENDA (preço cheio, ângulo 2: o custo de não fazer)
+      {
+        dia: 26, ativo: true,
+        assunto: "O que custa continuar do jeito que está",
+        corpo:
+          "[titulo: O custo invisível de não decidir]\n\n" +
+          "Oi {nome},\n\n" +
+          "Deixa eu ser honesto sobre uma conta que quase ninguém faz.\n\n" +
+          "Ficar mais um ano 'aprendendo no susto', travando quando pedem os números, vendo boa ideia sua ser ignorada por falta de apresentação, isso também tem preço. Só que é um preço invisível: promoções que não vêm, projetos que não decolam, a sensação de que você poderia mais.\n\n" +
+          "A formação completa custa 12x de R$ 61,74. Menos que um jantar por mês. E te entrega o método que separa quem executa de quem só assiste.\n\n" +
+          "Não é sobre gastar. É sobre parar de pagar o preço invisível de ficar onde está.\n\n" +
+          "[botao: Dar o próximo passo | " + VENDAS_URL + "]\n\n" +
+          "Israel",
+      },
+      // 9 — DESCONTO SURPRESA R$ 400 + PRAZO (48h)
+      {
+        dia: 28, ativo: true,
+        assunto: "{nome}, uma condição especial só pra você",
+        corpo:
+          "[titulo: Um presente pra quem chegou até aqui]\n\n" +
+          "Oi {nome},\n\n" +
+          "Você acompanhou toda essa jornada comigo. Usou a plataforma, leu meus e-mails, chegou até aqui. Isso me diz que você leva a sério o seu crescimento, e eu quero recompensar isso.\n\n" +
+          "Vou te fazer uma oferta que não anuncio pra todo mundo: a formação completa, que sai por R$ 597, sai pra você por R$ 400. São R$ 197 de desconto, só pela sua dedicação até aqui.\n\n" +
+          "Mas preciso ser justo com quem paga o valor cheio, então essa condição vale só por 48 horas. Depois disso, o preço volta ao normal.\n\n" +
+          "Se você já pensava em dar esse passo, essa é a hora certa.\n\n" +
+          "[botao: Garantir por R$ 400 (48h) | " + DESCONTO_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. É um desconto de verdade, com prazo de verdade. Em 48h ele acaba.",
+      },
+      // 10 — ÚLTIMA CHAMADA do desconto (prazo acabando)
+      {
+        dia: 29, ativo: true,
+        assunto: "Acaba hoje: seus R$ 197 de desconto",
+        corpo:
+          "[titulo: Última chamada]\n\n" +
+          "Oi {nome},\n\n" +
+          "Ontem eu te enviei uma condição especial: a formação completa por R$ 400, em vez de R$ 597. Esse desconto acaba hoje.\n\n" +
+          "Não vou te encher com pressão falsa. Só quero ser justo: se você deixar passar, o preço volta pra R$ 597 e essa condição não volta.\n\n" +
+          "Você já fez a parte mais difícil, que é começar. Deu os primeiros passos, viu que funciona. Falta só decidir ir até o fim.\n\n" +
+          "Se fizer sentido pra você, esse é o momento.\n\n" +
+          "[botao: Garantir por R$ 400 (acaba hoje) | " + DESCONTO_URL + "]\n\n" +
+          "Foi uma honra te acompanhar nessas semanas, de verdade.\n\nIsrael\n\n" +
+          "P.S. Se não for a hora, tudo bem, sua Trilha 1 continua sua. Mas se for, não deixe pra amanhã: o desconto não vai estar lá.",
       },
     ],
   };
