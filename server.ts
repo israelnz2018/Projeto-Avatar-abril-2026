@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
@@ -732,14 +733,22 @@ async function startServer() {
   const RESEND_FROM = process.env.RESEND_FROM || "LBW <contact@learningbyworking.com>";
 
   // Envia 1 email via API do Resend. Retorna {ok, status, body}.
-  async function resendSend(params: { to: string; subject: string; html: string }) {
+  async function resendSend(params: { to: string; subject: string; html: string; unsubUrl?: string }) {
     const key = process.env.RESEND_API_KEY;
     if (!key) return { ok: false, status: 0, body: "RESEND_API_KEY não configurada." };
     try {
+      // List-Unsubscribe (RFC 2369 + one-click RFC 8058): dá o botão nativo
+      // "Cancelar inscrição" do Gmail/Outlook e melhora a reputação de envio.
+      const headers: Record<string, string> = params.unsubUrl
+        ? {
+            "List-Unsubscribe": `<${params.unsubUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          }
+        : {};
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ from: RESEND_FROM, to: params.to, subject: params.subject, html: params.html }),
+        body: JSON.stringify({ from: RESEND_FROM, to: params.to, subject: params.subject, html: params.html, headers }),
       });
       const text = await r.text();
       return { ok: r.ok, status: r.status, body: text };
@@ -835,11 +844,48 @@ async function startServer() {
     return out;
   }
 
+  // ===== UNSUBSCRIBE (opt-out) — exigência legal em todo e-mail de marketing =====
+  // Segredo pra assinar o link (HMAC): usa env dedicada; se não houver, deriva de um
+  // segredo estável já presente (a chave admin do Firebase). Assim o token é válido e
+  // consistente entre reinícios, sem precisar configurar nada.
+  const UNSUB_SECRET =
+    process.env.UNSUBSCRIBE_SECRET ||
+    (process.env.FIREBASE_ADMIN_KEY_JSON || "lbw-fallback-secret").slice(0, 64);
+  const BASE_URL = process.env.PUBLIC_BASE_URL || "https://app.educacaopelotrabalho.com";
+  // Endereço físico do remetente (exigido por lei junto ao unsubscribe).
+  const ENDERECO_FISICO = "Learning by Working · Educação pelo Trabalho · contact@learningbyworking.com";
+
+  function unsubToken(email: string): string {
+    return crypto.createHmac("sha256", UNSUB_SECRET).update(email.toLowerCase().trim()).digest("hex").slice(0, 32);
+  }
+  function unsubLink(email: string): string {
+    const e = encodeURIComponent(email.toLowerCase().trim());
+    return `${BASE_URL}/api/unsubscribe?e=${e}&t=${unsubToken(email)}`;
+  }
+  function unsubValido(email: string, token: string): boolean {
+    if (!email || !token) return false;
+    const esperado = unsubToken(email);
+    // comparação em tempo constante pra não vazar o token por timing
+    const a = Buffer.from(esperado);
+    const b = Buffer.from(String(token));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+
   // Envolve o corpo (HTML já pronto) no layout da marca, usando a config do template.
   // Título e botões são marcações no próprio corpo (por e-mail), não no template.
-  function campanhaHtmlCom(corpoHtmlRaw: string, t: TemplateConfig) {
+  // `emailDestinatario` (opcional): quando presente, injeta o rodapé legal com link de
+  // descadastro + endereço físico. Ausente em previews (sem destinatário real).
+  function campanhaHtmlCom(corpoHtmlRaw: string, t: TemplateConfig, emailDestinatario?: string) {
     const corpoHtml = aplicarMarcacoes(corpoHtmlRaw, t.botaoCor); // [titulo:]/[botao:]/[video:]
     const rodape = esc(t.rodapeTexto).replace(/\n/g, "<br/>");
+    // Bloco legal (só com destinatário real): link de descadastro + endereço físico.
+    const blocoLegal = emailDestinatario
+      ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #f0f0f0;">
+           ${esc(ENDERECO_FISICO)}<br/>
+           Não quer mais receber estes e-mails?
+           <a href="${unsubLink(emailDestinatario)}" style="color:#9CA3AF; text-decoration:underline;">Cancelar inscrição</a>.
+         </div>`
+      : "";
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#ffffff; color:#2A2F3A;">
         <div style="background:${esc(t.headerCor)}; padding:20px 24px;">
@@ -851,6 +897,7 @@ async function startServer() {
         </div>
         <div style="padding:20px 24px; border-top:1px solid #eee; font-size:12px; color:#9CA3AF;">
           ${rodape}
+          ${blocoLegal}
         </div>
       </div>`;
   }
@@ -1553,6 +1600,8 @@ async function startServer() {
     for (const doc of snap.docs) {
       const u = doc.data() as any;
       resumo.analisados++;
+      // Opt-out (descadastro): quem cancelou a inscrição NÃO recebe mais nada. Lei.
+      if (u.emailOptOut === true) { resumo.pulados++; continue; }
       const estagio = classificarSequencia(u);
       if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
 
@@ -1585,7 +1634,7 @@ async function startServer() {
 
       const chave = `${estagio}_${alvo.idx + 1}`;
       const corpoTxt = aplicarNome(String(alvo.email.corpo), u.nome);
-      const corpoHtml = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template);
+      const corpoHtml = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template, u.email);
 
       if (dryRun) {
         resumo.detalhes.push({ email: u.email, estagio, envia: chave, assunto: alvo.email.assunto });
@@ -1593,7 +1642,7 @@ async function startServer() {
         continue;
       }
 
-      const r = await resendSend({ to: u.email, subject: alvo.email.assunto, html: corpoHtml });
+      const r = await resendSend({ to: u.email, subject: alvo.email.assunto, html: corpoHtml, unsubUrl: unsubLink(u.email) });
       if (r.ok) {
         // marca como enviado SÓ se deu certo (senão tenta de novo amanhã — proteção defensiva)
         await doc.ref.set({ emailSequencia: { ...jaEnviados, [chave]: new Date().toISOString() } }, { merge: true });
@@ -1671,6 +1720,60 @@ async function startServer() {
     return res.json({ html: campanhaHtmlCom(corpoHtml, t) });
   });
 
+  // ===== UNSUBSCRIBE (público, sem auth) — o link no rodapé dos e-mails aponta aqui.
+  // GET  = pessoa clicou no link → marca opt-out e mostra página de confirmação.
+  // POST = one-click do Gmail/Outlook (RFC 8058) → marca opt-out e responde 200 seco.
+  async function aplicarOptOut(email: string, token: string): Promise<{ ok: boolean; motivo?: string }> {
+    const e = String(email || "").trim().toLowerCase();
+    if (!unsubValido(e, token)) return { ok: false, motivo: "link inválido" };
+    try {
+      const snap = await adminFirestore().collection("users").where("email", "==", e).get();
+      if (snap.empty) {
+        // e-mail não está na base (ou grafia diferente) — considera sucesso mesmo assim,
+        // pra a pessoa não ficar tentando de novo. Nada a marcar.
+        return { ok: true };
+      }
+      const batch = adminFirestore().batch();
+      snap.docs.forEach((d) => batch.set(d.ref, { emailOptOut: true, emailOptOutEm: new Date().toISOString() }, { merge: true }));
+      await batch.commit();
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, motivo: err?.message || "erro" };
+    }
+  }
+
+  function paginaUnsub(sucesso: boolean, msg: string): string {
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <title>Cancelar inscrição — LBW</title></head>
+      <body style="margin:0; font-family:Arial,sans-serif; background:#F0F2FA; color:#2A2F3A;">
+        <div style="max-width:480px; margin:60px auto; background:#fff; border-radius:16px; padding:40px 28px; text-align:center; box-shadow:0 4px 24px rgba(30,45,110,.08);">
+          <div style="width:56px; height:56px; margin:0 auto 16px; border-radius:50%; background:${sucesso ? "#D1FAE5" : "#FEE2E2"}; line-height:56px; font-size:28px;">${sucesso ? "✓" : "!"}</div>
+          <h1 style="font-size:20px; margin:0 0 10px; color:#1E2D6E;">${sucesso ? "Inscrição cancelada" : "Não foi possível"}</h1>
+          <p style="font-size:15px; line-height:1.6; color:#4B5563; margin:0;">${msg}</p>
+        </div>
+      </body></html>`;
+  }
+
+  app.get("/api/unsubscribe", async (req: any, res) => {
+    const email = String(req.query.e || "");
+    const token = String(req.query.t || "");
+    const r = await aplicarOptOut(email, token);
+    res.status(r.ok ? 200 : 400).type("html").send(
+      r.ok
+        ? paginaUnsub(true, "Pronto. Você não vai mais receber nossos e-mails automáticos. Se mudar de ideia, é só responder qualquer e-mail antigo que a gente te reativa.")
+        : paginaUnsub(false, "Esse link de cancelamento não é válido ou expirou. Se você quer parar de receber, responda um dos e-mails pedindo o descadastro que a gente resolve na hora.")
+    );
+  });
+
+  app.post("/api/unsubscribe", async (req: any, res) => {
+    // one-click (RFC 8058): parâmetros vêm na query string mesmo no POST.
+    const email = String(req.query.e || (req.body && req.body.e) || "");
+    const token = String(req.query.t || (req.body && req.body.t) || "");
+    const r = await aplicarOptOut(email, token);
+    return res.status(r.ok ? 200 : 400).json({ ok: r.ok });
+  });
+
   // GET /api/marketing/status — resumo da última execução + contagem por estágio (faixa de status)
   app.get("/api/marketing/status", requireAdmin, async (_req: any, res) => {
     try {
@@ -1686,6 +1789,62 @@ async function startServer() {
       return res.json({ ultimaExecucao: statusSnap.exists ? statusSnap.data() : null, contagem });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao ler status." });
+    }
+  });
+
+  // GET /api/marketing/volume — controle de cota do Resend (100/dia, 3000/mês no plano atual).
+  // Puxa TODOS os e-mails realmente enviados (automático + newsletter + cortesia) da API do
+  // Resend e agrega por dia. Fonte da verdade pro limite, porque conta tudo que saiu de fato.
+  app.get("/api/marketing/volume", requireAdmin, async (_req: any, res) => {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) return res.status(503).json({ error: "RESEND_API_KEY não configurada." });
+    try {
+      // pagina a lista de e-mails (limite 100 por página; cursor 'after' = id do último)
+      const H = { Authorization: `Bearer ${key}` };
+      let url: string | null = "https://api.resend.com/emails?limit=100";
+      const todos: any[] = [];
+      let guard = 0;
+      while (url && guard < 60) {
+        guard++;
+        const r: any = await fetch(url, { headers: H });
+        if (!r.ok) break;
+        const j: any = await r.json();
+        const data: any[] = Array.isArray(j?.data) ? j.data : [];
+        todos.push(...data);
+        if (j?.has_more && data.length) url = `https://api.resend.com/emails?limit=100&after=${data[data.length - 1].id}`;
+        else url = null;
+      }
+      // agrega por dia (YYYY-MM-DD) e por mês (YYYY-MM)
+      const porDia: Record<string, number> = {};
+      const porMes: Record<string, number> = {};
+      for (const e of todos) {
+        const iso = String(e.created_at || "");
+        const dia = iso.slice(0, 10);
+        const mes = iso.slice(0, 7);
+        if (dia) porDia[dia] = (porDia[dia] || 0) + 1;
+        if (mes) porMes[mes] = (porMes[mes] || 0) + 1;
+      }
+      const hojeStr = new Date().toISOString().slice(0, 10);
+      const mesStr = hojeStr.slice(0, 7);
+      // detalhe de HOJE por estágio: vem do porPacote da última execução do motor (só se rodou hoje)
+      const statusSnap = await adminFirestore().collection("config").doc("marketingMotorStatus").get();
+      const st: any = statusSnap.exists ? statusSnap.data() : null;
+      const rodouHoje = st && String(st.rodadoEm || "").slice(0, 10) === hojeStr && !st.dryRun;
+      const hojePorEstagio = rodouHoje && st.porPacote ? st.porPacote : null;
+      // últimos 35 dias em ordem, pra o gráfico/lista
+      const dias = Object.entries(porDia).map(([d, n]) => ({ dia: d, total: n })).sort((a, b) => a.dia.localeCompare(b.dia)).slice(-35);
+      return res.json({
+        limiteDia: 100,
+        limiteMes: 3000,
+        hoje: hojeStr,
+        enviadosHoje: porDia[hojeStr] || 0,
+        enviadosMes: porMes[mesStr] || 0,
+        hojePorEstagio,     // { lead, gratis, pago7, pago } se o motor rodou hoje; senão null
+        totalHistorico: todos.length,
+        porDia: dias,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao ler volume do Resend." });
     }
   });
 
@@ -1743,6 +1902,7 @@ async function startServer() {
     docs.forEach((d) => {
       const u = d.data ? d.data() : d;
       if (!u?.email || String(u.email).indexOf("@") < 0) return;
+      if (u.emailOptOut === true) return; // descadastrado: nunca recebe. Lei.
       const estagio = classificarUsuario(u);
       if (publico === "todos" || estagio === publico) {
         const email = String(u.email).trim().toLowerCase();
@@ -1768,8 +1928,8 @@ async function startServer() {
       const erros: any[] = [];
       for (const dest of destinatarios) {
         const corpoTxt = aplicarNome(String(corpo), dest.nome);
-        const html = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template);
-        const r = await resendSend({ to: dest.email, subject: assunto, html });
+        const html = campanhaHtmlCom(corpoTxt.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join(""), template, dest.email);
+        const r = await resendSend({ to: dest.email, subject: assunto, html, unsubUrl: unsubLink(dest.email) });
         if (r.ok) enviados++;
         else { falhas++; if (erros.length < 10) erros.push({ to: dest.email, status: r.status, body: String(r.body).slice(0, 200) }); }
         await new Promise((ok) => setTimeout(ok, 130));

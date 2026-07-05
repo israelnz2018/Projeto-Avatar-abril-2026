@@ -44,6 +44,13 @@ interface StatusResp {
   contagem: { lead: number; gratis: number; pago: number };
   ultimaExecucao: null | { rodadoEm: string; enviados: number; falhas: number; dryRun?: boolean };
 }
+interface VolumeResp {
+  limiteDia: number; limiteMes: number; hoje: string;
+  enviadosHoje: number; enviadosMes: number;
+  hojePorEstagio: { lead: number; gratis: number; pago7: number; pago: number } | null;
+  totalHistorico: number;
+  porDia: { dia: string; total: number }[];
+}
 interface NewsletterItem { id: string; assunto: string; corpo: string; publico: string; total: number; enviados: number; falhas: number; enviadoEm: string; }
 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
@@ -114,6 +121,8 @@ export default function SequenciasEmail() {
     requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(pos, pos); });
   };
   const [status, setStatus] = useState<StatusResp | null>(null);
+  const [volume, setVolume] = useState<VolumeResp | null>(null);
+  const [volLoading, setVolLoading] = useState(false);
   const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [rodando, setRodando] = useState(false);
@@ -136,6 +145,14 @@ export default function SequenciasEmail() {
       setStatus(s);
       setSeqs({ lead: q.lead || [], gratis: q.gratis || [], pago7: q.pago7 || [], pago: q.pago || [] });
     } catch (e: any) { setMsg(e?.message || 'Erro ao carregar.'); }
+  };
+  const carregarVolume = async () => {
+    setVolLoading(true);
+    try {
+      const v = await authedFetch('/api/marketing/volume').then((r) => r.json());
+      if (!v?.error) setVolume(v);
+    } catch { /* silencioso — volume é secundário */ }
+    finally { setVolLoading(false); }
   };
   const carregarHistorico = async () => {
     try {
@@ -177,7 +194,7 @@ export default function SequenciasEmail() {
   };
   const setTplField = (patch: Partial<TemplateConfig>) => setTpl((p) => (p ? { ...p, ...patch } : p));
 
-  useEffect(() => { carregar(); carregarHistorico(); }, []);
+  useEffect(() => { carregar(); carregarHistorico(); carregarVolume(); }, []);
   useEffect(() => { if (aba === 'engajamento') carregarEngajamento(); }, [aba]);
   useEffect(() => { if (aba === 'template' && !tpl) carregarTemplate(); }, [aba]);
   // atualiza preview sempre que o template muda (na aba template)
@@ -271,6 +288,67 @@ export default function SequenciasEmail() {
           </button>
         </div>
       </div>
+
+      {/* faixa de VOLUME — controle da cota do Resend (100/dia, 3000/mês) */}
+      {volume && (() => {
+        const pctDia = Math.min(100, Math.round((volume.enviadosHoje / volume.limiteDia) * 100));
+        const pctMes = Math.min(100, Math.round((volume.enviadosMes / volume.limiteMes) * 100));
+        const corDia = pctDia >= 90 ? '#DC2626' : pctDia >= 70 ? '#EA580C' : '#10B981';
+        const corMes = pctMes >= 90 ? '#DC2626' : pctMes >= 70 ? '#EA580C' : '#10B981';
+        const he = volume.hojePorEstagio;
+        return (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-700" />
+                <h3 className="text-sm font-bold text-gray-900">Volume de e-mails (cota Resend)</h3>
+              </div>
+              <button onClick={carregarVolume} disabled={volLoading}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-50">
+                {volLoading ? 'Atualizando…' : 'Atualizar'}
+              </button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {/* hoje */}
+              <div>
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-xs font-semibold text-gray-600">Hoje</span>
+                  <span className="text-xs font-bold" style={{ color: corDia }}>{volume.enviadosHoje} / {volume.limiteDia}</span>
+                </div>
+                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pctDia}%`, background: corDia }} />
+                </div>
+                {he && (
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
+                    <span>Lead: <b className="text-gray-700">{he.lead || 0}</b></span>
+                    <span>Grátis: <b className="text-gray-700">{he.gratis || 0}</b></span>
+                    <span>Pago·7d: <b className="text-gray-700">{he.pago7 || 0}</b></span>
+                    <span>Pago: <b className="text-gray-700">{he.pago || 0}</b></span>
+                    <span className="text-gray-400">(só automáticos)</span>
+                  </div>
+                )}
+                {!he && <div className="mt-2 text-[11px] text-gray-400">O motor não rodou hoje ainda — detalhe por estágio aparece após rodar.</div>}
+              </div>
+              {/* mês */}
+              <div>
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-xs font-semibold text-gray-600">Este mês</span>
+                  <span className="text-xs font-bold" style={{ color: corMes }}>{volume.enviadosMes} / {volume.limiteMes}</span>
+                </div>
+                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pctMes}%`, background: corMes }} />
+                </div>
+                <div className="mt-2 text-[11px] text-gray-400">Total já enviado (histórico Resend): {volume.totalHistorico}</div>
+              </div>
+            </div>
+            {(pctDia >= 90 || pctMes >= 90) && (
+              <div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                ⚠️ Você está perto do limite. Considere aumentar o plano do Resend (ou trocar de provedor) antes de estourar, senão os próximos e-mails falham.
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* abas */}
       <div className="flex flex-wrap gap-2 mb-4">
