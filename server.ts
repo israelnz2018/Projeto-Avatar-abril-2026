@@ -1100,7 +1100,7 @@ async function startServer() {
   // ===============================================================
 
   type SeqEmail = { dia: number; assunto: string; corpo: string; ativo: boolean };
-  type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[] };
+  type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[]; pago: SeqEmail[] };
 
   // Conteúdo inicial das sequências (editável pela tela). Tom "Carta do Israel":
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
@@ -1331,6 +1331,160 @@ async function startServer() {
           "P.S. Se não for a hora, tudo bem, sua Trilha 1 continua sua. Mas se for, não deixe pra amanhã: o desconto não vai estar lá.",
       },
     ],
+    // PAGO (10 e-mails) — quem JÁ comprou o completo. Objetivo: ativação e retenção,
+    // NÃO venda. Os 3 primeiros caem dentro da janela de reembolso da Hotmart (dias
+    // 0/3/6): fazer a pessoa usar e sentir o valor antes do prazo fechar (anti-reembolso).
+    // Do dia 13 em diante vira ritmo semanal: uma trilha por semana + fechamento humano.
+    pago: [
+      // 1 — BOAS-VINDAS (dia 0) — reduzir arrependimento, guiar o primeiro acesso
+      {
+        dia: 0, ativo: true,
+        assunto: "Bem-vindo à formação completa, {nome}",
+        corpo:
+          "[titulo: Você tomou a decisão certa]\n\n" +
+          "Oi {nome},\n\n" +
+          "Aqui é o Israel. Sua formação completa está liberada, e eu queria ser o primeiro a te dar as boas-vindas pessoalmente.\n\n" +
+          "Você acabou de destravar tudo: as 6 trilhas, todas as ferramentas, as análises de dados, o certificado no final. É a jornada inteira, do entender uma empresa por dentro até liderar projetos de melhoria como um especialista sênior.\n\n" +
+          "Mas deixa eu te falar uma verdade que aprendi treinando gente em multinacional: o que separa quem transforma a carreira de quem só assiste vídeo é uma coisa só. Começar hoje, não amanhã.\n\n" +
+          "Então meu pedido é simples: entra agora, dá uma volta, e faz a primeira fase da Trilha 1. São 15 minutos.\n\n" +
+          "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
+          "Qualquer dúvida, responde este e-mail. Eu leio, e eu respondo.\n\nIsrael\n\n" +
+          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui.",
+      },
+      // 2 — ATIVAÇÃO (dia 3) — primeiro resultado rápido, dentro do prazo de reembolso
+      {
+        dia: 3, ativo: true,
+        assunto: "Faça isso hoje e você já sai na frente",
+        corpo:
+          "[titulo: Seu primeiro resultado, ainda esta semana]\n\n" +
+          "Oi {nome},\n\n" +
+          "Comprar foi o primeiro passo. Mas o que muda a sua vida não é ter acesso, é usar.\n\n" +
+          "Por isso vim te empurrar de leve. Reserve 20 minutos hoje e faça uma coisa só: pegue um processo do seu trabalho de verdade, qualquer um, e monte o SIPOC dele na plataforma.\n\n" +
+          "Vai parecer simples. Mas quando você terminar, vai enxergar aquele processo de um jeito que ninguém na sua equipe enxerga. É o primeiro momento em que a ferramenta vira poder de verdade.\n\n" +
+          "Não deixa pra depois. Depois vira nunca, e eu não quero isso pra você.\n\n" +
+          "[botao: Abrir a Trilha 1 agora | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você.",
+      },
+      // 3 — CONFIRMAÇÃO DE VALOR (dia 6) — fecha a janela de reembolso com a pessoa convencida
+      {
+        dia: 6, ativo: true,
+        assunto: "{nome}, você já sentiu por que valeu?",
+        corpo:
+          "[titulo: Uma semana com você]\n\n" +
+          "Oi {nome},\n\n" +
+          "Faz quase uma semana que você entrou. Queria fazer um check honesto com você.\n\n" +
+          "Se você já entrou e usou uma ferramenta, você já sabe do que estou falando: aquilo destrava um jeito de pensar que não tem volta. Você começa a ver desperdício, causa raiz e oportunidade onde antes via só rotina.\n\n" +
+          "E se você ainda não entrou de verdade, esse e-mail é o seu empurrão. Não deixa esse investimento virar mais uma assinatura esquecida. Ele foi feito pra te dar retorno, e o retorno começa no primeiro uso.\n\n" +
+          "Você tem uma jornada inteira pela frente, 6 trilhas que vão te levar de recém chegado a referência técnica. Mas tudo começa com você abrindo a plataforma esta semana.\n\n" +
+          "[botao: Continuar de onde parei | " + APP_URL + "]\n\n" +
+          "Estou aqui pra isso dar certo pra você.\n\nIsrael\n\n" +
+          "P.S. Travou em algo, achou confuso, faltou alguma coisa? Me responde. Eu quero saber, de verdade.",
+      },
+      // 4 — TRILHA 2 (dia 13) — início do ritmo semanal
+      {
+        dia: 13, ativo: true,
+        assunto: "Resolver problema sem depender de Excel",
+        corpo:
+          "[titulo: Trilha 2 — o método que funciona sem dado]\n\n" +
+          "Oi {nome},\n\n" +
+          "Tem um tipo de problema no trabalho que ninguém resolve porque todo mundo trava esperando ter dado, ter planilha, ter número. E o problema fica lá, apodrecendo.\n\n" +
+          "A Trilha 2 te ensina a resolver mesmo sem nada disso. Brainstorming estruturado, Ishikawa pra achar a causa raiz, os 5 Porquês, Esforço x Impacto pra decidir onde mexer primeiro, e o 5W2H pra virar plano de ação.\n\n" +
+          "É a caixa de ferramentas que faz você ser a pessoa que resolve, enquanto os outros ainda estão reclamando que falta informação.\n\n" +
+          "[botao: Começar a Trilha 2 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Aplica num problema real do seu trabalho enquanto faz. Aprender fazendo gruda de um jeito que só assistir nunca vai grudar.",
+      },
+      // 5 — TRILHA 3 (dia 20)
+      {
+        dia: 20, ativo: true,
+        assunto: "Decidir com dados, sem programar nada",
+        corpo:
+          "[titulo: Trilha 3 — dado vira decisão, sem virar programador]\n\n" +
+          "Oi {nome},\n\n" +
+          "Muita gente boa fica pra trás porque acha que trabalhar com dados é coisa de quem programa. Não é.\n\n" +
+          "Na Trilha 3 você aprende a transformar uma pilha de números numa decisão clara, sem escrever uma linha de código. Pareto pra achar o que importa, Histograma, Tendência, Dispersão, Box Plot. Tudo dentro da plataforma, é só preencher.\n\n" +
+          "Mas o mais importante vem antes do gráfico: qual é A PERGUNTA que você quer responder. Gente que domina isso para de fazer gráfico bonito e inútil, e começa a mostrar conclusão que o chefe respeita.\n\n" +
+          "[botao: Começar a Trilha 3 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Essa é a trilha que faz você chegar numa reunião e falar com autoridade, com o número na mão.",
+      },
+      // 6 — TRILHA 4 (dia 27) — desmistificar a parte hardcore
+      {
+        dia: 27, ativo: true,
+        assunto: "A estatística que assusta (e não devia)",
+        corpo:
+          "[titulo: Trilha 4 — a parte que separa amador de profissional]\n\n" +
+          "Oi {nome},\n\n" +
+          "Vou ser sincero: a Trilha 4 é a que mais assusta no papel. Controle estatístico de processo, capacidade (Cp, Cpk), testes de hipótese, ANOVA, regressão. Nomes que fazem gente fugir.\n\n" +
+          "Mas aqui está o segredo: você não precisa ser matemático. A plataforma faz a conta. O que você aprende é o que cada uma significa e quando usar. E isso, poucos dominam.\n\n" +
+          "Quem passa por essa trilha ganha uma coisa rara no mercado: consegue provar, com rigor, que uma melhoria funcionou de verdade e não foi sorte. É o que te coloca num outro nível de conversa.\n\n" +
+          "Vai com calma, uma ferramenta de cada vez. Do outro lado você sai diferente.\n\n" +
+          "[botao: Encarar a Trilha 4 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Empacou em algum conceito? Me responde. Já expliquei isso pra muita gente que achava que não era capaz, e era.",
+      },
+      // 7 — TRILHA 5 (dia 34) — parte humana
+      {
+        dia: 34, ativo: true,
+        assunto: "Ter razão não basta. Precisa convencer",
+        corpo:
+          "[titulo: Trilha 5 — influenciar sem ter o cargo]\n\n" +
+          "Oi {nome},\n\n" +
+          "Vou te contar o erro que quase todo técnico bom comete: acha que ter razão é suficiente. Chega com a análise perfeita, os dados certos, e mesmo assim ninguém se move.\n\n" +
+          "Porque decisão, na prática, é gente. E gente se move por confiança, por história bem contada, por sentir que faz parte da mudança, não por planilha.\n\n" +
+          "A Trilha 5 te ensina essa parte que faculdade nenhuma ensina: o método ADKAR pra conduzir mudança, mapear quem decide, contar a história com o SCQA, apresentar pra diretoria e influenciar mesmo sem ter autoridade formal.\n\n" +
+          "É o que faz sua ideia sair da sua cabeça e virar decisão da empresa.\n\n" +
+          "[botao: Começar a Trilha 5 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Essa trilha muda como você é visto no trabalho. De 'o cara técnico' pra 'a pessoa que faz acontecer'.",
+      },
+      // 8 — TRILHA 6 (dia 41) — o topo
+      {
+        dia: 41, ativo: true,
+        assunto: "A última trilha é onde você vira referência",
+        corpo:
+          "[titulo: Trilha 6 — o topo da jornada]\n\n" +
+          "Oi {nome},\n\n" +
+          "Você chegou na trilha que resume tudo. A Trilha 6 é onde você deixa de ser quem usa ferramenta e vira quem lidera projetos de melhoria inteiros, do começo ao fim.\n\n" +
+          "Gestão de projetos no padrão PMI, FMEA pra antecipar risco, registro de riscos, charter, cronograma de 12 a 18 meses, e como coordenar um programa de excelência operacional numa empresa.\n\n" +
+          "É o nível de quem uma empresa chama pra resolver o problema que ninguém mais consegue. O especialista sênior que anda pela organização inteira e deixa resultado por onde passa. Foi o que eu construí na minha carreira, e é exatamente isso que essa trilha entrega pra você.\n\n" +
+          "Quando você fechar essa, você não vai ser mais o mesmo profissional que começou lá na Trilha 1.\n\n" +
+          "[botao: Chegar ao topo | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Termina essa trilha e você libera o certificado. E ele vale, porque atrás dele tem competência de verdade.",
+      },
+      // 9 — CERTIFICADO / PROVA DE COMPETÊNCIA (dia 48)
+      {
+        dia: 48, ativo: true,
+        assunto: "Seu certificado (e como fazer ele valer)",
+        corpo:
+          "[titulo: Transforme o que aprendeu em oportunidade]\n\n" +
+          "Oi {nome},\n\n" +
+          "Se você chegou até aqui na jornada, precisa saber uma coisa: o certificado é a parte fácil. O que importa é o que ele representa, competência que você consegue provar.\n\n" +
+          "Então deixa eu te dar um plano prático pra transformar isso em carreira:\n\n" +
+          "Coloque a formação no seu LinkedIn, com uma frase concreta do que você sabe fazer agora. Não 'fiz um curso', e sim 'sei mapear processos, achar causa raiz e provar melhoria com dados'.\n\n" +
+          "Numa entrevista ou conversa com o chefe, não diga que estudou. Mostre um projeto que você fez na plataforma com um problema real. Prova sempre vence promessa.\n\n" +
+          "Você não tem só um certificado. Você tem um portfólio de coisas que resolveu. Use isso.\n\n" +
+          "[botao: Ver minha jornada | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Terminou tudo e quer que eu dê uma olhada em como você está se posicionando? Me responde. Fico feliz em ajudar.",
+      },
+      // 10 — FECHAMENTO / RELACIONAMENTO (dia 55)
+      {
+        dia: 55, ativo: true,
+        assunto: "{nome}, como foi a sua jornada?",
+        corpo:
+          "[titulo: Uma conversa, de pessoa pra pessoa]\n\n" +
+          "Oi {nome},\n\n" +
+          "Faz umas semanas que você começou, e eu queria fechar essa série do jeito que ela merece: com uma conversa de verdade, não com mais um e-mail automático.\n\n" +
+          "Me conta como foi. O que você aplicou no trabalho? Teve algum resultado, alguma reunião que mudou, algum problema que você resolveu e teria travado antes? Eu leio cada resposta, e casos reais de aluno são o que mais me motiva a melhorar isso tudo.\n\n" +
+          "E se ainda tem trilha que você não terminou, sem culpa. A plataforma é sua, ela vai estar lá quando você voltar. O importante é que essa não é a última parada, é o começo de uma carreira em que você é a referência técnica, não mais quem corre atrás.\n\n" +
+          "[botao: Voltar pra plataforma | " + APP_URL + "]\n\n" +
+          "Obrigado por confiar em mim nessa jornada. De verdade.\n\nIsrael\n\n" +
+          "P.S. Se essa formação te ajudou, me responde contando. E se conhece alguém que precisa disso, me avisa que eu cuido bem de quem você indicar.",
+      },
+    ],
   };
 
   async function lerSequencias(): Promise<Sequencias> {
@@ -1341,6 +1495,7 @@ async function startServer() {
         return {
           lead: Array.isArray(d?.lead) ? d.lead : SEQUENCIAS_DEFAULT.lead,
           gratis: Array.isArray(d?.gratis) ? d.gratis : SEQUENCIAS_DEFAULT.gratis,
+          pago: Array.isArray(d?.pago) ? d.pago : SEQUENCIAS_DEFAULT.pago,
         };
       }
     } catch (e) { /* cai no default */ }
@@ -1368,7 +1523,7 @@ async function startServer() {
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
-      porPacote: { lead: 0, gratis: 0 } as Record<string, number>,
+      porPacote: { lead: 0, gratis: 0, pago: 0 } as Record<string, number>,
       detalhes: [] as any[],
     };
 
@@ -1377,7 +1532,7 @@ async function startServer() {
       const u = doc.data() as any;
       resumo.analisados++;
       const estagio = classificarUsuario(u);
-      if (estagio !== "lead" && estagio !== "gratis") { resumo.pulados++; continue; }
+      if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago") { resumo.pulados++; continue; }
 
       const seq = seqs[estagio];
       const base = u.criadoEm || u.primeiroAcessoEm;
@@ -1439,8 +1594,8 @@ async function startServer() {
 
   // PUT /api/marketing/sequencias — salva as sequências editadas (tela Fase 2)
   app.put("/api/marketing/sequencias", requireAdmin, async (req: any, res) => {
-    const { lead, gratis } = req.body || {};
-    if (!Array.isArray(lead) || !Array.isArray(gratis)) return res.status(400).json({ error: "lead e gratis precisam ser arrays." });
+    const { lead, gratis, pago } = req.body || {};
+    if (!Array.isArray(lead) || !Array.isArray(gratis) || !Array.isArray(pago)) return res.status(400).json({ error: "lead, gratis e pago precisam ser arrays." });
     const limpa = (arr: any[]): SeqEmail[] => arr.map((e) => ({
       dia: Math.max(0, parseInt(e?.dia, 10) || 0),
       assunto: String(e?.assunto || ""),
@@ -1448,7 +1603,7 @@ async function startServer() {
       ativo: e?.ativo !== false,
     }));
     try {
-      await adminFirestore().collection("config").doc("marketingSequencias").set({ lead: limpa(lead), gratis: limpa(gratis) });
+      await adminFirestore().collection("config").doc("marketingSequencias").set({ lead: limpa(lead), gratis: limpa(gratis), pago: limpa(pago) });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao salvar." });

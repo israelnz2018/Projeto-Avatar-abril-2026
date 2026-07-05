@@ -4,11 +4,11 @@
  *
  *  - Lead  : sequência automática pra quem cadastrou e NUNCA acessou
  *  - Grátis: sequência automática pra quem já acessou (plano gratuito)
- *  - Pago  : newsletter MANUAL + histórico de envios (reabrir/reenviar)
+ *  - Pago  : sequência automática (onboarding pós-compra) + newsletter MANUAL
  *
  * Endpoints (server.ts):
  *  GET  /api/marketing/status        → contagem por estágio + última execução do motor
- *  GET  /api/marketing/sequencias    → { lead:[], gratis:[] }
+ *  GET  /api/marketing/sequencias    → { lead:[], gratis:[], pago:[] }
  *  PUT  /api/marketing/sequencias    → salva as sequências
  *  POST /api/marketing/rodar-agora   → dispara o motor na hora (teste)
  *  POST /api/newsletter/enviar       → { assunto, corpo, publico }
@@ -48,7 +48,7 @@ interface NewsletterItem { id: string; assunto: string; corpo: string; publico: 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
   lead:   { nome: 'Lead',   desc: 'Cadastrou mas nunca acessou', cor: '#92400E', corBg: '#FEF3C7' },
   gratis: { nome: 'Grátis', desc: 'Já acessou · plano gratuito', cor: '#065F46', corBg: '#D1FAE5' },
-  pago:   { nome: 'Pago',   desc: 'Newsletter semanal · manual', cor: '#1E2D6E', corBg: '#DBEAFE' },
+  pago:   { nome: 'Pago',   desc: 'Comprou o completo · onboarding', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
 
 // Marcações disponíveis. 'insere' é o trecho colado ao clicar.
@@ -112,7 +112,7 @@ export default function SequenciasEmail() {
     requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(pos, pos); });
   };
   const [status, setStatus] = useState<StatusResp | null>(null);
-  const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[] } | null>(null);
+  const [seqs, setSeqs] = useState<{ lead: SeqEmail[]; gratis: SeqEmail[]; pago: SeqEmail[] } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [rodando, setRodando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -132,7 +132,7 @@ export default function SequenciasEmail() {
         authedFetch('/api/marketing/sequencias').then((r) => r.json()),
       ]);
       setStatus(s);
-      setSeqs({ lead: q.lead || [], gratis: q.gratis || [] });
+      setSeqs({ lead: q.lead || [], gratis: q.gratis || [], pago: q.pago || [] });
     } catch (e: any) { setMsg(e?.message || 'Erro ao carregar.'); }
   };
   const carregarHistorico = async () => {
@@ -181,7 +181,7 @@ export default function SequenciasEmail() {
   // atualiza preview sempre que o template muda (na aba template)
   useEffect(() => { if (aba === 'template' && tpl) atualizarPreview(tpl); }, [tpl, aba]);
 
-  const setEmail = (pac: 'lead' | 'gratis', idx: number, patch: Partial<SeqEmail>) => {
+  const setEmail = (pac: 'lead' | 'gratis' | 'pago', idx: number, patch: Partial<SeqEmail>) => {
     setSeqs((prev) => {
       if (!prev) return prev;
       const arr = [...prev[pac]];
@@ -291,11 +291,19 @@ export default function SequenciasEmail() {
 
       {msg && <div className="mb-4 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">{msg}</div>}
 
-      {/* sequência (lead/gratis) */}
-      {(aba === 'lead' || aba === 'gratis') && seqs && (
-        <div>
+      {/* sequência automática (lead/gratis/pago) */}
+      {(aba === 'lead' || aba === 'gratis' || aba === 'pago') && seqs && (
+        <div className={aba === 'pago' ? 'mb-8' : ''}>
+          {aba === 'pago' && (
+            <div className="flex items-center gap-2 mb-1">
+              <Play className="w-4 h-4 text-blue-700" />
+              <h3 className="text-sm font-bold text-gray-900">Sequência automática (onboarding pós-compra)</h3>
+            </div>
+          )}
           <p className="text-xs text-gray-500 mb-3">
-            {META[aba].desc}. O dia é contado a partir do cadastro. Desligue um e-mail sem apagá-lo pelo botão à direita.
+            {aba === 'pago'
+              ? 'Quem comprou o completo. O dia é contado a partir da compra. Os 3 primeiros caem dentro dos 7 dias (janela de reembolso), depois vira ritmo semanal. Desligue um e-mail sem apagá-lo pelo botão à direita.'
+              : `${META[aba].desc}. O dia é contado a partir do cadastro. Desligue um e-mail sem apagá-lo pelo botão à direita.`}
           </p>
           <div className="space-y-3">
             {seqs[aba].map((e, idx) => (
@@ -306,7 +314,7 @@ export default function SequenciasEmail() {
                     enviar
                     <input type="number" min={0} value={e.dia} onChange={(ev) => setEmail(aba, idx, { dia: Math.max(0, parseInt(ev.target.value, 10) || 0) })}
                       className="w-16 px-2 py-1 border border-gray-300 rounded-md text-center" />
-                    dias após cadastro
+                    {aba === 'pago' ? 'dias após compra' : 'dias após cadastro'}
                   </label>
                   <button onClick={() => setEmail(aba, idx, { ativo: !e.ativo })}
                     className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${e.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
@@ -330,11 +338,15 @@ export default function SequenciasEmail() {
         </div>
       )}
 
-      {/* newsletter (pago) */}
+      {/* newsletter manual (broadcast avulso) */}
       {aba === 'pago' && (
-        <div>
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Send className="w-4 h-4 text-blue-700" />
+            <h3 className="text-sm font-bold text-gray-900">Newsletter manual (envio avulso)</h3>
+          </div>
           <p className="text-xs text-gray-500 mb-3">
-            Newsletter manual. Escreva e dispare quando quiser. Cada envio fica no histórico pra reenviar.
+            Independente da sequência acima. Escreva e dispare pra qualquer público quando quiser. Cada envio fica no histórico pra reenviar.
           </p>
           <div className="flex items-center gap-2 mb-3">
             <label className="text-sm text-gray-700">Enviar para:</label>
