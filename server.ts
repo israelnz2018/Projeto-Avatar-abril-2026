@@ -1526,17 +1526,19 @@ async function startServer() {
   // Agendador: roda 1x/dia (~06:00). Checa de hora em hora se já rodou hoje.
   // Processo único no Railway, então não há risco de execução duplicada.
   //
-  // PAUSA: com MOTOR_EMAIL_PAUSADO=true (env do Railway), o ciclo automático NÃO
-  // dispara nenhum e-mail. Reversível: remover a env var religa o motor. Os
-  // envios manuais (campanha cortesia etc.) NÃO são afetados por esta flag.
-  const MOTOR_PAUSADO = String(process.env.MOTOR_EMAIL_PAUSADO || "").toLowerCase() === "true";
-  if (MOTOR_PAUSADO) {
-    console.warn("[motor-email] PAUSADO via MOTOR_EMAIL_PAUSADO=true — nenhum envio automático será feito.");
+  // DESLIGADO POR PADRÃO (decisão do Israel, jul/2026): o motor automático só dispara
+  // e-mails se MOTOR_EMAIL_ATIVO=true estiver setado no Railway. Sem essa env var, ele
+  // fica PARADO — é a posição segura. Assim, remover uma flag por engano NÃO religa o
+  // motor sozinho. Pra religar, o Israel pede e a gente seta MOTOR_EMAIL_ATIVO=true.
+  // Os envios MANUAIS (campanha cortesia etc.) NÃO são afetados por isto.
+  const MOTOR_ATIVO = String(process.env.MOTOR_EMAIL_ATIVO || "").toLowerCase() === "true";
+  if (!MOTOR_ATIVO) {
+    console.warn("[motor-email] DESLIGADO (padrão) — nenhum envio automático. Setar MOTOR_EMAIL_ATIVO=true pra religar.");
   }
   let ultimoDiaProcessado = "";
   const HORA_ALVO = 6;
   setInterval(() => {
-    if (MOTOR_PAUSADO) return; // motor pausado: não dispara nada automaticamente
+    if (!MOTOR_ATIVO) return; // motor desligado por padrão: não dispara nada
     const agora = new Date();
     const diaHoje = agora.toISOString().slice(0, 10);
     if (agora.getHours() >= HORA_ALVO && ultimoDiaProcessado !== diaHoje) {
