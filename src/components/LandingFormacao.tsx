@@ -276,11 +276,13 @@ const PLATAFORMA = [
 ];
 
 const FAQ = [
-  ['Preciso saber programar ou Excel avançado?', 'Não. Toda a análise de dados é no-code — você escolhe o gráfico ou análise, e a plataforma faz o cálculo.'],
-  ['Funciona se eu não tiver um projeto agora?', 'Funciona. Você pode usar as ferramentas isoladamente ou trazer um problema pequeno da sua rotina.'],
+  ['Qual é o objetivo desta formação?', 'Cada trilha ensina uma etapa da jornada de quem quer (ou precisa) se destacar no trabalho: das ferramentas técnicas às gerenciais, passando pela análise de dados e pela arte de apresentar resultados com clareza. No fim, você não só resolve problemas — você sabe mostrar o valor do que entregou.'],
+  ['Terei acesso a toda a plataforma LBW?', 'Sim. Na assinatura paga você tem acesso às 8 trilhas, a todas as ferramentas da qualidade e de projetos correspondentes, a todos os vídeos que dão suporte a elas e ao Mentor Israel digital para tirar todas as suas dúvidas — além de participar da nossa comunidade.'],
+  ['Preciso saber programar ou Excel avançado?', 'Não. Toda a análise de dados é sem código: você escolhe o gráfico ou a análise, e a plataforma faz o cálculo e entrega o relatório pronto, já explicado.'],
+  ['E como funcionam as apresentações?', 'Além da nossa trilha sobre apresentações eficazes, para cada ferramenta da qualidade, de projetos, gráfica ou estatística, basta apertar um botão e a plataforma gera um slide já formatado e pronto. Você só ajusta os detalhes e faz a sua apresentação.'],
+  ['Funciona se eu não tiver um projeto agora?', 'Funciona. Você pode usar as ferramentas isoladamente e fazer um estudo sobre um item da sua rotina do dia a dia.'],
   ['Quanto tempo leva?', 'Depende do seu envolvimento, mas os profissionais mais engajados terminam as 8 trilhas em cerca de 3 meses.'],
   ['O que é o Mentor Israel digital?', 'Um assistente que responde primeiro como o próprio Israel responderia, com base nos vídeos que já estão na plataforma.'],
-  ['Qual é o objetivo desta formação?', 'Cada trilha ensina uma etapa da jornada de quem quer (ou precisa) se destacar no trabalho: das ferramentas técnicas às gerenciais, passando pela análise de dados e pela arte de apresentar resultados com clareza. No fim, você não só resolve problemas — você sabe mostrar o valor do que entregou.'],
 ];
 
 export default function LandingFormacao() {
