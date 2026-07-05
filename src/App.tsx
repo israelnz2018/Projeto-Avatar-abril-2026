@@ -327,7 +327,19 @@ export default function App() {
     }
   }, [user, resetarTimer]);
 
-  if (loading) {
+  // Rotas/domínio PÚBLICOS (landings, verificação, institucionais) não exigem login —
+  // então NÃO devem esperar o loading do Firebase nem mostrar o gatinho de "carregando app".
+  // Detecta isso ANTES do if(loading) pra o gatinho ficar só no app real.
+  const ehRotaPublica = (() => {
+    if (typeof window === 'undefined') return false;
+    const host = window.location.hostname;
+    const path = window.location.pathname;
+    const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
+    const rotasPublicas = ['/formacao', '/trilhagratis', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    return isSitePublico || rotasPublicas.some(r => path.startsWith(r));
+  })();
+
+  if (loading && !ehRotaPublica) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
