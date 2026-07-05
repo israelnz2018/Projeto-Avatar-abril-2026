@@ -152,6 +152,15 @@ function getBadge(u: { primeiroAcessoEm?: string; acessoCompletoAte?: string; or
   return { label: PLANO_LABEL[plano], cor: PLANO_COR[plano] };
 }
 
+// "Online agora" (aproximado): fez login nos últimos 15 minutos.
+const ONLINE_JANELA_MS = 15 * 60 * 1000;
+function estaOnline(lastLogin?: string): boolean {
+  if (!lastLogin) return false;
+  const t = new Date(lastLogin).getTime();
+  if (isNaN(t)) return false;
+  return Date.now() - t < ONLINE_JANELA_MS;
+}
+
 type Aba = 'lista' | 'equipes';
 
 export default function UserManagementView() {
@@ -170,6 +179,12 @@ export default function UserManagementView() {
   const [filterTipo, setFilterTipo] = useState<'todos' | TipoUsuario>('todos');
   const [filterPlano, setFilterPlano] = useState<'todos' | Plano>('todos');
   const [filterEmpresa, setFilterEmpresa] = useState<string>('todos');
+  // Re-renderiza a cada 30s pra recalcular o "online agora" (quem passou dos 15 min sai).
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
   const [emailModal, setEmailModal] = useState<{ email: string; nome?: string; empresaNome?: string } | null>(null);
   const [emailExterno, setEmailExterno] = useState(false);
   const [adminModal, setAdminModal] = useState<{ mode: AdminUserModalMode; user?: UserData } | null>(null);
@@ -356,6 +371,30 @@ export default function UserManagementView() {
 
       {aba === 'lista' ? (
         <>
+          {/* Resumo: quantas pessoas online agora (login nos últimos 15 min) */}
+          {(() => {
+            const online = users.filter(u => estaOnline((u as any).lastLogin));
+            return (
+              <div className="bg-white border border-[#ccc] rounded-[4px] p-4 mb-3 flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    {online.length > 0 && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />}
+                    <span className={cn("relative inline-flex rounded-full h-3 w-3", online.length > 0 ? "bg-green-500" : "bg-gray-300")} />
+                  </span>
+                  <span className="text-2xl font-black text-gray-900">{online.length}</span>
+                  <span className="text-sm text-gray-500 font-semibold">{online.length === 1 ? 'pessoa online agora' : 'pessoas online agora'}</span>
+                </div>
+                {online.length > 0 && (
+                  <div className="text-xs text-gray-400 flex-1 min-w-[200px] truncate">
+                    {online.slice(0, 5).map(u => u.nome || u.email.split('@')[0]).join(', ')}
+                    {online.length > 5 && ` e mais ${online.length - 5}`}
+                  </div>
+                )}
+                <span className="text-[11px] text-gray-400 ml-auto">online = login nos últimos 15 min</span>
+              </div>
+            );
+          })()}
+
           <div className="bg-white border border-[#ccc] rounded-[4px] p-4 flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -582,6 +621,7 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
   const [expanded, setExpanded] = useState(false);
   const plano = getPlano(user);
   const badge = getBadge(user, plano);
+  const online = estaOnline((user as any).lastLogin);
   const pctUso = user.creditoIA.limite > 0
     ? Math.min(100, Math.round((user.creditoIA.usado / user.creditoIA.limite) * 100))
     : 0;
@@ -593,11 +633,22 @@ function UserRow({ user, isAdmin, onSendEmail, onEdit, onDelete, onResetPassword
         onClick={() => setExpanded(!expanded)}
         className="w-full p-3 flex items-center gap-3 bg-transparent border-none cursor-pointer text-left hover:bg-gray-50 transition-colors"
       >
-        <div className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shrink-0 text-sm">
-          {((user.nome || user.email)[0] || '?').toUpperCase()}
+        <div className="relative shrink-0">
+          <div className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+            {((user.nome || user.email)[0] || '?').toUpperCase()}
+          </div>
+          {online && (
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5" title="Online agora">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-500 border-2 border-white" />
+            </span>
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm text-gray-800 m-0 truncate">{user.nome || user.email.split('@')[0]}</p>
+          <p className="font-bold text-sm text-gray-800 m-0 truncate flex items-center gap-1.5">
+            {user.nome || user.email.split('@')[0]}
+            {online && <span className="text-[10px] font-bold text-green-600 uppercase">● online</span>}
+          </p>
           <p className="text-xs text-gray-500 m-0 mt-0.5 truncate">{user.email}</p>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
