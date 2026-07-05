@@ -38,7 +38,8 @@ async function startServer() {
     const port = parseInt(process.env.SMTP_PORT || "465", 10);
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || user;
+    const fromEmail = process.env.SMTP_FROM || user;
+    const from = `LBW - Educação pelo Trabalho <${fromEmail}>`;
     if (!host || !user || !pass) {
       console.warn("[sendWelcomeEmail] SMTP não configurado. Pulando envio.");
       return false;
@@ -107,7 +108,8 @@ async function startServer() {
     const port = parseInt(process.env.SMTP_PORT || "465", 10);
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || user;
+    const fromEmail = process.env.SMTP_FROM || user;
+    const from = `LBW - Educação pelo Trabalho <${fromEmail}>`;
     if (!host || !user || !pass) {
       console.warn("[sendAcessoEmail] SMTP não configurado. Pulando envio.");
       return false;
@@ -360,7 +362,8 @@ async function startServer() {
       const port = parseInt(process.env.SMTP_PORT || "465", 10);
       const user = process.env.SMTP_USER;
       const pass = process.env.SMTP_PASS;
-      const from = process.env.SMTP_FROM || user;
+      const fromEmail = process.env.SMTP_FROM || user;
+    const from = `LBW - Educação pelo Trabalho <${fromEmail}>`;
       if (host && user && pass && link) {
         const primeiroNome = email.split("@")[0];
         const html = `
@@ -730,7 +733,7 @@ async function startServer() {
   // NÃO mexe no SMTP existente (sendWelcomeEmail/sendAcessoEmail seguem iguais).
   // Token na env RESEND_API_KEY. Remetente RESEND_FROM (default contact@learningbyworking.com).
   // ===============================================================
-  const RESEND_FROM = process.env.RESEND_FROM || "LBW <contact@learningbyworking.com>";
+  const RESEND_FROM = process.env.RESEND_FROM || "LBW - Educação pelo Trabalho <contact@learningbyworking.com>";
 
   // Envia 1 email via API do Resend. Retorna {ok, status, body}.
   async function resendSend(params: { to: string; subject: string; html: string; unsubUrl?: string }) {
@@ -770,7 +773,7 @@ async function startServer() {
     headerTitulo: "Learning by Working",
     headerSubtitulo: "Educação pelo Trabalho",
     botaoCor: "#0033CC",
-    rodapeTexto: "Você recebe este e-mail porque se cadastrou na plataforma LBW.\nLearning by Working — Educação pelo Trabalho · contact@learningbyworking.com",
+    rodapeTexto: "Você recebe este e-mail porque se cadastrou na plataforma LBW.\nLBW - Educação pelo Trabalho · contact@learningbyworking.com",
   };
 
   async function lerTemplate(): Promise<TemplateConfig> {
@@ -852,8 +855,6 @@ async function startServer() {
     process.env.UNSUBSCRIBE_SECRET ||
     (process.env.FIREBASE_ADMIN_KEY_JSON || "lbw-fallback-secret").slice(0, 64);
   const BASE_URL = process.env.PUBLIC_BASE_URL || "https://app.educacaopelotrabalho.com";
-  // Endereço físico do remetente (exigido por lei junto ao unsubscribe).
-  const ENDERECO_FISICO = "Learning by Working · Educação pelo Trabalho · contact@learningbyworking.com";
 
   function unsubToken(email: string): string {
     return crypto.createHmac("sha256", UNSUB_SECRET).update(email.toLowerCase().trim()).digest("hex").slice(0, 32);
@@ -878,10 +879,10 @@ async function startServer() {
   function campanhaHtmlCom(corpoHtmlRaw: string, t: TemplateConfig, emailDestinatario?: string) {
     const corpoHtml = aplicarMarcacoes(corpoHtmlRaw, t.botaoCor); // [titulo:]/[botao:]/[video:]
     const rodape = esc(t.rodapeTexto).replace(/\n/g, "<br/>");
-    // Bloco legal (só com destinatário real): link de descadastro + endereço físico.
+    // Bloco legal (só com destinatário real): APENAS o link de descadastro. O endereço
+    // físico já vem no rodapeTexto acima — não repetir aqui pra não duplicar.
     const blocoLegal = emailDestinatario
       ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #f0f0f0;">
-           ${esc(ENDERECO_FISICO)}<br/>
            Não quer mais receber estes e-mails?
            <a href="${unsubLink(emailDestinatario)}" style="color:#9CA3AF; text-decoration:underline;">Cancelar inscrição</a>.
          </div>`
@@ -1177,7 +1178,7 @@ async function startServer() {
           "Esse método não é dom, é técnica. E está pronto pra você lá dentro.\n\n" +
           "[botao: Ver o método | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Sua senha continua a mesma: LBW2026. É só entrar. E se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
+          "P.S. Sua senha continua a mesma: LBW2026. É só entrar. E se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
       },
       {
         dia: 2, ativo: true,
@@ -1234,7 +1235,7 @@ async function startServer() {
           "Por hoje, só uma missão: termine a Fase 1.\n\n" +
           "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Achou este e-mail no Spam ou na aba Promoções? Arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos. Assim os próximos e-mails com os vídeos chegam direto pra você. E qualquer dúvida, é só responder aqui. Eu leio.",
+          "P.S. Achou este e-mail no Spam? Arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos. Assim os próximos e-mails com os vídeos chegam direto pra você. E qualquer dúvida, é só responder aqui. Eu leio.",
       },
       // 2 — TRILHA A (nutre): dados
       {
@@ -1249,7 +1250,7 @@ async function startServer() {
           "É o tipo de habilidade que faz o chefe parar de duvidar e começar a aprovar.\n\n" +
           "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
+          "P.S. Se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
       },
       // 3 — TRILHA B (nutre): apresentações
       {
@@ -1385,7 +1386,7 @@ async function startServer() {
           "Então meu pedido é simples: entra agora, dá uma volta, e faz a primeira fase da Trilha 1. São 15 minutos.\n\n" +
           "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
           "Qualquer dúvida, responde este e-mail. Eu leio, e eu respondo.\n\nIsrael\n\n" +
-          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui. E se este e-mail caiu no Spam ou em Promoções, arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos, assim os próximos chegam direto pra você.",
+          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui. E se este e-mail caiu no Spam, arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos, assim os próximos chegam direto pra você.",
       },
       // 2 — ATIVAÇÃO (dia 3) — primeiro resultado rápido, dentro do prazo de reembolso
       {
@@ -1400,7 +1401,7 @@ async function startServer() {
           "Não deixa pra depois. Depois vira nunca, e eu não quero isso pra você.\n\n" +
           "[botao: Abrir a Trilha 1 agora | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você. E se este e-mail caiu no Spam ou em Promoções, me arrasta pra sua Caixa de Entrada principal, assim os próximos chegam certinho pra você.",
+          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você. E se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos chegam certinho pra você.",
       },
       // 3 — CONFIRMAÇÃO DE VALOR (dia 6) — fecha a janela de reembolso com a pessoa convencida
       {
@@ -2284,7 +2285,8 @@ async function startServer() {
     const port = parseInt(process.env.SMTP_PORT || "465", 10);
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || user;
+    const fromEmail = process.env.SMTP_FROM || user;
+    const from = `LBW - Educação pelo Trabalho <${fromEmail}>`;
 
     if (!host || !user || !pass) {
       return res.status(500).json({
