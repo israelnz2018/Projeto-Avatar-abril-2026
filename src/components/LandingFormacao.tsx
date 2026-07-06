@@ -255,10 +255,10 @@ function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => voi
         onKeyDown={(e) => { if (e.key === 'Enter') enviar(); }} />
       {msg && <p className="msg" style={{ color: '#fca5a5', marginTop: 0, marginBottom: 8 }}>{msg}</p>}
       <button className="send" onClick={enviar} disabled={state === 'sending'}>
-        {state === 'sending' ? 'Enviando…' : 'Quero meu acesso grátis →'}
+        {state === 'sending' ? 'Enviando…' : 'Quero começar gratuitamente →'}
       </button>
       <p style={{ fontSize: 12.5, color: '#9FC0FF', marginTop: 10, marginBottom: 0, textAlign: 'center' }}>
-        ✓ Sem cartão · ✓ Sem compromisso · ✓ Acesso na hora
+        ✓ Sem cartão · ✓ Sem compromisso · ✓ Acesso imediato
       </p>
     </div>
   );
@@ -653,8 +653,13 @@ export default function LandingFormacao() {
           <div className="box">
             <button className="x" onClick={() => setShowExit(false)}>×</button>
             <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(0,51,204,.12)', borderColor: 'rgba(37,99,235,.35)', marginBottom: 16 }}>Antes de fechar</span>
-            <h3 style={{ fontSize: 27, fontWeight: 800, margin: '0 0 8px' }}>Leve 5 ferramentas de graça pra usar essa semana</h3>
-            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 22, lineHeight: 1.5 }}>SIPOC, Ishikawa, Brainstorming, Esforço × Impacto e 5W2H, prontas pra aplicar num problema real do seu trabalho. Sem pagar nada. Coloca seu e-mail que eu te mando o acesso agora.</p>
+            <h3 style={{ fontSize: 27, fontWeight: 800, margin: '0 0 8px' }}>Comece a Trilha 1 gratuitamente</h3>
+            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 16, lineHeight: 1.5 }}>Aprenda duas habilidades que podem fazer diferença desde os seus primeiros dias no trabalho:</p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 18px', textAlign: 'left', display: 'grid', gap: 8 }}>
+              <li style={{ fontSize: 14.5, color: 'var(--txt)', lineHeight: 1.45 }}><b style={{ color: '#9FC0FF' }}>1.</b> Como se adaptar rapidamente ao entrar em uma nova área</li>
+              <li style={{ fontSize: 14.5, color: 'var(--txt)', lineHeight: 1.45 }}><b style={{ color: '#9FC0FF' }}>2.</b> Como resolver problemas do dia a dia usando um método claro</li>
+            </ul>
+            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 22, lineHeight: 1.5 }}>Digite seu melhor e-mail para receber o acesso imediato.</p>
             <LeadForm source="lf-formacao-exit" onSuccess={() => {}} />
           </div>
         </div>
