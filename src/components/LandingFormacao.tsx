@@ -102,7 +102,7 @@ const CSS = `
 .lf .formcard{max-width:460px;margin:0 auto;text-align:center}
 .lf .formcard input{width:100%;padding:14px 16px;margin-bottom:12px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.06);color:#fff;font-size:15px;outline:none}
 .lf .formcard input:focus{border-color:rgba(16,185,129,.6)}
-.lf .formcard .send{width:100%;padding:15px;background:linear-gradient(120deg,#10B981,#059669);color:#fff;font-weight:700;font-size:16px;border:none;border-radius:12px;cursor:pointer}
+.lf .formcard .send{width:100%;padding:15px;background:linear-gradient(120deg,#0033CC,#2563EB);color:#fff;font-weight:700;font-size:16px;border:none;border-radius:12px;cursor:pointer}
 .lf .formcard .msg{font-size:14px;margin-top:12px}
 /* faq */
 .lf .qa{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02);padding:20px 24px;margin-bottom:12px;text-align:left}
@@ -191,16 +191,16 @@ const CSS = `
 type FormState = 'idle' | 'sending' | 'ok' | 'ja-existe' | 'err';
 
 function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => void }) {
-  const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [msg, setMsg] = useState('');
 
   const enviar = async () => {
-    const n = nome.trim();
     const e = email.trim();
-    if (!n) { setState('err'); setMsg('Por favor, informe seu nome.'); return; }
     if (!e || e.indexOf('@') < 0) { setState('err'); setMsg('Informe um e-mail válido.'); return; }
+    // Só pedimos o e-mail (menos fricção no mobile). O nome é derivado da parte
+    // antes do @ como fallback amigável; o welcome também trata nome vazio.
+    const n = e.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     setState('sending'); setMsg('');
     try {
       const r = await fetch(WEBHOOK_GRATUITO, {
@@ -216,7 +216,7 @@ function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => voi
         setState('ok');
         setMsg('Perfeito! Em instantes você receberá o acesso no seu e-mail (confira também o spam).');
       }
-      setNome(''); setEmail('');
+      setEmail('');
       if (onSuccess) onSuccess();
     } catch {
       // erro de rede no front: o webhook costuma processar mesmo assim; sucesso suave
@@ -243,19 +243,23 @@ function LeadForm({ source, onSuccess }: { source: string; onSuccess?: () => voi
         <div style={{ fontSize: 44, marginBottom: 12 }}>✉️</div>
         <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Pronto! Agora é com você.</h3>
         <p className="msg" style={{ color: '#6ee7b7', marginTop: 0 }}>{msg}</p>
-        <a className="btn" href="https://app.educacaopelotrabalho.com" style={{ marginTop: 18, background: 'linear-gradient(120deg,#10B981,#059669)', color: '#fff' }}>Ir para a plataforma →</a>
+        <a className="btn" href="https://app.educacaopelotrabalho.com" style={{ marginTop: 18, background: 'linear-gradient(120deg,#0033CC,#2563EB)', color: '#fff' }}>Ir para a plataforma →</a>
       </div>
     );
   }
 
   return (
     <div className="formcard">
-      <input type="text" placeholder="Seu nome completo" value={nome} onChange={(e) => setNome(e.target.value)} />
-      <input type="email" placeholder="Seu melhor e-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <input type="email" inputMode="email" autoComplete="email" placeholder="Seu melhor e-mail"
+        value={email} onChange={(e) => setEmail(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') enviar(); }} />
       {msg && <p className="msg" style={{ color: '#fca5a5', marginTop: 0, marginBottom: 8 }}>{msg}</p>}
       <button className="send" onClick={enviar} disabled={state === 'sending'}>
         {state === 'sending' ? 'Enviando…' : 'Quero meu acesso grátis →'}
       </button>
+      <p style={{ fontSize: 12.5, color: '#9FC0FF', marginTop: 10, marginBottom: 0, textAlign: 'center' }}>
+        ✓ Sem cartão · ✓ Sem compromisso · ✓ Acesso na hora
+      </p>
     </div>
   );
 }
@@ -326,12 +330,38 @@ export default function LandingFormacao() {
     } catch { /* silencioso */ }
   };
 
+  // Exit-intent DESKTOP: mouse saindo pra cima da janela.
   React.useEffect(() => {
     const onLeave = (e: MouseEvent) => {
       if (exitArmed && e.clientY <= 0) { setShowExit(true); setExitArmed(false); }
     };
     document.addEventListener('mouseout', onLeave);
     return () => document.removeEventListener('mouseout', onLeave);
+  }, [exitArmed]);
+
+  // Exit-intent MOBILE (90% do tráfego): celular não tem mouse. Dispara quando a
+  // pessoa faz um scroll pra CIMA rápido (gesto típico de quem vai sair/fechar),
+  // desde que já tenha rolado a página pra baixo antes (evita disparo no load).
+  React.useEffect(() => {
+    if (!window.matchMedia('(hover: none)').matches) return; // só em touch/mobile
+    let ultimoY = window.scrollY;
+    let ultimoT = Date.now();
+    let jaDesceu = false;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const t = Date.now();
+      if (y > 500) jaDesceu = true; // rolou pra baixo o suficiente pra ter "engajado"
+      const dy = ultimoY - y;        // positivo = subindo
+      const dt = t - ultimoT || 1;
+      const velocidade = dy / dt;    // px por ms
+      // subida rápida (>1.2 px/ms) perto do topo, depois de ter descido: vai sair.
+      if (exitArmed && jaDesceu && velocidade > 1.2 && y < 400) {
+        setShowExit(true); setExitArmed(false);
+      }
+      ultimoY = y; ultimoT = t;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, [exitArmed]);
 
   // Parallax leve do site inteiro (orbs seguem o mouse via --mx/--my).
@@ -622,9 +652,9 @@ export default function LandingFormacao() {
         <div className="modal" onClick={(e) => { if (e.target === e.currentTarget) setShowExit(false); }}>
           <div className="box">
             <button className="x" onClick={() => setShowExit(false)}>×</button>
-            <span className="eyebrow" style={{ color: '#6ee7b7', background: 'rgba(16,185,129,.1)', borderColor: 'rgba(16,185,129,.3)', marginBottom: 16 }}>🎁 Não vá embora ainda</span>
-            <h3 style={{ fontSize: 27, fontWeight: 800, margin: '0 0 8px' }}>Acesse a primeira trilha grátis</h3>
-            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 22, lineHeight: 1.5 }}>Como se adaptar em uma nova área e como entregar resultados rápidos. Receba o acesso no seu e-mail.</p>
+            <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(0,51,204,.12)', borderColor: 'rgba(37,99,235,.35)', marginBottom: 16 }}>Antes de fechar</span>
+            <h3 style={{ fontSize: 27, fontWeight: 800, margin: '0 0 8px' }}>Leve 5 ferramentas de graça pra usar essa semana</h3>
+            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 22, lineHeight: 1.5 }}>SIPOC, Ishikawa, Brainstorming, Esforço × Impacto e 5W2H, prontas pra aplicar num problema real do seu trabalho. Sem pagar nada. Coloca seu e-mail que eu te mando o acesso agora.</p>
             <LeadForm source="lf-formacao-exit" onSuccess={() => {}} />
           </div>
         </div>
