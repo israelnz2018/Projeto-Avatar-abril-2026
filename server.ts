@@ -1566,9 +1566,13 @@ async function startServer() {
   // negócio, mas divide o comprador em duas fases pela idade da compra:
   //   pago7 = primeiros 7 dias (0..6) — 3 e-mails anti-reembolso
   //   pago  = do 7º dia em diante     — 7 e-mails de relacionamento
+  // IMPORTANTE: quem é CORTESIA (grátis completo, não pagou) NÃO entra no pago7,
+  // porque a fase anti-reembolso é irrelevante pra quem não tem o que reembolsar.
+  // Vai direto pro "pago" (relacionamento).
   function classificarSequencia(u: any): "lead" | "gratis" | "pago7" | "pago" | null {
     const base = classificarUsuario(u);
     if (base !== "pago") return base;
+    if (isCortesia(u)) return "pago"; // cortesia não pagou → pula o anti-reembolso
     const dias = diasDesde(u.criadoEm || u.primeiroAcessoEm || "");
     return dias >= 0 && dias < 7 ? "pago7" : "pago";
   }
