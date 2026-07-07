@@ -99,7 +99,7 @@ export default function LandingComecar() {
       {/* HERO */}
       <header className="hero">
         <div className="wrap">
-          <span className="eyebrow">Kit 90 Dias</span>
+          <span className="eyebrow">Kit 90 Dias - Sobreviva em uma Nova Área e se Destaque no Trabalho</span>
           <h1>Nos primeiros 90 dias, ou você constrói sua imagem,<br /><span className="grad">ou a empresa constrói por você.</span></h1>
           <p className="sub">Um plano prático pra entender uma área nova, escolher um problema relevante e construir sua primeira entrega — sem passar meses esperando alguém explicar tudo.</p>
           <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
