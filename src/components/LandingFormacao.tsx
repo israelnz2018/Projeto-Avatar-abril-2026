@@ -312,8 +312,6 @@ const FAQ = [
 ];
 
 export default function LandingFormacao() {
-  const [showExit, setShowExit] = useState(false);
-  const [exitArmed, setExitArmed] = useState(true);
   const rootRef = React.useRef<HTMLDivElement>(null);
   // FAQ accordion: qual pergunta está aberta (0 = primeira aberta por padrão; -1 = nenhuma).
   const [faqAberta, setFaqAberta] = useState(0);
@@ -339,40 +337,6 @@ export default function LandingFormacao() {
       }
     } catch { /* silencioso */ }
   };
-
-  // Exit-intent DESKTOP: mouse saindo pra cima da janela.
-  React.useEffect(() => {
-    const onLeave = (e: MouseEvent) => {
-      if (exitArmed && e.clientY <= 0) { setShowExit(true); setExitArmed(false); }
-    };
-    document.addEventListener('mouseout', onLeave);
-    return () => document.removeEventListener('mouseout', onLeave);
-  }, [exitArmed]);
-
-  // Exit-intent MOBILE (90% do tráfego): celular não tem mouse. Dispara quando a
-  // pessoa faz um scroll pra CIMA rápido (gesto típico de quem vai sair/fechar),
-  // desde que já tenha rolado a página pra baixo antes (evita disparo no load).
-  React.useEffect(() => {
-    if (!window.matchMedia('(hover: none)').matches) return; // só em touch/mobile
-    let ultimoY = window.scrollY;
-    let ultimoT = Date.now();
-    let jaDesceu = false;
-    const onScroll = () => {
-      const y = window.scrollY;
-      const t = Date.now();
-      if (y > 500) jaDesceu = true; // rolou pra baixo o suficiente pra ter "engajado"
-      const dy = ultimoY - y;        // positivo = subindo
-      const dt = t - ultimoT || 1;
-      const velocidade = dy / dt;    // px por ms
-      // subida rápida (>1.2 px/ms) perto do topo, depois de ter descido: vai sair.
-      if (exitArmed && jaDesceu && velocidade > 1.2 && y < 400) {
-        setShowExit(true); setExitArmed(false);
-      }
-      ultimoY = y; ultimoT = t;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [exitArmed]);
 
   // Parallax leve do site inteiro (orbs seguem o mouse via --mx/--my).
   React.useEffect(() => {
@@ -656,24 +620,6 @@ export default function LandingFormacao() {
 
       {/* FOOTER — componente único compartilhado */}
       <RodapeInstitucional />
-
-      {/* POPUP DE SAÍDA (exit-intent) */}
-      {showExit && (
-        <div className="modal" onClick={(e) => { if (e.target === e.currentTarget) setShowExit(false); }}>
-          <div className="box">
-            <button className="x" onClick={() => setShowExit(false)}>×</button>
-            <span className="eyebrow" style={{ color: '#9FC0FF', background: 'rgba(0,51,204,.12)', borderColor: 'rgba(37,99,235,.35)', marginBottom: 16 }}>Antes de fechar</span>
-            <h3 style={{ fontSize: 27, fontWeight: 800, margin: '0 0 8px' }}>Comece a Trilha 1 gratuitamente</h3>
-            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 16, lineHeight: 1.5 }}>Aprenda duas habilidades que podem fazer diferença desde os seus primeiros dias no trabalho:</p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 18px', textAlign: 'left', display: 'grid', gap: 8 }}>
-              <li style={{ fontSize: 14.5, color: 'var(--txt)', lineHeight: 1.45 }}><b style={{ color: '#9FC0FF' }}>1.</b> Como se adaptar rapidamente ao entrar em uma nova área</li>
-              <li style={{ fontSize: 14.5, color: 'var(--txt)', lineHeight: 1.45 }}><b style={{ color: '#9FC0FF' }}>2.</b> Como resolver problemas do dia a dia usando um método claro</li>
-            </ul>
-            <p style={{ fontSize: 15, color: 'var(--txt)', marginBottom: 22, lineHeight: 1.5 }}>Digite seu melhor e-mail para receber o acesso imediato.</p>
-            <LeadForm source="lf-formacao-exit" onSuccess={() => {}} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
