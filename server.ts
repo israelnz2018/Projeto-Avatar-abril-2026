@@ -2496,8 +2496,14 @@ async function startServer() {
     const hotmartBuyer = body?.data?.buyer || {};
     const email = String(body.email || hotmartBuyer.email || "").toLowerCase().trim();
     const nome = String(body.nome || body.name || hotmartBuyer.name || hotmartBuyer.first_name || "").trim();
-    // plano: 'completo' (8 trilhas) ou 'gratuito' (trilha 1). Default = gratuito.
-    const planoSolicitado: "completo" | "gratuito" = body.plano === "completo" ? "completo" : "gratuito";
+    // plano recebido do n8n:
+    //   'completo'  -> 8 trilhas
+    //   'trilha1'   -> COMPRA da Trilha 1 (R$67). Acesso = mesma Trilha 1 do grátis,
+    //                  mas conta como venda (origem + validade 1 ano).
+    //   'gratuito'  -> Trilha 1 grátis (fluxo antigo). Default.
+    const planoRaw = String(body.plano || "").toLowerCase();
+    const isCompraTrilha1 = planoRaw === "trilha1" || planoRaw === "trilha-1" || planoRaw === "trilha1-pago";
+    const planoSolicitado: "completo" | "gratuito" = planoRaw === "completo" ? "completo" : "gratuito";
 
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "E-mail ausente ou inválido no payload." });
@@ -2523,8 +2529,9 @@ async function startServer() {
       if (!userRecord) {
         // GRÁTIS: senha padrão LBW2026 (facilita o acesso — o email/LinkedIn pode
         // sempre informar a mesma senha, sem depender de achar o e-mail original).
-        // PAGO: senha aleatória (mais seguro para quem comprou). Ambos trocam no 1º acesso.
-        const senhaProvisoria = planoSolicitado === "completo"
+        // PAGO (completo OU Trilha 1 comprada): senha aleatória (mais seguro para quem
+        // comprou). Todos trocam no 1º acesso.
+        const senhaProvisoria = (planoSolicitado === "completo" || isCompraTrilha1)
           ? Math.random().toString(36).slice(-10)
           : "LBW2026";
         const novo = await adminAuth().createUser({
@@ -2546,10 +2553,12 @@ async function startServer() {
           },
           senhaProvisoria: true, // força troca obrigatória no 1º acesso
           criadoEm: new Date().toISOString(),
-          origem: planoSolicitado === "completo" ? "compra-hotmart" : "gratuito-landing",
-          // Compra completa (Hotmart) = 1 ano de acesso. Só exibição por enquanto;
+          origem: planoSolicitado === "completo"
+            ? "compra-hotmart"
+            : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing"),
+          // Compra (completa OU Trilha 1) = 1 ano de acesso. Só exibição por enquanto;
           // o rebaixamento automático ao vencer ainda é pendência (cron, Camada B).
-          ...(planoSolicitado === "completo"
+          ...(planoSolicitado === "completo" || isCompraTrilha1
             ? { acessoCompletoAte: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString() }
             : {}),
         });
@@ -2589,6 +2598,18 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "completo", contexto: "upgrade" });
         console.log(`[acesso/liberar] UPGRADE ${email}: ${planoAtual} -> completo`);
         return res.json({ ok: true, status: "atualizado-completo", uid, email, plano: "completo", emailEnviado });
+      }
+
+      // COMPRA da Trilha 1 por quem já existia (lead/cortesia/gratuito). Não muda o
+      // acesso (já tem a Trilha 1), mas registra que agora é COMPRA: origem + validade.
+      // Não rebaixa quem já é completo.
+      if (isCompraTrilha1 && planoAtual !== "completo") {
+        await docRef.set({
+          origem: "compra-trilha1",
+          acessoCompletoAte: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
+        }, { merge: true });
+        console.log(`[acesso/liberar] COMPRA-TRILHA1 (ja existia) ${email}`);
+        return res.json({ ok: true, status: "compra-trilha1-registrada", uid, email, plano: planoAtual });
       }
 
       // Já tinha o plano pedido (ou já é completo): nada a fazer, não duplica nem reenvia senha
