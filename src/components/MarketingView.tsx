@@ -46,6 +46,26 @@ export default function MarketingView() {
   const [cortResults, setCortResults] = useState<{ email: string; status: string; emailEnviado: boolean; ok: boolean }[]>([]);
   const [cortErro, setCortErro] = useState('');
 
+  // Blindar atuais (Fase 0 da Trilha 1 paga) — marca cadastrados como cortesia introdutória
+  const [blindLoading, setBlindLoading] = useState(false);
+  const [blindResult, setBlindResult] = useState<{ dryRun?: boolean; totalAlvos: number; marcados?: number; falhas?: number; totalPulados: number; alvos?: { email: string }[]; pulados?: { email: string; motivo: string }[] } | null>(null);
+  const [blindErro, setBlindErro] = useState('');
+
+  const blindarAtuais = async (dryRun: boolean) => {
+    if (!dryRun && !window.confirm('Marcar TODOS os alunos gratuitos atuais como cortesia da Trilha 1?\n\nEles mantêm o acesso que já têm (só a Trilha 1) e não recebem e-mails de "parabéns pela compra". Admin, coordenador e completos NÃO são afetados.\n\nRodar de novo é seguro (não duplica).')) return;
+    setBlindErro(''); setBlindResult(null); setBlindLoading(true);
+    try {
+      const r = await authedFetch('/api/trilha1/blindar-atuais', { method: 'POST', body: JSON.stringify({ dryRun }) });
+      const b = await r.json().catch(() => ({}));
+      if (r.ok) setBlindResult(b);
+      else setBlindErro(b?.error || `Falha (HTTP ${r.status}).`);
+    } catch (e: any) {
+      setBlindErro(e?.message || 'Erro ao blindar os atuais.');
+    } finally {
+      setBlindLoading(false);
+    }
+  };
+
   const setPessoa = (i: number, campo: 'nome' | 'email', valor: string) =>
     setCortPessoas((arr) => arr.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)));
   const addPessoa = () => setCortPessoas((arr) => [...arr, { nome: '', email: '' }]);
@@ -345,6 +365,67 @@ export default function MarketingView() {
         {reativErro && (
           <div className="mt-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
             <AlertTriangle className="w-5 h-5 flex-shrink-0" /> {reativErro}
+          </div>
+        )}
+      </div>
+
+      {/* Blindar atuais — Fase 0 da Trilha 1 paga */}
+      <div className="bg-white rounded-2xl border border-amber-200 p-6 mt-5">
+        <h2 className="font-semibold text-gray-900 mb-1">Blindar alunos atuais (Trilha 1 vira paga)</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Antes de tornar a Trilha 1 paga (R$67), marque quem já se cadastrou como
+          <b> cortesia da Trilha 1</b>. Eles mantêm o acesso que já têm (só a Trilha 1) e
+          não recebem e-mails de "parabéns pela compra". <b>Admin, coordenador e completos não são tocados.</b>
+          <br />Sempre rode primeiro em <b>simulação</b> pra conferir os números.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => blindarAtuais(true)}
+            disabled={blindLoading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gray-100 text-gray-800 text-sm font-semibold hover:bg-gray-200 disabled:opacity-60 border border-gray-300"
+          >
+            {blindLoading ? 'Verificando…' : '1. Simular (não altera nada)'}
+          </button>
+          <button
+            onClick={() => blindarAtuais(false)}
+            disabled={blindLoading || !blindResult?.dryRun}
+            title={!blindResult?.dryRun ? 'Rode a simulação primeiro' : ''}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-40"
+          >
+            {blindLoading ? 'Aplicando…' : '2. Aplicar de verdade'}
+          </button>
+        </div>
+
+        {blindResult && (
+          <div className="mt-5">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                [blindResult.dryRun ? 'Serão marcados' : 'Marcados', blindResult.dryRun ? blindResult.totalAlvos : (blindResult.marcados ?? 0), 'text-emerald-600'],
+                ['Pulados (admin/coord/completo)', blindResult.totalPulados, 'text-gray-500'],
+                ['Falhas', blindResult.falhas ?? 0, (blindResult.falhas ?? 0) > 0 ? 'text-red-600' : 'text-gray-400'],
+              ].map(([label, val, color]) => (
+                <div key={label as string} className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+                  <div className={`text-2xl font-bold ${color}`}>{val as number}</div>
+                  <div className="text-xs text-gray-500 mt-1">{label as string}</div>
+                </div>
+              ))}
+            </div>
+            {blindResult.dryRun && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                Simulação. Nada foi alterado. Se o número bater, clique em <b>2. Aplicar de verdade</b>.
+              </div>
+            )}
+            {!blindResult.dryRun && (
+              <div className="mt-3 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+                ✓ Blindagem aplicada. Os atuais estão protegidos.
+              </div>
+            )}
+          </div>
+        )}
+        {blindErro && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" /> {blindErro}
           </div>
         )}
       </div>
