@@ -792,7 +792,10 @@ export default function Comunidade() {
             <Users2 size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900 m-0">Comunidade LBW</h1>
+            <h1 className="text-xl font-black text-gray-900 m-0 flex items-center gap-2">
+              Comunidade LBW
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2 py-0.5">Versão beta</span>
+            </h1>
             <p className="text-xs text-gray-500 m-0 mt-0.5">Pergunte, ajude, sugira. Todos veem e podem responder.</p>
           </div>
         </div>

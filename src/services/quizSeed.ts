@@ -17,7 +17,7 @@ const q = (id: string, text: string, options: [string, string, string, string], 
 });
 
 // ===================================================================================
-// TRILHA 1 — Integração e Resolução de Problemas do Dia a Dia
+// TRILHA 1 — Integração em Nova Área e Entrega de Resultados
 // (chegar numa área, entender empresa, SIPOC, desperdícios, ferramentas qualitativas)
 // ===================================================================================
 const T1: QuizQuestion[] = [
@@ -107,7 +107,7 @@ const T4: QuizQuestion[] = [
 import { T5, T6, T7, buildT8 } from './quizSeed2';
 
 const TITULOS: Record<number, string> = {
-  1: 'Integração e Resolução de Problemas do Dia a Dia',
+  1: 'Integração em Nova Área e Entrega de Resultados',
   2: 'Recomendação de Melhoria com Base em Dados',
   3: 'Gestão de Mudanças e Engajamento de Pessoas',
   4: 'Apresentações Eficazes',

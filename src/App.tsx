@@ -360,7 +360,7 @@ export default function App() {
     // As landings de venda/captação e a verificação de certificado têm prioridade
     // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
     const ROTAS_INSTITUCIONAIS = ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
-    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/kit90dias') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
+    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/kit90dias') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
     if (isSitePublico && !rotaReservada) {
       return (
         <Router>
@@ -396,6 +396,12 @@ export default function App() {
         <LandingFormacao />
       </Suspense>
     );
+  }
+  // Redirect da URL antiga /trilhagratis (a Trilha 1 virou paga) para a página de
+  // venda /kit90dias. Aproveita o tráfego de anúncios/links que ainda apontam pra ela.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/trilhagratis')) {
+    window.location.replace('/kit90dias');
+    return null;
   }
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/kit90dias')) {
     return (

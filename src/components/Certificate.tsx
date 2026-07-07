@@ -47,7 +47,7 @@ const CARGA_HORARIA: Record<number, number> = {
 // Título FORMAL exibido no certificado (mais profissional que o nome comercial
 // da landing). Indexado pelo número da trilha.
 const TITULO_CERTIFICADO: Record<number, string> = {
-  1: 'Integração e Resolução de Problemas do Dia a Dia',
+  1: 'Integração em Nova Área e Entrega de Resultados',
   2: 'Recomendação de Melhoria com Base em Dados',
   3: 'Gestão de Mudanças e Engajamento de Pessoas',
   4: 'Apresentações Eficazes',
