@@ -1168,7 +1168,7 @@ async function startServer() {
     // 2º toque pra não duplicar. Sobe o nível de consciência até o CTA final.
     lead: [
       {
-        dia: 0, ativo: true,
+        dia: 1, ativo: true,
         assunto: "Por que uns crescem rápido e outros travam",
         corpo:
           "Oi {nome},\n\n" +
@@ -1181,7 +1181,7 @@ async function startServer() {
           "P.S. Sua senha continua a mesma: LBW2026. É só entrar. E se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
       },
       {
-        dia: 2, ativo: true,
+        dia: 3, ativo: true,
         assunto: "Trabalhar mais não é o caminho",
         corpo:
           "Oi {nome},\n\n" +
@@ -1208,7 +1208,7 @@ async function startServer() {
           "P.S. É só o seu e-mail e a senha LBW2026. A primeira fase leva uns 15 minutos.",
       },
       {
-        dia: 8, ativo: true,
+        dia: 7, ativo: true,
         assunto: "{nome}, vou ser direto",
         corpo:
           "Oi {nome},\n\n" +
