@@ -12,6 +12,16 @@
 import React, { useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
+// Custom element do player VTurb (smartplayer v4). Declarado para o TSX aceitar a tag.
+// React 19 + jsx:react-jsx → o namespace JSX vive no módulo 'react' (não no global).
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'vturb-smartplayer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & { id?: string };
+    }
+  }
+}
+
 // Player VTurb (smartplayer v4) da VSL da formação. ID e script são únicos deste vídeo.
 const VTURB_PLAYER_ID = 'vid-6a476a65f6de1f8601713a37';
 const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a476a65f6de1f8601713a37/v4/player.js';

@@ -70,7 +70,7 @@ function Quem() {
         <li>Ferramentas (SIPOC, RACI, Ishikawa, análise de dados e muito mais) que se preenchem com o seu projeto real.</li>
         <li>O Mentor Israel digital, que responde com base nos vídeos do próprio Israel.</li>
       </ul>
-      <a className="btn" href="/trilhagratis">Comece grátis →</a>
+      <a className="btn" href="/kit90dias">Conheça o Kit 90 Dias →</a>
     </>
   );
 }

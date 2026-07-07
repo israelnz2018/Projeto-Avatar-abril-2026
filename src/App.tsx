@@ -335,7 +335,7 @@ export default function App() {
     const host = window.location.hostname;
     const path = window.location.pathname;
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
-    const rotasPublicas = ['/formacao', '/trilhagratis', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    const rotasPublicas = ['/formacao', '/kit90dias', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
     return isSitePublico || rotasPublicas.some(r => path.startsWith(r));
   })();
 
@@ -360,7 +360,7 @@ export default function App() {
     // As landings de venda/captação e a verificação de certificado têm prioridade
     // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
     const ROTAS_INSTITUCIONAIS = ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
-    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
+    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/kit90dias') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
     if (isSitePublico && !rotaReservada) {
       return (
         <Router>
@@ -397,7 +397,7 @@ export default function App() {
       </Suspense>
     );
   }
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/trilhagratis')) {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/kit90dias')) {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-emerald-900 border-t-emerald-500 rounded-full animate-spin" /></div>}>
         <LandingComecar />

@@ -1,289 +1,260 @@
 /**
- * LandingComecar — landing pública da oferta GRÁTIS (trilha 1).
- * Servida em /trilhagratis SEM exigir login (bypass no App.tsx).
+ * LandingComecar — página de VENDA do "Kit 90 Dias" (Trilha 1, R$67).
+ * Servida em /kit90dias SEM exigir login (bypass no App.tsx).
  *
- * VERSÃO ENXUTA (captura de tráfego frio):
- *  - A VSL de entrada (2-3 min) fica NO TOPO e faz o convencimento.
- *  - O formulário vem LOGO ABAIXO do vídeo, no pico do interesse.
- *  - Uma única decisão na página: criar a conta grátis.
- *  - SEM preço, SEM nenhum botão/link que leve para fora (nada de /formacao).
- *  - Todos os CTAs reconduzem para o formulário.
- *  - Dispara o evento "Lead" do Pixel do Meta no cadastro com sucesso.
- *
- * Linguagem visual VERDE (grátis) consistente com a /formacao.
+ * Antes era a landing grátis (formulário → webhook acessogratuito). Agora é
+ * página de venda: os CTAs levam ao checkout da Hotmart. Visual NAVY+BLUE (pago).
+ * Baseada no plano vsl/PLANO-LOW-TICKET-REV3.txt (ângulo da imagem, 3 fases).
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
-// Custom element do player VTurb (smartplayer v4). Declarado para o TSX aceitar a tag.
-// React 19 + jsx:react-jsx → o namespace JSX vive no módulo 'react' (não no global).
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      'vturb-smartplayer': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & { id?: string };
-    }
-  }
-}
+// Checkout Hotmart do Kit 90 Dias (R$67).
+const CHECKOUT_URL = 'https://pay.hotmart.com/Q106640860N';
 
-// Player VTurb da VSL de entrada. ID e URL do script são únicos deste vídeo.
-const VTURB_PLAYER_ID = 'vid-6a436782c5811825580124b2';
-const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a436782c5811825580124b2/v4/player.js';
-
-const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
-
-/**
- * Parallax leve dos orbs do hero: escreve --mx/--my (-1..1) na raiz conforme o
- * mouse. Elementos usam essas vars no transform via CSS — sem re-render React.
- */
-function useMouseParallax(ref: React.RefObject<HTMLElement>) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || window.matchMedia('(hover: none)').matches) return;
-    let raf = 0;
-    const onMove = (e: MouseEvent) => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const mx = (e.clientX / window.innerWidth - 0.5) * 2;
-        const my = (e.clientY / window.innerHeight - 0.5) * 2;
-        el.style.setProperty('--mx', mx.toFixed(3));
-        el.style.setProperty('--my', my.toFixed(3));
-      });
-    };
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => { window.removeEventListener('mousemove', onMove); cancelAnimationFrame(raf); };
-  }, [ref]);
-}
-
-/** Rola suavemente até o formulário (usado pelos CTAs). */
-function scrollToForm() {
-  const el = document.getElementById('form-gratis');
+/** Rola suavemente até a oferta final (usado pelos CTAs de texto). */
+function scrollToOferta() {
+  const el = document.getElementById('oferta');
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 const CSS = `
-.lc{--ink:#070A18;--line:rgba(255,255,255,.10);--txt:rgba(255,255,255,.72);--txt2:rgba(255,255,255,.5)}
-.lc *{margin:0;padding:0;box-sizing:border-box}
-.lc{background:var(--ink);color:#fff;font-family:'Segoe UI',Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh}
-.lc h1,.lc h2{font-family:'Space Grotesk',Inter,sans-serif;letter-spacing:-.02em;line-height:1.1}
-.lc .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
-.lc .eyebrow{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#6ee7b7;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);padding:8px 16px;border-radius:999px}
-.lc .grad{background:linear-gradient(95deg,#fff,#6ee7b7 55%,#10B981);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.lc .gradblue{background:linear-gradient(95deg,#fff,#9FC0FF,#3B82F6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-/* hero (VSL no topo) */
-.lc .hero{position:relative;padding:54px 20px 30px;overflow:hidden;text-align:center}
-.lc .orb{position:absolute;border-radius:50%;filter:blur(100px)}
-.lc .orbA{width:480px;height:480px;background:radial-gradient(circle,#10B981,transparent 70%);opacity:.3;top:-170px;left:-70px}
-.lc .orbB{width:380px;height:380px;background:radial-gradient(circle,#0033CC,transparent 70%);opacity:.34;top:-110px;right:-70px}
-.lc .hero .in{position:relative;z-index:2;max-width:1040px;margin:0 auto}
-.lc .hero h1{font-size:42px;font-weight:800;margin:18px auto 14px;max-width:760px}
-.lc .hero .sub{font-size:18px;color:var(--txt);line-height:1.55;max-width:600px;margin:0 auto 30px}
-.lc .vsl{position:relative;max-width:860px;margin:0 auto;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid rgba(16,185,129,.35);background:linear-gradient(160deg,#101a3a,#0a0f22);box-shadow:0 34px 80px -34px rgba(16,185,129,.45)}
-.lc .vsl iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.lc .arrow{text-align:center;color:#6ee7b7;font-size:26px;padding:20px 0 2px}
-/* form */
-.lc .formsec{padding:14px 20px 52px;background:linear-gradient(180deg,#070A18,#0a1024)}
-.lc .formhead{text-align:center;max-width:560px;margin:0 auto 24px}
-.lc .formhead h2{font-size:30px;font-weight:800;margin-bottom:8px}
-.lc .formhead p{font-size:16px;color:var(--txt);line-height:1.5}
-.lc .formcard{max-width:480px;margin:0 auto;background:linear-gradient(170deg,#101a3a,#0a0f22);border:1px solid rgba(16,185,129,.35);border-radius:20px;padding:30px 26px;text-align:center;box-shadow:0 28px 70px -34px rgba(16,185,129,.5)}
-.lc .formcard .ft{font-size:20px;font-weight:800;margin-bottom:6px}
-.lc .formcard .fs{font-size:13px;color:var(--txt);margin-bottom:18px;line-height:1.45}
-.lc .formcard input{width:100%;padding:14px 16px;margin-bottom:12px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.06);color:#fff;font-size:15px;outline:none}
-.lc .formcard input:focus{border-color:rgba(16,185,129,.6)}
-.lc .formcard .send{width:100%;padding:15px;background:linear-gradient(120deg,#10B981,#059669);color:#fff;font-weight:700;font-size:16px;border:none;border-radius:12px;cursor:pointer}
-.lc .formcard .msg{font-size:14px;margin-top:12px}
-.lc .formcard .hint{font-size:12px;color:var(--txt2);margin-top:12px}
-.lc .leva{max-width:480px;margin:16px auto 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.lc .leva span{font-size:12px;color:rgba(255,255,255,.82);background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);padding:6px 11px;border-radius:9px}
-.lc .cred{display:flex;align-items:center;gap:12px;justify-content:center;max-width:480px;margin:20px auto 0;border-top:1px solid var(--line);padding-top:18px}
-.lc .cred .av{width:46px;height:46px;border-radius:50%;overflow:hidden;background:linear-gradient(150deg,#1E2D6E,#0a0f22);border:1px solid rgba(159,192,255,.3);flex-shrink:0}
-.lc .cred .av img{width:100%;height:100%;object-fit:cover;object-position:top}
-.lc .cred .t{font-size:12.5px;color:var(--txt);line-height:1.45;text-align:left}
-.lc .cred .t b{color:#fff}
-/* final */
-.lc .final{position:relative;padding:54px 20px;text-align:center;background:linear-gradient(160deg,#10B981 0%,#065f46 55%,#070A18 100%)}
-.lc .final h2{font-size:30px;font-weight:800;margin-bottom:14px}
-.lc .btn-w{display:inline-block;background:#fff;color:#059669;font-size:16px;font-weight:700;padding:16px 36px;border-radius:13px;border:none;cursor:pointer}
-/* movimento */
-.lc{--mx:0;--my:0}
-.lc .orb{transition:transform .5s cubic-bezier(.22,1,.36,1)}
-.lc .orbA{transform:translate(calc(var(--mx)*24px),calc(var(--my)*24px))}
-.lc .orbB{transform:translate(calc(var(--mx)*-28px),calc(var(--my)*-20px))}
-.lc .send,.lc .btn-w{position:relative;overflow:hidden}
-.lc .send::after,.lc .btn-w::after{content:'';position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-18deg);animation:lc-shine 4.5s ease-in-out infinite}
-@keyframes lc-shine{0%,60%{left:-120%}80%,100%{left:130%}}
-@media(prefers-reduced-motion:reduce){ .lc .orbA,.lc .orbB{transform:none} .lc .send::after,.lc .btn-w::after{animation:none} }
-@media(max-width:760px){ .lc .hero h1{font-size:30px} .lc .hero .sub{font-size:15px} }
+.k9{--ink:#0A0F24;--navy:#1E2D6E;--blue:#0033CC;--line:rgba(255,255,255,.10);--txt:rgba(255,255,255,.74);--txt2:rgba(255,255,255,.5);--card:rgba(255,255,255,.04)}
+.k9 *{margin:0;padding:0;box-sizing:border-box}
+.k9{background:var(--ink);color:#fff;font-family:'Segoe UI',Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh;line-height:1.55}
+.k9 h1,.k9 h2,.k9 h3{font-family:'Space Grotesk',Inter,sans-serif;letter-spacing:-.02em;line-height:1.12;text-wrap:balance}
+.k9 .wrap{max-width:760px;margin:0 auto;padding:0 20px}
+.k9 .grad{background:linear-gradient(95deg,#fff,#9FC0FF 55%,#3B82F6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.k9 .eyebrow{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#9FC0FF;background:rgba(0,51,204,.16);border:1px solid rgba(0,51,204,.4);padding:8px 15px;border-radius:999px}
+.k9 .cta{display:inline-block;background:linear-gradient(120deg,var(--blue),#2563EB);color:#fff;font-weight:800;font-size:17px;text-decoration:none;padding:17px 34px;border-radius:14px;box-shadow:0 12px 34px rgba(0,51,204,.4);transition:transform .15s;border:none;cursor:pointer}
+.k9 .cta:hover{transform:translateY(-2px)}
+/* HERO */
+.k9 .hero{position:relative;text-align:center;padding:56px 20px 44px;overflow:hidden;background:radial-gradient(120% 90% at 50% -10%,rgba(30,45,110,.55),transparent 60%)}
+.k9 .hero h1{font-size:clamp(28px,7vw,50px);margin:20px 0 16px}
+.k9 .hero p.sub{font-size:clamp(16px,2.4vw,20px);color:var(--txt);max-width:600px;margin:0 auto 26px}
+.k9 .price{margin-top:14px;font-size:14px;color:var(--txt2)}
+.k9 .price b{color:#fff;font-size:20px}
+/* SECTION */
+.k9 section{padding:48px 20px}
+.k9 section h2{font-size:clamp(23px,4.5vw,34px);margin-bottom:10px;text-align:center}
+.k9 .lead{color:var(--txt);text-align:center;max-width:600px;margin:0 auto 30px;font-size:16px}
+.k9 .dor{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.k9 .dor ul{max-width:560px;margin:0 auto;list-style:none;display:grid;gap:12px}
+.k9 .dor li{padding-left:30px;position:relative;color:var(--txt);font-size:15px}
+.k9 .dor li::before{content:'—';position:absolute;left:0;color:#3B82F6;font-weight:800}
+/* 3 FASES */
+.k9 .fases{display:grid;gap:16px;max-width:640px;margin:0 auto}
+.k9 .fase{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+.k9 .fase .tag{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9FC0FF}
+.k9 .fase h3{font-size:19px;margin:6px 0 8px}
+.k9 .fase p{color:var(--txt);font-size:14px}
+/* KIT */
+.k9 .kit{display:grid;gap:10px;max-width:560px;margin:0 auto}
+.k9 .kit .item{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:14.5px}
+.k9 .kit .item .ck{color:#3B82F6;font-weight:800;flex-shrink:0}
+/* PUBLICO */
+.k9 .publico{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:640px;margin:0 auto}
+.k9 .publico .col h3{font-size:16px;margin-bottom:12px}
+.k9 .publico .col.sim h3{color:#6ee7b7}
+.k9 .publico .col.nao h3{color:#fca5a5}
+.k9 .publico .col ul{list-style:none;display:grid;gap:8px}
+.k9 .publico .col li{font-size:13.5px;color:var(--txt);padding-left:20px;position:relative}
+.k9 .publico .col.sim li::before{content:'✓';position:absolute;left:0;color:#10B981}
+.k9 .publico .col.nao li::before{content:'✕';position:absolute;left:0;color:#ef4444}
+@media(max-width:560px){.k9 .publico{grid-template-columns:1fr;gap:22px}}
+/* SOBRE MIM */
+.k9 .fundador{display:grid;grid-template-columns:.8fr 1.2fr;gap:32px;align-items:center;max-width:820px;margin:0 auto}
+.k9 .fundador img{width:100%;border-radius:16px;object-fit:cover;aspect-ratio:3/4;border:1px solid var(--line)}
+.k9 .fundador h2{text-align:left;font-size:clamp(22px,3.6vw,30px);margin-bottom:16px}
+.k9 .fundador p{color:var(--txt);line-height:1.65;margin-bottom:14px;font-size:15px}
+.k9 .fundador b{color:#fff}
+.k9 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+.k9 .stats .n{font-size:clamp(20px,3vw,26px);font-weight:800;font-family:'Space Grotesk',sans-serif;color:#9FC0FF}
+.k9 .stats .l{font-size:11px;color:var(--txt2);margin-top:3px;line-height:1.3}
+@media(max-width:640px){.k9 .fundador{grid-template-columns:1fr;gap:22px}.k9 .fundador img{max-width:260px;margin:0 auto}.k9 .fundador h2{text-align:center}.k9 .stats{grid-template-columns:repeat(2,1fr)}}
+/* FAQ */
+.k9 .faq{display:grid;gap:12px;max-width:640px;margin:0 auto}
+.k9 .faq details{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.k9 .faq summary{list-style:none;cursor:pointer;padding:18px 22px;font-weight:700;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:14px}
+.k9 .faq summary::-webkit-details-marker{display:none}
+.k9 .faq summary::after{content:'+';color:#3B82F6;font-size:22px;font-weight:800;flex-shrink:0;transition:transform .2s}
+.k9 .faq details[open] summary::after{transform:rotate(45deg)}
+.k9 .faq details[open] summary{color:#9FC0FF}
+.k9 .faq .ans{padding:0 22px 20px;color:var(--txt);font-size:14.5px}
+/* OFERTA */
+.k9 .oferta{text-align:center;background:radial-gradient(120% 100% at 50% 0%,rgba(30,45,110,.5),transparent 65%)}
+.k9 .oferta .box{background:linear-gradient(160deg,rgba(0,51,204,.15),rgba(30,45,110,.08));border:1px solid rgba(0,51,204,.35);border-radius:22px;padding:38px 26px;max-width:520px;margin:0 auto}
+.k9 .oferta .valor{font-size:46px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin:6px 0}
+.k9 .oferta .garantia{font-size:13px;color:var(--txt2);margin-top:16px}
+.k9 .linktext{background:none;border:none;color:#9FC0FF;text-decoration:underline;cursor:pointer;font-size:inherit;font-family:inherit}
 `;
-
-type FormState = 'idle' | 'sending' | 'ok' | 'ja-existe' | 'err';
-
-function LeadForm() {
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [aceito, setAceito] = useState(false);
-  const [state, setState] = useState<FormState>('idle');
-  const [msg, setMsg] = useState('');
-
-  const enviar = async () => {
-    const n = nome.trim();
-    const e = email.trim();
-    if (n.length < 2) { setState('err'); setMsg('Por favor, informe seu nome.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setState('err'); setMsg('Informe um e-mail válido.'); return; }
-    if (!aceito) { setState('err'); setMsg('Você precisa aceitar os termos e condições para continuar.'); return; }
-    setState('sending'); setMsg('');
-
-    // Dispara o evento "Lead" do Pixel do Meta (se o Pixel estiver carregado na página).
-    const trackLead = () => {
-      try {
-        const w = window as any;
-        if (typeof w !== 'undefined' && typeof w.fbq === 'function') {
-          w.fbq('track', 'Lead', { content_name: 'trilha-gratis' });
-        }
-      } catch { /* silencioso */ }
-    };
-
-    try {
-      const r = await fetch(WEBHOOK_GRATUITO, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: n, email: e, source: 'lc-trilhagratis' }),
-      });
-      const data = await r.json().catch(() => ({} as any));
-      if (data && data.status === 'ja-existia') {
-        setState('ja-existe');
-      } else {
-        trackLead();
-        setState('ok');
-        setMsg('Perfeito! Em instantes você receberá o acesso no seu e-mail (confira também o spam).');
-      }
-      setNome(''); setEmail('');
-    } catch {
-      trackLead();
-      setState('ok');
-      setMsg('Tudo certo! Verifique seu e-mail (e a caixa de spam) para acessar.');
-    }
-  };
-
-  if (state === 'ja-existe') {
-    return (
-      <div className="formcard">
-        <div style={{ fontSize: 44, marginBottom: 12 }}>👋</div>
-        <div className="ft">Você já é cadastrado!</div>
-        <p className="msg" style={{ color: '#9FC0FF', marginTop: 0 }}>Esse e-mail já tem acesso à plataforma. É só entrar.</p>
-        <a className="btn-w" href="https://app.educacaopelotrabalho.com" style={{ display: 'inline-block', marginTop: 18, background: 'linear-gradient(120deg,#0033CC,#2563EB)', color: '#fff' }}>Acessar a plataforma →</a>
-      </div>
-    );
-  }
-  if (state === 'ok') {
-    return (
-      <div className="formcard">
-        <div style={{ fontSize: 44, marginBottom: 12 }}>✉️</div>
-        <div className="ft">Pronto! Agora é com você.</div>
-        <p className="msg" style={{ color: '#6ee7b7', marginTop: 0 }}>{msg}</p>
-        <a className="btn-w" href="https://app.educacaopelotrabalho.com" style={{ display: 'inline-block', marginTop: 18, background: 'linear-gradient(120deg,#10B981,#059669)', color: '#fff' }}>Ir para a plataforma →</a>
-      </div>
-    );
-  }
-  return (
-    <div className="formcard">
-      <div className="ft">Crie sua conta gratuita</div>
-      <p className="fs">Receba o acesso à primeira trilha no seu e-mail. Sem cartão.</p>
-      <input type="text" placeholder="Seu nome completo" value={nome} onChange={(e) => setNome(e.target.value)} />
-      <input type="email" placeholder="Seu melhor e-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left', margin: '4px 0 14px', fontSize: 13, color: 'var(--txt)', cursor: 'pointer' }}>
-        <input type="checkbox" checked={aceito} onChange={(e) => setAceito(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, accentColor: '#10B981', cursor: 'pointer' }} />
-        <span>Li e concordo com os <a href="/termos" target="_blank" rel="noopener noreferrer" style={{ color: '#6ee7b7', textDecoration: 'underline' }}>termos e condições</a> do acesso gratuito.</span>
-      </label>
-      {msg && <p className="msg" style={{ color: '#fca5a5', marginTop: 0, marginBottom: 8 }}>{msg}</p>}
-      <button className="send" onClick={enviar} disabled={state === 'sending'}>
-        {state === 'sending' ? 'Enviando…' : 'Quero meu acesso grátis →'}
-      </button>
-      <p className="hint">Não pedimos cartão.</p>
-    </div>
-  );
-}
 
 export default function LandingComecar() {
   const rootRef = useRef<HTMLDivElement>(null);
-  useMouseParallax(rootRef);
-
-  // Carrega o player VTurb só nesta página (tráfego frio cai direto aqui).
-  // Os preload ficam escopados ao landing — fora dele seriam baixados à toa.
-  useEffect(() => {
-    // Preload dos assets pesados do player (player.js, lib smartplayer, vídeo .m3u8).
-    const preloads: Array<[string, 'script' | 'fetch']> = [
-      [VTURB_SCRIPT_SRC, 'script'],
-      ['https://scripts.converteai.net/lib/js/smartplayer-wc/v4/smartplayer.js', 'script'],
-      ['https://cdn.converteai.net/21190591-631c-400a-94ca-b1400c31d918/6a43673a1bc2953e6736ed7f/main.m3u8', 'fetch'],
-    ];
-    for (const [href, as] of preloads) {
-      if (document.querySelector(`link[rel="preload"][href="${href}"]`)) continue;
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = as;
-      link.href = href;
-      document.head.appendChild(link);
-    }
-
-    // Injeta o script do player uma única vez (guard anti-duplicação).
-    if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
-    const s = document.createElement('script');
-    s.src = VTURB_SCRIPT_SRC;
-    s.async = true;
-    document.head.appendChild(s);
-  }, []);
 
   return (
-    <div className="lc" ref={rootRef}>
+    <div className="k9" ref={rootRef}>
       <style>{CSS}</style>
 
-      {/* HERO — a VSL faz o convencimento, em destaque no topo */}
+      {/* HERO */}
       <header className="hero">
-        <div className="orb orbA" /><div className="orb orbB" />
-        <div className="in">
-          <span className="eyebrow">🎁 100% grátis · sem cartão</span>
-          <h1>Sua primeira entrega de verdade <span className="grad">nos primeiros 30 dias.</span></h1>
-          <p className="sub">Aperte o play. Em poucos minutos você entende como sair da teoria e começar a entregar resultado de verdade — já na primeira trilha, de graça.</p>
-          <div className="vsl">
-            <vturb-smartplayer id={VTURB_PLAYER_ID} style={{ display: 'block', margin: '0 auto', width: '100%' }}>
-              <div className="vturb-player-placeholder" style={{ position: 'relative', width: '100%', padding: '56.25% 0 0', zIndex: 0, backgroundColor: 'black' }} />
-            </vturb-smartplayer>
-          </div>
+        <div className="wrap">
+          <span className="eyebrow">Kit 90 Dias</span>
+          <h1>Nos primeiros 90 dias, ou você constrói sua imagem,<br /><span className="grad">ou a empresa constrói por você.</span></h1>
+          <p className="sub">Um plano prático pra entender uma área nova, escolher um problema relevante e construir sua primeira entrega — sem passar meses esperando alguém explicar tudo.</p>
+          <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
+          <div className="price"><b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
       </header>
 
-      <div className="arrow">↓</div>
-
-      {/* FORMULÁRIO — logo abaixo do vídeo, no pico do interesse */}
-      <section className="formsec" id="form-gratis">
-        <div className="formhead">
-          <h2>Gostou? Comece agora — de graça.</h2>
-          <p>Crie sua conta e receba o acesso à primeira trilha no seu e-mail.</p>
-        </div>
-        <LeadForm />
-        <div className="leva">
-          <span>✓ Trilha 1 completa</span>
-          <span>✓ Software LBW</span>
-          <span>✓ Mentor Israel digital</span>
-          <span>✓ Certificado</span>
-        </div>
-        <div className="cred">
-          <div className="av"><img src="/israel-foto.png" alt="Israel Souza" loading="lazy" /></div>
-          <div className="t">Criado por <b>Israel Souza</b> — 20+ anos em multinacionais, <b>+1.500 profissionais formados</b>.</div>
+      {/* DOR */}
+      <section className="dor">
+        <div className="wrap">
+          <h2>Você entrou numa área nova. E já está sendo observado.</h2>
+          <p className="lead">Todo mundo ocupado, reuniões rápidas, sistemas rodando, problemas que já existem. E, mesmo sem entender tudo, as pessoas já estão formando uma opinião sobre você.</p>
+          <ul>
+            <li>Será que estou demorando demais pra aprender?</li>
+            <li>Será que já perceberam que estou perdido?</li>
+            <li>Como mostro que sou útil se ninguém explica nada?</li>
+            <li>O que eu entrego além da rotina?</li>
+          </ul>
         </div>
       </section>
 
-      {/* CTA FINAL — reconduz ao formulário (sem nenhuma saída para fora) */}
-      <section className="final">
-        <div className="wrap" style={{ maxWidth: 520 }}>
-          <h2>Ainda dá tempo de começar hoje.</h2>
-          <p style={{ fontSize: 15, color: 'rgba(255,255,255,.9)', marginBottom: 22 }}>Sua primeira entrega de verdade está a um clique. Sem cartão, sem enrolação.</p>
-          <button className="btn-w" onClick={scrollToForm}>Criar minha conta grátis →</button>
+      {/* MECANISMO / 3 FASES */}
+      <section>
+        <div className="wrap">
+          <h2>Você não precisa conhecer tudo. Precisa de três movimentos.</h2>
+          <p className="lead">O Kit organiza seus 90 dias em três fases — entender, escolher e entregar.</p>
+          <div className="fases">
+            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Mapa da área, pessoas-chave, processos, roteiro de perguntas. Você para de agir no escuro e passa a explicar como a área funciona.</p></div>
+            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Lista de problemas, matriz de priorização, Ishikawa, mapa de processo. Você escolhe uma melhoria pequena o bastante pra avançar e importante o bastante pra ser percebida.</p></div>
+            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Entregue e mostre o resultado</h3><p>Matriz esforço × impacto, plano de ação, antes/depois, estrutura pra apresentar. Você termina com uma primeira entrega que pode ser mostrada.</p></div>
+          </div>
         </div>
       </section>
 
-      {/* FOOTER — componente único compartilhado */}
+      {/* O QUE RECEBE */}
+      <section className="dor">
+        <div className="wrap">
+          <h2>O que você recebe</h2>
+          <p className="lead">Um kit de execução — não uma pilha de vídeos. Os vídeos ensinam a usar as ferramentas.</p>
+          <div className="kit">
+            <div className="item"><span className="ck">✓</span> Plano visual dos 90 dias + checklist semanal</div>
+            <div className="item"><span className="ck">✓</span> Ferramentas para conhecer o processo atual — RACI, Indicadores, POP</div>
+            <div className="item"><span className="ck">✓</span> Matriz pra escolher o problema certo</div>
+            <div className="item"><span className="ck">✓</span> Ferramentas de análise (Ishikawa, mapa de processo)</div>
+            <div className="item"><span className="ck">✓</span> Matriz esforço × impacto + plano de ação</div>
+            <div className="item"><span className="ck">✓</span> Acesso ao software LBW pras análises</div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRA QUEM É */}
+      <section>
+        <div className="wrap">
+          <h2>Pra quem é (e pra quem não é)</h2>
+          <p className="lead">Serve pra qualquer transição — não só primeiro emprego.</p>
+          <div className="publico">
+            <div className="col sim">
+              <h3>É pra você que</h3>
+              <ul>
+                <li>Entrou recentemente numa empresa</li>
+                <li>Mudou de área internamente</li>
+                <li>Foi promovido ou assumiu novo projeto</li>
+                <li>Mudou de empresa</li>
+                <li>Está migrando de carreira</li>
+                <li>Quer mostrar valor sem depender de cargo</li>
+              </ul>
+            </div>
+            <div className="col nao">
+              <h3>Não é pra você que</h3>
+              <ul>
+                <li>Só quer assistir aula</li>
+                <li>Não vai aplicar as ferramentas</li>
+                <li>Espera garantia de emprego</li>
+                <li>Procura fórmula mágica</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SOBRE MIM (mesmo bloco da página paga: foto + texto + stats) */}
+      <section className="dor">
+        <div className="wrap" style={{ textAlign: 'center', marginBottom: 22 }}>
+          <span className="eyebrow">Quem é seu consultor?</span>
+        </div>
+        <div className="wrap">
+          <div className="fundador">
+            <div><img src="/israel-foto.png" alt="Israel Souza" loading="lazy" /></div>
+            <div>
+              <h2>Mais de 20 anos resolvendo problemas de verdade</h2>
+              <p>Não sou professor de teoria. Ensino apenas o que aplico e já apliquei na prática. Trabalhar em empresas de <b>equipamentos médicos, bebida, automotiva, petroquímica e governamental</b> me ajudou a adquirir vasta experiência tanto em chão de fábrica como em atividades de escritório, que geraram mais de <b>US$ 20MM</b> em ganhos pelos projetos dos meus alunos e pelos meus próprios projetos.</p>
+              <p>Treinei mais de <b>1.500 profissionais</b> e percebi que o que falta não é certificado na parede. É saber chegar numa área, se adaptar rápido, entender como investigar um problema, entregar resultado com o mínimo de resistência e saber apresentar os resultados. É isso que este kit ensina.</p>
+              <div className="stats">
+                <div><div className="n">20</div><div className="l">anos de prática</div></div>
+                <div><div className="n">4</div><div className="l">multinacionais</div></div>
+                <div><div className="n">+1.500</div><div className="l">profissionais formados</div></div>
+                <div><div className="n">US$ 20MM</div><div className="l">em ganhos</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section>
+        <div className="wrap">
+          <h2>Perguntas frequentes</h2>
+          <p className="lead">O que costuma travar antes de começar.</p>
+          <div className="faq">
+            <details>
+              <summary>Qual é o objetivo do Kit 90 Dias?</summary>
+              <div className="ans">Te dar um plano prático para os seus primeiros 90 dias em uma área nova: entender como o trabalho funciona, escolher um problema que vale a pena resolver e construir uma primeira entrega concreta. No fim, você não só se adapta — você mostra que consegue gerar resultado.</div>
+            </details>
+            <details>
+              <summary>Preciso já estar num emprego novo para usar?</summary>
+              <div className="ans">Não. O Kit serve para qualquer transição: mudou de área internamente, foi promovido, mudou de empresa, assumiu um projeto novo ou está migrando de carreira. Sempre que o contexto muda, a régua recomeça — e o plano se aplica.</div>
+            </details>
+            <details>
+              <summary>Isso garante meu emprego ou uma promoção?</summary>
+              <div className="ans">Não. Seria desonesto prometer algo que depende da empresa. O que o Kit faz é te dar estrutura para entender a área, escolher uma melhoria certa e construir uma entrega concreta — você troca improviso por direção e passa a mostrar evolução.</div>
+            </details>
+            <details>
+              <summary>Preciso saber programar ou Excel avançado?</summary>
+              <div className="ans">Não. Toda a análise é sem código: você escolhe a ferramenta, preenche com o seu caso e a plataforma LBW faz o cálculo e entrega o resultado pronto, já explicado.</div>
+            </details>
+            <details>
+              <summary>Funciona se eu não tiver um projeto agora?</summary>
+              <div className="ans">Funciona. Você pode aplicar as ferramentas em um item da sua própria rotina — o plano mostra como escolher onde começar, mesmo que ninguém tenha te passado um projeto formal.</div>
+            </details>
+            <details>
+              <summary>É um curso de vídeos?</summary>
+              <div className="ans">Não. O produto principal é o kit de execução — o plano dos 90 dias, os checklists e as ferramentas prontas. Os vídeos existem só para te ensinar a usar cada ferramenta.</div>
+            </details>
+            <details>
+              <summary>E se eu não gostar?</summary>
+              <div className="ans">Você tem 7 dias de garantia. Se não for para você, devolvemos o valor — sem burocracia.</div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      {/* OFERTA FINAL */}
+      <section className="oferta" id="oferta">
+        <div className="wrap">
+          <div className="box">
+            <span className="eyebrow">Comece hoje</span>
+            <div className="valor grad">R$ 67</div>
+            <p className="lead" style={{ margin: '4px 0 22px' }}>Acesso imediato ao Kit 90 Dias completo.</p>
+            <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
+            <div className="garantia">Garantia de 7 dias. Não gostou, devolvemos.</div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER — componente único compartilhado (padrão do site) */}
       <RodapeInstitucional />
     </div>
   );
