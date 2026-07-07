@@ -231,7 +231,7 @@ export default function LandingComecar() {
             </details>
             <details>
               <summary>É um curso de vídeos?</summary>
-              <div className="ans">Não. O produto principal é o kit de execução — o plano dos 90 dias, os checklists e as ferramentas prontas. Os vídeos existem só para te ensinar a usar cada ferramenta.</div>
+              <div className="ans">Sim, e vai além disso. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, os checklists e as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
             </details>
             <details>
               <summary>E se eu não gostar?</summary>
