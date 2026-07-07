@@ -975,7 +975,9 @@ async function startServer() {
   ]);
   function isCortesia(u: any): boolean {
     const ate = String(u?.acessoCompletoAte || "");
-    return u?.origemAcesso === "convite-reativacao" || ate.startsWith("2026-12-31");
+    return u?.origemAcesso === "convite-reativacao"
+      || u?.origemAcesso === "trilha1-cortesia"
+      || ate.startsWith("2026-12-31");
   }
 
   app.post("/api/campanha/cortesia", requireAdmin, async (req: any, res) => {
@@ -1130,6 +1132,64 @@ async function startServer() {
     } catch (err: any) {
       console.error("[POST /api/reativacao/criar-um] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao conceder acesso." });
+    }
+  });
+
+  // ===============================================================
+  // POST /api/trilha1/blindar-atuais — FASE 0 da conversão da Trilha 1 pra paga.
+  // Marca TODOS os alunos já cadastrados (que hoje têm a Trilha 1 de graça) como
+  // "cortesia introdutória": garante formacoes=['projetos-melhoria-introdutoria']
+  // e origemAcesso='trilha1-cortesia'. Assim, quando a Trilha 1 virar paga (R$67),
+  // eles MANTÊM o acesso que já tinham (só a Trilha 1) e NÃO recebem os e-mails de
+  // "parabéns pela compra" (isCortesia passa a reconhecê-los).
+  //
+  // NÃO toca em: admin, coordenador, nem em quem já é 'completo' (esses ficam como
+  // estão — a blindagem é só pros gratuitos/introdutórios).
+  // dryRun=true → só lista quem SERIA marcado, sem escrever nada. Rodar assim 1º.
+  // ===============================================================
+  app.post("/api/trilha1/blindar-atuais", requireAdmin, async (req: any, res) => {
+    const dryRun = req.body?.dryRun === true;
+    const INTRO = "projetos-melhoria-introdutoria";
+    try {
+      const snap = await adminFirestore().collection("users").get();
+      const alvos: { uid: string; email: string; motivo: string }[] = [];
+      const pulados: { email: string; motivo: string }[] = [];
+
+      for (const d of snap.docs) {
+        const u = d.data() as any;
+        const email = String(u?.email || "").trim().toLowerCase();
+        if (!email || email.indexOf("@") < 0) { continue; }
+        // Não mexe em admin/coordenador.
+        if (u?.tipoUsuario === "admin" || u?.tipoUsuario === "coordenador") {
+          pulados.push({ email, motivo: u.tipoUsuario }); continue;
+        }
+        // Quem já é completo (pago de verdade ou cortesia-completo do Hostinger)
+        // não precisa de blindagem — já tem tudo. Deixa como está.
+        if (u?.plano === "completo") { pulados.push({ email, motivo: "completo" }); continue; }
+        alvos.push({ uid: d.id, email, motivo: "gratuito→cortesia-introdutoria" });
+      }
+
+      if (dryRun) {
+        return res.json({ dryRun: true, totalAlvos: alvos.length, totalPulados: pulados.length, alvos, pulados });
+      }
+
+      let marcados = 0, falhas = 0;
+      const erros: any[] = [];
+      for (const a of alvos) {
+        try {
+          await adminFirestore().collection("users").doc(a.uid).set({
+            formacoes: [INTRO],
+            origemAcesso: "trilha1-cortesia",
+          }, { merge: true });
+          marcados++;
+        } catch (e: any) {
+          falhas++; if (erros.length < 10) erros.push({ email: a.email, erro: e?.message || "" });
+        }
+      }
+      return res.json({ ok: true, totalAlvos: alvos.length, marcados, falhas, totalPulados: pulados.length, erros });
+    } catch (err: any) {
+      console.error("[POST /api/trilha1/blindar-atuais] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao blindar os atuais." });
     }
   });
 
