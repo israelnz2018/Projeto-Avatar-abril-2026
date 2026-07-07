@@ -103,7 +103,7 @@ export default function LandingComecar() {
           <h1>Nos primeiros 90 dias, ou você constrói sua imagem,<br /><span className="grad">ou a empresa constrói por você.</span></h1>
           <p className="sub">Um plano prático pra entender uma área nova, escolher um problema relevante e construir sua primeira entrega — sem passar meses esperando alguém explicar tudo.</p>
           <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
-          <div className="price"><b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
+          <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
       </header>
 
@@ -230,8 +230,8 @@ export default function LandingComecar() {
               <div className="ans">Funciona. Você pode aplicar as ferramentas em um item da sua própria rotina — o plano mostra como escolher onde começar, mesmo que ninguém tenha te passado um projeto formal.</div>
             </details>
             <details>
-              <summary>É um curso de vídeos?</summary>
-              <div className="ans">Sim, e vai além disso. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, os checklists e as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
+              <summary>Como o conteúdo é entregue? Só vídeos ou tem material prático?</summary>
+              <div className="ans">Os dois. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, os checklists e as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
             </details>
             <details>
               <summary>E se eu não gostar?</summary>
@@ -246,6 +246,7 @@ export default function LandingComecar() {
         <div className="wrap">
           <div className="box">
             <span className="eyebrow">Comece hoje</span>
+            <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
             <div className="valor grad">R$ 67</div>
             <p className="lead" style={{ margin: '4px 0 22px' }}>Acesso imediato ao Kit 90 Dias completo.</p>
             <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
