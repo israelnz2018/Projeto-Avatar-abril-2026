@@ -807,7 +807,7 @@ export default function Comunidade() {
         </div>
       </div>
 
-      <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano gratuito: participe da comunidade e libere todas as ferramentas." />
+      <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano introdutório: participe da comunidade e libere todas as ferramentas." />
 
 
       {/* Busca */}

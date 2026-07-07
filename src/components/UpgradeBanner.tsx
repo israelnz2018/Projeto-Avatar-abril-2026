@@ -30,7 +30,7 @@ export default function UpgradeBanner({ mensagem, variant = 'banner', className 
   // Só para aluno gratuito.
   if (loading || isAdmin || isCoordenador || plano === 'completo') return null;
 
-  const texto = mensagem || 'Você está no plano gratuito. Libere TODAS as trilhas, ferramentas e análises.';
+  const texto = mensagem || 'Você está no plano introdutório. Libere TODAS as trilhas, ferramentas e análises.';
 
   if (variant === 'compact') {
     return (

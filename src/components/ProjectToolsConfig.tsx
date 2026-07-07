@@ -627,7 +627,7 @@ export default function ProjectToolsConfig() {
                       className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm font-bold text-blue-700">
-                      Trilha gratuita (acessível para todos os alunos)
+                      Trilha 1 (acessível para todos os alunos)
                     </span>
                   </label>
                 </div>
@@ -829,7 +829,7 @@ export default function ProjectToolsConfig() {
                       className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm font-bold text-blue-700">
-                      Trilha gratuita (acessível para todos os alunos)
+                      Trilha 1 (acessível para todos os alunos)
                     </span>
                   </label>
                 </div>

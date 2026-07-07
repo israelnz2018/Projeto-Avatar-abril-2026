@@ -59,7 +59,7 @@ interface NewsletterItem { id: string; assunto: string; corpo: string; publico: 
 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
   lead:   { nome: 'Lead',   desc: 'Cadastrou mas nunca acessou', cor: '#92400E', corBg: '#FEF3C7' },
-  gratis: { nome: 'Grátis', desc: 'Já acessou · plano gratuito', cor: '#065F46', corBg: '#D1FAE5' },
+  gratis: { nome: 'Introdutório', desc: 'Já acessou · plano introdutório', cor: '#065F46', corBg: '#D1FAE5' },
   pago7:  { nome: 'Pago · 7 dias', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
   pago:   { nome: 'Pago',   desc: 'Comprou · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
@@ -546,7 +546,7 @@ export default function SequenciasEmail() {
                     className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm">
                     <option value="todos">Todos</option>
                     <option value="lead">Lead</option>
-                    <option value="gratis">Grátis</option>
+                    <option value="gratis">Introdutório</option>
                     <option value="pago7">Pago · 7 dias</option>
                     <option value="pago">Pago</option>
                   </select>

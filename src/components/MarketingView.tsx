@@ -52,7 +52,7 @@ export default function MarketingView() {
   const [blindErro, setBlindErro] = useState('');
 
   const blindarAtuais = async (dryRun: boolean) => {
-    if (!dryRun && !window.confirm('Marcar TODOS os alunos gratuitos atuais como cortesia da Trilha 1?\n\nEles mantêm o acesso que já têm (só a Trilha 1) e não recebem e-mails de "parabéns pela compra". Admin, coordenador e completos NÃO são afetados.\n\nRodar de novo é seguro (não duplica).')) return;
+    if (!dryRun && !window.confirm('Marcar TODOS os alunos introdutórios atuais como cortesia da Trilha 1?\n\nEles mantêm o acesso que já têm (só a Trilha 1) e não recebem e-mails de "parabéns pela compra". Admin, coordenador e completos NÃO são afetados.\n\nRodar de novo é seguro (não duplica).')) return;
     setBlindErro(''); setBlindResult(null); setBlindLoading(true);
     try {
       const r = await authedFetch('/api/trilha1/blindar-atuais', { method: 'POST', body: JSON.stringify({ dryRun }) });

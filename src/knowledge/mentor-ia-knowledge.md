@@ -261,7 +261,7 @@ R: Situação 6. TO é quem PRECISA fazer algo. Se a pessoa não vai agir, vai n
 - Esta é a trilha de ENTRADA. Todo lead começa aqui. Boa parte das perguntas de aluno novo cai em uma das 10 situações — sempre devolva pela situação, não pelo episódio
 - A trilha cobre ARCO COMPLETO: chegou (Sit 1) → adaptou (Sit 2-6) → entregou primeira mudança real (Sit 7-10). Por isso converte bem pra trilhas pagas — o aluno chega no fim e PERCEBE que tem profundidade pra ir mais fundo
 - Quando recomendar trilha paga, use o campo "Conexão paga" da situação correspondente. Nunca empurra venda sem antes resolver o aperto do momento
-- Esta trilha é especificamente desenhada pra atrair Gen Z 23-30 brasileira que valoriza "quick wins aplicáveis essa semana" + freemium sem cartão
+- Esta trilha é especificamente desenhada pra atrair Gen Z 23-30 brasileira que valoriza "quick wins aplicáveis essa semana" — é o produto de entrada pago (Kit 90 Dias)
 
 ═══════════════════════════════════════════════════════════════════════
 

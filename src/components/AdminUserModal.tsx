@@ -235,7 +235,7 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
                     onChange={e => setPlano(e.target.value as Plano)}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white"
                   >
-                    {PLANOS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {PLANOS.map(p => <option key={p} value={p}>{p === 'gratuito' ? 'introdutório' : p}</option>)}
                   </select>
                 </div>
               </div>
@@ -243,7 +243,7 @@ export default function AdminUserModal({ isOpen, mode, user, onClose, onSaved }:
               <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
                 <p className="text-[11px] text-blue-800 leading-relaxed m-0">
                   O <strong>plano</strong> define o acesso automaticamente:
-                  <strong> Gratuito</strong> = só a Trilha 1 · <strong>Completo</strong> = todas as trilhas.
+                  <strong> Introdutório</strong> = só a Trilha 1 · <strong>Completo</strong> = todas as trilhas.
                   As formações são ajustadas sozinhas — não precisa digitar nada.
                 </p>
               </div>

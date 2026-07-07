@@ -250,7 +250,7 @@ export default function JornadaPrincipal() {
 
         {/* CTA de compra — só para aluno gratuito */}
         <div className="px-6 md:px-16 lg:px-24 mb-8">
-          <UpgradeBanner mensagem="Você está no plano gratuito (Trilha 1). Libere todas as trilhas, ferramentas e análises." />
+          <UpgradeBanner mensagem="Você está no plano introdutório (Trilha 1). Libere todas as trilhas, ferramentas e análises." />
         </div>
 
         {/* BANNER DO MENTOR */}

@@ -57,7 +57,7 @@ const TIPO_COR: Record<TipoUsuario, string> = {
 };
 
 const PLANO_LABEL: Record<Plano, string> = {
-  gratuito: 'Gratuito',
+  gratuito: 'Introdutório',
   completo: 'Completo',
   coordenador: 'Coordenador',
 };
@@ -131,7 +131,7 @@ function getPlano(u: UserData): Plano {
 function getBadge(u: { primeiroAcessoEm?: string; acessoCompletoAte?: string; origemAcesso?: string }, plano: Plano): { label: string; cor: string } {
   if (plano === 'gratuito') {
     return u.primeiroAcessoEm
-      ? { label: 'Grátis', cor: 'bg-yellow-100 text-yellow-800 border-yellow-300' }
+      ? { label: 'Introdutório', cor: 'bg-yellow-100 text-yellow-800 border-yellow-300' }
       : { label: 'Lead', cor: 'bg-red-100 text-red-700 border-red-300' };
   }
   if (plano === 'completo') {
@@ -416,7 +416,7 @@ export default function UserManagementView() {
             <select value={filterPlano} onChange={e => setFilterPlano(e.target.value as any)}
               className="px-3 py-2 border border-[#ccc] rounded-[4px] text-sm bg-white">
               <option value="todos">Todos os planos</option>
-              <option value="gratuito">Gratuito</option>
+              <option value="gratuito">Introdutório</option>
               <option value="completo">Completo</option>
               <option value="coordenador">Coordenador</option>
             </select>

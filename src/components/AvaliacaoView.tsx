@@ -151,7 +151,7 @@ export default function AvaliacaoView() {
         Complete os vídeos de cada trilha, faça a avaliação e conquiste seu certificado.
         {plano !== 'completo' && !isAdmin && (
           <span className="block mt-1 text-amber-600 font-semibold">
-            No plano gratuito, apenas a Trilha 1 está disponível.
+            No plano introdutório, apenas a Trilha 1 está disponível.
           </span>
         )}
       </p>

@@ -1223,64 +1223,11 @@ async function startServer() {
   const DESCONTO_URL = "https://www.educacaopelotrabalho.com/formacao";
   const SEQUENCIAS_DEFAULT: Sequencias = {
     // LEAD (4 e-mails, dias 0/2/5/8): quem cadastrou e nunca acessou. O e-mail de
-    // boas-vindas + senha NÃO está aqui de propósito: o n8n já manda ele no cadastro
-    // (sendAcessoEmail/sendWelcomeEmail entregam LBW2026). Esta sequência começa no
-    // 2º toque pra não duplicar. Sobe o nível de consciência até o CTA final.
-    lead: [
-      {
-        dia: 1, ativo: true,
-        assunto: "Por que uns crescem rápido e outros travam",
-        corpo:
-          "Oi {nome},\n\n" +
-          "Uma pergunta honesta: quando você entra numa área nova, seja emprego, setor ou projeto, quanto tempo leva até entender como aquilo funciona e entregar algo que as pessoas notem?\n\n" +
-          "A maioria leva meses. Anda no escuro, com medo de perguntar o óbvio. E o chefe observando.\n\n" +
-          "Treinei mais de 200 engenheiros na Ford. Os que cresciam rápido não eram os mais inteligentes, eram os que tinham um método pra entender a área e achar o problema, em vez de chutar.\n\n" +
-          "Esse método não é dom, é técnica. E está pronto pra você lá dentro.\n\n" +
-          "[botao: Ver o método | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Sua senha continua a mesma: LBW2026. É só entrar. E se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
-      },
-      {
-        dia: 3, ativo: true,
-        assunto: "Trabalhar mais não é o caminho",
-        corpo:
-          "Oi {nome},\n\n" +
-          "Tem um engano que custa caro pra gente boa: achar que se destacar é trabalhar mais horas, responder e-mail à meia-noite, viver cansado.\n\n" +
-          "Não é. Quem se destaca é quem enxerga o que os outros não veem, o desperdício escondido, a causa real de um problema, a melhoria que ninguém percebeu.\n\n" +
-          "Isso se aprende com ferramentas simples: um SIPOC pra entender um processo, um Ishikawa pra achar a causa raiz, um esforço x impacto pra decidir onde mexer primeiro.\n\n" +
-          "Parece coisa de fábrica? É o contrário: funciona em RH, financeiro, vendas, saúde. Muda só onde você aplica.\n\n" +
-          "Na plataforma elas estão prontas pra você usar no SEU trabalho hoje. Não é teoria, você preenche e usa.\n\n" +
-          "[botao: Ver as ferramentas | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Entra com seu e-mail e a senha LBW2026, a plataforma te guia no resto.",
-      },
-      {
-        dia: 5, ativo: true,
-        assunto: "Por que o seu acesso é de graça",
-        corpo:
-          "Oi {nome},\n\n" +
-          "Se isso é tão útil, por que o primeiro acesso é de graça?\n\n" +
-          "Resposta honesta: porque se você experimentar de verdade, vai entender o valor melhor do que qualquer promessa minha. Não preciso te convencer com palavra bonita, preciso que você use.\n\n" +
-          "A Trilha 1, 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente', está liberada, sem pagar nada. São 5 fases: da hora de entender a área até comunicar suas ideias com profissionalismo. O kit de sobrevivência que eu queria ter tido aos 25.\n\n" +
-          "Você só precisa de uma coisa: entrar e começar. Quem começa, continua.\n\n" +
-          "[botao: Começar a Trilha 1 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. É só o seu e-mail e a senha LBW2026. A primeira fase leva uns 15 minutos.",
-      },
-      {
-        dia: 7, ativo: true,
-        assunto: "{nome}, vou ser direto",
-        corpo:
-          "Oi {nome},\n\n" +
-          "Faz uns dias que seu acesso está liberado e você ainda não entrou. Tudo bem, a vida é corrida. Mas deixa eu ser direto, como falaria com um colega.\n\n" +
-          "Esse acesso parado não te serve de nada. Conhecimento que você não usa é ferramenta encostada na prateleira: ocupa espaço e não muda nada.\n\n" +
-          "Não quero te encher de e-mail, esse é o último da série. Então fica o convite, de coração: reserve 15 minutos hoje, entre e faça a primeira fase da Trilha 1. Só isso.\n\n" +
-          "Se não fizer sentido, tudo bem. Mas decida pelo que você viu, não pelo que deixou de ver.\n\n" +
-          "[botao: Entrar agora (15 min) | " + APP_URL + "]\n\n" +
-          "Conto com você.\n\nIsrael\n\n" +
-          "P.S. Seu e-mail + senha LBW2026. Se travar em qualquer coisa, responde aqui que eu te ajudo pessoalmente.",
-      },
-    ],
+    // LEAD desativado: não há mais cadastro grátis (a Trilha 1 virou paga — Kit 90 Dias).
+    // Ninguém novo vira "lead" (conta criada sem acessar), então a sequência fica vazia.
+    // A classificação "lead" continua existindo pra leads antigos aparecerem no painel,
+    // mas nenhum e-mail é enviado.
+    lead: [],
     gratis: [
       // 1 — BOAS-VINDAS / ativação (sem venda)
       {
@@ -1289,7 +1236,7 @@ async function startServer() {
         corpo:
           "[titulo: Bem-vindo de verdade]\n\n" +
           "Oi {nome},\n\n" +
-          "Que bom que você entrou. Isso já te coloca à frente da maioria: muita gente pede acesso e nunca aparece.\n\n" +
+          "Que bom que você entrou. Isso já te coloca à frente da maioria: muita gente compra um curso e nunca aparece pra usar.\n\n" +
           "Você está na Trilha 1, 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente'. Meu conselho: não tente ver tudo de uma vez. Faça a Fase 1, entenda como sua área funciona, e aplique no seu trabalho real essa semana. Uma ferramenta usada vale mais que dez assistidas.\n\n" +
           "Nas próximas semanas vou te mostrar, um por vez, o que mais tem na plataforma: análise de dados, apresentações que convencem, conduzir mudanças, estatística aplicada e muito mais. Pra você ver até onde dá pra ir.\n\n" +
           "Por hoje, só uma missão: termine a Fase 1.\n\n" +
@@ -1331,11 +1278,10 @@ async function startServer() {
         dia: 11, ativo: true,
         assunto: "Uma coisa que preciso te contar, {nome}",
         corpo:
-          "[titulo: O grátis é de propósito]\n\n" +
+          "[titulo: A ponta do iceberg]\n\n" +
           "Oi {nome},\n\n" +
-          "Você já viu 2 ou 3 das nossas trilhas por aqui. E talvez esteja se perguntando: por que ele libera tanta coisa de graça?\n\n" +
-          "Resposta honesta: porque eu prefiro que você EXPERIMENTE do que acredite na minha promessa. A Trilha 1 é sua, sem pagar nada. É meu jeito de te mostrar que funciona.\n\n" +
-          "Mas eu vou ser transparente com você: o grátis é a ponta do iceberg. A jornada completa, das 8 trilhas, é onde a virada de verdade acontece, do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
+          "Você já viu 2 ou 3 das nossas trilhas por aqui. Você não só leu sobre o método, você começou a aplicar. Isso já te coloca à frente de muita gente.\n\n" +
+          "Mas eu vou ser transparente com você: o que você tem em mãos é a ponta do iceberg. A jornada completa, das 8 trilhas, é onde a virada de verdade acontece, do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
           "Não precisa decidir nada hoje. Continue usando o que é seu. Só queria que você soubesse que existe um caminho inteiro à sua frente.\n\n" +
           "[botao: Conhecer a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",

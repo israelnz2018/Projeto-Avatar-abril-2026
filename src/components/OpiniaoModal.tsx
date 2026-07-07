@@ -111,9 +111,9 @@ export default function OpiniaoModal({
           </p>
           {obrigatorioSemSaida && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-3 leading-relaxed">
-              Como o seu acesso a esta primeira trilha é <b>gratuito</b>, pedimos com todo o carinho
-              que compartilhe sua avaliação antes de seguir para a prova. É a nossa forma de continuar
-              oferecendo conteúdo de qualidade de graça. 💙
+              Antes de seguir para a prova, pedimos com todo o carinho que compartilhe sua
+              avaliação desta primeira trilha. É a nossa forma de continuar evoluindo e
+              oferecendo conteúdo de qualidade. 💙
             </p>
           )}
         </div>

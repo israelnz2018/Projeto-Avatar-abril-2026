@@ -69,7 +69,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
         transition={{ duration: 0.5 }}
         className="mb-10"
       >
-        <SectionLabel live rightSlot={<>Plano · {plano}</>}>
+        <SectionLabel live rightSlot={<>Plano · {plano === 'gratuito' ? 'introdutório' : plano}</>}>
           Seu Dashboard
         </SectionLabel>
 
