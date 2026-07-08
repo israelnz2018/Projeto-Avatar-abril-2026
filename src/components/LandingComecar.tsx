@@ -219,14 +219,6 @@ export default function LandingComecar() {
               <div className="ans">Não. Seria desonesto prometer algo que depende da empresa. O que o Kit faz é te dar estrutura para entender a área, escolher uma melhoria certa e construir uma entrega concreta — você troca improviso por direção e passa a mostrar evolução.</div>
             </details>
             <details>
-              <summary>Preciso saber programar ou Excel avançado?</summary>
-              <div className="ans">Não. Toda a análise é sem código: você escolhe a ferramenta, preenche com o seu caso e a plataforma LBW faz o cálculo e entrega o resultado pronto, já explicado.</div>
-            </details>
-            <details>
-              <summary>Funciona se eu não tiver um projeto agora?</summary>
-              <div className="ans">Funciona. Você pode aplicar as ferramentas em um item da sua própria rotina — o plano mostra como escolher onde começar, mesmo que ninguém tenha te passado um projeto formal.</div>
-            </details>
-            <details>
               <summary>Como o conteúdo é entregue? Só vídeos ou tem material prático?</summary>
               <div className="ans">Os dois. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, os checklists e as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
             </details>
