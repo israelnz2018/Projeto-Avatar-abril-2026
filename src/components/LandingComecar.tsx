@@ -61,7 +61,7 @@ const CSS = `
 .k9 .publico .col li{font-size:13.5px;color:var(--txt);padding-left:20px;position:relative}
 .k9 .publico .col.sim li::before{content:'✓';position:absolute;left:0;color:#10B981}
 .k9 .publico .col.nao li::before{content:'✕';position:absolute;left:0;color:#ef4444}
-@media(max-width:560px){.k9 .publico{grid-template-columns:1fr;gap:22px}}
+@media(max-width:560px){.k9 .publico{grid-template-columns:1fr;gap:22px}.k9 .mapa3{grid-template-columns:1fr!important}}
 /* SOBRE MIM */
 .k9 .fundador{display:grid;grid-template-columns:.8fr 1.2fr;gap:32px;align-items:center;max-width:820px;margin:0 auto}
 .k9 .fundador img{width:100%;border-radius:16px;object-fit:cover;aspect-ratio:3/4;border:1px solid var(--line)}
@@ -133,6 +133,30 @@ export default function LandingComecar() {
             <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria viável o bastante para concluir e relevante o bastante para ser percebida. Ao final desta fase, você sabe exatamente qual problema trabalhar e por quê.</p></div>
             <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Entregue e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma primeira melhoria estruturada e algo concreto para apresentar.</p></div>
           </div>
+        </div>
+      </section>
+
+      {/* O MAPA DOS 90 DIAS — o coração do produto */}
+      <section className="dor">
+        <div className="wrap" style={{ textAlign: 'center' }}>
+          <span className="eyebrow">O coração do Kit</span>
+          <h2 style={{ marginTop: 18 }}>Uma atividade por dia. Só isso.</h2>
+          <p className="lead">Você não precisa descobrir o que fazer. O <b style={{ color: '#fff' }}>Mapa dos 90 Dias</b> já te diz — são 60 pequenas ações, uma por dia útil. Você abre, faz a do dia, marca, e segue. Sem enrolação, sem se perder no caminho.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, maxWidth: 620, margin: '10px auto 0' }} className="mapa3">
+            <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 16px' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#9FC0FF', fontFamily: "'Space Grotesk',sans-serif" }}>60</div>
+              <div style={{ fontSize: 13, color: 'var(--txt)', marginTop: 4 }}>ações, uma por dia</div>
+            </div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 16px' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#9FC0FF', fontFamily: "'Space Grotesk',sans-serif" }}>3</div>
+              <div style={{ fontSize: 13, color: 'var(--txt)', marginTop: 4 }}>fases claras, do entender ao entregar</div>
+            </div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: '18px 16px' }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#9FC0FF', fontFamily: "'Space Grotesk',sans-serif" }}>1</div>
+              <div style={{ fontSize: 13, color: 'var(--txt)', marginTop: 4 }}>primeira entrega no fim</div>
+            </div>
+          </div>
+          <p className="lead" style={{ marginTop: 22, marginBottom: 0 }}>É o mapa que ninguém te dá quando você chega numa área nova. Aqui, ele vem pronto.</p>
         </div>
       </section>
 
