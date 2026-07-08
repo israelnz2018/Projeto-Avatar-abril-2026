@@ -220,7 +220,7 @@ export default function LandingComecar() {
             </details>
             <details>
               <summary>Como o conteúdo é entregue? Só vídeos ou tem material prático?</summary>
-              <div className="ans">Os dois. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, os checklists e as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
+              <div className="ans">Os dois. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
             </details>
             <details>
               <summary>E se eu não gostar?</summary>
