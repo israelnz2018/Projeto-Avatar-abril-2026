@@ -140,7 +140,6 @@ export default function LandingComecar() {
           <h2>O que você recebe</h2>
           <p className="lead">Um kit de execução — não uma pilha de vídeos. Os vídeos ensinam a usar as ferramentas.</p>
           <div className="kit">
-            <div className="item"><span className="ck">✓</span> Plano visual dos 90 dias + checklist semanal</div>
             <div className="item"><span className="ck">✓</span> Ferramentas para conhecer o processo atual — RACI, Indicadores, POP</div>
             <div className="item"><span className="ck">✓</span> Matriz pra escolher o problema certo</div>
             <div className="item"><span className="ck">✓</span> Ferramentas de análise (Ishikawa, mapa de processo)</div>
