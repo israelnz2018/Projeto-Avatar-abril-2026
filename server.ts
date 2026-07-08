@@ -165,23 +165,24 @@ async function startServer() {
       </div>`;
 
     if (tipo === "gratis") {
-      titulo = "Seu acesso gratuito à LBW está liberado 🎉";
-      planoLabel = "Plano Gratuito (Trilha 1)";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso à plataforma <strong>LBW</strong> está liberado. Você começa pela <strong>Trilha 1 — Como Chegar em uma Área Nova e Entregar Resultado Rapidamente</strong>.`;
+      titulo = "Parabéns pela sua compra! Seu Kit 90 Dias está liberado 🎉";
+      planoLabel = "Kit 90 Dias (Trilha 1)";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Que bom ter você aqui. Sua compra foi confirmada e seu acesso ao <strong>Kit 90 Dias — Sobreviva em uma Nova Área e se Destaque no Trabalho</strong> está liberado. A partir de agora você tem um plano prático pros seus primeiros 90 dias: entender a área, escolher o problema certo e entregar sua primeira melhoria.`;
       credenciaisHtml = credComSenha;
-      botaoLabel = "ACESSAR MEU CURSO";
+      botaoLabel = "ACESSAR MEU KIT 90 DIAS";
       corpoHtml = `
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🗺️ <strong>O Mapa dos 90 Dias</strong> — seu checklist de progresso, 60 ações (uma por dia), do "cheguei perdido" ao "olha o que eu entreguei".</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎥 <strong>Vídeo-aulas</strong> — práticas e direto ao ponto, no seu ritmo.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🛠️ <strong>Ferramentas de gestão</strong> — SIPOC, RACI, Organograma e mais, pra usar em casos reais (você não só assiste, você executa).</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎯 <strong>Resolução de problemas</strong> — identifique os melhores projetos da sua área, execute e implemente as soluções — e se destaque de verdade no seu trabalho.</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Análise de dados</strong> — transforme números em decisão com gráficos, sem precisar de Excel avançado.</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado da Trilha 1</strong> — ao concluir a trilha (respeitando o tempo mínimo), você recebe seu certificado.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — ao concluir o Kit 90 Dias (respeitando o tempo mínimo), você recebe seu certificado.</p>
         ${dashboardBloco}
         ${mentorBloco}
         ${comunidadeBloco}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-        <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">E TEM MAIS 7 TRILHAS ESPERANDO POR VOCÊ:</p>
+        <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">DEPOIS DO KIT, TEM UMA JORNADA INTEIRA À SUA FRENTE:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">O Kit 90 Dias é a porta de entrada. Quando quiser ir além, a formação completa te leva do básico ao nível de quem senta na mesa de decisão — com mais 7 trilhas:</p>
         ${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}`;
     } else if (tipo === "pago") {
       titulo = "Bem-vindo à Formação completa LBW 🚀 seu acesso está liberado";
