@@ -101,7 +101,7 @@ export default function LandingComecar() {
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
           <h1>Nos primeiros 90 dias, ou você constrói sua imagem,<br /><span className="grad">ou a empresa constrói por você.</span></h1>
-          <p className="sub">Um plano prático pra entender uma área nova, escolher um problema relevante e construir sua primeira entrega — sem passar meses esperando alguém explicar tudo.</p>
+          <p className="sub">Use um plano prático para entender uma área nova, escolher um problema relevante e transformar esse problema em sua primeira melhoria concreta — sem passar meses esperando alguém explicar tudo.</p>
           <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
           <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
@@ -110,14 +110,16 @@ export default function LandingComecar() {
       {/* DOR */}
       <section className="dor">
         <div className="wrap">
-          <h2>Você entrou numa área nova. E já está sendo observado.</h2>
-          <p className="lead">Todo mundo ocupado, reuniões rápidas, sistemas rodando, problemas que já existem. E, mesmo sem entender tudo, as pessoas já estão formando uma opinião sobre você.</p>
+          <h2>Você entrou numa área nova. E as pessoas já estão formando uma opinião sobre você.</h2>
+          <p className="lead">Todo mundo está ocupado. As reuniões acontecem rápido. Os sistemas já estão funcionando. Os problemas já existem. E, mesmo sem entender tudo, você já precisa aprender, se posicionar e começar a contribuir.</p>
           <ul>
-            <li>Será que estou demorando demais pra aprender?</li>
+            <li>Será que estou demorando demais para aprender?</li>
             <li>Será que já perceberam que estou perdido?</li>
-            <li>Como mostro que sou útil se ninguém explica nada?</li>
-            <li>O que eu entrego além da rotina?</li>
+            <li>Como mostro que posso contribuir se ninguém explica nada?</li>
+            <li>O que posso entregar além da rotina?</li>
+            <li>Por onde começo sem tentar mudar tudo de uma vez?</li>
           </ul>
+          <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa conhecer tudo. Precisa saber <b style={{ color: '#fff' }}>o que observar, o que perguntar e qual problema escolher</b>.</p>
         </div>
       </section>
 
@@ -127,9 +129,9 @@ export default function LandingComecar() {
           <h2>Você não precisa conhecer tudo. Precisa de três movimentos.</h2>
           <p className="lead">O Kit organiza seus 90 dias em três fases — entender, escolher e entregar.</p>
           <div className="fases">
-            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Mapear a sua área, identificar as pessoas e processos chaves, principais indicadores. Você para de agir no escuro e passa a explicar como a área funciona.</p></div>
-            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Lista de problemas, matriz de priorização, mapeamento de processo. Você escolhe uma melhoria pequena o bastante pra avançar e importante o bastante pra ser percebida.</p></div>
-            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Entregue e mostre o resultado</h3><p>Priorize as melhores soluções, plano de ação, antes/depois, estrutura pra apresentar. Você entrega sua primeira melhoria.</p></div>
+            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você mapeia a área, identifica as pessoas-chave, entende os principais processos e descobre quais indicadores realmente importam. Ao final desta fase, você deixa de agir no escuro e passa a entender como o trabalho realmente funciona.</p></div>
+            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria viável o bastante para concluir e relevante o bastante para ser percebida. Ao final desta fase, você sabe exatamente qual problema trabalhar e por quê.</p></div>
+            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Entregue e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma primeira melhoria estruturada e algo concreto para apresentar.</p></div>
           </div>
         </div>
       </section>
@@ -169,8 +171,9 @@ export default function LandingComecar() {
               <ul>
                 <li>Só quer assistir aula</li>
                 <li>Não vai aplicar as ferramentas</li>
-                <li>Espera garantia de emprego</li>
+                <li>Espera garantia de emprego ou promoção</li>
                 <li>Procura fórmula mágica</li>
+                <li>Não está disposto a observar, perguntar e agir</li>
               </ul>
             </div>
           </div>
@@ -187,8 +190,8 @@ export default function LandingComecar() {
             <div><img src="/israel-foto.png" alt="Israel Souza" loading="lazy" /></div>
             <div>
               <h2>Mais de 20 anos resolvendo problemas de verdade</h2>
-              <p>Não sou professor de teoria. Ensino apenas o que aplico e já apliquei na prática. Trabalhar em empresas de <b>equipamentos médicos, bebida, automotiva, petroquímica e governamental</b> me ajudou a adquirir vasta experiência tanto em chão de fábrica como em atividades de escritório, que geraram mais de <b>US$ 20MM</b> em ganhos pelos projetos dos meus alunos e pelos meus próprios projetos.</p>
-              <p>Treinei mais de <b>1.500 profissionais</b> e percebi que o que falta não é certificado na parede. É saber chegar numa área, se adaptar rápido, entender como investigar um problema, entregar resultado com o mínimo de resistência e saber apresentar os resultados. É isso que este kit ensina.</p>
+              <p>Há mais de 20 anos trabalho com resolução de problemas, melhoria de processos e projetos de melhoria. Passei por empresas dos setores <b>automotivo, petroquímico, médico, bebidas e governamental</b>, atuando tanto em ambientes industriais quanto em atividades administrativas.</p>
+              <p>Ao longo dessa trajetória, treinei mais de <b>1.500 profissionais</b> e participei de projetos que, somados, geraram mais de <b>US$ 20 milhões</b> em ganhos. Foi trabalhando em áreas, empresas e países diferentes que percebi uma coisa: o que falta para muitos profissionais não é mais teoria. É saber entrar em um ambiente novo, entender rápido o que está acontecendo, escolher um problema relevante e transformar conhecimento em resultado. É isso que este kit ensina.</p>
               <div className="stats">
                 <div><div className="n">20</div><div className="l">anos de prática</div></div>
                 <div><div className="n">4</div><div className="l">multinacionais</div></div>
@@ -219,12 +222,16 @@ export default function LandingComecar() {
               <div className="ans">Não. Seria desonesto prometer algo que depende da empresa. O que o Kit faz é te dar estrutura para entender a área, escolher uma melhoria certa e construir uma entrega concreta — você troca improviso por direção e passa a mostrar evolução.</div>
             </details>
             <details>
+              <summary>Preciso ter experiência com melhoria de processos?</summary>
+              <div className="ans">Não. As ferramentas são apresentadas passo a passo e aplicadas a situações reais do seu trabalho. Você aprende fazendo, sem precisar de nenhuma base prévia.</div>
+            </details>
+            <details>
               <summary>Como o conteúdo é entregue? Só vídeos ou tem material prático?</summary>
               <div className="ans">Os dois. Você tem os vídeos que te ensinam cada passo, mais o kit de execução: o plano dos 90 dias, as ferramentas prontas para aplicar no seu trabalho real. Não é só assistir — é assistir e fazer.</div>
             </details>
             <details>
               <summary>E se eu não gostar?</summary>
-              <div className="ans">Você tem 7 dias de garantia. Se não for para você, devolvemos o valor — sem burocracia.</div>
+              <div className="ans">Você tem 7 dias para acessar o conteúdo. Caso perceba que o kit não é para você, pode solicitar o reembolso dentro desse prazo — sem burocracia.</div>
             </details>
           </div>
         </div>
