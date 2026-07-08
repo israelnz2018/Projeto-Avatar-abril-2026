@@ -161,8 +161,6 @@ export default function LandingComecar() {
                 <li>Entrou recentemente numa empresa</li>
                 <li>Mudou de área internamente</li>
                 <li>Foi promovido ou assumiu novo projeto</li>
-                <li>Mudou de empresa</li>
-                <li>Está migrando de carreira</li>
                 <li>Quer mostrar valor sem depender de cargo</li>
               </ul>
             </div>
