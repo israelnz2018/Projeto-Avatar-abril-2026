@@ -7,7 +7,7 @@
  * Clicar num card liberado abre um modal com o conteúdo + botão "Imprimir como PDF".
  */
 import React, { useState, useRef } from 'react';
-import { FileCheck2, Lock, Map, Presentation, X, Printer } from 'lucide-react';
+import { FileCheck2, Lock, Map, Presentation, X, Printer, Table2 } from 'lucide-react';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL, KIT90_CHECKOUT_URL } from '../lib/constants';
 import ChecklistMapa90Dias from './recursos/ChecklistMapa90Dias';
@@ -18,7 +18,7 @@ interface Recurso {
   id: string;
   titulo: string;
   descricao: string;
-  categoria: 'Checklist' | 'Mapa' | 'PPT';
+  categoria: 'Checklist' | 'Mapa' | 'PPT' | 'Planilha';
   icone: React.ComponentType<{ size?: number; className?: string }>;
   nivel: Nivel;
   conteudo?: React.ComponentType;   // componente React aberto em modal
@@ -38,6 +38,16 @@ const MAPAS: { id: string; titulo: string; descricao: string; pdf: string }[] = 
   { id: 'mapa-capabilidade', titulo: 'Capabilidade de Processo', descricao: 'Cp, Cpk, Pp, Ppk — o processo entrega o que a especificação pede?', pdf: '/mapas/mapa-capabilidade-processo.pdf' },
   { id: 'mapa-inferencial', titulo: 'Análise Inferencial', descricao: 'Testes de hipótese, ANOVA — decidir com base em amostra.', pdf: '/mapas/mapa-analise-inferencial.pdf' },
   { id: 'mapa-preditivo', titulo: 'Análise Preditiva', descricao: 'Regressão e previsão — do dado histórico à projeção.', pdf: '/mapas/mapa-analise-preditivo.pdf' },
+];
+
+// Planilhas (Excel) em public/mapas. Nível por item.
+const PLANILHAS: { id: string; titulo: string; descricao: string; pdf: string; nivel: Nivel }[] = [
+  { id: 'planilha-t1-qualidade', titulo: 'Ferramentas da Qualidade — Exercícios', descricao: 'A planilha de exercícios das ferramentas da qualidade da Trilha 1.', pdf: '/mapas/planilha-trilha01-ferramentas-qualidade.xlsx', nivel: 'trilha1' },
+  { id: 'planilha-t2-estatisticas', titulo: 'Ferramentas Estatísticas — Todas', descricao: 'Todas as ferramentas estatísticas da Trilha 2 numa planilha só.', pdf: '/mapas/planilha-trilha02-ferramentas-estatisticas.xlsx', nivel: 'completo' },
+  { id: 'planilha-dmaic', titulo: 'Checklist DMAIC', descricao: 'O roteiro DMAIC de ponta a ponta pra conduzir seu projeto.', pdf: '/mapas/planilha-dmaic-checklist.xlsx', nivel: 'completo' },
+  { id: 'planilha-kaizen', titulo: 'Planejamento e Padrões Kaizen', descricao: 'Modelo de planejamento e padrões pra rotina de melhoria contínua.', pdf: '/mapas/planilha-kaizen.xlsx', nivel: 'completo' },
+  { id: 'planilha-t8-ferramentas', titulo: 'Estudo de Caso — Ferramentas', descricao: 'O estudo de caso aplicado às ferramentas (Trilha 8).', pdf: '/mapas/planilha-trilha08-estudo-caso-ferramentas.xlsx', nivel: 'completo' },
+  { id: 'planilha-t8-graficos', titulo: 'Estudo de Caso — Gráficos e Estatística', descricao: 'O estudo de caso com gráficos e estatística (Trilha 8).', pdf: '/mapas/planilha-trilha08-estudo-caso-graficos.xlsx', nivel: 'completo' },
 ];
 
 const RECURSOS: Recurso[] = [
@@ -60,6 +70,16 @@ const RECURSOS: Recurso[] = [
     nivel: 'completo',
     pdf: m.pdf,
   })),
+  // As 6 planilhas (Excel). Nível por item (a Trilha 1 é 'trilha1').
+  ...PLANILHAS.map((p): Recurso => ({
+    id: p.id,
+    titulo: p.titulo,
+    descricao: p.descricao,
+    categoria: 'Planilha',
+    icone: Table2,
+    nivel: p.nivel,
+    pdf: p.pdf,
+  })),
   {
     id: 'ppt-executivo',
     titulo: 'Template de Apresentação Executiva',
@@ -75,6 +95,7 @@ const CATEGORIA_COR: Record<Recurso['categoria'], string> = {
   Checklist: 'bg-blue-100 text-blue-700',
   Mapa: 'bg-violet-100 text-violet-700',
   PPT: 'bg-emerald-100 text-emerald-700',
+  Planilha: 'bg-teal-100 text-teal-700',
 };
 
 export default function RecursosView() {
@@ -176,7 +197,7 @@ export default function RecursosView() {
                     <Lock size={13} /> {r.nivel === 'trilha1' ? 'Disponível no Kit 90 Dias →' : 'Disponível no plano Completo →'}
                   </a>
                 ) : (
-                  <span className="text-[12px] font-bold text-blue-700">{r.pdf ? (r.pdf.endsWith('.pptx') || r.pdf.endsWith('.ppt') ? 'Baixar PPT →' : 'Abrir PDF →') : 'Abrir →'}</span>
+                  <span className="text-[12px] font-bold text-blue-700">{r.pdf ? (r.pdf.endsWith('.pptx') || r.pdf.endsWith('.ppt') ? 'Baixar PPT →' : r.pdf.endsWith('.xlsx') || r.pdf.endsWith('.xls') ? 'Baixar planilha →' : 'Abrir PDF →') : 'Abrir →'}</span>
                 )}
               </div>
             </div>
