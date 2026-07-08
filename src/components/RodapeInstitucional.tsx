@@ -33,7 +33,7 @@ export default function RodapeInstitucional() {
         <div>
           <div style={tituloCol}>Trilhas</div>
           <div style={{ fontSize: 13, color: TXT2, lineHeight: 2 }}>
-            01 · Como Chegar em uma Área Nova e Entregar Resultado Rapidamente<br/>
+            01 · Kit 90 Dias - Sobreviva em uma Nova Área e se Destaque no Trabalho<br/>
             02 · Como Recomendar Melhorias com Base em Análise de Dados<br/>
             03 · Como Conduzir Mudanças com Menos Resistência<br/>
             04 · Como Criar Apresentações que Convencem<br/>
