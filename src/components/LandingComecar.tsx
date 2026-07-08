@@ -127,9 +127,9 @@ export default function LandingComecar() {
           <h2>Você não precisa conhecer tudo. Precisa de três movimentos.</h2>
           <p className="lead">O Kit organiza seus 90 dias em três fases — entender, escolher e entregar.</p>
           <div className="fases">
-            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Mapa da área, pessoas-chave, processos, roteiro de perguntas. Você para de agir no escuro e passa a explicar como a área funciona.</p></div>
-            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Lista de problemas, matriz de priorização, Ishikawa, mapa de processo. Você escolhe uma melhoria pequena o bastante pra avançar e importante o bastante pra ser percebida.</p></div>
-            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Entregue e mostre o resultado</h3><p>Matriz esforço × impacto, plano de ação, antes/depois, estrutura pra apresentar. Você termina com uma primeira entrega que pode ser mostrada.</p></div>
+            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Mapear a sua área, identificar as pessoas e processos chaves, principais indicadores. Você para de agir no escuro e passa a explicar como a área funciona.</p></div>
+            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Lista de problemas, matriz de priorização, mapeamento de processo. Você escolhe uma melhoria pequena o bastante pra avançar e importante o bastante pra ser percebida.</p></div>
+            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Entregue e mostre o resultado</h3><p>Priorize as melhores soluções, plano de ação, antes/depois, estrutura pra apresentar. Você entrega sua primeira melhoria.</p></div>
           </div>
         </div>
       </section>
