@@ -63,11 +63,11 @@ const RECURSOS: Recurso[] = [
   {
     id: 'ppt-executivo',
     titulo: 'Template de Apresentação Executiva',
-    descricao: 'A estrutura SCQA pronta em PPT pra você apresentar sua melhoria pra diretoria.',
+    descricao: 'Estruturas narrativas prontas em PPT pra você apresentar sua melhoria pra diretoria.',
     categoria: 'PPT',
     icone: Presentation,
     nivel: 'completo',
-    emBreve: true,
+    pdf: '/mapas/template-apresentacao-executiva.pptx',
   },
 ];
 
@@ -176,7 +176,7 @@ export default function RecursosView() {
                     <Lock size={13} /> {r.nivel === 'trilha1' ? 'Disponível no Kit 90 Dias →' : 'Disponível no plano Completo →'}
                   </a>
                 ) : (
-                  <span className="text-[12px] font-bold text-blue-700">{r.pdf ? 'Abrir PDF →' : 'Abrir →'}</span>
+                  <span className="text-[12px] font-bold text-blue-700">{r.pdf ? (r.pdf.endsWith('.pptx') || r.pdf.endsWith('.ppt') ? 'Baixar PPT →' : 'Abrir PDF →') : 'Abrir →'}</span>
                 )}
               </div>
             </div>
