@@ -1198,8 +1198,7 @@ async function startServer() {
   // SEQUÊNCIAS DE E-MAIL AUTOMÁTICAS (Lead + Grátis) — o "motor"
   // -----------------------------------------------------------------
   // Estágio de cada usuário (decidido pelo estado ATUAL no Firestore):
-  //   lead   = conta gratuita que NUNCA acessou  (sem primeiroAcessoEm, plano != completo)
-  //   gratis = conta gratuita que JÁ acessou      (com primeiroAcessoEm, plano != completo)
+  //   gratis = plano introdutório (Kit 90 Dias / Trilha 1), tenha acessado ou não
   //   pago   = plano completo                      (newsletter é manual, não entra aqui)
   // Um cron diário varre os users, classifica cada um, vê quantos dias desde o
   // cadastro e envia o e-mail da sequência que "vence" hoje — se ainda não foi
@@ -1209,12 +1208,10 @@ async function startServer() {
   // ===============================================================
 
   type SeqEmail = { dia: number; assunto: string; corpo: string; ativo: boolean };
-  type Sequencias = { lead: SeqEmail[]; gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
+  type Sequencias = { gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
 
   // Conteúdo inicial das sequências (editável pela tela). Tom "Carta do Israel":
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
-  // LEAD (5 e-mails, dias 0/2/4/7/10): sobe o nível de consciência (Schwartz):
-  //   inconsciente -> consciente do problema -> da solução -> do produto -> mais consciente.
   // GRÁTIS (7 e-mails, dias 0/3/7/11/15/19/24): um por trilha (trilhas 2 a 8 do app).
   const APP_URL = "https://app.educacaopelotrabalho.com";
   // Página de vendas (preço cheio R$ 597).
@@ -1223,12 +1220,6 @@ async function startServer() {
   // Enquanto isso aponta pra página de vendas — ajuste no painel Marketing quando tiver o link.
   const DESCONTO_URL = "https://www.educacaopelotrabalho.com/formacao";
   const SEQUENCIAS_DEFAULT: Sequencias = {
-    // LEAD (4 e-mails, dias 0/2/5/8): quem cadastrou e nunca acessou. O e-mail de
-    // LEAD desativado: não há mais cadastro grátis (a Trilha 1 virou paga — Kit 90 Dias).
-    // Ninguém novo vira "lead" (conta criada sem acessar), então a sequência fica vazia.
-    // A classificação "lead" continua existindo pra leads antigos aparecerem no painel,
-    // mas nenhum e-mail é enviado.
-    lead: [],
     gratis: [
       // 1 — BOAS-VINDAS / ativação (sem venda)
       {
@@ -1544,7 +1535,6 @@ async function startServer() {
       if (snap.exists) {
         const d = snap.data() as any;
         return {
-          lead: Array.isArray(d?.lead) ? d.lead : SEQUENCIAS_DEFAULT.lead,
           gratis: Array.isArray(d?.gratis) ? d.gratis : SEQUENCIAS_DEFAULT.gratis,
           pago7: Array.isArray(d?.pago7) ? d.pago7 : SEQUENCIAS_DEFAULT.pago7,
           pago: Array.isArray(d?.pago) ? d.pago : SEQUENCIAS_DEFAULT.pago,
@@ -1562,11 +1552,13 @@ async function startServer() {
 
   // Classificação "de negócio" — usada na tela (contagem/engajamento). Trata
   // todo comprador como "pago" (uma coisa só), pra não quebrar quem já consome.
-  function classificarUsuario(u: any): "lead" | "gratis" | "pago" | null {
+  // Não existe mais "lead": a Trilha 1 virou paga, ninguém cadastra sem acessar.
+  // Quem tem conta e ainda não acessou é tratado como "gratis" (introdutório).
+  function classificarUsuario(u: any): "gratis" | "pago" | null {
     if (!u || !u.email) return null;
     if (u.plano === "completo") return "pago";
     if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null; // não recebem sequência
-    return u.primeiroAcessoEm ? "gratis" : "lead";
+    return "gratis";
   }
 
   // Classificação "de sequência" — usada SÓ pelo motor de e-mails. Igual à de
@@ -1576,7 +1568,7 @@ async function startServer() {
   // IMPORTANTE: quem é CORTESIA (grátis completo, não pagou) NÃO entra no pago7,
   // porque a fase anti-reembolso é irrelevante pra quem não tem o que reembolsar.
   // Vai direto pro "pago" (relacionamento).
-  function classificarSequencia(u: any): "lead" | "gratis" | "pago7" | "pago" | null {
+  function classificarSequencia(u: any): "gratis" | "pago7" | "pago" | null {
     const base = classificarUsuario(u);
     if (base !== "pago") return base;
     if (isCortesia(u)) return "pago"; // cortesia não pagou → pula o anti-reembolso
@@ -1586,15 +1578,15 @@ async function startServer() {
 
   // Quais estágios estão LIGADos pra envio automático. Guardado em Firestore pra o Israel
   // ligar/desligar pela tela sem deploy. Default: TODOS DESLIGADOS (posição segura).
-  type EstagiosAtivos = { lead: boolean; gratis: boolean; pago7: boolean; pago: boolean };
+  type EstagiosAtivos = { gratis: boolean; pago7: boolean; pago: boolean };
   async function lerEstagiosAtivos(): Promise<EstagiosAtivos> {
-    const off = { lead: false, gratis: false, pago7: false, pago: false };
+    const off = { gratis: false, pago7: false, pago: false };
     try {
       const snap = await adminFirestore().collection("config").doc("marketingEstagiosAtivos").get();
       if (!snap.exists) return off;
       const d = snap.data() as any;
       return {
-        lead: d?.lead === true, gratis: d?.gratis === true,
+        gratis: d?.gratis === true,
         pago7: d?.pago7 === true, pago: d?.pago === true,
       };
     } catch { return off; }
@@ -1607,12 +1599,12 @@ async function startServer() {
     const seqs = await lerSequencias();
     const template = await lerTemplate();
     const ativos = opts.forcarEstagios
-      ? { lead: false, gratis: false, pago7: false, pago: false, ...opts.forcarEstagios }
+      ? { gratis: false, pago7: false, pago: false, ...opts.forcarEstagios }
       : await lerEstagiosAtivos();
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
-      porPacote: { lead: 0, gratis: 0, pago7: 0, pago: 0 } as Record<string, number>,
+      porPacote: { gratis: 0, pago7: 0, pago: 0 } as Record<string, number>,
       detalhes: [] as any[],
     };
 
@@ -1623,7 +1615,7 @@ async function startServer() {
       // Opt-out (descadastro): quem cancelou a inscrição NÃO recebe mais nada. Lei.
       if (u.emailOptOut === true) { resumo.pulados++; continue; }
       const estagio = classificarSequencia(u);
-      if (estagio !== "lead" && estagio !== "gratis" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
+      if (estagio !== "gratis" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
       if (!ativos[estagio]) { resumo.pulados++; continue; } // estágio desligado na config
 
       const seq = seqs[estagio];
@@ -1632,7 +1624,7 @@ async function startServer() {
       //    quem já estava na base sem tocar em criadoEm/primeiroAcessoEm).
       //  - gratis: conta a partir do PRIMEIRO ACESSO (quando virou gratis) — a régua
       //    "recomeça do zero" na transição, então todo gratis faz a jornada do #1.
-      //  - lead/pago7/pago: conta a partir do cadastro/compra (criadoEm). Os emails do
+      //  - pago7/pago: conta a partir do cadastro/compra (criadoEm). Os emails do
       //    pago começam no dia 13, então a pessoa migra de pago7 pra pago naturalmente.
       const base = u.emailReguaInicioEm
         || (estagio === "gratis"
@@ -1697,7 +1689,7 @@ async function startServer() {
   // PUT /api/marketing/estagios-ativos — liga/desliga estágios (sem deploy)
   app.put("/api/marketing/estagios-ativos", requireAdmin, async (req: any, res) => {
     const b = req.body || {};
-    const limpo = { lead: b.lead === true, gratis: b.gratis === true, pago7: b.pago7 === true, pago: b.pago === true };
+    const limpo = { gratis: b.gratis === true, pago7: b.pago7 === true, pago: b.pago === true };
     try {
       await adminFirestore().collection("config").doc("marketingEstagiosAtivos").set(limpo);
       return res.json({ ok: true, ...limpo });
@@ -1715,7 +1707,7 @@ async function startServer() {
     const est = String(estagio || "");
     const i = Math.max(0, parseInt(idx, 10) || 0);
     if (!dest.includes("@")) return res.status(400).json({ error: "e-mail inválido." });
-    if (!["lead", "gratis", "pago7", "pago"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
+    if (!["gratis", "pago7", "pago"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
     try {
       const seqs = await lerSequencias();
       const template = await lerTemplate();
@@ -1739,8 +1731,8 @@ async function startServer() {
 
   // PUT /api/marketing/sequencias — salva as sequências editadas (tela Fase 2)
   app.put("/api/marketing/sequencias", requireAdmin, async (req: any, res) => {
-    const { lead, gratis, pago7, pago } = req.body || {};
-    if (!Array.isArray(lead) || !Array.isArray(gratis) || !Array.isArray(pago7) || !Array.isArray(pago)) return res.status(400).json({ error: "lead, gratis, pago7 e pago precisam ser arrays." });
+    const { gratis, pago7, pago } = req.body || {};
+    if (!Array.isArray(gratis) || !Array.isArray(pago7) || !Array.isArray(pago)) return res.status(400).json({ error: "gratis, pago7 e pago precisam ser arrays." });
     const limpa = (arr: any[]): SeqEmail[] => arr.map((e) => ({
       dia: Math.max(0, parseInt(e?.dia, 10) || 0),
       assunto: String(e?.assunto || ""),
@@ -1748,7 +1740,7 @@ async function startServer() {
       ativo: e?.ativo !== false,
     }));
     try {
-      await adminFirestore().collection("config").doc("marketingSequencias").set({ lead: limpa(lead), gratis: limpa(gratis), pago7: limpa(pago7), pago: limpa(pago) });
+      await adminFirestore().collection("config").doc("marketingSequencias").set({ gratis: limpa(gratis), pago7: limpa(pago7), pago: limpa(pago) });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao salvar." });
@@ -1848,7 +1840,7 @@ async function startServer() {
         adminFirestore().collection("config").doc("marketingMotorStatus").get(),
         adminFirestore().collection("users").get(),
       ]);
-      const contagem = { lead: 0, gratis: 0, pago: 0 };
+      const contagem = { gratis: 0, pago: 0 };
       usersSnap.docs.forEach((d) => {
         const c = classificarUsuario(d.data());
         if (c && c in contagem) (contagem as any)[c]++;
@@ -1906,7 +1898,7 @@ async function startServer() {
         hoje: hojeStr,
         enviadosHoje: porDia[hojeStr] || 0,
         enviadosMes: porMes[mesStr] || 0,
-        hojePorEstagio,     // { lead, gratis, pago7, pago } se o motor rodou hoje; senão null
+        hojePorEstagio,     // { gratis, pago7, pago } se o motor rodou hoje; senão null
         totalHistorico: todos.length,
         porDia: dias,
       });
@@ -1959,7 +1951,7 @@ async function startServer() {
 
   // ===============================================================
   // NEWSLETTER (pacote Pago) — envio manual + histórico pra reenviar
-  // Público-alvo por filtro: 'pago' (completo), 'gratis', 'lead' ou 'todos'.
+  // Público-alvo por filtro: 'pago' (completo), 'gratis' ou 'todos'.
   // Cada envio é salvo em newsletters/{id} pra você reabrir e reenviar.
   // ===============================================================
 
@@ -1986,7 +1978,7 @@ async function startServer() {
     if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
     const { assunto, corpo, publico } = req.body || {};
     if (!assunto || !corpo) return res.status(400).json({ error: "assunto e corpo são obrigatórios." });
-    const alvo = ["pago", "gratis", "lead", "todos"].includes(publico) ? publico : "pago";
+    const alvo = ["pago", "gratis", "todos"].includes(publico) ? publico : "pago";
     try {
       const template = await lerTemplate();
       const snap = await adminFirestore().collection("users").get();
