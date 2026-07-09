@@ -97,7 +97,8 @@ const SEMANAS: Semana[] = [
 
 const FASE_META: Record<Fase, { num: string; nome: string; meta: string; cor: string }> = {
   f1: { num: 'Dias 1–20', nome: 'Entenda antes de querer mudar', cor: '#0033CC', meta: 'Meta: você precisa saber como as principais atividades da sua área funcionam.' },
-  f2: { num: 'Dias 21–40', nome: 'Encontre o problema certo', cor: '#7C3AED', meta: 'Meta: você precisa identificar as causas do principal problema que você pode melhorar.' },
+  // (verbos por fase: F1 precisa · F2 deve · F3 vai — escala de compromisso crescente)
+  f2: { num: 'Dias 21–40', nome: 'Encontre o problema certo', cor: '#7C3AED', meta: 'Meta: você deve identificar as causas do principal problema que você pode melhorar.' },
   f3: { num: 'Dias 41–60', nome: 'Entregue e mostre o resultado', cor: '#0F9D58', meta: 'Meta: você vai implementar uma melhoria e celebrar os resultados com todo o time.' },
 };
 
