@@ -19,7 +19,7 @@ const SEMANAS: Semana[] = [
   { fase: 'f1', sw: 'Sem 2', titulo: 'Organograma e pessoas-chave', dias: [
     { d: 'Dia 6', txt: 'Desenhei quem reporta a quem na área (ORGANOGRAMA)' },
     { d: 'Dia 7', txt: 'Marquei quem decide, quem aprova e quem executa (ORGANOGRAMA)' },
-    { d: 'Dia 8', txt: 'Identifiquei as pessoas que mais dominam os processos (meus "atalhos")' },
+    { d: 'Dia 8', txt: 'Identifiquei as pessoas que mais dominam os processos' },
     { d: 'Dia 9', txt: 'Agendei conversa com cada pessoa-chave' },
     { d: 'Dia 10', txt: 'Anotei o que cada pessoa-chave espera do meu trabalho' },
   ]},
@@ -41,10 +41,10 @@ const SEMANAS: Semana[] = [
     { d: 'Dia 21', txt: 'Listei os problemas que observei nas primeiras semanas' },
     { d: 'Dia 22', txt: 'Perguntei ao time: "o que mais atrapalha vocês aqui?"' },
     { d: 'Dia 23', txt: 'Cruzei os problemas com os indicadores ruins da Semana 4' },
-    { d: 'Dia 24', txt: 'Separei reclamação de problema real (com impacto medível)' },
+    { d: 'Dia 24', txt: 'Separei reclamação de problema real, com impacto medível' },
     { d: 'Dia 25', txt: 'Cheguei a uma lista de 5 a 10 ideias de projeto (IDEIAS DE PROJETO DE MELHORIA)' },
   ]},
-  { fase: 'f2', sw: 'Sem 6', titulo: 'Priorização (GUT, RAB e opiniões)', dias: [
+  { fase: 'f2', sw: 'Sem 6', titulo: 'Priorização das ideias', dias: [
     { d: 'Dia 26', txt: 'Avaliei cada ideia por Gravidade, Urgência e Tendência (GUT)' },
     { d: 'Dia 27', txt: 'Avaliei por Retorno, Alcance e Baixo esforço (RAB)' },
     { d: 'Dia 28', txt: 'Ouvi a opinião de pessoas-chave sobre as ideias mais bem pontuadas' },
@@ -53,8 +53,8 @@ const SEMANAS: Semana[] = [
   ]},
   { fase: 'f2', sw: 'Sem 7', titulo: 'Detalhamento do projeto de melhoria', dias: [
     { d: 'Dia 31', txt: 'Escrevi o problema em uma frase clara — o quê, onde, desde quando (ENTENDENDO O PROBLEMA)' },
-    { d: 'Dia 32', txt: 'Defini a meta do projeto (de quanto pra quanto, até quando)' },
-    { d: 'Dia 33', txt: 'Delimitei o escopo (o que está dentro e o que está fora)' },
+    { d: 'Dia 32', txt: 'Defini a meta do projeto: de quanto pra quanto, até quando' },
+    { d: 'Dia 33', txt: 'Delimitei o escopo: o que está dentro e o que está fora' },
     { d: 'Dia 34', txt: 'Identifiquei quem precisa apoiar o projeto' },
     { d: 'Dia 35', txt: 'Tenho um projeto definido, com dono e escopo — Fase 2 concluída' },
   ]},
@@ -62,10 +62,10 @@ const SEMANAS: Semana[] = [
     { d: 'Dia 36', txt: 'Listei as variáveis que afetam o resultado do processo' },
     { d: 'Dia 37', txt: 'Separei o que eu posso controlar do que eu não controlo' },
     { d: 'Dia 38', txt: 'Coletei dados de como o processo se comporta hoje' },
-    { d: 'Dia 39', txt: 'Registrei a situação ANTES (número, foto ou evidência)' },
+    { d: 'Dia 39', txt: 'Registrei a situação ANTES com número, foto ou evidência' },
     { d: 'Dia 40', txt: 'Entendi quais variáveis mais influenciam o problema' },
   ]},
-  { fase: 'f3', sw: 'Sem 9', titulo: 'Analisando e identificando as causas raízes (software LBW)', dias: [
+  { fase: 'f3', sw: 'Sem 9', titulo: 'Analisando e identificando as causas raízes', dias: [
     { d: 'Dia 41', txt: 'Montei o diagrama das possíveis causas (ISHIKAWA)' },
     { d: 'Dia 42', txt: 'Fui além da primeira causa até a raiz (5 PORQUÊS)' },
     { d: 'Dia 43', txt: 'Analisei os dados coletados no software LBW (ANÁLISE GRÁFICA E ESTATÍSTICA)' },
@@ -82,11 +82,11 @@ const SEMANAS: Semana[] = [
   { fase: 'f3', sw: 'Sem 11', titulo: 'Implementação do plano de ação', dias: [
     { d: 'Dia 51', txt: 'Montei o plano de ação — o quê, quem, quando (PLANO DE AÇÃO)' },
     { d: 'Dia 52', txt: 'Comuniquei o plano a quem será envolvido' },
-    { d: 'Dia 53', txt: 'Coloquei a solução em prática (mesmo que em piloto)' },
+    { d: 'Dia 53', txt: 'Coloquei a solução em prática, mesmo que em piloto' },
     { d: 'Dia 54', txt: 'Acompanhei a execução e ajustei o que não funcionou' },
-    { d: 'Dia 55', txt: 'Registrei a situação DEPOIS (o novo número/evidência)' },
+    { d: 'Dia 55', txt: 'Registrei a situação DEPOIS com o novo número ou evidência' },
   ]},
-  { fase: 'f3', sw: 'Sem 12', titulo: 'Apresentando os resultados (PPT gerado)', dias: [
+  { fase: 'f3', sw: 'Sem 12', titulo: 'Apresentando os resultados', dias: [
     { d: 'Dia 56', txt: 'Montei a comparação com números (ANTES × DEPOIS)' },
     { d: 'Dia 57', txt: 'Gerei o PPT da melhoria pelo software LBW' },
     { d: 'Dia 58', txt: 'Ajustei a apresentação com a história do projeto' },
