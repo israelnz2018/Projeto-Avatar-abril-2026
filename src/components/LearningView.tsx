@@ -621,7 +621,12 @@ export default function LearningView() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const link = `${window.location.origin}/education?video=${item.id}`;
+                              // Link carrega o id do doc (abre o vídeo), o youtubeId (thumbnail)
+                              // e o título — pra a Comunidade montar a mini-telinha do vídeo.
+                              const yt = getYoutubeId(item.sourceUrl) || '';
+                              const link = `${window.location.origin}/education?video=${item.id}` +
+                                (yt ? `&yt=${yt}` : '') +
+                                `&t=${encodeURIComponent(item.title || '')}`;
                               navigator.clipboard.writeText(link)
                                 .then(() => setCopiedVideoId(item.id!))
                                 .catch(() => {});
