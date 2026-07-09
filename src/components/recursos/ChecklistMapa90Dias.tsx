@@ -14,7 +14,7 @@ const SEMANAS: Semana[] = [
     { d: 'Dia 2', txt: 'Listei as principais atividades que a área executa no dia a dia' },
     { d: 'Dia 3', txt: 'Mapeei as Entradas e Saídas do processo (o que entra, o que sai)' },
     { d: 'Dia 4', txt: 'Identifiquei Fornecedores e Clientes de cada saída (SIPOC completo)' },
-    { d: 'Dia 5', txt: 'Montei o SIPOC da área em uma página' },
+    { d: 'Dia 5', txt: 'Montei o SIPOC das principais atividades da minha área' },
   ]},
   { fase: 'f1', sw: 'Sem 2', titulo: 'Organograma e pessoas-chave', dias: [
     { d: 'Dia 6', txt: 'Desenhei o organograma real da área (quem reporta a quem)' },
