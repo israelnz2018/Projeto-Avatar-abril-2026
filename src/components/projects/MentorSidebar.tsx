@@ -45,6 +45,26 @@ function getYoutubeId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+// Destaca o nome do vídeo na abertura da resposta ("De acordo com o vídeo 'X'")
+// deixando o título DIFERENTE do resto do texto (negrito + azul), sem torná-lo clicável.
+// Aceita aspas simples, duplas ou curvas.
+function destacarFonte(texto: string): React.ReactNode {
+  const m = texto.match(/^(De acordo com o v[íi]deo[:\s]*["'“])(.+?)(["'”])/i);
+  if (!m) return texto;
+  const antes = m[1];
+  const titulo = m[2];
+  const fecha = m[3];
+  const resto = texto.slice(m[0].length);
+  return (
+    <>
+      {antes}
+      <span className="font-bold text-blue-700">{titulo}</span>
+      {fecha}
+      {resto}
+    </>
+  );
+}
+
 function parseTimeToSeconds(t: string): number {
   if (!t) return 0;
   // Aceita "MM:SS", "H:MM:SS" ou "MM:SS:CS"
@@ -456,7 +476,9 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                       ? "bg-blue-600 text-white rounded-br-[4px]"
                       : "bg-white text-gray-800 border border-gray-200 rounded-bl-[4px]"
                   )}>
-                    {msg.content}
+                    {msg.role === 'assistant'
+                      ? destacarFonte(msg.content)
+                      : msg.content}
                   </div>
 
                   {/* Fontes (vídeos usados) */}
