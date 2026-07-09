@@ -10,8 +10,8 @@ interface Semana { fase: Fase; sw: string; titulo: string; dias: { d: string; tx
 
 const SEMANAS: Semana[] = [
   { fase: 'f1', sw: 'Sem 1', titulo: 'POP e SIPOC — o que a área faz', dias: [
-    { d: 'Dia 1', txt: 'Identifiquei e li os principais procedimentos que existem na minha área (POP)' },
-    { d: 'Dia 2', txt: 'Listei as principais atividades que a área executa no dia a dia' },
+    { d: 'Dia 1', txt: 'Listei as principais atividades que a área executa no dia a dia' },
+    { d: 'Dia 2', txt: 'Identifiquei e li os principais procedimentos que existem na minha área (POP)' },
     { d: 'Dia 3', txt: 'Mapeei as Entradas e Saídas das principais atividades (SIPOC)' },
     { d: 'Dia 4', txt: 'Identifiquei Fornecedores e Clientes das principais saídas (SIPOC)' },
     { d: 'Dia 5', txt: 'Montei o mapa das principais atividades da minha área (SIPOC)' },
@@ -19,14 +19,14 @@ const SEMANAS: Semana[] = [
   { fase: 'f1', sw: 'Sem 2', titulo: 'Organograma e pessoas-chave', dias: [
     { d: 'Dia 6', txt: 'Desenhei quem reporta a quem na área (ORGANOGRAMA)' },
     { d: 'Dia 7', txt: 'Marquei quem decide, quem aprova e quem executa (ORGANOGRAMA)' },
-    { d: 'Dia 8', txt: 'Identifiquei as pessoas que mais dominam os processos' },
+    { d: 'Dia 8', txt: 'Identifiquei os especialistas da área' },
     { d: 'Dia 9', txt: 'Agendei conversa com cada pessoa-chave' },
     { d: 'Dia 10', txt: 'Anotei o que cada pessoa-chave espera do meu trabalho' },
   ]},
   { fase: 'f1', sw: 'Sem 3', titulo: 'Mapa do processo e RACI', dias: [
     { d: 'Dia 11', txt: 'Mapeei o fluxo dos principais processos, do início ao fim (MAPA DE PROCESSO)' },
-    { d: 'Dia 12', txt: 'Marquei onde os processos travam ou atrasam (MAPA DE PROCESSO)' },
-    { d: 'Dia 13', txt: 'Listei as atividades que precisam de responsável claro' },
+    { d: 'Dia 12', txt: 'Criei o rascunho do mapa do processo (MAPA DE PROCESSO)' },
+    { d: 'Dia 13', txt: 'Criei o mapa do processo funcional (MAPA DE PROCESSO)' },
     { d: 'Dia 14', txt: 'Defini quem é Responsável, Aprovador, Consultado e Informado (RACI)' },
     { d: 'Dia 15', txt: 'Validei o mapa e as responsabilidades com alguém experiente (RACI)' },
   ]},
@@ -34,8 +34,8 @@ const SEMANAS: Semana[] = [
     { d: 'Dia 16', txt: 'Levantei os indicadores operacionais — o dia a dia da área (INDICADORES)' },
     { d: 'Dia 17', txt: 'Levantei os indicadores técnicos — qualidade, tempo, retrabalho (INDICADORES)' },
     { d: 'Dia 18', txt: 'Entendi os indicadores estratégicos — o que a diretoria acompanha (INDICADORES)' },
-    { d: 'Dia 19', txt: 'Descobri quais indicadores estão ruins ou sem meta (INDICADORES)' },
-    { d: 'Dia 20', txt: 'Conversei com o líder para entender as prioridades dos indicadores — Fase 1 concluída' },
+    { d: 'Dia 19', txt: 'Descobri quais indicadores estão associados com o meu trabalho (INDICADORES)' },
+    { d: 'Dia 20', txt: 'Conversei com o líder para entender as prioridades dos indicadores' },
   ]},
   { fase: 'f2', sw: 'Sem 5', titulo: 'Ideias de projetos de melhoria', dias: [
     { d: 'Dia 21', txt: 'Listei os problemas que observei nas primeiras semanas' },
