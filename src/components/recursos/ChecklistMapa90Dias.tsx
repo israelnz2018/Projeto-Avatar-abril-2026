@@ -138,12 +138,7 @@ export default function ChecklistMapa90Dias() {
         {fases.map((f) => {
           const meta = FASE_META[f];
           return (
-            <div
-              key={f}
-              // Fase 3 começa na 2ª folha (Folha 1 = Fases 1+2, Folha 2 = Fase 3 + entrega).
-              className={f === 'f3' ? 'quebra-folha' : undefined}
-              style={{ padding: '12px 24px 2px' }}
-            >
+            <div key={f} style={{ padding: '12px 24px 2px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.5px solid #dfe4f0', paddingBottom: 6, marginBottom: 8 }}>
                 <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 5, color: '#fff', background: meta.cor, whiteSpace: 'nowrap' }}>{meta.num}</span>
                 <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0A0F24', margin: 0, fontFamily: "'Space Grotesk', Inter, sans-serif" }}>{meta.nome}</h2>
@@ -151,7 +146,12 @@ export default function ChecklistMapa90Dias() {
               <div style={{ fontSize: 10.5, color: '#6B7280', fontStyle: 'italic', marginBottom: 10 }}>{meta.meta}</div>
 
               {porFase[f].map((sem) => (
-                <div key={sem.sw} style={{ marginBottom: 9, breakInside: 'avoid' }}>
+                <div
+                  key={sem.sw}
+                  // Semana 7 abre a 2ª folha (Folha 1 = Sem 1-6, Folha 2 = Sem 7-12).
+                  className={sem.sw === 'Sem 7' ? 'quebra-folha' : undefined}
+                  style={{ marginBottom: 9, breakInside: 'avoid' }}
+                >
                   <div style={{ fontSize: 11.5, fontWeight: 800, color: '#0A0F24', marginBottom: 3, display: 'flex', gap: 7, alignItems: 'baseline' }}>
                     <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', padding: '1px 6px', borderRadius: 4, color: '#fff', background: meta.cor }}>{sem.sw}</span>
                     {sem.titulo}
