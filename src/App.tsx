@@ -97,7 +97,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Checklists, Mapas e PPTs', path: '/recursos', icon: FolderCheck },
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
-    { name: 'Comunidade LBW', path: '/comunidade', icon: Users2 },
+    { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     ...(isAdmin || isCoordenador ? [
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
@@ -199,7 +199,14 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
               )}
             >
               <item.icon size={20} />
-              {isSidebarOpen && <span>{item.name}</span>}
+              {isSidebarOpen && (
+                <span className="flex items-center gap-1.5">
+                  {item.name}
+                  {(item as any).beta && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-amber-900 bg-amber-300 rounded px-1.5 py-0.5">beta</span>
+                  )}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
