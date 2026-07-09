@@ -84,6 +84,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   // certo MESMO se o aluno clicar no mesmo item de novo (key muda sempre).
   const [seekNonce, setSeekNonce] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Carrega o índice clicável do vídeo selecionado.
   // Estratégia: tenta o doc específico primeiro; se não tem summary, busca
@@ -203,9 +204,16 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
     });
   }, [projectId, activeToolId]);
 
-  // Auto-scroll
+  // Auto-scroll: rola o container até o fim quando chega mensagem/resposta nova.
+  // Delay curto pra garantir que o conteúdo (resposta + "aulas desta ferramenta")
+  // já renderizou antes de rolar — senão parava no meio da resposta.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const t = setTimeout(() => {
+      const el = chatScrollRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      else messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 120);
+    return () => clearTimeout(t);
   }, [messages, isThinking]);
 
   const handleSendMessage = async () => {
@@ -434,7 +442,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
         )}
 
         {/* Conversa — área principal, fundo claro */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+        <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
           {messages.length > 0 ? (
             <>
               {messages.map((msg, i) => (
