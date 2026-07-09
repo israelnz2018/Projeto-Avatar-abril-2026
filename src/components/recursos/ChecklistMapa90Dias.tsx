@@ -58,7 +58,7 @@ const SEMANAS: Semana[] = [
     { d: 'Dia 34', txt: 'Identifiquei quem precisa apoiar o projeto' },
     { d: 'Dia 35', txt: 'Tenho um projeto definido, com dono e escopo — Fase 2 concluída' },
   ]},
-  { fase: 'f3', sw: 'Sem 8', titulo: 'Entendendo as variáveis do processo', dias: [
+  { fase: 'f2', sw: 'Sem 8', titulo: 'Entendendo as variáveis do processo', dias: [
     { d: 'Dia 36', txt: 'Listei as variáveis que afetam o resultado do processo' },
     { d: 'Dia 37', txt: 'Separei o que eu posso controlar do que eu não controlo' },
     { d: 'Dia 38', txt: 'Coletei dados de como o processo se comporta hoje' },
@@ -97,8 +97,8 @@ const SEMANAS: Semana[] = [
 
 const FASE_META: Record<Fase, { num: string; nome: string; meta: string; cor: string }> = {
   f1: { num: 'Dias 1–20', nome: 'Entenda antes de querer mudar', cor: '#0033CC', meta: 'Meta: parar de agir no escuro. Ao final, você explica como sua área funciona.' },
-  f2: { num: 'Dias 21–35', nome: 'Encontre o problema certo', cor: '#7C3AED', meta: 'Meta: não resolver qualquer coisa. Ao final, você sabe qual problema trabalhar e por quê.' },
-  f3: { num: 'Dias 36–60', nome: 'Entregue e mostre o resultado', cor: '#0F9D58', meta: 'Meta: transformar análise em ação. Ao final, você tem uma melhoria e algo pra apresentar.' },
+  f2: { num: 'Dias 21–40', nome: 'Encontre o problema certo', cor: '#7C3AED', meta: 'Meta: não resolver qualquer coisa. Ao final, você sabe qual problema trabalhar e por quê.' },
+  f3: { num: 'Dias 41–60', nome: 'Entregue e mostre o resultado', cor: '#0F9D58', meta: 'Meta: transformar análise em ação. Ao final, você tem uma melhoria e algo pra apresentar.' },
 };
 
 export default function ChecklistMapa90Dias() {
