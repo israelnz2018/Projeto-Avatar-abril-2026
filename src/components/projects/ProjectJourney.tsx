@@ -73,11 +73,13 @@ import ImprovementProjectIdea from './ImprovementProjectIdea';
 import RaciTool from './RaciTool';
 import Organograma from './Organograma';
 import Indicadores from './Indicadores';
+import Mapa90Dias from './Mapa90Dias';
 import ProjectCharterPMI from './ProjectCharterPMI';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
 
 const AVAILABLE_TOOLS = [
+  { id: 'mapa90dias', name: 'Mapa dos 90 Dias', component: Mapa90Dias, defaultPhase: 'Define' },
   { id: 'brief', name: 'Entendendo o Problema', component: ProjectBrief, defaultPhase: 'Define' },
   { id: 'charter', name: 'Project Charter', component: ProjectCharter, defaultPhase: 'Define' },
   { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)', component: StakeholderAdkar, defaultPhase: 'Define' },

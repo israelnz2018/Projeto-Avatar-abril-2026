@@ -5,10 +5,10 @@
  */
 import React, { useMemo, useState } from 'react';
 
-type Fase = 'f1' | 'f2' | 'f3';
-interface Semana { fase: Fase; sw: string; titulo: string; dias: { d: string; txt: string }[]; }
+export type Fase = 'f1' | 'f2' | 'f3';
+export interface Semana { fase: Fase; sw: string; titulo: string; dias: { d: string; txt: string }[]; }
 
-const SEMANAS: Semana[] = [
+export const SEMANAS: Semana[] = [
   { fase: 'f1', sw: 'Sem 1', titulo: 'POP e SIPOC — o que a área faz', dias: [
     { d: 'Dia 1', txt: 'Listei as principais atividades que a área executa no dia a dia' },
     { d: 'Dia 2', txt: 'Identifiquei e li os principais procedimentos que existem na minha área (POP)' },
@@ -95,7 +95,7 @@ const SEMANAS: Semana[] = [
   ]},
 ];
 
-const FASE_META: Record<Fase, { num: string; nome: string; meta: string; cor: string }> = {
+export const FASE_META: Record<Fase, { num: string; nome: string; meta: string; cor: string }> = {
   f1: { num: 'Dias 1–20', nome: 'Entenda antes de querer mudar', cor: '#0033CC', meta: 'Meta: você PRECISA saber como as principais atividades da sua área funcionam.' },
   // (verbos por fase: F1 PRECISA · F2 DEVE · F3 VAI — escala de compromisso crescente)
   f2: { num: 'Dias 21–40', nome: 'Encontre o problema certo', cor: '#7C3AED', meta: 'Meta: você DEVE identificar as causas do principal problema que você pode melhorar.' },

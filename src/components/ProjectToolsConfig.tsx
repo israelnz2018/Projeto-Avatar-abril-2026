@@ -75,6 +75,7 @@ const DEFAULT_PHASES = [
  * no app — exatamente o sintoma que sempre te frustrou.
  */
 const AVAILABLE_TOOLS = [
+  { id: 'mapa90dias', name: 'Mapa dos 90 Dias', phase: 'Define' },
   { id: 'brief', name: 'Entendendo o Problema', phase: 'Define' },
   { id: 'charter', name: 'Project Charter', phase: 'Define' },
   { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)', phase: 'Define' },
