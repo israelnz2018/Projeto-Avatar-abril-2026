@@ -322,6 +322,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   onRepliesLoaded: (postId: string, replies: CommunityReply[]) => void;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [expandido, setExpandido] = useState(false);
   const [replies, setReplies] = useState<CommunityReply[]>([]);
   const [editando, setEditando] = useState(false);
   const [editTipo, setEditTipo] = useState<PostTipo>(post.tipo);
@@ -453,10 +454,22 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
               </div>
             ) : (
               <>
-                <p className="text-[14px] text-gray-700 leading-relaxed mt-2 m-0">
+                <p className={cn(
+                  "text-[14px] text-gray-700 leading-relaxed mt-2 m-0",
+                  // Post fixado longo: mostra só 5 linhas até o "ver mais".
+                  post.pinned && !expandido && "line-clamp-5"
+                )}>
                   <TextoComMencoes texto={post.texto} />
                   {post.editado && <span className="text-[10px] text-gray-400 italic ml-1">(editado)</span>}
                 </p>
+                {post.pinned && post.texto.length > 280 && (
+                  <button
+                    onClick={() => setExpandido(e => !e)}
+                    className="mt-1 text-[12px] font-bold text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0"
+                  >
+                    {expandido ? 'ver menos' : 'ver mais'}
+                  </button>
+                )}
                 <AnexosView anexos={post.anexos} />
               </>
             )}
