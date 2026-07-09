@@ -2030,18 +2030,13 @@ export default function ToolWrapper({
           {/* Botões de exportação */}
           <div className="flex items-center gap-2">
 
-            {/* PDF — desabilitado na UI atual (mantido aqui só pra referência futura) */}
-            {false && toolId !== 'sop' && (
+            {/* PDF — só no Mapa dos 90 Dias (substitui o PPT nessa ferramenta) */}
+            {toolId === 'mapa90dias' && (
               <button
                 onClick={handlePrint}
-                disabled={!isSaved || isPrinting}
-                title={!isSaved ? "Salve primeiro para exportar" : "Imprimir / Gerar PDF"}
-                className={cn(
-                  "flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none",
-                  !isSaved
-                    ? "bg-gray-100 text-gray-300 cursor-not-allowed"
-                    : "bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
-                )}
+                disabled={isPrinting}
+                title="Imprimir / Gerar PDF"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-100 cursor-pointer"
               >
                 {isPrinting ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
                 PDF
@@ -2066,7 +2061,8 @@ export default function ToolWrapper({
               </button>
             )}
 
-            {/* PPT */}
+            {/* PPT — escondido no Mapa dos 90 Dias (lá o export é PDF) */}
+            {toolId !== 'mapa90dias' && (
             <button
               onClick={exportPPT}
               disabled={!isSaved}
@@ -2081,6 +2077,7 @@ export default function ToolWrapper({
               <Presentation size={15} />
               Gerar PPT (versão beta)
             </button>
+            )}
 
             {/* Excel (Special case for Charter) */}
             {false && toolId === 'charter' && (

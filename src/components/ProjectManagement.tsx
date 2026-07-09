@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, Footprints, ShieldAlert, Users, LineChart, Recycle, Trophy, Mic, HelpCircle } from 'lucide-react';
+import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, Footprints, ShieldAlert, Users, LineChart, Recycle, Trophy, Mic, HelpCircle, MessageSquare } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { generateFullProjectPresentation } from '../services/fullProjectPresentationExporter';
 import { getUserProfile } from './UserProfile';
@@ -338,6 +338,8 @@ export default function ProjectManagement() {
   const [renameValue, setRenameValue] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  // Painel do mentor (direita) recolhível — só nesta aba (Projetos), pro aluno maximizar o meio.
+  const [mentorAberto, setMentorAberto] = useState(true);
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string>('');
   const [selectedParentInitiativeId, setSelectedParentInitiativeId] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<string | null>(null);
@@ -938,37 +940,59 @@ export default function ProjectManagement() {
         </div>
       </div>
       
-      <div className="hidden lg:flex flex-col gap-4 sticky top-0 h-full shrink-0">
-        {/* Botão de tour — alinhado com o banner "Plano gratuito" da coluna esquerda */}
-        <div className="shrink-0 flex justify-end">
+      {mentorAberto ? (
+        <div className="hidden lg:flex flex-col gap-4 sticky top-0 h-full shrink-0">
+          {/* Botão de tour — alinhado com o banner "Plano gratuito" da coluna esquerda */}
+          <div className="shrink-0 flex justify-end">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('lbw-open-menu-tour'))}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-100 hover:border-blue-300 transition-all cursor-pointer"
+              title="Fazer o tour da plataforma"
+            >
+              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E2D6E] to-[#0033CC] flex items-center justify-center shrink-0">
+                <HelpCircle size={13} className="text-white" />
+              </span>
+              <span className="text-[11px] font-bold text-[#1E2D6E]">Não sabe por onde começar?</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] text-white text-[10px] font-black uppercase tracking-widest">
+                <Sparkles size={11} /> Iniciar tour
+              </span>
+            </button>
+          </div>
+          {/* min-h-0 faz o sidebar respeitar a altura disponível (abaixo do botão de
+              tour) em vez de estourar — assim o rodapé "Reportar/Sugerir" aparece. */}
+          <div className="flex-1 min-h-0">
+            <MentorSidebar
+              currentPhase={currentPhase}
+              suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
+              mentorMessage={getMentorMessage(currentPhase)}
+              activeToolId={activeToolId}
+              activeToolLabel={activeToolLabel}
+              projectId={selectedProject?.id || null}
+              projectName={selectedProject?.name || null}
+              onFechar={() => setMentorAberto(false)}
+            />
+          </div>
+        </div>
+      ) : (
+        // Recolhido: aba fininha pra reabrir o assistente. Tour e mentor ficam escondidos.
+        <div className="hidden lg:flex flex-col items-center shrink-0">
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent('lbw-open-menu-tour'))}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border border-blue-100 hover:border-blue-300 transition-all cursor-pointer"
-            title="Fazer o tour da plataforma"
+            onClick={() => setMentorAberto(true)}
+            className="flex flex-col items-center gap-2 px-2 py-4 rounded-2xl bg-white border border-gray-200 shadow-lg hover:border-blue-300 hover:shadow-xl transition-all cursor-pointer"
+            title="Abrir o assistente Israel Souza"
           >
-            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E2D6E] to-[#0033CC] flex items-center justify-center shrink-0">
-              <HelpCircle size={13} className="text-white" />
+            <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
+              <MessageSquare size={16} />
             </span>
-            <span className="text-[11px] font-bold text-[#1E2D6E]">Não sabe por onde começar?</span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] text-white text-[10px] font-black uppercase tracking-widest">
-              <Sparkles size={11} /> Iniciar tour
+            <span
+              className="text-[10px] font-black uppercase tracking-widest text-[#1E2D6E]"
+              style={{ writingMode: 'vertical-rl' }}
+            >
+              Assistente
             </span>
           </button>
         </div>
-        {/* min-h-0 faz o sidebar respeitar a altura disponível (abaixo do botão de
-            tour) em vez de estourar — assim o rodapé "Reportar/Sugerir" aparece. */}
-        <div className="flex-1 min-h-0">
-          <MentorSidebar
-            currentPhase={currentPhase}
-            suggestions={dynamicSuggestions.length > 0 ? dynamicSuggestions : getMentorStaticSuggestions(currentPhase)}
-            mentorMessage={getMentorMessage(currentPhase)}
-            activeToolId={activeToolId}
-            activeToolLabel={activeToolLabel}
-            projectId={selectedProject?.id || null}
-            projectName={selectedProject?.name || null}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>

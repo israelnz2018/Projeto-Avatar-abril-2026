@@ -37,6 +37,8 @@ interface MentorSidebarProps {
   activeToolLabel: string | null;
   projectId: string | null;
   projectName: string | null;
+  // Recolher o painel do mentor (X no header). Opcional — se ausente, o X não aparece.
+  onFechar?: () => void;
 }
 
 function getYoutubeId(url: string): string | null {
@@ -81,7 +83,8 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   activeToolId,
   activeToolLabel,
   projectId,
-  projectName
+  projectName,
+  onFechar
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -379,15 +382,26 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
               </p>
             </div>
           </div>
-          {messages.length > 0 && (
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer border-none bg-transparent"
-              title="Apagar minhas conversas desta ferramenta"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {messages.length > 0 && (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all cursor-pointer border-none bg-transparent"
+                title="Apagar minhas conversas desta ferramenta"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+            {onFechar && (
+              <button
+                onClick={onFechar}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-all cursor-pointer border-none bg-transparent"
+                title="Recolher o assistente"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Banner de contexto da ferramenta — SEMPRE visível quando há ferramenta selecionada */}
