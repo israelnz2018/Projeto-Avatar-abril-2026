@@ -23,6 +23,7 @@ import {
   Lock,
   Check,
   Award,
+  Link2,
 } from 'lucide-react';
 import { cn, youtubeThumb } from '@/src/lib/utils';
 import UpgradeBanner from './UpgradeBanner';
@@ -54,6 +55,7 @@ export default function LearningView() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [seekTime, setSeekTime] = useState(0);
+  const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
   const [freeCourseNames, setFreeCourseNames] = useState<Set<string>>(new Set());
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   const [allInitiatives, setAllInitiatives] = useState<Initiative[]>([]);
@@ -190,6 +192,23 @@ export default function LearningView() {
     setItems(data);
     setLoading(false);
   };
+
+  // Deep-link: /education?video=<id> abre aquele vídeo automaticamente.
+  // Usado pelos links de vídeo colados nas respostas da Comunidade (só admin gera).
+  useEffect(() => {
+    if (!items.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const vid = params.get('video');
+    if (!vid) return;
+    const alvo = items.find(it => it.id === vid);
+    if (alvo) {
+      setSelectedVideo(alvo);
+      // rola até o player depois que renderiza
+      setTimeout(() => {
+        document.getElementById('lv-player')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [items]);
 
   // Ordena cursos pelo prefixo numérico ("1- ...", "2- ...", "9- ..."), "Todos" fica primeiro.
   const sortedCourses = Array.from(new Set(items.map(item => item.course)))
@@ -598,6 +617,22 @@ export default function LearningView() {
                           <Layers size={12} />
                           {item.playlist}
                         </div>
+                        {isAdmin && item.id && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const link = `${window.location.origin}/education?video=${item.id}`;
+                              navigator.clipboard.writeText(link)
+                                .then(() => setCopiedVideoId(item.id!))
+                                .catch(() => {});
+                              setTimeout(() => setCopiedVideoId(null), 1800);
+                            }}
+                            title="Copiar link deste vídeo (para colar numa resposta da Comunidade)"
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800"
+                          >
+                            <Link2 size={12} /> {copiedVideoId === item.id ? 'copiado!' : 'copiar link'}
+                          </button>
+                        )}
                       </div>
                       {isSelected ? <ChevronUp size={16} className="text-blue-600" /> : <ChevronDown size={16} />}
                     </div>
@@ -608,6 +643,7 @@ export default function LearningView() {
                 <AnimatePresence>
                   {isSelected && (
                     <motion.div
+                      id="lv-player"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}

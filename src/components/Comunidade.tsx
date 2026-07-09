@@ -78,16 +78,32 @@ function Avatar({ autor, size = 38 }: { autor: Autor; size?: number }) {
   );
 }
 
-// Renderiza texto com @menções destacadas
+// Renderiza texto com @menções destacadas e links clicáveis.
+// Links pra /education?video=<id> (colados pelo admin) abrem o vídeo na aba Educação,
+// sem sair da plataforma. Demais URLs abrem em nova aba.
 function TextoComMencoes({ texto }: { texto: string }) {
-  const partes = texto.split(/(@[\wÀ-ÿ.]+(?:\s[\wÀ-ÿ.]+)?)/g);
+  // Quebra por URL http(s) OU por @menção, preservando os separadores.
+  const partes = texto.split(/(https?:\/\/[^\s]+|@[\wÀ-ÿ.]+(?:\s[\wÀ-ÿ.]+)?)/g);
   return (
     <span className="whitespace-pre-wrap break-words">
-      {partes.map((p, i) =>
-        p.startsWith('@')
-          ? <span key={i} className="text-blue-600 font-bold">{p}</span>
-          : <span key={i}>{p}</span>
-      )}
+      {partes.map((p, i) => {
+        if (/^https?:\/\//.test(p)) {
+          // Link interno da plataforma (mesma origem) → navega dentro do app.
+          const interno = p.includes('/education?video=') || p.startsWith(window.location.origin);
+          if (interno) {
+            const href = p.replace(/^https?:\/\/[^/]+/, ''); // caminho relativo
+            const ehVideo = href.includes('/education?video=');
+            return (
+              <a key={i} href={href} className="text-blue-600 font-semibold underline inline-flex items-center gap-1">
+                {ehVideo ? '▶ Assistir o vídeo' : p}
+              </a>
+            );
+          }
+          return <a key={i} href={p} target="_blank" rel="noreferrer" className="text-blue-600 underline break-all">{p}</a>;
+        }
+        if (p.startsWith('@')) return <span key={i} className="text-blue-600 font-bold">{p}</span>;
+        return <span key={i}>{p}</span>;
+      })}
     </span>
   );
 }
