@@ -10,7 +10,7 @@ interface Semana { fase: Fase; sw: string; titulo: string; dias: { d: string; tx
 
 const SEMANAS: Semana[] = [
   { fase: 'f1', sw: 'Sem 1', titulo: 'POP e SIPOC — o que a área faz', dias: [
-    { d: 'Dia 1', txt: 'Localizei os POPs (procedimentos) que já existem na minha área' },
+    { d: 'Dia 1', txt: 'Identifiquei e li os principais POPs (procedimentos) que existem na minha área' },
     { d: 'Dia 2', txt: 'Listei as principais atividades que a área executa no dia a dia' },
     { d: 'Dia 3', txt: 'Mapeei as Entradas e Saídas do processo (o que entra, o que sai)' },
     { d: 'Dia 4', txt: 'Identifiquei Fornecedores e Clientes de cada saída (SIPOC completo)' },
