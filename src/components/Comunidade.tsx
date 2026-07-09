@@ -772,8 +772,14 @@ export default function Comunidade() {
       );
       return [['', ordenado]] as [string, CommunityPost[]][];
     }
-    // timeline: um único grupo, já vem ordenado por data
-    return [['', naoPinned]] as [string, CommunityPost[]][];
+    // timeline: um único grupo, ordenado da mais ANTIGA (topo) pra mais nova (embaixo).
+    // Os posts fixados (pinned) ficam acima, renderizados à parte.
+    const cronologico = [...naoPinned].sort((a, b) => {
+      const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return ta - tb; // crescente
+    });
+    return [['', cronologico]] as [string, CommunityPost[]][];
   }, [view, naoPinned]);
 
   const VIEWS: { v: ViewMode; label: string; icon: any }[] = [
