@@ -1,5 +1,35 @@
 import { callAI, callAIJSON } from './aiRouter';
 import { getAllKnowledge, KnowledgeEntry } from './knowledgeService';
+import { getInitiatives, getInitiativeConfigs } from './configService';
+
+// Toolid da ferramenta "Mapa dos 90 Dias" — caso especial: o mentor dela varre
+// os vídeos de TODAS as ferramentas da Trilha 1 (a initiative com isFree=true).
+const MAPA90_TOOL_ID = 'mapa90dias';
+
+// Retorna os toolIds de todas as fases da Trilha 1 (initiative isFree). Dinâmico:
+// se a associação de ferramentas da Trilha 1 mudar no Firestore, isto acompanha.
+async function toolIdsDaTrilha1(): Promise<string[]> {
+  try {
+    const inits = await getInitiatives();
+    const trilha1 = inits.find((i) => i.isFree === true);
+    if (!trilha1?.id) return [];
+    const configs = await getInitiativeConfigs(trilha1.id);
+    const ids = new Set<string>();
+    configs.forEach((c) => (c.toolIds || []).forEach((t) => ids.add(t)));
+    return Array.from(ids);
+  } catch {
+    return [];
+  }
+}
+
+// Vídeos associados a QUALQUER um dos toolIds dados (com transcript).
+function searchByTools(items: KnowledgeEntry[], toolIds: string[]): KnowledgeEntry[] {
+  const set = new Set(toolIds);
+  return items.filter((item) =>
+    (item.associatedTools || []).some((t) => set.has(t)) &&
+    (item.rawTranscript?.trim() || item.transcript?.trim())
+  );
+}
 
 // ============================================================
 // Tipos
@@ -246,7 +276,12 @@ export async function askMentor(
   if (context.type !== 'free' && context.id) {
     let level1Videos: KnowledgeEntry[] = [];
 
-    if (context.type === 'tool') {
+    if (context.type === 'tool' && context.id === MAPA90_TOOL_ID) {
+      // CASO ESPECIAL (só o Mapa dos 90 Dias): varre os vídeos de TODAS as
+      // ferramentas da Trilha 1, não só os do próprio toolId (que não tem vídeos).
+      const toolIds = await toolIdsDaTrilha1();
+      level1Videos = searchByTools(allItems, toolIds);
+    } else if (context.type === 'tool') {
       level1Videos = searchByTool(allItems, context.id);
     } else if (context.type === 'analysis') {
       level1Videos = searchByAnalysis(allItems, context.id);
@@ -255,6 +290,11 @@ export async function askMentor(
     // (esse caso entrará via context.type='free' com vídeos pré-fornecidos no futuro)
 
     if (level1Videos.length > 0) {
+      // Se forem muitos vídeos (caso do Mapa dos 90 Dias: várias ferramentas),
+      // rankeia por relevância e usa os 15 melhores pra não estourar o contexto.
+      if (level1Videos.length > 15) {
+        level1Videos = rankearPorRelevancia(level1Videos, question).slice(0, 15);
+      }
       // Contexto forte: a ferramenta está selecionada, os vídeos SÃO do tema.
       const result = await callGeminiWithContext(question, level1Videos, context.conversationHistory, true);
       // Threshold mais baixo no Nível 1 — confiamos que o vídeo da ferramenta é pertinente.
