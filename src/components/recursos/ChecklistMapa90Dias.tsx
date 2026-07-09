@@ -138,7 +138,12 @@ export default function ChecklistMapa90Dias() {
         {fases.map((f) => {
           const meta = FASE_META[f];
           return (
-            <div key={f} style={{ padding: '12px 24px 2px' }}>
+            <div
+              key={f}
+              // Fase 3 começa na 2ª folha (Folha 1 = Fases 1+2, Folha 2 = Fase 3 + entrega).
+              className={f === 'f3' ? 'quebra-folha' : undefined}
+              style={{ padding: '12px 24px 2px' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1.5px solid #dfe4f0', paddingBottom: 6, marginBottom: 8 }}>
                 <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 5, color: '#fff', background: meta.cor, whiteSpace: 'nowrap' }}>{meta.num}</span>
                 <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0A0F24', margin: 0, fontFamily: "'Space Grotesk', Inter, sans-serif" }}>{meta.nome}</h2>

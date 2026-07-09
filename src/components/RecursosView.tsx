@@ -130,10 +130,29 @@ export default function RecursosView() {
     document.querySelectorAll('style, link[rel="stylesheet"]').forEach((n) => {
       win.document.write(n.outerHTML);
     });
+    // CSS de impressão: A4, cores fiéis (senão o navegador remove fundos) e
+    // compactação pra caber nas 2 folhas.
+    win.document.write(`<style>
+      @page { size: A4; margin: 8mm; }
+      html, body { margin: 0; background: #fff; }
+      /* Cores fiéis na impressão (fundos das fases, badges, barra verde) */
+      *, *::before, *::after { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      /* Compacta pra caber em 2 folhas A4 */
+      body { font-size: 10.5px; line-height: 1.28; }
+      h1 { font-size: 20px !important; }
+      h2 { font-size: 13px !important; }
+      h3 { font-size: 12px !important; }
+      /* Não cortar uma semana/fase no meio de uma quebra de página */
+      label, .no-break { break-inside: avoid; page-break-inside: avoid; }
+      /* Fase 3 começa na 2ª folha */
+      .quebra-folha { break-before: page; page-break-before: always; }
+      /* Esconde controles que não fazem sentido no papel (barra de progresso) */
+      .no-print { display: none !important; }
+    </style>`);
     win.document.write('</head><body>' + el.innerHTML + '</body></html>');
     win.document.close();
     win.focus();
-    setTimeout(() => { win.print(); }, 300);
+    setTimeout(() => { win.print(); }, 350);
   };
 
   const checkoutDoNivel = (nivel: Nivel) =>
