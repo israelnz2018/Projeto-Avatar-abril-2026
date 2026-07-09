@@ -868,12 +868,13 @@ export default function Comunidade() {
       );
       return [['', ordenado]] as [string, CommunityPost[]][];
     }
-    // timeline: um único grupo, ordenado da mais ANTIGA (topo) pra mais nova (embaixo).
-    // Os posts fixados (pinned) ficam acima, renderizados à parte.
+    // timeline: um único grupo, MAIS NOVO no topo (padrão de fórum: Facebook Grupos,
+    // Reddit "New", GitHub Discussions). Assim uma pergunta nova aparece em cima, onde
+    // se vê — não "some" no fim. Os fixados (pinned) ficam acima, renderizados à parte.
     const cronologico = [...naoPinned].sort((a, b) => {
       const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
       const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-      return ta - tb; // crescente
+      return tb - ta; // decrescente (mais novo primeiro)
     });
     return [['', cronologico]] as [string, CommunityPost[]][];
   }, [view, naoPinned]);
