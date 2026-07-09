@@ -6,7 +6,6 @@ import {
   Filter,
   Bookmark,
   Share2,
-  Clock,
   ArrowRight,
   GraduationCap,
   Star,
@@ -598,10 +597,6 @@ export default function LearningView() {
                         <div className="flex items-center gap-1">
                           <Layers size={12} />
                           {item.playlist}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} />
-                          {item.timestamp.toLocaleDateString()}
                         </div>
                       </div>
                       {isSelected ? <ChevronUp size={16} className="text-blue-600" /> : <ChevronDown size={16} />}
