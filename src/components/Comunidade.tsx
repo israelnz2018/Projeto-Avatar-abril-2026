@@ -25,7 +25,7 @@ import UpgradeBanner from './UpgradeBanner';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
-  editarPost, editarReply, uploadAnexo,
+  editarPost, editarReply, uploadAnexo, bloquearPost, bloquearReply,
   ouvirNotificacoes, marcarNotificacoesLidas,
   CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification, Anexo,
 } from '../services/communityService';
@@ -443,6 +443,13 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                   </button>
                 </div>
               </div>
+            ) : post.bloqueado ? (
+              <div className="mt-2 text-[13px] text-gray-500 italic bg-gray-100 border border-gray-200 rounded-lg px-3 py-2.5">
+                🚫 Este comentário não foi permitido pela moderação.
+                {meIsAdmin && (
+                  <button onClick={() => bloquearPost(post.id!, false)} className="ml-2 not-italic text-blue-600 font-semibold hover:underline">desbloquear</button>
+                )}
+              </div>
             ) : (
               <>
                 <p className="text-[14px] text-gray-700 leading-relaxed mt-2 m-0">
@@ -487,14 +494,24 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
               )}
               {/* Controles do autor/admin — agrupados à direita */}
               <div className="flex items-center gap-2 ml-auto">
-                {/* Editar — autor ou admin */}
-                {(souAutor || meIsAdmin) && !editando && (
+                {/* Editar — admin sempre; autor só se ninguém interagiu ainda */}
+                {((meIsAdmin) || (souAutor && (post.replyCount || 0) === 0 && (post.likes?.length || 0) === 0)) && !editando && !post.bloqueado && (
                   <button
                     onClick={() => { setEditando(true); setEditTipo(post.tipo); setEditTitulo(post.titulo || ''); setEditTexto(post.texto); }}
                     className="inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-blue-600 cursor-pointer bg-transparent border-none transition"
                     title="Editar"
                   >
                     <Pencil size={13} />
+                  </button>
+                )}
+                {/* Bloquear (moderação) — só admin */}
+                {meIsAdmin && !post.bloqueado && (
+                  <button
+                    onClick={() => { if (confirm('Bloquear este comentário? O texto some e aparece "não permitido".')) bloquearPost(post.id!, true); }}
+                    className="inline-flex items-center gap-1 text-[12px] font-bold text-gray-300 hover:text-orange-500 cursor-pointer bg-transparent border-none transition"
+                    title="Bloquear (moderação)"
+                  >
+                    <Shield size={13} />
                   </button>
                 )}
                 {/* Fixar — só admin */}
@@ -528,7 +545,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
       {/* Respostas + composer */}
       {aberto && (
         <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-3">
-          {replies.map(r => (
+          {replies.map((r, ri) => (
             <div key={r.id} className="flex items-start gap-2.5">
               <Avatar autor={r.autor} size={30} />
               <div className="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl px-3 py-2">
@@ -540,15 +557,26 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                     </span>
                   )}
                   <span className="text-[10px] text-gray-400">· {tempoRelativo(r.createdAt)}</span>
-                  {(r.autor?.uid === meUid || meIsAdmin) && editReplyId !== r.id && (
+                  {(r.autor?.uid === meUid || meIsAdmin) && editReplyId !== r.id && !r.bloqueado && (
                     <div className="ml-auto flex items-center gap-1.5">
-                      {r.autor?.uid === meUid && (
+                      {/* Editar: admin sempre; autor só se for a última resposta (ninguém respondeu depois) */}
+                      {(meIsAdmin || (r.autor?.uid === meUid && ri === replies.length - 1)) && (
                         <button
                           onClick={() => { setEditReplyId(r.id!); setEditReplyTexto(r.texto); }}
                           className="text-gray-300 hover:text-blue-600 cursor-pointer bg-transparent border-none"
                           title="Editar"
                         >
                           <Pencil size={12} />
+                        </button>
+                      )}
+                      {/* Bloquear (moderação) — só admin */}
+                      {meIsAdmin && (
+                        <button
+                          onClick={() => { if (confirm('Bloquear esta resposta? O texto some e aparece "não permitido".')) bloquearReply(post.id!, r.id!, true); }}
+                          className="text-gray-300 hover:text-orange-500 cursor-pointer bg-transparent border-none"
+                          title="Bloquear (moderação)"
+                        >
+                          <Shield size={12} />
                         </button>
                       )}
                       <button
@@ -580,6 +608,13 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
                         Cancelar
                       </button>
                     </div>
+                  </div>
+                ) : r.bloqueado ? (
+                  <div className="mt-1 text-[12px] text-gray-500 italic bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-2">
+                    🚫 Este comentário não foi permitido pela moderação.
+                    {meIsAdmin && (
+                      <button onClick={() => bloquearReply(post.id!, r.id!, false)} className="ml-2 not-italic text-blue-600 font-semibold hover:underline">desbloquear</button>
+                    )}
                   </div>
                 ) : (
                   <>

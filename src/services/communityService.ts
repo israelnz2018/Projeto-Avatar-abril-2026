@@ -54,6 +54,7 @@ export interface CommunityPost {
   likes?: string[];             // uids de quem curtiu
   pinned?: boolean;             // fixado no topo (só admin)
   editado?: boolean;
+  bloqueado?: boolean;          // moderação: admin oculta o texto (mostra "não permitido")
   anexos?: Anexo[];             // imagens e documentos (nunca vídeo)
   createdAt: any;
 }
@@ -71,6 +72,7 @@ export interface CommunityReply {
   autor: Autor;
   mencoes?: string[];           // uids mencionados
   editado?: boolean;
+  bloqueado?: boolean;          // moderação: admin oculta o texto (mostra "não permitido")
   anexos?: Anexo[];
   createdAt: any;
 }
@@ -215,6 +217,16 @@ export async function criarPost(input: {
 /** Fixar / desafixar um post no topo (apenas admin — a UI controla o acesso). */
 export async function fixarPost(postId: string, pinned: boolean): Promise<void> {
   await updateDoc(doc(db, COL, postId), { pinned });
+}
+
+/** Bloquear / desbloquear um post (moderação — só admin). Oculta o texto sem apagar. */
+export async function bloquearPost(postId: string, bloqueado: boolean): Promise<void> {
+  await updateDoc(doc(db, COL, postId), { bloqueado });
+}
+
+/** Bloquear / desbloquear uma resposta (moderação — só admin). Oculta sem apagar. */
+export async function bloquearReply(postId: string, replyId: string, bloqueado: boolean): Promise<void> {
+  await updateDoc(doc(db, COL, postId, 'replies', replyId), { bloqueado });
 }
 
 /** Editar tipo, título e texto de um post (autor ou admin — a UI controla). */
