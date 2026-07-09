@@ -62,6 +62,38 @@ function getAllVideosWithTranscript(items: KnowledgeEntry[]): KnowledgeEntry[] {
   );
 }
 
+// Palavras irrelevantes pra busca (não ajudam a achar o vídeo certo).
+const STOPWORDS = new Set(['para','pela','pelo','como','qual','quais','sobre','uma','uns','umas','que','com','dos','das','por','mais','você','voce','meu','minha','isso','esse','essa','tem','são','ser','the','and','de','da','do','em','no','na','os','as','um','ao','se','ou','e','a','o']);
+
+/** Extrai termos relevantes (>=3 letras, sem stopwords) de um texto. */
+function termos(texto: string): string[] {
+  return (texto.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .match(/[a-z0-9]{3,}/g) || [])
+    .filter(t => !STOPWORDS.has(t));
+}
+
+/**
+ * Ordena os vídeos por RELEVÂNCIA à pergunta (título pesa mais que transcript),
+ * pra os mais pertinentes entrarem no contexto antes do corte de 15.
+ * Sem isso, o corte era cego e vídeos relevantes ficavam de fora.
+ */
+function rankearPorRelevancia(videos: KnowledgeEntry[], pergunta: string): KnowledgeEntry[] {
+  const termosPergunta = Array.from(new Set(termos(pergunta)));
+  if (termosPergunta.length === 0) return videos;
+  const scored = videos.map(v => {
+    const titulo = (v.title || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const corpo = getVideoContent(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    let score = 0;
+    for (const t of termosPergunta) {
+      if (titulo.includes(t)) score += 10;          // título vale muito
+      if (corpo.includes(t)) score += 1;            // menção no transcript
+    }
+    return { v, score };
+  });
+  // relevantes primeiro; empate mantém a ordem original
+  return scored.sort((a, b) => b.score - a.score).map(s => s.v);
+}
+
 /**
  * Pega o melhor conteúdo disponível: prioriza rawTranscript (palavras reais)
  * sobre transcript (resumo do Gemini).
@@ -77,13 +109,14 @@ function getVideoContent(video: KnowledgeEntry): string {
 async function callGeminiWithContext(
   question: string,
   videos: KnowledgeEntry[],
-  conversationHistory?: { question: string; answer: string }[]
+  conversationHistory?: { question: string; answer: string }[],
+  contextoForte = false // true no Nível 1 (ferramenta selecionada): vídeos são do tema
 ): Promise<{ found: boolean; answer: string; confidence: number; usedVideoIds: string[] }> {
-  // Monta o contexto dos vídeos
+  // Monta o contexto dos vídeos. Com poucos vídeos, dá mais espaço a cada um.
+  const limitePorVideo = videos.length <= 4 ? 16000 : 8000;
   const videoContextParts = videos.map((v, idx) => {
     const content = getVideoContent(v);
-    // Limita cada vídeo a 8000 chars pra não estourar tokens
-    const truncated = content.length > 8000 ? content.substring(0, 8000) + '...' : content;
+    const truncated = content.length > limitePorVideo ? content.substring(0, limitePorVideo) + '...' : content;
     return `===== VÍDEO ${idx + 1} (id: ${v.id}, título: "${v.title}") =====\n${truncated}`;
   }).join('\n\n');
 
@@ -99,17 +132,16 @@ ${videoContextParts}
 ${historyText}
 
 REGRAS CRÍTICAS:
-1. Responda à pergunta do aluno usando APENAS o conteúdo dos vídeos acima.
-2. Use as palavras e o estilo do Israel sempre que possível.
-3. Se os vídeos NÃO tiverem informação suficiente para responder, declare found=false.
-4. Avalie sua confiança de 0.0 a 1.0:
-   - 1.0 = vídeos respondem completamente
-   - 0.7 = vídeos respondem parcialmente
-   - 0.4 = vídeos tocam no assunto mas não respondem
-   - 0.0 = vídeos não têm nada relacionado
-5. Liste os IDs dos vídeos que você usou na resposta (usedVideoIds).
-6. Resposta em português, tom amigável, 2-4 parágrafos.
-7. NÃO invente informação que não está nos vídeos.
+1. Baseie a resposta no que o Israel ensina nos vídeos acima. ${contextoForte
+    ? 'Estes vídeos são JUSTAMENTE sobre o tema que o aluno perguntou (ele está com essa ferramenta aberta). Mesmo que a pergunta tenha um recorte específico (ex: uma área ou setor), aplique o método/conceito que o Israel ensina ao caso do aluno. NÃO responda found=false só porque o vídeo não cita aquele setor pelo nome — o método é o mesmo. Só use found=false se os vídeos realmente não tiverem NADA a ver com a pergunta.'
+    : 'Se os vídeos não tiverem relação com a pergunta, declare found=false.'}
+2. Fale como o Israel: DIRETO, prático, sem enrolação. Vá direto ao ponto.
+3. Seja CURTO: no máximo 2 parágrafos curtos. Nada de "dica de ouro", nada de listas
+   decorativas com negrito em cada termo, nada de introdução longa. Responda e pare.
+   Se der pra responder em 3 frases, responda em 3 frases.
+4. Avalie sua confiança de 0.0 a 1.0 (1.0 = responde bem; 0.4 = toca no assunto; 0.0 = nada a ver).
+5. Liste os IDs dos vídeos que você usou (usedVideoIds).
+6. Português do Brasil. Não invente dado técnico que não está nos vídeos.
 
 PERGUNTA DO ALUNO: ${question}
 
@@ -161,17 +193,21 @@ async function answerWithoutVideoContext(
     ? `O aluno está com a ferramenta "${contextLabel}" selecionada na tela. Considere esse contexto na resposta.`
     : 'Não há ferramenta específica selecionada.';
 
-  const system = `Você é o Mentor LBW, consultor sênior em Lean Six Sigma e Melhoria Contínua, conversando com um aluno do Israel.
-Esta pergunta não está coberta pelas aulas atuais do Israel — responda com seu conhecimento geral de DMAIC, Lean, Six Sigma e PMI.
-Comece a resposta com uma frase curta sinalizando que o conteúdo vem do seu conhecimento geral (algo como "Esse assunto ainda não tem aula no curso, mas posso te explicar:").
-Tom: amigável, técnico, em português do Brasil. 2 a 4 parágrafos.`;
+  const system = `Você é o Mentor LBW, no estilo do Israel: consultor sênior em Lean Six Sigma e Melhoria Contínua, conversando com um aluno do Israel.
+Esta pergunta não está coberta pelas aulas atuais — responda com seu conhecimento geral de DMAIC, Lean, Six Sigma e PMI.
+Comece com uma frase curta avisando que não tem aula sobre isso ainda (ex: "Ainda não tenho aula sobre isso, mas vou direto ao ponto:").
+ESTILO OBRIGATÓRIO:
+- DIRETO e prático, como o Israel fala. Sem enrolação.
+- CURTO: no máximo 2 parágrafos curtos. Se der pra responder em 3-4 frases, responda assim.
+- NADA de "dica de ouro", nada de listas com negrito em cada termo, nada de encher linguiça.
+- Responda a pergunta e pare. Português do Brasil.`;
 
   try {
     const { text } = await callAI({
       location: 'mentor',
       system,
       messages: [{ role: 'user', content: `${focus}\n${historyText}\n\nPERGUNTA: ${question}` }],
-      maxTokens: 1024,
+      maxTokens: 600,
     });
     return text || 'Não consegui gerar uma resposta agora. Tente novamente em alguns instantes.';
   } catch (err: any) {
@@ -216,8 +252,10 @@ export async function askMentor(
     // (esse caso entrará via context.type='free' com vídeos pré-fornecidos no futuro)
 
     if (level1Videos.length > 0) {
-      const result = await callGeminiWithContext(question, level1Videos, context.conversationHistory);
-      if (result.found && result.confidence >= CONFIDENCE_THRESHOLD) {
+      // Contexto forte: a ferramenta está selecionada, os vídeos SÃO do tema.
+      const result = await callGeminiWithContext(question, level1Videos, context.conversationHistory, true);
+      // Threshold mais baixo no Nível 1 — confiamos que o vídeo da ferramenta é pertinente.
+      if (result.found && result.confidence >= 0.4) {
         const usedVideos = level1Videos
           .filter(v => result.usedVideoIds.includes(v.id!))
           .map(v => ({ id: v.id!, title: v.title, sourceUrl: v.sourceUrl }));
@@ -236,8 +274,11 @@ export async function askMentor(
   // ----- NÍVEL 2: TODOS os vídeos -----
   const allVideosWithTranscript = getAllVideosWithTranscript(allItems);
   if (allVideosWithTranscript.length > 0) {
-    // Limita a 15 vídeos pra não estourar contexto
-    const videosToSearch = allVideosWithTranscript.slice(0, 15);
+    // Rankeia por relevância à pergunta ANTES de cortar — assim os vídeos mais
+    // pertinentes (ex: "indicadores de desempenho") entram no contexto, em vez de
+    // um corte cego pelos 15 primeiros da lista.
+    const ranqueados = rankearPorRelevancia(allVideosWithTranscript, question);
+    const videosToSearch = ranqueados.slice(0, 18);
     const result = await callGeminiWithContext(question, videosToSearch, context.conversationHistory);
     if (result.found && result.confidence >= CONFIDENCE_THRESHOLD) {
       const usedVideos = videosToSearch
