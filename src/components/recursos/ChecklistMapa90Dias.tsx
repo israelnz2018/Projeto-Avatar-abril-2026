@@ -190,7 +190,7 @@ export default function ChecklistMapa90Dias() {
         </div>
 
         <div style={{ margin: '6px 24px 16px', fontSize: 11, fontStyle: 'italic', color: '#1E2D6E', borderLeft: '3px solid #0033CC', padding: '7px 14px', background: '#F0F2FA', borderRadius: '0 8px 8px 0', lineHeight: 1.4 }}>
-          Isso não é um certificado na parede. É a prova de que, enquanto a maioria passou 90 dias "tentando entender", você entendeu, agiu e entregou. MEUS PARABÉNS!
+          Enquanto a maioria passou 90 dias "tentando entender", você entendeu, agiu e entregou. MEUS PARABÉNS!
         </div>
       </div>
     </div>
