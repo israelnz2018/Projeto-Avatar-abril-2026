@@ -56,6 +56,16 @@ body {
 /* Tabelas de ferramentas — suporte a quebra de linha original */
 td, th {
   white-space: normal;
-  word-break: break-word;
   vertical-align: top;
+}
+/* Células de conteúdo podem quebrar texto longo (ex: URLs, palavras enormes). */
+td {
+  word-break: break-word;
+}
+/* Cabeçalhos NUNCA quebram a palavra no meio (evita "GRAVIDAD-E" / "TENDÊNCI-A").
+   A palavra vai inteira pra próxima linha se não couber. Vale pra toda ferramenta. */
+th {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
