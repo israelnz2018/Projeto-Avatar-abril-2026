@@ -342,10 +342,11 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   };
 
   useEffect(() => {
-    if (!aberto) return;
+    // Carrega as respostas sempre (não só quando aberto) pra mostrar o preview
+    // da 1ª resposta com o post fechado. Volume baixo — poucos posts na tela.
     const unsub = ouvirReplies(post.id!, reps => { setReplies(reps); onRepliesLoaded(post.id!, reps); });
     return () => unsub();
-  }, [aberto, post.id]);
+  }, [post.id]);
 
   return (
     <div className={cn(
@@ -541,6 +542,30 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
           </div>
         </div>
       </div>
+
+      {/* Preview da 1ª resposta (quando fechado e há respostas) */}
+      {!aberto && replies.length > 0 && (
+        <button
+          onClick={() => setAberto(true)}
+          className="w-full text-left border-t border-gray-100 bg-gray-50/60 px-4 py-3 hover:bg-gray-100 transition cursor-pointer border-x-0 border-b-0"
+        >
+          <div className="flex items-start gap-2.5">
+            <Avatar autor={replies[0].autor} size={26} />
+            <div className="min-w-0 flex-1">
+              <span className="text-[12px] font-bold text-gray-700">{replies[0].autor?.nome}</span>
+              <span className="text-[13px] text-gray-500 ml-1.5">
+                {replies[0].bloqueado
+                  ? '🚫 comentário não permitido'
+                  : (replies[0].texto || '').split('\n')[0].slice(0, 120)}
+                {(replies[0].texto || '').length > 120 ? '…' : ''}
+              </span>
+            </div>
+          </div>
+          <span className="text-[12px] font-bold text-blue-600 mt-1.5 inline-block ml-9">
+            {replies.length === 1 ? 'Ver resposta completa →' : `Ver as ${replies.length} respostas →`}
+          </span>
+        </button>
+      )}
 
       {/* Respostas + composer */}
       {aberto && (
