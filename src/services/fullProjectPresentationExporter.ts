@@ -18,112 +18,6 @@ const PHASE_LABELS: Record<string, string> = {
 
 const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
 
-function addAgendaSlide(
-  pres: pptxgen,
-  project: Project,
-  phaseLabels: { id: string; label: string; tools: string[] }[],
-): void {
-  const slide = pres.addSlide();
-  slide.background = { color: 'FFFFFF' };
-
-  // Header fino — consistente com o novo template padrão
-  slide.addShape('rect', {
-    x: 0, y: 0, w: 13.33, h: 0.55,
-    fill: { color: THEME.NAVY }, line: { type: 'none' },
-  });
-  slide.addText('LBW', {
-    x: 0.20, y: 0, w: 0.82, h: 0.55,
-    fontFace: 'Calibri', fontSize: 14, bold: true, color: 'FFFFFF',
-    align: 'center', valign: 'middle', charSpacing: 3,
-  });
-  slide.addShape('line', {
-    x: 1.08, y: 0.12, w: 0, h: 0.30,
-    line: { color: '8AA0E5', width: 0.5 },
-  });
-  slide.addText(project.name || '', {
-    x: 1.18, y: 0, w: 9.60, h: 0.55,
-    fontFace: 'Calibri', fontSize: 10, color: 'C7D2FF', valign: 'middle',
-  });
-
-  // Título "Agenda" abaixo do header
-  slide.addText('Agenda — Conteúdo da Apresentação', {
-    x: 0.33, y: 0.63, w: 12.67, h: 0.30,
-    fontFace: 'Calibri', fontSize: 18, bold: true, color: THEME.NAVY,
-  });
-
-  // Colunas de fases
-  const totalPhases = Math.max(phaseLabels.length, 1);
-  const startX = 0.33;
-  const endX = 13.00;
-  const arrowW = 0.16;
-  const totalW = endX - startX;
-  const colW = (totalW - (totalPhases - 1) * arrowW) / totalPhases;
-  const topY = 1.04;
-  const colH = 6.04;
-
-  phaseLabels.forEach((p, i) => {
-    const x = startX + i * (colW + arrowW);
-    const phaseNum = String(i + 1).padStart(2, '0');
-
-    // Número da fase (01, 02...)
-    slide.addText(phaseNum, {
-      x, y: topY, w: colW, h: 0.28,
-      fontFace: 'Calibri', fontSize: 11, bold: true, color: THEME.BLUE,
-      align: 'center', valign: 'middle', charSpacing: 2,
-    });
-
-    // Chip com nome da fase
-    slide.addShape('rect', {
-      x, y: topY + 0.30, w: colW, h: 0.42,
-      fill: { color: THEME.NAVY }, line: { type: 'none' }, rectRadius: 0.06,
-    });
-    slide.addText(p.label.toUpperCase(), {
-      x, y: topY + 0.30, w: colW, h: 0.42,
-      fontFace: 'Calibri', fontSize: 10, bold: true, color: 'FFFFFF',
-      align: 'center', valign: 'middle', charSpacing: 2,
-    });
-
-    // Caixa de ferramentas
-    const listY = topY + 0.76;
-    const listH = colH - 0.76;
-    slide.addShape('rect', {
-      x, y: listY, w: colW, h: listH,
-      fill: { color: THEME.LIGHT }, line: { color: THEME.CHIP_BD, width: 0.5 },
-      rectRadius: 0.06,
-    });
-
-    if (p.tools.length === 0) {
-      slide.addText('—', {
-        x: x + 0.10, y: listY, w: colW - 0.20, h: listH,
-        fontFace: 'Calibri', fontSize: 18, color: THEME.MUTED,
-        align: 'center', valign: 'middle',
-      });
-    } else {
-      const items = p.tools.map(t => ({ text: t, options: { bullet: { code: '2022' } } }));
-      slide.addText(items, {
-        x: x + 0.14, y: listY + 0.12, w: colW - 0.28, h: listH - 0.24,
-        fontFace: 'Calibri', fontSize: 10.5, color: THEME.INK,
-        paraSpaceAfter: 5, valign: 'top', shrinkText: true,
-      });
-    }
-
-    // Seta entre colunas (exceto a última)
-    if (i < totalPhases - 1) {
-      slide.addText('›', {
-        x: x + colW + 0.02, y: topY + 0.30, w: arrowW - 0.04, h: 0.42,
-        fontFace: 'Calibri', fontSize: 14, color: '8AA0E5',
-        align: 'center', valign: 'middle',
-      });
-    }
-  });
-
-  // Rodapé
-  slide.addText('LBW · Continuous Improvement Copilot — Agenda da Apresentação', {
-    x: 0.22, y: 7.30, w: 13.00, h: 0.18,
-    fontFace: 'Calibri', fontSize: 7.5, color: THEME.MUTED,
-  });
-}
-
 function addPhaseDividerSlide(
   pres: pptxgen,
   project: Project,
@@ -287,19 +181,6 @@ export async function generateFullProjectPresentation(
   pres.layout = 'LAYOUT_WIDE';
 
   addCoverSlide(pres, project, options.userName || project.ownerEmail || '');
-
-  const agendaData = phasesWithTools.map(p => ({
-    id: p.id,
-    label: p.label,
-    tools: p.toolIds
-      .filter(tid => resolveDataKey(projectData, tid, phaseList))
-      .map(tid => {
-        const key = resolveHandlerKey(tid);
-        return key ? (TOOL_HANDLERS[key].successMsg.replace(/^Slide d[oa] /, '').replace(/^Apresentação /, '').replace(/ gerad[oa]!?$/, '')) : tid;
-      }),
-  }));
-
-  addAgendaSlide(pres, project, agendaData);
 
   const toolsSkipped: string[] = [];
   let toolsExported = 0;
