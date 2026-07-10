@@ -341,8 +341,26 @@ const getToolDataByPrefix = (allData: any, toolKey: string) => {
 
   // Fallback for missing metadata
   if (allData[toolKey]) return allData[toolKey];
-  
+
   return allData[matchingKeys[0]];
+};
+
+// Checagem GENÉRICA de "tem conteúdo?" — usada pra decidir se a ferramenta-fonte
+// já foi preenchida (não só aberta e salva vazia). Sem regra por-tool: cobre
+// null/''/[]/{}, arrays só com itens vazios e objetos só com campos vazios.
+// Desembrulha {toolData:{...}} se vier assim.
+const sourceHasContent = (raw: any): boolean => {
+  const data = raw?.toolData ?? raw;
+  const isEmpty = (d: any): boolean => {
+    if (d === null || d === undefined || d === '' || d === false) return true;
+    if (Array.isArray(d)) return d.length === 0 || d.every(isEmpty);
+    if (typeof d === 'object') {
+      const keys = Object.keys(d).filter(k => k !== '__metadata');
+      return keys.length === 0 || keys.every(k => isEmpty(d[k]));
+    }
+    return false; // number (inclui 0) ou string não-vazia contam como conteúdo
+  };
+  return !isEmpty(data);
 };
 
 export const AIPromptCard = ({ 
@@ -594,81 +612,98 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
   );
 };
 
-const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; source: string }> = {
+// sourceToolId = a ferramenta-fonte cujos dados o bloco "Gerar com IA" consome.
+// O bloco só deve aparecer quando essa fonte já foi preenchida (ver render, ~L1903).
+// Fontes compostas usam a fonte PRINCIPAL (a que carrega o dado central).
+const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; source: string; sourceToolId: string }> = {
   // PRÉ-DEFINIR
   // DEFINIR
   brief: {
     title: "Gerar Entendendo o Problema com IA",
     description: "A IA vai estruturar o problema com base no projeto priorizado nas matrizes anteriores.",
-    source: "Matriz GUT e Matriz RAB"
+    source: "Matriz GUT e Matriz RAB",
+    sourceToolId: "gut" // brief tem fluxo próprio (excluído da condição), mantido por completude
   },
   charter: {
     title: "Gerar Project Charter com IA",
     description: "A IA vai gerar o contrato do projeto com meta SMART, escopo e stakeholders baseados no problema definido.",
-    source: "Entendendo o Problema"
+    source: "Entendendo o Problema",
+    sourceToolId: "brief"
   },
   sipoc: {
     title: "Gerar SIPOC com IA",
     description: "A IA vai mapear fornecedores, entradas, processo, saídas e clientes baseados no Charter.",
-    source: "Project Charter"
+    source: "Project Charter",
+    sourceToolId: "charter"
   },
   stakeholders: {
     title: "Gerar Stakeholders com IA",
     description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
-    source: "Project Charter"
+    source: "Project Charter",
+    sourceToolId: "charter"
   },
   projectCharterPMI: {
     title: "Gerar Project Charter com IA",
     description: "A IA vai gerar o contrato do projeto com meta SMART, escopo e stakeholders baseados no problema definido.",
-    source: "Entendendo o Problema"
+    source: "Entendendo o Problema",
+    sourceToolId: "brief"
   },
   stakeholderAnalysisPMI: {
     title: "Gerar Stakeholders com IA",
     description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
-    source: "Project Charter"
+    source: "Project Charter",
+    sourceToolId: "charter"
   },
   stakeholderAdkar: {
     title: "Mapear Stakeholders com IA",
     description: "A IA vai identificar os principais stakeholders e sugerir o nível ADKAR inicial baseado no Charter.",
-    source: "Project Charter"
+    source: "Project Charter",
+    sourceToolId: "charter"
   },
   // MEDIR
   brainstorming: {
     title: "Gerar Brainstorming com IA",
     description: "A IA vai levantar causas técnicas baseadas no problema, processo e SIPOC do projeto.",
-    source: "Entendendo o Problema e SIPOC"
+    source: "Entendendo o Problema e SIPOC",
+    sourceToolId: "brief"
   },
   brainstormingImprove: {
     title: 'Gerar Brainstorming de Soluções',
     description: 'Obter os dados de Observação Direta e Análise Gráfica e Estatística e gerar Brainstorming de Soluções.',
-    source: 'Observação Direta e Análise Gráfica e Estatística'
+    source: 'Observação Direta e Análise Gráfica e Estatística',
+    sourceToolId: "directObservation"
   },
   measureIshikawa: {
     title: "Gerar Espinha de Peixe com IA",
     description: "A IA vai distribuir automaticamente todas as causas do Brainstorming nos 6Ms.",
-    source: "Brainstorming"
+    source: "Brainstorming",
+    sourceToolId: "brainstorming"
   },
   dataCollection: {
     title: "Gerar Plano de Coleta com IA",
     description: "A IA vai definir o plano de coleta baseado nas causas priorizadas na Matriz Causa e Efeito.",
-    source: "Matriz Causa e Efeito"
+    source: "Matriz Causa e Efeito",
+    sourceToolId: "measureMatrix"
   },
   dataNature: {
     title: 'Gerar Natureza dos Dados',
     description: 'Obter os dados de Plano de Coleta de Dados e gerar a Natureza dos Dados.',
-    source: 'Plano de Coleta de Dados'
+    source: 'Plano de Coleta de Dados',
+    sourceToolId: "dataCollection"
   },
   // ANALISAR
   measureMatrix: {
     title: "Gerar Matriz Causa e Efeito com IA",
     description: "A IA vai cruzar as causas da Espinha de Peixe com os KPIs definidos no Project Charter.",
-    source: "Espinha de Peixe e Project Charter"
+    source: "Espinha de Peixe e Project Charter",
+    sourceToolId: "measureIshikawa"
   },
   // MELHORAR
   plan5w2h: {
     title: "Gerar Plano de Ação 5W2H com IA",
     description: "A IA vai criar as ações com responsáveis e prazos baseados nas causas confirmadas e no Charter.",
-    source: "FMEA e Project Charter"
+    source: "FMEA e Project Charter",
+    sourceToolId: "fmea"
   },
   // CONTROLAR
 };
@@ -1898,9 +1933,11 @@ export default function ToolWrapper({
           </div>
         </div>
 
-      {/* AI Block — só aparece se a ferramenta SOURCE foi aberta e salvou dados (previousToolData).
-          Antes, o bloco aparecia mesmo com source vazio — gerava SIPOC sem Charter, etc. */}
-      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && !!previousToolData && (
+      {/* AI Block — só aparece se a ferramenta SOURCE REAL já existe e tem dados salvos.
+          Antes checava previousToolData (a ferramenta anterior por ORDEM da fase, não a
+          fonte declarada) — por isso o SIPOC mostrava o bloco mesmo sem Charter preenchido.
+          Agora checa o sourceToolId direto no allProjectData, igual ao Migrate block. */}
+      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && sourceHasContent(getToolDataByPrefix(allProjectData, TOOLS_WITH_AI_BLOCK[toolId].sourceToolId)) && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}
@@ -1912,8 +1949,8 @@ export default function ToolWrapper({
         />
       )}
 
-      {/* Migrate Block — só aparece se a ferramenta SOURCE existe e tem dados salvos. */}
-      {isToolEmpty() && TOOLS_WITH_MIGRATE_BLOCK[toolId] && showAIPrompt && !!getToolDataByPrefix(allProjectData, TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId) && (
+      {/* Migrate Block — só aparece se a ferramenta SOURCE existe E está preenchida. */}
+      {isToolEmpty() && TOOLS_WITH_MIGRATE_BLOCK[toolId] && showAIPrompt && sourceHasContent(getToolDataByPrefix(allProjectData, TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)) && (
         <MigratePromptCard
           toolId={toolId}
           toolName={toolName}
