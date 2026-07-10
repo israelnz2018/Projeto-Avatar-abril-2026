@@ -1,6 +1,7 @@
 import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
+import { exportStatisticalAnalysisV2Slide } from './statisticalAnalysisSlideExporterV2';
 
 const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
 
@@ -283,6 +284,13 @@ export async function exportStatisticalAnalysisSlide(
 ): Promise<void> {
   const today = new Date().toLocaleDateString('pt-BR');
   const data = unwrapToolData(toolData);
+
+  // Formato NOVO (gerado pelo ToolWrapper): { analyses: [{ variable, analysisType,
+  // graphImage, interpretation }] }. Difere do formato real da aba de análise
+  // (analise/grafico_base64). Detecta e delega ao exportador V2.
+  if (Array.isArray(data.analyses) && data.analyses.some((a: any) => a && (a.variable !== undefined || a.analysisType !== undefined))) {
+    return exportStatisticalAnalysisV2Slide(project, toolData, aiAnalysis, options);
+  }
 
   const allAnalyses: AnaliseSalva[] = Array.isArray(data.analyses)
     ? data.analyses

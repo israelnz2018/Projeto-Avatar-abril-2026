@@ -212,8 +212,12 @@ function resolveHandlerKey(toolId: string): string | null {
 // fase. Aceita as fases REAIS da trilha (incluindo ids-UUID) além dos padrões DMAIC —
 // senão ferramentas salvas numa fase custom (ex.: a fase "Descubra a Causa...") somem.
 function resolveDataKey(projectData: any, toolId: string, phaseList?: { id: string }[]): string | null {
-  const docKey = DATA_DOC_MAP[toolId] || toolId;
-  if (projectData[docKey]) return docKey;
+  // Tenta o doc mapeado (ex.: statisticalAnalysis -> dataAnalysis) E o toolId puro,
+  // porque a mesma ferramenta pode ter sido salva das duas formas.
+  const docKeys = Array.from(new Set([DATA_DOC_MAP[toolId] || toolId, toolId]));
+  for (const docKey of docKeys) {
+    if (projectData[docKey]) return docKey;
+  }
   const phaseIds = [
     ...(phaseList ? phaseList.map(p => p.id) : []),
     ...DEFAULT_PHASE_ORDER,
@@ -222,8 +226,10 @@ function resolveDataKey(projectData: any, toolId: string, phaseList?: { id: stri
   for (const phaseId of phaseIds) {
     if (seen.has(phaseId)) continue;
     seen.add(phaseId);
-    const composite = `${phaseId}_${docKey}`;
-    if (projectData[composite]) return composite;
+    for (const docKey of docKeys) {
+      const composite = `${phaseId}_${docKey}`;
+      if (projectData[composite]) return composite;
+    }
   }
   return null;
 }

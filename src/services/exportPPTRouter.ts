@@ -29,6 +29,13 @@ import { exportStatisticalAnalysisSlide } from './statisticalAnalysisSlideExport
 import { exportGutSlide } from './gutSlideExporter';
 import { exportRabSlide } from './rabSlideExporter';
 import { exportRaciSlide } from './raciSlideExporter';
+import { exportOrganogramaSlide } from './organogramaSlideExporter';
+import { exportIndicadoresSlide } from './indicadoresSlideExporter';
+import { exportSopSlide } from './sopSlideExporter';
+import { exportBriefSlide } from './briefSlideExporter';
+import { exportBeforeAfterSlide } from './beforeAfterSlideExporter';
+import { exportActionPlanSlide } from './actionPlanSlideExporter';
+import { exportImprovementIdeaSlide } from './improvementIdeaSlideExporter';
 
 import { generateFullPPTReport } from './reportService';
 
@@ -163,6 +170,34 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   raci: {
     exporter: exportRaciSlide,
     successMsg: 'Slide da Matriz RACI gerado!',
+  },
+  organograma: {
+    exporter: exportOrganogramaSlide,
+    successMsg: 'Slide do Organograma gerado!',
+  },
+  indicadores: {
+    exporter: exportIndicadoresSlide,
+    successMsg: 'Slide dos Indicadores gerado!',
+  },
+  sop: {
+    exporter: exportSopSlide,
+    successMsg: 'Slide do POP gerado!',
+  },
+  brief: {
+    exporter: exportBriefSlide,
+    successMsg: 'Slide de Entendendo o Problema gerado!',
+  },
+  beforeAfter: {
+    exporter: exportBeforeAfterSlide,
+    successMsg: 'Slide de Antes × Depois gerado!',
+  },
+  actionPlan: {
+    exporter: exportActionPlanSlide,
+    successMsg: 'Slide do Plano de Ação gerado!',
+  },
+  improvementIdea: {
+    exporter: exportImprovementIdeaSlide,
+    successMsg: 'Slide de Ideias de Projeto gerado!',
   },
 };
 
