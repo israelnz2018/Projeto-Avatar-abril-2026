@@ -682,7 +682,7 @@ export default function ProjectManagement() {
                                 onClick={(e) => handleGeneratePPT(project, e)}
                                 disabled={!!generatingPPTId}
                                 className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Gerar apresentação PowerPoint completa do projeto"
+                                title="Gerar apresentação PowerPoint completa do projeto (beta)"
                               >
                                 {generatingPPTId === project.id
                                   ? <Loader2 size={12} className="animate-spin text-blue-600" />
@@ -1018,7 +1018,7 @@ export default function ProjectManagement() {
                 <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Presentation size={32} />
                 </div>
-                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">Gerar apresentação?</h3>
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">Gerar apresentação? <span className="text-blue-600">(beta)</span></h3>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
                   Será gerada a apresentação em PowerPoint de <span style={{ color: LBW.blue }}>todo o projeto</span>, com os slides de todas as ferramentas preenchidas.
                 </p>
