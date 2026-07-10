@@ -4,10 +4,9 @@ import { addCoverSlide } from './coverSlide';
 import { TOOL_HANDLERS } from './exportPPTRouter';
 import { getAllProjectToolData } from './projectService';
 import { getInitiative, getInitiativeConfigs } from './configService';
-import { THEME } from './slideTemplate';
+import { THEME, setPhaseLabelOverride } from './slideTemplate';
 
 const DEFAULT_PHASE_ORDER = ['Define', 'Measure', 'Analyze', 'Improve', 'Control'];
-const DMAIC_LETTERS = ['D', 'M', 'A', 'I', 'C'];
 
 const PHASE_LABELS: Record<string, string> = {
   Define: 'Definir',
@@ -164,14 +163,14 @@ function addPhaseDividerSlide(
     align: 'center',
   });
 
-  // Stepper DMAIC
+  // Stepper das fases da trilha (bolinhas numeradas — sem DMAIC/Seis Sigma)
   const dotSize = 0.22;
   const dotGap = 0.18;
-  const effectiveTotal = Math.min(totalPhases, DMAIC_LETTERS.length);
+  const effectiveTotal = Math.max(totalPhases, 1);
   const stepperW = effectiveTotal * dotSize + (effectiveTotal - 1) * dotGap;
   const startX = (13.33 - stepperW) / 2;
 
-  DMAIC_LETTERS.slice(0, effectiveTotal).forEach((letter, i) => {
+  for (let i = 0; i < effectiveTotal; i++) {
     const cx = startX + i * (dotSize + dotGap);
     const isCurrent = i === phaseIdx;
 
@@ -181,13 +180,13 @@ function addPhaseDividerSlide(
       line: { color: isCurrent ? THEME.BLUE : '5A6A9A', width: 0.75 },
       rectRadius: dotSize / 2,
     });
-    slide.addText(letter, {
+    slide.addText(String(i + 1), {
       x: cx - 0.06, y: 6.60, w: dotSize + 0.12, h: 0.18,
       fontFace: 'Calibri', fontSize: 7, bold: isCurrent,
       color: isCurrent ? '8AA0E5' : '4D6080',
       align: 'center',
     });
-  });
+  }
 }
 
 const ALIAS_MAP: Record<string, string> = {
@@ -209,19 +208,28 @@ function resolveHandlerKey(toolId: string): string | null {
 
 // Uma ferramenta usada fora da sua fase padrão é salva no Firestore com a chave
 // composta `${phaseId}_${toolId}` (ver getToolStorageKey em ProjectJourney). Aqui
-// resolvemos a chave real dos dados tentando o toolId puro e depois os prefixos de fase.
-function resolveDataKey(projectData: any, toolId: string): string | null {
+// resolvemos a chave real dos dados tentando o toolId puro e depois os prefixos de
+// fase. Aceita as fases REAIS da trilha (incluindo ids-UUID) além dos padrões DMAIC —
+// senão ferramentas salvas numa fase custom (ex.: a fase "Descubra a Causa...") somem.
+function resolveDataKey(projectData: any, toolId: string, phaseList?: { id: string }[]): string | null {
   const docKey = DATA_DOC_MAP[toolId] || toolId;
   if (projectData[docKey]) return docKey;
-  for (const phaseId of DEFAULT_PHASE_ORDER) {
+  const phaseIds = [
+    ...(phaseList ? phaseList.map(p => p.id) : []),
+    ...DEFAULT_PHASE_ORDER,
+  ];
+  const seen = new Set<string>();
+  for (const phaseId of phaseIds) {
+    if (seen.has(phaseId)) continue;
+    seen.add(phaseId);
     const composite = `${phaseId}_${docKey}`;
     if (projectData[composite]) return composite;
   }
   return null;
 }
 
-function getToolData(projectData: any, toolId: string): { localData: any; aiReport: any } | null {
-  const dataKey = resolveDataKey(projectData, toolId);
+function getToolData(projectData: any, toolId: string, phaseList?: { id: string }[]): { localData: any; aiReport: any } | null {
+  const dataKey = resolveDataKey(projectData, toolId, phaseList);
   if (!dataKey) return null;
   const raw = projectData[dataKey];
   if (!raw) return null;
@@ -249,8 +257,11 @@ export async function generateFullProjectPresentation(
     project.initiativeId ? getInitiativeConfigs(project.initiativeId) : Promise.resolve([] as InitiativePhaseConfig[]),
   ]);
 
+  // Usa o NOME REAL da fase da trilha (p.name). Só cai no rótulo DMAIC traduzido
+  // quando a fase não tem nome próprio. Antes era o inverso — por isso aparecia
+  // "Definir/Medir" em vez de "Entenda Como Sua Área Funciona".
   const phaseList: { id: string; label: string }[] = initiative?.phases?.length
-    ? initiative.phases.map(p => ({ id: p.id, label: PHASE_LABELS[p.id] || p.name }))
+    ? initiative.phases.map(p => ({ id: p.id, label: p.name || PHASE_LABELS[p.id] || p.id }))
     : DEFAULT_PHASE_ORDER.map(id => ({ id, label: PHASE_LABELS[id] || id }));
 
   const phasesWithTools = phaseList.map(p => {
@@ -275,7 +286,7 @@ export async function generateFullProjectPresentation(
     id: p.id,
     label: p.label,
     tools: p.toolIds
-      .filter(tid => resolveDataKey(projectData, tid))
+      .filter(tid => resolveDataKey(projectData, tid, phaseList))
       .map(tid => {
         const key = resolveHandlerKey(tid);
         return key ? (TOOL_HANDLERS[key].successMsg.replace(/^Slide d[oa] /, '').replace(/^Apresentação /, '').replace(/ gerad[oa]!?$/, '')) : tid;
@@ -287,12 +298,16 @@ export async function generateFullProjectPresentation(
   const toolsSkipped: string[] = [];
   let toolsExported = 0;
 
-  for (const phase of phasesWithTools) {
-    const phaseToolsWithData = phase.toolIds.filter(tid => resolveDataKey(projectData, tid));
+  for (let pIdx = 0; pIdx < phasesWithTools.length; pIdx++) {
+    const phase = phasesWithTools[pIdx];
+    const phaseToolsWithData = phase.toolIds.filter(tid => resolveDataKey(projectData, tid, phaseList));
     if (phaseToolsWithData.length === 0) continue;
 
-    const phaseIdx = DEFAULT_PHASE_ORDER.indexOf(phase.id);
-    addPhaseDividerSlide(pres, project, phase.label, phaseIdx, phaseList.length);
+    // Índice REAL da fase na trilha (não DMAIC) — controla o número e o stepper.
+    addPhaseDividerSlide(pres, project, phase.label, pIdx, phaseList.length);
+
+    // O cabeçalho de cada ferramenta desta fase mostra o nome REAL da fase da trilha.
+    setPhaseLabelOverride(phase.label);
 
     for (const toolId of phaseToolsWithData) {
       const handlerKey = resolveHandlerKey(toolId);
@@ -301,7 +316,7 @@ export async function generateFullProjectPresentation(
         continue;
       }
       const handler = TOOL_HANDLERS[handlerKey];
-      const data = getToolData(projectData, toolId);
+      const data = getToolData(projectData, toolId, phaseList);
       if (!data) continue;
 
       const aiAnalysis = handler.useAiReport ? getAiAnalysis(data.aiReport) : '';
@@ -316,6 +331,7 @@ export async function generateFullProjectPresentation(
       }
     }
   }
+  setPhaseLabelOverride(null); // limpa o override pra não vazar pra exports avulsos
 
   const today = new Date().toLocaleDateString('pt-BR').replace(/\//g, '');
   const fileName = `Apresentacao_Final_${sanitize(project.name || 'Projeto')}_${today}.pptx`;

@@ -44,7 +44,7 @@ export function addCoverSlide(
   });
 
   // Eyebrow
-  slide.addText('PROJETO LEAN SIX SIGMA · DMAIC', {
+  slide.addText('PROJETO DE MELHORIA · APRESENTAÇÃO EXECUTIVA', {
     x: 0.82, y: 2.62, w: 10.50, h: 0.30,
     fontFace: 'Calibri', fontSize: 13, bold: true, color: ACCENT,
     charSpacing: 4,

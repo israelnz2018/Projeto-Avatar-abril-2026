@@ -19,6 +19,15 @@ export const TOOL_AREA = {
   h: 5.26,
 };
 
+// Override do rótulo de fase no cabeçalho. A apresentação COMPLETA do projeto seta
+// isto com o nome da fase REAL da trilha antes de cada ferramenta (evita o "FASE
+// DEFINE" hardcoded dentro de cada exportador). Uso avulso de uma ferramenta deixa
+// null e mantém o rótulo que o próprio exportador passa.
+let phaseLabelOverride: string | null = null;
+export function setPhaseLabelOverride(label: string | null): void {
+  phaseLabelOverride = label;
+}
+
 export function createSlide(
   pres: pptxgen,
   project: Project,
@@ -26,6 +35,8 @@ export function createSlide(
   toolPhase: string,
   aiAnalysis: string = ''
 ): pptxgen.Slide {
+  // Se a apresentação completa definiu a fase da trilha, ela vence o hardcoded.
+  if (phaseLabelOverride) toolPhase = phaseLabelOverride;
   const today = new Date().toLocaleDateString('pt-BR');
   const slide = pres.addSlide();
   slide.background = { color: 'FFFFFF' };
