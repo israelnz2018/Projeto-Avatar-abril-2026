@@ -28,31 +28,31 @@ function addPhaseDividerSlide(
   const slide = pres.addSlide();
   slide.background = { color: THEME.NAVY };
 
-  // Número grande da fase (marca d'água sutil — levemente mais claro que NAVY)
+  // Número da fase — marca d'água discreta no topo (não compete com o título)
   const phaseNum = String(phaseIdx + 1).padStart(2, '0');
   slide.addText(phaseNum, {
-    x: -1.20, y: 0.60, w: 9.00, h: 6.00,
-    fontFace: 'Calibri', fontSize: 240, bold: true, color: '253585',
+    x: 0.50, y: 0.70, w: 3.00, h: 1.60,
+    fontFace: 'Calibri', fontSize: 96, bold: true, color: '2A3B8C',
     align: 'left', valign: 'middle',
   });
 
-  // Eyebrow "FASE"
+  // Eyebrow "FASE" — cor clara pra destacar sobre o navy
   slide.addText('FASE', {
-    x: 0.50, y: 2.55, w: 12.33, h: 0.36,
-    fontFace: 'Calibri', fontSize: 14, bold: true, color: THEME.BLUE,
+    x: 0.50, y: 2.85, w: 12.33, h: 0.36,
+    fontFace: 'Calibri', fontSize: 14, bold: true, color: '8AA0E5',
     align: 'center', charSpacing: 6,
   });
 
   // Nome da fase
   slide.addText(phaseLabel.toUpperCase(), {
-    x: 0.50, y: 3.10, w: 12.33, h: 1.20,
-    fontFace: 'Calibri', fontSize: 54, bold: true, color: 'FFFFFF',
-    align: 'center', valign: 'middle', charSpacing: 4,
+    x: 0.80, y: 3.35, w: 11.73, h: 1.30,
+    fontFace: 'Calibri', fontSize: 48, bold: true, color: 'FFFFFF',
+    align: 'center', valign: 'middle', charSpacing: 3, shrinkText: true,
   });
 
   // Nome do projeto
   slide.addText(project.name || '', {
-    x: 0.50, y: 4.50, w: 12.33, h: 0.40,
+    x: 0.50, y: 4.85, w: 12.33, h: 0.40,
     fontFace: 'Calibri', fontSize: 14, color: 'C7D2FF',
     align: 'center',
   });

@@ -57,17 +57,18 @@ export async function exportIshikawaSlide(
     align: 'center', valign: 'middle', shrinkText: true,
   });
 
-  // Categorias 6M — 3 em cima, 3 embaixo
-  const BONE_W = 1.70;
+  // Categorias 6M — 3 em cima, 3 embaixo. Cada categoria tem uma ESPINHA
+  // diagonal saindo da dorsal; o badge fica na ponta e as causas ficam ao
+  // longo/ao lado da diagonal (estética clássica de espinha de peixe).
+  const BONE_W = 1.65;
   const BONE_H = 0.30;
-  const CAUSE_W = 2.10;
-  const CAUSE_H = 1.40;
 
-  // Posições X das 3 colunas de ossos
-  const colXs = [
-    TX + 0.10,
-    TX + TW * 0.36,
-    TX + TW * 0.64,
+  // 3 pontos de ancoragem na dorsal (onde cada espinha diagonal encosta).
+  const spineSpan = SPINE_END - SPINE_START;
+  const anchorXs = [
+    SPINE_START + spineSpan * 0.24,
+    SPINE_START + spineSpan * 0.52,
+    SPINE_START + spineSpan * 0.80,
   ];
 
   const TOP_ROW = [
@@ -81,67 +82,68 @@ export async function exportIshikawaSlide(
     { name: 'Meio ambiente', col: 2 },
   ];
 
-  const TOP_BADGE_Y  = TY + 0.05;
-  const TOP_CAUSE_Y  = TY + 0.38;
-  const BOT_BADGE_Y  = TY + TH - 0.70;
-  const BOT_CAUSE_Y  = TY + TH - 0.68 - CAUSE_H;
+  // Geometria da diagonal: badge deslocado pra esquerda do ponto de ancoragem,
+  // criando o "\" (top) e "/" (bottom) que atravessa a dorsal.
+  const DIAG_DX = 1.30;           // deslocamento horizontal do badge vs âncora
+  const BADGE_GAP_Y = 0.10;       // folga vertical entre badge e borda da área
+  const TOP_BADGE_Y = TY + BADGE_GAP_Y;
+  const BOT_BADGE_Y = TY + TH - BONE_H - BADGE_GAP_Y;
 
   const drawBone = (cat: { name: string; col: number }, isTop: boolean) => {
-    const bx = colXs[cat.col];
-    const badgeY  = isTop ? TOP_BADGE_Y  : BOT_BADGE_Y;
-    const causeY  = isTop ? TOP_CAUSE_Y  : BOT_CAUSE_Y;
+    const anchorX = anchorXs[cat.col];
+    const badgeY = isTop ? TOP_BADGE_Y : BOT_BADGE_Y;
+    // Badge à esquerda da âncora; ponta da diagonal encosta na dorsal.
+    const badgeX = anchorX - DIAG_DX - BONE_W / 2;
 
-    // Ponto de ancoragem do badge (centro inferior do badge se top, centro superior se bot)
-    const badgeCx = bx + BONE_W / 2;
-    const badgeAnchorY = isTop ? badgeY + BONE_H : badgeY;
-
-    // Ponto de ancoragem na espinha (perto do centro da coluna)
-    const spineAnchorX = bx + BONE_W / 2;
-
-    // Linha diagonal do badge à espinha
-    const x1 = badgeCx;
-    const y1 = badgeAnchorY;
-    const x2 = spineAnchorX;
+    // Espinha diagonal: da ponta do badge (lado direito, borda interna) até a âncora na dorsal.
+    const x1 = badgeX + BONE_W;                       // saída do badge
+    const y1 = isTop ? badgeY + BONE_H : badgeY;      // borda do badge voltada à dorsal
+    const x2 = anchorX;
     const y2 = SPINE_Y;
     const needsFlip = (x2 < x1 && y2 < y1) || (x2 > x1 && y2 > y1);
-
     slide.addShape('line', {
       x: Math.min(x1, x2), y: Math.min(y1, y2),
       w: Math.abs(x2 - x1), h: Math.abs(y2 - y1),
-      line: { color: THEME.NAVY, width: 0.9 },
+      line: { color: THEME.NAVY, width: 1.1 },
       flipV: needsFlip,
     });
 
-    // Badge da categoria
+    // Badge da categoria (na ponta externa da espinha)
     slide.addShape('rect', {
-      x: bx, y: badgeY, w: BONE_W, h: BONE_H,
-      fill: { color: 'EAF1F8' },
-      line: { color: THEME.BLUE, width: 0.6 },
-      rectRadius: 0.04,
+      x: badgeX, y: badgeY, w: BONE_W, h: BONE_H,
+      fill: { color: THEME.NAVY },
+      line: { type: 'none' }, rectRadius: 0.04,
     });
     slide.addText(cat.name, {
-      x: bx, y: badgeY, w: BONE_W, h: BONE_H,
-      fontFace: 'Calibri', fontSize: 9.5, bold: true, color: THEME.NAVY,
+      x: badgeX, y: badgeY, w: BONE_W, h: BONE_H,
+      fontFace: 'Calibri', fontSize: 9.5, bold: true, color: 'FFFFFF',
       align: 'center', valign: 'middle',
     });
 
-    // Causas da categoria
+    // Causas: dispostas ao LADO DIREITO da espinha diagonal, entre o badge e a dorsal.
     const key = Object.keys(causes).find(k => normalize(k) === normalize(cat.name));
     const raw = key ? causes[key] : null;
-    const list = Array.isArray(raw) ? raw.filter((c: string) => c && typeof c === 'string' && c.trim()) : [];
+    const list = Array.isArray(raw)
+      ? raw.filter((c: string) => c && typeof c === 'string' && c.trim()).slice(0, 5)
+      : [];
+    if (list.length === 0) return;
 
-    if (list.length > 0) {
-      const items = list.slice(0, 5).map(c => ({
-        text: c,
-        options: { bullet: { code: '2022' } },
-      }));
-      slide.addText(items, {
-        x: bx, y: causeY, w: CAUSE_W, h: CAUSE_H,
-        fontFace: 'Calibri', fontSize: 8.5, color: THEME.INK,
-        valign: isTop ? 'bottom' : 'top', paraSpaceAfter: 3,
-        shrinkText: true,
-      });
-    }
+    // Caixa de causas ancorada logo à direita do badge, na direção da dorsal.
+    const CW = DIAG_DX + BONE_W * 0.55;   // largura da coluna de causas
+    const cx = badgeX + BONE_W - 0.05;
+    const CH = Math.abs(SPINE_Y - (isTop ? badgeY + BONE_H : badgeY)) - 0.04;
+    const cy = isTop ? badgeY + BONE_H + 0.02 : badgeY - CH - 0.02;
+
+    const items = list.map(c => ({
+      text: c,
+      options: { bullet: { code: '2022' } },
+    }));
+    slide.addText(items, {
+      x: cx, y: cy, w: CW, h: CH,
+      fontFace: 'Calibri', fontSize: 8, color: THEME.INK,
+      valign: 'middle', paraSpaceAfter: 2,
+      shrinkText: true,
+    });
   };
 
   TOP_ROW.forEach(c => drawBone(c, true));

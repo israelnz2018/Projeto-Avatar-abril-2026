@@ -102,16 +102,25 @@ export async function exportEffortImpactSlide(
     fill: { color: THEME.LIGHT }, line: { type: 'none' }, rectRadius: 0.03,
   });
 
-  const COL_ID_X = TX + 0.10;
-  const COL_DESC_X = TX + 0.45;
-  const COL_EFF_X = TX + LEFT_W * 0.72;
-  const COL_IMP_X = TX + LEFT_W * 0.84;
-  const COL_QW_X = TX + LEFT_W - 0.34;
+  // Larguras de coluna fixas somando LEFT_W (margens internas de 0.10 cada lado).
+  const COL_ID_W = 0.34;
+  const COL_EFF_W = 0.62;
+  const COL_IMP_W = 0.62;
+  const COL_QW_W = 0.40;
+  const PAD_L = 0.10;
+  const PAD_R = 0.10;
+  const COL_DESC_W = LEFT_W - PAD_L - PAD_R - COL_ID_W - COL_EFF_W - COL_IMP_W - COL_QW_W;
 
-  slide.addText('ID', { x: COL_ID_X, y: tblY, w: 0.32, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, valign: 'middle' });
-  slide.addText('DESCRIÇÃO', { x: COL_DESC_X, y: tblY, w: LEFT_W * 0.55, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, valign: 'middle' });
-  slide.addText('ESF.', { x: COL_EFF_X, y: tblY, w: 0.30, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, align: 'center', valign: 'middle' });
-  slide.addText('IMP.', { x: COL_IMP_X, y: tblY, w: 0.30, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, align: 'center', valign: 'middle' });
+  const COL_ID_X = TX + PAD_L;
+  const COL_DESC_X = COL_ID_X + COL_ID_W;
+  const COL_EFF_X = COL_DESC_X + COL_DESC_W;
+  const COL_IMP_X = COL_EFF_X + COL_EFF_W;
+  const COL_QW_X = COL_IMP_X + COL_IMP_W;
+
+  slide.addText('ID', { x: COL_ID_X, y: tblY, w: COL_ID_W, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, valign: 'middle' });
+  slide.addText('DESCRIÇÃO', { x: COL_DESC_X, y: tblY, w: COL_DESC_W, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, valign: 'middle' });
+  slide.addText('ESF.', { x: COL_EFF_X, y: tblY, w: COL_EFF_W, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, align: 'center', valign: 'middle' });
+  slide.addText('IMP.', { x: COL_IMP_X, y: tblY, w: COL_IMP_W, h: HEADER_H, fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY, align: 'center', valign: 'middle' });
 
   if (actions.length === 0) {
     slide.addText('Nenhuma ação registrada nesta ferramenta.', {
@@ -138,31 +147,33 @@ export async function exportEffortImpactSlide(
       }
 
       slide.addText(a.label || `X${idx + 1}`, {
-        x: COL_ID_X, y: rowY, w: 0.32, h: rowH,
+        x: COL_ID_X, y: rowY, w: COL_ID_W, h: rowH,
         fontFace: 'Calibri', fontSize, bold: true, color: THEME.BLUE, valign: 'middle',
       });
       slide.addText(a.description || '—', {
-        x: COL_DESC_X, y: rowY, w: LEFT_W * 0.55, h: rowH,
+        x: COL_DESC_X, y: rowY, w: COL_DESC_W, h: rowH,
         fontFace: 'Calibri', fontSize, color: THEME.NAVY, valign: 'middle', shrinkText: true,
       });
       slide.addText(String(a.effort ?? '-'), {
-        x: COL_EFF_X, y: rowY, w: 0.30, h: rowH,
+        x: COL_EFF_X, y: rowY, w: COL_EFF_W, h: rowH,
         fontFace: 'Calibri', fontSize, bold: true, color: THEME.INK, align: 'center', valign: 'middle',
       });
       slide.addText(String(a.impact ?? '-'), {
-        x: COL_IMP_X, y: rowY, w: 0.30, h: rowH,
+        x: COL_IMP_X, y: rowY, w: COL_IMP_W, h: rowH,
         fontFace: 'Calibri', fontSize, bold: true, color: THEME.INK, align: 'center', valign: 'middle',
       });
 
-      // Chip Quick Win
+      // Chip Quick Win (centralizado dentro da coluna QW)
       const q = getQuadrant(a.effort, a.impact);
       if (q === 'quickwin') {
+        const chipW = 0.30;
+        const chipX = COL_QW_X + (COL_QW_W - chipW) / 2;
         slide.addShape('rect', {
-          x: COL_QW_X, y: rowY + 0.04, w: 0.26, h: rowH - 0.08,
+          x: chipX, y: rowY + 0.04, w: chipW, h: rowH - 0.08,
           fill: { color: 'DCFCE7' }, line: { type: 'none' }, rectRadius: 0.03,
         });
         slide.addText('QW', {
-          x: COL_QW_X, y: rowY, w: 0.26, h: rowH,
+          x: chipX, y: rowY, w: chipW, h: rowH,
           fontFace: 'Calibri', fontSize: 6, bold: true, color: '16A34A',
           align: 'center', valign: 'middle',
         });

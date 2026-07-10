@@ -26,13 +26,30 @@ const TYPE_TO_CENTER_LABEL: Record<string, string> = {
 
 type Slot = { x: number; y: number; w: number; h: number };
 
+// Limites de layout (estilo sol/radial):
+//   - até 5 ideias no TOPO e até 5 embaixo (BASE)
+//   - excedente (>10) vai para as LATERAIS (esquerda/direita)
+//   - nunca empilhar: cada região respeita um gap fixo entre caixas
+const MAX_TOP = 5;
+const MAX_BOTTOM = 5;
+const GAP = 0.14;              // espaço mínimo entre caixas vizinhas
+const H_MARGIN = 0.10;         // recuo do topo/base da área
+const SIDE_LANE_W = 2.30;      // largura reservada nas laterais
+
+/**
+ * Distribui `count` ideias entre 4 regiões (topo, base, esquerda, direita)
+ * sem sobreposição. Enche topo (máx 5) e base (máx 5) primeiro; o excedente
+ * vai para as laterais. Se ainda assim não couber, limita ao que cabe e
+ * reporta `overflow` (número de ideias não exibidas).
+ */
 function buildSlots(
   count: number,
   TX: number, TY: number, TW: number, TH: number,
   centerX: number, centerY: number
-): { slots: Slot[]; pillFontSize: number } {
-  if (count === 0) return { slots: [], pillFontSize: 10 };
+): { slots: Slot[]; pillFontSize: number; overflow: number } {
+  if (count <= 0) return { slots: [], pillFontSize: 10, overflow: 0 };
 
+  // Dimensões das caixas encolhem conforme a contagem, com mínimo legível.
   let pillW: number;
   let pillH: number;
   let pillFontSize: number;
@@ -40,103 +57,86 @@ function buildSlots(
   if (count <= 4) {
     pillW = 3.60; pillH = 0.62; pillFontSize = 11;
   } else if (count <= 8) {
-    pillW = 3.40; pillH = 0.52; pillFontSize = 10;
+    pillW = 3.30; pillH = 0.54; pillFontSize = 10;
   } else if (count <= 12) {
-    pillW = 2.90; pillH = 0.46; pillFontSize = 9;
+    pillW = 2.95; pillH = 0.46; pillFontSize = 9;
   } else if (count <= 16) {
-    pillW = 2.50; pillH = 0.38; pillFontSize = 8;
+    pillW = 2.60; pillH = 0.40; pillFontSize = 8;
   } else {
-    pillW = 2.20; pillH = 0.34; pillFontSize = 7.5;
+    pillW = 2.30; pillH = 0.36; pillFontSize = 7.5;
   }
 
+  // ---- Capacidade por região (nº de caixas que cabem SEM colidir) ----
+  // Topo/base: caixas lado a lado na horizontal.
+  const perRowFit = Math.max(1, Math.floor((TW + GAP) / (pillW + GAP)));
+  const topCap = Math.min(MAX_TOP, perRowFit);
+  const bottomCap = Math.min(MAX_BOTTOM, perRowFit);
+
+  // Laterais: caixas empilhadas na vertical, deixando espaço central livre
+  // (evita colidir com o círculo). Usa ~40% da altura em cada lateral.
+  const sideSpan = TH * 0.80;
+  const sideCap = Math.max(1, Math.floor((sideSpan + GAP) / (pillH + GAP)));
+
+  // ---- Quantos vão para cada região ----
   let topCount = 0;
   let bottomCount = 0;
-  let midLeftCount = 0;
-  let midRightCount = 0;
+  let leftCount = 0;
+  let rightCount = 0;
 
-  if (count === 1) topCount = 1;
-  else if (count === 2) { midLeftCount = 1; midRightCount = 1; }
-  else if (count === 3) { topCount = 1; midLeftCount = 1; midRightCount = 1; }
-  else if (count === 4) { topCount = 2; bottomCount = 2; }
-  else if (count === 5) { topCount = 2; midLeftCount = 1; midRightCount = 1; bottomCount = 1; }
-  else if (count === 6) { topCount = 3; bottomCount = 3; }
-  else if (count === 7) { topCount = 3; midLeftCount = 1; midRightCount = 1; bottomCount = 2; }
-  else if (count === 8) { topCount = 3; midLeftCount = 1; midRightCount = 1; bottomCount = 3; }
-  else if (count <= 10) {
-    topCount = Math.ceil(count / 2);
-    bottomCount = count - topCount;
-  } else if (count <= 12) {
-    topCount = Math.ceil(count / 2);
-    bottomCount = count - topCount;
-  } else if (count <= 16) {
-    topCount = Math.ceil(count / 4);
-    bottomCount = Math.ceil(count / 4);
-    const remaining = count - topCount - bottomCount;
-    midLeftCount = Math.ceil(remaining / 2);
-    midRightCount = remaining - midLeftCount;
-  } else {
-    // 17+: distribuir mais no topo e base, menos nas laterais
-    const perTopBot = Math.ceil(count / 3);
-    topCount = perTopBot;
-    bottomCount = perTopBot;
-    const remaining = count - topCount - bottomCount;
-    midLeftCount = Math.ceil(remaining / 2);
-    midRightCount = remaining - midLeftCount;
+  let remaining = count;
+
+  // 1) Enche topo e base (equilibrado), respeitando o máx de 5 e a capacidade.
+  const rowTarget = Math.min(topCap + bottomCap, remaining);
+  topCount = Math.min(topCap, Math.ceil(rowTarget / 2));
+  bottomCount = Math.min(bottomCap, rowTarget - topCount);
+  remaining -= topCount + bottomCount;
+
+  // 2) Excedente vai para as laterais (dividido esquerda/direita).
+  if (remaining > 0) {
+    const sideTarget = Math.min(sideCap * 2, remaining);
+    leftCount = Math.min(sideCap, Math.ceil(sideTarget / 2));
+    rightCount = Math.min(sideCap, sideTarget - leftCount);
+    remaining -= leftCount + rightCount;
   }
+
+  // 3) O que sobrar não cabe sem sobrepor → vira nota "+N ideias".
+  const overflow = remaining;
 
   const slots: Slot[] = [];
 
-  // TOP
-  if (topCount > 0) {
-    const topY = TY + 0.10;
-    if (topCount === 1) {
-      slots.push({ x: centerX - pillW / 2, y: topY, w: pillW, h: pillH });
-    } else {
-      const totalSpan = TW - pillW;
-      const step = totalSpan / (topCount - 1);
-      for (let i = 0; i < topCount; i++) {
-        slots.push({ x: TX + i * step, y: topY, w: pillW, h: pillH });
-      }
+  // Distribui N caixas horizontalmente numa faixa [x0, x0+spanW], centralizadas.
+  const layoutRow = (n: number, y: number) => {
+    if (n <= 0) return;
+    const totalW = n * pillW + (n - 1) * GAP;
+    const startX = centerX - totalW / 2;
+    for (let i = 0; i < n; i++) {
+      slots.push({ x: startX + i * (pillW + GAP), y, w: pillW, h: pillH });
     }
-  }
+  };
 
-  // MID LEFT
-  if (midLeftCount > 0) {
-    const leftX = TX;
-    const midSpace = TH * 0.45;
-    const stepY = midLeftCount === 1 ? 0 : midSpace / (midLeftCount - 1);
-    const startY = centerY - midSpace / 2;
-    for (let i = 0; i < midLeftCount; i++) {
-      slots.push({ x: leftX, y: startY + i * stepY, w: pillW, h: pillH });
+  // Distribui N caixas verticalmente numa lateral, centradas verticalmente.
+  const layoutSide = (n: number, x: number) => {
+    if (n <= 0) return;
+    const totalH = n * pillH + (n - 1) * GAP;
+    const startY = centerY - totalH / 2;
+    for (let i = 0; i < n; i++) {
+      slots.push({ x, y: startY + i * (pillH + GAP), w: pillW, h: pillH });
     }
-  }
+  };
 
-  // MID RIGHT
-  if (midRightCount > 0) {
-    const rightX = TX + TW - pillW;
-    const midSpace = TH * 0.45;
-    const stepY = midRightCount === 1 ? 0 : midSpace / (midRightCount - 1);
-    const startY = centerY - midSpace / 2;
-    for (let i = 0; i < midRightCount; i++) {
-      slots.push({ x: rightX, y: startY + i * stepY, w: pillW, h: pillH });
-    }
-  }
+  // TOPO
+  layoutRow(topCount, TY + H_MARGIN);
 
-  // BOTTOM
-  if (bottomCount > 0) {
-    const botY = TY + TH - pillH - 0.10;
-    if (bottomCount === 1) {
-      slots.push({ x: centerX - pillW / 2, y: botY, w: pillW, h: pillH });
-    } else {
-      const totalSpan = TW - pillW;
-      const step = totalSpan / (bottomCount - 1);
-      for (let i = 0; i < bottomCount; i++) {
-        slots.push({ x: TX + i * step, y: botY, w: pillW, h: pillH });
-      }
-    }
-  }
+  // BASE
+  layoutRow(bottomCount, TY + TH - pillH - H_MARGIN);
 
-  return { slots, pillFontSize };
+  // LATERAL ESQUERDA (encostada na borda esquerda da área)
+  layoutSide(leftCount, TX);
+
+  // LATERAL DIREITA (encostada na borda direita da área)
+  layoutSide(rightCount, TX + TW - pillW);
+
+  return { slots, pillFontSize, overflow };
 }
 
 export async function exportBrainstormingSlide(
@@ -185,13 +185,21 @@ export async function exportBrainstormingSlide(
   const MAP_Y = TY + BANNER_H + 0.15;
   const MAP_H = TH - BANNER_H - 0.15;
   const centerX = TX + TW / 2;
-  const centerY = MAP_Y + MAP_H / 2;
 
   const RADIUS = ideas.length <= 6 ? 0.95 : ideas.length <= 12 ? 0.85 : 0.75;
 
-  const { slots, pillFontSize } = buildSlots(
-    ideas.length, TX, MAP_Y, TW, MAP_H, centerX, centerY
-  );
+  // Primeiro cálculo para saber se haverá nota de excedente no rodapé.
+  const probe = buildSlots(ideas.length, TX, MAP_Y, TW, MAP_H, centerX, MAP_Y + MAP_H / 2);
+
+  // Se houver excedente, reserva uma faixa de rodapé (0.24") para a nota
+  // "+N ideias", recalculando o layout na área reduzida (evita sobreposição).
+  const FOOTER_H = 0.24;
+  const effMapH = probe.overflow > 0 ? MAP_H - FOOTER_H : MAP_H;
+  const centerY = MAP_Y + effMapH / 2;
+  const { slots, pillFontSize, overflow } =
+    probe.overflow > 0
+      ? buildSlots(ideas.length, TX, MAP_Y, TW, effMapH, centerX, centerY)
+      : probe;
 
   // CONECTORES — só desenha se a linha tem comprimento >= 0.10" (evita XML quebrado)
   ideas.forEach((_, i) => {
@@ -270,6 +278,15 @@ export async function exportBrainstormingSlide(
       align: 'center', valign: 'middle', shrinkText: true,
     });
   });
+
+  // NOTA DE EXCEDENTE — quando há mais ideias do que cabem sem sobrepor
+  if (overflow > 0) {
+    slide.addText(`+${overflow} ${overflow === 1 ? 'ideia' : 'ideias'} não exibida${overflow === 1 ? '' : 's'}`, {
+      x: TX, y: MAP_Y + MAP_H - FOOTER_H, w: TW - 0.10, h: FOOTER_H,
+      fontFace: 'Calibri', fontSize: 8, italic: true, color: THEME.MUTED,
+      align: 'right', valign: 'middle',
+    });
+  }
 
   if (ideas.length === 0) {
     slide.addText('Nenhuma ideia coletada ainda. Volte à ferramenta para registrar contribuições da equipe.', {
