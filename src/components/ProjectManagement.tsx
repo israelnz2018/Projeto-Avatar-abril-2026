@@ -348,6 +348,8 @@ export default function ProjectManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   const [generatingPPTId, setGeneratingPPTId] = useState<string | null>(null);
+  // Projeto aguardando confirmação de "gerar apresentação completa".
+  const [pptConfirmProject, setPptConfirmProject] = useState<Project | null>(null);
 
   const { canUseInitiative } = useUserAccess();
 
@@ -491,9 +493,18 @@ export default function ProjectManagement() {
     }
   };
 
-  const handleGeneratePPT = async (project: Project, e: React.MouseEvent) => {
+  // Clique no botão: só abre o modal de confirmação (não gera direto).
+  const handleGeneratePPT = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
     if (generatingPPTId) return;
+    setPptConfirmProject(project);
+  };
+
+  // Confirmado no modal: gera de fato a apresentação completa.
+  const confirmGeneratePPT = async () => {
+    const project = pptConfirmProject;
+    if (!project || generatingPPTId) return;
+    setPptConfirmProject(null);
     setGeneratingPPTId(project.id);
     try {
       const userProfile = getUserProfile();
@@ -991,6 +1002,45 @@ export default function ProjectManagement() {
           </button>
         </div>
       )}
+
+      {/* Gerar Apresentação — Confirmação */}
+      <AnimatePresence>
+        {pptConfirmProject && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={() => setPptConfirmProject(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-blue-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Presentation size={32} />
+                </div>
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-2">Gerar apresentação?</h3>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+                  Será gerada a apresentação em PowerPoint de <span style={{ color: LBW.blue }}>todo o projeto</span>, com os slides de todas as ferramentas preenchidas.
+                </p>
+              </div>
+              <div className="p-6 bg-gray-50 flex gap-3">
+                <button
+                  onClick={() => setPptConfirmProject(null)}
+                  className="flex-1 py-4 text-xs font-black text-gray-500 hover:text-gray-700 uppercase tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmGeneratePPT}
+                  className="flex-1 py-4 rounded-2xl text-xs font-black text-white uppercase tracking-widest bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all"
+                >
+                  Gerar apresentação
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
