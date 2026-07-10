@@ -666,8 +666,7 @@ export default function ProjectManagement() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1 ml-3">
-                              {/* Botão "Gerar apresentação completa" escondido a pedido (mantido para referência futura) */}
-                              {false && (
+                              {/* Gerar apresentação PowerPoint completa do projeto */}
                               <button
                                 onClick={(e) => handleGeneratePPT(project, e)}
                                 disabled={!!generatingPPTId}
@@ -678,7 +677,6 @@ export default function ProjectManagement() {
                                   ? <Loader2 size={12} className="animate-spin text-blue-600" />
                                   : <Presentation size={12} />}
                               </button>
-                              )}
                               <button
                                 onClick={(e) => handleEditProject(project, e)}
                                 className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent"
