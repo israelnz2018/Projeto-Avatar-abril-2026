@@ -123,6 +123,9 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
   const processMap = findToolData(allProjectData, 'processMap');
   const etapas = etapasDoMapa(processMap);
   const temMapa = etapas.length > 0;
+  // Bloco de IA só aparece se o Brainstorming AINDA está vazio (nao sobrescreve
+  // ideias já registradas). 3 condições: Brainstorming vazio + Mapa existe + preenchido.
+  const brainstormingVazio = !Array.isArray(ideas) || ideas.every((i: any) => !i?.text || !i.text.trim());
 
   const handleGenerateFromMap = async () => {
     if (!temMapa) {
@@ -205,8 +208,9 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
 
   return (
     <div className="space-y-8">
-      {/* Box de IA — gera causas potenciais a partir das etapas do Mapa de Processo */}
-      {temMapa && (
+      {/* Box de IA — gera causas potenciais a partir das etapas do Mapa de Processo.
+          Só aparece se o Mapa existe/está preenchido E o Brainstorming ainda está vazio. */}
+      {temMapa && brainstormingVazio && (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">

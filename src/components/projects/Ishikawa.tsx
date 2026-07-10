@@ -199,6 +199,11 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
     .map((i: any) => (i?.text || '').trim())
     .filter(Boolean);
   const temBrainstorming = causasDoBrainstorming.length > 0;
+  // O bloco de IA só aparece se o Ishikawa AINDA está vazio — nao sobrescreve
+  // trabalho já feito. (3 condições: Ishikawa vazio + Brainstorming existe + preenchido.)
+  const ishikawaVazio = Object.values(causes).every(
+    arr => !Array.isArray(arr) || arr.every(c => !c || !c.trim())
+  );
 
   const handleDistribuirIA = async () => {
     if (!temBrainstorming) {
@@ -357,8 +362,9 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
  
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-12 w-full">
-      {/* Box de IA — distribui as causas do Brainstorming nos 6M */}
-      {temBrainstorming && (
+      {/* Box de IA — distribui as causas do Brainstorming nos 6M.
+          Só aparece se o Brainstorming existe/está preenchido E o Ishikawa ainda está vazio. */}
+      {temBrainstorming && ishikawaVazio && (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">

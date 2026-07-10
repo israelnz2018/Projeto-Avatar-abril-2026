@@ -1961,9 +1961,10 @@ export default function ToolWrapper({
         />
       )}
 
-      {isToolEmpty() && toolId === 'brief' && showAIPrompt && (
+      {isToolEmpty() && toolId === 'brief' && showAIPrompt && sourceHasContent(getToolDataByPrefix(allProjectData, 'improvementIdea')) && (
         <>
-          {/* Card 1 - VERDE: Puxar titulos */}
+          {/* Card 1 - VERDE: Puxar titulos — só aparece se a Ideia de Projeto (fonte)
+              existir E estiver preenchida, e o brief atual ainda estiver vazio. */}
           <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-6 shadow-sm relative overflow-hidden">
             <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
             <div className="relative z-10 flex flex-col gap-5">
