@@ -121,14 +121,14 @@ export default function LandingComecar() {
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
           <h1>Nos primeiros 90 dias, ou você constrói sua imagem,<br /><span className="grad">ou a empresa constrói por você.</span></h1>
-          {/* VSL — player VTurb logo abaixo da headline */}
+          <p className="sub">Use um plano prático para entender uma nova área, escolher um problema relevante e transformar esse problema em sua primeira melhoria concreta — sem passar meses esperando alguém explicar tudo.</p>
+          {/* VSL — player VTurb abaixo do texto de apoio */}
           <div
             style={{ margin: '22px auto 26px', maxWidth: 400 }}
             dangerouslySetInnerHTML={{
               __html: `<vturb-smartplayer id="${VTURB_PLAYER_ID}" style="display:block;margin:0 auto;width:100%;max-width:400px"><div class="vturb-player-placeholder" style="position:relative;width:100%;padding:177.77777777777777% 0 0;z-index:0;background-color:black"></div></vturb-smartplayer>`,
             }}
           />
-          <p className="sub">Use um plano prático para entender uma nova área, escolher um problema relevante e transformar esse problema em sua primeira melhoria concreta — sem passar meses esperando alguém explicar tudo.</p>
           <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar meus primeiros 90 dias →</a>
           <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
