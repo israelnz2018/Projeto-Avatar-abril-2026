@@ -120,8 +120,8 @@ export default function LandingComecar() {
       <header className="hero">
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
-          <h1>Nos próximos 90 dias você vai virar tarefa —<br /><span className="grad">ou vai entregar resultado. Não dá pra fazer os dois.</span></h1>
-          <p className="sub">A maioria passa meses "se ambientando" e vira mais um que executa. Enquanto isso, alguém entende a área rápido, escolhe o problema certo e entrega uma melhoria com número na mão. A diferença não é talento. É ter o passo a passo — e é isso que você recebe aqui.</p>
+          <h1>Nos próximos 90 dias, você pode continuar apenas executando tarefas —<br /><span className="grad">ou começar a construir resultados.</span></h1>
+          <p className="sub">Use um plano prático para entender rapidamente como a sua área funciona, identificar um problema relevante e transformar esse problema em uma melhoria concreta. Sem passar meses estudando teoria antes de começar.</p>
           {/* VSL — player VTurb abaixo do texto de apoio */}
           <div
             style={{ margin: '22px auto 26px', maxWidth: 400 }}
@@ -129,7 +129,7 @@ export default function LandingComecar() {
               __html: `<vturb-smartplayer id="${VTURB_PLAYER_ID}" style="display:block;margin:0 auto;width:100%;max-width:400px"><div class="vturb-player-placeholder" style="position:relative;width:100%;padding:177.77777777777777% 0 0;z-index:0;background-color:black"></div></vturb-smartplayer>`,
             }}
           />
-          <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero parar de só executar tarefas →</a>
+          <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar os meus próximos 90 dias →</a>
           <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
       </header>
@@ -137,24 +137,25 @@ export default function LandingComecar() {
       {/* DOR */}
       <section className="dor">
         <div className="wrap">
-          <h2>Trabalhar muito não é a mesma coisa que ser notado.</h2>
-          <p className="lead">Talvez você tenha entrado agora, mudado de área ou assumido uma função nova. Ou talvez esteja há anos no mesmo lugar, mas os dias passam iguais: tarefa, reunião, urgência, repete. No fim do mês, se perguntarem o que você entregou, você trava. E as perguntas voltam:</p>
+          <h2>Você não precisa esperar uma nova oportunidade para começar a mostrar mais valor.</h2>
+          <p className="lead">Talvez você tenha acabado de entrar em uma empresa, mudado de área ou assumido uma nova função. Ou talvez já esteja há algum tempo no mesmo trabalho, mas ainda sinta que passa os dias apenas cumprindo tarefas, participando de reuniões e resolvendo demandas urgentes. Enquanto isso, algumas perguntas continuam aparecendo:</p>
           <ul>
-            <li>Como eu contribuo além de só apagar incêndio?</li>
-            <li>Qual problema realmente vale a pena resolver — sem escolher grande demais e travar?</li>
-            <li>Como transformo "eu acho que é isso" em algo concreto?</li>
-            <li>Como mostro, com número, que o meu trabalho deu resultado?</li>
+            <li>Como posso contribuir além da rotina?</li>
+            <li>Qual problema realmente vale a pena resolver?</li>
+            <li>Por onde começo sem tentar mudar tudo de uma vez?</li>
+            <li>Como transformar uma ideia de melhoria em algo concreto?</li>
+            <li>Como mostrar o resultado do meu trabalho?</li>
           </ul>
-          <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa saber tudo. Precisa de três movimentos, na ordem certa: <b style={{ color: '#fff' }}>entender, escolher e entregar.</b></p>
+          <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa conhecer tudo. Precisa de três movimentos: <b style={{ color: '#fff' }}>entender, escolher e entregar.</b></p>
         </div>
       </section>
 
       {/* O MAPA */}
       <section>
         <div className="wrap" style={{ textAlign: 'center' }}>
-          <h2>Chega de adivinhar o que fazer</h2>
-          <p className="lead" style={{ marginBottom: 8 }}><b style={{ color: '#fff' }}>Um próximo passo claro para cada dia útil.</b></p>
-          <p className="lead">Ter iniciativa não adianta se você não sabe qual é o próximo passo. O Mapa dos 90 Dias organiza <b style={{ color: '#fff' }}>60 ações práticas</b> em três fases. Você abre, faz a ação do dia, marca o progresso e avança — sem parar pra descobrir sozinho o que vem depois.</p>
+          <h2>Um mapa claro para transformar trabalho em resultado</h2>
+          <p className="lead" style={{ marginBottom: 8 }}><b style={{ color: '#fff' }}>Um próximo passo para cada dia útil.</b></p>
+          <p className="lead">Você não precisa descobrir sozinho o que fazer. O Mapa dos 90 Dias organiza <b style={{ color: '#fff' }}>60 ações práticas</b>, distribuídas ao longo de três fases. Você abre o mapa, identifica o próximo passo, executa a atividade, marca o progresso e continua.</p>
           <div className="mapa3">
             <div className="box"><div className="n">60</div><div className="l">ações práticas</div></div>
             <div className="box"><div className="n">3</div><div className="l">fases claras</div></div>
@@ -168,9 +169,9 @@ export default function LandingComecar() {
         <div className="wrap">
           <h2>Como funcionam os 90 dias</h2>
           <div className="fases">
-            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda a área rápido</h3><p>Você mapeia a área, identifica as pessoas-chave, entende os processos e descobre quais indicadores realmente importam. Ao final, você para de agir no escuro e enxerga como o trabalho funciona de verdade — em semanas, não em meses.</p></div>
-            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Escolha o problema certo</h3><p>Aqui é onde a maioria erra: escolhe o problema errado. Grande demais, você não termina. Pequeno demais, ninguém percebe. Você compara as oportunidades e escolhe uma melhoria viável de concluir e relevante o bastante pra ser notada. Ao final, você sabe qual problema atacar e por quê.</p></div>
-            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você investiga as causas, compara soluções, monta um plano de ação e organiza o antes e o depois. Ao final, você tem uma melhoria estruturada e algo concreto — com número — pra colocar na mesa.</p></div>
+            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você mapeia a área, identifica as pessoas-chave, entende os principais processos e descobre quais indicadores realmente importam. Ao final dessa fase, você deixa de agir no escuro e passa a compreender como o trabalho realmente funciona — em semanas, não em meses.</p></div>
+            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>O erro que trava a maioria é escolher o problema errado: grande demais, você não conclui; pequeno demais, ninguém percebe. Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria relevante, viável e dentro da sua capacidade de atuação. Ao final dessa fase, você sabe qual problema trabalhar e por que ele merece atenção.</p></div>
+            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma primeira melhoria estruturada e algo concreto para apresentar.</p></div>
           </div>
         </div>
       </section>
@@ -203,16 +204,17 @@ export default function LandingComecar() {
       {/* PRA QUEM É */}
       <section className="dor">
         <div className="wrap">
-          <h2>Para quem quer agir — não importa há quanto tempo está lá</h2>
-          <p className="lead">Isso não é só para o primeiro emprego. É para quem precisa se adaptar a um contexto novo e mostrar resultado.</p>
+          <h2>Para quem é — e para quem não é</h2>
+          <p className="lead">O Kit 90 Dias não serve apenas para quem está começando em uma nova empresa.</p>
           <div className="publico">
             <div className="col sim">
               <h3>É para você que</h3>
               <ul>
-                <li>Entrou agora ou está no período de experiência</li>
-                <li>Mudou de área, foi promovido ou assumiu um projeto novo</li>
-                <li>Está migrando de carreira</li>
-                <li>Cansou de só executar tarefa e quer entregar resultado que apareça</li>
+                <li>Entrou recentemente em uma empresa ou está no período de experiência</li>
+                <li>Mudou de área, foi promovido ou assumiu uma nova função</li>
+                <li>Começou um novo projeto ou está migrando de carreira</li>
+                <li>Quer se adaptar mais rápido e identificar problemas com mais clareza</li>
+                <li>Quer parar de apenas executar tarefas e começar a construir e apresentar resultados</li>
               </ul>
             </div>
             <div className="col nao">
@@ -299,11 +301,11 @@ export default function LandingComecar() {
           <div className="box">
             <span className="eyebrow">Comece hoje</span>
             <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Kit 90 Dias — Entenda, Resolva e Entregue</h3>
-            <p className="lead" style={{ margin: '0 0 18px' }}>Entenda a área rápido, escolha o problema certo e entregue sua primeira melhoria com resultado.</p>
+            <p className="lead" style={{ margin: '0 0 18px' }}>Entenda rapidamente como a sua área funciona, encontre o problema certo e construa uma melhoria concreta.</p>
             <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
             <div className="valor grad">R$ 67</div>
             <p className="lead" style={{ margin: '4px 0 22px', fontSize: 14 }}>Acesso imediato ao Kit 90 Dias completo.</p>
-            <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero parar de só executar tarefas →</a>
+            <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar os meus próximos 90 dias →</a>
             <div className="garantia">Garantia de 7 dias. Não gostou, devolvemos o seu investimento.</div>
           </div>
         </div>
