@@ -129,7 +129,7 @@ export default function LandingComecar() {
               __html: `<vturb-smartplayer id="${VTURB_PLAYER_ID}" style="display:block;margin:0 auto;width:100%;max-width:400px"><div class="vturb-player-placeholder" style="position:relative;width:100%;padding:177.77777777777777% 0 0;z-index:0;background-color:black"></div></vturb-smartplayer>`,
             }}
           />
-          <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar os meus próximos 90 dias →</a>
+          <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero começar a gerar resultados →</a>
           <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
       </header>
@@ -140,22 +140,22 @@ export default function LandingComecar() {
           <h2>Enquanto você espera o momento certo, outro profissional está resolvendo o problema que você também poderia ter resolvido.</h2>
           <p className="lead">Talvez você tenha acabado de entrar em uma empresa, mudado de área ou assumido uma nova função. Ou talvez já esteja há algum tempo no mesmo trabalho, mas ainda sinta que passa os dias apenas cumprindo tarefas, participando de reuniões e resolvendo demandas urgentes. Enquanto isso, algumas perguntas continuam aparecendo:</p>
           <ul>
+            <li>Se meu gestor perguntasse hoje qual resultado eu gerei, eu saberia responder?</li>
             <li>Como posso contribuir além da rotina?</li>
             <li>Qual problema realmente vale a pena resolver?</li>
             <li>Por onde começo sem tentar mudar tudo de uma vez?</li>
             <li>Como transformar uma ideia de melhoria em algo concreto?</li>
-            <li>Como mostrar o resultado do meu trabalho?</li>
           </ul>
-          <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa conhecer tudo. Precisa de três movimentos: <b style={{ color: '#fff' }}>entender, escolher e entregar.</b></p>
+          <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa saber tudo. Precisa parar de improvisar e seguir três movimentos: <b style={{ color: '#fff' }}>entender, escolher e entregar.</b></p>
         </div>
       </section>
 
       {/* O MAPA */}
       <section>
         <div className="wrap" style={{ textAlign: 'center' }}>
-          <h2>Um mapa claro para transformar trabalho em resultado</h2>
-          <p className="lead" style={{ marginBottom: 8 }}><b style={{ color: '#fff' }}>Um próximo passo para cada dia útil.</b></p>
-          <p className="lead">Você não precisa descobrir sozinho o que fazer. O Mapa dos 90 Dias organiza <b style={{ color: '#fff' }}>60 ações práticas</b>, distribuídas ao longo de três fases. Você abre o mapa, identifica o próximo passo, executa a atividade, marca o progresso e continua.</p>
+          <h2>Chega de assistir aula, anotar tudo e continuar sem saber o que aplicar.</h2>
+          <p className="lead" style={{ marginBottom: 8 }}><b style={{ color: '#fff' }}>Você não precisa criar um plano. Ele já está pronto.</b></p>
+          <p className="lead">Você não precisa montar cronograma, escolher ferramenta ou tentar adivinhar o que fazer primeiro. O Mapa dos 90 Dias já organiza <b style={{ color: '#fff' }}>60 ações práticas</b>, em ordem, para você seguir um dia de cada vez.</p>
           <div className="mapa3">
             <div className="box"><div className="n">60</div><div className="l">ações práticas</div></div>
             <div className="box"><div className="n">3</div><div className="l">fases claras</div></div>
@@ -169,9 +169,9 @@ export default function LandingComecar() {
         <div className="wrap">
           <h2>Como funcionam os 90 dias</h2>
           <div className="fases">
-            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você mapeia a área, identifica as pessoas-chave, entende os principais processos e descobre quais indicadores realmente importam. Ao final dessa fase, você deixa de agir no escuro e passa a compreender como o trabalho realmente funciona. Em semanas, não em meses.</p></div>
-            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>O erro que trava a maioria é escolher o problema errado: grande demais, você não conclui; pequeno demais, ninguém percebe. Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria relevante, viável e dentro da sua capacidade de atuação. Ao final dessa fase, você sabe qual problema trabalhar e por que ele merece atenção.</p></div>
-            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma primeira melhoria estruturada e algo concreto para apresentar.</p></div>
+            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você para de depender de explicações soltas e começa a entender quem decide, como o trabalho flui, onde estão os gargalos e quais números realmente importam. Em semanas, não em meses.</p></div>
+            <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>O erro que trava a maioria é escolher o problema errado. Grande demais, você trava. Pequeno demais, ninguém percebe. Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria relevante, viável e dentro da sua capacidade de atuação. Ao final, você sabe qual problema trabalhar e por que ele merece atenção.</p></div>
+            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma melhoria organizada, um antes e depois claro e uma apresentação pronta para mostrar o que mudou, por que mudou e qual resultado foi gerado.</p></div>
           </div>
         </div>
       </section>
@@ -182,18 +182,18 @@ export default function LandingComecar() {
           <h2>O que você recebe</h2>
           <p className="lead">Um kit de execução, não uma pilha de vídeos.</p>
           <div className="kit">
-            <div className="item"><span className="ck">✓</span> Mapa dos 90 Dias com 60 ações práticas</div>
-            <div className="item"><span className="ck">✓</span> Checklist semanal para guiar você diariamente</div>
-            <div className="item"><span className="ck">✓</span> Roteiro para entender pessoas, processos, documentos e indicadores</div>
-            <div className="item"><span className="ck">✓</span> Matriz para escolher uma melhoria relevante e viável</div>
-            <div className="item"><span className="ck">✓</span> Ferramentas para visualizar o processo e investigar as causas</div>
-            <div className="item"><span className="ck">✓</span> Matriz esforço × impacto para comparar soluções</div>
-            <div className="item"><span className="ck">✓</span> Plano de ação para organizar a implementação</div>
-            <div className="item"><span className="ck">✓</span> Modelo de antes e depois para registrar o resultado</div>
-            <div className="item"><span className="ck">✓</span> PowerPoint para apresentar sua primeira melhoria</div>
-            <div className="item"><span className="ck">✓</span> Acesso ao software LBW para apoiar as análises</div>
-            <div className="item"><span className="ck">✓</span> Vídeos curtos ensinando a usar cada ferramenta</div>
-            <div className="item"><span className="ck">✓</span> Certificado de conclusão</div>
+            <div className="item"><span className="ck">✓</span> Saiba o que fazer todo dia, com o Mapa dos 90 Dias e suas 60 ações práticas</div>
+            <div className="item"><span className="ck">✓</span> Acompanhe seu avanço sem se perder, com um checklist semanal</div>
+            <div className="item"><span className="ck">✓</span> Entenda pessoas, processos, documentos e indicadores usando um roteiro pronto</div>
+            <div className="item"><span className="ck">✓</span> Escolha uma melhoria que dá pra concluir e que será percebida, com a matriz de priorização</div>
+            <div className="item"><span className="ck">✓</span> Enxergue o processo e descubra a causa raiz com as ferramentas de análise</div>
+            <div className="item"><span className="ck">✓</span> Escolha a solução de maior impacto e menor esforço usando a Matriz Esforço × Impacto</div>
+            <div className="item"><span className="ck">✓</span> Organize a implementação com um plano de ação estruturado</div>
+            <div className="item"><span className="ck">✓</span> Registre o resultado com um modelo de antes e depois</div>
+            <div className="item"><span className="ck">✓</span> Apresente sua melhoria com um PowerPoint pronto, sem começar do zero</div>
+            <div className="item"><span className="ck">✓</span> Faça as análises com apoio do software LBW</div>
+            <div className="item"><span className="ck">✓</span> Aprenda a usar cada ferramenta com vídeos curtos e diretos</div>
+            <div className="item"><span className="ck">✓</span> Receba o certificado de conclusão ao final</div>
           </div>
           <div style={{ textAlign: 'center', marginTop: 30 }}>
             <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero acessar o Kit 90 Dias →</a>
@@ -210,21 +210,20 @@ export default function LandingComecar() {
             <div className="col sim">
               <h3>É para você que</h3>
               <ul>
-                <li>Entrou recentemente em uma empresa ou está no período de experiência</li>
-                <li>Mudou de área, foi promovido ou assumiu uma nova função</li>
-                <li>Começou um novo projeto ou está migrando de carreira</li>
-                <li>Quer se adaptar mais rápido e identificar problemas com mais clareza</li>
-                <li>Quer parar de apenas executar tarefas e começar a construir e apresentar resultados</li>
+                <li>Trabalha muito, mas ainda não consegue apontar um resultado concreto que gerou</li>
+                <li>Sabe que pode contribuir mais, mas não sabe qual problema atacar primeiro</li>
+                <li>Está cansado de consumir conteúdo e continuar sem aplicar</li>
+                <li>Entrou agora, mudou de área, foi promovido ou está migrando de carreira</li>
               </ul>
             </div>
             <div className="col nao">
               <h3>Não é para você que</h3>
               <ul>
-                <li>Quer apenas assistir aulas</li>
-                <li>Não pretende aplicar as ferramentas</li>
+                <li>Quer baixar o material, assistir algumas aulas e nunca aplicar</li>
+                <li>Espera ser reconhecido apenas por ser esforçado</li>
+                <li>Quer resultado sem observar, conversar, analisar e agir</li>
                 <li>Espera garantia de emprego ou promoção</li>
                 <li>Procura uma fórmula mágica</li>
-                <li>Não está disposto a observar, perguntar e agir</li>
               </ul>
             </div>
           </div>
@@ -241,8 +240,8 @@ export default function LandingComecar() {
             <div><img src="/israel-foto.png" alt="Israel Souza" loading="lazy" /></div>
             <div>
               <h2>Israel Souza</h2>
-              <p>Há mais de 20 anos trabalho com resolução de problemas, melhoria de processos e projetos de melhoria. Passei por <b>quatro grandes multinacionais e pelo setor público</b>, em ambientes industriais e administrativos.</p>
-              <p>Ao longo dessa trajetória, treinei mais de <b>1.500 profissionais</b> e participei de projetos que, somados, geraram mais de <b>US$ 20 milhões</b> em ganhos. Foi trabalhando em áreas, empresas e países diferentes que percebi uma coisa: o que falta para muitos profissionais não é mais teoria. É saber entrar em um ambiente novo, entender rápido o que está acontecendo, escolher o problema certo e transformar conhecimento em resultado. <b>Não é dom. É um método que qualquer um pode seguir.</b> É isso que o Kit 90 Dias ensina.</p>
+              <p>Há mais de 20 anos eu trabalho com melhoria de processos em <b>empresas multinacionais e no setor público</b>. Já treinei mais de <b>1.500 profissionais</b> e participei de projetos que geraram mais de <b>US$ 20 milhões</b> em ganhos.</p>
+              <p>Ao longo desse tempo, percebi que a maioria dos profissionais não trava por falta de capacidade. Trava porque não sabe qual problema escolher, qual ferramenta usar e qual passo dar primeiro. <b>Gerar resultado não é dom. É método. E método pode ser seguido.</b> É isso que o Kit 90 Dias ensina.</p>
               <div className="stats">
                 <div><div className="n">20+</div><div className="l">anos de experiência</div></div>
                 <div><div className="n">4</div><div className="l">multinacionais</div></div>
@@ -305,7 +304,7 @@ export default function LandingComecar() {
             <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
             <div className="valor grad">R$ 67</div>
             <p className="lead" style={{ margin: '4px 0 22px', fontSize: 14 }}>Acesso imediato ao Kit 90 Dias completo.</p>
-            <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar os meus próximos 90 dias →</a>
+            <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero começar a gerar resultados →</a>
             <div className="garantia">Garantia de 7 dias. Não gostou, devolvemos o seu investimento.</div>
           </div>
         </div>
