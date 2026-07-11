@@ -120,7 +120,7 @@ export default function LandingComecar() {
       <header className="hero">
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
-          <h1>Nos próximos 90 dias, você pode continuar apenas executando tarefas —<br /><span className="grad">ou começar a construir resultados.</span></h1>
+          <h1>Nos próximos 90 dias, você pode continuar apenas executando tarefas,<br /><span className="grad">ou começar a construir resultados.</span></h1>
           <p className="sub">Use um plano prático para entender rapidamente como a sua área funciona, identificar um problema relevante e transformar esse problema em uma melhoria concreta. Sem passar meses estudando teoria antes de começar.</p>
           {/* VSL — player VTurb abaixo do texto de apoio */}
           <div
@@ -169,7 +169,7 @@ export default function LandingComecar() {
         <div className="wrap">
           <h2>Como funcionam os 90 dias</h2>
           <div className="fases">
-            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você mapeia a área, identifica as pessoas-chave, entende os principais processos e descobre quais indicadores realmente importam. Ao final dessa fase, você deixa de agir no escuro e passa a compreender como o trabalho realmente funciona — em semanas, não em meses.</p></div>
+            <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você mapeia a área, identifica as pessoas-chave, entende os principais processos e descobre quais indicadores realmente importam. Ao final dessa fase, você deixa de agir no escuro e passa a compreender como o trabalho realmente funciona. Em semanas, não em meses.</p></div>
             <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>O erro que trava a maioria é escolher o problema errado: grande demais, você não conclui; pequeno demais, ninguém percebe. Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria relevante, viável e dentro da sua capacidade de atuação. Ao final dessa fase, você sabe qual problema trabalhar e por que ele merece atenção.</p></div>
             <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma primeira melhoria estruturada e algo concreto para apresentar.</p></div>
           </div>
@@ -180,7 +180,7 @@ export default function LandingComecar() {
       <section>
         <div className="wrap">
           <h2>O que você recebe</h2>
-          <p className="lead">Um kit de execução — não uma pilha de vídeos.</p>
+          <p className="lead">Um kit de execução, não uma pilha de vídeos.</p>
           <div className="kit">
             <div className="item"><span className="ck">✓</span> Mapa dos 90 Dias com 60 ações práticas</div>
             <div className="item"><span className="ck">✓</span> Checklist semanal para guiar você diariamente</div>
@@ -204,7 +204,7 @@ export default function LandingComecar() {
       {/* PRA QUEM É */}
       <section className="dor">
         <div className="wrap">
-          <h2>Para quem é — e para quem não é</h2>
+          <h2>Para quem é (e para quem não é)</h2>
           <p className="lead">O Kit 90 Dias não serve apenas para quem está começando em uma nova empresa.</p>
           <div className="publico">
             <div className="col sim">
@@ -242,7 +242,7 @@ export default function LandingComecar() {
             <div>
               <h2>Israel Souza</h2>
               <p>Há mais de 20 anos trabalho com resolução de problemas, melhoria de processos e projetos de melhoria. Passei por <b>quatro grandes multinacionais e pelo setor público</b>, em ambientes industriais e administrativos.</p>
-              <p>Ao longo dessa trajetória, treinei mais de <b>1.500 profissionais</b> e participei de projetos que, somados, geraram mais de <b>US$ 20 milhões</b> em ganhos. Foi trabalhando em áreas, empresas e países diferentes que percebi uma coisa: o que falta para muitos profissionais não é mais teoria. É saber entrar em um ambiente novo, entender rápido o que está acontecendo, escolher o problema certo e transformar conhecimento em resultado. <b>Não é dom — é um método que qualquer um pode seguir.</b> É isso que o Kit 90 Dias ensina.</p>
+              <p>Ao longo dessa trajetória, treinei mais de <b>1.500 profissionais</b> e participei de projetos que, somados, geraram mais de <b>US$ 20 milhões</b> em ganhos. Foi trabalhando em áreas, empresas e países diferentes que percebi uma coisa: o que falta para muitos profissionais não é mais teoria. É saber entrar em um ambiente novo, entender rápido o que está acontecendo, escolher o problema certo e transformar conhecimento em resultado. <b>Não é dom. É um método que qualquer um pode seguir.</b> É isso que o Kit 90 Dias ensina.</p>
               <div className="stats">
                 <div><div className="n">20+</div><div className="l">anos de experiência</div></div>
                 <div><div className="n">4</div><div className="l">multinacionais</div></div>
@@ -261,11 +261,11 @@ export default function LandingComecar() {
           <div className="faq" style={{ marginTop: 20 }}>
             <details>
               <summary>Qual é o objetivo do Kit 90 Dias?</summary>
-              <div className="ans">Fazer você entender a sua área rápido, escolher o problema certo e construir uma primeira melhoria estruturada — algo concreto pra mostrar em 90 dias.</div>
+              <div className="ans">Fazer você entender a sua área rápido, escolher o problema certo e construir uma primeira melhoria estruturada. Algo concreto pra mostrar em 90 dias.</div>
             </details>
             <details>
               <summary>Preciso estar começando um emprego agora?</summary>
-              <div className="ans">Não. O kit serve para qualquer momento em que você precisa se adaptar rápido e entregar: mudança de área, promoção, novo projeto, migração de carreira — ou o primeiro emprego.</div>
+              <div className="ans">Não. O kit serve para qualquer momento em que você precisa se adaptar rápido e entregar: mudança de área, promoção, novo projeto, migração de carreira ou o primeiro emprego.</div>
             </details>
             <details>
               <summary>Isso garante meu emprego ou uma promoção?</summary>
@@ -300,7 +300,7 @@ export default function LandingComecar() {
         <div className="wrap">
           <div className="box">
             <span className="eyebrow">Comece hoje</span>
-            <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Kit 90 Dias — Entenda, Resolva e Entregue</h3>
+            <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Kit 90 Dias: Entenda, Resolva e Entregue</h3>
             <p className="lead" style={{ margin: '0 0 18px' }}>Entenda rapidamente como a sua área funciona, encontre o problema certo e construa uma melhoria concreta.</p>
             <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
             <div className="valor grad">R$ 67</div>
