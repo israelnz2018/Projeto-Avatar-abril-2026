@@ -120,8 +120,8 @@ export default function LandingComecar() {
       <header className="hero">
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
-          <h1>Nos próximos 90 dias, você pode continuar apenas executando tarefas,<br /><span className="grad">ou começar a construir resultados.</span></h1>
-          <p className="sub">Use um plano prático para entender rapidamente como a sua área funciona, identificar um problema relevante e transformar esse problema em uma melhoria concreta. Sem passar meses estudando teoria antes de começar.</p>
+          <h1>Você não será valorizado por cumprir tarefas.<br /><span className="grad">Será valorizado quando começar a resolver problemas.</span></h1>
+          <p className="sub">Siga um plano de 90 dias para entender a área, encontrar o problema certo e entregar uma melhoria concreta, mesmo que hoje você não saiba por onde começar.</p>
           {/* VSL — player VTurb abaixo do texto de apoio */}
           <div
             style={{ margin: '22px auto 26px', maxWidth: 400 }}
@@ -137,7 +137,7 @@ export default function LandingComecar() {
       {/* DOR */}
       <section className="dor">
         <div className="wrap">
-          <h2>Você não precisa esperar uma nova oportunidade para começar a mostrar mais valor.</h2>
+          <h2>Enquanto você espera o momento certo, outro profissional está resolvendo o problema que você também poderia ter resolvido.</h2>
           <p className="lead">Talvez você tenha acabado de entrar em uma empresa, mudado de área ou assumido uma nova função. Ou talvez já esteja há algum tempo no mesmo trabalho, mas ainda sinta que passa os dias apenas cumprindo tarefas, participando de reuniões e resolvendo demandas urgentes. Enquanto isso, algumas perguntas continuam aparecendo:</p>
           <ul>
             <li>Como posso contribuir além da rotina?</li>
