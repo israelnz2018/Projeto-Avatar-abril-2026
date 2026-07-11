@@ -3,8 +3,12 @@
  * Servida em /kit90dias SEM exigir login (bypass no App.tsx).
  * Visual NAVY+BLUE (pago). CTAs levam ao checkout da Hotmart.
  */
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
+
+// VSL VTurb do topo. O player é um web component carregado por um script externo.
+const VTURB_PLAYER_ID = 'vid-6a5219179ec03e27b3c68bf6';
+const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a5219179ec03e27b3c68bf6/v4/player.js';
 
 // Checkout Hotmart do Kit 90 Dias (R$67).
 const CHECKOUT_URL = 'https://pay.hotmart.com/Q106640860N';
@@ -87,6 +91,27 @@ const CSS = `
 export default function LandingComecar() {
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // Injeta o script do player VTurb uma única vez (o web component se auto-monta).
+  useEffect(() => {
+    if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
+    const s = document.createElement('script');
+    s.src = VTURB_SCRIPT_SRC;
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
+  // Meta Pixel: o pixel base (init + PageView) é global no index.html. Aqui só
+  // disparamos o evento de conversão no clique de compra — é o que a campanha
+  // de VENDAS do Kit 90 otimiza. Mesmo pixel da página /formacao.
+  const trackCheckout = () => {
+    try {
+      const w = window as any;
+      if (typeof w.fbq === 'function') {
+        w.fbq('track', 'InitiateCheckout', { content_name: 'kit-90-dias', value: 67, currency: 'BRL' });
+      }
+    } catch { /* silencioso */ }
+  };
+
   return (
     <div className="k9" ref={rootRef}>
       <style>{CSS}</style>
@@ -96,8 +121,15 @@ export default function LandingComecar() {
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
           <h1>Nos primeiros 90 dias, ou você constrói sua imagem,<br /><span className="grad">ou a empresa constrói por você.</span></h1>
+          {/* VSL — player VTurb logo abaixo da headline */}
+          <div
+            style={{ margin: '22px auto 26px', maxWidth: 400 }}
+            dangerouslySetInnerHTML={{
+              __html: `<vturb-smartplayer id="${VTURB_PLAYER_ID}" style="display:block;margin:0 auto;width:100%;max-width:400px"><div class="vturb-player-placeholder" style="position:relative;width:100%;padding:177.77777777777777% 0 0;z-index:0;background-color:black"></div></vturb-smartplayer>`,
+            }}
+          />
           <p className="sub">Use um plano prático para entender uma nova área, escolher um problema relevante e transformar esse problema em sua primeira melhoria concreta — sem passar meses esperando alguém explicar tudo.</p>
-          <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
+          <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar meus primeiros 90 dias →</a>
           <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
         </div>
       </header>
@@ -163,7 +195,7 @@ export default function LandingComecar() {
             <div className="item"><span className="ck">✓</span> Certificado de conclusão</div>
           </div>
           <div style={{ textAlign: 'center', marginTop: 30 }}>
-            <a className="cta" href={CHECKOUT_URL}>Quero acessar o Kit 90 Dias →</a>
+            <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero acessar o Kit 90 Dias →</a>
           </div>
         </div>
       </section>
@@ -273,7 +305,7 @@ export default function LandingComecar() {
             <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
             <div className="valor grad">R$ 67</div>
             <p className="lead" style={{ margin: '4px 0 22px', fontSize: 14 }}>Acesso imediato ao Kit 90 Dias completo.</p>
-            <a className="cta" href={CHECKOUT_URL}>Quero organizar meus primeiros 90 dias →</a>
+            <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero organizar meus primeiros 90 dias →</a>
             <div className="garantia">Garantia de 7 dias. Não gostou, devolvemos o seu investimento.</div>
           </div>
         </div>
