@@ -210,10 +210,11 @@ export default function LandingComecar() {
             <div className="col sim">
               <h3>É para você que</h3>
               <ul>
-                <li>Trabalha muito, mas ainda não consegue apontar um resultado concreto que gerou</li>
-                <li>Sabe que pode contribuir mais, mas não sabe qual problema atacar primeiro</li>
-                <li>Está cansado de consumir conteúdo e continuar sem aplicar</li>
-                <li>Entrou agora, mudou de área, foi promovido ou está migrando de carreira</li>
+                <li>Precisa entregar uma melhoria concreta nos próximos 90 dias</li>
+                <li>Trabalha muito, mas ainda não consegue mostrar resultados</li>
+                <li>Percebe problemas, mas não sabe qual deles resolver primeiro</li>
+                <li>Tem boas ideias, mas não consegue transformá-las em um plano</li>
+                <li>Quer parar de apenas executar tarefas e começar a gerar resultados</li>
               </ul>
             </div>
             <div className="col nao">
