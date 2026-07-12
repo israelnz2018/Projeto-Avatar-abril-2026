@@ -7,8 +7,8 @@ import React, { useRef, useEffect } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
 // VSL VTurb do topo. O player é um web component carregado por um script externo.
-const VTURB_PLAYER_ID = 'vid-6a5219179ec03e27b3c68bf6';
-const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a5219179ec03e27b3c68bf6/v4/player.js';
+const VTURB_PLAYER_ID = 'vid-6a52db61347916c9410e4050';
+const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a52db61347916c9410e4050/v4/player.js';
 
 // Checkout Hotmart do Kit 90 Dias (R$67).
 const CHECKOUT_URL = 'https://pay.hotmart.com/Q106640860N';
