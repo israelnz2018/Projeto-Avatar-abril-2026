@@ -138,7 +138,7 @@ export default function LandingComecar() {
       <section className="dor">
         <div className="wrap">
           <h2>Enquanto você espera o momento certo, outro profissional está resolvendo o problema que você também poderia ter resolvido.</h2>
-          <p className="lead">Talvez você tenha acabado de entrar em uma empresa, mudado de área ou assumido uma nova função. Ou talvez já esteja há algum tempo no mesmo trabalho, mas ainda sinta que passa os dias apenas cumprindo tarefas, participando de reuniões e resolvendo demandas urgentes. Enquanto isso, algumas perguntas continuam aparecendo:</p>
+          <p className="lead">Talvez você tenha acabado de entrar em uma empresa. Ou talvez já esteja há tempos no mesmo lugar, mas os dias passam iguais: tarefa, reunião, urgência, repete. E, no fundo, algumas perguntas não te deixam em paz:</p>
           <ul>
             <li>Se meu gestor perguntasse hoje qual resultado eu gerei, eu saberia responder?</li>
             <li>Como posso contribuir além da rotina?</li>
