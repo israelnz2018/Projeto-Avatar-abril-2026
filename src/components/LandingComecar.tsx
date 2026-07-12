@@ -154,7 +154,7 @@ export default function LandingComecar() {
         <div className="wrap" style={{ textAlign: 'center' }}>
           <h2>Chega de assistir aula, anotar tudo e continuar sem saber o que aplicar.</h2>
           <p className="lead" style={{ marginBottom: 8 }}><b style={{ color: '#fff' }}>Você não precisa criar um plano. Ele já está pronto.</b></p>
-          <p className="lead">Você não precisa montar cronograma, escolher ferramenta ou tentar adivinhar o que fazer primeiro. O Mapa dos 90 Dias já organiza <b style={{ color: '#fff' }}>60 ações práticas</b>, em ordem, para você seguir um dia de cada vez.</p>
+          <p className="lead">O Mapa dos 90 Dias já organiza <b style={{ color: '#fff' }}>60 ações práticas</b>, em ordem, para você seguir um dia de cada vez.</p>
           <div className="mapa3">
             <div className="box"><div className="n">60</div><div className="l">ações práticas</div></div>
             <div className="box"><div className="n">3</div><div className="l">fases claras</div></div>
