@@ -23,8 +23,8 @@ declare module 'react' {
 }
 
 // Player VTurb (smartplayer v4) da VSL da formação. ID e script são únicos deste vídeo.
-const VTURB_PLAYER_ID = 'vid-6a476a65f6de1f8601713a37';
-const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a476a65f6de1f8601713a37/v4/player.js';
+const VTURB_PLAYER_ID = 'vid-6a5340027e3b42281f6a52cd';
+const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a5340027e3b42281f6a52cd/v4/player.js';
 
 const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
 const HOTMART = 'https://pay.hotmart.com/N102603781W?checkoutMode=2&bid=1781388122214';
