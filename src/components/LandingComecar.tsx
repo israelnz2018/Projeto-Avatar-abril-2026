@@ -170,7 +170,7 @@ export default function LandingComecar() {
           <div className="fases">
             <div className="fase"><div className="tag">Dias 1 a 30</div><h3>Entenda antes de querer mudar</h3><p>Você para de depender de explicações soltas e começa a entender quem decide, como o trabalho flui, onde estão os gargalos e quais números realmente importam.</p></div>
             <div className="fase"><div className="tag">Dias 31 a 60</div><h3>Encontre o problema certo</h3><p>Você registra os problemas do dia a dia, compara as oportunidades e escolhe uma melhoria relevante, viável e dentro da sua capacidade de atuação.</p></div>
-            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você investiga as causas, compara possíveis soluções, cria um plano de ação e organiza o antes e o depois. Ao final, você terá uma melhoria organizada, um antes e depois claro e uma apresentação pronta para mostrar o que mudou, por que mudou e qual resultado foi gerado.</p></div>
+            <div className="fase"><div className="tag">Dias 61 a 90</div><h3>Resolva e mostre o resultado</h3><p>Você terá uma melhoria organizada, um antes e depois claro e uma apresentação pronta para mostrar o que mudou, por que mudou e qual resultado foi gerado.</p></div>
           </div>
         </div>
       </section>
