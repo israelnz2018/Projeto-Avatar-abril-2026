@@ -300,7 +300,7 @@ export default function LandingComecar() {
         <div className="wrap">
           <div className="box">
             <span className="eyebrow">Comece hoje</span>
-            <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Kit 90 Dias: Entenda, Resolva e Entregue</h3>
+            <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Kit 90 Dias: Como Gerar Resultados nos Próximos 90 Dias</h3>
             <p className="lead" style={{ margin: '0 0 18px' }}>Entenda rapidamente como a sua área funciona, encontre o problema certo e construa uma melhoria concreta.</p>
             <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
             <div className="valor grad">R$ 67</div>

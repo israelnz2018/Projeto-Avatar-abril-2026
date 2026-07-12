@@ -154,7 +154,7 @@ export const TRILHAS: Trilha[] = [
   {
     id: 'ferramentas-dia-a-dia',
     numero: '01',
-    titulo: 'Kit 90 dias: Como se adaptar e gerar resultados rapidamente',
+    titulo: 'Como Gerar Resultados nos Próximos 90 Dias',
     subtitulo: '5 fases — do "entender a área" ao "comunicar com profissionalismo"',
     dor: 'Pra você sair do "perdido" e chegar no "olha o que mudou" antes do fim do primeiro ano',
     paraQuem: 'Quem chegou agora (1 semana a 6 meses) numa empresa nova, área nova ou função nova — e quer mostrar valor antes de virar "mais um" do time',
