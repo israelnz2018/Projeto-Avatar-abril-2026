@@ -183,7 +183,7 @@ export default function LandingComecar() {
           <div className="kit">
             <div className="item"><span className="ck">✓</span> Saiba o que fazer todo dia, com o Mapa dos 90 Dias e suas 60 ações práticas</div>
             <div className="item"><span className="ck">✓</span> Entenda pessoas, processos, documentos e indicadores usando um roteiro pronto</div>
-            <div className="item"><span className="ck">✓</span> Enxergue o processo e descubra a causa raiz com as ferramentas de análise</div>
+            <div className="item"><span className="ck">✓</span> Enxergue o processo e descubra a causa raiz com o software LBW</div>
             <div className="item"><span className="ck">✓</span> Apresente sua melhoria com um PowerPoint pronto, sem começar do zero</div>
             <div className="item"><span className="ck">✓</span> Aprenda a usar cada ferramenta com vídeos curtos e diretos</div>
             <div className="item"><span className="ck">✓</span> Receba o certificado de conclusão ao final</div>
