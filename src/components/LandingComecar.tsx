@@ -260,14 +260,6 @@ export default function LandingComecar() {
               <div className="ans">Fazer você entender a sua área rápido, escolher o problema certo e construir uma primeira melhoria estruturada. Algo concreto pra mostrar em 90 dias.</div>
             </details>
             <details>
-              <summary>Preciso estar começando um emprego agora?</summary>
-              <div className="ans">Não. O kit serve para qualquer momento em que você precisa se adaptar rápido e entregar: mudança de área, promoção, novo projeto, migração de carreira ou o primeiro emprego.</div>
-            </details>
-            <details>
-              <summary>Isso garante meu emprego ou uma promoção?</summary>
-              <div className="ans">Não. Nenhum treinamento pode garantir decisões que dependem da empresa. O kit ajuda você a organizar sua adaptação, mostrar evolução e construir uma primeira entrega concreta.</div>
-            </details>
-            <details>
               <summary>Preciso ter experiência com melhoria de processos?</summary>
               <div className="ans">Não. As ferramentas são apresentadas passo a passo e aplicadas a situações reais do trabalho.</div>
             </details>
