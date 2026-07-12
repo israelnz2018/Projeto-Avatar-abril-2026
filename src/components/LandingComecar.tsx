@@ -185,7 +185,6 @@ export default function LandingComecar() {
             <div className="item"><span className="ck">✓</span> Entenda pessoas, processos, documentos e indicadores usando um roteiro pronto</div>
             <div className="item"><span className="ck">✓</span> Enxergue o processo e descubra a causa raiz com as ferramentas de análise</div>
             <div className="item"><span className="ck">✓</span> Apresente sua melhoria com um PowerPoint pronto, sem começar do zero</div>
-            <div className="item"><span className="ck">✓</span> Faça as análises com apoio do software LBW</div>
             <div className="item"><span className="ck">✓</span> Aprenda a usar cada ferramenta com vídeos curtos e diretos</div>
             <div className="item"><span className="ck">✓</span> Receba o certificado de conclusão ao final</div>
           </div>
