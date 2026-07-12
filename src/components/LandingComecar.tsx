@@ -184,8 +184,6 @@ export default function LandingComecar() {
             <div className="item"><span className="ck">✓</span> Saiba o que fazer todo dia, com o Mapa dos 90 Dias e suas 60 ações práticas</div>
             <div className="item"><span className="ck">✓</span> Entenda pessoas, processos, documentos e indicadores usando um roteiro pronto</div>
             <div className="item"><span className="ck">✓</span> Enxergue o processo e descubra a causa raiz com as ferramentas de análise</div>
-            <div className="item"><span className="ck">✓</span> Escolha a solução de maior impacto e menor esforço usando a Matriz Esforço × Impacto</div>
-            <div className="item"><span className="ck">✓</span> Organize a implementação com um plano de ação estruturado</div>
             <div className="item"><span className="ck">✓</span> Apresente sua melhoria com um PowerPoint pronto, sem começar do zero</div>
             <div className="item"><span className="ck">✓</span> Faça as análises com apoio do software LBW</div>
             <div className="item"><span className="ck">✓</span> Aprenda a usar cada ferramenta com vídeos curtos e diretos</div>
