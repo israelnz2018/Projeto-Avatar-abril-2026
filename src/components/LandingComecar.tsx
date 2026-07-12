@@ -203,7 +203,6 @@ export default function LandingComecar() {
             <div className="col sim">
               <h3>É para você que</h3>
               <ul>
-                <li>Precisa entregar uma melhoria concreta nos próximos 90 dias</li>
                 <li>Trabalha muito, mas ainda não consegue mostrar resultados</li>
                 <li>Percebe problemas, mas não sabe qual deles resolver primeiro</li>
                 <li>Tem boas ideias, mas não consegue transformá-las em um plano</li>
