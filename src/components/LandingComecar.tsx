@@ -138,7 +138,7 @@ export default function LandingComecar() {
       <section className="dor">
         <div className="wrap">
           <h2>Enquanto você espera o momento certo, outro profissional está resolvendo o problema que você também poderia ter resolvido.</h2>
-          <p className="lead">Enquanto você espera o momento certo, os dias passam entre tarefas, reuniões e urgências, mas continua sem um resultado concreto para mostrar. E então surgem as perguntas:</p>
+          <p className="lead">Os dias passam entre tarefas, reuniões e urgências, mas você continua sem um resultado concreto para mostrar. E então surgem as perguntas:</p>
           <ul>
             <li>Se meu gestor perguntasse hoje qual resultado eu gerei, eu saberia responder?</li>
             <li>Como posso contribuir além da rotina?</li>
