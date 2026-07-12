@@ -143,7 +143,6 @@ export default function LandingComecar() {
             <li>Se meu gestor perguntasse hoje qual resultado eu gerei, eu saberia responder?</li>
             <li>Como posso contribuir além da rotina?</li>
             <li>Qual problema realmente vale a pena resolver?</li>
-            <li>Por onde começo sem tentar mudar tudo de uma vez?</li>
             <li>Como transformar uma ideia de melhoria em algo concreto?</li>
           </ul>
           <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa saber tudo. Precisa parar de improvisar e seguir três movimentos: <b style={{ color: '#fff' }}>entender, escolher e entregar.</b></p>
