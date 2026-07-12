@@ -120,8 +120,8 @@ export default function LandingComecar() {
       <header className="hero">
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
-          <h1>Você não será valorizado por cumprir tarefas.<br /><span className="grad">Será valorizado quando começar a resolver problemas.</span></h1>
-          <p className="sub">Siga um plano de 90 dias para entender a área, encontrar o problema certo e entregar uma melhoria concreta, mesmo que hoje você não saiba por onde começar.</p>
+          <h1>Você não será valorizado por cumprir a sua obrigação.<br /><span className="grad">Será valorizado quando começar a resolver problemas.</span></h1>
+          <p className="sub">Siga um plano de 90 dias para entender a área, encontrar o problema certo e entregar uma melhoria concreta.</p>
           {/* VSL — player VTurb abaixo do texto de apoio */}
           <div
             style={{ margin: '22px auto 26px', maxWidth: 400 }}
