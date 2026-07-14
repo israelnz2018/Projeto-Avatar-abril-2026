@@ -58,9 +58,9 @@ interface VolumeResp {
 interface NewsletterItem { id: string; assunto: string; corpo: string; publico: string; total: number; enviados: number; falhas: number; enviadoEm: string; }
 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
-  gratis: { nome: 'Introdutório', desc: 'Plano introdutório (Kit 90 Dias)', cor: '#065F46', corBg: '#D1FAE5' },
-  pago7:  { nome: 'Pago · 7 dias', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
-  pago:   { nome: 'Pago',   desc: 'Comprou · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
+  gratis: { nome: 'Grátis', desc: 'Não pagou (cortesia / convite)', cor: '#065F46', corBg: '#D1FAE5' },
+  pago7:  { nome: 'Pago7', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
+  pago:   { nome: 'Pago', desc: 'Comprou · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
 
 // Marcações disponíveis. 'insere' é o trecho colado ao clicar.
@@ -501,8 +501,16 @@ export default function SequenciasEmail() {
           est === 'gratis' ? { background: '#D1FAE5', color: '#065F46' }
           : est === 'pago7' ? { background: '#FFEDD5', color: '#9A3412' }
           : { background: '#DBEAFE', color: '#1E2D6E' };
-        const nomeEstagio = (est: string) =>
-          est === 'pago7' ? 'pago · 7 dias' : est;
+        // Badge = estágio + QUAL produto foi comprado. Quem paga o Kit 90 fica com
+        // plano "gratuito" (nível Trilha 1), então o rótulo tem que dizer o produto,
+        // senão "pago" de R$67 fica igual a "pago" do completo.
+        const nomeEstagio = (est: string, plano?: string) => {
+          if (est === 'gratis') return 'grátis';
+          const produto = plano === 'completo' ? 'completo' : 'trilha 1';
+          if (est === 'pago7') return `pago7 · ${produto}`;
+          if (est === 'pago') return `pago · ${produto}`;
+          return est;
+        };
         const fmtData = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
         // aplica os filtros
         const filtrados = engaj.filter((u) => {
@@ -647,8 +655,8 @@ export default function SequenciasEmail() {
                           <div className="text-xs text-gray-400">{u.email}</div>
                         </td>
                         <td className="py-2 px-3">
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded-md whitespace-nowrap" style={corEstagio(u.estagio)}>
-                            {nomeEstagio(u.estagio)}
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-md whitespace-nowrap uppercase" style={corEstagio(u.estagio)}>
+                            {nomeEstagio(u.estagio, u.plano)}
                           </span>
                         </td>
                         <td className="py-2 px-3">
