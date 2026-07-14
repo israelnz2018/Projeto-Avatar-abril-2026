@@ -78,6 +78,13 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     return () => window.removeEventListener('lbw-open-menu-tour', abrir);
   }, []);
 
+  // O tour é montado global (fora das rotas). Sem isto, ele ficava aberto ao
+  // navegar pra outra aba e o overlay escuro cobria a tela inteira (parecia
+  // "modo escuro" travado). Ao trocar de rota, fecha o tour.
+  useEffect(() => {
+    setMenuTourOpen(false);
+  }, [location.pathname]);
+
   const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
   const isCoordenador = tipoUsuario === 'coordenador';
