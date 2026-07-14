@@ -981,6 +981,18 @@ async function startServer() {
       || ate.startsWith("2026-12-31");
   }
 
+  // COMPROU? Só a `origem` diz a verdade sobre pagamento. O `plano` diz o NÍVEL de
+  // acesso ("gratuito" = Trilha 1), e quem compra o Kit 90 (R$67) fica com esse
+  // mesmo nível — então classificar por `plano` fazia o comprador virar "lead".
+  // Cortesia tem o acesso mas NÃO pagou: não é comprador.
+  function isComprador(u: any): boolean {
+    if (!u || isCortesia(u)) return false;
+    const origem = String(u.origem || "");
+    return origem === "compra-trilha1"      // comprou o Kit 90 (Trilha 1, R$67)
+      || origem === "compra-hotmart"        // comprou o plano completo
+      || origem.startsWith("compra");       // qualquer compra futura
+  }
+
   app.post("/api/campanha/cortesia", requireAdmin, async (req: any, res) => {
     if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
     const { assunto, html, dryRun } = req.body || {};
@@ -1556,8 +1568,11 @@ async function startServer() {
   // Quem tem conta e ainda não acessou é tratado como "gratis" (introdutório).
   function classificarUsuario(u: any): "gratis" | "pago" | null {
     if (!u || !u.email) return null;
-    if (u.plano === "completo") return "pago";
     if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null; // não recebem sequência
+    if (u.plano === "completo") return "pago";
+    // Comprador do Kit 90: o plano dele é "gratuito" (nível Trilha 1), mas ele PAGOU.
+    // Quem decide é a `origem`, não o `plano` — senão o comprador virava "lead".
+    if (isComprador(u)) return "pago";
     return "gratis";
   }
 
