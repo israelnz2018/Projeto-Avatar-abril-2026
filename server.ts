@@ -1409,7 +1409,7 @@ async function startServer() {
           "Então meu pedido é simples: entra agora, dá uma volta, e faz a primeira fase da Trilha 1. São 15 minutos.\n\n" +
           "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
           "Qualquer dúvida, responde este e-mail. Eu leio, e eu respondo.\n\nIsrael\n\n" +
-          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui. E se este e-mail caiu no Spam, arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos, assim os próximos chegam direto pra você.",
+          "P.S. Você entra com o seu e-mail e a senha que criou na compra. Se travar, é só me responder aqui. Eu leio.",
       },
       // 2 — ATIVAÇÃO (dia 3) — primeiro resultado rápido, dentro do prazo de reembolso
       {
@@ -1424,7 +1424,7 @@ async function startServer() {
           "Não deixa pra depois. Depois vira nunca, e eu não quero isso pra você.\n\n" +
           "[botao: Abrir a Trilha 1 agora | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você. E se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos chegam certinho pra você.",
+          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você.",
       },
       // 3 — CONFIRMAÇÃO DE VALOR (dia 6) — fecha a janela de reembolso com a pessoa convencida
       {
