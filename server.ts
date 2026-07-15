@@ -1241,44 +1241,44 @@ async function startServer() {
     // REGRA: fala SÓ da Trilha 1 — não menciona o completo nem outras trilhas.
     // Dia conta a partir da compra. Boas-vindas (dia 0) já vem do n8n.
     gratis: [
-      // 1 — ATIVAÇÃO: retomar (dia 1)
+      // 1 — ATIVAÇÃO: retomar, começar pela Fase 1 (dia 1)
       {
         dia: 1, ativo: true,
-        assunto: "Sua Trilha 1 está te esperando, {nome}",
+        assunto: "Comece pela Fase 1 da Trilha 1, {nome}",
         corpo:
-          "[titulo: Não deixa a Trilha 1 parada]\n\n" +
+          "[titulo: Comece por entender sua área]\n\n" +
           "Oi {nome},\n\n" +
-          "Sua Trilha 1 está liberada e pronta. Talvez você já tenha dado uma olhada, talvez ainda não — de qualquer forma, deixa eu ser direto: o que você pagou só vira resultado quando você mergulha de verdade.\n\n" +
-          "Não precisa de uma tarde livre. Precisa de 15 minutos e do próximo vídeo. Só isso hoje.\n\n" +
-          "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
+          "Sua Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', está liberada e pronta. Deixa eu te dar um conselho pra não se perder: comece pela Fase 1.\n\n" +
+          "Na Fase 1 você aprende a entender como sua área funciona de verdade — com SIPOC, RACI, organograma e indicadores. É o mapa que faz você explicar sua área em 3 frases, coisa que a maioria não consegue nem depois de meses.\n\n" +
+          "Não precisa de uma tarde livre. 15 minutos hoje já te colocam na frente.\n\n" +
+          "[botao: Abrir a Fase 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
           "P.S. Travou em algo? Me responde este e-mail. Eu leio e resolvo com você.",
       },
-      // 2 — ATIVAÇÃO: primeiro resultado prático (dia 4)
+      // 2 — ATIVAÇÃO: aplicar num caso real (dia 4)
       {
         dia: 4, ativo: true,
-        assunto: "15 minutos pro seu primeiro resultado",
+        assunto: "Faça o SIPOC da sua própria área",
         corpo:
-          "[titulo: Seu primeiro resultado, ainda esta semana]\n\n" +
+          "[titulo: Tira a Trilha 1 do vídeo e leva pro seu trabalho]\n\n" +
           "Oi {nome},\n\n" +
-          "Comprar foi o primeiro passo. O que muda a sua vida não é ter acesso, é usar.\n\n" +
-          "Reserve 20 minutos hoje e faça UMA coisa: pegue um processo do seu trabalho de verdade, qualquer um, e monte o SIPOC dele na plataforma.\n\n" +
-          "Vai parecer simples. Mas quando você terminar, vai enxergar aquele processo de um jeito que ninguém na sua equipe enxerga. É o primeiro momento em que a ferramenta vira poder de verdade.\n\n" +
-          "Não deixa pra depois. Depois vira nunca, e eu não quero isso pra você.\n\n" +
-          "[botao: Montar meu primeiro SIPOC | " + APP_URL + "]\n\n" +
+          "O que muda a sua vida não é assistir, é aplicar. E a Trilha 1 foi feita pra isso.\n\n" +
+          "Reserve 20 minutos e faça UMA coisa da Fase 1: monte o SIPOC da SUA área — fornecedores, entradas, processo, saídas e clientes. É a mesma ferramenta que eu usei na Braskem aos 26 pra entender minha área em 2 dias.\n\n" +
+          "Quando terminar, você vai enxergar a sua área de um jeito que quase ninguém no seu time enxerga. É aí que a ferramenta vira vantagem de verdade.\n\n" +
+          "[botao: Montar o SIPOC da minha área | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
           "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você.",
       },
-      // 3 — ATIVAÇÃO: última chamada (dia 8) — anti-reembolso por uso
+      // 3 — ATIVAÇÃO: última chamada, mostra as 5 fases (dia 8)
       {
         dia: 8, ativo: true,
         assunto: "Não deixa a Trilha 1 pela metade",
         corpo:
-          "[titulo: Uma semana, e ainda dá tempo]\n\n" +
+          "[titulo: São 5 fases, na ordem certa]\n\n" +
           "Oi {nome},\n\n" +
-          "Vou ser honesto, do jeito que gosto: sei que a correria aperta, mas seria uma pena a sua Trilha 1 ficar pela metade. Sei o que ela faz por quem vai até o fim.\n\n" +
-          "Não é sobre assistir vídeo. É sobre você chegar no trabalho sabendo mapear um processo, achar a causa de um problema e propor a solução — enquanto os outros ainda reclamam que falta informação.\n\n" +
-          "Falta pouco pra você tirar isso de letra. Hoje ainda é um bom dia pra avançar.\n\n" +
+          "Vou ser honesto, do jeito que gosto: sei que a correria aperta, mas seria uma pena a sua Trilha 1 ficar pela metade.\n\n" +
+          "Ela é uma sequência de 5 fases, na ordem: entender sua área (Fase 1), achar os problemas que merecem atenção (Fase 2), descobrir a causa antes de agir (Fase 3), escolher e implementar a solução (Fase 4) e se comunicar com profissionalismo (Fase 5).\n\n" +
+          "Cada fase resolve uma dor real dos seus primeiros meses numa área. Abra a fase que você está vivendo agora — e siga daí.\n\n" +
           "[botao: Retomar a Trilha 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
           "P.S. Se tem algo te travando — tempo, dúvida, o que for — me responde. A gente resolve.",
