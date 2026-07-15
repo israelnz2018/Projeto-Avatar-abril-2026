@@ -1220,7 +1220,11 @@ async function startServer() {
   // ===============================================================
 
   type SeqEmail = { dia: number; assunto: string; corpo: string; ativo: boolean };
-  type Sequencias = { gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
+  // 4 sequências:
+  //   gratis          = Trilha 1 "novo" (comprou/ganhou, assistiu ≤2 vídeos) → ATIVAÇÃO (fala só da Trilha 1)
+  //   gratisEngajado  = Trilha 1 "engajado" (assistiu >2 vídeos)              → VENDA do completo
+  //   pago7 + pago    = Completo (anti-reembolso 7 dias + rotina)             → RELACIONAMENTO
+  type Sequencias = { gratis: SeqEmail[]; gratisEngajado: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
 
   // Conteúdo inicial das sequências (editável pela tela). Tom "Carta do Israel":
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
@@ -1232,98 +1236,102 @@ async function startServer() {
   // Enquanto isso aponta pra página de vendas — ajuste no painel Marketing quando tiver o link.
   const DESCONTO_URL = "https://www.educacaopelotrabalho.com/formacao";
   const SEQUENCIAS_DEFAULT: Sequencias = {
+    // ── SEQUÊNCIA 1 · "Trilha 1 · novo" (ativação) ──────────────────────────
+    // Quem: tem a Trilha 1 e assistiu ≤2 vídeos. Objetivo: fazer USAR. Sem venda.
+    // REGRA: fala SÓ da Trilha 1 — não menciona o completo nem outras trilhas.
+    // Dia conta a partir da compra. Boas-vindas (dia 0) já vem do n8n.
     gratis: [
-      // 1 — BOAS-VINDAS / ativação (sem venda)
-      // DESATIVADO: o boas-vindas já é enviado pelo n8n na compra. Manter aqui
-      // duplicaria. Não removido do array pra não deslocar a numeração da régua
-      // (emailSequencia.gratis_N) já gravada nos usuários.
+      // 1 — ATIVAÇÃO: primeiro acesso (dia 1)
       {
-        dia: 0, ativo: false,
-        assunto: "Você entrou, agora deixa eu te guiar",
+        dia: 1, ativo: true,
+        assunto: "Você comprou, mas ainda não começou",
         corpo:
-          "[titulo: Bem-vindo de verdade]\n\n" +
+          "[titulo: Falta só você começar]\n\n" +
           "Oi {nome},\n\n" +
-          "Que bom que você entrou. Isso já te coloca à frente da maioria: muita gente compra um curso e nunca aparece pra usar.\n\n" +
-          "Você está na Trilha 1, 'Como Chegar em uma Área Nova e Entregar Resultado Rapidamente'. Meu conselho: não tente ver tudo de uma vez. Faça a Fase 1, entenda como sua área funciona, e aplique no seu trabalho real essa semana. Uma ferramenta usada vale mais que dez assistidas.\n\n" +
-          "Nas próximas semanas vou te mostrar, um por vez, o que mais tem na plataforma: análise de dados, apresentações que convencem, conduzir mudanças, estatística aplicada e muito mais. Pra você ver até onde dá pra ir.\n\n" +
-          "Por hoje, só uma missão: termine a Fase 1.\n\n" +
-          "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
+          "Vi que a sua Trilha 1 está liberada, mas você ainda não começou. Isso é normal — a vida engole a gente. Mas deixa eu ser direto: o que você pagou só vira resultado quando você ABRE.\n\n" +
+          "Não precisa de uma tarde livre. Precisa de 15 minutos e do primeiro vídeo. Só isso hoje.\n\n" +
+          "[botao: Ver o primeiro vídeo | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Achou este e-mail no Spam? Arrasta ele pra sua Caixa de Entrada principal e me adiciona nos contatos. Assim os próximos e-mails com os vídeos chegam direto pra você. E qualquer dúvida, é só responder aqui. Eu leio.",
+          "P.S. Travou no acesso? Me responde este e-mail. Eu leio e resolvo com você.",
       },
-      // 2 — TRILHA A (nutre): dados
+      // 2 — ATIVAÇÃO: primeiro resultado prático (dia 4)
       {
-        dia: 3, ativo: true,
-        assunto: "Quando o chefe pede \"me mostra os números\"",
+        dia: 4, ativo: true,
+        assunto: "15 minutos pro seu primeiro resultado",
         corpo:
-          "[titulo: Recomendar melhorias com base em dados]\n\n" +
+          "[titulo: Seu primeiro resultado, ainda esta semana]\n\n" +
           "Oi {nome},\n\n" +
-          "Deixa eu adivinhar uma cena que você já viveu: você teve uma boa ideia, levou pro chefe, e ele perguntou: \"e os dados? me mostra os números\". E você travou.\n\n" +
-          "Acontece com quase todo mundo. O problema não é falta de dado, é não saber transformar dado em argumento. Eu já vi projeto excelente morrer porque a pessoa não soube mostrar o número certo na hora certa.\n\n" +
-          "A trilha 'Como Recomendar Melhorias com Base em Análise de Dados' resolve isso, sem você precisar virar especialista em Excel ou programação. Pareto que convence, histograma sem mistério, e o mais importante: a pergunta certa ANTES do gráfico. Porque 80% das análises começam erradas justamente aí.\n\n" +
-          "É o tipo de habilidade que faz o chefe parar de duvidar e começar a aprovar.\n\n" +
-          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
+          "Comprar foi o primeiro passo. O que muda a sua vida não é ter acesso, é usar.\n\n" +
+          "Reserve 20 minutos hoje e faça UMA coisa: pegue um processo do seu trabalho de verdade, qualquer um, e monte o SIPOC dele na plataforma.\n\n" +
+          "Vai parecer simples. Mas quando você terminar, vai enxergar aquele processo de um jeito que ninguém na sua equipe enxerga. É o primeiro momento em que a ferramenta vira poder de verdade.\n\n" +
+          "Não deixa pra depois. Depois vira nunca, e eu não quero isso pra você.\n\n" +
+          "[botao: Montar meu primeiro SIPOC | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Se este e-mail caiu no Spam, me arrasta pra sua Caixa de Entrada principal, assim os próximos vídeos chegam certinho pra você.",
+          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você.",
       },
-      // 3 — TRILHA B (nutre): apresentações
+      // 3 — ATIVAÇÃO: última chamada (dia 8) — anti-reembolso por uso
       {
-        dia: 7, ativo: true,
-        assunto: "Boa ideia que ninguém entende não vale nada",
+        dia: 8, ativo: true,
+        assunto: "Não deixa virar dinheiro jogado fora",
         corpo:
-          "[titulo: Apresentações que convencem]\n\n" +
+          "[titulo: Uma semana, e ainda dá tempo]\n\n" +
           "Oi {nome},\n\n" +
-          "Uma verdade dura do mundo do trabalho: a melhor ideia da sala perde pra ideia mais bem APRESENTADA. Injusto? Talvez. Real? Todo dia.\n\n" +
-          "Já vi gente brilhante ser ignorada numa reunião porque travou, se enrolou, ou mostrou um slide confuso. E vi gente mediana brilhar só porque soube contar a história com clareza.\n\n" +
-          "A trilha 'Como Criar Apresentações que Convencem' te ensina a estrutura SCQA, a mesma que a McKinsey usa há 40 anos, pra montar um argumento que prende. E mostra como antecipar as 3 perguntas que a diretoria SEMPRE faz, pra você nunca mais ser pego de surpresa. Tem até como gerar um PPT executivo em 1 clique dentro do app, economizando suas 4 horas de montagem.\n\n" +
-          "Não é sobre falar bonito. É sobre não deixar uma boa ideia morrer por falta de jeito.\n\n" +
-          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
-          "Israel",
+          "Vou ser honesto, do jeito que gosto: você pagou pela Trilha 1 e ela está parada. Isso me incomoda, porque sei o que ela faz por quem usa.\n\n" +
+          "Não é sobre assistir vídeo. É sobre você chegar no trabalho sabendo mapear um processo, achar a causa de um problema e propor a solução — enquanto os outros ainda reclamam que falta informação.\n\n" +
+          "Falta só você começar. Hoje ainda é um bom dia.\n\n" +
+          "[botao: Retomar a Trilha 1 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Se tem algo te travando — tempo, dúvida, o que for — me responde. A gente resolve.",
       },
-      // 4 — SOFT PITCH (1º toque de venda, leve, sem desconto)
+    ],
+    // ── SEQUÊNCIA 2 · "Trilha 1 · engajado" (venda do completo) ─────────────
+    // Quem: tem a Trilha 1 e assistiu >2 vídeos. Objetivo: upgrade pro completo.
+    // REGRA: fala do COMPLETO (8 trilhas). Desconto só nos 2 últimos e-mails.
+    // Dia conta a partir de quando virou engajado.
+    gratisEngajado: [
+      // 1 — PONTE: você provou valor, existe a jornada inteira (dia 0)
       {
-        dia: 11, ativo: true,
-        assunto: "Uma coisa que preciso te contar, {nome}",
+        dia: 0, ativo: true,
+        assunto: "Você já provou que funciona, {nome}",
         corpo:
-          "[titulo: A ponta do iceberg]\n\n" +
+          "[titulo: Você viu a ponta do iceberg]\n\n" +
           "Oi {nome},\n\n" +
-          "Você já viu 2 ou 3 das nossas trilhas por aqui. Você não só leu sobre o método, você começou a aplicar. Isso já te coloca à frente de muita gente.\n\n" +
-          "Mas eu vou ser transparente com você: o que você tem em mãos é a ponta do iceberg. A jornada completa, das 8 trilhas, é onde a virada de verdade acontece, do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
-          "Não precisa decidir nada hoje. Continue usando o que é seu. Só queria que você soubesse que existe um caminho inteiro à sua frente.\n\n" +
+          "Você não só comprou a Trilha 1. Você entrou, assistiu, começou a aplicar. Isso já te separa de 9 em cada 10 pessoas.\n\n" +
+          "Então deixa eu te contar uma verdade: o que você tem em mãos é a ponta do iceberg. A Trilha 1 te mostra como chegar numa área e entender. As outras 7 trilhas são onde a virada de verdade acontece — do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
+          "Não precisa decidir nada hoje. Continue usando o que é seu. Só quero que você saiba que existe um caminho inteiro à sua frente.\n\n" +
           "[botao: Conhecer a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",
       },
-      // 5 — TRILHA C (nutre): conduzir mudanças
+      // 2 — NUTRE: conduzir mudanças (dia 4)
       {
-        dia: 15, ativo: true,
-        assunto: "Por que as pessoas resistem mesmo quando você tem razão",
+        dia: 4, ativo: true,
+        assunto: "Por que as pessoas resistem quando você tem razão",
         corpo:
-          "[titulo: Conduzir mudanças com menos resistência]\n\n" +
+          "[titulo: Ter dado não basta]\n\n" +
           "Oi {nome},\n\n" +
           "Talvez a coisa mais frustrante do mundo corporativo: você tem razão, prova com dados que sua ideia é melhor, e mesmo assim o time resiste, arrasta o pé, volta pro 'como era antes'.\n\n" +
-          "Demorei pra entender uma coisa: mostrar dado NÃO convence pessoas. Pessoas mudam por outros motivos, e existe um método pra conduzir isso. Chama-se ADKAR, e eu uso em todo projeto de mudança que toco.\n\n" +
-          "A trilha 'Como Conduzir Mudanças com Menos Resistência' te dá o mapa de stakeholders honesto (quem te apoia, quem te enfrenta, quem está em cima do muro), os scripts pra conversa difícil com quem resiste, e como sobreviver aos 90 dias críticos depois que a mudança começa.\n\n" +
+          "Demorei pra entender uma coisa: mostrar dado NÃO convence pessoas. Existe um método pra conduzir isso. Chama-se ADKAR, e eu uso em todo projeto de mudança que toco.\n\n" +
+          "Uma das trilhas da formação completa te dá o mapa de stakeholders honesto, os scripts pra conversa difícil com quem resiste, e como sobreviver aos 90 dias críticos depois que a mudança começa.\n\n" +
           "Liderança técnica de verdade não é mandar. É fazer o outro querer ir junto.\n\n" +
-          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
+          "[botao: Ver a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",
       },
-      // 6 — TRILHA D (nutre): estatística (a mais avançada, gera desejo)
+      // 3 — NUTRE: estatística (dia 8)
       {
-        dia: 19, ativo: true,
-        assunto: "Estatística que vira decisão (não relatório que ninguém lê)",
+        dia: 8, ativo: true,
+        assunto: "Estatística que vira decisão (não relatório)",
         corpo:
-          "[titulo: Estatística aplicada a negócios]\n\n" +
+          "[titulo: A trilha que muda o patamar]\n\n" +
           "Oi {nome},\n\n" +
           "Deixa eu te mostrar a trilha mais hardcore, e a que mais muda o patamar de quem domina.\n\n" +
-          "Tem uma fronteira que separa o profissional bom do profissional raro: saber usar estatística pra DECIDIR, não pra encher relatório. A maioria tem medo de estatística porque associou aquilo a fórmula e prova de faculdade. Mas estatística aplicada é outra coisa: é a ferramenta mais poderosa que existe pra parar de decidir no 'achismo'.\n\n" +
-          "'Como Fazer Análises Estatísticas Aplicadas a Negócios' te leva da análise descritiva até inferência, previsão, controle de processo, capacidade, testes de hipótese e regressão, tudo no-code, traduzido pra linguagem de negócio. É o nível de quem senta na mesa de decisão e é OUVIDO.\n\n" +
-          "Você começou entendendo como chegar numa área nova. Isso aqui é o outro extremo da jornada: virar a referência técnica que todo mundo procura.\n\n" +
-          "[botao: Continuar na plataforma | " + APP_URL + "]\n\n" +
+          "Tem uma fronteira que separa o profissional bom do profissional raro: saber usar estatística pra DECIDIR, não pra encher relatório. A maioria tem medo porque associou aquilo a fórmula e prova de faculdade. Mas estatística aplicada é outra coisa: é a ferramenta mais poderosa que existe pra parar de decidir no 'achismo'.\n\n" +
+          "Você começou entendendo como chegar numa área nova. Isso aqui é o outro extremo da jornada: virar a referência técnica que todo mundo procura. Tudo no-code, traduzido pra linguagem de negócio.\n\n" +
+          "[botao: Ver a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",
       },
-      // 7 — CTA VENDA (preço cheio R$ 597, ângulo 1: a jornada completa)
+      // 4 — CTA VENDA: a jornada completa, preço cheio (dia 16)
       {
-        dia: 23, ativo: true,
+        dia: 16, ativo: true,
         assunto: "Você já provou que consegue, {nome}",
         corpo:
           "[titulo: A jornada completa te espera]\n\n" +
@@ -1332,13 +1340,13 @@ async function startServer() {
           "Agora eu te faço um convite direto. Você viu a ponta. A formação completa é a jornada inteira, as 8 trilhas, da base ao topo:\n\n" +
           "Entender uma empresa por dentro. Recomendar melhorias com dados. Conduzir mudanças. Apresentar como executivo. Antecipar riscos. Cultura Lean. Estatística aplicada. E o topo: gestão de projetos de melhoria.\n\n" +
           "Mais o software estatístico, o Mentor Israel digital ilimitado, a comunidade e o certificado de cada trilha. Tudo por 12x de R$ 61,74 (ou R$ 597 à vista).\n\n" +
-          "Quem chegou lendo até aqui é exatamente quem mais aproveita.\n\n" +
+          "Quem chegou usando até aqui é exatamente quem mais aproveita.\n\n" +
           "[botao: Quero a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",
       },
-      // 8 — CTA VENDA (preço cheio, ângulo 2: o custo de não fazer)
+      // 5 — CTA VENDA: o custo de não fazer (dia 19)
       {
-        dia: 26, ativo: true,
+        dia: 19, ativo: true,
         assunto: "O que custa continuar do jeito que está",
         corpo:
           "[titulo: O custo invisível de não decidir]\n\n" +
@@ -1350,31 +1358,31 @@ async function startServer() {
           "[botao: Dar o próximo passo | " + VENDAS_URL + "]\n\n" +
           "Israel",
       },
-      // 9 — DESCONTO SURPRESA R$ 400 + PRAZO (48h)
+      // 6 — DESCONTO + prazo 48h (dia 22) — tom de aluno, não de brinde
       {
-        dia: 28, ativo: true,
-        assunto: "{nome}, uma condição especial só pra você",
+        dia: 22, ativo: true,
+        assunto: "{nome}, uma condição de aluno",
         corpo:
-          "[titulo: Um presente pra quem chegou até aqui]\n\n" +
+          "[titulo: Uma condição que não abro pra quem chega de fora]\n\n" +
           "Oi {nome},\n\n" +
-          "Você acompanhou toda essa jornada comigo. Usou a plataforma, leu meus e-mails, chegou até aqui. Isso me diz que você leva a sério o seu crescimento, e eu quero recompensar isso.\n\n" +
-          "Vou te fazer uma oferta que não anuncio pra todo mundo: a formação completa, que sai por R$ 597, sai pra você por R$ 400. São R$ 197 de desconto, só pela sua dedicação até aqui.\n\n" +
+          "Você já é aluno LBW. Entrou, usou a plataforma, acompanhou meus e-mails. Isso me diz que você leva a sério o seu crescimento — e eu quero reconhecer isso.\n\n" +
+          "Por isso posso te fazer uma condição que não abro pra quem chega de fora: a formação completa, que sai por R$ 597, sai pra você por R$ 400. São R$ 197 de desconto, de aluno pra aluno.\n\n" +
           "Mas preciso ser justo com quem paga o valor cheio, então essa condição vale só por 48 horas. Depois disso, o preço volta ao normal.\n\n" +
           "Se você já pensava em dar esse passo, essa é a hora certa.\n\n" +
           "[botao: Garantir por R$ 400 (48h) | " + DESCONTO_URL + "]\n\n" +
           "Israel\n\n" +
           "P.S. É um desconto de verdade, com prazo de verdade. Em 48h ele acaba.",
       },
-      // 10 — ÚLTIMA CHAMADA do desconto (prazo acabando)
+      // 7 — ÚLTIMA CHAMADA do desconto (dia 23)
       {
-        dia: 29, ativo: true,
+        dia: 23, ativo: true,
         assunto: "Acaba hoje: seus R$ 197 de desconto",
         corpo:
           "[titulo: Última chamada]\n\n" +
           "Oi {nome},\n\n" +
           "Ontem eu te enviei uma condição especial: a formação completa por R$ 400, em vez de R$ 597. Esse desconto acaba hoje.\n\n" +
           "Não vou te encher com pressão falsa. Só quero ser justo: se você deixar passar, o preço volta pra R$ 597 e essa condição não volta.\n\n" +
-          "Você já fez a parte mais difícil, que é começar. Deu os primeiros passos, viu que funciona. Falta só decidir ir até o fim.\n\n" +
+          "Você já fez a parte mais difícil, que é começar. Entrou, usou, viu que funciona. Falta só decidir ir até o fim.\n\n" +
           "Se fizer sentido pra você, esse é o momento.\n\n" +
           "[botao: Garantir por R$ 400 (acaba hoje) | " + DESCONTO_URL + "]\n\n" +
           "Foi uma honra te acompanhar nessas semanas, de verdade.\n\nIsrael\n\n" +
@@ -1553,6 +1561,7 @@ async function startServer() {
         const d = snap.data() as any;
         return {
           gratis: Array.isArray(d?.gratis) ? d.gratis : SEQUENCIAS_DEFAULT.gratis,
+          gratisEngajado: Array.isArray(d?.gratisEngajado) ? d.gratisEngajado : SEQUENCIAS_DEFAULT.gratisEngajado,
           pago7: Array.isArray(d?.pago7) ? d.pago7 : SEQUENCIAS_DEFAULT.pago7,
           pago: Array.isArray(d?.pago) ? d.pago : SEQUENCIAS_DEFAULT.pago,
         };
@@ -1588,13 +1597,23 @@ async function startServer() {
   // IMPORTANTE: quem é CORTESIA (grátis completo, não pagou) NÃO entra no pago7,
   // porque a fase anti-reembolso é irrelevante pra quem não tem o que reembolsar.
   // Vai direto pro "pago" (relacionamento).
-  function classificarSequencia(u: any): "gratis" | "pago7" | "pago" | null {
+  // Corte de engajamento da Trilha 1: assistiu MAIS de 2 vídeos = engajado.
+  const VIDEOS_ENGAJADO = 2;
+  // videosPorUid: mapa uid → nº de vídeos assistidos (de userProgress). Opcional:
+  // se não vier, trata todo Trilha 1 como "gratis" (novo) — fallback seguro.
+  function classificarSequencia(u: any, videosPorUid?: Record<string, number>): "gratis" | "gratisEngajado" | "pago7" | "pago" | null {
     if (!u || !u.email) return null;
     if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null;
     // A sequência é decidida pelo PRODUTO que a pessoa tem, não por ter pago:
-    //   - Tem só a Trilha 1 (comprou o Kit 90 OU ganhou de cortesia) → "gratis" (aba Trilha 1)
-    //   - Tem o Completo (comprou OU ganhou de cortesia)             → "pago"   (aba Completo)
-    if (u.plano !== "completo") return "gratis"; // plano gratuito = nível Trilha 1
+    //   - Tem só a Trilha 1 (comprou o Kit 90 OU ganhou de cortesia) → aba "Trilha 1"
+    //   - Tem o Completo (comprou OU ganhou de cortesia)             → aba "Completo"
+    if (u.plano !== "completo") {
+      // Trilha 1 se divide por ENGAJAMENTO (vídeos assistidos):
+      //   >2 vídeos → "gratisEngajado" (vender o completo)
+      //   ≤2 vídeos → "gratis" (ativar; fala só da Trilha 1)
+      const nv = videosPorUid && u.uid ? (videosPorUid[u.uid] || 0) : 0;
+      return nv > VIDEOS_ENGAJADO ? "gratisEngajado" : "gratis";
+    }
     // Completo: separa só os 7 primeiros dias do COMPRADOR (anti-reembolso).
     // Quem é cortesia do completo não tem o que reembolsar → vai direto pro "pago".
     if (isCortesia(u)) return "pago";
@@ -1602,17 +1621,31 @@ async function startServer() {
     return dias >= 0 && dias < 7 ? "pago7" : "pago";
   }
 
+  // Carrega o mapa uid → nº de vídeos assistidos (coleção userProgress).
+  async function carregarVideosPorUid(): Promise<Record<string, number>> {
+    const mapa: Record<string, number> = {};
+    try {
+      const snap = await adminFirestore().collection("userProgress").get();
+      snap.forEach((d) => {
+        const w = (d.data() as any)?.watchedUrls;
+        mapa[d.id] = w && typeof w === "object" ? Object.keys(w).length : 0;
+      });
+    } catch { /* mapa vazio = todos tratados como novos */ }
+    return mapa;
+  }
+
   // Quais estágios estão LIGADos pra envio automático. Guardado em Firestore pra o Israel
   // ligar/desligar pela tela sem deploy. Default: TODOS DESLIGADOS (posição segura).
-  type EstagiosAtivos = { gratis: boolean; pago7: boolean; pago: boolean };
+  type EstagiosAtivos = { gratis: boolean; gratisEngajado: boolean; pago7: boolean; pago: boolean };
   async function lerEstagiosAtivos(): Promise<EstagiosAtivos> {
-    const off = { gratis: false, pago7: false, pago: false };
+    const off = { gratis: false, gratisEngajado: false, pago7: false, pago: false };
     try {
       const snap = await adminFirestore().collection("config").doc("marketingEstagiosAtivos").get();
       if (!snap.exists) return off;
       const d = snap.data() as any;
       return {
         gratis: d?.gratis === true,
+        gratisEngajado: d?.gratisEngajado === true,
         pago7: d?.pago7 === true, pago: d?.pago === true,
       };
     } catch { return off; }
@@ -1624,13 +1657,14 @@ async function startServer() {
     const dryRun = !!opts.dryRun;
     const seqs = await lerSequencias();
     const template = await lerTemplate();
+    const videosPorUid = await carregarVideosPorUid(); // pra separar Trilha 1 novo vs engajado
     const ativos = opts.forcarEstagios
-      ? { gratis: false, pago7: false, pago: false, ...opts.forcarEstagios }
+      ? { gratis: false, gratisEngajado: false, pago7: false, pago: false, ...opts.forcarEstagios }
       : await lerEstagiosAtivos();
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
-      porPacote: { gratis: 0, pago7: 0, pago: 0 } as Record<string, number>,
+      porPacote: { gratis: 0, gratisEngajado: 0, pago7: 0, pago: 0 } as Record<string, number>,
       detalhes: [] as any[],
     };
 
@@ -1640,18 +1674,17 @@ async function startServer() {
       resumo.analisados++;
       // Opt-out (descadastro): quem cancelou a inscrição NÃO recebe mais nada. Lei.
       if (u.emailOptOut === true) { resumo.pulados++; continue; }
-      const estagio = classificarSequencia(u);
-      if (estagio !== "gratis" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
+      const estagio = classificarSequencia(u, videosPorUid);
+      if (estagio !== "gratis" && estagio !== "gratisEngajado" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
       if (!ativos[estagio]) { resumo.pulados++; continue; } // estágio desligado na config
 
       const seq = seqs[estagio];
       // Data-base da régua de dias, por estágio:
       //  - emailReguaInicioEm: se existir, TEM PRIORIDADE (usado pra "zerar" a régua de
       //    quem já estava na base sem tocar em criadoEm/primeiroAcessoEm).
-      //  - gratis: conta a partir do PRIMEIRO ACESSO (quando virou gratis) — a régua
-      //    "recomeça do zero" na transição, então todo gratis faz a jornada do #1.
-      //  - pago7/pago: conta a partir do cadastro/compra (criadoEm). Os emails do
-      //    pago começam no dia 13, então a pessoa migra de pago7 pra pago naturalmente.
+      //  - gratis (Trilha 1 novo): conta do PRIMEIRO ACESSO (ou cadastro) — ativação.
+      //  - gratisEngajado/pago7/pago: conta do cadastro/compra (criadoEm).
+      //  - emailReguaInicioEm (zerado pra todos na virada) tem prioridade e alinha tudo.
       const base = u.emailReguaInicioEm
         || (estagio === "gratis"
           ? (u.primeiroAcessoEm || u.criadoEm)
@@ -1715,7 +1748,7 @@ async function startServer() {
   // PUT /api/marketing/estagios-ativos — liga/desliga estágios (sem deploy)
   app.put("/api/marketing/estagios-ativos", requireAdmin, async (req: any, res) => {
     const b = req.body || {};
-    const limpo = { gratis: b.gratis === true, pago7: b.pago7 === true, pago: b.pago === true };
+    const limpo = { gratis: b.gratis === true, gratisEngajado: b.gratisEngajado === true, pago7: b.pago7 === true, pago: b.pago === true };
     try {
       await adminFirestore().collection("config").doc("marketingEstagiosAtivos").set(limpo);
       return res.json({ ok: true, ...limpo });
@@ -1733,7 +1766,7 @@ async function startServer() {
     const est = String(estagio || "");
     const i = Math.max(0, parseInt(idx, 10) || 0);
     if (!dest.includes("@")) return res.status(400).json({ error: "e-mail inválido." });
-    if (!["gratis", "pago7", "pago"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
+    if (!["gratis", "gratisEngajado", "pago7", "pago"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
     try {
       const seqs = await lerSequencias();
       const template = await lerTemplate();
@@ -1757,8 +1790,8 @@ async function startServer() {
 
   // PUT /api/marketing/sequencias — salva as sequências editadas (tela Fase 2)
   app.put("/api/marketing/sequencias", requireAdmin, async (req: any, res) => {
-    const { gratis, pago7, pago } = req.body || {};
-    if (!Array.isArray(gratis) || !Array.isArray(pago7) || !Array.isArray(pago)) return res.status(400).json({ error: "gratis, pago7 e pago precisam ser arrays." });
+    const { gratis, gratisEngajado, pago7, pago } = req.body || {};
+    if (!Array.isArray(gratis) || !Array.isArray(gratisEngajado) || !Array.isArray(pago7) || !Array.isArray(pago)) return res.status(400).json({ error: "gratis, gratisEngajado, pago7 e pago precisam ser arrays." });
     const limpa = (arr: any[]): SeqEmail[] => arr.map((e) => ({
       dia: Math.max(0, parseInt(e?.dia, 10) || 0),
       assunto: String(e?.assunto || ""),
@@ -1766,7 +1799,7 @@ async function startServer() {
       ativo: e?.ativo !== false,
     }));
     try {
-      await adminFirestore().collection("config").doc("marketingSequencias").set({ gratis: limpa(gratis), pago7: limpa(pago7), pago: limpa(pago) });
+      await adminFirestore().collection("config").doc("marketingSequencias").set({ gratis: limpa(gratis), gratisEngajado: limpa(gratisEngajado), pago7: limpa(pago7), pago: limpa(pago) });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao salvar." });
@@ -1862,16 +1895,18 @@ async function startServer() {
   // GET /api/marketing/status — resumo da última execução + contagem por estágio (faixa de status)
   app.get("/api/marketing/status", requireAdmin, async (_req: any, res) => {
     try {
-      const [statusSnap, usersSnap] = await Promise.all([
+      const [statusSnap, usersSnap, videosPorUid] = await Promise.all([
         adminFirestore().collection("config").doc("marketingMotorStatus").get(),
         adminFirestore().collection("users").get(),
+        carregarVideosPorUid(),
       ]);
-      // Conta pela sequência (= produto): "gratis" = aba Trilha 1, "pago" = aba
-      // Completo. pago7 é sub-fase do completo, então soma no "pago".
-      const contagem = { gratis: 0, pago: 0 };
+      // Contagem por ABA: "gratis" = Trilha 1 novo, "gratisEngajado" = Trilha 1
+      // engajado, "pago"/"pago7" = Completo (pago7 é sub-fase, soma no pago).
+      const contagem = { gratis: 0, gratisEngajado: 0, pago: 0 };
       usersSnap.docs.forEach((d) => {
-        const c = classificarSequencia(d.data());
+        const c = classificarSequencia(d.data(), videosPorUid);
         if (c === "gratis") contagem.gratis++;
+        else if (c === "gratisEngajado") contagem.gratisEngajado++;
         else if (c === "pago7" || c === "pago") contagem.pago++;
       });
       return res.json({ ultimaExecucao: statusSnap.exists ? statusSnap.data() : null, contagem });
@@ -2186,10 +2221,13 @@ async function startServer() {
         }
         return Math.max(0, Math.min(100, s));
       }
-      const snap = await adminFirestore().collection("users").get();
+      const [snap, videosPorUid] = await Promise.all([
+        adminFirestore().collection("users").get(),
+        carregarVideosPorUid(),
+      ]);
       const lista = snap.docs.map((d) => {
         const u = d.data() as any;
-        const estagio = classificarSequencia(u);
+        const estagio = classificarSequencia(u, videosPorUid);
         return {
           email: u.email, nome: u.nome || "",
           estagio,

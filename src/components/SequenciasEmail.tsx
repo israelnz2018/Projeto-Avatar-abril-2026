@@ -30,7 +30,7 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 }
 
 interface SeqEmail { dia: number; assunto: string; corpo: string; ativo: boolean; }
-type Pacote = 'gratis' | 'pago7' | 'pago';
+type Pacote = 'gratis' | 'gratisEngajado' | 'pago7' | 'pago';
 type Aba = Pacote | 'engajamento' | 'template';
 
 interface TemplateConfig {
@@ -45,20 +45,21 @@ interface EngajItem {
 }
 
 interface StatusResp {
-  contagem: { gratis: number; pago: number };
+  contagem: { gratis: number; gratisEngajado: number; pago: number };
   ultimaExecucao: null | { rodadoEm: string; enviados: number; falhas: number; dryRun?: boolean };
 }
 interface VolumeResp {
   limiteDia: number; limiteMes: number; hoje: string;
   enviadosHoje: number; enviadosMes: number;
-  hojePorEstagio: { gratis: number; pago7: number; pago: number } | null;
+  hojePorEstagio: { gratis: number; gratisEngajado: number; pago7: number; pago: number } | null;
   totalHistorico: number;
   porDia: { dia: string; total: number }[];
 }
 interface NewsletterItem { id: string; assunto: string; corpo: string; publico: string; total: number; enviados: number; falhas: number; enviadoEm: string; }
 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
-  gratis: { nome: 'Trilha 1', desc: 'Comprou o Kit 90 Dias (Trilha 1). O dia é contado a partir do primeiro acesso.', cor: '#065F46', corBg: '#D1FAE5' },
+  gratis: { nome: 'Trilha 1 · novo', desc: 'Tem a Trilha 1 e assistiu 2 vídeos ou menos. Objetivo: ATIVAR (fazer usar). Fala só da Trilha 1, sem venda.', cor: '#065F46', corBg: '#D1FAE5' },
+  gratisEngajado: { nome: 'Trilha 1 · engajado', desc: 'Tem a Trilha 1 e assistiu mais de 2 vídeos. Objetivo: VENDER o completo (8 trilhas).', cor: '#7C3AED', corBg: '#EDE9FE' },
   pago7:  { nome: 'Pago7', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
   pago:   { nome: 'Completo', desc: 'Comprou a formação completa · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
@@ -133,7 +134,7 @@ export default function SequenciasEmail() {
   const [status, setStatus] = useState<StatusResp | null>(null);
   const [volume, setVolume] = useState<VolumeResp | null>(null);
   const [volLoading, setVolLoading] = useState(false);
-  const [seqs, setSeqs] = useState<{ gratis: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] } | null>(null);
+  const [seqs, setSeqs] = useState<{ gratis: SeqEmail[]; gratisEngajado: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] } | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [rodando, setRodando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -153,7 +154,7 @@ export default function SequenciasEmail() {
         authedFetch('/api/marketing/sequencias').then((r) => r.json()),
       ]);
       setStatus(s);
-      setSeqs({ gratis: q.gratis || [], pago7: q.pago7 || [], pago: q.pago || [] });
+      setSeqs({ gratis: q.gratis || [], gratisEngajado: q.gratisEngajado || [], pago7: q.pago7 || [], pago: q.pago || [] });
     } catch (e: any) { setMsg(e?.message || 'Erro ao carregar.'); }
   };
   const carregarVolume = async () => {
@@ -210,7 +211,7 @@ export default function SequenciasEmail() {
   // atualiza preview sempre que o template muda (na aba template)
   useEffect(() => { if (aba === 'template' && tpl) atualizarPreview(tpl); }, [tpl, aba]);
 
-  const setEmail = (pac: 'gratis' | 'pago7' | 'pago', idx: number, patch: Partial<SeqEmail>) => {
+  const setEmail = (pac: Pacote, idx: number, patch: Partial<SeqEmail>) => {
     setSeqs((prev) => {
       if (!prev) return prev;
       const arr = [...prev[pac]];
@@ -330,7 +331,8 @@ export default function SequenciasEmail() {
                 </div>
                 {he && (
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
-                    <span>Introdutório: <b className="text-gray-700">{he.gratis || 0}</b></span>
+                    <span>T1 novo: <b className="text-gray-700">{he.gratis || 0}</b></span>
+                    <span>T1 engaj.: <b className="text-gray-700">{he.gratisEngajado || 0}</b></span>
                     <span>Pago·7d: <b className="text-gray-700">{he.pago7 || 0}</b></span>
                     <span>Pago: <b className="text-gray-700">{he.pago || 0}</b></span>
                     <span className="text-gray-400">(só automáticos)</span>
@@ -361,11 +363,11 @@ export default function SequenciasEmail() {
 
       {/* abas */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['gratis', 'pago'] as Pacote[]).map((p) => (
+        {(['gratis', 'gratisEngajado', 'pago'] as Pacote[]).map((p) => (
           <button key={p} onClick={() => setAba(p)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === p ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            style={aba === p ? { background: p === 'gratis' ? '#10B981' : p === 'pago7' ? '#EA580C' : '#0033CC' } : {}}>
-            {META[p].nome} {status && (p === 'gratis' || p === 'pago') ? `(${status.contagem[p]})` : ''}
+            style={aba === p ? { background: p === 'gratis' ? '#10B981' : p === 'gratisEngajado' ? '#7C3AED' : p === 'pago7' ? '#EA580C' : '#0033CC' } : {}}>
+            {META[p].nome} {status && (p === 'gratis' || p === 'gratisEngajado' || p === 'pago') ? `(${status.contagem[p]})` : ''}
           </button>
         ))}
         <button onClick={() => setAba('engajamento')}
@@ -380,8 +382,8 @@ export default function SequenciasEmail() {
 
       {msg && <div className="mb-4 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">{msg}</div>}
 
-      {/* sequência automática (gratis/pago7/pago) */}
-      {(aba === 'gratis' || aba === 'pago7' || aba === 'pago') && seqs && (
+      {/* sequência automática (gratis/gratisEngajado/pago7/pago) */}
+      {(aba === 'gratis' || aba === 'gratisEngajado' || aba === 'pago7' || aba === 'pago') && seqs && (
         <div className={aba === 'pago' ? 'mb-8' : ''}>
           {aba === 'pago' && (
             <div className="flex items-center gap-2 mb-1">
@@ -394,7 +396,7 @@ export default function SequenciasEmail() {
               ? 'Comprou há menos de 7 dias. Objetivo ÚNICO: evitar reembolso, fazer a pessoa usar e sentir o valor. 3 e-mails (dias 0, 3 e 6, contados da compra). No 7º dia a pessoa passa pro estágio "Pago".'
               : aba === 'pago'
               ? 'Comprou há mais de 7 dias. E-mails de rotina (início do ritmo semanal). O dia é contado a partir da compra. Desligue um e-mail sem apagá-lo pelo botão à direita.'
-              : `${META['gratis'].desc}. O dia é contado a partir do primeiro acesso. Desligue um e-mail sem apagá-lo pelo botão à direita.`}
+              : `${META[aba].desc} O dia é contado a partir da compra. Desligue um e-mail sem apagá-lo pelo botão à direita.`}
           </p>
           <div className="space-y-3">
             {seqs[aba].map((e, idx) => (
@@ -405,7 +407,7 @@ export default function SequenciasEmail() {
                     enviar
                     <input type="number" min={0} value={e.dia} onChange={(ev) => setEmail(aba, idx, { dia: Math.max(0, parseInt(ev.target.value, 10) || 0) })}
                       className="w-16 px-2 py-1 border border-gray-300 rounded-md text-center" />
-                    {aba === 'pago' || aba === 'pago7' ? 'dias após compra' : aba === 'gratis' ? 'dias após 1º acesso' : 'dias após cadastro'}
+                    dias após a compra
                   </label>
                   <button onClick={() => setEmail(aba, idx, { ativo: !e.ativo })}
                     className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${e.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
@@ -499,13 +501,14 @@ export default function SequenciasEmail() {
       {aba === 'engajamento' && (() => {
         const corEstagio = (est: string) =>
           est === 'gratis' ? { background: '#D1FAE5', color: '#065F46' }
+          : est === 'gratisEngajado' ? { background: '#EDE9FE', color: '#7C3AED' }
           : est === 'pago7' ? { background: '#FFEDD5', color: '#9A3412' }
           : { background: '#DBEAFE', color: '#1E2D6E' };
-        // Badge = estágio + QUAL produto foi comprado. Quem paga o Kit 90 fica com
-        // plano "gratuito" (nível Trilha 1), então o rótulo tem que dizer o produto,
-        // senão "pago" de R$67 fica igual a "pago" do completo.
+        // Badge = estágio + QUAL produto. Trilha 1 se divide em novo (≤2 vídeos)
+        // e engajado (>2 vídeos). Completo mostra pago/pago7.
         const nomeEstagio = (est: string, plano?: string) => {
-          if (est === 'gratis') return 'grátis';
+          if (est === 'gratis') return 'trilha 1 · novo';
+          if (est === 'gratisEngajado') return 'trilha 1 · engajado';
           const produto = plano === 'completo' ? 'completo' : 'trilha 1';
           if (est === 'pago7') return `pago7 · ${produto}`;
           if (est === 'pago') return `pago · ${produto}`;
@@ -547,7 +550,8 @@ export default function SequenciasEmail() {
                   <select value={fEstagio} onChange={(e) => setFEstagio(e.target.value as any)}
                     className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm">
                     <option value="todos">Todos</option>
-                    <option value="gratis">Introdutório</option>
+                    <option value="gratis">Trilha 1 · novo</option>
+                    <option value="gratisEngajado">Trilha 1 · engajado</option>
                     <option value="pago7">Pago · 7 dias</option>
                     <option value="pago">Pago</option>
                   </select>
