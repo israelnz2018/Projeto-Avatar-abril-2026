@@ -1584,9 +1584,15 @@ async function startServer() {
   // porque a fase anti-reembolso é irrelevante pra quem não tem o que reembolsar.
   // Vai direto pro "pago" (relacionamento).
   function classificarSequencia(u: any): "gratis" | "pago7" | "pago" | null {
-    const base = classificarUsuario(u);
-    if (base !== "pago") return base;
-    if (isCortesia(u)) return "pago"; // cortesia não pagou → pula o anti-reembolso
+    if (!u || !u.email) return null;
+    if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null;
+    // A sequência é decidida pelo PRODUTO que a pessoa tem, não por ter pago:
+    //   - Tem só a Trilha 1 (comprou o Kit 90 OU ganhou de cortesia) → "gratis" (aba Trilha 1)
+    //   - Tem o Completo (comprou OU ganhou de cortesia)             → "pago"   (aba Completo)
+    if (u.plano !== "completo") return "gratis"; // plano gratuito = nível Trilha 1
+    // Completo: separa só os 7 primeiros dias do COMPRADOR (anti-reembolso).
+    // Quem é cortesia do completo não tem o que reembolsar → vai direto pro "pago".
+    if (isCortesia(u)) return "pago";
     const dias = diasDesde(u.criadoEm || u.primeiroAcessoEm || "");
     return dias >= 0 && dias < 7 ? "pago7" : "pago";
   }
@@ -1855,10 +1861,13 @@ async function startServer() {
         adminFirestore().collection("config").doc("marketingMotorStatus").get(),
         adminFirestore().collection("users").get(),
       ]);
+      // Conta pela sequência (= produto): "gratis" = aba Trilha 1, "pago" = aba
+      // Completo. pago7 é sub-fase do completo, então soma no "pago".
       const contagem = { gratis: 0, pago: 0 };
       usersSnap.docs.forEach((d) => {
-        const c = classificarUsuario(d.data());
-        if (c && c in contagem) (contagem as any)[c]++;
+        const c = classificarSequencia(d.data());
+        if (c === "gratis") contagem.gratis++;
+        else if (c === "pago7" || c === "pago") contagem.pago++;
       });
       return res.json({ ultimaExecucao: statusSnap.exists ? statusSnap.data() : null, contagem });
     } catch (err: any) {
