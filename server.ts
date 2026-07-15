@@ -1234,8 +1234,11 @@ async function startServer() {
   const SEQUENCIAS_DEFAULT: Sequencias = {
     gratis: [
       // 1 — BOAS-VINDAS / ativação (sem venda)
+      // DESATIVADO: o boas-vindas já é enviado pelo n8n na compra. Manter aqui
+      // duplicaria. Não removido do array pra não deslocar a numeração da régua
+      // (emailSequencia.gratis_N) já gravada nos usuários.
       {
-        dia: 0, ativo: true,
+        dia: 0, ativo: false,
         assunto: "Você entrou, agora deixa eu te guiar",
         corpo:
           "[titulo: Bem-vindo de verdade]\n\n" +
@@ -1384,8 +1387,10 @@ async function startServer() {
     // "pago" (relacionamento), tratado por classificarSequencia().
     pago7: [
       // 1 — BOAS-VINDAS (dia 0) — reduzir arrependimento, guiar o primeiro acesso
+      // DESATIVADO: o boas-vindas já é enviado pelo n8n na compra. Manter aqui
+      // duplicaria. Não removido pra não deslocar a numeração (pago7_N).
       {
-        dia: 0, ativo: true,
+        dia: 0, ativo: false,
         assunto: "Bem-vindo à formação completa, {nome}",
         corpo:
           "[titulo: Você tomou a decisão certa]\n\n" +
