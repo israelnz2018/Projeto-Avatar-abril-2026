@@ -1240,10 +1240,12 @@ async function startServer() {
     // Quem: tem a Trilha 1 e assistiu ≤2 vídeos. Objetivo: fazer USAR. Sem venda.
     // REGRA: fala SÓ da Trilha 1 — 5 e-mails, um por FASE. Nada inventado
     // (conteúdo real de trilhas.ts). Boas-vindas (dia 0) já vem do n8n.
+    // TIMING (dias 2-6): concentrado ANTES do 7º dia — no 7º a Hotmart fecha a
+    // janela de reembolso. Objetivo: a pessoa usar e sentir valor antes disso.
     gratis: [
       // 1 — FASE 1: entender sua área (dia 1)
       {
-        dia: 1, ativo: true,
+        dia: 2, ativo: true,
         assunto: "Fase 1: entenda como sua área funciona",
         corpo:
           "[titulo: Comece por entender sua área]\n\n" +
@@ -1257,7 +1259,7 @@ async function startServer() {
       },
       // 2 — FASE 2: achar os problemas certos (dia 4)
       {
-        dia: 4, ativo: true,
+        dia: 3, ativo: true,
         assunto: "Fase 2: ache os problemas que valem a pena",
         corpo:
           "[titulo: Nem todo problema merece sua energia]\n\n" +
@@ -1270,7 +1272,7 @@ async function startServer() {
       },
       // 3 — FASE 3: descobrir a causa (dia 8)
       {
-        dia: 8, ativo: true,
+        dia: 4, ativo: true,
         assunto: "Fase 3: a causa real, antes de agir",
         corpo:
           "[titulo: Não corrija o sintoma. Ache a causa.]\n\n" +
@@ -1283,7 +1285,7 @@ async function startServer() {
       },
       // 4 — FASE 4: implementar a solução (dia 12)
       {
-        dia: 12, ativo: true,
+        dia: 5, ativo: true,
         assunto: "Fase 4: escolha e implemente a solução",
         corpo:
           "[titulo: Da ideia ao resultado que se mostra]\n\n" +
@@ -1296,7 +1298,7 @@ async function startServer() {
       },
       // 5 — FASE 5: comunicar com profissionalismo (dia 16)
       {
-        dia: 16, ativo: true,
+        dia: 6, ativo: true,
         assunto: "Fase 5: comunique com profissionalismo",
         corpo:
           "[titulo: Boa ideia mal comunicada não vale nada]\n\n" +
