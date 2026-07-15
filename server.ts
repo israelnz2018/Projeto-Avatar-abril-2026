@@ -1241,18 +1241,18 @@ async function startServer() {
     // REGRA: fala SÓ da Trilha 1 — não menciona o completo nem outras trilhas.
     // Dia conta a partir da compra. Boas-vindas (dia 0) já vem do n8n.
     gratis: [
-      // 1 — ATIVAÇÃO: primeiro acesso (dia 1)
+      // 1 — ATIVAÇÃO: retomar (dia 1)
       {
         dia: 1, ativo: true,
-        assunto: "Você comprou, mas ainda não começou",
+        assunto: "Sua Trilha 1 está te esperando, {nome}",
         corpo:
-          "[titulo: Falta só você começar]\n\n" +
+          "[titulo: Não deixa a Trilha 1 parada]\n\n" +
           "Oi {nome},\n\n" +
-          "Vi que a sua Trilha 1 está liberada, mas você ainda não começou. Isso é normal — a vida engole a gente. Mas deixa eu ser direto: o que você pagou só vira resultado quando você ABRE.\n\n" +
-          "Não precisa de uma tarde livre. Precisa de 15 minutos e do primeiro vídeo. Só isso hoje.\n\n" +
-          "[botao: Ver o primeiro vídeo | " + APP_URL + "]\n\n" +
+          "Sua Trilha 1 está liberada e pronta. Talvez você já tenha dado uma olhada, talvez ainda não — de qualquer forma, deixa eu ser direto: o que você pagou só vira resultado quando você mergulha de verdade.\n\n" +
+          "Não precisa de uma tarde livre. Precisa de 15 minutos e do próximo vídeo. Só isso hoje.\n\n" +
+          "[botao: Continuar minha Trilha 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Travou no acesso? Me responde este e-mail. Eu leio e resolvo com você.",
+          "P.S. Travou em algo? Me responde este e-mail. Eu leio e resolvo com você.",
       },
       // 2 — ATIVAÇÃO: primeiro resultado prático (dia 4)
       {
@@ -1272,13 +1272,13 @@ async function startServer() {
       // 3 — ATIVAÇÃO: última chamada (dia 8) — anti-reembolso por uso
       {
         dia: 8, ativo: true,
-        assunto: "Não deixa virar dinheiro jogado fora",
+        assunto: "Não deixa a Trilha 1 pela metade",
         corpo:
           "[titulo: Uma semana, e ainda dá tempo]\n\n" +
           "Oi {nome},\n\n" +
-          "Vou ser honesto, do jeito que gosto: você pagou pela Trilha 1 e ela está parada. Isso me incomoda, porque sei o que ela faz por quem usa.\n\n" +
+          "Vou ser honesto, do jeito que gosto: sei que a correria aperta, mas seria uma pena a sua Trilha 1 ficar pela metade. Sei o que ela faz por quem vai até o fim.\n\n" +
           "Não é sobre assistir vídeo. É sobre você chegar no trabalho sabendo mapear um processo, achar a causa de um problema e propor a solução — enquanto os outros ainda reclamam que falta informação.\n\n" +
-          "Falta só você começar. Hoje ainda é um bom dia.\n\n" +
+          "Falta pouco pra você tirar isso de letra. Hoje ainda é um bom dia pra avançar.\n\n" +
           "[botao: Retomar a Trilha 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
           "P.S. Se tem algo te travando — tempo, dúvida, o que for — me responde. A gente resolve.",
