@@ -1238,50 +1238,75 @@ async function startServer() {
   const SEQUENCIAS_DEFAULT: Sequencias = {
     // ── SEQUÊNCIA 1 · "Trilha 1 · novo" (ativação) ──────────────────────────
     // Quem: tem a Trilha 1 e assistiu ≤2 vídeos. Objetivo: fazer USAR. Sem venda.
-    // REGRA: fala SÓ da Trilha 1 — não menciona o completo nem outras trilhas.
-    // Dia conta a partir da compra. Boas-vindas (dia 0) já vem do n8n.
+    // REGRA: fala SÓ da Trilha 1 — 5 e-mails, um por FASE. Nada inventado
+    // (conteúdo real de trilhas.ts). Boas-vindas (dia 0) já vem do n8n.
     gratis: [
-      // 1 — ATIVAÇÃO: retomar, começar pela Fase 1 (dia 1)
+      // 1 — FASE 1: entender sua área (dia 1)
       {
         dia: 1, ativo: true,
-        assunto: "Comece pela Fase 1 da Trilha 1, {nome}",
+        assunto: "Fase 1: entenda como sua área funciona",
         corpo:
           "[titulo: Comece por entender sua área]\n\n" +
           "Oi {nome},\n\n" +
-          "Sua Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', está liberada e pronta. Deixa eu te dar um conselho pra não se perder: comece pela Fase 1.\n\n" +
-          "Na Fase 1 você aprende a entender como sua área funciona de verdade — com SIPOC, RACI, organograma e indicadores. É o mapa que faz você explicar sua área em 3 frases, coisa que a maioria não consegue nem depois de meses.\n\n" +
-          "Não precisa de uma tarde livre. 15 minutos hoje já te colocam na frente.\n\n" +
+          "Sua Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', está liberada. Comece pela Fase 1 — é a base de tudo.\n\n" +
+          "Nela você aprende a enxergar como sua área funciona de verdade, com quatro ferramentas: SIPOC (fornecedores, entradas, processo, saídas e clientes), Matriz RACI (quem é responsável, aprovador, consultado e informado), Organograma e Indicadores.\n\n" +
+          "No fim da Fase 1 você consegue explicar sua área em 3 frases — coisa que a maioria não faz nem depois de meses.\n\n" +
           "[botao: Abrir a Fase 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
           "P.S. Travou em algo? Me responde este e-mail. Eu leio e resolvo com você.",
       },
-      // 2 — ATIVAÇÃO: aplicar num caso real (dia 4)
+      // 2 — FASE 2: achar os problemas certos (dia 4)
       {
         dia: 4, ativo: true,
-        assunto: "Faça o SIPOC da sua própria área",
+        assunto: "Fase 2: ache os problemas que valem a pena",
         corpo:
-          "[titulo: Tira a Trilha 1 do vídeo e leva pro seu trabalho]\n\n" +
+          "[titulo: Nem todo problema merece sua energia]\n\n" +
           "Oi {nome},\n\n" +
-          "O que muda a sua vida não é assistir, é aplicar. E a Trilha 1 foi feita pra isso.\n\n" +
-          "Reserve 20 minutos e faça UMA coisa da Fase 1: monte o SIPOC da SUA área — fornecedores, entradas, processo, saídas e clientes. É a mesma ferramenta que eu usei na Braskem aos 26 pra entender minha área em 2 dias.\n\n" +
-          "Quando terminar, você vai enxergar a sua área de um jeito que quase ninguém no seu time enxerga. É aí que a ferramenta vira vantagem de verdade.\n\n" +
-          "[botao: Montar o SIPOC da minha área | " + APP_URL + "]\n\n" +
+          "Depois de entender sua área, vem a Fase 2: escolher em qual problema vale a pena mexer. Porque atacar o problema errado gasta seu tempo e não muda nada.\n\n" +
+          "Você aprende a transformar um incômodo vago numa Ideia de Projeto clara, e a priorizar com a Matriz GUT (Gravidade, Urgência, Tendência) e a Matriz RAB. No fim, você sabe exatamente onde colocar a sua energia primeiro.\n\n" +
+          "[botao: Abrir a Fase 2 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Fez e ficou com dúvida se está certo? Me responde com um print. Eu olho pra você.",
+          "P.S. Se ainda não terminou a Fase 1, comece por ela — a ordem importa.",
       },
-      // 3 — ATIVAÇÃO: última chamada, mostra as 5 fases (dia 8)
+      // 3 — FASE 3: descobrir a causa (dia 8)
       {
         dia: 8, ativo: true,
-        assunto: "Não deixa a Trilha 1 pela metade",
+        assunto: "Fase 3: a causa real, antes de agir",
         corpo:
-          "[titulo: São 5 fases, na ordem certa]\n\n" +
+          "[titulo: Não corrija o sintoma. Ache a causa.]\n\n" +
           "Oi {nome},\n\n" +
-          "Vou ser honesto, do jeito que gosto: sei que a correria aperta, mas seria uma pena a sua Trilha 1 ficar pela metade.\n\n" +
-          "Ela é uma sequência de 5 fases, na ordem: entender sua área (Fase 1), achar os problemas que merecem atenção (Fase 2), descobrir a causa antes de agir (Fase 3), escolher e implementar a solução (Fase 4) e se comunicar com profissionalismo (Fase 5).\n\n" +
-          "Cada fase resolve uma dor real dos seus primeiros meses numa área. Abra a fase que você está vivendo agora — e siga daí.\n\n" +
-          "[botao: Retomar a Trilha 1 | " + APP_URL + "]\n\n" +
+          "O erro mais caro no trabalho é agir no sintoma e o problema voltar. A Fase 3 te ensina a chegar na causa raiz de verdade.\n\n" +
+          "São quatro ferramentas: Mapa de Processo (pra ver onde o problema nasce), Brainstorming estruturado, Espinha de Peixe (Ishikawa) e Análise Gráfica. Com elas você para de chutar e passa a apontar a causa com segurança.\n\n" +
+          "[botao: Abrir a Fase 3 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Se tem algo te travando — tempo, dúvida, o que for — me responde. A gente resolve.",
+          "P.S. Aplica num problema real do seu trabalho enquanto faz. Gruda muito mais.",
+      },
+      // 4 — FASE 4: implementar a solução (dia 12)
+      {
+        dia: 12, ativo: true,
+        assunto: "Fase 4: escolha e implemente a solução",
+        corpo:
+          "[titulo: Da ideia ao resultado que se mostra]\n\n" +
+          "Oi {nome},\n\n" +
+          "Achou a causa? A Fase 4 é onde a melhoria acontece de verdade.\n\n" +
+          "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois — a prova concreta de que a sua melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
+          "[botao: Abrir a Fase 4 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. O Antes × Depois é o que você mostra numa avaliação. Guarde bem o seu.",
+      },
+      // 5 — FASE 5: comunicar com profissionalismo (dia 16)
+      {
+        dia: 16, ativo: true,
+        assunto: "Fase 5: comunique com profissionalismo",
+        corpo:
+          "[titulo: Boa ideia mal comunicada não vale nada]\n\n" +
+          "Oi {nome},\n\n" +
+          "Você fechou o ciclo técnico. Falta a Fase 5, a que quase ninguém ensina: como se portar e se comunicar num ambiente profissional.\n\n" +
+          "Postura, vestimenta, como conduzir uma ligação, e como usar bem Teams e Outlook sem parecer perdido. São os detalhes que separam quem sabe fazer de quem também sabe se mostrar.\n\n" +
+          "Termine a Fase 5 e você fechou a Trilha 1 inteira — do entender a área ao comunicar como profissional.\n\n" +
+          "[botao: Abrir a Fase 5 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Terminou a Trilha 1? Me responde contando o que você aplicou. Eu leio cada resposta.",
       },
     ],
     // ── SEQUÊNCIA 2 · "Trilha 1 · engajado" (venda do completo) ─────────────
