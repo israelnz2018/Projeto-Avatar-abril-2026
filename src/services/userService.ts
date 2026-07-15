@@ -44,6 +44,9 @@ export interface UserData {
   acessoCompletoAte?: string;
   /** Origem do acesso completo. "convite-reativacao" = convidado do Hostinger. */
   origemAcesso?: string;
+  /** Origem da CRIAÇÃO/compra. "compra-trilha1" = pagou Kit 90; "compra-hotmart"
+   *  = pagou completo; "gratuito-landing" = cadastro grátis antigo. */
+  origem?: string;
   empresaId?: string;
   empresaNome?: string;
   nome?: string;

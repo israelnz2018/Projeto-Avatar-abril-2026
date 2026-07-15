@@ -128,11 +128,20 @@ function getPlano(u: UserData): Plano {
  *   Pago 31/12   (completo do Hostinger / reativação)   → azul se já acessou, branco se não
  *   Coordenador  → padrão
  */
-function getBadge(u: { primeiroAcessoEm?: string; acessoCompletoAte?: string; origemAcesso?: string }, plano: Plano): { label: string; cor: string } {
+function getBadge(u: { primeiroAcessoEm?: string; acessoCompletoAte?: string; origemAcesso?: string; origem?: string }, plano: Plano): { label: string; cor: string } {
+  // Comprou o Kit 90 (R$67): o plano é "gratuito" (nível Trilha 1), mas PAGOU.
+  // Quem diz isso é a `origem`, não o `plano` — senão o comprador virava "Lead".
+  const comprouTrilha1 = String(u.origem || '').startsWith('compra');
   if (plano === 'gratuito') {
-    return u.primeiroAcessoEm
-      ? { label: 'Introdutório', cor: 'bg-yellow-100 text-yellow-800 border-yellow-300' }
-      : { label: 'Lead', cor: 'bg-red-100 text-red-700 border-red-300' };
+    if (comprouTrilha1) {
+      const d = u.acessoCompletoAte ? new Date(u.acessoCompletoAte) : null;
+      const dataFmt = d && !isNaN(d.getTime())
+        ? ` até ${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}`
+        : '';
+      return { label: `Pago · Trilha 1${dataFmt}`, cor: 'bg-green-100 text-green-700 border-green-300' };
+    }
+    // Não pagou: cortesia/convite (já acessou) ou nunca acessou.
+    return { label: 'Grátis', cor: 'bg-yellow-100 text-yellow-800 border-yellow-300' };
   }
   if (plano === 'completo') {
     const d = u.acessoCompletoAte ? new Date(u.acessoCompletoAte) : null;
@@ -144,10 +153,10 @@ function getBadge(u: { primeiroAcessoEm?: string; acessoCompletoAte?: string; or
       const cor = u.primeiroAcessoEm
         ? 'bg-blue-100 text-blue-700 border-blue-300'
         : 'bg-white text-gray-600 border-gray-300';
-      return { label: `Pago${dataFmt}`, cor };
+      return { label: `Pago · Completo${dataFmt}`, cor };
     }
     // Pago de verdade (Hotmart): verde, com a validade de 1 ano.
-    return { label: `Pago${dataFmt}`, cor: 'bg-green-100 text-green-700 border-green-300' };
+    return { label: `Pago · Completo${dataFmt}`, cor: 'bg-green-100 text-green-700 border-green-300' };
   }
   return { label: PLANO_LABEL[plano], cor: PLANO_COR[plano] };
 }
