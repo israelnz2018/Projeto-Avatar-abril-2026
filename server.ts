@@ -1253,6 +1253,7 @@ async function startServer() {
           "A Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', começa pela Fase 1 — a base de tudo.\n\n" +
           "Nela você aprende a enxergar como sua área funciona de verdade, com quatro ferramentas: SIPOC (fornecedores, entradas, processo, saídas e clientes), Matriz RACI (quem é responsável, aprovador, consultado e informado), Organograma e Indicadores.\n\n" +
           "Com a Fase 1 você consegue explicar sua área em 3 frases — coisa que a maioria não faz nem depois de meses.\n\n" +
+          "Repara no que muda: você deixa de ser mais um que 'só faz a tarefa' e passa a enxergar o quadro completo — de onde vêm as coisas, pra onde vão, quem depende de você e quais números provam que seu trabalho deu certo. Em poucos dias você fala com propriedade sobre a sua área, ganha a confiança do chefe e para de se sentir perdido no meio de tanta informação nova.\n\n" +
           "[botao: Abrir a Fase 1 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1265,6 +1266,7 @@ async function startServer() {
           "Oi {nome},\n\n" +
           "A Fase 2 da Trilha 1 é sobre escolher em qual problema vale a pena mexer. Porque atacar o problema errado gasta tempo e não muda nada.\n\n" +
           "Você aprende a transformar um incômodo vago numa Ideia de Projeto clara, e a priorizar com a Matriz GUT (Gravidade, Urgência, Tendência) e a Matriz RAB. No fim, fica claro onde colocar a energia primeiro.\n\n" +
+          "Na prática, você deixa de apagar incêndio o dia inteiro. Em vez de correr atrás de tudo ao mesmo tempo e terminar o dia exausto sem ter resolvido nada de verdade, você passa a escolher com critério a batalha que traz mais resultado. É o que separa quem vive ocupado de quem entrega resultado — e é exatamente isso que o chefe percebe e valoriza na hora de confiar em você um projeto maior.\n\n" +
           "[botao: Abrir a Fase 2 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1277,6 +1279,7 @@ async function startServer() {
           "Oi {nome},\n\n" +
           "O erro mais caro no trabalho é agir no sintoma e o problema voltar. A Fase 3 da Trilha 1 ensina a chegar na causa raiz de verdade.\n\n" +
           "São quatro ferramentas: Mapa de Processo (pra ver onde o problema nasce), Brainstorming estruturado, Espinha de Peixe (Ishikawa) e Análise Gráfica. Com elas dá pra parar de chutar e apontar a causa com segurança.\n\n" +
+          "Aí você deixa de dar 'palpite' e passa a chegar com prova. Numa reunião, enquanto os outros discutem opinião contra opinião, você mostra o caminho lógico até a causa e ninguém tem o que contestar. Além de resolver o problema de vez (e não ele voltar em duas semanas), você constrói uma reputação rara: a pessoa que analisa antes de agir. É esse tipo de gente que a empresa promove.\n\n" +
           "[botao: Abrir a Fase 3 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1289,6 +1292,7 @@ async function startServer() {
           "Oi {nome},\n\n" +
           "A Fase 4 da Trilha 1 é onde a melhoria acontece de verdade.\n\n" +
           "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois — a prova concreta de que a melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
+          "Com isso você sai do 'eu acho que melhorou' pro 'aqui está a prova, com número'. Muita gente boa trabalha duro e ninguém percebe, porque não sabe registrar e mostrar o que fez. Aqui você não só entrega o resultado — você tem o Antes × Depois na mão pra mostrar numa avaliação, numa reunião ou numa proposta de aumento. É a diferença entre ser reconhecido e ser esquecido.\n\n" +
           "[botao: Abrir a Fase 4 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1302,6 +1306,7 @@ async function startServer() {
           "A Fase 5 fecha a Trilha 1, e é a parte que quase ninguém ensina: como se portar e se comunicar num ambiente profissional.\n\n" +
           "Postura, vestimenta, como conduzir uma ligação, e como usar bem Teams e Outlook sem parecer perdido. São os detalhes que separam quem sabe fazer de quem também sabe se mostrar.\n\n" +
           "Com a Fase 5 você fecha a Trilha 1 inteira — do entender a área ao comunicar como profissional.\n\n" +
+          "Essa é a parte que mais muda como você é visto: deixar de ser o técnico competente que ninguém nota e virar o profissional que passa segurança em qualquer sala. O trabalho bem feito abre a porta, mas é a forma como você se comunica que faz você entrar. Dominar postura, tom, e-mail e reunião é o que faz um chefe pensar 'essa pessoa tem futuro aqui' — mesmo antes de você abrir a boca sobre o resultado.\n\n" +
           "[botao: Abrir a Fase 5 | " + APP_URL + "]\n\n" +
           "Israel",
       },
