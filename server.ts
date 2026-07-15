@@ -1396,7 +1396,7 @@ async function startServer() {
           "[titulo: Você tomou a decisão certa]\n\n" +
           "Oi {nome},\n\n" +
           "Aqui é o Israel. Sua formação completa está liberada, e eu queria ser o primeiro a te dar as boas-vindas pessoalmente.\n\n" +
-          "Você acabou de destravar tudo: as 6 trilhas, todas as ferramentas, as análises de dados, o certificado no final. É a jornada inteira, do entender uma empresa por dentro até liderar projetos de melhoria como um especialista sênior.\n\n" +
+          "Você acabou de destravar tudo: as 8 trilhas, todas as ferramentas, as análises de dados, o certificado no final. É a jornada inteira, do entender uma empresa por dentro até liderar projetos de melhoria como um especialista sênior.\n\n" +
           "Mas deixa eu te falar uma verdade que aprendi treinando gente em multinacional: o que separa quem transforma a carreira de quem só assiste vídeo é uma coisa só. Começar hoje, não amanhã.\n\n" +
           "Então meu pedido é simples: entra agora, dá uma volta, e faz a primeira fase da Trilha 1. São 15 minutos.\n\n" +
           "[botao: Entrar na plataforma | " + APP_URL + "]\n\n" +
@@ -1428,7 +1428,7 @@ async function startServer() {
           "Faz quase uma semana que você entrou. Queria fazer um check honesto com você.\n\n" +
           "Se você já entrou e usou uma ferramenta, você já sabe do que estou falando: aquilo destrava um jeito de pensar que não tem volta. Você começa a ver desperdício, causa raiz e oportunidade onde antes via só rotina.\n\n" +
           "E se você ainda não entrou de verdade, esse e-mail é o seu empurrão. Não deixa esse investimento virar mais uma assinatura esquecida. Ele foi feito pra te dar retorno, e o retorno começa no primeiro uso.\n\n" +
-          "Você tem uma jornada inteira pela frente, 6 trilhas que vão te levar de recém chegado a referência técnica. Mas tudo começa com você abrindo a plataforma esta semana.\n\n" +
+          "Você tem uma jornada inteira pela frente, 8 trilhas que vão te levar de recém chegado a referência técnica. Mas tudo começa com você abrindo a plataforma esta semana.\n\n" +
           "[botao: Continuar de onde parei | " + APP_URL + "]\n\n" +
           "Estou aqui pra isso dar certo pra você.\n\nIsrael\n\n" +
           "P.S. Travou em algo, achou confuso, faltou alguma coisa? Me responde. Eu quero saber, de verdade.",
