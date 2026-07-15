@@ -1230,6 +1230,7 @@ async function startServer() {
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
   // GRÁTIS (7 e-mails, dias 0/3/7/11/15/19/24): um por trilha (trilhas 2 a 8 do app).
   const APP_URL = "https://app.educacaopelotrabalho.com";
+  const COMUNIDADE_URL = "https://app.educacaopelotrabalho.com/comunidade";
   // Página de vendas (preço cheio R$ 597).
   const VENDAS_URL = "https://www.educacaopelotrabalho.com/formacao";
   // Link do desconto (R$ 400). Trocar pelo checkout/cupom da Hotmart quando existir.
@@ -1255,7 +1256,7 @@ async function startServer() {
           "No fim da Fase 1 você consegue explicar sua área em 3 frases — coisa que a maioria não faz nem depois de meses.\n\n" +
           "[botao: Abrir a Fase 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Travou em algo? Me responde este e-mail. Eu leio e resolvo com você.",
+          "P.S. Dúvida ou quer trocar ideia? Passa na Comunidade LBW — é onde alunos e eu conversamos. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
       },
       // 2 — FASE 2: achar os problemas certos (dia 4)
       {
@@ -1268,7 +1269,7 @@ async function startServer() {
           "Você aprende a transformar um incômodo vago numa Ideia de Projeto clara, e a priorizar com a Matriz GUT (Gravidade, Urgência, Tendência) e a Matriz RAB. No fim, você sabe exatamente onde colocar a sua energia primeiro.\n\n" +
           "[botao: Abrir a Fase 2 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Se ainda não terminou a Fase 1, comece por ela — a ordem importa.",
+          "P.S. Se ainda não terminou a Fase 1, comece por ela — a ordem importa. E qualquer dúvida, a Comunidade LBW está aberta. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
       },
       // 3 — FASE 3: descobrir a causa (dia 8)
       {
@@ -1281,7 +1282,7 @@ async function startServer() {
           "São quatro ferramentas: Mapa de Processo (pra ver onde o problema nasce), Brainstorming estruturado, Espinha de Peixe (Ishikawa) e Análise Gráfica. Com elas você para de chutar e passa a apontar a causa com segurança.\n\n" +
           "[botao: Abrir a Fase 3 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Aplica num problema real do seu trabalho enquanto faz. Gruda muito mais.",
+          "P.S. Aplica num problema real do seu trabalho enquanto faz. Gruda muito mais. Travou? Comenta na Comunidade LBW. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
       },
       // 4 — FASE 4: implementar a solução (dia 12)
       {
@@ -1294,7 +1295,7 @@ async function startServer() {
           "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois — a prova concreta de que a sua melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
           "[botao: Abrir a Fase 4 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. O Antes × Depois é o que você mostra numa avaliação. Guarde bem o seu.",
+          "P.S. O Antes × Depois é o que você mostra numa avaliação. Guarde bem o seu — e mostra pra gente na Comunidade LBW. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
       },
       // 5 — FASE 5: comunicar com profissionalismo (dia 16)
       {
@@ -1308,7 +1309,7 @@ async function startServer() {
           "Termine a Fase 5 e você fechou a Trilha 1 inteira — do entender a área ao comunicar como profissional.\n\n" +
           "[botao: Abrir a Fase 5 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Terminou a Trilha 1? Me responde contando o que você aplicou. Eu leio cada resposta.",
+          "P.S. Terminou a Trilha 1? Conta pra gente na Comunidade LBW o que você aplicou — adoro ver caso real de aluno. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
       },
     ],
     // ── SEQUÊNCIA 2 · "Trilha 1 · engajado" (venda do completo) ─────────────
