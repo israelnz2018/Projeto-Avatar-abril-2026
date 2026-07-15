@@ -218,52 +218,8 @@ export default function MarketingView() {
         )}
       </div>
 
-      {/* Sincronizar contatos */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 mt-5">
-        <h2 className="font-semibold text-gray-900 mb-1">2. Sincronizar contatos</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Envia todos os leads cadastrados (banco de dados) para a sua lista do Reach.
-          Contatos que já existem são ignorados — pode rodar quantas vezes quiser.
-        </p>
-        <button
-          onClick={sincronizarTodos}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-        >
-          <Users className={`w-4 h-4 ${syncing ? 'animate-pulse' : ''}`} />
-          {syncing ? 'Sincronizando… (não feche esta aba)' : 'Sincronizar todos os contatos'}
-        </button>
-
-        {result && (
-          <div className="mt-5 grid grid-cols-4 gap-3">
-            {[
-              ['Total', result.total, 'text-gray-900'],
-              ['Adicionados', result.enviados, 'text-emerald-600'],
-              ['Já existiam', result.jaExistiam, 'text-blue-600'],
-              ['Falhas', result.falhas, result.falhas > 0 ? 'text-red-600' : 'text-gray-400'],
-            ].map(([label, val, color]) => (
-              <div key={label as string} className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-                <div className={`text-2xl font-bold ${color}`}>{val as number}</div>
-                <div className="text-xs text-gray-500 mt-1">{label as string}</div>
-              </div>
-            ))}
-          </div>
-        )}
-        {result && result.erros && result.erros.length > 0 && (
-          <details className="mt-4 text-xs text-gray-500">
-            <summary className="cursor-pointer">Ver primeiras falhas ({result.erros.length})</summary>
-            <pre className="mt-2 bg-gray-50 p-3 rounded-lg overflow-auto max-h-48">{JSON.stringify(result.erros, null, 2)}</pre>
-          </details>
-        )}
-        {error && (
-          <div className="mt-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" /> {error}
-          </div>
-        )}
-      </div>
-
       {/* Conceder acesso cortesia individual (LinkedIn etc.) */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 mt-5">
+      <div className="hidden bg-white rounded-2xl border border-gray-200 p-6 mt-5">
         <h2 className="font-semibold text-gray-900 mb-1">3. Conceder acesso completo grátis (até 31/12/2026)</h2>
         <p className="text-sm text-gray-500 mb-4">
           Dê <b>acesso completo grátis</b> (válido até 31 de dezembro de 2026) para <b>uma pessoa</b> —
@@ -370,7 +326,7 @@ export default function MarketingView() {
       </div>
 
       {/* Blindar atuais — Fase 0 da Trilha 1 paga */}
-      <div className="bg-white rounded-2xl border border-amber-200 p-6 mt-5">
+      <div className="hidden bg-white rounded-2xl border border-amber-200 p-6 mt-5">
         <h2 className="font-semibold text-gray-900 mb-1">Blindar alunos atuais (Trilha 1 vira paga)</h2>
         <p className="text-sm text-gray-500 mb-4">
           Antes de tornar a Trilha 1 paga (R$67), marque quem já se cadastrou como

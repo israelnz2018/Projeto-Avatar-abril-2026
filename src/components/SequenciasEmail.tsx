@@ -58,9 +58,9 @@ interface VolumeResp {
 interface NewsletterItem { id: string; assunto: string; corpo: string; publico: string; total: number; enviados: number; falhas: number; enviadoEm: string; }
 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
-  gratis: { nome: 'Grátis', desc: 'Não pagou (cortesia / convite)', cor: '#065F46', corBg: '#D1FAE5' },
+  gratis: { nome: 'Trilha 1', desc: 'Comprou o Kit 90 Dias (Trilha 1). O dia é contado a partir do primeiro acesso.', cor: '#065F46', corBg: '#D1FAE5' },
   pago7:  { nome: 'Pago7', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
-  pago:   { nome: 'Pago', desc: 'Comprou · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
+  pago:   { nome: 'Completo', desc: 'Comprou a formação completa · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
 };
 
 // Marcações disponíveis. 'insere' é o trecho colado ao clicar.
@@ -361,7 +361,7 @@ export default function SequenciasEmail() {
 
       {/* abas */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['gratis', 'pago7', 'pago'] as Pacote[]).map((p) => (
+        {(['gratis', 'pago'] as Pacote[]).map((p) => (
           <button key={p} onClick={() => setAba(p)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === p ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             style={aba === p ? { background: p === 'gratis' ? '#10B981' : p === 'pago7' ? '#EA580C' : '#0033CC' } : {}}>
