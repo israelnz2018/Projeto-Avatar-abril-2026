@@ -1230,7 +1230,6 @@ async function startServer() {
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
   // GRÁTIS (7 e-mails, dias 0/3/7/11/15/19/24): um por trilha (trilhas 2 a 8 do app).
   const APP_URL = "https://app.educacaopelotrabalho.com";
-  const COMUNIDADE_URL = "https://app.educacaopelotrabalho.com/comunidade";
   // Página de vendas (preço cheio R$ 597).
   const VENDAS_URL = "https://www.educacaopelotrabalho.com/formacao";
   // Link do desconto (R$ 400). Trocar pelo checkout/cupom da Hotmart quando existir.
@@ -1244,72 +1243,67 @@ async function startServer() {
     // TIMING (dias 2-6): concentrado ANTES do 7º dia — no 7º a Hotmart fecha a
     // janela de reembolso. Objetivo: a pessoa usar e sentir valor antes disso.
     gratis: [
-      // 1 — FASE 1: entender sua área (dia 1)
+      // 1 — FASE 1: entender sua área (dia 2)
       {
         dia: 2, ativo: true,
         assunto: "Fase 1: entenda como sua área funciona",
         corpo:
-          "[titulo: Comece por entender sua área]\n\n" +
+          "[titulo: Fase 1 — Entenda como sua área funciona]\n\n" +
           "Oi {nome},\n\n" +
-          "Sua Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', está liberada. Comece pela Fase 1 — é a base de tudo.\n\n" +
+          "A Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', começa pela Fase 1 — a base de tudo.\n\n" +
           "Nela você aprende a enxergar como sua área funciona de verdade, com quatro ferramentas: SIPOC (fornecedores, entradas, processo, saídas e clientes), Matriz RACI (quem é responsável, aprovador, consultado e informado), Organograma e Indicadores.\n\n" +
-          "No fim da Fase 1 você consegue explicar sua área em 3 frases — coisa que a maioria não faz nem depois de meses.\n\n" +
+          "Com a Fase 1 você consegue explicar sua área em 3 frases — coisa que a maioria não faz nem depois de meses.\n\n" +
           "[botao: Abrir a Fase 1 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Dúvida ou quer trocar ideia? Passa na Comunidade LBW — é onde alunos e eu conversamos. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
+          "Israel",
       },
-      // 2 — FASE 2: achar os problemas certos (dia 4)
+      // 2 — FASE 2: achar os problemas certos (dia 3)
       {
         dia: 3, ativo: true,
         assunto: "Fase 2: ache os problemas que valem a pena",
         corpo:
-          "[titulo: Nem todo problema merece sua energia]\n\n" +
+          "[titulo: Fase 2 — Ache os problemas que merecem atenção]\n\n" +
           "Oi {nome},\n\n" +
-          "Depois de entender sua área, vem a Fase 2: escolher em qual problema vale a pena mexer. Porque atacar o problema errado gasta seu tempo e não muda nada.\n\n" +
-          "Você aprende a transformar um incômodo vago numa Ideia de Projeto clara, e a priorizar com a Matriz GUT (Gravidade, Urgência, Tendência) e a Matriz RAB. No fim, você sabe exatamente onde colocar a sua energia primeiro.\n\n" +
+          "A Fase 2 da Trilha 1 é sobre escolher em qual problema vale a pena mexer. Porque atacar o problema errado gasta tempo e não muda nada.\n\n" +
+          "Você aprende a transformar um incômodo vago numa Ideia de Projeto clara, e a priorizar com a Matriz GUT (Gravidade, Urgência, Tendência) e a Matriz RAB. No fim, fica claro onde colocar a energia primeiro.\n\n" +
           "[botao: Abrir a Fase 2 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Se ainda não terminou a Fase 1, comece por ela — a ordem importa. E qualquer dúvida, a Comunidade LBW está aberta. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
+          "Israel",
       },
-      // 3 — FASE 3: descobrir a causa (dia 8)
+      // 3 — FASE 3: descobrir a causa (dia 4)
       {
         dia: 4, ativo: true,
         assunto: "Fase 3: a causa real, antes de agir",
         corpo:
-          "[titulo: Não corrija o sintoma. Ache a causa.]\n\n" +
+          "[titulo: Fase 3 — Descubra a causa antes de agir]\n\n" +
           "Oi {nome},\n\n" +
-          "O erro mais caro no trabalho é agir no sintoma e o problema voltar. A Fase 3 te ensina a chegar na causa raiz de verdade.\n\n" +
-          "São quatro ferramentas: Mapa de Processo (pra ver onde o problema nasce), Brainstorming estruturado, Espinha de Peixe (Ishikawa) e Análise Gráfica. Com elas você para de chutar e passa a apontar a causa com segurança.\n\n" +
+          "O erro mais caro no trabalho é agir no sintoma e o problema voltar. A Fase 3 da Trilha 1 ensina a chegar na causa raiz de verdade.\n\n" +
+          "São quatro ferramentas: Mapa de Processo (pra ver onde o problema nasce), Brainstorming estruturado, Espinha de Peixe (Ishikawa) e Análise Gráfica. Com elas dá pra parar de chutar e apontar a causa com segurança.\n\n" +
           "[botao: Abrir a Fase 3 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Aplica num problema real do seu trabalho enquanto faz. Gruda muito mais. Travou? Comenta na Comunidade LBW. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
+          "Israel",
       },
-      // 4 — FASE 4: implementar a solução (dia 12)
+      // 4 — FASE 4: implementar a solução (dia 5)
       {
         dia: 5, ativo: true,
         assunto: "Fase 4: escolha e implemente a solução",
         corpo:
-          "[titulo: Da ideia ao resultado que se mostra]\n\n" +
+          "[titulo: Fase 4 — Escolha e implemente a melhor solução]\n\n" +
           "Oi {nome},\n\n" +
-          "Achou a causa? A Fase 4 é onde a melhoria acontece de verdade.\n\n" +
-          "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois — a prova concreta de que a sua melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
+          "A Fase 4 da Trilha 1 é onde a melhoria acontece de verdade.\n\n" +
+          "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois — a prova concreta de que a melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
           "[botao: Abrir a Fase 4 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. O Antes × Depois é o que você mostra numa avaliação. Guarde bem o seu — e mostra pra gente na Comunidade LBW. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
+          "Israel",
       },
-      // 5 — FASE 5: comunicar com profissionalismo (dia 16)
+      // 5 — FASE 5: comunicar com profissionalismo (dia 6)
       {
         dia: 6, ativo: true,
         assunto: "Fase 5: comunique com profissionalismo",
         corpo:
-          "[titulo: Boa ideia mal comunicada não vale nada]\n\n" +
+          "[titulo: Fase 5 — Comunique-se com profissionalismo]\n\n" +
           "Oi {nome},\n\n" +
-          "Você fechou o ciclo técnico. Falta a Fase 5, a que quase ninguém ensina: como se portar e se comunicar num ambiente profissional.\n\n" +
+          "A Fase 5 fecha a Trilha 1, e é a parte que quase ninguém ensina: como se portar e se comunicar num ambiente profissional.\n\n" +
           "Postura, vestimenta, como conduzir uma ligação, e como usar bem Teams e Outlook sem parecer perdido. São os detalhes que separam quem sabe fazer de quem também sabe se mostrar.\n\n" +
-          "Termine a Fase 5 e você fechou a Trilha 1 inteira — do entender a área ao comunicar como profissional.\n\n" +
+          "Com a Fase 5 você fecha a Trilha 1 inteira — do entender a área ao comunicar como profissional.\n\n" +
           "[botao: Abrir a Fase 5 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Terminou a Trilha 1? Conta pra gente na Comunidade LBW o que você aplicou — adoro ver caso real de aluno. [botao: Visitar a comunidade | " + COMUNIDADE_URL + "]",
+          "Israel",
       },
     ],
     // ── SEQUÊNCIA 2 · "Trilha 1 · engajado" (venda do completo) ─────────────
