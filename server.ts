@@ -1248,12 +1248,12 @@ async function startServer() {
         dia: 2, ativo: true,
         assunto: "Fase 1: entenda como sua área funciona",
         corpo:
-          "[titulo: Fase 1 — Entenda como sua área funciona]\n\n" +
+          "[titulo: Fase 1: entenda como sua área funciona]\n\n" +
           "Oi {nome},\n\n" +
-          "A Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', começa pela Fase 1 — a base de tudo.\n\n" +
+          "A Trilha 1, 'Como Gerar Resultados nos Próximos 90 Dias', começa pela Fase 1, que é a base de tudo.\n\n" +
           "Nela você aprende a enxergar como sua área funciona de verdade, com quatro ferramentas: SIPOC (fornecedores, entradas, processo, saídas e clientes), Matriz RACI (quem é responsável, aprovador, consultado e informado), Organograma e Indicadores.\n\n" +
-          "Com a Fase 1 você consegue explicar sua área em 3 frases — coisa que a maioria não faz nem depois de meses.\n\n" +
-          "Repara no que muda: você deixa de ser mais um que 'só faz a tarefa' e passa a enxergar o quadro completo — de onde vêm as coisas, pra onde vão, quem depende de você e quais números provam que seu trabalho deu certo. Em poucos dias você fala com propriedade sobre a sua área, ganha a confiança do chefe e para de se sentir perdido no meio de tanta informação nova.\n\n" +
+          "Com a Fase 1 você consegue explicar sua área em 3 frases, coisa que a maioria não faz nem depois de meses.\n\n" +
+          "Repara no que muda: você deixa de ser mais um que 'só faz a tarefa' e passa a enxergar o quadro completo, de onde vêm as coisas, pra onde vão, quem depende de você e quais números provam que seu trabalho deu certo. Em poucos dias você fala com propriedade sobre a sua área, ganha a confiança do chefe e para de se sentir perdido no meio de tanta informação nova.\n\n" +
           "[botao: Abrir a Fase 1 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1262,11 +1262,11 @@ async function startServer() {
         dia: 3, ativo: true,
         assunto: "Fase 2: ache os problemas que valem a pena",
         corpo:
-          "[titulo: Fase 2 — Ache os problemas que merecem atenção]\n\n" +
+          "[titulo: Fase 2: ache os problemas que merecem atenção]\n\n" +
           "Oi {nome},\n\n" +
           "A Fase 2 da Trilha 1 é sobre escolher em qual problema vale a pena mexer. Porque atacar o problema errado gasta tempo e não muda nada.\n\n" +
           "Você aprende a transformar um incômodo vago numa Ideia de Projeto clara, e a priorizar com a Matriz GUT (Gravidade, Urgência, Tendência) e a Matriz RAB. No fim, fica claro onde colocar a energia primeiro.\n\n" +
-          "Na prática, você deixa de apagar incêndio o dia inteiro. Em vez de correr atrás de tudo ao mesmo tempo e terminar o dia exausto sem ter resolvido nada de verdade, você passa a escolher com critério a batalha que traz mais resultado. É o que separa quem vive ocupado de quem entrega resultado — e é exatamente isso que o chefe percebe e valoriza na hora de confiar em você um projeto maior.\n\n" +
+          "Na prática, você deixa de apagar incêndio o dia inteiro. Em vez de correr atrás de tudo ao mesmo tempo e terminar o dia exausto sem ter resolvido nada de verdade, você passa a escolher com critério a batalha que traz mais resultado. É o que separa quem vive ocupado de quem entrega resultado, e é exatamente isso que o chefe percebe e valoriza na hora de confiar em você um projeto maior.\n\n" +
           "[botao: Abrir a Fase 2 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1275,7 +1275,7 @@ async function startServer() {
         dia: 4, ativo: true,
         assunto: "Fase 3: a causa real, antes de agir",
         corpo:
-          "[titulo: Fase 3 — Descubra a causa antes de agir]\n\n" +
+          "[titulo: Fase 3: descubra a causa antes de agir]\n\n" +
           "Oi {nome},\n\n" +
           "O erro mais caro no trabalho é agir no sintoma e o problema voltar. A Fase 3 da Trilha 1 ensina a chegar na causa raiz de verdade.\n\n" +
           "São quatro ferramentas: Mapa de Processo (pra ver onde o problema nasce), Brainstorming estruturado, Espinha de Peixe (Ishikawa) e Análise Gráfica. Com elas dá pra parar de chutar e apontar a causa com segurança.\n\n" +
@@ -1288,11 +1288,11 @@ async function startServer() {
         dia: 5, ativo: true,
         assunto: "Fase 4: escolha e implemente a solução",
         corpo:
-          "[titulo: Fase 4 — Escolha e implemente a melhor solução]\n\n" +
+          "[titulo: Fase 4: escolha e implemente a melhor solução]\n\n" +
           "Oi {nome},\n\n" +
           "A Fase 4 da Trilha 1 é onde a melhoria acontece de verdade.\n\n" +
-          "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois — a prova concreta de que a melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
-          "Com isso você sai do 'eu acho que melhorou' pro 'aqui está a prova, com número'. Muita gente boa trabalha duro e ninguém percebe, porque não sabe registrar e mostrar o que fez. Aqui você não só entrega o resultado — você tem o Antes × Depois na mão pra mostrar numa avaliação, numa reunião ou numa proposta de aumento. É a diferença entre ser reconhecido e ser esquecido.\n\n" +
+          "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois, a prova concreta de que a melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
+          "Com isso você sai do 'eu acho que melhorou' pro 'aqui está a prova, com número'. Muita gente boa trabalha duro e ninguém percebe, porque não sabe registrar e mostrar o que fez. Aqui você não só entrega o resultado: tem o Antes × Depois na mão pra mostrar numa avaliação, numa reunião ou numa proposta de aumento. É a diferença entre ser reconhecido e ser esquecido.\n\n" +
           "[botao: Abrir a Fase 4 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1301,12 +1301,12 @@ async function startServer() {
         dia: 6, ativo: true,
         assunto: "Fase 5: comunique com profissionalismo",
         corpo:
-          "[titulo: Fase 5 — Comunique-se com profissionalismo]\n\n" +
+          "[titulo: Fase 5: comunique-se com profissionalismo]\n\n" +
           "Oi {nome},\n\n" +
           "A Fase 5 fecha a Trilha 1, e é a parte que quase ninguém ensina: como se portar e se comunicar num ambiente profissional.\n\n" +
           "Postura, vestimenta, como conduzir uma ligação, e como usar bem Teams e Outlook sem parecer perdido. São os detalhes que separam quem sabe fazer de quem também sabe se mostrar.\n\n" +
-          "Com a Fase 5 você fecha a Trilha 1 inteira — do entender a área ao comunicar como profissional.\n\n" +
-          "Essa é a parte que mais muda como você é visto: deixar de ser o técnico competente que ninguém nota e virar o profissional que passa segurança em qualquer sala. O trabalho bem feito abre a porta, mas é a forma como você se comunica que faz você entrar. Dominar postura, tom, e-mail e reunião é o que faz um chefe pensar 'essa pessoa tem futuro aqui' — mesmo antes de você abrir a boca sobre o resultado.\n\n" +
+          "Com a Fase 5 você fecha a Trilha 1 inteira, do entender a área ao comunicar como profissional.\n\n" +
+          "Essa é a parte que mais muda como você é visto: deixar de ser o técnico competente que ninguém nota e virar o profissional que passa segurança em qualquer sala. O trabalho bem feito abre a porta, mas é a forma como você se comunica que faz você entrar. Dominar postura, tom, e-mail e reunião é o que faz um chefe pensar 'essa pessoa tem futuro aqui', mesmo antes de você abrir a boca sobre o resultado.\n\n" +
           "[botao: Abrir a Fase 5 | " + APP_URL + "]\n\n" +
           "Israel",
       },
@@ -1324,7 +1324,7 @@ async function startServer() {
           "[titulo: Você viu a ponta do iceberg]\n\n" +
           "Oi {nome},\n\n" +
           "Você não só comprou a Trilha 1. Você entrou, assistiu, começou a aplicar. Isso já te separa de 9 em cada 10 pessoas.\n\n" +
-          "Então deixa eu te contar uma verdade: o que você tem em mãos é a ponta do iceberg. A Trilha 1 te mostra como chegar numa área e entender. As outras 7 trilhas são onde a virada de verdade acontece — do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
+          "Então deixa eu te contar uma verdade: o que você tem em mãos é a ponta do iceberg. A Trilha 1 te mostra como chegar numa área e entender. As outras 7 trilhas são onde a virada de verdade acontece, do básico ao nível de quem senta na mesa de decisão e é ouvido.\n\n" +
           "Não precisa decidir nada hoje. Continue usando o que é seu. Só quero que você saiba que existe um caminho inteiro à sua frente.\n\n" +
           "[botao: Conhecer a formação completa | " + VENDAS_URL + "]\n\n" +
           "Israel",
@@ -1392,7 +1392,7 @@ async function startServer() {
         corpo:
           "[titulo: Uma condição que não abro pra quem chega de fora]\n\n" +
           "Oi {nome},\n\n" +
-          "Você já é aluno LBW. Entrou, usou a plataforma, acompanhou meus e-mails. Isso me diz que você leva a sério o seu crescimento — e eu quero reconhecer isso.\n\n" +
+          "Você já é aluno LBW. Entrou, usou a plataforma, acompanhou meus e-mails. Isso me diz que você leva a sério o seu crescimento, e eu quero reconhecer isso.\n\n" +
           "Por isso posso te fazer uma condição que não abro pra quem chega de fora: a formação completa, que sai por R$ 597, sai pra você por R$ 400. São R$ 197 de desconto, de aluno pra aluno.\n\n" +
           "Mas preciso ser justo com quem paga o valor cheio, então essa condição vale só por 48 horas. Depois disso, o preço volta ao normal.\n\n" +
           "Se você já pensava em dar esse passo, essa é a hora certa.\n\n" +
@@ -1480,7 +1480,7 @@ async function startServer() {
         dia: 13, ativo: true,
         assunto: "Resolver problema sem depender de Excel",
         corpo:
-          "[titulo: Trilha 2 — o método que funciona sem dado]\n\n" +
+          "[titulo: Trilha 2: o método que funciona sem dado]\n\n" +
           "Oi {nome},\n\n" +
           "Tem um tipo de problema no trabalho que ninguém resolve porque todo mundo trava esperando ter dado, ter planilha, ter número. E o problema fica lá, apodrecendo.\n\n" +
           "A Trilha 2 te ensina a resolver mesmo sem nada disso. Brainstorming estruturado, Ishikawa pra achar a causa raiz, os 5 Porquês, Esforço x Impacto pra decidir onde mexer primeiro, e o 5W2H pra virar plano de ação.\n\n" +
@@ -1494,7 +1494,7 @@ async function startServer() {
         dia: 20, ativo: true,
         assunto: "Decidir com dados, sem programar nada",
         corpo:
-          "[titulo: Trilha 3 — dado vira decisão, sem virar programador]\n\n" +
+          "[titulo: Trilha 3: dado vira decisão, sem virar programador]\n\n" +
           "Oi {nome},\n\n" +
           "Muita gente boa fica pra trás porque acha que trabalhar com dados é coisa de quem programa. Não é.\n\n" +
           "Na Trilha 3 você aprende a transformar uma pilha de números numa decisão clara, sem escrever uma linha de código. Pareto pra achar o que importa, Histograma, Tendência, Dispersão, Box Plot. Tudo dentro da plataforma, é só preencher.\n\n" +
@@ -1508,7 +1508,7 @@ async function startServer() {
         dia: 27, ativo: true,
         assunto: "A estatística que assusta (e não devia)",
         corpo:
-          "[titulo: Trilha 4 — a parte que separa amador de profissional]\n\n" +
+          "[titulo: Trilha 4: a parte que separa amador de profissional]\n\n" +
           "Oi {nome},\n\n" +
           "Vou ser sincero: a Trilha 4 é a que mais assusta no papel. Controle estatístico de processo, capacidade (Cp, Cpk), testes de hipótese, ANOVA, regressão. Nomes que fazem gente fugir.\n\n" +
           "Mas aqui está o segredo: você não precisa ser matemático. A plataforma faz a conta. O que você aprende é o que cada uma significa e quando usar. E isso, poucos dominam.\n\n" +
@@ -1523,7 +1523,7 @@ async function startServer() {
         dia: 34, ativo: true,
         assunto: "Ter razão não basta. Precisa convencer",
         corpo:
-          "[titulo: Trilha 5 — influenciar sem ter o cargo]\n\n" +
+          "[titulo: Trilha 5: influenciar sem ter o cargo]\n\n" +
           "Oi {nome},\n\n" +
           "Vou te contar o erro que quase todo técnico bom comete: acha que ter razão é suficiente. Chega com a análise perfeita, os dados certos, e mesmo assim ninguém se move.\n\n" +
           "Porque decisão, na prática, é gente. E gente se move por confiança, por história bem contada, por sentir que faz parte da mudança, não por planilha.\n\n" +
@@ -1538,7 +1538,7 @@ async function startServer() {
         dia: 41, ativo: true,
         assunto: "A última trilha é onde você vira referência",
         corpo:
-          "[titulo: Trilha 6 — o topo da jornada]\n\n" +
+          "[titulo: Trilha 6: o topo da jornada]\n\n" +
           "Oi {nome},\n\n" +
           "Você chegou na trilha que resume tudo. A Trilha 6 é onde você deixa de ser quem usa ferramenta e vira quem lidera projetos de melhoria inteiros, do começo ao fim.\n\n" +
           "Gestão de projetos no padrão PMI, FMEA pra antecipar risco, registro de riscos, charter, cronograma de 12 a 18 meses, e como coordenar um programa de excelência operacional numa empresa.\n\n" +
