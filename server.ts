@@ -1597,10 +1597,17 @@ async function startServer() {
     return SEQUENCIAS_DEFAULT;
   }
 
+  // Conta dias por DATA DE CALENDÁRIO (UTC), não por 24h exatas. Assim, virou o
+  // dia seguinte à régua = conta +1, independente da HORA que a régua começou ou
+  // que o motor roda. Sem isto, uma régua que começa 08:10 e um motor que roda
+  // 06:38 fazem cada e-mail atrasar 1 dia (o "dia" só fecha 24h depois, tarde
+  // demais pro ciclo daquela manhã).
   function diasDesde(iso: string): number {
     const t = Date.parse(iso);
     if (isNaN(t)) return -1;
-    return Math.floor((Date.now() - t) / (24 * 3600 * 1000));
+    const diaRegua = Math.floor(t / (24 * 3600 * 1000));      // nº do dia (epoch/dia) da régua
+    const diaHoje = Math.floor(Date.now() / (24 * 3600 * 1000)); // nº do dia de hoje
+    return diaHoje - diaRegua;
   }
 
   // Classificação "de negócio" — usada na tela (contagem/engajamento). Trata
