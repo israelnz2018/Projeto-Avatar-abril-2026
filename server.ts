@@ -1597,17 +1597,25 @@ async function startServer() {
     return SEQUENCIAS_DEFAULT;
   }
 
-  // Conta dias por DATA DE CALENDÁRIO (UTC), não por 24h exatas. Assim, virou o
-  // dia seguinte à régua = conta +1, independente da HORA que a régua começou ou
-  // que o motor roda. Sem isto, uma régua que começa 08:10 e um motor que roda
-  // 06:38 fazem cada e-mail atrasar 1 dia (o "dia" só fecha 24h depois, tarde
-  // demais pro ciclo daquela manhã).
+  // Nº do dia de calendário no fuso da NOVA ZELÂNDIA (dias desde a epoch, na TZ NZ).
+  // Usado pra contar a régua no MESMO fuso em que o motor dispara (23:59 NZ), pra
+  // "1 disparo diário = +1 dia = 1 e-mail", sem descompasso de fuso.
+  function diaCalendarioNZ(ms: number): number {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Pacific/Auckland", year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    const p: Record<string, string> = {};
+    for (const part of fmt.formatToParts(new Date(ms))) p[part.type] = part.value;
+    // usa Date.UTC só pra transformar a data-calendário NZ num nº de dia estável
+    return Math.floor(Date.UTC(+p.year, +p.month - 1, +p.day) / (24 * 3600 * 1000));
+  }
+  // Dias de calendário (fuso NZ) entre a régua e hoje. Virou o dia na NZ = +1,
+  // independente da HORA que a régua começou. Corrige o atraso de 1 dia que
+  // existia quando se contava 24h exatas.
   function diasDesde(iso: string): number {
     const t = Date.parse(iso);
     if (isNaN(t)) return -1;
-    const diaRegua = Math.floor(t / (24 * 3600 * 1000));      // nº do dia (epoch/dia) da régua
-    const diaHoje = Math.floor(Date.now() / (24 * 3600 * 1000)); // nº do dia de hoje
-    return diaHoje - diaRegua;
+    return diaCalendarioNZ(Date.now()) - diaCalendarioNZ(t);
   }
 
   // Classificação "de negócio" — usada na tela (contagem/engajamento). Trata
@@ -2035,17 +2043,32 @@ async function startServer() {
   if (!MOTOR_ATIVO) {
     console.warn("[motor-email] DESLIGADO (padrão) — nenhum envio automático. Setar MOTOR_EMAIL_ATIVO=true pra religar.");
   }
+  // Agendador no fuso da NOVA ZELÂNDIA (Pacific/Auckland). Dispara 1x/dia às
+  // ~23:59 horário local NZ (trata horário de verão sozinho via Intl). Checa a
+  // cada 10 min; quando a hora local NZ é 23 e ainda não rodou HOJE (dia NZ),
+  // dispara. O "dia" é a data de calendário na NZ, pra não repetir nem pular.
+  const TZ_NZ = "Pacific/Auckland";
+  function partesNZ(): { dia: string; hora: number } {
+    // pega data/hora "agora" já convertida pro fuso da NZ
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: TZ_NZ, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", hour12: false,
+    });
+    const p: Record<string, string> = {};
+    for (const part of fmt.formatToParts(new Date())) p[part.type] = part.value;
+    return { dia: `${p.year}-${p.month}-${p.day}`, hora: parseInt(p.hour, 10) || 0 };
+  }
   let ultimoDiaProcessado = "";
-  const HORA_ALVO = 6;
+  const HORA_ALVO_NZ = 23; // 23h NZ (a checagem de 10 min pega ~23:59)
   setInterval(() => {
     if (!MOTOR_ATIVO) return; // motor desligado por padrão: não dispara nada
-    const agora = new Date();
-    const diaHoje = agora.toISOString().slice(0, 10);
-    if (agora.getHours() >= HORA_ALVO && ultimoDiaProcessado !== diaHoje) {
-      ultimoDiaProcessado = diaHoje;
+    const { dia, hora } = partesNZ();
+    if (hora >= HORA_ALVO_NZ && ultimoDiaProcessado !== dia) {
+      ultimoDiaProcessado = dia;
+      console.log(`[motor-email] disparando ciclo diário (${dia} 23h NZ)`);
       processarEnviosDiarios().catch((e) => console.error("[motor-email] erro no ciclo agendado:", e?.message || e));
     }
-  }, 60 * 60 * 1000); // a cada hora
+  }, 10 * 60 * 1000); // a cada 10 minutos
 
   // ===============================================================
   // NEWSLETTER (pacote Pago) — envio manual + histórico pra reenviar
