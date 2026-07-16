@@ -1469,114 +1469,122 @@ async function startServer() {
           "P.S. Travou em algo, achou confuso, faltou alguma coisa? Me responde. Eu quero saber, de verdade.",
       },
     ],
-    // PAGO (7 e-mails, dias 13→55) — comprador que já passou dos 7 dias (fora do risco
-    // de reembolso). Estes são os e-mails de ROTINA: o início do ritmo semanal que segue
-    // pra sempre. Uma trilha por semana + certificado + fechamento. Os dias contam a partir
-    // da COMPRA (criadoEm). Quando os 7 acabam, dá pra ir acrescentando novos semanais aqui
-    // (ou a newsletter manual assume). É a base da comunicação contínua com quem pagou.
+    // PAGO (8 e-mails, dias 13→62) — comprador do completo que já passou dos 7 dias.
+    // Ritmo semanal: UM e-mail por trilha (Trilha 1 a 8), pra ir revelando a jornada
+    // inteira. Os dias contam a partir da COMPRA (criadoEm). Sem travessões, tom
+    // Carta do Israel. Conteúdo por trilha definido pelo Israel (17/jul/2026).
     pago: [
-      // 1 — TRILHA 2 (dia 13) — início do ritmo semanal
+      // 1 — TRILHA 1: melhoria no dia a dia (entender > achar > resolver)
       {
         dia: 13, ativo: true,
-        assunto: "Resolver problema sem depender de Excel",
+        assunto: "O ciclo que resolve qualquer problema",
         corpo:
-          "[titulo: Trilha 2: o método que funciona sem dado]\n\n" +
+          "[titulo: Trilha 1: gerar melhoria no dia a dia]\n\n" +
           "Oi {nome},\n\n" +
-          "Tem um tipo de problema no trabalho que ninguém resolve porque todo mundo trava esperando ter dado, ter planilha, ter número. E o problema fica lá, apodrecendo.\n\n" +
-          "A Trilha 2 te ensina a resolver mesmo sem nada disso. Brainstorming estruturado, Ishikawa pra achar a causa raiz, os 5 Porquês, Esforço x Impacto pra decidir onde mexer primeiro, e o 5W2H pra virar plano de ação.\n\n" +
-          "É a caixa de ferramentas que faz você ser a pessoa que resolve, enquanto os outros ainda estão reclamando que falta informação.\n\n" +
-          "[botao: Começar a Trilha 2 | " + APP_URL + "]\n\n" +
+          "Você já começou pela Trilha 1, e ela é a base de tudo o que vem depois. Vale relembrar o poder dela.\n\n" +
+          "O que a Trilha 1 te dá é um jeito de gerar melhoria no dia a dia seguindo um fluxo simples e infalível: primeiro entender como sua área funciona, depois achar o problema que realmente merece atenção, e por fim resolver esse problema de verdade.\n\n" +
+          "Parece óbvio, mas quase ninguém faz nessa ordem. É essa sequência que separa quem vive apagando incêndio de quem entrega resultado que aparece.\n\n" +
+          "[botao: Revisar a Trilha 1 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Aplica num problema real do seu trabalho enquanto faz. Aprender fazendo gruda de um jeito que só assistir nunca vai grudar.",
+          "P.S. Toda vez que bater um problema no trabalho, lembra do fluxo: entender, achar, resolver. Funciona sempre.",
       },
-      // 2 — TRILHA 3 (dia 20)
+      // 2 — TRILHA 2: dados geram insights e recomendações (trabalho de analista)
       {
         dia: 20, ativo: true,
-        assunto: "Decidir com dados, sem programar nada",
+        assunto: "Vire o analista de dados da sua área",
         corpo:
-          "[titulo: Trilha 3: dado vira decisão, sem virar programador]\n\n" +
+          "[titulo: Trilha 2: insights e recomendações só com dados]\n\n" +
           "Oi {nome},\n\n" +
-          "Muita gente boa fica pra trás porque acha que trabalhar com dados é coisa de quem programa. Não é.\n\n" +
-          "Na Trilha 3 você aprende a transformar uma pilha de números numa decisão clara, sem escrever uma linha de código. Pareto pra achar o que importa, Histograma, Tendência, Dispersão, Box Plot. Tudo dentro da plataforma, é só preencher.\n\n" +
-          "Mas o mais importante vem antes do gráfico: qual é A PERGUNTA que você quer responder. Gente que domina isso para de fazer gráfico bonito e inútil, e começa a mostrar conclusão que o chefe respeita.\n\n" +
-          "[botao: Começar a Trilha 3 | " + APP_URL + "]\n\n" +
+          "Tem um tipo de valor que você gera sem precisar de projeto nenhum: olhar pros dados que já existem e tirar deles insights e recomendações que ninguém mais viu.\n\n" +
+          "É exatamente o que faz um analista de dados, e a Trilha 2 te ensina a fazer o mesmo, sem programar. Você pega os números da sua área, encontra o padrão, e chega com uma recomendação embasada em vez de achismo.\n\n" +
+          "É um trabalho muito parecido com o de quem ganha bem pra analisar dados, só que aplicado direto no seu contexto e no seu problema.\n\n" +
+          "[botao: Começar a Trilha 2 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Essa é a trilha que faz você chegar numa reunião e falar com autoridade, com o número na mão.",
+          "P.S. Não precisa de um projeto formal. Um bom insight tirado dos dados certos já muda como te enxergam.",
       },
-      // 3 — TRILHA 4 (dia 27) — desmistificar a parte hardcore
+      // 3 — TRILHA 3: mudanças (ADKAR + ferramenta de acompanhamento por fases)
       {
         dia: 27, ativo: true,
-        assunto: "A estatística que assusta (e não devia)",
-        corpo:
-          "[titulo: Trilha 4: a parte que separa amador de profissional]\n\n" +
-          "Oi {nome},\n\n" +
-          "Vou ser sincero: a Trilha 4 é a que mais assusta no papel. Controle estatístico de processo, capacidade (Cp, Cpk), testes de hipótese, ANOVA, regressão. Nomes que fazem gente fugir.\n\n" +
-          "Mas aqui está o segredo: você não precisa ser matemático. A plataforma faz a conta. O que você aprende é o que cada uma significa e quando usar. E isso, poucos dominam.\n\n" +
-          "Quem passa por essa trilha ganha uma coisa rara no mercado: consegue provar, com rigor, que uma melhoria funcionou de verdade e não foi sorte. É o que te coloca num outro nível de conversa.\n\n" +
-          "Vai com calma, uma ferramenta de cada vez. Do outro lado você sai diferente.\n\n" +
-          "[botao: Encarar a Trilha 4 | " + APP_URL + "]\n\n" +
-          "Israel\n\n" +
-          "P.S. Empacou em algum conceito? Me responde. Já expliquei isso pra muita gente que achava que não era capaz, e era.",
-      },
-      // 4 — TRILHA 5 (dia 34) — parte humana
-      {
-        dia: 34, ativo: true,
         assunto: "Ter razão não basta. Precisa convencer",
         corpo:
-          "[titulo: Trilha 5: influenciar sem ter o cargo]\n\n" +
+          "[titulo: Trilha 3: conduzir mudança de verdade]\n\n" +
           "Oi {nome},\n\n" +
-          "Vou te contar o erro que quase todo técnico bom comete: acha que ter razão é suficiente. Chega com a análise perfeita, os dados certos, e mesmo assim ninguém se move.\n\n" +
-          "Porque decisão, na prática, é gente. E gente se move por confiança, por história bem contada, por sentir que faz parte da mudança, não por planilha.\n\n" +
-          "A Trilha 5 te ensina essa parte que faculdade nenhuma ensina: o método ADKAR pra conduzir mudança, mapear quem decide, contar a história com o SCQA, apresentar pra diretoria e influenciar mesmo sem ter autoridade formal.\n\n" +
-          "É o que faz sua ideia sair da sua cabeça e virar decisão da empresa.\n\n" +
-          "[botao: Começar a Trilha 5 | " + APP_URL + "]\n\n" +
+          "A melhor recomendação do mundo não vale nada se as pessoas não embarcam nela. É aí que quase todo bom técnico trava.\n\n" +
+          "A Trilha 3 te ensina o método ADKAR pra conduzir mudança, e o melhor: dentro da plataforma você tem uma ferramenta que acompanha cada mudança por fases, mostrando onde cada pessoa está no processo de aceitar aquilo.\n\n" +
+          "Isso é o que faz a diferença entre empurrar uma ideia goela abaixo e realmente convencer as pessoas a irem junto. Convencer gente é uma habilidade, e essa trilha te dá o mapa.\n\n" +
+          "[botao: Começar a Trilha 3 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Essa trilha muda como você é visto no trabalho. De 'o cara técnico' pra 'a pessoa que faz acontecer'.",
+          "P.S. Acompanhar a mudança por fases muda tudo. Você para de adivinhar e passa a saber quem já está com você.",
       },
-      // 5 — TRILHA 6 (dia 41) — o topo
+      // 4 — TRILHA 4: apresentações (essencial pra conversar com liderança)
+      {
+        dia: 34, ativo: true,
+        assunto: "Sem apresentação, sua ideia morre na mesa",
+        corpo:
+          "[titulo: Trilha 4: apresentar pra liderança]\n\n" +
+          "Oi {nome},\n\n" +
+          "Existe uma verdade dura do mundo corporativo: a decisão passa pela liderança, e a liderança decide pelo que vê numa apresentação. Não pelo trabalho que você fez escondido.\n\n" +
+          "A Trilha 4 te ensina a apresentar de um jeito que convence, e ela é essencial em dois momentos: na hora de defender qual projeto de melhoria vale a pena atacar, e na hora de aprovar as recomendações que saíram da sua análise.\n\n" +
+          "É o que garante que o seu trabalho técnico não fique preso na sua gaveta, e sim vire decisão aprovada lá em cima.\n\n" +
+          "[botao: Começar a Trilha 4 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Você pode ter a melhor análise da empresa. Se não souber apresentar, alguém pior que você leva o crédito.",
+      },
+      // 5 — TRILHA 5: PMI riscos (subjetivo) + FMEA (objetivo/técnico)
       {
         dia: 41, ativo: true,
-        assunto: "A última trilha é onde você vira referência",
+        assunto: "Antecipe o problema antes dele acontecer",
         corpo:
-          "[titulo: Trilha 6: o topo da jornada]\n\n" +
+          "[titulo: Trilha 5: riscos, do PMI ao FMEA]\n\n" +
           "Oi {nome},\n\n" +
-          "Você chegou na trilha que resume tudo. A Trilha 6 é onde você deixa de ser quem usa ferramenta e vira quem lidera projetos de melhoria inteiros, do começo ao fim.\n\n" +
-          "Gestão de projetos no padrão PMI, FMEA pra antecipar risco, registro de riscos, charter, cronograma de 12 a 18 meses, e como coordenar um programa de excelência operacional numa empresa.\n\n" +
-          "É o nível de quem uma empresa chama pra resolver o problema que ninguém mais consegue. O especialista sênior que anda pela organização inteira e deixa resultado por onde passa. Foi o que eu construí na minha carreira, e é exatamente isso que essa trilha entrega pra você.\n\n" +
-          "Quando você fechar essa, você não vai ser mais o mesmo profissional que começou lá na Trilha 1.\n\n" +
-          "[botao: Chegar ao topo | " + APP_URL + "]\n\n" +
+          "Quem só corre atrás de problema depois que ele explode sempre vai estar atrasado. A Trilha 5 te ensina a enxergar o risco antes.\n\n" +
+          "Ela cobre dois lados. De um lado, as boas práticas de risco do PMI, mais amplas e um pouco mais subjetivas, pra você pensar risco em qualquer projeto. Do outro, o FMEA, que é mais objetivo e técnico: uma forma estruturada de listar o que pode dar errado, o quanto é grave, e o que fazer antes.\n\n" +
+          "Juntas, essas duas visões te dão algo raro: a capacidade de prever o problema e agir antes que ele custe caro.\n\n" +
+          "[botao: Começar a Trilha 5 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Termina essa trilha e você libera o certificado. E ele vale, porque atrás dele tem competência de verdade.",
+          "P.S. FMEA parece burocrático até você evitar o primeiro desastre com ele. Aí você não larga mais.",
       },
-      // 6 — CERTIFICADO / PROVA DE COMPETÊNCIA (dia 48)
+      // 6 — TRILHA 6: Lean / TPS / Muda, Mura, Muri
       {
         dia: 48, ativo: true,
-        assunto: "Seu certificado (e como fazer ele valer)",
+        assunto: "A cultura que o mundo inteiro copia da Toyota",
         corpo:
-          "[titulo: Transforme o que aprendeu em oportunidade]\n\n" +
+          "[titulo: Trilha 6: cultura Lean]\n\n" +
           "Oi {nome},\n\n" +
-          "Se você chegou até aqui na jornada, precisa saber uma coisa: o certificado é a parte fácil. O que importa é o que ele representa, competência que você consegue provar.\n\n" +
-          "Então deixa eu te dar um plano prático pra transformar isso em carreira:\n\n" +
-          "Coloque a formação no seu LinkedIn, com uma frase concreta do que você sabe fazer agora. Não 'fiz um curso', e sim 'sei mapear processos, achar causa raiz e provar melhoria com dados'.\n\n" +
-          "Numa entrevista ou conversa com o chefe, não diga que estudou. Mostre um projeto que você fez na plataforma com um problema real. Prova sempre vence promessa.\n\n" +
-          "Você não tem só um certificado. Você tem um portfólio de coisas que resolveu. Use isso.\n\n" +
-          "[botao: Ver minha jornada | " + APP_URL + "]\n\n" +
+          "Tem uma forma de pensar que nasceu na Toyota e hoje empresas do mundo inteiro estão adotando: o Lean, o Sistema Toyota de Produção.\n\n" +
+          "A Trilha 6 te ensina a enxergar e eliminar os três inimigos da eficiência: Muda (o desperdício), Mura (a irregularidade) e Muri (a sobrecarga). Depois que você aprende a ver isso, não desliga mais: começa a enxergar desperdício em todo processo por onde passa.\n\n" +
+          "Não é teoria japonesa distante. É uma cultura prática que as melhores empresas estão adorando justamente porque funciona, e quem domina isso vira peça valiosa em qualquer operação.\n\n" +
+          "[botao: Começar a Trilha 6 | " + APP_URL + "]\n\n" +
           "Israel\n\n" +
-          "P.S. Terminou tudo e quer que eu dê uma olhada em como você está se posicionando? Me responde. Fico feliz em ajudar.",
+          "P.S. Muda, Mura e Muri. Depois dessa trilha, você vai reparar nos três no seu trabalho já na primeira semana.",
       },
-      // 7 — FECHAMENTO / RELACIONAMENTO (dia 55)
+      // 7 — TRILHA 7: estatística (hipótese, regressão, MSA, SPC, capabilidade)
       {
         dia: 55, ativo: true,
-        assunto: "{nome}, como foi a sua jornada?",
+        assunto: "A estatística que prova que você tem razão",
         corpo:
-          "[titulo: Uma conversa, de pessoa pra pessoa]\n\n" +
+          "[titulo: Trilha 7: estatística aplicada]\n\n" +
           "Oi {nome},\n\n" +
-          "Faz umas semanas que você começou, e eu queria fechar essa série do jeito que ela merece: com uma conversa de verdade, não com mais um e-mail automático.\n\n" +
-          "Me conta como foi. O que você aplicou no trabalho? Teve algum resultado, alguma reunião que mudou, algum problema que você resolveu e teria travado antes? Eu leio cada resposta, e casos reais de aluno são o que mais me motiva a melhorar isso tudo.\n\n" +
-          "E se ainda tem trilha que você não terminou, sem culpa. A plataforma é sua, ela vai estar lá quando você voltar. O importante é que essa não é a última parada, é o começo de uma carreira em que você é a referência técnica, não mais quem corre atrás.\n\n" +
-          "[botao: Voltar pra plataforma | " + APP_URL + "]\n\n" +
-          "Obrigado por confiar em mim nessa jornada. De verdade.\n\nIsrael\n\n" +
-          "P.S. Se essa formação te ajudou, me responde contando. E se conhece alguém que precisa disso, me avisa que eu cuido bem de quem você indicar.",
+          "Essa é a trilha que te dá o rigor que poucos têm. Um arsenal de ferramentas estatísticas prontas pra usar: teste de hipótese, regressão, estatística básica, MSA, SPC, capabilidade (Cp, Cpk) e mais.\n\n" +
+          "E o melhor é a flexibilidade. Você pode fazer um estudo pontual, só pra responder uma pergunta específica com dados de verdade. Ou pode encaixar essas ferramentas dentro das análises de um projeto de melhoria maior, pra provar cada passo com número.\n\n" +
+          "A plataforma faz a conta pra você. O que você ganha é a capacidade de dizer 'isso funciona, e eu provo' em vez de 'eu acho que funciona'.\n\n" +
+          "[botao: Começar a Trilha 7 | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Não precisa ser matemático. Precisa saber qual ferramenta usar e o que o resultado quer dizer. É isso que a trilha entrega.",
+      },
+      // 8 — TRILHA 8: especialista em solução de problemas (o completo, futuro consultoria)
+      {
+        dia: 62, ativo: true,
+        assunto: "O especialista que resolve o que ninguém resolve",
+        corpo:
+          "[titulo: Trilha 8: vire o especialista completo]\n\n" +
+          "Oi {nome},\n\n" +
+          "Aqui é onde tudo se junta. A Trilha 8 te forma como especialista em solução de problemas, administrativos e de fábrica, capaz de resolver não só os da sua área, mas de áreas que você nunca conheceu antes.\n\n" +
+          "Esse é o profissional raro: a pessoa que a empresa chama quando ninguém mais sabe o que fazer. Que entra numa operação estranha, entende rápido, acha a causa e entrega a solução. Com tudo o que você aprendeu nas trilhas anteriores, você tem exatamente esse repertório.\n\n" +
+          "E olha até onde isso pode ir: se você quiser, o futuro é a consultoria. Resolver problema dos outros, no seu tempo, cobrando bem por isso. Essa formação te dá a base pra chegar lá.\n\n" +
+          "[botao: Chegar ao topo | " + APP_URL + "]\n\n" +
+          "Israel\n\n" +
+          "P.S. Você começou querendo se virar numa área nova. Terminou capaz de resolver o problema de qualquer empresa. Foi uma honra te acompanhar.",
       },
     ],
   };
