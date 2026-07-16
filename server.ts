@@ -2034,14 +2034,17 @@ async function startServer() {
   // Agendador: roda 1x/dia (~06:00). Checa de hora em hora se já rodou hoje.
   // Processo único no Railway, então não há risco de execução duplicada.
   //
-  // DESLIGADO POR PADRÃO (decisão do Israel, jul/2026): o motor automático só dispara
-  // e-mails se MOTOR_EMAIL_ATIVO=true estiver setado no Railway. Sem essa env var, ele
-  // fica PARADO — é a posição segura. Assim, remover uma flag por engano NÃO religa o
-  // motor sozinho. Pra religar, o Israel pede e a gente seta MOTOR_EMAIL_ATIVO=true.
-  // Os envios MANUAIS (campanha cortesia etc.) NÃO são afetados por isto.
-  const MOTOR_ATIVO = String(process.env.MOTOR_EMAIL_ATIVO || "").toLowerCase() === "true";
+  // LIGADO POR PADRÃO (decisão do Israel, 17/jul/2026 — prevalece sobre a decisão
+  // antiga de "OFF por padrão"): o motor roda sozinho às 23:59 NZ, sem depender de
+  // env var. A segurança agora é POR ESTÁGIO: só dispara os estágios ligados em
+  // config/marketingEstagiosAtivos (hoje: só 'gratis' = Trilha 1 novo). Os grupos
+  // engajado/completo ficam OFF até o Israel liberar pela tela.
+  // FREIO DE EMERGÊNCIA: setar MOTOR_EMAIL_PAUSADO=true no Railway pausa TUDO na hora.
+  const MOTOR_ATIVO = String(process.env.MOTOR_EMAIL_PAUSADO || "").toLowerCase() !== "true";
   if (!MOTOR_ATIVO) {
-    console.warn("[motor-email] DESLIGADO (padrão) — nenhum envio automático. Setar MOTOR_EMAIL_ATIVO=true pra religar.");
+    console.warn("[motor-email] PAUSADO (MOTOR_EMAIL_PAUSADO=true) — nenhum envio automático até remover a flag.");
+  } else {
+    console.log("[motor-email] ATIVO — dispara 23:59 NZ os estágios ligados (config/marketingEstagiosAtivos).");
   }
   // Agendador no fuso da NOVA ZELÂNDIA (Pacific/Auckland). Dispara 1x/dia às
   // ~23:59 horário local NZ (trata horário de verão sozinho via Intl). Checa a
