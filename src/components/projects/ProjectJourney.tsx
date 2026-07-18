@@ -127,7 +127,9 @@ const AVAILABLE_TOOLS = [
   { id: 'processValidation', name: 'Validação de Processo', component: ProcessValidation, defaultPhase: 'Measure' },
   { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', component: ImprovementProjectIdea, defaultPhase: 'PreDefinir' },
   { id: 'controlPlan', name: 'Plano de Controle', component: ControlPlan, defaultPhase: 'Control' },
-  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', component: TangibleGainsTool, defaultPhase: 'Control' },
+  // Sem fase padrão de propósito: quem decide em que fase(s) ela entra é o usuário.
+  // defaultPhase vazio => nunca é auto-selecionada por fase e nunca gera chave composta.
+  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', component: TangibleGainsTool, defaultPhase: '' },
 ];
 
 import { toast } from 'sonner';
@@ -500,13 +502,22 @@ useEffect(() => {
     }
   };
 
+  // Ferramentas cujos dados são ÚNICOS por projeto (compartilhados entre fases).
+  // A mesma ferramenta pode ser habilitada em mais de uma fase e lê/grava SEMPRE o
+  // mesmo documento — sem chave composta por fase. Ex.: Ganhos Tangíveis, onde a aba
+  // "Antes" é preenchida numa fase e a aba "Depois" em outra, no mesmo projeto.
+  const PHASE_SHARED_TOOLS = ['tangibleGains'];
+
   const getToolStorageKey = (toolId: string, phaseId: string) => {
+    // Dados compartilhados: mesma chave em qualquer fase.
+    if (PHASE_SHARED_TOOLS.includes(toolId)) return toolId;
+
     const toolDef = AVAILABLE_TOOLS.find(t => t.id === toolId);
     if (!toolDef) return toolId;
-    
+
     // Maintain backward compatibility for the default phase
     if (toolDef.defaultPhase === phaseId) return toolId;
-    
+
     // Use composite key if tool is used in a non-default phase
     return `${phaseId}_${toolId}`;
   };

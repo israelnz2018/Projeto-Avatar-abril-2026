@@ -91,7 +91,9 @@ export async function exportTangibleGainsSlide(
   // ---- Slide ----
   const pres = options.pres || new pptxgen();
   if (!options.pres) pres.layout = 'LAYOUT_WIDE';
-  const slide = createSlide(pres, project, 'Ganhos Tangíveis do Projeto', 'Controlar', aiAnalysis);
+  // Sem fase fixa: a ferramenta pode ser usada em qualquer fase (quem decide é o usuário).
+  // Na Apresentação Completa o rótulo real da fase vem de setPhaseLabelOverride.
+  const slide = createSlide(pres, project, 'Ganhos Tangíveis do Projeto', '', aiAnalysis);
 
   const TX = TOOL_AREA.x;
   const TY = TOOL_AREA.y;

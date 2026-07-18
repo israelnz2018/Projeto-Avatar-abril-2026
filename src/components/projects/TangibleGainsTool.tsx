@@ -167,7 +167,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     <div className="space-y-4 animate-in fade-in duration-500">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest mb-1">Fase Controlar</p>
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <TrendingUp size={20} className="text-[#0033CC]" /> Ganhos Tangíveis do Projeto
           </h2>
