@@ -3,12 +3,15 @@ import { Plus, Trash2, TrendingUp, Info } from 'lucide-react';
 
 // ============================================================================
 // Ganhos Tangíveis do Projeto (toolId: tangibleGains)
-// Uma ferramenta, duas abas. 3 modos por linha:
+// Duas abas. 3 modos por linha:
 //   coef×vol   — coef × volume = quantidade → × custo/unid = valor mensal (R$)
 //   quantidade — digita a quantidade → × custo/unid = valor mensal (R$)
-//   R$ direto  — digita o valor mensal em R$ direto (cliente calculou por fora)
-// ANTES = média (baseline). DEPOIS = ganho em R$, mês a mês e acumulado.
-// Ganho (modo coef): (coef_baseline − coef_mês) × volume × custo → ajustado por volume.
+//   R$ direto  — digita o valor mensal em R$ (cliente calculou por fora)
+//
+// ANÁLISE DE VARIAÇÃO (o time controla quantidade, não preço):
+//   Ganho TEÓRICO = variação de eficiência × PREÇO CONGELADO (média da baseline)
+//   Ganho REAL    = variação de eficiência × preço do mês
+//   Efeito preço  = real − teórico  (movimento de mercado, não mérito do time)
 // ============================================================================
 
 type Mode = 'coef' | 'direct' | 'money';
@@ -20,9 +23,9 @@ interface MonthRow {
   mode: Mode;
   coef: string;
   volume: string;
-  value: string;   // quantidade (modo 'direct')
-  custo: string;   // custo por unidade do mês (R$)
-  valorRS: string; // valor mensal em R$ digitado direto (modo 'money')
+  value: string;
+  custo: string;
+  valorRS: string;
 }
 
 interface TangibleGainsProps {
@@ -58,6 +61,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   const [unit, setUnit] = useState<string>(d?.unit || '');
   const [direction, setDirection] = useState<Direction>(d?.direction || 'lower');
   const [custoPadrao, setCustoPadrao] = useState<string>(d?.custoPadrao ?? d?.unitValue ?? '');
+  const [precoCongeladoManual, setPrecoCongeladoManual] = useState<string>(d?.precoCongelado ?? '');
   const [baselineRows, setBaselineRows] = useState<MonthRow[]>(d?.baselineRows?.length ? d.baselineRows : defaultBaseline());
   const [afterRows, setAfterRows] = useState<MonthRow[]>(d?.afterRows?.length ? d.afterRows : defaultAfter());
   const [tab, setTab] = useState<'antes' | 'depois'>('antes');
@@ -69,6 +73,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     if (typeof nd.unit === 'string') setUnit(nd.unit);
     if (nd.direction) setDirection(nd.direction);
     if (nd.custoPadrao !== undefined || nd.unitValue !== undefined) setCustoPadrao(String(nd.custoPadrao ?? nd.unitValue ?? ''));
+    if (nd.precoCongelado !== undefined) setPrecoCongeladoManual(String(nd.precoCongelado ?? ''));
     if (Array.isArray(nd.baselineRows) && nd.baselineRows.length) setBaselineRows(nd.baselineRows);
     if (Array.isArray(nd.afterRows) && nd.afterRows.length) setAfterRows(nd.afterRows);
   }, [initialData]);
@@ -86,9 +91,13 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     const qtys: number[] = [];
     const coefs: number[] = [];
     const valores: number[] = [];
+    const custos: number[] = [];
     baselineRows.forEach((r) => {
       if (!hasData(r)) return;
-      if (r.mode !== 'money') qtys.push(qtyOf(r));
+      if (r.mode !== 'money') {
+        qtys.push(qtyOf(r));
+        custos.push(effCusto(r));
+      }
       if (r.mode === 'coef') coefs.push(num(r.coef));
       valores.push(valorMensal(r));
     });
@@ -97,13 +106,18 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       qtyAvg: avg(qtys),
       coefAvg: coefs.length ? avg(coefs) : null,
       valorAvg: avg(valores),
+      custoAvg: custos.length ? avg(custos) : padrao,
       filledCount: valores.length,
     };
   }, [baselineRows, custoPadrao]);
 
+  // Preço congelado: o informado manualmente, senão a média de custo da baseline.
+  const precoCongelado = precoCongeladoManual !== '' ? num(precoCongeladoManual) : baseline.custoAvg;
+
   // ---- Depois ----
   const after = useMemo(() => {
-    let accRS = 0;
+    let accTeo = 0;
+    let accReal = 0;
     let accFis = 0;
     const afterCoefs: number[] = [];
     const afterValores: number[] = [];
@@ -112,24 +126,29 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       const vm = valorMensal(r);
       const c = effCusto(r);
       let gFis = 0;
-      let gRS = 0;
+      let gTeo = 0;
+      let gReal = 0;
       if (ok) {
-        if (r.mode === 'coef' && baseline.coefAvg != null) {
-          gFis = dir * (baseline.coefAvg - num(r.coef)) * num(r.volume);
-          gRS = gFis * c;
-          afterCoefs.push(num(r.coef));
-        } else if (r.mode === 'direct') {
-          gFis = dir * (baseline.qtyAvg - qtyOf(r));
-          gRS = gFis * c;
+        if (r.mode === 'money') {
+          // R$ direto: não dá pra separar quantidade de preço — teórico = real.
+          gReal = dir * (baseline.valorAvg - vm);
+          gTeo = gReal;
         } else {
-          // 'money' (ou coef sem baseline): diferença simples em R$
-          gRS = dir * (baseline.valorAvg - vm);
+          if (r.mode === 'coef' && baseline.coefAvg != null) {
+            gFis = dir * (baseline.coefAvg - num(r.coef)) * num(r.volume);
+            afterCoefs.push(num(r.coef));
+          } else {
+            gFis = dir * (baseline.qtyAvg - qtyOf(r));
+          }
+          gTeo = gFis * precoCongelado; // preço congelado → mérito do time
+          gReal = gFis * c;             // preço do mês → caixa
         }
         accFis += gFis;
-        accRS += gRS;
+        accTeo += gTeo;
+        accReal += gReal;
         afterValores.push(vm);
       }
-      return { row: r, ok, vm, gRS, accRS, accFis };
+      return { row: r, ok, vm, gFis, gTeo, gReal, accTeo, accReal };
     });
     const filled = rows.filter((x) => x.ok).length;
     const afterCoefAvg = afterCoefs.length ? afterCoefs.reduce((s, x) => s + x, 0) / afterCoefs.length : null;
@@ -139,10 +158,11 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       pct = (dir * (baseline.coefAvg - afterCoefAvg) / baseline.coefAvg) * 100;
     else if (afterValorAvg != null && baseline.valorAvg !== 0)
       pct = (dir * (baseline.valorAvg - afterValorAvg) / baseline.valorAvg) * 100;
-    return { rows, filled, afterCoefAvg, accRS, accFis, pct };
-  }, [afterRows, baseline, dir, custoPadrao]);
+    return { rows, filled, afterCoefAvg, accTeo, accReal, accFis, efeitoPreco: accReal - accTeo, pct };
+  }, [afterRows, baseline, dir, custoPadrao, precoCongelado]);
 
-  const save = () => onSave({ indicator, unit, direction, custoPadrao, baselineRows, afterRows });
+  const save = () =>
+    onSave({ indicator, unit, direction, custoPadrao, precoCongelado: precoCongeladoManual, baselineRows, afterRows });
 
   const updRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, id: string, patch: Partial<MonthRow>) =>
     set(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -174,7 +194,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       </div>
 
       {/* Config */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Indicador</label>
           <input value={indicator} onChange={(e) => setIndicator(e.target.value)} placeholder="Ex.: Consumo de energia"
@@ -182,7 +202,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
         </div>
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Unidade</label>
-          <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="kWh, h, %, un…"
+          <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="kWh, h, un…"
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#F0F2FA] focus:ring-2 focus:ring-blue-300 outline-none" />
         </div>
         <div>
@@ -195,8 +215,14 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
         </div>
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Custo padrão (R$/{unit || 'un'})</label>
-          <input value={custoPadrao} onChange={(e) => setCustoPadrao(e.target.value)} inputMode="decimal" placeholder="Opcional — preenche os meses"
+          <input value={custoPadrao} onChange={(e) => setCustoPadrao(e.target.value)} inputMode="decimal" placeholder="Opcional"
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#F0F2FA] focus:ring-2 focus:ring-blue-300 outline-none text-right" />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-[#0033CC] mb-1">Preço congelado</label>
+          <input value={precoCongeladoManual} onChange={(e) => setPrecoCongeladoManual(e.target.value)} inputMode="decimal"
+            placeholder={baseline.custoAvg ? fmt(baseline.custoAvg, 2) : 'média baseline'}
+            className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#EAF0FF] focus:ring-2 focus:ring-blue-300 outline-none text-right" />
         </div>
       </div>
 
@@ -234,7 +260,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                   const isCoef = r.mode === 'coef';
                   const isMoney = r.mode === 'money';
                   const showQty = hasData(r) && !isMoney;
-                  const vm = valorMensal(r);
                   const set = (patch: Partial<MonthRow>) => updRow(baselineRows, setBaselineRows, r.id, patch);
                   return (
                     <tr key={r.id} className="group hover:bg-blue-50/30" style={{ borderBottom: '0.5px solid #e2e8f0' }}>
@@ -259,7 +284,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                         {isMoney ? (
                           <input value={r.valorRS} inputMode="decimal" onChange={(e) => set({ valorRS: e.target.value })} className={`${inp} font-extrabold text-[#0033CC]`} placeholder="R$" />
                         ) : (
-                          <div className="text-right text-sm font-extrabold text-[#0033CC] px-2 py-1">{showQty && effCusto(r) > 0 ? fmtBRL(vm) : '—'}</div>
+                          <div className="text-right text-sm font-extrabold text-[#0033CC] px-2 py-1">{showQty && effCusto(r) > 0 ? fmtBRL(valorMensal(r)) : '—'}</div>
                         )}
                       </td>
                     </tr>
@@ -274,7 +299,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                   <td className="px-3 py-2.5 text-right text-sm">{baseline.coefAvg != null ? fmt(baseline.coefAvg, 2) : '—'}</td>
                   <td></td>
                   <td className="px-3 py-2.5 text-right text-sm">{baseline.qtyAvg ? fmt(baseline.qtyAvg, 0) : '—'}</td>
-                  <td></td>
+                  <td className="px-3 py-2.5 text-right text-sm">{baseline.custoAvg ? fmt(baseline.custoAvg, 2) : '—'}</td>
                   <td className="px-3 py-2.5 text-right text-sm bg-[#0033CC]">{fmtBRL(baseline.valorAvg)}</td>
                 </tr>
               </tfoot>
@@ -287,7 +312,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>3 modos por mês:</b> <b>coef×vol</b> (coef × volume × custo), <b>quantidade</b> (qtd × custo) ou <b>R$ direto</b> (você digita o valor mensal em R$, se já calculou por fora). A <b>baseline é a média</b> dos meses preenchidos.</span>
+            <span><b>3 modos por mês:</b> <b>coef×vol</b>, <b>quantidade</b> (× custo) ou <b>R$ direto</b>. A média de <b>custo</b> desta aba vira o <b>preço congelado</b> usado no ganho teórico (você pode sobrescrever no campo azul acima).</span>
           </div>
         </div>
       )}
@@ -298,6 +323,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
           <div className="flex flex-wrap gap-x-8 gap-y-2 p-3 rounded-lg bg-[#EEF0F8] border border-dashed border-[#c3cbe6]">
             <div><div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Baseline · coef.</div><div className="text-base font-extrabold text-[#1E2D6E]">{baseline.coefAvg != null ? `${fmt(baseline.coefAvg, 2)} ${unit}/vol` : '—'}</div></div>
             <div><div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Baseline · valor mensal</div><div className="text-base font-extrabold text-[#1E2D6E]">{fmtBRL(baseline.valorAvg)}/mês</div></div>
+            <div><div className="text-[10px] font-bold uppercase tracking-wider text-[#0033CC]">Preço congelado</div><div className="text-base font-extrabold text-[#0033CC]">R$ {fmt(precoCongelado, 2)}/{unit || 'un'}</div></div>
             <div><div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Sentido</div><div className="text-base font-extrabold text-[#1E2D6E]">{direction === 'lower' ? 'menor é melhor ↓' : 'maior é melhor ↑'}</div></div>
           </div>
 
@@ -308,7 +334,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
           )}
 
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="border-collapse w-full" style={{ minWidth: 900 }}>
+            <table className="border-collapse w-full" style={{ minWidth: 1040 }}>
               <thead>
                 <tr style={{ background: '#1E2D6E' }} className="text-[#C7D2FF]">
                   <th style={{ width: 30 }}></th>
@@ -316,14 +342,15 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                   <th className="px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider" style={{ width: 116 }}>Modo</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Coef.</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Volume/Qtd</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Custo (R$)</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Custo real (R$)</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Valor mensal (R$)</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-600">Ganho (R$)</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-700">Acum. (R$)</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-[#0033CC]">Ganho teórico (R$)</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-600">Ganho real (R$)</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-700">Acum. real (R$)</th>
                 </tr>
               </thead>
               <tbody>
-                {after.rows.map(({ row: r, ok, vm, gRS, accRS }) => {
+                {after.rows.map(({ row: r, ok, vm, gTeo, gReal, accReal }) => {
                   const isCoef = r.mode === 'coef';
                   const isMoney = r.mode === 'money';
                   const set = (patch: Partial<MonthRow>) => updRow(afterRows, setAfterRows, r.id, patch);
@@ -336,9 +363,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                       <td className="p-1 border border-[#eee] text-center"><select value={r.mode} onChange={(e) => set({ mode: e.target.value as Mode })} className={modeSel}>{modeOptions}</select></td>
                       <td className="p-1 border border-[#eee]"><input value={r.coef} disabled={!isCoef} inputMode="decimal" onChange={(e) => set({ coef: e.target.value })} className={`${inp} ${!isCoef ? off : ''}`} /></td>
                       <td className="p-1 border border-[#eee]">
-                        {isMoney ? (
-                          <div className="text-right text-sm text-gray-300 px-1 py-1">—</div>
-                        ) : (
+                        {isMoney ? (<div className="text-right text-sm text-gray-300 px-1 py-1">—</div>) : (
                           <input value={isCoef ? r.volume : r.value} inputMode="decimal" onChange={(e) => set(isCoef ? { volume: e.target.value } : { value: e.target.value })} className={inp} placeholder={isCoef ? 'volume' : 'qtd'} />
                         )}
                       </td>
@@ -350,8 +375,9 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                           <div className="text-right text-sm font-semibold text-[#1E2D6E] px-2 py-1">{ok && effCusto(r) > 0 ? fmtBRL(vm) : '—'}</div>
                         )}
                       </td>
-                      <td className="p-1 border border-[#eee] text-right text-sm font-bold text-emerald-600 px-2">{ok ? fmtBRL(gRS) : '—'}</td>
-                      <td className="p-1 border border-[#eee] text-right text-sm font-extrabold text-emerald-700 px-2" style={{ background: '#E6F4EE' }}>{ok ? fmtBRL(accRS) : '—'}</td>
+                      <td className="p-1 border border-[#eee] text-right text-sm font-bold text-[#0033CC] px-2" style={{ background: '#F5F8FF' }}>{ok ? fmtBRL(gTeo) : '—'}</td>
+                      <td className="p-1 border border-[#eee] text-right text-sm font-bold text-emerald-600 px-2">{ok ? fmtBRL(gReal) : '—'}</td>
+                      <td className="p-1 border border-[#eee] text-right text-sm font-extrabold text-emerald-700 px-2" style={{ background: '#E6F4EE' }}>{ok ? fmtBRL(accReal) : '—'}</td>
                     </tr>
                   );
                 })}
@@ -365,30 +391,30 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="border border-gray-200 rounded-lg p-3.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Coef. Baseline → Pós</div>
-              <div className="text-xl font-extrabold text-[#1E2D6E] mt-1">{baseline.coefAvg != null && after.afterCoefAvg != null ? `${fmt(baseline.coefAvg, 2)}→${fmt(after.afterCoefAvg, 2)}` : '—'}</div>
-              <div className="text-[11px] text-gray-500">eficiência técnica</div>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-3.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Melhoria</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Melhoria de eficiência</div>
               <div className={`text-xl font-extrabold mt-1 ${after.pct != null && after.pct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{after.pct != null ? `${fmt(after.pct, 1)}%` : '—'}</div>
-              <div className="text-[11px] text-gray-500">no indicador</div>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-3.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ganho médio / mês</div>
-              <div className="text-xl font-extrabold text-emerald-600 mt-1">{after.filled ? fmtBRL(after.accRS / after.filled) : '—'}</div>
-              <div className="text-[11px] text-gray-500">{after.filled} {after.filled === 1 ? 'mês' : 'meses'} pós</div>
+              <div className="text-[11px] text-gray-500">{baseline.coefAvg != null && after.afterCoefAvg != null ? `${fmt(baseline.coefAvg, 2)}→${fmt(after.afterCoefAvg, 2)}` : 'no indicador'}</div>
             </div>
             <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#1E2D6E,#2a3d8f)' }}>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho acumulado</div>
-              <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accRS)}</div>
-              <div className="text-[11px] text-[#c9d1f2]">resultado do projeto</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho teórico acum.</div>
+              <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
+              <div className="text-[11px] text-[#c9d1f2]">mérito do projeto</div>
+            </div>
+            <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho real acum.</div>
+              <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accReal)}</div>
+              <div className="text-[11px] text-emerald-100">o que entrou no caixa</div>
+            </div>
+            <div className="border border-gray-200 rounded-lg p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Efeito preço</div>
+              <div className={`text-xl font-extrabold mt-1 ${after.efeitoPreco >= 0 ? 'text-gray-700' : 'text-red-500'}`}>{after.efeitoPreco >= 0 ? '+' : ''}{fmtBRL(after.efeitoPreco)}</div>
+              <div className="text-[11px] text-gray-500">mercado, não o time</div>
             </div>
           </div>
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>Ganho (R$):</b> no modo coef, (coef baseline − coef do mês) × volume × custo (ajustado por volume). No modo quantidade, (qtd baseline − qtd do mês) × custo. No modo <b>R$ direto</b>, valor mensal médio (baseline) − valor do mês.</span>
+            <span><b>Teórico</b> = variação de eficiência × <b>preço congelado</b> — isola o que o time entregou, sem ruído de preço. <b>Real</b> = variação × <b>custo do mês</b> — o que de fato entrou no caixa. <b>Efeito preço</b> = real − teórico, movimento de mercado que não é mérito (nem culpa) do projeto. No modo <b>R$ direto</b> não dá pra separar preço de quantidade, então teórico = real.</span>
           </div>
         </div>
       )}
