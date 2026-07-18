@@ -522,6 +522,29 @@ useEffect(() => {
     return `${phaseId}_${toolId}`;
   };
 
+  const hasContent = (raw: any) => {
+    if (!raw) return false;
+    const d = raw.toolData ?? raw;
+    if (d == null) return false;
+    if (Array.isArray(d)) return d.length > 0;
+    if (typeof d === 'object') return Object.keys(d).length > 0;
+    return true;
+  };
+
+  // Ferramentas compartilhadas entre fases leem a chave simples (toolId). Mas dados
+  // salvos ANTES dessa mudança podem estar na chave composta `${fase}_${toolId}`.
+  // Aqui recuperamos esse dado legado quando a chave simples está vazia — nada se perde.
+  // No próximo Salvar o dado migra sozinho pra chave simples.
+  const resolveToolData = (toolId: string, key: string) => {
+    const direct = projectData[key];
+    if (!PHASE_SHARED_TOOLS.includes(toolId)) return direct;
+    if (hasContent(direct)) return direct;
+    const legacyKey = Object.keys(projectData).find(
+      (k) => k.endsWith(`_${toolId}`) && hasContent(projectData[k])
+    );
+    return legacyKey ? projectData[legacyKey] : direct;
+  };
+
   // Progresso por FERRAMENTA SALVA (não por fase): conta quantas das ferramentas
   // habilitadas têm dado salvo em projectData. Vale pra todas as trilhas.
   const toolProgress = useMemo(() => {
@@ -1153,7 +1176,7 @@ useEffect(() => {
                     fiveWhys: projectData['fiveWhys'], 
                     fta: projectData['fta'] 
                   }
-                : projectData[storageKey]
+                : resolveToolData(activeTool.id, storageKey)
             }
             onSave={(data, options) => handleSaveTool(storageKey, data, activeTool.id, options)}
             project={project}
