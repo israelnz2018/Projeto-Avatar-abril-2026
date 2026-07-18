@@ -75,6 +75,7 @@ import Organograma from './Organograma';
 import Indicadores from './Indicadores';
 import Mapa90Dias from './Mapa90Dias';
 import ProjectCharterPMI from './ProjectCharterPMI';
+import TangibleGainsTool from './TangibleGainsTool';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
 
@@ -126,6 +127,7 @@ const AVAILABLE_TOOLS = [
   { id: 'processValidation', name: 'Validação de Processo', component: ProcessValidation, defaultPhase: 'Measure' },
   { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', component: ImprovementProjectIdea, defaultPhase: 'PreDefinir' },
   { id: 'controlPlan', name: 'Plano de Controle', component: ControlPlan, defaultPhase: 'Control' },
+  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', component: TangibleGainsTool, defaultPhase: 'Control' },
 ];
 
 import { toast } from 'sonner';

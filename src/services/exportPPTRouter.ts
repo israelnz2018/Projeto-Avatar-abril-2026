@@ -36,6 +36,7 @@ import { exportBriefSlide } from './briefSlideExporter';
 import { exportBeforeAfterSlide } from './beforeAfterSlideExporter';
 import { exportActionPlanSlide } from './actionPlanSlideExporter';
 import { exportImprovementIdeaSlide } from './improvementIdeaSlideExporter';
+import { exportTangibleGainsSlide } from './tangibleGainsSlideExporter';
 
 import { generateFullPPTReport } from './reportService';
 
@@ -112,6 +113,10 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   controlAdkar: {
     exporter: exportControlAdkarSlide,
     successMsg: 'Apresentação ADKAR Control gerada!',
+  },
+  tangibleGains: {
+    exporter: exportTangibleGainsSlide,
+    successMsg: 'Slide de Ganhos Tangíveis gerado!',
   },
   dataCollection: {
     exporter: exportDataCollectionPlanSlide,
