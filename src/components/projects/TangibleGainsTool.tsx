@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, TrendingUp, Info } from 'lucide-react';
+import {
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer,
+} from 'recharts';
 
 // ============================================================================
 // Ganhos Tangíveis do Projeto (toolId: tangibleGains)
@@ -64,7 +67,8 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   const [precoCongeladoManual, setPrecoCongeladoManual] = useState<string>(d?.precoCongelado ?? '');
   const [baselineRows, setBaselineRows] = useState<MonthRow[]>(d?.baselineRows?.length ? d.baselineRows : defaultBaseline());
   const [afterRows, setAfterRows] = useState<MonthRow[]>(d?.afterRows?.length ? d.afterRows : defaultAfter());
-  const [tab, setTab] = useState<'antes' | 'depois'>('antes');
+  const [tab, setTab] = useState<'antes' | 'depois' | 'resultado'>('antes');
+  const [barMetric, setBarMetric] = useState<'coef' | 'qty'>('coef');
 
   useEffect(() => {
     const nd = initialData?.toolData || initialData;
@@ -161,6 +165,47 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     return { rows, filled, afterCoefAvg, accTeo, accReal, accFis, efeitoPreco: accReal - accTeo, pct };
   }, [afterRows, baseline, dir, custoPadrao, precoCongelado]);
 
+  // ---- Dados do gráfico (aba Resultado) ----
+  // Linha do tempo contínua: meses do Antes seguidos dos meses do Depois.
+  // Barras = coeficiente ou quantidade (antes x depois em cores distintas).
+  // Linhas = ganho real e ganho teórico (só existem no período pós-projeto).
+  const hasAnyCoef = useMemo(
+    () => baselineRows.some((r) => r.mode === 'coef' && r.coef !== '') || afterRows.some((r) => r.mode === 'coef' && r.coef !== ''),
+    [baselineRows, afterRows]
+  );
+  const metric: 'coef' | 'qty' = barMetric === 'coef' && !hasAnyCoef ? 'qty' : barMetric;
+
+  const chartData = useMemo(() => {
+    const rows: any[] = [];
+    baselineRows.forEach((r, i) => {
+      if (!hasData(r)) return;
+      rows.push({
+        label: r.label || `A${i + 1}`,
+        coefAntes: r.mode === 'coef' ? num(r.coef) : null,
+        qtyAntes: r.mode !== 'money' ? qtyOf(r) : null,
+        coefDepois: null, qtyDepois: null, ganhoReal: null, ganhoTeo: null,
+      });
+    });
+    after.rows.forEach((x, i) => {
+      if (!x.ok) return;
+      const r = x.row;
+      rows.push({
+        label: r.label || `D${i + 1}`,
+        coefAntes: null, qtyAntes: null,
+        coefDepois: r.mode === 'coef' ? num(r.coef) : null,
+        qtyDepois: r.mode !== 'money' ? qtyOf(r) : null,
+        ganhoReal: x.gReal,
+        ganhoTeo: x.gTeo,
+      });
+    });
+    return rows;
+  }, [baselineRows, after, custoPadrao]);
+
+  const firstDepoisLabel = useMemo(() => {
+    const f = after.rows.find((x) => x.ok);
+    return f ? f.row.label || null : null;
+  }, [after]);
+
   const save = () =>
     onSave({ indicator, unit, direction, custoPadrao, precoCongelado: precoCongeladoManual, baselineRows, afterRows });
 
@@ -228,7 +273,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
       {/* Abas */}
       <div className="flex gap-1 border-b border-gray-200">
-        {([['antes', '1 · Antes (linha de base)'], ['depois', '2 · Depois (verificação de ganhos)']] as const).map(([k, lbl]) => (
+        {([['antes', '1 · Antes (linha de base)'], ['depois', '2 · Depois (verificação de ganhos)'], ['resultado', '3 · Resultado (gráfico)']] as const).map(([k, lbl]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors cursor-pointer bg-transparent ${
               tab === k ? 'text-[#0033CC] border-[#0033CC]' : 'text-gray-400 border-transparent hover:text-[#1E2D6E]'
@@ -416,6 +461,104 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
             <span><b>Teórico</b> = variação de eficiência × <b>preço congelado</b> — isola o que o time entregou, sem ruído de preço. <b>Real</b> = variação × <b>custo do mês</b> — o que de fato entrou no caixa. <b>Efeito preço</b> = real − teórico, movimento de mercado que não é mérito (nem culpa) do projeto. No modo <b>R$ direto</b> não dá pra separar preço de quantidade, então teórico = real.</span>
           </div>
+        </div>
+      )}
+
+      {/* ===================== ABA RESULTADO ===================== */}
+      {tab === 'resultado' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-1 p-1 rounded-lg bg-[#F0F2FA]">
+              {([['coef', 'Coeficiente'], ['qty', 'Quantidade']] as const).map(([k, lbl]) => {
+                const disabled = k === 'coef' && !hasAnyCoef;
+                return (
+                  <button key={k} onClick={() => setBarMetric(k)} disabled={disabled}
+                    className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors border-none cursor-pointer ${
+                      metric === k ? 'bg-[#1E2D6E] text-white' : disabled ? 'bg-transparent text-gray-300 cursor-not-allowed' : 'bg-transparent text-gray-500 hover:text-[#1E2D6E]'
+                    }`}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[11px] text-gray-500">
+              Barras = {metric === 'coef' ? 'coeficiente' : `quantidade (${unit || 'un'})`} · Linhas = ganho em R$
+            </div>
+          </div>
+
+          {chartData.length === 0 ? (
+            <div className="p-8 text-center text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg">
+              Preencha a aba <b>Antes</b> para ver o gráfico.
+            </div>
+          ) : (
+            <div className="border border-gray-200 rounded-lg p-3 bg-white">
+              <ResponsiveContainer width="100%" height={380}>
+                <ComposedChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E6F0" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={{ stroke: '#E2E6F0' }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} width={62} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#12805C' }} tickLine={false} axisLine={false} width={72}
+                    tickFormatter={(v: any) => `R$${fmt(Number(v) / 1000, 0)}k`} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E6F0' }}
+                    formatter={(value: any, name: any) => {
+                      if (value == null) return ['—', name];
+                      const isMoney = String(name).includes('R$');
+                      return [isMoney ? fmtBRL(Number(value)) : fmt(Number(value), metric === 'coef' ? 2 : 0), name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {firstDepoisLabel && (
+                    <ReferenceLine yAxisId="left" x={firstDepoisLabel} stroke="#9CA3AF" strokeDasharray="4 4"
+                      label={{ value: 'início do projeto', position: 'insideTopRight', fontSize: 10, fill: '#9CA3AF' }} />
+                  )}
+                  <Bar yAxisId="left" dataKey={metric === 'coef' ? 'coefAntes' : 'qtyAntes'}
+                    name={metric === 'coef' ? 'Coef. antes' : 'Qtd antes'} fill="#1E2D6E" radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="left" dataKey={metric === 'coef' ? 'coefDepois' : 'qtyDepois'}
+                    name={metric === 'coef' ? 'Coef. depois' : 'Qtd depois'} fill="#0033CC" radius={[3, 3, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="ganhoTeo" name="Ganho teórico (R$)"
+                    stroke="#0033CC" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
+                  <Line yAxisId="right" type="monotone" dataKey="ganhoReal" name="Ganho real (R$)"
+                    stroke="#12805C" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {chartData.length > 0 && !firstDepoisLabel && (
+            <div className="flex gap-2 items-start p-3 rounded-lg bg-amber-50 border border-amber-200 text-[12px] text-amber-800">
+              <Info size={15} className="shrink-0 mt-0.5" /> Ainda não há dados na aba <b>Depois</b> — o gráfico mostra só a linha de base. Assim que você preencher os meses pós-projeto, as barras "depois" e as duas linhas de ganho aparecem.
+            </div>
+          )}
+
+          {firstDepoisLabel && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="border border-gray-200 rounded-lg p-3.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{metric === 'coef' ? 'Coef.' : 'Qtd'} Baseline → Pós</div>
+                <div className="text-xl font-extrabold text-[#1E2D6E] mt-1">
+                  {metric === 'coef'
+                    ? (baseline.coefAvg != null && after.afterCoefAvg != null ? `${fmt(baseline.coefAvg, 2)}→${fmt(after.afterCoefAvg, 2)}` : '—')
+                    : (baseline.qtyAvg ? fmt(baseline.qtyAvg, 0) : '—')}
+                </div>
+                <div className="text-[11px] text-gray-500">média</div>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-3.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Melhoria</div>
+                <div className={`text-xl font-extrabold mt-1 ${after.pct != null && after.pct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{after.pct != null ? `${fmt(after.pct, 1)}%` : '—'}</div>
+                <div className="text-[11px] text-gray-500">eficiência</div>
+              </div>
+              <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#1E2D6E,#2a3d8f)' }}>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho teórico acum.</div>
+                <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
+                <div className="text-[11px] text-[#c9d1f2]">preço congelado</div>
+              </div>
+              <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho real acum.</div>
+                <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accReal)}</div>
+                <div className="text-[11px] text-emerald-100">preço do mês</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
