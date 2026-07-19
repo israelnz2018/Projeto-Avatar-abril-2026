@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, TrendingUp, Info } from 'lucide-react';
 import {
-  ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer,
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 
 // ============================================================================
@@ -184,6 +184,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       if (!hasData(r)) return;
       rows.push({
         label: r.label || `A${i + 1}`,
+        periodo: 'antes',
         coefAntes: r.mode === 'coef' ? num(r.coef) : null,
         qtyAntes: r.mode !== 'money' ? qtyOf(r) : null,
         valorAntes: valorMensal(r),
@@ -195,6 +196,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       const r = x.row;
       rows.push({
         label: r.label || `D${i + 1}`,
+        periodo: 'depois',
         coefAntes: null, qtyAntes: null, valorAntes: null,
         coefDepois: r.mode === 'coef' ? num(r.coef) : null,
         qtyDepois: r.mode !== 'money' ? qtyOf(r) : null,
@@ -218,6 +220,28 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   // Ganho por mês = distância entre os patamares (respeitando o sentido do indicador).
   const ganhoPatamar =
     metricView.antesAvg != null && metricView.depoisAvg != null ? dir * (metricView.antesAvg - metricView.depoisAvg) : null;
+
+  // Cada média vira um SEGMENTO que existe só sobre o seu período: a do antes
+  // termina no último mês do antes, a do depois começa no primeiro mês do depois.
+  const chartRows = useMemo(
+    () =>
+      chartData.map((d: any) => ({
+        ...d,
+        mediaAntes: d.periodo === 'antes' ? metricView.antesAvg : null,
+        mediaDepois: d.periodo === 'depois' ? metricView.depoisAvg : null,
+      })),
+    [chartData, metricView]
+  );
+
+  // Os dois eixos (esquerdo = antes, direito = depois) compartilham a MESMA escala,
+  // senão a comparação visual entre os patamares seria mentirosa.
+  const domain = useMemo(() => {
+    const vals = chartData
+      .flatMap((d: any) => [d[metricView.kAntes], d[metricView.kDepois]])
+      .filter((v: any) => v != null) as number[];
+    const max = Math.max(...vals, metricView.antesAvg || 0, metricView.depoisAvg || 0, 1);
+    return [0, Math.ceil(max * 1.15)] as [number, number];
+  }, [chartData, metricView]);
 
   const firstDepoisLabel = useMemo(() => {
     const f = after.rows.find((x) => x.ok);
@@ -511,31 +535,34 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
           ) : (
             <div className="border border-gray-200 rounded-lg p-3 bg-white">
               <ResponsiveContainer width="100%" height={380}>
-                <ComposedChart data={chartData} margin={{ top: 20, right: 28, left: 0, bottom: 4 }}>
+                <ComposedChart data={chartRows} margin={{ top: 20, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E6F0" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={{ stroke: '#E2E6F0' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} width={74}
-                    tickFormatter={(v: any) => (metricView.money ? `R$${fmt(Number(v) / 1000, 0)}k` : fmt(Number(v), metricView.dec))} />
+                  {/* Eixo ESQUERDO = média ANTES · Eixo DIREITO = média DEPOIS · mesma escala */}
+                  <YAxis yAxisId="left" orientation="left" domain={domain} width={92}
+                    ticks={metricView.antesAvg != null ? [metricView.antesAvg] : undefined}
+                    tick={{ fontSize: 11, fill: '#1E2D6E', fontWeight: 700 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v: any) => showVal(Number(v))} />
+                  <YAxis yAxisId="right" orientation="right" domain={domain} width={92}
+                    ticks={metricView.depoisAvg != null ? [metricView.depoisAvg] : undefined}
+                    tick={{ fontSize: 11, fill: '#12805C', fontWeight: 700 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v: any) => showVal(Number(v))} />
                   <Tooltip
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E6F0' }}
                     formatter={(value: any, name: any) => [value == null ? '—' : showVal(Number(value)), name]}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {firstDepoisLabel && (
-                    <ReferenceLine x={firstDepoisLabel} stroke="#9CA3AF" strokeDasharray="4 4"
+                    <ReferenceLine yAxisId="left" x={firstDepoisLabel} stroke="#9CA3AF" strokeDasharray="4 4"
                       label={{ value: 'início do projeto', position: 'insideTopRight', fontSize: 10, fill: '#9CA3AF' }} />
                   )}
-                  {/* Patamar de gasto ANTES e DEPOIS — a distância entre as duas é o ganho */}
-                  {metricView.antesAvg != null && (
-                    <ReferenceLine y={metricView.antesAvg} stroke="#1E2D6E" strokeWidth={2}
-                      label={{ value: `média antes: ${showVal(metricView.antesAvg)}`, position: 'insideTopLeft', fontSize: 10, fill: '#1E2D6E' }} />
-                  )}
-                  {metricView.depoisAvg != null && (
-                    <ReferenceLine y={metricView.depoisAvg} stroke="#12805C" strokeWidth={2}
-                      label={{ value: `média depois: ${showVal(metricView.depoisAvg)}`, position: 'insideBottomRight', fontSize: 10, fill: '#12805C' }} />
-                  )}
-                  <Bar dataKey={metricView.kAntes} name="Antes" fill="#1E2D6E" fillOpacity={0.55} radius={[3, 3, 0, 0]} />
-                  <Bar dataKey={metricView.kDepois} name="Depois" fill="#0033CC" fillOpacity={0.9} radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="left" dataKey={metricView.kAntes} name="Antes" fill="#1E2D6E" fillOpacity={0.55} radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="left" dataKey={metricView.kDepois} name="Depois" fill="#0033CC" fillOpacity={0.9} radius={[3, 3, 0, 0]} />
+                  {/* Patamares: cada segmento cobre só o seu período */}
+                  <Line yAxisId="left" type="linear" dataKey="mediaAntes" name="Média antes"
+                    stroke="#1E2D6E" strokeWidth={2.5} dot={false} activeDot={false} connectNulls={false} />
+                  <Line yAxisId="left" type="linear" dataKey="mediaDepois" name="Média depois"
+                    stroke="#12805C" strokeWidth={2.5} dot={false} activeDot={false} connectNulls={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
