@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, TrendingUp, Info } from 'lucide-react';
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer,
+  ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 
 // ============================================================================
@@ -68,7 +68,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   const [baselineRows, setBaselineRows] = useState<MonthRow[]>(d?.baselineRows?.length ? d.baselineRows : defaultBaseline());
   const [afterRows, setAfterRows] = useState<MonthRow[]>(d?.afterRows?.length ? d.afterRows : defaultAfter());
   const [tab, setTab] = useState<'antes' | 'depois' | 'resultado'>('antes');
-  const [barMetric, setBarMetric] = useState<'coef' | 'qty'>('coef');
+  const [barMetric, setBarMetric] = useState<'coef' | 'qty' | 'valor'>('coef');
 
   useEffect(() => {
     const nd = initialData?.toolData || initialData;
@@ -125,6 +125,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     let accFis = 0;
     const afterCoefs: number[] = [];
     const afterValores: number[] = [];
+    const afterQtys: number[] = [];
     const rows = afterRows.map((r) => {
       const ok = hasData(r);
       const vm = valorMensal(r);
@@ -151,6 +152,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
         accTeo += gTeo;
         accReal += gReal;
         afterValores.push(vm);
+        if (r.mode !== 'money') afterQtys.push(qtyOf(r));
       }
       return { row: r, ok, vm, gFis, gTeo, gReal, accTeo, accReal };
     });
@@ -162,7 +164,8 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       pct = (dir * (baseline.coefAvg - afterCoefAvg) / baseline.coefAvg) * 100;
     else if (afterValorAvg != null && baseline.valorAvg !== 0)
       pct = (dir * (baseline.valorAvg - afterValorAvg) / baseline.valorAvg) * 100;
-    return { rows, filled, afterCoefAvg, accTeo, accReal, accFis, efeitoPreco: accReal - accTeo, pct };
+    const afterQtyAvg = afterQtys.length ? afterQtys.reduce((s, x) => s + x, 0) / afterQtys.length : null;
+    return { rows, filled, afterCoefAvg, afterQtyAvg, afterValorAvg, accTeo, accReal, accFis, efeitoPreco: accReal - accTeo, pct };
   }, [afterRows, baseline, dir, custoPadrao, precoCongelado]);
 
   // ---- Dados do gráfico (aba Resultado) ----
@@ -173,7 +176,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     () => baselineRows.some((r) => r.mode === 'coef' && r.coef !== '') || afterRows.some((r) => r.mode === 'coef' && r.coef !== ''),
     [baselineRows, afterRows]
   );
-  const metric: 'coef' | 'qty' = barMetric === 'coef' && !hasAnyCoef ? 'qty' : barMetric;
+  const metric: 'coef' | 'qty' | 'valor' = barMetric === 'coef' && !hasAnyCoef ? 'valor' : barMetric;
 
   const chartData = useMemo(() => {
     const rows: any[] = [];
@@ -183,7 +186,8 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
         label: r.label || `A${i + 1}`,
         coefAntes: r.mode === 'coef' ? num(r.coef) : null,
         qtyAntes: r.mode !== 'money' ? qtyOf(r) : null,
-        coefDepois: null, qtyDepois: null, ganhoReal: null, ganhoTeo: null,
+        valorAntes: valorMensal(r),
+        coefDepois: null, qtyDepois: null, valorDepois: null,
       });
     });
     after.rows.forEach((x, i) => {
@@ -191,15 +195,29 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       const r = x.row;
       rows.push({
         label: r.label || `D${i + 1}`,
-        coefAntes: null, qtyAntes: null,
+        coefAntes: null, qtyAntes: null, valorAntes: null,
         coefDepois: r.mode === 'coef' ? num(r.coef) : null,
         qtyDepois: r.mode !== 'money' ? qtyOf(r) : null,
-        ganhoReal: x.gReal,
-        ganhoTeo: x.gTeo,
+        valorDepois: x.vm,
       });
     });
     return rows;
   }, [baselineRows, after, custoPadrao]);
+
+  // Métrica exibida no gráfico + as duas médias (antes e depois). A DISTÂNCIA entre
+  // as duas linhas horizontais é o ganho do projeto.
+  const metricView = useMemo(() => {
+    if (metric === 'coef')
+      return { antesAvg: baseline.coefAvg, depoisAvg: after.afterCoefAvg, kAntes: 'coefAntes', kDepois: 'coefDepois', dec: 2, money: false, nome: 'Coeficiente' };
+    if (metric === 'qty')
+      return { antesAvg: baseline.qtyAvg || null, depoisAvg: after.afterQtyAvg, kAntes: 'qtyAntes', kDepois: 'qtyDepois', dec: 0, money: false, nome: `Quantidade (${unit || 'un'})` };
+    return { antesAvg: baseline.valorAvg || null, depoisAvg: after.afterValorAvg, kAntes: 'valorAntes', kDepois: 'valorDepois', dec: 0, money: true, nome: 'Gasto mensal (R$)' };
+  }, [metric, baseline, after, unit]);
+
+  const showVal = (n: number) => (metricView.money ? fmtBRL(n) : fmt(n, metricView.dec));
+  // Ganho por mês = distância entre os patamares (respeitando o sentido do indicador).
+  const ganhoPatamar =
+    metricView.antesAvg != null && metricView.depoisAvg != null ? dir * (metricView.antesAvg - metricView.depoisAvg) : null;
 
   const firstDepoisLabel = useMemo(() => {
     const f = after.rows.find((x) => x.ok);
@@ -469,7 +487,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-1 p-1 rounded-lg bg-[#F0F2FA]">
-              {([['coef', 'Coeficiente'], ['qty', 'Quantidade']] as const).map(([k, lbl]) => {
+              {([['coef', 'Coeficiente'], ['qty', 'Quantidade'], ['valor', 'Gasto (R$)']] as const).map(([k, lbl]) => {
                 const disabled = k === 'coef' && !hasAnyCoef;
                 return (
                   <button key={k} onClick={() => setBarMetric(k)} disabled={disabled}
@@ -482,7 +500,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
               })}
             </div>
             <div className="text-[11px] text-gray-500">
-              Barras = {metric === 'coef' ? 'coeficiente' : `quantidade (${unit || 'un'})`} · Linhas = ganho em R$
+              Barras = {metricView.nome} · Linhas horizontais = média antes e média depois · <b>a distância entre elas é o ganho</b>
             </div>
           </div>
 
@@ -493,33 +511,31 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
           ) : (
             <div className="border border-gray-200 rounded-lg p-3 bg-white">
               <ResponsiveContainer width="100%" height={380}>
-                <ComposedChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+                <ComposedChart data={chartData} margin={{ top: 20, right: 28, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E6F0" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={{ stroke: '#E2E6F0' }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} width={62} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#12805C' }} tickLine={false} axisLine={false} width={72}
-                    tickFormatter={(v: any) => `R$${fmt(Number(v) / 1000, 0)}k`} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} width={74}
+                    tickFormatter={(v: any) => (metricView.money ? `R$${fmt(Number(v) / 1000, 0)}k` : fmt(Number(v), metricView.dec))} />
                   <Tooltip
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E2E6F0' }}
-                    formatter={(value: any, name: any) => {
-                      if (value == null) return ['—', name];
-                      const isMoney = String(name).includes('R$');
-                      return [isMoney ? fmtBRL(Number(value)) : fmt(Number(value), metric === 'coef' ? 2 : 0), name];
-                    }}
+                    formatter={(value: any, name: any) => [value == null ? '—' : showVal(Number(value)), name]}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {firstDepoisLabel && (
-                    <ReferenceLine yAxisId="left" x={firstDepoisLabel} stroke="#9CA3AF" strokeDasharray="4 4"
+                    <ReferenceLine x={firstDepoisLabel} stroke="#9CA3AF" strokeDasharray="4 4"
                       label={{ value: 'início do projeto', position: 'insideTopRight', fontSize: 10, fill: '#9CA3AF' }} />
                   )}
-                  <Bar yAxisId="left" dataKey={metric === 'coef' ? 'coefAntes' : 'qtyAntes'}
-                    name={metric === 'coef' ? 'Coef. antes' : 'Qtd antes'} fill="#1E2D6E" radius={[3, 3, 0, 0]} />
-                  <Bar yAxisId="left" dataKey={metric === 'coef' ? 'coefDepois' : 'qtyDepois'}
-                    name={metric === 'coef' ? 'Coef. depois' : 'Qtd depois'} fill="#0033CC" radius={[3, 3, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" dataKey="ganhoTeo" name="Ganho teórico (R$)"
-                    stroke="#0033CC" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="ganhoReal" name="Ganho real (R$)"
-                    stroke="#12805C" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                  {/* Patamar de gasto ANTES e DEPOIS — a distância entre as duas é o ganho */}
+                  {metricView.antesAvg != null && (
+                    <ReferenceLine y={metricView.antesAvg} stroke="#1E2D6E" strokeWidth={2}
+                      label={{ value: `média antes: ${showVal(metricView.antesAvg)}`, position: 'insideTopLeft', fontSize: 10, fill: '#1E2D6E' }} />
+                  )}
+                  {metricView.depoisAvg != null && (
+                    <ReferenceLine y={metricView.depoisAvg} stroke="#12805C" strokeWidth={2}
+                      label={{ value: `média depois: ${showVal(metricView.depoisAvg)}`, position: 'insideBottomRight', fontSize: 10, fill: '#12805C' }} />
+                  )}
+                  <Bar dataKey={metricView.kAntes} name="Antes" fill="#1E2D6E" fillOpacity={0.55} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey={metricView.kDepois} name="Depois" fill="#0033CC" fillOpacity={0.9} radius={[3, 3, 0, 0]} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -534,18 +550,20 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
           {firstDepoisLabel && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="border border-gray-200 rounded-lg p-3.5">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{metric === 'coef' ? 'Coef.' : 'Qtd'} Baseline → Pós</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Média antes → depois</div>
                 <div className="text-xl font-extrabold text-[#1E2D6E] mt-1">
-                  {metric === 'coef'
-                    ? (baseline.coefAvg != null && after.afterCoefAvg != null ? `${fmt(baseline.coefAvg, 2)}→${fmt(after.afterCoefAvg, 2)}` : '—')
-                    : (baseline.qtyAvg ? fmt(baseline.qtyAvg, 0) : '—')}
+                  {metricView.antesAvg != null && metricView.depoisAvg != null
+                    ? `${showVal(metricView.antesAvg)} → ${showVal(metricView.depoisAvg)}`
+                    : '—'}
                 </div>
-                <div className="text-[11px] text-gray-500">média</div>
+                <div className="text-[11px] text-gray-500">{metricView.nome}</div>
               </div>
-              <div className="border border-gray-200 rounded-lg p-3.5">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Melhoria</div>
-                <div className={`text-xl font-extrabold mt-1 ${after.pct != null && after.pct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{after.pct != null ? `${fmt(after.pct, 1)}%` : '—'}</div>
-                <div className="text-[11px] text-gray-500">eficiência</div>
+              <div className="border-2 border-emerald-200 rounded-lg p-3.5 bg-emerald-50/40">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Ganho por mês</div>
+                <div className={`text-xl font-extrabold mt-1 ${ganhoPatamar != null && ganhoPatamar >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {ganhoPatamar != null ? showVal(ganhoPatamar) : '—'}
+                </div>
+                <div className="text-[11px] text-gray-500">distância entre as médias</div>
               </div>
               <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#1E2D6E,#2a3d8f)' }}>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho teórico acum.</div>
