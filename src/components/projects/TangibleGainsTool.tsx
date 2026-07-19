@@ -248,8 +248,10 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     return f ? f.row.label || null : null;
   }, [after]);
 
+  // barMetric vai junto pro save: o slide do PPT desenha a mesma métrica que você
+  // está vendo na aba Resultado.
   const save = () =>
-    onSave({ indicator, unit, direction, custoPadrao, precoCongelado: precoCongeladoManual, baselineRows, afterRows });
+    onSave({ indicator, unit, direction, custoPadrao, precoCongelado: precoCongeladoManual, barMetric: metric, baselineRows, afterRows });
 
   const updRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, id: string, patch: Partial<MonthRow>) =>
     set(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
