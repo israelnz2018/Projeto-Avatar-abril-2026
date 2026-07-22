@@ -86,6 +86,10 @@ const CSS = `
 .k9 .oferta .box{background:linear-gradient(160deg,rgba(0,51,204,.15),rgba(30,45,110,.08));border:1px solid rgba(0,51,204,.35);border-radius:22px;padding:38px 26px;max-width:520px;margin:0 auto}
 .k9 .oferta .valor{font-size:40px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin:6px 0}
 .k9 .oferta .garantia{font-size:13px;color:var(--txt2);margin-top:16px}
+/* Reveal ao rolar: elementos entram com fade + leve deslize de baixo pra cima */
+.k9 .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
+.k9 .reveal.is-visible{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){ .k9 .reveal{opacity:1;transform:none;transition:none} }
 `;
 
 export default function LandingComecar() {
@@ -98,6 +102,30 @@ export default function LandingComecar() {
     s.src = VTURB_SCRIPT_SRC;
     s.async = true;
     document.head.appendChild(s);
+  }, []);
+
+  // Reveal ao rolar: fade + deslize dos blocos quando entram na tela. Não anima o
+  // hero (é <header>, fora do seletor 'section ...') pra não piscar o vídeo do topo.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const targets = Array.from(
+      root.querySelectorAll('section h2, section .lead, .dor li, .fase, .mapa3 .box, .kit .item, .publico .col, .fundador img, .stats > div, .faq details, .oferta .box')
+    ) as HTMLElement[];
+    targets.forEach((el) => el.classList.add('reveal'));
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-visible');
+            io.unobserve(e.target); // anima uma vez só
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+    );
+    targets.forEach((el) => io.observe(el));
+    return () => io.disconnect();
   }, []);
 
   // Meta Pixel: o pixel base (init + PageView) é global no index.html. Aqui só
