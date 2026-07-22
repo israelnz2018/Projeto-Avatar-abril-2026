@@ -87,7 +87,7 @@ const CSS = `
 .k9 .oferta .valor{font-size:40px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin:6px 0}
 .k9 .oferta .garantia{font-size:13px;color:var(--txt2);margin-top:16px}
 /* Reveal ao rolar: elementos entram com fade + leve deslize de baixo pra cima */
-.k9 .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
+.k9 .reveal{opacity:0;transform:translateY(42px);transition:opacity .8s cubic-bezier(.22,.61,.36,1),transform .8s cubic-bezier(.22,.61,.36,1)}
 .k9 .reveal.is-visible{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){ .k9 .reveal{opacity:1;transform:none;transition:none} }
 `;
@@ -112,7 +112,13 @@ export default function LandingComecar() {
     const targets = Array.from(
       root.querySelectorAll('section h2, section .lead, .dor li, .fase, .mapa3 .box, .kit .item, .publico .col, .fundador img, .stats > div, .faq details, .oferta .box')
     ) as HTMLElement[];
-    targets.forEach((el) => el.classList.add('reveal'));
+    targets.forEach((el) => {
+      el.classList.add('reveal');
+      // Cascata: irmãos com reveal entram em sequência (deixa o movimento visível).
+      const sibs = Array.from(el.parentElement?.children || []).filter((c) => (c as HTMLElement).classList.contains('reveal'));
+      const idx = sibs.indexOf(el);
+      if (idx > 0) el.style.transitionDelay = Math.min(idx * 80, 400) + 'ms';
+    });
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -122,7 +128,7 @@ export default function LandingComecar() {
           }
         });
       },
-      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+      { threshold: 0.15, rootMargin: '0px 0px -12% 0px' }
     );
     targets.forEach((el) => io.observe(el));
     return () => io.disconnect();

@@ -193,7 +193,7 @@ const CSS = `
 @keyframes lf-cta-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
 @media(prefers-reduced-motion:reduce){ .lf .btn-hero-cta{animation:none} }
 /* Reveal ao rolar: elementos entram com fade + leve deslize de baixo pra cima */
-.lf .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.22,.61,.36,1),transform .7s cubic-bezier(.22,.61,.36,1)}
+.lf .reveal{opacity:0;transform:translateY(42px);transition:opacity .8s cubic-bezier(.22,.61,.36,1),transform .8s cubic-bezier(.22,.61,.36,1)}
 .lf .reveal.is-visible{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){ .lf .reveal{opacity:1;transform:none;transition:none} }
 `;
@@ -388,9 +388,15 @@ export default function LandingFormacao() {
     if (!root) return;
     // Não anima o hero (topo) nem o carrossel de trilhas (.nettrack já se move).
     const targets = Array.from(
-      root.querySelectorAll('.sec-head, .plan, .split > div, .step, .feat, .formcard, .pcard, .qa, .stats')
+      root.querySelectorAll('.sec-head, .sec-head h2, .sec-head p, .plan, .split > div, .step, .feat, .formcard, .pcard, .qa, .stats')
     ) as HTMLElement[];
-    targets.forEach((el) => el.classList.add('reveal'));
+    targets.forEach((el) => {
+      el.classList.add('reveal');
+      // Cascata: irmãos com reveal entram em sequência (deixa o movimento visível).
+      const sibs = Array.from(el.parentElement?.children || []).filter((c) => (c as HTMLElement).classList.contains('reveal'));
+      const idx = sibs.indexOf(el);
+      if (idx > 0) el.style.transitionDelay = Math.min(idx * 80, 400) + 'ms';
+    });
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -400,7 +406,7 @@ export default function LandingFormacao() {
           }
         });
       },
-      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+      { threshold: 0.15, rootMargin: '0px 0px -12% 0px' }
     );
     targets.forEach((el) => io.observe(el));
     return () => io.disconnect();
