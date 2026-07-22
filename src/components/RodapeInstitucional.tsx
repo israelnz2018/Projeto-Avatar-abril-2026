@@ -33,7 +33,7 @@ export default function RodapeInstitucional() {
         <div>
           <div style={tituloCol}>Trilhas</div>
           <div style={{ fontSize: 13, color: TXT2, lineHeight: 2 }}>
-            01 · Como Gerar Resultados nos Próximos 90 Dias<br/>
+            01 · Como Resolver Problemas no Trabalho<br/>
             02 · Como Recomendar Melhorias com Base em Análise de Dados<br/>
             03 · Como Conduzir Mudanças com Menos Resistência<br/>
             04 · Como Criar Apresentações que Convencem<br/>
