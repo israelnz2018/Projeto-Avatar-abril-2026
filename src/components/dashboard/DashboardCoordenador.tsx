@@ -22,6 +22,7 @@ import {
 import { auth } from '../../lib/firebase';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { criarConvite, deletarConvite, listarConvitesPorEmpresa, PendingInvite } from '../../services/userService';
+import { getProjetosComDetalhes, ProjetoComDetalhes } from '../../services/dashboardDataService';
 import {
   useResumoEquipe,
   useUserUsageStats,
@@ -83,6 +84,21 @@ export default function DashboardCoordenador({ nome }: Props) {
     try { setInvites(await listarConvitesPorEmpresa(empresaId)); } catch { /* ignora */ }
   }, [empresaId]);
   useEffect(() => { carregarInvites(); }, [carregarInvites]);
+
+  // Drill-down: ao clicar num membro, carrega os projetos dele (só leitura).
+  const [drillMember, setDrillMember] = useState<{ uid: string; nome: string } | null>(null);
+  const [drillProjetos, setDrillProjetos] = useState<ProjetoComDetalhes[] | null>(null);
+  const [drillLoading, setDrillLoading] = useState(false);
+  useEffect(() => {
+    if (!drillMember) { setDrillProjetos(null); return; }
+    let cancel = false;
+    setDrillLoading(true);
+    getProjetosComDetalhes(drillMember.uid)
+      .then((p) => { if (!cancel) setDrillProjetos(p); })
+      .catch(() => { if (!cancel) setDrillProjetos([]); })
+      .finally(() => { if (!cancel) setDrillLoading(false); });
+    return () => { cancel = true; };
+  }, [drillMember]);
 
   if (equipe.loading || meusStats.loading || meusProjetos.loading) {
     return <DashboardLoading />;
@@ -380,9 +396,10 @@ export default function DashboardCoordenador({ nome }: Props) {
                   {/* ==== DESKTOP: linha em grid ==== */}
                   <div className="hidden md:grid grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr] gap-3 px-5 py-3.5 items-center">
                     <div className="min-w-0">
-                      <p className="text-white font-bold text-sm m-0 truncate">
+                      <button onClick={() => setDrillMember({ uid: a.user.uid, nome: a.user.nome || a.user.email.split('@')[0] })}
+                        className="text-white font-bold text-sm m-0 truncate bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-300 transition-colors block max-w-full" title="Ver projetos deste aluno">
                         {a.user.nome || a.user.email.split('@')[0]}
-                      </p>
+                      </button>
                       <p className="text-white/40 text-[11px] m-0 truncate flex items-center gap-1">
                         <Mail size={9} />
                         {a.user.email}
@@ -439,9 +456,10 @@ export default function DashboardCoordenador({ nome }: Props) {
                   <div className="md:hidden px-4 py-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-white font-bold text-sm m-0 truncate">
+                        <button onClick={() => setDrillMember({ uid: a.user.uid, nome: a.user.nome || a.user.email.split('@')[0] })}
+                          className="text-white font-bold text-sm m-0 truncate bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-300 block max-w-full">
                           {a.user.nome || a.user.email.split('@')[0]}
-                        </p>
+                        </button>
                         <p className="text-white/40 text-[11px] m-0 truncate">
                           {a.user.email}
                         </p>
@@ -542,6 +560,51 @@ export default function DashboardCoordenador({ nome }: Props) {
                 </motion.a>
               );
             })}
+          </div>
+        </div>
+      )}
+      {/* ====== DRILL-DOWN: projetos do membro ====== */}
+      {drillMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={() => setDrillMember(null)}>
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl" style={{ background: '#0f1626', border: '1px solid rgba(255,255,255,0.1)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0" style={{ background: '#0f1626' }}>
+              <div>
+                <p className="text-[10px] font-black tracking-[0.25em] uppercase text-white/40 m-0">Projetos de</p>
+                <p className="text-white font-bold text-base m-0">{drillMember.nome}</p>
+              </div>
+              <button onClick={() => setDrillMember(null)} className="text-white/40 hover:text-white border-none bg-transparent cursor-pointer p-1"><X size={18} /></button>
+            </div>
+            <div className="p-5">
+              {drillLoading ? (
+                <p className="text-white/50 text-sm text-center py-8 m-0">Carregando projetos…</p>
+              ) : !drillProjetos || drillProjetos.length === 0 ? (
+                <p className="text-white/40 text-sm text-center py-8 m-0">Este membro ainda não tem projetos.</p>
+              ) : (
+                <div className="space-y-2">
+                  {drillProjetos.map((p) => {
+                    const prog = p.totalToolsNaIniciativa > 0 ? Math.round((p.completedTools.length / p.totalToolsNaIniciativa) * 100) : 0;
+                    return (
+                      <div key={p.id} className="rounded-xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-white font-bold text-sm m-0 truncate">{p.name}</p>
+                            {p.initiativeName && <p className="text-white/40 text-[11px] m-0 truncate">{p.initiativeName}</p>}
+                          </div>
+                          <Pill tone={p.travado ? 'danger' : 'info'}>{p.currentPhase}</Pill>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                            <div className="h-full" style={{ width: `${prog}%`, background: 'linear-gradient(90deg,#1E2D6E,#0033CC)' }} />
+                          </div>
+                          <span className="text-white/50 text-[11px] font-bold whitespace-nowrap">{p.completedTools.length}/{p.totalToolsNaIniciativa} · {prog}%</span>
+                          <span className="text-white/35 text-[11px] flex items-center gap-1 whitespace-nowrap"><Clock size={10} />{formatRelativeTime(p.ultimoUpdate)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
