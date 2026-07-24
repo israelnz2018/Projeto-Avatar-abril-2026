@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileCheck2, Plus, Trash2, Sparkles, Info } from 'lucide-react';
+import { FileCheck2, Plus, Trash2, Sparkles, Info, Printer } from 'lucide-react';
 
 // ============================================================================
 // Termo de Encerramento do Projeto (toolId: projectClose)
@@ -77,6 +77,8 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
 
   const save = () => onSave({ nomeProjeto, dataEncerramento, responsavel, status, problema, causasRaizes: causasRaizes.filter(c => c.trim()), solucoes: solucoes.filter(s => s.trim()), ganhos });
 
+  const handlePrint = () => window.print();
+
   // "Puxar do projeto": lê as ferramentas já preenchidas (defensivo — tool ausente = nada).
   const puxarDoProjeto = () => {
     const all = allProjectData || {};
@@ -126,13 +128,13 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
             onChange={(e) => set(items.map((x, j) => (j === i ? e.target.value : x)))}
             className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 bg-white focus:ring-2 focus:ring-blue-300 outline-none" />
           <button onClick={() => set(items.length > 1 ? items.filter((_, j) => j !== i) : [''])}
-            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1 border-none bg-transparent cursor-pointer" title="Remover">
+            className="no-print opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1 border-none bg-transparent cursor-pointer" title="Remover">
             <Trash2 size={14} />
           </button>
         </div>
       ))}
       <button onClick={() => set([...items, ''])}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg border border-dashed border-blue-200 cursor-pointer bg-transparent">
+        className="no-print flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg border border-dashed border-blue-200 cursor-pointer bg-transparent">
         <Plus size={14} /> Adicionar
       </button>
     </div>
@@ -142,15 +144,33 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
+      {/* Barra de ações — não sai na impressão */}
+      <div className="flex items-center justify-between mb-1 gap-3 flex-wrap no-print">
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
           <FileCheck2 size={20} className="text-[#0033CC]" /> Termo de Encerramento do Projeto
         </h2>
-        <button onClick={puxarDoProjeto}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0">
-          <Sparkles size={14} /> Puxar do projeto
-        </button>
+        <div className="flex gap-2">
+          <button onClick={puxarDoProjeto}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0">
+            <Sparkles size={14} /> Puxar do projeto
+          </button>
+          <button onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1E2D6E] text-[#1E2D6E] hover:bg-[#F0F2FA] text-[11px] font-black uppercase tracking-widest transition cursor-pointer bg-white">
+            <Printer size={14} /> Imprimir / PDF
+          </button>
+        </div>
       </div>
+
+      {/* Documento imprimível (A4) */}
+      <div id="project-close-print" className="bg-white max-w-[210mm] mx-auto space-y-5">
+        {/* Cabeçalho do documento */}
+        <div className="flex items-center gap-3 border-b-2 border-[#1E2D6E] pb-3">
+          <img src="https://i.postimg.cc/7PgJFtZK/logo-LBW.png" alt="LBW" className="h-9 w-auto" />
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#0033CC]">Learning by Working</div>
+            <div className="text-lg font-black text-[#1E2D6E] leading-tight">Termo de Encerramento do Projeto</div>
+          </div>
+        </div>
 
       {/* Cabeçalho */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -201,13 +221,32 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
         <textarea value={ganhos} onChange={(e) => setGanhos(e.target.value)} rows={3} placeholder="Resultados e ganhos obtidos (o botão 'Puxar do projeto' traz o ganho em R$ da ferramenta Ganhos Tangíveis)."
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 bg-white focus:ring-2 focus:ring-blue-300 outline-none resize-y" />
       </div>
+      </div>{/* fim do documento imprimível */}
 
-      <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
+      <div className="no-print flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
         <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
         <span>Este termo consolida o fechamento do projeto. <b>Salvar com status "Concluído"</b> marca o projeto como encerrado — a <b>data de encerramento</b> é o marco de conclusão usado nos indicadores de tempo.</span>
       </div>
 
       <button data-save-trigger onClick={save} className="hidden" />
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body * { visibility: hidden; }
+          #project-close-print, #project-close-print * { visibility: visible; }
+          #project-close-print {
+            position: absolute; left: 0; top: 0; width: 100%;
+            margin: 0; padding: 0; border: none; background: #fff;
+          }
+          .no-print { display: none !important; }
+          #project-close-print input, #project-close-print textarea, #project-close-print select {
+            border: none !important; background: transparent !important; padding: 0 !important;
+            resize: none !important; color: #000 !important; box-shadow: none !important;
+            -webkit-appearance: none; appearance: none;
+          }
+          @page { size: A4; margin: 12mm; }
+        }
+      ` }} />
     </div>
   );
 }
