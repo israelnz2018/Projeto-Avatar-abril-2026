@@ -13,6 +13,8 @@ import {
   getUserUsageStats,
   getResumoAluno,
   getResumoEquipe,
+  getResultadosEquipe,
+  ResultadoAluno,
   getAdminGlobalStats,
   getProgressoPorTrilha,
   getProjetosComDetalhes,
@@ -112,6 +114,18 @@ export function useResumoEquipe(
 ): AsyncState<ResumoAluno[]> {
   return useAsync(
     () => getResumoEquipe(empresaId as string, coordenadorUid as string),
+    [empresaId, coordenadorUid],
+    !!empresaId && !!coordenadorUid,
+  );
+}
+
+/** Resultados (ganhos R$) + engajamento (vídeos, certificados) de todo o time. */
+export function useResultadosEquipe(
+  empresaId: string | null,
+  coordenadorUid: string | null,
+): AsyncState<ResultadoAluno[]> {
+  return useAsync(
+    () => getResultadosEquipe(empresaId as string, coordenadorUid as string),
     [empresaId, coordenadorUid],
     !!empresaId && !!coordenadorUid,
   );

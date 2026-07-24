@@ -17,7 +17,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import {
   Users, FolderKanban, Sparkles, AlertTriangle,
-  CheckCircle2, Clock, Mail, ArrowRight,
+  CheckCircle2, Clock, Mail, ArrowRight, TrendingUp, Award, PlayCircle,
 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -25,6 +25,7 @@ import {
   useResumoEquipe,
   useUserUsageStats,
   useProjetosComDetalhes,
+  useResultadosEquipe,
 } from '../../hooks/useDashboardData';
 import {
   DashboardShell, DashboardLoading, DashboardError,
@@ -60,6 +61,8 @@ function formatISORelative(iso?: string): string {
   return formatRelativeTime(new Date(iso).getTime());
 }
 
+const fmtBRL = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
+
 export default function DashboardCoordenador({ nome }: Props) {
   const uid = auth.currentUser?.uid || null;
   const { empresaId, empresaNome } = useUserAccess();
@@ -67,6 +70,7 @@ export default function DashboardCoordenador({ nome }: Props) {
   const equipe = useResumoEquipe(empresaId, uid);
   const meusStats = useUserUsageStats(uid);
   const meusProjetos = useProjetosComDetalhes(uid);
+  const resultados = useResultadosEquipe(empresaId, uid);
 
   if (equipe.loading || meusStats.loading || meusProjetos.loading) {
     return <DashboardLoading />;
@@ -83,6 +87,12 @@ export default function DashboardCoordenador({ nome }: Props) {
   const alunosSemProjeto = time.filter(a => !a.projetoAtual).length;
   const iaTimeTotal = time.reduce((s, a) => s + (a.iaUsado || 0), 0);
   const projetosTimeAtivos = time.filter(a => a.projetoAtual).length;
+
+  const resMap = new Map((resultados.data || []).map(r => [r.uid, r]));
+  const ganhoTimeReal = (resultados.data || []).reduce((s, r) => s + r.ganhoReal, 0);
+  const ganhoTimeTeo = (resultados.data || []).reduce((s, r) => s + r.ganhoTeo, 0);
+  const certTimeTotal = (resultados.data || []).reduce((s, r) => s + r.certificados, 0);
+  const videosTimeTotal = (resultados.data || []).reduce((s, r) => s + r.videosAssistidos, 0);
 
   // Coordenador sem empresaId → estado vazio elegante
   if (!empresaId) {
@@ -177,6 +187,62 @@ export default function DashboardCoordenador({ nome }: Props) {
             delay={0.2}
           />
         </div>
+      </div>
+
+      {/* ====== RESULTADOS & ENGAJAMENTO ====== */}
+      <div className="mb-10">
+        <SectionLabel rightSlot={resultados.loading ? 'calculando…' : 'ao vivo'}>
+          Resultados &amp; engajamento do time
+        </SectionLabel>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <StatCard label="Ganho real do time" value={resultados.loading ? '…' : fmtBRL(ganhoTimeReal)} sublabel="acumulado nos projetos" icon={<TrendingUp size={16} />} gradient="emerald" delay={0.05} />
+          <StatCard label="Ganho teórico" value={resultados.loading ? '…' : fmtBRL(ganhoTimeTeo)} sublabel="a preço congelado" icon={<TrendingUp size={16} />} gradient="navy" delay={0.1} />
+          <StatCard label="Vídeos assistidos" value={resultados.loading ? '…' : videosTimeTotal} sublabel="pelo time" icon={<PlayCircle size={16} />} gradient="sky" delay={0.15} />
+          <StatCard label="Certificados" value={resultados.loading ? '…' : certTimeTotal} sublabel="trilhas concluídas" icon={<Award size={16} />} gradient="violet" delay={0.2} />
+        </div>
+
+        {alunosTotal > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <div className="hidden md:grid grid-cols-[2fr_1fr_1.4fr_0.7fr_0.7fr] gap-3 px-5 py-3 border-b border-white/8 bg-white/[0.02]">
+              <div className="text-[9px] font-black tracking-[0.25em] uppercase text-white/40">Aluno</div>
+              <div className="text-[9px] font-black tracking-[0.25em] uppercase text-white/40 text-right">Ganho real (R$)</div>
+              <div className="text-[9px] font-black tracking-[0.25em] uppercase text-white/40">Projetos c/ ganho</div>
+              <div className="text-[9px] font-black tracking-[0.25em] uppercase text-white/40 text-right">Vídeos</div>
+              <div className="text-[9px] font-black tracking-[0.25em] uppercase text-white/40 text-right">Certif.</div>
+            </div>
+            {time.map((a) => {
+              const r = resMap.get(a.user.uid);
+              const ganho = r?.ganhoReal || 0;
+              const nomeAluno = a.user.nome || a.user.email.split('@')[0];
+              return (
+                <div key={a.user.uid} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  {/* desktop */}
+                  <div className="hidden md:grid grid-cols-[2fr_1fr_1.4fr_0.7fr_0.7fr] gap-3 px-5 py-3.5 items-center">
+                    <div className="min-w-0"><p className="text-white font-bold text-sm m-0 truncate">{nomeAluno}</p></div>
+                    <div className="text-right"><span className={`font-black text-sm ${ganho > 0 ? 'text-emerald-300' : 'text-white/35'}`}>{resultados.loading ? '…' : fmtBRL(ganho)}</span></div>
+                    <div className="min-w-0 text-[11px] text-white/60 truncate">{r && r.projetosComGanho.length ? r.projetosComGanho.map(p => p.name).join(', ') : <span className="text-white/25 italic">nenhum</span>}</div>
+                    <div className="text-right text-white/70 text-[12px] font-bold">{resultados.loading ? '…' : (r?.videosAssistidos ?? 0)}</div>
+                    <div className="text-right text-white/70 text-[12px] font-bold">{resultados.loading ? '…' : (r?.certificados ?? 0)}</div>
+                  </div>
+                  {/* mobile */}
+                  <div className="md:hidden px-4 py-3.5">
+                    <p className="text-white font-bold text-sm m-0 truncate mb-2">{nomeAluno}</p>
+                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                      <div><p className="text-white/35 font-black tracking-widest uppercase m-0 mb-0.5">Ganho R$</p><p className={`m-0 font-bold ${ganho > 0 ? 'text-emerald-300' : 'text-white/50'}`}>{resultados.loading ? '…' : fmtBRL(ganho)}</p></div>
+                      <div><p className="text-white/35 font-black tracking-widest uppercase m-0 mb-0.5">Vídeos</p><p className="m-0 font-bold text-white/70">{resultados.loading ? '…' : (r?.videosAssistidos ?? 0)}</p></div>
+                      <div><p className="text-white/35 font-black tracking-widest uppercase m-0 mb-0.5">Certif.</p><p className="m-0 font-bold text-white/70">{resultados.loading ? '…' : (r?.certificados ?? 0)}</p></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
       </div>
 
       {/* ====== TABELA DO TIME ====== */}

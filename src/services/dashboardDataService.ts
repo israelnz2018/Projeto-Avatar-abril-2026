@@ -14,10 +14,11 @@
  */
 
 import {
-  collection, getDocs, query, where,
+  collection, getDocs, doc, getDoc, query, where,
   orderBy, limit as fsLimit, Timestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { getUserProgress } from './videoProgressService';
 import { getInitiatives, getInitiativeConfigs } from './configService';
 import { getUserData, getUsersByEmpresa, UserData } from './userService';
 import { Initiative, Project } from '../types';
@@ -293,6 +294,96 @@ export async function getResumoEquipe(
   const equipe = await getEquipeDoCoordenador(empresaId, coordenadorUid);
   const resumos = await Promise.all(equipe.map(u => getResumoAluno(u.uid)));
   return resumos.filter((r): r is ResumoAluno => r !== null);
+}
+
+// ---------- RESULTADOS (Ganhos Tangíveis) + engajamento por aluno ----------
+
+/** Recalcula o ganho REAL e TEÓRICO acumulado a partir do toolData da ferramenta
+ * Ganhos Tangíveis (mesma conta da aba Depois). Não chuma nada — lê o que o aluno salvou. */
+function computeGanhos(d: any): { accReal: number; accTeo: number } {
+  if (!d || typeof d !== 'object') return { accReal: 0, accTeo: 0 };
+  const num = (s: any) => {
+    if (typeof s === 'number') return s;
+    if (s == null || s === '') return 0;
+    const n = parseFloat(String(s).trim().replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+  const dir = d.direction === 'higher' ? -1 : 1;
+  const padrao = num(d.custoPadrao ?? d.unitValue);
+  const eff = (r: any) => (r?.custo !== '' && r?.custo != null ? num(r.custo) : padrao);
+  const qty = (r: any) => (r?.mode === 'coef' ? num(r.coef) * num(r.volume) : r?.mode === 'direct' ? num(r?.value) : 0);
+  const vm = (r: any) => (r?.mode === 'money' ? num(r?.valorRS) : qty(r) * eff(r));
+  const has = (r: any) => (r?.mode === 'coef' ? r.coef !== '' && r.volume !== '' : r?.mode === 'direct' ? (r?.value !== '' && r?.value != null) : (r?.valorRS !== '' && r?.valorRS != null));
+  const base: any[] = Array.isArray(d.baselineRows) ? d.baselineRows : [];
+  const after: any[] = Array.isArray(d.afterRows) ? d.afterRows : [];
+  const bQty: number[] = [], bCoef: number[] = [], bVal: number[] = [], bCusto: number[] = [];
+  base.forEach((r) => {
+    if (!has(r)) return;
+    if (r.mode !== 'money') { bQty.push(qty(r)); bCusto.push(eff(r)); }
+    if (r.mode === 'coef') bCoef.push(num(r.coef));
+    bVal.push(vm(r));
+  });
+  const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
+  const qtyAvg = avg(bQty), coefAvg = bCoef.length ? avg(bCoef) : null, valAvg = avg(bVal), custoAvg = bCusto.length ? avg(bCusto) : padrao;
+  const preco = d.precoCongelado !== '' && d.precoCongelado != null ? num(d.precoCongelado) : custoAvg;
+  let accReal = 0, accTeo = 0;
+  after.forEach((r) => {
+    if (!has(r)) return;
+    const c = eff(r);
+    if (r.mode === 'money') { const g = dir * (valAvg - vm(r)); accReal += g; accTeo += g; return; }
+    let gFis = 0;
+    if (r.mode === 'coef' && coefAvg != null) gFis = dir * (coefAvg - num(r.coef)) * num(r.volume);
+    else gFis = dir * (qtyAvg - qty(r));
+    accTeo += gFis * preco;
+    accReal += gFis * c;
+  });
+  return { accReal, accTeo };
+}
+
+export interface ResultadoAluno {
+  uid: string;
+  ganhoReal: number;
+  ganhoTeo: number;
+  projetosComGanho: { name: string; accReal: number; indicator: string }[];
+  videosAssistidos: number;
+  certificados: number;
+}
+
+/** Resultados (ganhos R$ dos projetos) + engajamento (vídeos, certificados) de um aluno. */
+export async function getResultadoAluno(uid: string): Promise<ResultadoAluno> {
+  const projetos = await getProjectsByOwner(uid);
+  let ganhoReal = 0, ganhoTeo = 0;
+  const projetosComGanho: { name: string; accReal: number; indicator: string }[] = [];
+  for (const p of projetos) {
+    try {
+      const snap = await getDoc(doc(db, PROJECTS_COLLECTION, p.id, 'data', 'tangibleGains'));
+      if (!snap.exists()) continue;
+      const content = (snap.data() as any)?.content;
+      const d = content?.toolData || content;
+      const { accReal, accTeo } = computeGanhos(d);
+      if (accReal !== 0 || accTeo !== 0) {
+        ganhoReal += accReal;
+        ganhoTeo += accTeo;
+        projetosComGanho.push({ name: (p as any).name || 'Projeto', accReal, indicator: d?.indicator || '' });
+      }
+    } catch { /* projeto sem ganhos ou sem permissão — ignora */ }
+  }
+  let videosAssistidos = 0, certificados = 0;
+  try {
+    const prog = await getUserProgress(uid);
+    videosAssistidos = Object.keys(prog.watchedUrls || {}).length;
+    certificados = Object.keys(prog.certificadosEmitidos || {}).length;
+  } catch { /* ignora */ }
+  return { uid, ganhoReal, ganhoTeo, projetosComGanho, videosAssistidos, certificados };
+}
+
+/** Resultados + engajamento de todo o time do coordenador. */
+export async function getResultadosEquipe(
+  empresaId: string,
+  coordenadorUid: string,
+): Promise<ResultadoAluno[]> {
+  const equipe = await getEquipeDoCoordenador(empresaId, coordenadorUid);
+  return Promise.all(equipe.map(u => getResultadoAluno(u.uid)));
 }
 
 // ---------- Funções extras pros perfis Pago/Coordenador ----------
