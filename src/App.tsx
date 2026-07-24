@@ -56,6 +56,7 @@ const VerificarPage = lazy(() => import('./components/CertificatePage').then(m =
 const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
+const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -105,8 +106,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    ...(isCoordenador ? [
+      { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
+    ] : []),
     ...(isAdmin ? [
+      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
     ] : []),
     ...(isAdmin ? [
@@ -462,6 +466,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/education" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/equipe" element={<CoordenadorEquipe />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />
               <Route path="/projects" element={<ProjectManagement />} />

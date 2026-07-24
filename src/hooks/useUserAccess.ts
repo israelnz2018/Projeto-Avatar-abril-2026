@@ -14,6 +14,7 @@ export function useUserAccess() {
   const [tipoUsuario, setTipoUsuario] = useState<TipoUsuario>('aluno');
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [empresaNome, setEmpresaNome] = useState<string | null>(null);
+  const [maxAlunos, setMaxAlunos] = useState<number | null>(null);
   const [freeToolIds, setFreeToolIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export function useUserAccess() {
         let tipo: TipoUsuario = 'aluno';
         let empId: string | null = null;
         let empNome: string | null = null;
+        let maxAl: number | null = null;
         if (userSnap.exists()) {
           const data = userSnap.data();
           // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
@@ -48,6 +50,7 @@ export function useUserAccess() {
           coord = tipo === 'coordenador';
           empId = data.empresaId || null;
           empNome = data.empresaNome || null;
+          maxAl = typeof data.maxAlunos === 'number' ? data.maxAlunos : null;
           // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
           // passou, o "completo" expira e o usuário volta a gratuito.
           // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
@@ -75,6 +78,7 @@ export function useUserAccess() {
         setTipoUsuario(tipo);
         setEmpresaId(empId);
         setEmpresaNome(empNome);
+        setMaxAlunos(maxAl);
         const initiatives = await getInitiatives();
         const freeInitiatives = initiatives.filter(i => i.isFree === true);
         const toolIdsSet = new Set<string>();
@@ -117,6 +121,7 @@ export function useUserAccess() {
     tipoUsuario,
     empresaId,
     empresaNome,
+    maxAlunos,
     freeToolIds,
     canUseTool,
     canUseInitiative,

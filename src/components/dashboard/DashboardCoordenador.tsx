@@ -13,14 +13,15 @@
  * Sem empresaId no coordenador → mostra estado "Você ainda não tem time".
  */
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import {
   Users, FolderKanban, Sparkles, AlertTriangle,
-  CheckCircle2, Clock, Mail, ArrowRight, TrendingUp, Award, PlayCircle,
+  CheckCircle2, Clock, Mail, ArrowRight, TrendingUp, Award, PlayCircle, UserPlus, X,
 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserAccess } from '../../hooks/useUserAccess';
+import { criarConvite, deletarConvite, listarConvitesPorEmpresa, PendingInvite } from '../../services/userService';
 import {
   useResumoEquipe,
   useUserUsageStats,
@@ -65,12 +66,23 @@ const fmtBRL = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
 
 export default function DashboardCoordenador({ nome }: Props) {
   const uid = auth.currentUser?.uid || null;
-  const { empresaId, empresaNome } = useUserAccess();
+  const { empresaId, empresaNome, maxAlunos } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
   const meusStats = useUserUsageStats(uid);
   const meusProjetos = useProjetosComDetalhes(uid);
   const resultados = useResultadosEquipe(empresaId, uid);
+
+  // Convites pendentes do time (auto-serviço do coordenador).
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
+  const [novoEmail, setNovoEmail] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
+  const carregarInvites = useCallback(async () => {
+    if (!empresaId) { setInvites([]); return; }
+    try { setInvites(await listarConvitesPorEmpresa(empresaId)); } catch { /* ignora */ }
+  }, [empresaId]);
+  useEffect(() => { carregarInvites(); }, [carregarInvites]);
 
   if (equipe.loading || meusStats.loading || meusProjetos.loading) {
     return <DashboardLoading />;
@@ -126,6 +138,26 @@ export default function DashboardCoordenador({ nome }: Props) {
       </DashboardShell>
     );
   }
+
+  const usados = alunosTotal + invites.length;
+  const limite = maxAlunos;
+  const vagasCheias = limite != null && usados >= limite;
+
+  const adicionarMembro = async () => {
+    const email = novoEmail.trim().toLowerCase();
+    if (!email.includes('@') || !empresaId) return;
+    if (vagasCheias) { setErrMsg('Limite de vagas atingido — peça ao admin para aumentar.'); return; }
+    setAddingMember(true); setErrMsg(null);
+    try {
+      await criarConvite({ email, formacoes: [], tipoUsuario: 'aluno', empresaId, empresaNome: empresaNome || undefined, criadoPor: 'coordenador' });
+      setNovoEmail('');
+      await carregarInvites();
+    } catch (e: any) { setErrMsg(e?.message || 'Falha ao convidar.'); }
+    finally { setAddingMember(false); }
+  };
+  const removerInvite = async (email: string) => {
+    try { await deletarConvite(email); await carregarInvites(); } catch { /* ignora */ }
+  };
 
   return (
     <DashboardShell>
@@ -186,6 +218,48 @@ export default function DashboardCoordenador({ nome }: Props) {
             gradient="amber"
             delay={0.2}
           />
+        </div>
+      </div>
+
+      {/* ====== CONVIDAR / GERENCIAR MEMBROS ====== */}
+      <div className="mb-10">
+        <SectionLabel rightSlot={limite != null ? <span className={vagasCheias ? 'text-rose-300' : ''}>{usados} / {limite} vagas</span> : `${usados} no time`}>
+          Convidar membros
+        </SectionLabel>
+        <div className="rounded-2xl p-4 md:p-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex gap-2 flex-wrap items-center">
+            <input
+              type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') adicionarMembro(); }}
+              placeholder="email@empresa.com"
+              className="flex-1 min-w-[220px] rounded-lg px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}
+            />
+            <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !novoEmail.includes('@')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-xs font-black uppercase tracking-widest border-none cursor-pointer"
+              style={{ background: vagasCheias ? 'rgba(255,255,255,0.1)' : 'linear-gradient(120deg,#0033CC,#2563EB)', opacity: (addingMember || vagasCheias || !novoEmail.includes('@')) ? 0.55 : 1 }}>
+              <UserPlus size={14} /> {addingMember ? 'Convidando…' : 'Convidar'}
+            </button>
+          </div>
+          {vagasCheias && <p className="text-rose-300 text-xs mt-2 mb-0">Vagas esgotadas. Peça ao admin para aumentar o limite do seu time.</p>}
+          {limite == null && <p className="text-white/40 text-xs mt-2 mb-0">O admin ainda não definiu um limite de vagas pro seu time.</p>}
+          {errMsg && <p className="text-rose-300 text-xs mt-2 mb-0">{errMsg}</p>}
+
+          {invites.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-[10px] font-black tracking-[0.25em] uppercase text-white/40 m-0">Convites pendentes ({invites.length})</p>
+              {invites.map((inv) => (
+                <div key={inv.email} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span className="text-white/75 text-sm truncate flex items-center gap-2"><Mail size={12} className="text-white/30" />{inv.email}</span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">pendente</span>
+                    <button onClick={() => removerInvite(inv.email)} title="Cancelar convite" className="text-white/30 hover:text-rose-400 border-none bg-transparent cursor-pointer p-1"><X size={14} /></button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-white/35 text-[11px] mt-3 mb-0">O convidado entra no seu time ao criar a conta com esse e-mail.</p>
         </div>
       </div>
 
