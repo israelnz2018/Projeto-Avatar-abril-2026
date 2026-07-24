@@ -106,7 +106,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    ...(isAdmin || isCoordenador ? [
+    ...(isAdmin ? [
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
     ] : []),
     ...(isAdmin ? [
