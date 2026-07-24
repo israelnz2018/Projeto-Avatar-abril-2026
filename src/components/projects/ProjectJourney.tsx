@@ -76,6 +76,7 @@ import Indicadores from './Indicadores';
 import Mapa90Dias from './Mapa90Dias';
 import ProjectCharterPMI from './ProjectCharterPMI';
 import TangibleGainsTool from './TangibleGainsTool';
+import ProjectClose from './ProjectClose';
 import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
 
@@ -130,6 +131,7 @@ const AVAILABLE_TOOLS = [
   // Sem fase padrão de propósito: quem decide em que fase(s) ela entra é o usuário.
   // defaultPhase vazio => nunca é auto-selecionada por fase e nunca gera chave composta.
   { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', component: TangibleGainsTool, defaultPhase: '' },
+  { id: 'projectClose', name: 'Termo de Encerramento do Projeto', component: ProjectClose, defaultPhase: '' },
 ];
 
 import { toast } from 'sonner';

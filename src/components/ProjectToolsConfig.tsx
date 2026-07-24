@@ -119,6 +119,7 @@ const AVAILABLE_TOOLS = [
   { id: 'sop', name: 'POP (Procedimento Operacional Padrão)', phase: 'Improve' },
   { id: 'controlPlan', name: 'Plano de Controle', phase: 'Control' },
   { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', phase: '' },
+  { id: 'projectClose', name: 'Termo de Encerramento do Projeto', phase: '' },
   { id: 'processCanva', name: 'Canva', phase: 'Measure' },
   { id: 'processModeling', name: 'Modelagem de Processo', phase: 'Measure' },
   { id: 'processValidation', name: 'Validação de Processo', phase: 'Measure' },

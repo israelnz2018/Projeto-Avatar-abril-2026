@@ -792,6 +792,7 @@ export default function ToolWrapper({
       charter: ['team', 'stakeholders', 'milestones'],
       projectCharterPMI: ['team', 'stakeholders', 'milestones'],
       tangibleGains: ['baselineRows', 'afterRows'],
+      projectClose: ['causasRaizes', 'solucoes'],
     };
 
     const fields = arrayFields[toolId] || [];
