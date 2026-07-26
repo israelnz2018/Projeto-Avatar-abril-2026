@@ -21,7 +21,8 @@ import {
   Megaphone,
   Award,
   FolderCheck,
-  Palette
+  Palette,
+  Store
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -63,6 +64,7 @@ const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'));
 const MinhaVitrine = lazy(() => import('./components/consultor/MinhaVitrine'));
+const VitrinePublica = lazy(() => import('./components/VitrinePublica'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -122,6 +124,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
       { name: 'Meus Alunos', path: '/meus-alunos', icon: Users },
       { name: 'Minha Vitrine', path: '/minha-vitrine', icon: Megaphone },
+      { name: 'Vitrine (consultores)', path: '/consultores', icon: Store },
       { name: 'Minha Marca', path: '/marca', icon: Palette },
     ] : []),
     ...(isCoordenador ? [
@@ -378,7 +381,7 @@ export default function App() {
     const host = window.location.hostname;
     const path = window.location.pathname;
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
-    const rotasPublicas = ['/formacao', '/kit90dias', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    const rotasPublicas = ['/formacao', '/vitrine', '/kit90dias', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
     return isSitePublico || rotasPublicas.some(r => path.startsWith(r));
   })();
 
@@ -462,6 +465,15 @@ export default function App() {
     );
   }
 
+  // Vitrine pública de consultores — bypass do login (empresa externa navega sem conta).
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/vitrine')) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" /></div>}>
+        <VitrinePublica />
+      </Suspense>
+    );
+  }
+
   if (!user) {
     return <Login onLogin={(u) => setUser(u)} />;
   }
@@ -512,6 +524,7 @@ export default function App() {
               <Route path="/meus-alunos" element={<MeusAlunos />} />
               <Route path="/super-relatorio" element={<SuperRelatorio />} />
               <Route path="/minha-vitrine" element={<MinhaVitrine />} />
+              <Route path="/consultores" element={<VitrinePublica />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
