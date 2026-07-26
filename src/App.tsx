@@ -62,6 +62,7 @@ const WhiteLabelSetup = lazy(() => import('./components/WhiteLabelSetup'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'));
+const MinhaVitrine = lazy(() => import('./components/consultor/MinhaVitrine'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -120,6 +121,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Super-relatório', path: '/super-relatorio', icon: LayoutDashboard },
       { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
       { name: 'Meus Alunos', path: '/meus-alunos', icon: Users },
+      { name: 'Minha Vitrine', path: '/minha-vitrine', icon: Megaphone },
       { name: 'Minha Marca', path: '/marca', icon: Palette },
     ] : []),
     ...(isCoordenador ? [
@@ -509,6 +511,7 @@ export default function App() {
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/meus-alunos" element={<MeusAlunos />} />
               <Route path="/super-relatorio" element={<SuperRelatorio />} />
+              <Route path="/minha-vitrine" element={<MinhaVitrine />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

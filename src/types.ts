@@ -42,11 +42,23 @@ export interface ConsultorBranding {
   };
 }
 
+// Vitrine — a "prateleira" pública do consultor (marketing + negociação).
+// Vive no doc do consultor (que é público). Nunca guarda dado sensível.
+export interface ConsultorVitrine {
+  publicada?: boolean;      // aparece na vitrine pública?
+  descricao?: string;       // o que ele oferece / bio curta
+  especialidade?: string;   // área de atuação (ex.: "Lean na indústria")
+  contatoEmail?: string;
+  contatoWhatsapp?: string;
+  site?: string;
+}
+
 export interface Consultor {
   id: string;            // = subdomínio (ex.: 'israel' → israel.educacaopelotrabalho.com)
   nome: string;
   subdominio: string;
   branding: ConsultorBranding;
+  vitrine?: ConsultorVitrine;
   plano?: string;        // faixa SaaS (monetização)
   ativo: boolean;
   criadoEm: string;
