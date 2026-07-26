@@ -3,13 +3,12 @@
  *
  * Resolve o consultorId pelo subdomínio (ex.: israel.educacaopelotrabalho.com →
  * 'israel') e carrega a marca dele. Enquanto o doc não existir no Firestore,
- * cai no CONSULTOR_PADRAO (marca LBW) — nada muda. Ver PLANO-WHITELABEL.md.
+ * cai no CONSULTOR_PADRAO (marca LBW). Ver PLANO-WHITELABEL.md.
  *
- * Fase 0: existe mas ainda não é consumido pela UI. A Fase 1 (branding por
- * config) passa a ler `useConsultor().consultor.branding` no lugar dos valores
- * LBW hardcoded.
+ * `refresh()` recarrega a marca do Firestore — usado depois que o consultor
+ * edita a própria marca (Minha Marca) pra o app re-vestir ao vivo.
  */
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Consultor } from '../types';
 import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId } from '../services/consultorService';
 
@@ -17,18 +16,25 @@ interface ConsultorContextValue {
   consultor: Consultor;
   consultorId: string;
   loading: boolean;
+  refresh: () => Promise<void>;
 }
 
 const ConsultorContext = createContext<ConsultorContextValue>({
   consultor: CONSULTOR_PADRAO,
   consultorId: 'israel',
   loading: true,
+  refresh: async () => {},
 });
 
 export function ConsultorProvider({ children }: { children: React.ReactNode }) {
   const consultorId = resolveConsultorId();
   const [consultor, setConsultor] = useState<Consultor>({ ...CONSULTOR_PADRAO, id: consultorId });
   const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    const c = await getConsultor(consultorId);
+    setConsultor(c);
+  }, [consultorId]);
 
   useEffect(() => {
     let ativo = true;
@@ -39,7 +45,7 @@ export function ConsultorProvider({ children }: { children: React.ReactNode }) {
   }, [consultorId]);
 
   return (
-    <ConsultorContext.Provider value={{ consultor, consultorId, loading }}>
+    <ConsultorContext.Provider value={{ consultor, consultorId, loading, refresh }}>
       {children}
     </ConsultorContext.Provider>
   );

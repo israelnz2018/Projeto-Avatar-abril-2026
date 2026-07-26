@@ -20,7 +20,8 @@ import {
   Unlock,
   Megaphone,
   Award,
-  FolderCheck
+  FolderCheck,
+  Palette
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -58,6 +59,7 @@ const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const WhiteLabelSetup = lazy(() => import('./components/WhiteLabelSetup'));
+const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -71,6 +73,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const { projetoAtivo } = useProject();
   const { tipoUsuario, plano } = useUserAccess();
   const { consultor } = useConsultor();
+  // Em site de consultor (israel.…), o dono só vê o papel de CONSULTOR — nunca o admin.
+  // O admin (super-admin LBW) vive no hub (app.…). Ver PLANO-WHITELABEL.md.
+  const siteConsultor = isSiteConsultor();
 
   // Tour da plataforma (percorre o menu lateral). Só abre pelo botão no menu OU
   // por um evento global (botão na aba Projetos dispara 'lbw-open-menu-tour').
@@ -108,14 +113,19 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
+    // Papel CONSULTOR — só aparece no site do consultor (israel.…).
+    ...(siteConsultor && isAdmin ? [
+      { name: 'Minha Marca', path: '/marca', icon: Palette },
+    ] : []),
     ...(isCoordenador ? [
       { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
     ] : []),
-    ...(isAdmin ? [
+    // Papel ADMIN (super-admin LBW) — NUNCA aparece em site de consultor; só no hub (app.…).
+    ...(isAdmin && !siteConsultor ? [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
     ] : []),
-    ...(isAdmin ? [
+    ...(isAdmin && !siteConsultor ? [
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
       { name: 'Avaliação ADMIN', path: '/avaliacao-admin', icon: ClipboardList },
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
@@ -263,6 +273,7 @@ import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ConsultorProvider, useConsultor } from './contexts/ConsultorContext';
+import { isSiteConsultor } from './services/consultorService';
 
 const ProfileView = () => {
   const navigate = useNavigate();
@@ -489,6 +500,7 @@ export default function App() {
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/whitelabel" element={<WhiteLabelSetup />} />
+              <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

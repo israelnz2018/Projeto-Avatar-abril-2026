@@ -119,6 +119,15 @@ service cloud.firestore {
       }
     }
 
+    // Consultores (tenants white-label) — a MARCA (logo/cores/nome) é pública:
+    // precisa ser lida até antes do login (login/landing branded por subdomínio) e
+    // pelos alunos do consultor. Não há dado sensível aqui. Escrita só admin
+    // (super-admin); o próprio consultor editar a marca vem na Fase 2 (papel 'consultor').
+    match /consultores/{consultorId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Initiatives and Configs
     match /initiatives/{initiativeId} {
       allow read, write: if true;

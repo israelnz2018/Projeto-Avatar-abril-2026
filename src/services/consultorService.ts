@@ -56,6 +56,19 @@ export function resolveConsultorId(hostname?: string): string {
 }
 
 /**
+ * Estamos num SITE DE CONSULTOR (subdomínio branded, ex.: israel.educacaopelotrabalho.com)?
+ * `app.`/`www.`/domínio raiz/localhost = false (contexto hub/admin do LBW).
+ * Usado pra esconder o menu de admin quando o consultor está no site dele.
+ */
+export function isSiteConsultor(hostname?: string): boolean {
+  const host = (hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')).toLowerCase();
+  if (!host || host === 'localhost' || /^[0-9.]+$/.test(host)) return false;
+  const partes = host.split('.');
+  if (partes.length < 3) return false;
+  return !RESERVADOS.has(partes[0]);
+}
+
+/**
  * Carrega o consultor pelo id. Se o doc não existir (ou der erro), devolve o
  * CONSULTOR_PADRAO — o app NUNCA fica sem branding.
  */
