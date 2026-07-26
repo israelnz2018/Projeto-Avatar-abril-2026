@@ -57,6 +57,7 @@ const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
+const WhiteLabelSetup = lazy(() => import('./components/WhiteLabelSetup'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -121,6 +122,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
       { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
+      { name: 'White-Label (setup)', path: '/whitelabel', icon: Unlock },
     ] : []),
   ];
 
@@ -483,6 +485,7 @@ export default function App() {
               <Route path="/opinioes" element={<OpinioesAdminView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
+              <Route path="/whitelabel" element={<WhiteLabelSetup />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
