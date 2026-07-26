@@ -24,6 +24,32 @@ export interface Initiative {
   phases?: { id: string, name: string }[];
   isFree?: boolean;
   createdAt: string;
+  consultorId?: string; // Multi-tenant: dono do conteúdo (default 'israel' na Fase 0)
+}
+
+// ===== Multi-tenant (white-label) =====
+// Um Consultor é um tenant: tem o próprio subdomínio, marca e cursos.
+// Israel = consultor #0 ('israel'). Ver PLANO-WHITELABEL.md.
+export interface ConsultorBranding {
+  nome: string;   // nome/marca exibida
+  logoUrl: string;
+  cores: {
+    navy: string;
+    blue: string;
+    light: string;
+    ink: string;
+    muted: string;
+  };
+}
+
+export interface Consultor {
+  id: string;            // = subdomínio (ex.: 'israel' → israel.educacaopelotrabalho.com)
+  nome: string;
+  subdominio: string;
+  branding: ConsultorBranding;
+  plano?: string;        // faixa SaaS (monetização)
+  ativo: boolean;
+  criadoEm: string;
 }
 
 export interface InitiativePhaseConfig {
