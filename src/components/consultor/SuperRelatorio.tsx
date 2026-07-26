@@ -1,0 +1,80 @@
+/**
+ * SuperRelatorio — o painel agregado do mundo do consultor.
+ * Alunos, ativos, projetos, GANHO R$ (dos Ganhos Tangíveis) e engajamento
+ * (vídeos, certificados). Read-only, scoped por consultorId. Ver PLANO-WHITELABEL.md.
+ */
+import React, { useEffect, useState } from 'react';
+import { Users, UserCheck, FolderKanban, TrendingUp, Video, Award } from 'lucide-react';
+import { useConsultor } from '../../contexts/ConsultorContext';
+import { getPainelConsultor, PainelConsultor } from '../../services/dashboardDataService';
+
+const fmtBRL = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v || 0);
+
+export default function SuperRelatorio() {
+  const { consultor, consultorId } = useConsultor();
+  const [p, setP] = useState<PainelConsultor | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    let ativo = true;
+    setLoading(true);
+    setErro('');
+    getPainelConsultor(consultorId)
+      .then((r) => { if (ativo) setP(r); })
+      .catch((e) => { if (ativo) setErro(e?.message || 'Erro ao carregar o painel.'); })
+      .finally(() => { if (ativo) setLoading(false); });
+    return () => { ativo = false; };
+  }, [consultorId]);
+
+  const Card = ({ icon, label, valor, sub, destaque }: { icon: React.ReactNode; label: string; valor: string; sub?: string; destaque?: boolean }) => (
+    <div className={`rounded-2xl border p-5 ${destaque ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'}`}>
+      <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide mb-2" style={{ color: destaque ? '#0f7a58' : '#9CA3AF' }}>
+        {icon} {label}
+      </div>
+      <div className={`text-3xl font-black ${destaque ? 'text-emerald-700' : 'text-gray-800'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
+      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Super-relatório</h1>
+      <p className="text-gray-500 text-sm mb-6">O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</p>
+
+      {loading && <div className="text-gray-500">Calculando o painel…</div>}
+      {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
+
+      {!loading && !erro && p && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card icon={<TrendingUp size={14} />} label="Ganho gerado (R$)" valor={fmtBRL(p.ganhoReal)} sub={`teórico ${fmtBRL(p.ganhoTeo)}`} destaque />
+            <Card icon={<Users size={14} />} label="Alunos" valor={String(p.totalAlunos)} sub={`${p.ativos} já acessaram`} />
+            <Card icon={<UserCheck size={14} />} label="Ativos" valor={String(p.ativos)} sub="acessaram a plataforma" />
+            <Card icon={<FolderKanban size={14} />} label="Projetos" valor={String(p.totalProjetos)} />
+            <Card icon={<Video size={14} />} label="Vídeos assistidos" valor={String(p.videos)} />
+            <Card icon={<Award size={14} />} label="Certificados" valor={String(p.certificados)} />
+          </div>
+
+          {p.topProjetos.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Projetos com maior ganho</h2>
+              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                {p.topProjetos.map((pr, i) => (
+                  <div key={i} className="flex items-center justify-between px-4 py-3 border-b border-gray-50 last:border-0">
+                    <div className="min-w-0">
+                      <div className="font-bold text-gray-800 text-sm truncate">{pr.name}</div>
+                      {pr.indicator && <div className="text-xs text-gray-400 truncate">{pr.indicator}</div>}
+                    </div>
+                    <div className="font-black text-emerald-600 text-sm shrink-0" style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(pr.accReal)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

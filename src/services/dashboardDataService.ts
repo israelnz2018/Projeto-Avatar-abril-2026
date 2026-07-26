@@ -386,6 +386,64 @@ export async function getResultadosEquipe(
   return Promise.all(equipe.map(u => getResultadoAluno(u.uid)));
 }
 
+// ---------- Painel do CONSULTOR (agregado do mundo dele, por consultorId) ----------
+
+export interface PainelConsultor {
+  totalAlunos: number;
+  ativos: number;
+  totalProjetos: number;
+  ganhoReal: number;
+  ganhoTeo: number;
+  videos: number;
+  certificados: number;
+  topProjetos: { name: string; accReal: number; indicator: string }[];
+}
+
+/**
+ * Agrega o mundo de um consultor (por consultorId): alunos, projetos, ganho R$
+ * (dos Ganhos Tangíveis) e engajamento (vídeos, certificados). Eficiente: lê os
+ * projetos direto por consultorId (não varre aluno por aluno pra achar projeto).
+ */
+export async function getPainelConsultor(consultorId: string): Promise<PainelConsultor> {
+  // Alunos do consultor (exclui o super-admin)
+  const usersSnap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId)));
+  const alunos = usersSnap.docs.map(d => ({ uid: d.id, ...(d.data() as any) })).filter(u => u.tipoUsuario !== 'admin');
+  const totalAlunos = alunos.length;
+  const ativos = alunos.filter(u => u.primeiroAcessoEm).length;
+
+  // Projetos do consultor + ganhos (lê o tangibleGains de cada)
+  const projSnap = await getDocs(query(collection(db, PROJECTS_COLLECTION), where('consultorId', '==', consultorId)));
+  const projetos = projSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  let ganhoReal = 0, ganhoTeo = 0;
+  const comGanho: { name: string; accReal: number; indicator: string }[] = [];
+  await Promise.all(projetos.map(async (p) => {
+    try {
+      const snap = await getDoc(doc(db, PROJECTS_COLLECTION, p.id, 'data', 'tangibleGains'));
+      if (!snap.exists()) return;
+      const content = (snap.data() as any)?.content;
+      const d = content?.toolData || content;
+      const { accReal, accTeo } = computeGanhos(d);
+      if (accReal !== 0 || accTeo !== 0) {
+        ganhoReal += accReal; ganhoTeo += accTeo;
+        comGanho.push({ name: p.name || 'Projeto', accReal, indicator: d?.indicator || '' });
+      }
+    } catch { /* projeto sem ganhos/sem permissão — ignora */ }
+  }));
+  comGanho.sort((a, b) => b.accReal - a.accReal);
+
+  // Engajamento: vídeos assistidos + certificados (por aluno, em paralelo)
+  let videos = 0, certificados = 0;
+  await Promise.all(alunos.map(async (u) => {
+    try {
+      const prog = await getUserProgress(u.uid);
+      videos += Object.keys(prog.watchedUrls || {}).length;
+      certificados += Object.keys(prog.certificadosEmitidos || {}).length;
+    } catch { /* ignora */ }
+  }));
+
+  return { totalAlunos, ativos, totalProjetos: projetos.length, ganhoReal, ganhoTeo, videos, certificados, topProjetos: comGanho.slice(0, 5) };
+}
+
 // ---------- Funções extras pros perfis Pago/Coordenador ----------
 
 export interface ProgressoTrilha {
