@@ -60,6 +60,7 @@ const LandingInstitucional = lazy(() => import('./components/LandingInstituciona
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const WhiteLabelSetup = lazy(() => import('./components/WhiteLabelSetup'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
+const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -116,6 +117,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // Papel CONSULTOR — só aparece no site do consultor (israel.…).
     ...(siteConsultor && isAdmin ? [
       { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
+      { name: 'Meus Alunos', path: '/meus-alunos', icon: Users },
       { name: 'Minha Marca', path: '/marca', icon: Palette },
     ] : []),
     ...(isCoordenador ? [
@@ -503,6 +505,7 @@ export default function App() {
               <Route path="/whitelabel" element={<WhiteLabelSetup />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
+              <Route path="/meus-alunos" element={<MeusAlunos />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
