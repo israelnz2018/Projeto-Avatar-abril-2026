@@ -66,6 +66,7 @@ const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'
 const MinhaVitrine = lazy(() => import('./components/consultor/MinhaVitrine'));
 const VitrinePublica = lazy(() => import('./components/VitrinePublica'));
 const MeusCoordenadores = lazy(() => import('./components/consultor/MeusCoordenadores'));
+const AdminConsultores = lazy(() => import('./components/AdminConsultores'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from './lib/constants';
@@ -135,6 +136,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // Papel ADMIN (super-admin LBW) — NUNCA aparece em site de consultor; só no hub (app.…).
     ...(isAdmin && !siteConsultor ? [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { name: 'Consultores', path: '/admin-consultores', icon: Store },
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
     ] : []),
     ...(isAdmin && !siteConsultor ? [
@@ -521,6 +523,7 @@ export default function App() {
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/whitelabel" element={<WhiteLabelSetup />} />
+              <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/meus-alunos" element={<MeusAlunos />} />
