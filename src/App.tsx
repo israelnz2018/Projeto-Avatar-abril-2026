@@ -115,6 +115,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
     // Papel CONSULTOR — só aparece no site do consultor (israel.…).
     ...(siteConsultor && isAdmin ? [
+      { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
       { name: 'Minha Marca', path: '/marca', icon: Palette },
     ] : []),
     ...(isCoordenador ? [
@@ -501,6 +502,7 @@ export default function App() {
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/whitelabel" element={<WhiteLabelSetup />} />
               <Route path="/marca" element={<MinhaMarca />} />
+              <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

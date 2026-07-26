@@ -18,6 +18,8 @@ export interface KnowledgeEntry {
   associatedAnalyses?: string[];
   order?: number;
   playlistOrder?: number;
+  /** Multi-tenant: dono do conteúdo (consultor). Default 'israel' na Fase 0. */
+  consultorId?: string;
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';
@@ -94,12 +96,13 @@ export async function getRecentKnowledge(limitCount = 100): Promise<KnowledgeEnt
   }
 }
 
-export async function getAllKnowledge(): Promise<KnowledgeEntry[]> {
+export async function getAllKnowledge(consultorId?: string): Promise<KnowledgeEntry[]> {
   try {
-    const q = query(
-      collection(db, KNOWLEDGE_COLLECTION),
-      orderBy('timestamp', 'desc')
-    );
+    // Com consultorId: filtra pelo tenant (sem orderBy pra não exigir índice
+    // composto; a ordenação é feita em memória logo abaixo). Sem: ordena no servidor.
+    const q = consultorId
+      ? query(collection(db, KNOWLEDGE_COLLECTION), where('consultorId', '==', consultorId))
+      : query(collection(db, KNOWLEDGE_COLLECTION), orderBy('timestamp', 'desc'));
     const querySnapshot = await getDocs(q);
     const items = querySnapshot.docs.map(doc => {
       const data = doc.data();

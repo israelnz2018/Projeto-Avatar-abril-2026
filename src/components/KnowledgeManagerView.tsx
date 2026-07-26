@@ -40,6 +40,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn, youtubeThumb } from '@/src/lib/utils';
 import { db } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
+import { useConsultor } from '../contexts/ConsultorContext';
 import {
   saveKnowledge,
   getRecentKnowledge,
@@ -511,7 +512,10 @@ export default function KnowledgeManagerView() {
     currentTitle: string;
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  // Multi-tenant: escopo do conteúdo pelo consultor atual (resolvido pelo subdomínio).
+  // Hoje = 'israel' no app. e no israel., então nada muda — só passa a filtrar/carimbar por tenant.
+  const { consultorId } = useConsultor();
+
   const [formData, setFormData] = useState({
     sourceUrl: '',
     placements: [{ course: '', playlist: '', newPlaylistName: '' }] as Array<{ course: string; playlist: string; newPlaylistName: string }>,
@@ -839,7 +843,7 @@ export default function KnowledgeManagerView() {
 
   const fetchItems = async () => {
     setLoading(true);
-    const data = await getAllKnowledge();
+    const data = await getAllKnowledge(consultorId);
     setItems(data);
     
     // Set initial active playlists for each course
@@ -949,7 +953,8 @@ export default function KnowledgeManagerView() {
             playlist: p.playlist,
             ...sharedFields,
             associatedTools: formData.associatedTools,
-            associatedAnalyses: formData.associatedAnalyses
+            associatedAnalyses: formData.associatedAnalyses,
+            consultorId
           })
         ));
       }
@@ -1094,7 +1099,8 @@ export default function KnowledgeManagerView() {
               summary: currentItem.summary || [],
               transcript: currentItem.transcript || '',
               associatedTools: editVideoData.associatedTools,
-              associatedAnalyses: editVideoData.associatedAnalyses
+              associatedAnalyses: editVideoData.associatedAnalyses,
+              consultorId
             });
           }
         }
