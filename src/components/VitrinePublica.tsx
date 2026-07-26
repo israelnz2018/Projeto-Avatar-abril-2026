@@ -63,7 +63,14 @@ export default function VitrinePublica() {
                     {v.especialidade && <div className="text-xs text-blue-600 font-bold truncate">{v.especialidade}</div>}
                   </div>
                 </div>
-                {v.descricao && <p className="text-sm text-gray-600 mb-4 flex-1">{v.descricao}</p>}
+                {v.descricao && <p className="text-sm text-gray-600 mb-3">{v.descricao}</p>}
+                {Array.isArray(v.cursosVisiveis) && v.cursosVisiveis.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-4 flex-1 content-start">
+                    {v.cursosVisiveis.map((curso) => (
+                      <span key={curso} className="text-[11px] font-bold text-blue-700 bg-blue-50 rounded px-2 py-1">{curso}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   <a href={site} target="_blank" rel="noopener noreferrer" className="font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 no-underline">
                     Visitar site →

@@ -51,6 +51,7 @@ export interface ConsultorVitrine {
   contatoEmail?: string;
   contatoWhatsapp?: string;
   site?: string;
+  cursosVisiveis?: string[]; // nomes dos cursos que o consultor escolheu mostrar na vitrine
 }
 
 export interface Consultor {
