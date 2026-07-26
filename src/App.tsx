@@ -70,6 +70,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { projetoAtivo } = useProject();
   const { tipoUsuario, plano } = useUserAccess();
+  const { consultor } = useConsultor();
 
   // Tour da plataforma (percorre o menu lateral). Só abre pelo botão no menu OU
   // por um evento global (botão na aba Projetos dispara 'lbw-open-menu-tour').
@@ -136,7 +137,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         <div className="p-4 flex items-start justify-between gap-2 border-b border-gray-700">
           {isSidebarOpen && (
             <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-              <img src="https://i.postimg.cc/7PgJFtZK/logo-LBW.png" alt="Logo" className="h-10 w-auto" />
+              <img src={consultor.branding.logoUrl} alt="Logo" className="h-10 w-auto" />
               <span className="font-bold text-sm whitespace-nowrap text-center">Educação pelo Trabalho</span>
             </div>
           )}
@@ -261,6 +262,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider } from './contexts/ProjectContext';
+import { ConsultorProvider, useConsultor } from './contexts/ConsultorContext';
 
 const ProfileView = () => {
   const navigate = useNavigate();
@@ -453,6 +455,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <ConsultorProvider>
       <ProjectProvider>
         <Toaster position="top-right" richColors />
         <Router>
@@ -526,6 +529,7 @@ export default function App() {
           </div>
         )}
       </ProjectProvider>
+      </ConsultorProvider>
     </ErrorBoundary>
   );
 }
