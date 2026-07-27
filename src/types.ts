@@ -58,6 +58,7 @@ export interface Consultor {
   id: string;            // = subdomínio (ex.: 'israel' → israel.educacaopelotrabalho.com)
   nome: string;
   subdominio: string;
+  email?: string;        // e-mail do consultor (dono do tenant) — definido pelo admin
   branding: ConsultorBranding;
   vitrine?: ConsultorVitrine;
   plano?: string;        // faixa SaaS (monetização)

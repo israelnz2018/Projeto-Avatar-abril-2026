@@ -16,7 +16,7 @@ export default function AdminConsultores() {
   const [carregando, setCarregando] = useState(true);
   const [id, setId] = useState('');
   const [nome, setNome] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const [email, setEmail] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -37,7 +37,9 @@ export default function AdminConsultores() {
 
   async function criar() {
     const cid = slug(id);
+    const mail = email.trim().toLowerCase();
     if (!cid) { setMsg('Informe o subdomínio (ex.: joao).'); return; }
+    if (!mail) { setMsg('Informe o e-mail do consultor.'); return; }
     setSalvando(true);
     setMsg('');
     try {
@@ -45,16 +47,18 @@ export default function AdminConsultores() {
         id: cid,
         nome: nome.trim() || cid,
         subdominio: cid,
+        email: mail,
         ativo: true,
         criadoEm: new Date().toISOString(),
         branding: {
           nome: nome.trim() || cid,
-          logoUrl: logoUrl.trim() || CONSULTOR_PADRAO.branding.logoUrl,
+          // Logo o próprio consultor põe em "Minha Marca". Placeholder até lá.
+          logoUrl: CONSULTOR_PADRAO.branding.logoUrl,
           cores: CONSULTOR_PADRAO.branding.cores,
         },
       }, { merge: true });
       setMsg(`✅ Consultor "${cid}" criado → ${cid}.educacaopelotrabalho.com`);
-      setId(''); setNome(''); setLogoUrl('');
+      setId(''); setNome(''); setEmail('');
       carregar();
     } catch (e: any) {
       setMsg('❌ ' + (e?.message || e));
@@ -73,21 +77,22 @@ export default function AdminConsultores() {
 
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
         <h2 className="font-black text-gray-800 mb-4">Novo consultor</h2>
+        <div className="mb-4">
+          <label className={label}>E-mail do consultor</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="consultor@email.com" className={campo} />
+        </div>
         <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className={label}>Nome / marca do site</label>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="João Silva Consultoria" className={campo} />
+          </div>
           <div>
             <label className={label}>Subdomínio (id)</label>
             <input value={id} onChange={(e) => setId(e.target.value)} placeholder="joao" className={campo} />
             <div className="text-xs text-gray-400 mt-1">{slug(id) || '…'}.educacaopelotrabalho.com</div>
           </div>
-          <div>
-            <label className={label}>Nome / marca</label>
-            <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="João Silva Consultoria" className={campo} />
-          </div>
         </div>
-        <div className="mt-4">
-          <label className={label}>URL do logo</label>
-          <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo-joao.png (vazio = logo LBW)" className={campo} />
-        </div>
+        <p className="text-xs text-gray-400 mt-2">O logo e as cores o próprio consultor coloca em "Minha Marca", no site dele.</p>
         <div className="flex items-center gap-4 mt-5">
           <button onClick={criar} disabled={salvando} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40">
             {salvando ? 'Criando…' : 'Criar consultor'}
@@ -106,9 +111,10 @@ export default function AdminConsultores() {
               {c.branding?.logoUrl && <img src={c.branding.logoUrl} alt={c.nome} className="h-9 w-9 object-contain rounded bg-gray-50 p-1 border border-gray-100" />}
               <div className="min-w-0 flex-1">
                 <div className="font-bold text-gray-800 truncate">{c.nome}</div>
-                <a href={`https://${c.subdominio || c.id}.educacaopelotrabalho.com`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate">
+                <a href={`https://${c.subdominio || c.id}.educacaopelotrabalho.com`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate block">
                   {c.subdominio || c.id}.educacaopelotrabalho.com
                 </a>
+                {(c as any).email && <div className="text-xs text-gray-400 truncate">{(c as any).email}</div>}
               </div>
               {c.ativo === false && <span className="text-[10px] font-black uppercase text-gray-400">inativo</span>}
             </div>
