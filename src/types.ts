@@ -32,6 +32,7 @@ export interface Initiative {
 // Israel = consultor #0 ('israel'). Ver PLANO-WHITELABEL.md.
 export interface ConsultorBranding {
   nome: string;   // nome/marca exibida
+  sigla?: string; // marca curta (até 7 chars) que aparece no cabeçalho dos PPTs
   logoUrl: string;
   cores: {
     navy: string;

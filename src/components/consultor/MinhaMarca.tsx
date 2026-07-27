@@ -15,6 +15,7 @@ export default function MinhaMarca() {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading } = useUserAccess();
   const [nome, setNome] = useState('');
+  const [sigla, setSigla] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -22,8 +23,9 @@ export default function MinhaMarca() {
   // Pré-popula com a marca atual assim que carrega.
   useEffect(() => {
     setNome(consultor.branding.nome || '');
+    setSigla(consultor.branding.sigla || '');
     setLogoUrl(consultor.branding.logoUrl || '');
-  }, [consultor.branding.nome, consultor.branding.logoUrl]);
+  }, [consultor.branding.nome, consultor.branding.sigla, consultor.branding.logoUrl]);
 
   // Só o consultor (hoje = admin) edita a marca. Coordenador/aluno não.
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
@@ -35,7 +37,7 @@ export default function MinhaMarca() {
     try {
       await setDoc(
         doc(db, 'consultores', consultorId),
-        { branding: { ...consultor.branding, nome: nome.trim(), logoUrl: logoUrl.trim() } },
+        { branding: { ...consultor.branding, nome: nome.trim(), sigla: sigla.trim().toUpperCase().slice(0, 7), logoUrl: logoUrl.trim() } },
         { merge: true }
       );
       await refresh(); // re-veste o app ao vivo
@@ -62,6 +64,16 @@ export default function MinhaMarca() {
             onChange={(e) => setNome(e.target.value)}
             placeholder="Ex.: Consultoria João Silva"
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Sigla (aparece nos PPTs — até 7 letras)</label>
+          <input
+            value={sigla}
+            onChange={(e) => setSigla(e.target.value.toUpperCase().slice(0, 7))}
+            placeholder="Ex.: JSC"
+            className="w-40 border border-gray-300 rounded-lg px-3 py-2.5 text-sm uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 

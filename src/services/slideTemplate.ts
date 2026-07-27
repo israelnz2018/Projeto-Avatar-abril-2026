@@ -28,6 +28,14 @@ export function setPhaseLabelOverride(label: string | null): void {
   phaseLabelOverride = label;
 }
 
+// Marca (texto) do cabeçalho do slide — white-label. Default 'LBW'. O app seta
+// com a sigla do consultor atual (ConsultorContext). Curta pra caber no header.
+let slideBrandText = 'LBW';
+export function setSlideBrand(text: string | null): void {
+  const t = (text || '').trim().toUpperCase();
+  slideBrandText = t ? t.slice(0, 7) : 'LBW';
+}
+
 export function createSlide(
   pres: pptxgen,
   project: Project,
@@ -47,22 +55,23 @@ export function createSlide(
     fill: { color: THEME.NAVY }, line: { type: 'none' },
   });
 
-  // Logo LBW — tipografia apenas, sem caixa
-  slide.addText('LBW', {
-    x: 0.20, y: 0, w: 0.82, h: 0.55,
-    fontFace: 'Calibri', fontSize: 14, bold: true, color: 'FFFFFF',
-    align: 'center', valign: 'middle', charSpacing: 3,
+  // Logo/marca — tipografia (white-label: sigla do consultor). Box um pouco maior
+  // pra acomodar siglas de até 7 caracteres sem estourar.
+  slide.addText(slideBrandText, {
+    x: 0.18, y: 0, w: 1.30, h: 0.55,
+    fontFace: 'Calibri', fontSize: 13, bold: true, color: 'FFFFFF',
+    align: 'center', valign: 'middle', charSpacing: 2,
   });
 
   // Divisor vertical sutil
   slide.addShape('line', {
-    x: 1.08, y: 0.12, w: 0, h: 0.30,
+    x: 1.55, y: 0.12, w: 0, h: 0.30,
     line: { color: '8AA0E5', width: 0.5 },
   });
 
   // Nome do projeto no cabeçalho
   slide.addText(project.name || '', {
-    x: 1.18, y: 0, w: 9.60, h: 0.55,
+    x: 1.66, y: 0, w: 9.10, h: 0.55,
     fontFace: 'Calibri', fontSize: 10, color: 'C7D2FF',
     valign: 'middle',
   });

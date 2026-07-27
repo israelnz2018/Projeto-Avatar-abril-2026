@@ -11,6 +11,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Consultor } from '../types';
 import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId } from '../services/consultorService';
+import { setSlideBrand } from '../services/slideTemplate';
 
 interface ConsultorContextValue {
   consultor: Consultor;
@@ -43,6 +44,11 @@ export function ConsultorProvider({ children }: { children: React.ReactNode }) {
       .finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
   }, [consultorId]);
+
+  // White-label do PPT: a marca (sigla) do consultor entra no cabeçalho dos slides.
+  useEffect(() => {
+    setSlideBrand(consultor.branding.sigla || (consultor.branding.nome || '').split(' ')[0] || 'LBW');
+  }, [consultor.branding.sigla, consultor.branding.nome]);
 
   return (
     <ConsultorContext.Provider value={{ consultor, consultorId, loading, refresh }}>
