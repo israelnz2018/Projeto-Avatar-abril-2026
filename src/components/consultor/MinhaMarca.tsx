@@ -13,7 +13,7 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 
 export default function MinhaMarca() {
   const { consultor, consultorId, refresh } = useConsultor();
-  const { isAdmin, loading } = useUserAccess();
+  const { isAdmin, isConsultor, loading } = useUserAccess();
   const [nome, setNome] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -27,7 +27,7 @@ export default function MinhaMarca() {
 
   // Só o consultor (hoje = admin) edita a marca. Coordenador/aluno não.
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
-  if (!isAdmin) return <div className="p-8 text-red-600 font-bold">Só o consultor edita a marca.</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor edita a marca.</div>;
 
   async function salvar() {
     setSalvando(true);

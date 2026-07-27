@@ -47,12 +47,14 @@ import AdminUserModal, { AdminUserModalMode } from './AdminUserModal';
 const TIPO_LABEL: Record<TipoUsuario, string> = {
   admin: 'Admin',
   coordenador: 'Coordenador',
+  consultor: 'Consultor',
   aluno: 'Aluno',
 };
 
 const TIPO_COR: Record<TipoUsuario, string> = {
   admin: 'bg-purple-100 text-purple-700 border-purple-300',
   coordenador: 'bg-blue-100 text-blue-700 border-blue-300',
+  consultor: 'bg-emerald-100 text-emerald-700 border-emerald-300',
   aluno: 'bg-gray-100 text-gray-700 border-gray-300',
 };
 

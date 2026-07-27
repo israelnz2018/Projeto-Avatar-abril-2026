@@ -103,6 +103,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
   const isCoordenador = tipoUsuario === 'coordenador';
+  const isConsultor = tipoUsuario === 'consultor';
 
   const roleLabel = isAdmin
     ? 'Administrador'
@@ -120,8 +121,8 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
-    // Papel CONSULTOR — só aparece no site do consultor (israel.…).
-    ...(siteConsultor && isAdmin ? [
+    // Papel CONSULTOR — só aparece no site do consultor (israel.…), pro admin OU o próprio consultor.
+    ...(siteConsultor && (isAdmin || isConsultor) ? [
       { name: 'Super-relatório', path: '/super-relatorio', icon: LayoutDashboard },
       { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
       { name: 'Meus Alunos', path: '/meus-alunos', icon: Users },

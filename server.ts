@@ -1148,6 +1148,80 @@ async function startServer() {
     }
   });
 
+  // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
+  // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
+  // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.
+  app.post("/api/consultor/convidar", requireAdmin, async (req: any, res) => {
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    const nome = String(req.body?.nome || "").trim();
+    const consultorId = String(req.body?.consultorId || "").trim();
+    if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
+    if (!consultorId) return res.status(400).json({ error: "consultorId obrigatório." });
+    const site = `https://${consultorId}.educacaopelotrabalho.com`;
+    const SENHA_CONVITE = "LBW2026";
+    try {
+      // 1) Se já existe (aluno pago/grátis), NÃO reseta a senha — ele mantém a que já
+      //    usa; só promovemos o papel. Se é conta nova, cria com a senha padrão.
+      let uid: string, novo = false;
+      try {
+        uid = (await adminAuth().getUserByEmail(email)).uid;
+        if (nome) await adminAuth().updateUser(uid, { displayName: nome });
+      } catch {
+        uid = (await adminAuth().createUser({ email, password: SENHA_CONVITE, ...(nome ? { displayName: nome } : {}) })).uid;
+        novo = true;
+      }
+      // 2) Doc: promove a consultor (mantém só admin como admin) + consultorId + acesso completo.
+      const ref = adminFirestore().collection("users").doc(uid);
+      const snap = await ref.get();
+      const base = snap.exists ? (snap.data() as any) : {};
+      await ref.set({
+        uid, email,
+        nome: nome || base.nome || "",
+        tipoUsuario: base.tipoUsuario === "admin" ? "admin" : "consultor",
+        consultorId,
+        plano: "completo",
+        formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
+        creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
+        criadoEm: base.criadoEm || new Date().toISOString(),
+        // Só conta NOVA ganha senha provisória (troca no 1º login). Quem já existe
+        // mantém o estado dele — não mexemos na senha nem forçamos troca.
+        ...(novo ? { senhaProvisoria: true } : {}),
+      }, { merge: true });
+      // 3) E-mail de acesso (via Resend) com login + senha padrão + link do site dele.
+      let emailEnviado = false;
+      try {
+        const saud = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
+        const blocoAcesso = novo
+          ? `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px"><strong>Seus dados de acesso:</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:2px 6px;border:1px solid #ccc;border-radius:4px">${SENHA_CONVITE}</code></p><p style="font-size:14px">No primeiro acesso o sistema vai pedir pra você criar uma senha nova.</p>`
+          : `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px">Entre com o seu <strong>e-mail (${email})</strong> e a <strong>senha que você já usa</strong> na plataforma — seu acesso de consultor já está liberado.</p>`;
+        const html = `
+<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto">
+  <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0">
+    <h1 style="margin:0;font-size:22px">Seu acesso de Consultor na LBW</h1>
+  </div>
+  <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px">
+    <p style="font-size:15px">${saud}</p>
+    <p>Seu site de consultor está pronto: <a href="${site}">${consultorId}.educacaopelotrabalho.com</a></p>
+    ${blocoAcesso}
+    <p style="text-align:center;margin:24px 0">
+      <a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar meu site</a>
+    </p>
+    <p style="font-size:13px;color:#666">Lá dentro você monta seus cursos, sua marca e sua vitrine.</p>
+  </div>
+</div>`;
+        const r = await resendSend({ to: email, subject: "Seu acesso de Consultor na LBW", html });
+        emailEnviado = r.ok;
+      } catch (e) {
+        console.error("[consultor/convidar] falha no envio do e-mail:", e);
+      }
+      console.log(`[consultor/convidar] ${novo ? "CRIADO" : "PROMOVIDO"} ${email} → consultor ${consultorId} email=${emailEnviado}`);
+      return res.json({ ok: true, status: novo ? "criado" : "promovido", email, senha: SENHA_CONVITE, emailEnviado });
+    } catch (err: any) {
+      console.error("[POST /api/consultor/convidar] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao convidar consultor." });
+    }
+  });
+
   // ===============================================================
   // POST /api/trilha1/blindar-atuais — FASE 0 da conversão da Trilha 1 pra paga.
   // Marca TODOS os alunos já cadastrados (que hoje têm a Trilha 1 de graça) como

@@ -11,6 +11,7 @@ export function useUserAccess() {
   const [plano, setPlano] = useState<Plano>('gratuito');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCoordenador, setIsCoordenador] = useState(false);
+  const [isConsultor, setIsConsultor] = useState(false);
   const [tipoUsuario, setTipoUsuario] = useState<TipoUsuario>('aluno');
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [empresaNome, setEmpresaNome] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export function useUserAccess() {
         let userPlano: Plano = 'gratuito';
         let admin = false;
         let coord = false;
+        let cons = false;
         let tipo: TipoUsuario = 'aluno';
         let empId: string | null = null;
         let empNome: string | null = null;
@@ -43,11 +45,12 @@ export function useUserAccess() {
           // porque docs antigos/inconsistentes (do n8n ou de testes) podem ter
           // `role: "user"`, `role: "admin"`, etc. e isso bagunçava permissões.
           const rawTipo = data.tipoUsuario;
-          tipo = (rawTipo === 'admin' || rawTipo === 'coordenador' || rawTipo === 'aluno')
+          tipo = (rawTipo === 'admin' || rawTipo === 'coordenador' || rawTipo === 'consultor' || rawTipo === 'aluno')
             ? rawTipo
             : 'aluno';
           admin = tipo === 'admin';
           coord = tipo === 'coordenador';
+          cons = tipo === 'consultor';
           empId = data.empresaId || null;
           empNome = data.empresaNome || null;
           maxAl = typeof data.maxAlunos === 'number' ? data.maxAlunos : null;
@@ -72,9 +75,13 @@ export function useUserAccess() {
             userPlano = temAvancada ? 'completo' : 'gratuito';
           }
         }
+        // Consultor tem acesso total às ferramentas (como o completo). Não depende
+        // de plano/validade — o papel garante. Preserva os cursos que ele já tinha.
+        if (cons) userPlano = 'completo';
         setPlano(userPlano);
         setIsAdmin(admin);
         setIsCoordenador(coord);
+        setIsConsultor(cons);
         setTipoUsuario(tipo);
         setEmpresaId(empId);
         setEmpresaNome(empNome);
@@ -118,6 +125,7 @@ export function useUserAccess() {
     plano,
     isAdmin,
     isCoordenador,
+    isConsultor,
     tipoUsuario,
     empresaId,
     empresaNome,

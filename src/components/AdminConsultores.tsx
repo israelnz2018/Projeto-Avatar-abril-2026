@@ -5,10 +5,17 @@
  */
 import React, { useEffect, useState } from 'react';
 import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { CONSULTOR_PADRAO } from '../services/consultorService';
 import { Consultor } from '../types';
+
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const user = auth.currentUser;
+  const headers = new Headers(init.headers || {});
+  if (user) headers.set('Authorization', `Bearer ${await user.getIdToken()}`);
+  return fetch(url, { ...init, headers });
+}
 
 export default function AdminConsultores() {
   const { isAdmin, loading } = useUserAccess();
@@ -20,6 +27,8 @@ export default function AdminConsultores() {
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
   const [status, setStatus] = useState<Record<string, 'checando' | 'live' | 'pendente'>>({});
+  const [enviando, setEnviando] = useState<Record<string, boolean>>({});
+  const [conviteMsg, setConviteMsg] = useState<Record<string, string>>({});
 
   // Checa se o subdomínio já está no ar (DNS + SSL). Cross-origin → usa no-cors:
   // resolve = o servidor respondeu (validado); rejeita = ainda não configurado.
@@ -82,6 +91,30 @@ export default function AdminConsultores() {
       setMsg('❌ ' + (e?.message || e));
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function enviarConvite(c: Consultor) {
+    const cemail = (c as any).email as string | undefined;
+    if (!cemail) return;
+    setEnviando((s) => ({ ...s, [c.id]: true }));
+    setConviteMsg((s) => ({ ...s, [c.id]: '' }));
+    try {
+      const r = await authedFetch('/api/consultor/convidar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cemail, nome: c.nome, consultorId: c.id }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (r.ok) {
+        setConviteMsg((s) => ({ ...s, [c.id]: `✅ Convite enviado (${j.status})${j.emailEnviado ? '' : ' — mas o e-mail falhou, cheque o Resend'}` }));
+      } else {
+        setConviteMsg((s) => ({ ...s, [c.id]: '❌ ' + (j.error || 'erro') }));
+      }
+    } catch (e: any) {
+      setConviteMsg((s) => ({ ...s, [c.id]: '❌ ' + (e?.message || e) }));
+    } finally {
+      setEnviando((s) => ({ ...s, [c.id]: false }));
     }
   }
 
@@ -153,9 +186,20 @@ export default function AdminConsultores() {
                     <div className="flex items-center gap-2 text-amber-700"><span>⏳</span> Subdomínio — falta criar o CNAME no Railway + Hostinger</div>
                   )}
                 </div>
-                <button onClick={() => checarSubdominio(sub)} className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800">
-                  Revalidar subdomínio
-                </button>
+                <div className="mt-3 flex flex-wrap items-center gap-4">
+                  <button onClick={() => checarSubdominio(sub)} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                    Revalidar subdomínio
+                  </button>
+                  <button
+                    onClick={() => enviarConvite(c)}
+                    disabled={st !== 'live' || !!enviando[c.id] || !(c as any).email}
+                    title={st !== 'live' ? 'Valide o subdomínio antes de convidar' : ''}
+                    className="text-xs font-bold rounded-lg px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {enviando[c.id] ? 'Enviando…' : 'Enviar convite'}
+                  </button>
+                  {conviteMsg[c.id] && <span className="text-xs text-gray-600">{conviteMsg[c.id]}</span>}
+                </div>
               </div>
             );
           })}

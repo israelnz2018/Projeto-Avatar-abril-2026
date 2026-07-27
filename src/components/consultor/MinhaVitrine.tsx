@@ -15,7 +15,7 @@ interface CursoResumo { nome: string; videos: number; }
 
 export default function MinhaVitrine() {
   const { consultor, consultorId, refresh } = useConsultor();
-  const { isAdmin, loading } = useUserAccess();
+  const { isAdmin, isConsultor, loading } = useUserAccess();
   const [v, setV] = useState<ConsultorVitrine>({});
   const [cursos, setCursos] = useState<CursoResumo[]>([]);
   const [carregandoCursos, setCarregandoCursos] = useState(true);
@@ -45,7 +45,7 @@ export default function MinhaVitrine() {
   }, [consultorId]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
-  if (!isAdmin) return <div className="p-8 text-red-600 font-bold">Só o consultor edita a vitrine.</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor edita a vitrine.</div>;
 
   const set = (patch: Partial<ConsultorVitrine>) => setV((prev) => ({ ...prev, ...patch }));
   const visiveis = v.cursosVisiveis || [];

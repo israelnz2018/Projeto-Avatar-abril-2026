@@ -12,13 +12,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { User } from 'firebase/auth';
+import { resolveConsultorId } from './consultorService';
 
 const USERS_COLLECTION = 'users';
 const INVITES_COLLECTION = 'invites';
 
 const ADMIN_EMAILS = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
 
-export type TipoUsuario = 'aluno' | 'coordenador' | 'admin';
+export type TipoUsuario = 'aluno' | 'coordenador' | 'admin' | 'consultor';
 export type Plano = 'gratuito' | 'completo' | 'coordenador';
 
 export interface UserData {
@@ -52,6 +53,8 @@ export interface UserData {
   nome?: string;
   plano?: Plano | 'completo';
   maxAlunos?: number;
+  /** Multi-tenant: consultor a que este usuário pertence (default 'israel'). */
+  consultorId?: string;
 }
 
 export interface PendingInvite {
@@ -61,6 +64,7 @@ export interface PendingInvite {
   tipoUsuario: TipoUsuario;
   empresaId?: string;
   empresaNome?: string;
+  consultorId?: string; // convite de consultor: tenant que ele vai administrar
   criadoEm: string;
   criadoPor: string;
 }
@@ -98,6 +102,7 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
   let tipoUsuario: TipoUsuario = determinarTipoUsuario(email);
   let empresaId: string | undefined;
   let empresaNome: string | undefined;
+  let consultorIdFromInvite: string | undefined;
 
   let nomeFromInvite: string | undefined;
   if (email) {
@@ -112,12 +117,15 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
       // determinado pela lista ADMIN_EMAILS — invite nunca eleva privilégio.
       if (invite.tipoUsuario === 'coordenador' && tipoUsuario !== 'admin') {
         tipoUsuario = 'coordenador';
+      } else if (invite.tipoUsuario === 'consultor' && tipoUsuario !== 'admin') {
+        tipoUsuario = 'consultor';
       } else if (invite.tipoUsuario === 'aluno' && tipoUsuario !== 'admin') {
         tipoUsuario = 'aluno';
       }
-      // Qualquer outro valor (incluindo 'admin') é IGNORADO.
+      // Qualquer outro valor (incluindo 'admin') é IGNORADO — invite nunca vira admin.
       if (invite.empresaId) empresaId = invite.empresaId;
       if (invite.empresaNome) empresaNome = invite.empresaNome;
+      if (invite.consultorId) consultorIdFromInvite = invite.consultorId;
       if (invite.nome) nomeFromInvite = invite.nome;
       await deleteDoc(inviteRef);
     }
@@ -139,6 +147,9 @@ export async function ensureUserDocument(authUser: User): Promise<UserData> {
     ...(nomeFromInvite ? { nome: nomeFromInvite } : (authUser.displayName ? { nome: authUser.displayName } : {})),
     ...(empresaId ? { empresaId } : {}),
     ...(empresaNome ? { empresaNome } : {}),
+    // Multi-tenant: consultor do usuário — do convite (consultor/time) ou, sem
+    // convite, pelo subdomínio de onde ele se cadastrou. app./raiz → 'israel'.
+    consultorId: consultorIdFromInvite || resolveConsultorId(),
   };
 
   await setDoc(userRef, novoUsuario);
