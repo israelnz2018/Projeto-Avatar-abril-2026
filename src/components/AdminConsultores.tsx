@@ -19,12 +19,30 @@ export default function AdminConsultores() {
   const [email, setEmail] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
+  const [status, setStatus] = useState<Record<string, 'checando' | 'live' | 'pendente'>>({});
+
+  // Checa se o subdomínio já está no ar (DNS + SSL). Cross-origin → usa no-cors:
+  // resolve = o servidor respondeu (validado); rejeita = ainda não configurado.
+  const checarSubdominio = async (sub: string) => {
+    setStatus((s) => ({ ...s, [sub]: 'checando' }));
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      await fetch(`https://${sub}.educacaopelotrabalho.com/api/health`, { mode: 'no-cors', signal: ctrl.signal });
+      clearTimeout(t);
+      setStatus((s) => ({ ...s, [sub]: 'live' }));
+    } catch {
+      setStatus((s) => ({ ...s, [sub]: 'pendente' }));
+    }
+  };
 
   const carregar = async () => {
     setCarregando(true);
     try {
       const snap = await getDocs(collection(db, 'consultores'));
-      setLista(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      const l = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Consultor[];
+      setLista(l);
+      l.forEach((c) => checarSubdominio(c.subdominio || c.id));
     } catch { /* ignora */ }
     finally { setCarregando(false); }
   };
@@ -57,7 +75,7 @@ export default function AdminConsultores() {
           cores: CONSULTOR_PADRAO.branding.cores,
         },
       }, { merge: true });
-      setMsg(`✅ Consultor "${cid}" criado → ${cid}.educacaopelotrabalho.com`);
+      setMsg(`✅ Cadastro criado. Falta o subdomínio (Railway + Hostinger) — a lista abaixo mostra "Validado" quando ficar no ar.`);
       setId(''); setNome(''); setEmail('');
       carregar();
     } catch (e: any) {
@@ -106,19 +124,41 @@ export default function AdminConsultores() {
         <div className="text-gray-400">Carregando…</div>
       ) : (
         <div className="grid gap-3">
-          {lista.map((c) => (
-            <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3">
-              {c.branding?.logoUrl && <img src={c.branding.logoUrl} alt={c.nome} className="h-9 w-9 object-contain rounded bg-gray-50 p-1 border border-gray-100" />}
-              <div className="min-w-0 flex-1">
-                <div className="font-bold text-gray-800 truncate">{c.nome}</div>
-                <a href={`https://${c.subdominio || c.id}.educacaopelotrabalho.com`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate block">
-                  {c.subdominio || c.id}.educacaopelotrabalho.com
-                </a>
-                {(c as any).email && <div className="text-xs text-gray-400 truncate">{(c as any).email}</div>}
+          {lista.map((c) => {
+            const sub = c.subdominio || c.id;
+            const st = status[sub] || 'checando';
+            return (
+              <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-gray-800 truncate">{c.nome}</div>
+                    <a href={`https://${sub}.educacaopelotrabalho.com`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate block">
+                      {sub}.educacaopelotrabalho.com
+                    </a>
+                    {(c as any).email && <div className="text-xs text-gray-400 truncate">{(c as any).email}</div>}
+                  </div>
+                  {st === 'live' ? (
+                    <span className="text-[11px] font-black uppercase text-emerald-700 bg-emerald-50 rounded-full px-3 py-1 shrink-0">✓ Validado</span>
+                  ) : st === 'checando' ? (
+                    <span className="text-[11px] font-black uppercase text-gray-400 shrink-0">checando…</span>
+                  ) : (
+                    <span className="text-[11px] font-black uppercase text-amber-700 bg-amber-50 rounded-full px-3 py-1 shrink-0">⏳ Pendente</span>
+                  )}
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2 text-emerald-700"><span>✓</span> Cadastro criado (e-mail, nome, subdomínio)</div>
+                  {st === 'live' ? (
+                    <div className="flex items-center gap-2 text-emerald-700"><span>✓</span> Subdomínio no ar (DNS + SSL)</div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-amber-700"><span>⏳</span> Subdomínio — falta criar o CNAME no Railway + Hostinger</div>
+                  )}
+                </div>
+                <button onClick={() => checarSubdominio(sub)} className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800">
+                  Revalidar subdomínio
+                </button>
               </div>
-              {c.ativo === false && <span className="text-[10px] font-black uppercase text-gray-400">inativo</span>}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
