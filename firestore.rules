@@ -1,28 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: projects
-    // Document ID: auto-generated
-    // Fields:
-    //   - name: string (required)
-    //   - ownerUid: string (required)
-    //   - ownerEmail: string (optional)
-    //   - currentPhase: string (required)
-    //   - createdAt: timestamp (required)
-    //   - completedTools: list (optional)
-    //
-    // Collection: projects/{projectId}/data
-    // Document ID: toolType
-    // Fields:
-    //   - toolType: string (required)
-    //   - content: map (required)
-    //   - updatedAt: timestamp (required)
-    //
-    // ===============================================================
 
     // Helper Functions
     function isAuthenticated() {
@@ -31,7 +9,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "israelnz2018@hotmail.com" || 
+        request.auth.token.email == "israelnz2018@hotmail.com" ||
         request.auth.token.email == "israel@learningbyworking.com"
       );
     }
@@ -51,8 +29,6 @@ service cloud.firestore {
       );
     }
 
-    // Coordenador: lê o próprio doc e checa se é tipo 'coordenador'.
-    // Usado pra liberar leitura cruzada de users/projects do time (mesmo empresaId).
     function isCoordenador() {
       return isAuthenticated() &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tipoUsuario == 'coordenador';
@@ -70,8 +46,8 @@ service cloud.firestore {
         sameEmpresa(get(/databases/$(database)/documents/projects/$(projectId)).data.ownerUid);
     }
 
-    // ===== Multi-tenant (white-label) =====
-    // consultorId de quem está pedindo, e se ele é um consultor.
+    // ===== Multi-tenant (white-label) — NOVO =====
+    // consultorId de quem pede, e se ele é consultor. Doc de outro user do mesmo consultor?
     function meuConsultorId() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.consultorId;
     }
@@ -79,18 +55,12 @@ service cloud.firestore {
       return isAuthenticated() &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tipoUsuario == 'consultor';
     }
-    // O doc de OUTRO usuário pertence ao mesmo consultor de quem pede?
     function mesmoConsultorUser(otherUserId) {
       return isAuthenticated() &&
         get(/databases/$(database)/documents/users/$(otherUserId)).data.consultorId == meuConsultorId();
     }
 
-    // Users — cada aluno pode ler/criar/atualizar APENAS o seu próprio doc.
-    // Quando ele migra de plano (gratuito → completo) o uid é o mesmo,
-    // então projects/knowledge_base/mentor_conversations dele continuam acessíveis
-    // automaticamente porque dependem de ownerUid/userId, não do plano.
     match /users/{userId} {
-      // Coordenador lê docs de alunos do mesmo empresaId (pra dashboard do time).
       allow read:   if isAuthenticated() && (
         isAdmin() ||
         isOwner(userId) ||
@@ -102,18 +72,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Invites — gerenciados pelo admin (ou n8n via service account no futuro).
-    // Aluno autenticado lê pra que ensureUserDocument puxe nome/formações
-    // do convite, e pode deletar quando consumir no primeiro login.
     match /invites/{inviteKey} {
       allow read:   if isAuthenticated();
       allow write:  if isAdmin();
       allow delete: if isAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
     }
 
-    // Projects
+    // Consultores (tenants white-label) — marca/vitrine é PÚBLICA (sem dado sensível).
+    // Escreve: admin (super-admin) OU o próprio consultor editando a marca/vitrine dele.
+    match /consultores/{consultorId} {
+      allow read: if true;
+      allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
+    }
+
     match /projects/{projectId} {
-      // Allow read if user is owner, admin, OR coordenador do mesmo empresaId do dono.
       allow read: if isAuthenticated() && (
         isAdmin() ||
         resource == null ||
@@ -121,14 +93,9 @@ service cloud.firestore {
         (isCoordenador() && sameEmpresa(resource.data.ownerUid)) ||
         (ehConsultor() && resource.data.consultorId == meuConsultorId())
       );
-
-      // Allow create if authenticated and setting self as owner
       allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
-
-      // Allow update/delete if owner or admin
       allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.ownerUid == request.auth.uid);
 
-      // Subcollection: data — owner, admin, ou coordenador read-only do time.
       match /data/{dataId} {
         allow read: if isProjectOwner(projectId) || isAdmin() ||
                        (isCoordenador() && projectOwnerSameEmpresa(projectId)) ||
@@ -137,17 +104,6 @@ service cloud.firestore {
       }
     }
 
-    // Consultores (tenants white-label) — a MARCA (logo/cores/nome) é pública:
-    // precisa ser lida até antes do login (login/landing branded por subdomínio) e
-    // pelos alunos do consultor. Não há dado sensível aqui. Escrita só admin
-    // (super-admin); o próprio consultor editar a marca vem na Fase 2 (papel 'consultor').
-    match /consultores/{consultorId} {
-      allow read: if true;
-      // Admin (super-admin) OU o próprio consultor editando a marca/vitrine dele.
-      allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
-    }
-
-    // Initiatives and Configs
     match /initiatives/{initiativeId} {
       allow read, write: if true;
     }
@@ -156,7 +112,6 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Other collections (Publicly readable by authenticated users for now)
     match /courses/{courseId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
@@ -169,10 +124,9 @@ service cloud.firestore {
 
     match /knowledge_base/{itemId} {
       // Leitura segue autenticada (o app já filtra o conteúdo por consultorId na query).
-      // Endurecer a leitura por tenant fica pra depois — evita risco de travar aluno atual.
       allow read: if isAuthenticated();
       // Escrita isolada por tenant: admin, OU consultor no conteúdo do PRÓPRIO consultorId.
-      // (Antes era `if isAuthenticated()` — qualquer um escrevia; só o admin usava, então é seguro apertar.)
+      // (Antes era `if isAuthenticated()` — qualquer um escrevia; só o admin usava.)
       allow create: if isAuthenticated() && (
         isAdmin() ||
         (ehConsultor() && request.resource.data.consultorId == meuConsultorId())
@@ -183,62 +137,47 @@ service cloud.firestore {
       );
     }
 
-    // Test collection for connection testing
     match /test/{docId} {
       allow read: if true;
     }
 
-    // Mentor Conversations
     match /mentor_conversations/{conversationId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Pending Questions
     match /pending_questions/{questionId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Mentor Tool Context
     match /mentor_tool_context/{toolId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // API settings (Gemini key, Anthropic key, modelo) — só admin.
-    // Outros usuários precisam ler pra obter o modelo padrão usado nas chamadas
-    // client-side; mas a key é mascarada na UI. Mantendo read auth-only.
     match /app_config/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Tracking de consumo de tokens — qualquer user autenticado incrementa
-    // (write via SDK client após cada chamada Gemini); leitura só admin.
     match /api_usage/{docId} {
       allow read: if isAdmin();
       allow write: if isAuthenticated();
     }
 
-    // Feedback do aluno (bug / sugestão / dúvida) — aluno cria, admin lê.
-    // Aluno só pode ver/escrever os próprios feedbacks (caso queira histórico).
     match /feedback/{feedbackId} {
       allow read:   if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
 
-    // Comunidade LBW — fórum público entre alunos.
-    // Qualquer autenticado lê e cria posts. Só o autor (pelo uid no objeto autor)
-    // ou o admin edita/apaga. Idem pra respostas na subcoleção.
+    // ===== Comunidade LBW =====
     match /community/{postId} {
       allow read:   if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.autor.uid == request.auth.uid;
-      // update liberado a qualquer autenticado (incrementa replyCount ao responder);
-      // delete só autor ou admin.
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.autor.uid == request.auth.uid);
 
@@ -249,19 +188,14 @@ service cloud.firestore {
       }
     }
 
-    // Notificações de @menção — destinatário (toUid) lê e marca como lida;
-    // qualquer autenticado cria (ao mencionar alguém).
     match /community_notifications/{notifId} {
       allow read:   if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
     }
+    // ===== Fim Comunidade LBW =====
 
-    // Eventos comportamentais — telemetria do Dashboard.
-    // Qualquer user autenticado escreve eventos do PRÓPRIO uid (fire-and-forget).
-    // Leitura só admin (agregações pro painel) — coordenador NÃO lê eventos brutos
-    // do time, recebe agregados já mascarados via Cloud Function (futuro).
     match /eventos/{eventoId} {
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow read:   if isAdmin();
@@ -269,7 +203,6 @@ service cloud.firestore {
     }
 
     // Progresso de vídeos assistidos — 1 doc por aluno (id = uid).
-    // Aluno lê/escreve só o próprio. Admin lê tudo (relatório). Coordenador lê do time.
     match /userProgress/{userId} {
       allow read:   if isAuthenticated() && (
         isAdmin() ||
@@ -282,8 +215,6 @@ service cloud.firestore {
     }
 
     // Snapshot público de certificados — leitura ABERTA (qualquer pessoa com o certId valida).
-    // Escrita só pelo próprio aluno autenticado (no momento da emissão automática).
-    // Não contém dados sensíveis: só nome do aluno, nome da trilha, data e ID.
     match /certificadosPublicos/{certId} {
       allow read:  if true;
       allow create, update: if isAuthenticated();
