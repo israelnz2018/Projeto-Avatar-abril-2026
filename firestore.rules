@@ -70,6 +70,21 @@ service cloud.firestore {
         sameEmpresa(get(/databases/$(database)/documents/projects/$(projectId)).data.ownerUid);
     }
 
+    // ===== Multi-tenant (white-label) =====
+    // consultorId de quem está pedindo, e se ele é um consultor.
+    function meuConsultorId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.consultorId;
+    }
+    function ehConsultor() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tipoUsuario == 'consultor';
+    }
+    // O doc de OUTRO usuário pertence ao mesmo consultor de quem pede?
+    function mesmoConsultorUser(otherUserId) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(otherUserId)).data.consultorId == meuConsultorId();
+    }
+
     // Users — cada aluno pode ler/criar/atualizar APENAS o seu próprio doc.
     // Quando ele migra de plano (gratuito → completo) o uid é o mesmo,
     // então projects/knowledge_base/mentor_conversations dele continuam acessíveis
@@ -79,7 +94,8 @@ service cloud.firestore {
       allow read:   if isAuthenticated() && (
         isAdmin() ||
         isOwner(userId) ||
-        (isCoordenador() && sameEmpresa(userId))
+        (isCoordenador() && sameEmpresa(userId)) ||
+        (ehConsultor() && mesmoConsultorUser(userId))
       );
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isAuthenticated() && (isAdmin() || isOwner(userId));
@@ -102,7 +118,8 @@ service cloud.firestore {
         isAdmin() ||
         resource == null ||
         resource.data.ownerUid == request.auth.uid ||
-        (isCoordenador() && sameEmpresa(resource.data.ownerUid))
+        (isCoordenador() && sameEmpresa(resource.data.ownerUid)) ||
+        (ehConsultor() && resource.data.consultorId == meuConsultorId())
       );
 
       // Allow create if authenticated and setting self as owner
@@ -114,7 +131,8 @@ service cloud.firestore {
       // Subcollection: data — owner, admin, ou coordenador read-only do time.
       match /data/{dataId} {
         allow read: if isProjectOwner(projectId) || isAdmin() ||
-                       (isCoordenador() && projectOwnerSameEmpresa(projectId));
+                       (isCoordenador() && projectOwnerSameEmpresa(projectId)) ||
+                       (ehConsultor() && get(/databases/$(database)/documents/projects/$(projectId)).data.consultorId == meuConsultorId());
         allow write: if isProjectOwner(projectId) || isAdmin();
       }
     }
@@ -125,7 +143,8 @@ service cloud.firestore {
     // (super-admin); o próprio consultor editar a marca vem na Fase 2 (papel 'consultor').
     match /consultores/{consultorId} {
       allow read: if true;
-      allow write: if isAdmin();
+      // Admin (super-admin) OU o próprio consultor editando a marca/vitrine dele.
+      allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
     }
 
     // Initiatives and Configs
@@ -149,8 +168,19 @@ service cloud.firestore {
     }
 
     match /knowledge_base/{itemId} {
+      // Leitura segue autenticada (o app já filtra o conteúdo por consultorId na query).
+      // Endurecer a leitura por tenant fica pra depois — evita risco de travar aluno atual.
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      // Escrita isolada por tenant: admin, OU consultor no conteúdo do PRÓPRIO consultorId.
+      // (Antes era `if isAuthenticated()` — qualquer um escrevia; só o admin usava, então é seguro apertar.)
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        (ehConsultor() && request.resource.data.consultorId == meuConsultorId())
+      );
+      allow update, delete: if isAuthenticated() && (
+        isAdmin() ||
+        (ehConsultor() && resource.data.consultorId == meuConsultorId())
+      );
     }
 
     // Test collection for connection testing
@@ -244,7 +274,8 @@ service cloud.firestore {
       allow read:   if isAuthenticated() && (
         isAdmin() ||
         isOwner(userId) ||
-        (isCoordenador() && sameEmpresa(userId))
+        (isCoordenador() && sameEmpresa(userId)) ||
+        (ehConsultor() && mesmoConsultorUser(userId))
       );
       allow create, update: if isAuthenticated() && (isAdmin() || isOwner(userId));
       allow delete: if isAdmin();
