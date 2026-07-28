@@ -30,6 +30,7 @@ import {
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
+import { resolveConsultorId } from './consultorService';
 
 export type PostTipo = 'duvida' | 'sugestao' | 'bug' | 'comentario';
 
@@ -209,6 +210,7 @@ export async function criarPost(input: {
     likes: [],
     pinned: false,
     anexos: input.anexos || [],
+    consultorId: resolveConsultorId(), // comunidade isolada por consultor
     createdAt: serverTimestamp(),
   });
   return ref.id;
@@ -251,8 +253,14 @@ export async function curtirPost(postId: string, jaCurtiu: boolean): Promise<voi
 /** Tempo real: todos os posts, mais novos primeiro. */
 export function ouvirPosts(onChange: (posts: CommunityPost[]) => void): () => void {
   const q = query(collection(db, COL), orderBy('createdAt', 'desc'));
+  // Filtra pela comunidade do consultor atual (posts antigos sem consultorId = 'israel').
+  const cid = resolveConsultorId();
   return onSnapshot(q, snap => {
-    onChange(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
+    onChange(
+      snap.docs
+        .map(d => ({ id: d.id, ...(d.data() as any) }))
+        .filter((p: any) => (p.consultorId || 'israel') === cid)
+    );
   }, err => console.error('[ouvirPosts]', err));
 }
 
