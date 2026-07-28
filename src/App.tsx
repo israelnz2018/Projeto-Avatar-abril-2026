@@ -112,7 +112,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     setSlideBrand(isCoordenador && siglaPpt ? siglaPpt : marcaConsultor);
   }, [consultor, isCoordenador, siglaPpt]);
 
-  const roleLabel = isAdmin
+  const roleLabel = (siteConsultor && (isAdmin || isConsultor))
+    ? 'Consultor'
+    : isAdmin
     ? 'Administrador'
     : isCoordenador
     ? 'Coordenador'
@@ -120,13 +122,18 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ? 'Aluno · Completo'
     : 'Starter';
 
+  // Avatar: foto do consultor (se houver) no lugar das iniciais.
+  const avatarEl = consultor.branding.fotoUrl
+    ? <img src={consultor.branding.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+    : <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">{user?.email?.[0].toUpperCase()}</div>;
+
   const menuItems = [
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
     { name: 'Educação', path: '/education', icon: GraduationCap },
     { name: 'Checklists, Mapas e PPTs', path: '/recursos', icon: FolderCheck },
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
-    { name: 'AI Assistant', path: '/chat', icon: MessageSquare },
+    ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
     // Papel CONSULTOR — só aparece no site do consultor (israel.…), pro admin OU o próprio consultor.
     ...(siteConsultor && (isAdmin || isConsultor) ? [
@@ -169,10 +176,10 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       )}>
         <div className="p-4 flex items-start justify-between gap-2 border-b border-gray-700">
           {isSidebarOpen && (
-            <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+            <Link to="/" className="flex flex-col items-center gap-2 flex-1 min-w-0 no-underline" title="Ir para a página principal">
               <img src={consultor.branding.logoUrl} alt="Logo" className="h-10 w-auto" />
-              <span className="font-bold text-sm whitespace-nowrap text-center">Educação pelo Trabalho</span>
-            </div>
+              <span className="font-bold text-sm whitespace-nowrap text-center text-white">Educação pelo Trabalho</span>
+            </Link>
           )}
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-700 rounded shrink-0">
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -185,9 +192,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
             {isSidebarOpen ? (
               <>
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
-                    {user?.email?.[0].toUpperCase()}
-                  </div>
+                  {avatarEl}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
                     <p className="text-[10px] font-bold text-blue-400 uppercase">
@@ -209,9 +214,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                 </div>
               </>
             ) : (
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">
-                {user?.email?.[0].toUpperCase()}
-              </div>
+              avatarEl
             )}
           </div>
         </div>

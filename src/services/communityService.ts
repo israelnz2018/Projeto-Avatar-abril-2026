@@ -98,11 +98,13 @@ export async function autorAtual(): Promise<Autor> {
   if (!u) throw new Error('Usuário não autenticado.');
   // Tenta pegar o nome do doc users/{uid}; cai pro displayName/email.
   let nome = u.displayName || '';
+  let fotoDoc: string | null = null;
   try {
     const snap = await getDoc(doc(db, 'users', u.uid));
     if (snap.exists()) {
       const d = snap.data() as any;
       if (d.nome) nome = d.nome;
+      if (d.fotoUrl) fotoDoc = d.fotoUrl;
     }
   } catch { /* silencioso */ }
   if (!nome) nome = u.email?.split('@')[0] || 'Aluno';
@@ -111,7 +113,7 @@ export async function autorAtual(): Promise<Autor> {
     uid: u.uid,
     nome,
     email,
-    photoURL: u.photoURL || null,
+    photoURL: fotoDoc || u.photoURL || null,
     isAdmin: ADMIN_EMAILS.includes(email.toLowerCase()),
   };
 }

@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
@@ -17,6 +17,7 @@ export default function MinhaMarca() {
   const [nome, setNome] = useState('');
   const [sigla, setSigla] = useState('');
   const [mentor, setMentor] = useState('');
+  const [fotoUrl, setFotoUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -26,8 +27,9 @@ export default function MinhaMarca() {
     setNome(consultor.branding.nome || '');
     setSigla(consultor.branding.sigla || '');
     setMentor(consultor.mentorNome || '');
+    setFotoUrl(consultor.branding.fotoUrl || '');
     setLogoUrl(consultor.branding.logoUrl || '');
-  }, [consultor.branding.nome, consultor.branding.sigla, consultor.mentorNome, consultor.branding.logoUrl]);
+  }, [consultor.branding.nome, consultor.branding.sigla, consultor.mentorNome, consultor.branding.fotoUrl, consultor.branding.logoUrl]);
 
   // Só o consultor (hoje = admin) edita a marca. Coordenador/aluno não.
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
@@ -39,9 +41,12 @@ export default function MinhaMarca() {
     try {
       await setDoc(
         doc(db, 'consultores', consultorId),
-        { mentorNome: mentor.trim(), branding: { ...consultor.branding, nome: nome.trim(), sigla: sigla.trim().toUpperCase().slice(0, 7), logoUrl: logoUrl.trim() } },
+        { mentorNome: mentor.trim(), branding: { ...consultor.branding, nome: nome.trim(), sigla: sigla.trim().toUpperCase().slice(0, 7), fotoUrl: fotoUrl.trim(), logoUrl: logoUrl.trim() } },
         { merge: true }
       );
+      // Salva a foto no doc do usuário também (pra aparecer na comunidade e em outros lugares).
+      const uid = auth.currentUser?.uid;
+      if (uid) await setDoc(doc(db, 'users', uid), { fotoUrl: fotoUrl.trim() }, { merge: true });
       await refresh(); // re-veste o app ao vivo
       setMsg('✅ Marca salva. O app já atualizou.');
     } catch (e: any) {
@@ -77,6 +82,17 @@ export default function MinhaMarca() {
             placeholder="Ex.: João Silva"
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Sua foto (aparece no lugar das iniciais)</label>
+          <input
+            value={fotoUrl}
+            onChange={(e) => setFotoUrl(e.target.value)}
+            placeholder="https://…/minha-foto.jpg"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {fotoUrl && <img src={fotoUrl} alt="Prévia" className="mt-2 h-14 w-14 rounded-full object-cover border border-gray-100" />}
         </div>
 
         <div>
