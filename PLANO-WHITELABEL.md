@@ -266,6 +266,10 @@ primeiro consultor comprometido.
 - Isolamento duro para coordenador/aluno; vitrine dupla (consultores + marketing público).
 - **Vídeo: YouTube agora, sem multi-provider; migração futura = 1 host só.**
 - **Monetização: SaaS recorrente como núcleo + muitas fontes empilhadas (§6), sequenciadas.**
+- **Aluno que vira consultor = "quebra limpa" (Opção A):** cursos comprados ficam com a
+  etiqueta do vendedor (acessíveis no mundo dele); no site do novo consultor aparecem só
+  os cursos dele. Diferenciação por `consultorId` no conteúdo. Ver comprados no próprio
+  site (Opção B / licenciamento entre consultores) = futuro. **Já é o comportamento atual.**
 
 **A confirmar / detalhar:**
 - Valores das faixas SaaS (âncora BR: ~R$97 / R$297 / R$497+).
