@@ -69,6 +69,22 @@ export function isSiteConsultor(hostname?: string): boolean {
   return !RESERVADOS.has(partes[0]);
 }
 
+/** Nome do mentor de IA do consultor (ex.: 'Israel Souza' → 'João Silva'). */
+export function nomeMentorDe(c: Consultor): string {
+  return (c.mentorNome && c.mentorNome.trim())
+    || (c.id === 'israel' ? 'Israel Souza' : (c.branding?.nome || 'seu mentor'));
+}
+
+// Variável global do nome do mentor — o ConsultorContext seta com o consultor atual.
+// Serviços não-React (contextualAIService) leem via getMentorNome().
+let mentorNomeAtual = 'Israel Souza';
+export function setMentorNome(nome: string | null): void {
+  mentorNomeAtual = (nome && nome.trim()) ? nome.trim() : 'Israel Souza';
+}
+export function getMentorNome(): string {
+  return mentorNomeAtual;
+}
+
 /**
  * Carrega o consultor pelo id. Se o doc não existir (ou der erro), devolve o
  * CONSULTOR_PADRAO — o app NUNCA fica sem branding.

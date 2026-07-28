@@ -60,6 +60,7 @@ export interface Consultor {
   nome: string;
   subdominio: string;
   email?: string;        // e-mail do consultor (dono do tenant) — definido pelo admin
+  mentorNome?: string;   // nome do mentor de IA ("Israel Souza" → "Fulano") por consultor
   branding: ConsultorBranding;
   vitrine?: ConsultorVitrine;
   plano?: string;        // faixa SaaS (monetização)

@@ -1,6 +1,7 @@
 import { callAI, callAIJSON } from './aiRouter';
 import { getAllKnowledge, KnowledgeEntry } from './knowledgeService';
 import { getInitiatives, getInitiativeConfigs } from './configService';
+import { getMentorNome } from './consultorService';
 
 // Toolid da ferramenta "Mapa dos 90 Dias" — caso especial: o mentor dela varre
 // os vídeos de TODAS as ferramentas da Trilha 1 (a initiative com isFree=true).
@@ -155,20 +156,21 @@ async function callGeminiWithContext(
     ? `\n\nHISTÓRICO DESTA CONVERSA (para contexto):\n${conversationHistory.slice(-3).map(h => `Pergunta anterior: ${h.question}\nResposta anterior: ${h.answer}`).join('\n\n')}\n`
     : '';
 
-  const prompt = `Você é o Mentor LBW, consultor sênior em Lean Six Sigma. Você está conversando com um aluno do Israel.
+  const mentor = getMentorNome();
+  const prompt = `Você é o Mentor LBW, consultor sênior em Lean Six Sigma. Você está conversando com um aluno do ${mentor}.
 
-CONTEXTO - Transcripts das aulas do Israel:
+CONTEXTO - Transcripts das aulas do ${mentor}:
 ${videoContextParts}
 ${historyText}
 
 REGRAS CRÍTICAS:
-1. Baseie a resposta no que o Israel ensina nos vídeos acima. ${contextoForte
-    ? 'Estes vídeos são JUSTAMENTE sobre o tema que o aluno perguntou (ele está com essa ferramenta aberta). Mesmo que a pergunta tenha um recorte específico (ex: uma área ou setor), aplique o método/conceito que o Israel ensina ao caso do aluno. NÃO responda found=false só porque o vídeo não cita aquele setor pelo nome — o método é o mesmo. Só use found=false se os vídeos realmente não tiverem NADA a ver com a pergunta.'
+1. Baseie a resposta no que o ${mentor} ensina nos vídeos acima. ${contextoForte
+    ? `Estes vídeos são JUSTAMENTE sobre o tema que o aluno perguntou (ele está com essa ferramenta aberta). Mesmo que a pergunta tenha um recorte específico (ex: uma área ou setor), aplique o método/conceito que o ${mentor} ensina ao caso do aluno. NÃO responda found=false só porque o vídeo não cita aquele setor pelo nome — o método é o mesmo. Só use found=false se os vídeos realmente não tiverem NADA a ver com a pergunta.`
     : 'Se os vídeos não tiverem relação com a pergunta, declare found=false.'}
 2. COMECE a resposta citando o vídeo em que ela mais se baseia, exatamente neste formato:
    "De acordo com o vídeo '<título do vídeo>':" e então continue a resposta.
    Use o título EXATO de um dos vídeos acima (o mais relevante pra pergunta).
-3. Fale como o Israel: DIRETO, prático, sem enrolação. Vá direto ao ponto.
+3. Fale como o ${mentor}: DIRETO, prático, sem enrolação. Vá direto ao ponto.
 4. Seja CURTO: no máximo 2 parágrafos curtos. Nada de "dica de ouro", nada de listas
    decorativas com negrito em cada termo, nada de introdução longa. Responda e pare.
    Se der pra responder em 3 frases, responda em 3 frases.

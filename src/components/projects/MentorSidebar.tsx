@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, ArrowRight, Play, X, Send, Loader2, CheckCircle2, Trash2, Volume2, FileText, ChevronDown, ChevronUp, MessageSquarePlus, ListVideo, Lock } from 'lucide-react';
 import FeedbackModal from './FeedbackModal';
 import { useUserAccess } from '../../hooks/useUserAccess';
+import { useConsultor } from '../../contexts/ConsultorContext';
+import { nomeMentorDe } from '../../services/consultorService';
 import { LockedToolPopup } from '../LockedToolPopup';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,6 +95,9 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const [creditoEsgotado, setCreditoEsgotado] = useState(false);
   const [solicitouCredito, setSolicitouCredito] = useState(false);
   const { canUseTool } = useUserAccess();
+  const { consultor } = useConsultor();
+  const mentorNome = nomeMentorDe(consultor);
+  const mentorPrimeiro = mentorNome.split(' ')[0];
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   // Ferramenta ativa bloqueada pro aluno (gratuito) → Mentor sobre ela fica bloqueado.
   const ferramentaBloqueada = !!activeToolId && !canUseTool(activeToolId);
@@ -375,10 +380,10 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
               IS
             </div>
             <div className="leading-tight min-w-0">
-              <h3 className="font-bold text-[14px] m-0 text-gray-900">Israel Souza</h3>
+              <h3 className="font-bold text-[14px] m-0 text-gray-900">{mentorNome}</h3>
               <p className="text-[10px] text-gray-500 mt-0.5 m-0">Consultor Sênior</p>
               <p className="text-[10px] text-gray-400 mt-1 leading-snug italic">
-                As respostas vêm preferencialmente dos vídeos do próprio Israel.
+                As respostas vêm preferencialmente dos vídeos do próprio {mentorPrimeiro}.
               </p>
             </div>
           </div>
@@ -429,7 +434,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                 >
                   <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 flex items-center gap-1">
                     {toolContext.responseMode === 'audio' ? <Volume2 size={9} /> : <FileText size={9} />}
-                    Israel explica
+                    {mentorPrimeiro} explica
                   </span>
                   {isContextExpanded ? <ChevronUp size={12} className="text-blue-700" /> : <ChevronDown size={12} className="text-blue-700" />}
                 </button>
@@ -529,7 +534,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                       {msg.pendingQuestionSaved ? (
                         <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded text-[10px] text-green-700">
                           <CheckCircle2 size={12} />
-                          Sua pergunta foi enviada ao Israel
+                          Sua pergunta foi enviada ao {mentorPrimeiro}
                         </div>
                       ) : (
                         <button
@@ -537,7 +542,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded text-[10px] text-blue-700 font-bold transition-all cursor-pointer"
                         >
                           <Send size={11} />
-                          Solicitar resposta direta do Israel
+                          Solicitar resposta direta do {mentorPrimeiro}
                         </button>
                       )}
                     </div>
@@ -574,7 +579,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
               title="Disponível no plano completo"
             >
               <Lock size={14} className="text-gray-500" />
-              Converse com o Israel sobre {activeToolLabel || 'esta ferramenta'} no plano completo
+              Converse com o {mentorPrimeiro} sobre {activeToolLabel || 'esta ferramenta'} no plano completo
             </button>
           ) : (
             <div className="relative">
@@ -582,7 +587,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                 solicitouCredito ? (
                   <div className="mb-2 rounded-[8px] px-3 py-2.5 text-[12px] leading-relaxed"
                     style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.35)', color: '#065f46' }}>
-                    ✅ Enviamos sua solicitação ao Israel. Ele vai avaliar em até <strong>2 dias úteis</strong>.
+                    ✅ Enviamos sua solicitação ao {mentorPrimeiro}. Ele vai avaliar em até <strong>2 dias úteis</strong>.
                   </div>
                 ) : (
                   <button onClick={handleSolicitarCredito}

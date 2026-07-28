@@ -10,7 +10,7 @@
  */
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Consultor } from '../types';
-import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId } from '../services/consultorService';
+import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId, nomeMentorDe, setMentorNome } from '../services/consultorService';
 import { setSlideBrand } from '../services/slideTemplate';
 
 interface ConsultorContextValue {
@@ -45,10 +45,12 @@ export function ConsultorProvider({ children }: { children: React.ReactNode }) {
     return () => { ativo = false; };
   }, [consultorId]);
 
-  // White-label do PPT: a marca (sigla) do consultor entra no cabeçalho dos slides.
+  // White-label do PPT + mentor: a marca (sigla) vai pro cabeçalho dos slides e o
+  // nome do mentor de IA passa a ser o do consultor ("Fulano digital").
   useEffect(() => {
     setSlideBrand(consultor.branding.sigla || (consultor.branding.nome || '').split(' ')[0] || 'LBW');
-  }, [consultor.branding.sigla, consultor.branding.nome]);
+    setMentorNome(nomeMentorDe(consultor));
+  }, [consultor]);
 
   return (
     <ConsultorContext.Provider value={{ consultor, consultorId, loading, refresh }}>

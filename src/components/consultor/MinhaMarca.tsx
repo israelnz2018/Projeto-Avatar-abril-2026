@@ -16,6 +16,7 @@ export default function MinhaMarca() {
   const { isAdmin, isConsultor, loading } = useUserAccess();
   const [nome, setNome] = useState('');
   const [sigla, setSigla] = useState('');
+  const [mentor, setMentor] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -24,8 +25,9 @@ export default function MinhaMarca() {
   useEffect(() => {
     setNome(consultor.branding.nome || '');
     setSigla(consultor.branding.sigla || '');
+    setMentor(consultor.mentorNome || '');
     setLogoUrl(consultor.branding.logoUrl || '');
-  }, [consultor.branding.nome, consultor.branding.sigla, consultor.branding.logoUrl]);
+  }, [consultor.branding.nome, consultor.branding.sigla, consultor.mentorNome, consultor.branding.logoUrl]);
 
   // Só o consultor (hoje = admin) edita a marca. Coordenador/aluno não.
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
@@ -37,7 +39,7 @@ export default function MinhaMarca() {
     try {
       await setDoc(
         doc(db, 'consultores', consultorId),
-        { branding: { ...consultor.branding, nome: nome.trim(), sigla: sigla.trim().toUpperCase().slice(0, 7), logoUrl: logoUrl.trim() } },
+        { mentorNome: mentor.trim(), branding: { ...consultor.branding, nome: nome.trim(), sigla: sigla.trim().toUpperCase().slice(0, 7), logoUrl: logoUrl.trim() } },
         { merge: true }
       );
       await refresh(); // re-veste o app ao vivo
@@ -63,6 +65,16 @@ export default function MinhaMarca() {
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             placeholder="Ex.: Consultoria João Silva"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Nome do mentor (o "digital" da IA)</label>
+          <input
+            value={mentor}
+            onChange={(e) => setMentor(e.target.value)}
+            placeholder="Ex.: João Silva"
             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
