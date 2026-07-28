@@ -125,6 +125,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ...(siteConsultor && (isAdmin || isConsultor) ? [
       { name: 'Super-relatório', path: '/super-relatorio', icon: LayoutDashboard },
       { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
+      { name: 'Minhas Fases e Ferramentas', path: '/minhas-fases', icon: Settings },
       { name: 'Meus Alunos', path: '/meus-alunos', icon: Users },
       { name: 'Meus Coordenadores', path: '/meus-coordenadores', icon: Users2 },
       { name: 'Minha Vitrine', path: '/minha-vitrine', icon: Megaphone },
@@ -527,6 +528,7 @@ export default function App() {
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
+              <Route path="/minhas-fases" element={<ProjectToolsConfig />} />
               <Route path="/meus-alunos" element={<MeusAlunos />} />
               <Route path="/super-relatorio" element={<SuperRelatorio />} />
               <Route path="/minha-vitrine" element={<MinhaVitrine />} />

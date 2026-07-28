@@ -12,13 +12,19 @@ import {
 import { db } from '../lib/firebase';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import { updateCourseName, countVideosByCourse } from './knowledgeService';
+import { resolveConsultorId } from './consultorService';
 
 const INITIATIVES_COLLECTION = 'initiatives';
 const CONFIG_COLLECTION = 'initiative_configs';
 
 export const getInitiatives = async (): Promise<Initiative[]> => {
   const snapshot = await getDocs(collection(db, INITIATIVES_COLLECTION));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Initiative));
+  // Multi-tenant: cada consultor vê só as metodologias dele. Trilhas antigas sem
+  // consultorId contam como 'israel' (não somem no app. atual).
+  const cid = resolveConsultorId();
+  return snapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() } as Initiative))
+    .filter(i => ((i as any).consultorId || 'israel') === cid);
 };
 
 export const getInitiative = async (id: string): Promise<Initiative | null> => {
@@ -40,7 +46,8 @@ export const createInitiative = async (
   const initiative: Initiative = {
     id,
     name,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    consultorId: resolveConsultorId(), // metodologia pertence ao consultor atual
   };
   if (description) {
     initiative.description = description;
