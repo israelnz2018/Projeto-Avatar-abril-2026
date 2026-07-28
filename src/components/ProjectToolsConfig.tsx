@@ -1079,22 +1079,6 @@ export default function ProjectToolsConfig() {
                                       </div>
                                     </button>
                                     <div className="flex items-center gap-1 ml-2">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingToolId(tool.id);
-                                          setEditingToolName(tool.name);
-                                        }}
-                                        className={cn(
-                                          "p-1.5 rounded-lg transition-all cursor-pointer border-none",
-                                          isSelected
-                                            ? "bg-white/20 text-white hover:bg-white/30"
-                                            : "bg-gray-50 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
-                                        )}
-                                        title="Configurar Mentor LBW"
-                                      >
-                                        <Edit3 size={13} />
-                                      </button>
                                       {isSelected && <CheckCircle2 size={18} className="text-white" />}
                                     </div>
                                   </div>
@@ -1126,40 +1110,6 @@ export default function ProjectToolsConfig() {
         )}
       </div>
 
-      {/* Restore Defaults Area */}
-      <div className="max-w-4xl mx-auto w-full p-4 border-t border-gray-200 mt-8 flex justify-center">
-        <button
-          onClick={async () => {
-            if (window.confirm('Isso irá apagar todas as configurações customizadas e restaurar os padrões de fábrica. Deseja continuar?')) {
-              setLoading(true);
-              try {
-                await restoreDefaultMethodologies(AVAILABLE_TOOLS);
-                const fresh = await getInitiatives();
-                setInitiatives(fresh);
-                setSelectedInitiative(null);
-                setConfigs([]);
-                toast.success('Padrões restaurados com sucesso!');
-              } catch (err) {
-                toast.error('Erro ao restaurar padrões.');
-              } finally {
-                setLoading(false);
-              }
-            }
-          }}
-          className="flex items-center gap-2 py-3 px-6 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-sm font-bold transition-all border border-orange-200 shadow-sm"
-        >
-          <Sparkles size={16} />
-          Restaurar Metodologias Padrão (Limpar Tudo)
-        </button>
-      </div>
-      {editingToolId && (
-        <MentorContextEditor
-          toolId={editingToolId}
-          toolName={editingToolName}
-          onClose={() => setEditingToolId(null)}
-          onSaved={() => refreshContexts()}
-        />
-      )}
     </div>
   );
 }
