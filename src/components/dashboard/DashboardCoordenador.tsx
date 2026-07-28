@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { criarConvite, deletarConvite, listarConvitesPorEmpresa, PendingInvite } from '../../services/userService';
+import { criarConvite, deletarConvite, listarConvitesPorEmpresa, PendingInvite, updateUserSiglaPpt } from '../../services/userService';
 import { getProjetosComDetalhes, ProjetoComDetalhes } from '../../services/dashboardDataService';
 import {
   useResumoEquipe,
@@ -67,7 +67,7 @@ const fmtBRL = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
 
 export default function DashboardCoordenador({ nome }: Props) {
   const uid = auth.currentUser?.uid || null;
-  const { empresaId, empresaNome, maxAlunos } = useUserAccess();
+  const { empresaId, empresaNome, maxAlunos, siglaPpt } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
   const meusStats = useUserUsageStats(uid);
@@ -196,6 +196,20 @@ export default function DashboardCoordenador({ nome }: Props) {
             : <>Você acompanha <span className="text-white font-bold">{alunosTotal} aluno{alunosTotal > 1 ? 's' : ''}</span>{alunosTravados > 0 ? <> · <span className="text-rose-300 font-bold">{alunosTravados} precisa{alunosTravados === 1 ? '' : 'm'} de atenção</span></> : null}.</>
           }
         </p>
+        {uid && (
+          <div className="mt-5 flex items-center gap-3 flex-wrap">
+            <label className="text-white/55 text-xs font-bold uppercase tracking-wide">Sua sigla nos PPTs:</label>
+            <input
+              key={`sig-${siglaPpt}`}
+              defaultValue={siglaPpt}
+              onBlur={(e) => updateUserSiglaPpt(uid, e.target.value.toUpperCase().slice(0, 7))}
+              maxLength={7}
+              placeholder="ex.: ABC"
+              className="w-28 bg-white/10 border border-white/20 rounded px-2 py-1 text-sm text-white uppercase tracking-widest placeholder-white/30 focus:outline-none focus:border-white/50"
+            />
+            <span className="text-white/30 text-[11px]">até 7 letras · salva ao sair do campo (recarregue pra ver no PPT)</span>
+          </div>
+        )}
       </motion.header>
 
       {/* ====== STATS DO TIME ====== */}

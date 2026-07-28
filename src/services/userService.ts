@@ -238,6 +238,12 @@ export async function updateUserPlano(uid: string, plano: Plano): Promise<void> 
   await updateDoc(userRef, { plano });
 }
 
+/** Sigla do coordenador que aparece no cabeçalho dos PPTs dele (white-label). */
+export async function updateUserSiglaPpt(uid: string, siglaPpt: string): Promise<void> {
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(userRef, { siglaPpt });
+}
+
 export async function updateUserMaxAlunos(uid: string, maxAlunos: number): Promise<void> {
   const userRef = doc(db, USERS_COLLECTION, uid);
   await updateDoc(userRef, { maxAlunos });

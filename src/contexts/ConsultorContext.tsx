@@ -11,7 +11,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Consultor } from '../types';
 import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId, nomeMentorDe, setMentorNome } from '../services/consultorService';
-import { setSlideBrand } from '../services/slideTemplate';
 
 interface ConsultorContextValue {
   consultor: Consultor;
@@ -45,10 +44,9 @@ export function ConsultorProvider({ children }: { children: React.ReactNode }) {
     return () => { ativo = false; };
   }, [consultorId]);
 
-  // White-label do PPT + mentor: a marca (sigla) vai pro cabeçalho dos slides e o
-  // nome do mentor de IA passa a ser o do consultor ("Fulano digital").
+  // Mentor de IA "Fulano digital": nome do mentor = o do consultor atual.
+  // (A sigla do PPT é setada no Layout, pra o coordenador poder sobrepor com a dele.)
   useEffect(() => {
-    setSlideBrand(consultor.branding.sigla || (consultor.branding.nome || '').split(' ')[0] || 'LBW');
     setMentorNome(nomeMentorDe(consultor));
   }, [consultor]);
 

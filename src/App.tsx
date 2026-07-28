@@ -78,7 +78,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { projetoAtivo } = useProject();
-  const { tipoUsuario, plano } = useUserAccess();
+  const { tipoUsuario, plano, siglaPpt } = useUserAccess();
   const { consultor } = useConsultor();
   // Em site de consultor (israel.…), o dono só vê o papel de CONSULTOR — nunca o admin.
   // O admin (super-admin LBW) vive no hub (app.…). Ver PLANO-WHITELABEL.md.
@@ -104,6 +104,13 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
   const isCoordenador = tipoUsuario === 'coordenador';
   const isConsultor = tipoUsuario === 'consultor';
+
+  // Marca do cabeçalho dos PPTs (white-label): a sigla do coordenador (se ele definiu)
+  // sobrepõe a do consultor. Só o Layout tem consultor + papel do usuário juntos.
+  useEffect(() => {
+    const marcaConsultor = consultor.branding.sigla || (consultor.branding.nome || '').split(' ')[0] || 'LBW';
+    setSlideBrand(isCoordenador && siglaPpt ? siglaPpt : marcaConsultor);
+  }, [consultor, isCoordenador, siglaPpt]);
 
   const roleLabel = isAdmin
     ? 'Administrador'
@@ -290,6 +297,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ConsultorProvider, useConsultor } from './contexts/ConsultorContext';
 import { isSiteConsultor } from './services/consultorService';
+import { setSlideBrand } from './services/slideTemplate';
 
 const ProfileView = () => {
   const navigate = useNavigate();
