@@ -1,5 +1,5 @@
 /**
- * LandingComecar — página de VENDA do "Kit 90 Dias" (Trilha 1, R$67).
+ * LandingComecar — página de VENDA do "Kit 90 Dias" (Trilha 1, R$97).
  * Servida em /kit90dias SEM exigir login (bypass no App.tsx).
  * Visual NAVY+BLUE (pago). CTAs levam ao checkout da Hotmart.
  */
@@ -10,7 +10,7 @@ import RodapeInstitucional from './RodapeInstitucional';
 const VTURB_PLAYER_ID = 'vid-6a5f186494b19bd500c16b36';
 const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a5f186494b19bd500c16b36/v4/player.js';
 
-// Checkout Hotmart do Kit 90 Dias (R$67).
+// Checkout Hotmart do Kit 90 Dias (R$97).
 const CHECKOUT_URL = 'https://pay.hotmart.com/Q106640860N';
 
 const CSS = `
@@ -141,7 +141,7 @@ export default function LandingComecar() {
     try {
       const w = window as any;
       if (typeof w.fbq === 'function') {
-        w.fbq('track', 'InitiateCheckout', { content_name: 'kit-90-dias', value: 67, currency: 'BRL' });
+        w.fbq('track', 'InitiateCheckout', { content_name: 'kit-90-dias', value: 97, currency: 'BRL' });
       }
     } catch { /* silencioso */ }
   };
@@ -164,7 +164,7 @@ export default function LandingComecar() {
             }}
           />
           <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero começar a gerar resultados →</a>
-          <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 67</b> · acesso imediato · garantia de 7 dias</div>
+          <div className="price"><s style={{ opacity: .6 }}>de R$ 197</s> por <b>R$ 97</b> · acesso imediato · garantia de 7 dias</div>
         </div>
       </header>
 
@@ -321,7 +321,7 @@ export default function LandingComecar() {
             <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Kit 90 Dias: Como Resolver Problemas no Trabalho</h3>
             <p className="lead" style={{ margin: '0 0 18px' }}>Encontre o problema certo e resolva com um resultado concreto em 90 dias — entendendo rápido como a sua área funciona.</p>
             <div style={{ fontSize: 18, color: 'var(--txt2)', marginTop: 10 }}>de <s>R$ 197</s> por</div>
-            <div className="valor grad">R$ 67</div>
+            <div className="valor grad">R$ 97</div>
             <p className="lead" style={{ margin: '4px 0 22px', fontSize: 14 }}>Acesso imediato ao Kit 90 Dias completo.</p>
             <a className="cta" href={CHECKOUT_URL} onClick={trackCheckout}>Quero começar a gerar resultados →</a>
             <div className="garantia">Garantia de 7 dias. Não gostou, devolvemos o seu investimento.</div>

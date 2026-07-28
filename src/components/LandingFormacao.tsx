@@ -552,11 +552,11 @@ export default function LandingFormacao() {
               <div className="li">✓ Mentor Israel digital ilimitado</div>
               <div className="li" style={{ marginBottom: 24 }}>✓ Certificado de cada uma das 8 trilhas</div>
               <div className="plan-foot">
-                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 2 }}>de <s>R$ 1.500</s> por</div>
+                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 2 }}>de <s>R$ 1.997</s> por</div>
                 <div className="price" style={{ margin: '0 0 2px' }}>
-                  12x <span style={{ fontSize: 20 }}>de</span> R$ 61,74
+                  12x <span style={{ fontSize: 20 }}>de</span> R$ 83,08
                 </div>
-                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 597 à vista</div>
+                <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 997 à vista</div>
                 <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} onClick={trackCheckout} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo</a>
                 <p className="plan-note">🔒 Compra segura via Hotmart · Acesso imediato · 7 dias de garantia</p>
               </div>
