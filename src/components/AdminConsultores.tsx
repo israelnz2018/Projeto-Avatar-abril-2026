@@ -70,21 +70,26 @@ export default function AdminConsultores() {
     setSalvando(true);
     setMsg('');
     try {
+      // Se o consultor já existe (ex.: só setar o e-mail do israel), preserva marca e
+      // data de criação — o formulário serve pra criar OU atualizar sem apagar nada.
+      const existente = lista.find((c) => c.id === cid);
       await setDoc(doc(db, 'consultores', cid), {
         id: cid,
-        nome: nome.trim() || cid,
+        nome: nome.trim() || existente?.nome || cid,
         subdominio: cid,
         email: mail,
         ativo: true,
-        criadoEm: new Date().toISOString(),
-        branding: {
+        ...(existente ? {} : { criadoEm: new Date().toISOString() }),
+        branding: existente?.branding || {
           nome: nome.trim() || cid,
           // Logo o próprio consultor põe em "Minha Marca". Placeholder até lá.
           logoUrl: CONSULTOR_PADRAO.branding.logoUrl,
           cores: CONSULTOR_PADRAO.branding.cores,
         },
       }, { merge: true });
-      setMsg(`✅ Cadastro criado. Falta o subdomínio (Railway + Hostinger) — a lista abaixo mostra "Validado" quando ficar no ar.`);
+      setMsg(existente
+        ? `✅ Consultor "${cid}" atualizado (e-mail salvo).`
+        : `✅ Cadastro criado. Falta o subdomínio (Railway + Hostinger) — a lista mostra "Validado" quando ficar no ar.`);
       setId(''); setNome(''); setEmail('');
       carregar();
     } catch (e: any) {
@@ -173,10 +178,12 @@ export default function AdminConsultores() {
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-gray-800 truncate">{c.nome}</div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {(c as any).email || <span className="italic text-gray-400">sem e-mail cadastrado</span>}
+                    </div>
                     <a href={`https://${sub}.educacaopelotrabalho.com`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 truncate block">
                       {sub}.educacaopelotrabalho.com
                     </a>
-                    {(c as any).email && <div className="text-xs text-gray-400 truncate">{(c as any).email}</div>}
                   </div>
                   {st === 'live' ? (
                     <span className="text-[11px] font-black uppercase text-emerald-700 bg-emerald-50 rounded-full px-3 py-1 shrink-0">✓ Validado</span>
