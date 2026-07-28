@@ -118,6 +118,14 @@ export default function AdminConsultores() {
     }
   }
 
+  async function salvarCap(id: string, val: string) {
+    const n = Number(val.replace(/\D/g, '')) || 0;
+    try {
+      await setDoc(doc(db, 'consultores', id), { capAlunos: n }, { merge: true });
+      carregar();
+    } catch { /* ignora */ }
+  }
+
   const campo = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const label = 'block text-xs font-black uppercase tracking-wide text-gray-500 mb-1';
 
@@ -199,6 +207,18 @@ export default function AdminConsultores() {
                     {enviando[c.id] ? 'Enviando…' : 'Enviar convite'}
                   </button>
                   {conviteMsg[c.id] && <span className="text-xs text-gray-600">{conviteMsg[c.id]}</span>}
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+                  <label className="text-xs font-bold text-gray-500">Limite de alunos (base toda):</label>
+                  <input
+                    key={`cap-${c.id}-${(c as any).capAlunos || 0}`}
+                    defaultValue={(c as any).capAlunos || ''}
+                    onBlur={(e) => salvarCap(c.id, e.target.value)}
+                    inputMode="numeric"
+                    placeholder="sem limite"
+                    className="w-24 border border-gray-300 rounded px-2 py-1 text-xs"
+                  />
+                  <span className="text-[10px] text-gray-400">0/vazio = sem limite · salva ao sair do campo</span>
                 </div>
               </div>
             );

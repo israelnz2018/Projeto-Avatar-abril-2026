@@ -1251,6 +1251,25 @@ async function startServer() {
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const empresaId = "emp_" + email.replace(/[^a-z0-9]/gi, "_");
     const SENHA_CONVITE = "LBW2026";
+
+    // Enforcement do cap total de alunos do consultor (se o admin definiu capAlunos).
+    // O consultor não pode distribuir aos coordenadores mais vagas do que a base permite.
+    try {
+      const consSnap = await adminFirestore().collection("consultores").doc(consultorId).get();
+      const cap = consSnap.exists ? (Number((consSnap.data() as any).capAlunos) || 0) : 0;
+      if (cap > 0) {
+        const usersSnap = await adminFirestore().collection("users").where("consultorId", "==", consultorId).get();
+        let somaSeats = 0;
+        usersSnap.forEach((d) => {
+          const u = d.data() as any;
+          if (u.tipoUsuario === "coordenador" && u.email !== email) somaSeats += Number(u.maxAlunos) || 0;
+        });
+        if (somaSeats + maxAlunos > cap) {
+          return res.status(400).json({ error: `Limite da base (${cap} alunos) excedido. Já distribuídos aos coordenadores: ${somaSeats}. Peça ao administrador pra aumentar o limite.` });
+        }
+      }
+    } catch (e) { console.error("[coordenador/convidar] cap check:", e); }
+
     try {
       let uid: string, novo = false;
       try {
