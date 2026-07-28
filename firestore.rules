@@ -68,7 +68,10 @@ service cloud.firestore {
         (ehConsultor() && mesmoConsultorUser(userId))
       );
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      // Consultor pode atualizar os usuários do mundo dele (ex.: liberar cursos por aluno).
+      allow update: if isAuthenticated() && (
+        isAdmin() || isOwner(userId) || (ehConsultor() && mesmoConsultorUser(userId))
+      );
       allow delete: if isAdmin();
     }
 

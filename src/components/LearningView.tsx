@@ -31,6 +31,7 @@ import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { getInitiatives } from '../services/configService';
+import { resolveConsultorId } from '../services/consultorService';
 import { LockedToolPopup } from './LockedToolPopup';
 import { auth } from '../lib/firebase';
 import {
@@ -78,9 +79,12 @@ export default function LearningView() {
     });
   }, []);
 
-  const { plano, isAdmin, isCoordenador } = useUserAccess();
+  const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados } = useUserAccess();
   // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
   const isStarter = !isAdmin && !isCoordenador && plano !== 'completo';
+  // Mundo do Israel = modelo Hotmart (grátis/pago). Outros consultores = acesso manual por curso.
+  const consultorAtual = resolveConsultorId();
+  const mundoIsrael = consultorAtual === 'israel';
 
   // Carrega initiatives (todas) — guardamos pra calcular progresso por trilha + free check.
   // Vínculo com knowledge_base é via `course` que deve bater com `initiative.name`.
@@ -103,7 +107,9 @@ export default function LearningView() {
     return () => unsub();
   }, []);
 
-  const isCourseLocked = (course: string) => isStarter && !freeCourseNames.has(course);
+  // Só o mundo Israel bloqueia por plano (Hotmart). Nos outros consultores o aluno
+  // já vê só os cursos liberados pra ele — então nada de cadeado.
+  const isCourseLocked = (course: string) => mundoIsrael && isStarter && !freeCourseNames.has(course);
 
   useEffect(() => {
     fetchItems();
@@ -188,7 +194,11 @@ export default function LearningView() {
 
   const fetchItems = async () => {
     setLoading(true);
-    const data = await getAllKnowledge();
+    let data = await getAllKnowledge(consultorAtual); // escopa o conteúdo pelo consultor do site
+    // Fora do mundo Israel: o ALUNO vê só os cursos liberados pra ele. Consultor/coordenador/admin veem tudo.
+    if (!mundoIsrael && !isAdmin && !isConsultor && !isCoordenador) {
+      data = data.filter(v => (cursosLiberados || []).includes(v.course));
+    }
     setItems(data);
     setLoading(false);
   };
