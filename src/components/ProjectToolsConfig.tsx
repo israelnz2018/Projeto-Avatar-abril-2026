@@ -34,9 +34,12 @@ import {
   seedDefaultInitiative,
   restoreDefaultMethodologies,
   mergeInitiativeInto,
-  previewMergeImpact
+  previewMergeImpact,
+  getFerramentasRascunho,
+  toggleFerramentaRascunho
 } from '../services/configService';
 import { updateCourseName } from '../services/knowledgeService';
+import { useUserAccess } from '../hooks/useUserAccess';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
@@ -127,13 +130,22 @@ const AVAILABLE_TOOLS = [
 ];
 
 export default function ProjectToolsConfig() {
+  const { isAdmin } = useUserAccess();
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
   const [editingToolName, setEditingToolName] = useState<string>('');
   const [mentorContexts, setMentorContexts] = useState<Record<string, MentorToolContext>>({});
+  // F6: ferramentas em rascunho (não prontas). Admin marca; consultor não vê.
+  const [rascunhos, setRascunhos] = useState<string[]>([]);
 
   useEffect(() => {
     getAllToolContexts().then(data => setMentorContexts(data));
+    getFerramentasRascunho().then(setRascunhos);
   }, []);
+
+  const alternarRascunho = async (toolId: string, rascunho: boolean) => {
+    const nova = await toggleFerramentaRascunho(toolId, rascunho, rascunhos);
+    setRascunhos(nova);
+  };
 
   const refreshContexts = async () => {
     const data = await getAllToolContexts();
@@ -765,13 +777,13 @@ export default function ProjectToolsConfig() {
                 >
                   <Trash2 size={20} />
                 </button>
-                <button 
+                <button
                   onClick={() => handleSaveConfigs()}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-lg font-black hover:bg-blue-700 transition-all shadow-lg disabled:opacity-50 uppercase text-xs tracking-wider"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50"
                 >
-                  {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
-                  Salvar Configuração
+                  {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
+                  Salvar configuração
                 </button>
               </div>
             )}
@@ -1036,7 +1048,7 @@ export default function ProjectToolsConfig() {
                               Catálogo de Ferramentas (Clique para adicionar/remover)
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map((tool) => {
+                              {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).filter((tool) => isAdmin || !rascunhos.includes(tool.id)).map((tool) => {
                                 const isSelected = config.toolIds.includes(tool.id);
                                 const ctx = mentorContexts[tool.id];
                                 const hasMentorContent = ctx && (
@@ -1078,7 +1090,21 @@ export default function ProjectToolsConfig() {
                                         )}
                                       </div>
                                     </button>
-                                    <div className="flex items-center gap-1 ml-2">
+                                    <div className="flex items-center gap-2 ml-2">
+                                      {isAdmin && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); alternarRascunho(tool.id, !rascunhos.includes(tool.id)); }}
+                                          className={cn(
+                                            "text-[9px] font-black uppercase tracking-wide rounded px-2 py-0.5 border transition-colors cursor-pointer",
+                                            rascunhos.includes(tool.id)
+                                              ? "bg-amber-100 text-amber-700 border-amber-300"
+                                              : "bg-emerald-100 text-emerald-700 border-emerald-300"
+                                          )}
+                                          title="Alternar: pronta (distribui aos consultores) ↔ rascunho (só você vê)"
+                                        >
+                                          {rascunhos.includes(tool.id) ? 'rascunho' : 'pronta'}
+                                        </button>
+                                      )}
                                       {isSelected && <CheckCircle2 size={18} className="text-white" />}
                                     </div>
                                   </div>

@@ -145,6 +145,27 @@ export const previewMergeImpact = async (sourceId: string): Promise<{ videosCoun
   return { videosCount, sourceName: source.name };
 };
 
+// ===== Ferramentas em RASCUNHO (não prontas pra distribuir aos consultores) =====
+// Só o admin marca. Consultores não veem as ferramentas nesta lista.
+// Doc: app_config/ferramentas { rascunhos: string[] }. Vazio = tudo pronto.
+export const getFerramentasRascunho = async (): Promise<string[]> => {
+  try {
+    const snap = await getDoc(doc(db, 'app_config', 'ferramentas'));
+    const arr = snap.exists() ? (snap.data() as any).rascunhos : null;
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
+export const toggleFerramentaRascunho = async (toolId: string, rascunho: boolean, atuais: string[]): Promise<string[]> => {
+  const nova = rascunho
+    ? Array.from(new Set([...atuais, toolId]))
+    : atuais.filter(t => t !== toolId);
+  await setDoc(doc(db, 'app_config', 'ferramentas'), { rascunhos: nova }, { merge: true });
+  return nova;
+};
+
 export const getInitiativeConfigs = async (initiativeId: string): Promise<InitiativePhaseConfig[]> => {
   const q = query(collection(db, CONFIG_COLLECTION), where('initiativeId', '==', initiativeId));
   const snapshot = await getDocs(q);
