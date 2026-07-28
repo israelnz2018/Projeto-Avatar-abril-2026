@@ -4,7 +4,7 @@
  * Não cria usuário (isso é do n8n) — só o tenant/marca. Ver PLANO-WHITELABEL.md.
  */
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, query, where } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { CONSULTOR_PADRAO } from '../services/consultorService';
@@ -29,6 +29,9 @@ export default function AdminConsultores() {
   const [status, setStatus] = useState<Record<string, 'checando' | 'live' | 'pendente'>>({});
   const [enviando, setEnviando] = useState<Record<string, boolean>>({});
   const [conviteMsg, setConviteMsg] = useState<Record<string, string>>({});
+  // Repasse: breakdown consultor -> coordenador (empresa) -> nº de alunos.
+  type RepasseDet = 'loading' | { total: number; diretos: number; coords: { nome: string; empresa: string; alunos: number }[] };
+  const [repasse, setRepasse] = useState<Record<string, RepasseDet>>({});
 
   // Checa se o subdomínio já está no ar (DNS + SSL). Cross-origin → usa no-cors:
   // resolve = o servidor respondeu (validado); rejeita = ainda não configurado.
@@ -120,6 +123,28 @@ export default function AdminConsultores() {
       setConviteMsg((s) => ({ ...s, [c.id]: '❌ ' + (e?.message || e) }));
     } finally {
       setEnviando((s) => ({ ...s, [c.id]: false }));
+    }
+  }
+
+  async function verRepasse(cid: string) {
+    setRepasse((d) => ({ ...d, [cid]: 'loading' }));
+    try {
+      const snap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', cid)));
+      const users = snap.docs.map((d) => d.data() as any).filter((u) => u.tipoUsuario !== 'admin');
+      const coords = users.filter((u) => u.tipoUsuario === 'coordenador');
+      const alunos = users.filter((u) => u.tipoUsuario !== 'coordenador');
+      const linhas = coords
+        .map((c) => ({
+          nome: c.nome || (c.email ? String(c.email).split('@')[0] : '—'),
+          empresa: c.empresaNome || c.empresaId || '—',
+          alunos: alunos.filter((a) => a.empresaId && a.empresaId === c.empresaId).length,
+        }))
+        .sort((a, b) => b.alunos - a.alunos);
+      const empresaIds = new Set(coords.map((c) => c.empresaId).filter(Boolean));
+      const diretos = alunos.filter((a) => !a.empresaId || !empresaIds.has(a.empresaId)).length;
+      setRepasse((d) => ({ ...d, [cid]: { total: alunos.length, diretos, coords: linhas } }));
+    } catch {
+      setRepasse((d) => ({ ...d, [cid]: { total: 0, diretos: 0, coords: [] } }));
     }
   }
 
@@ -226,6 +251,34 @@ export default function AdminConsultores() {
                     className="w-24 border border-gray-300 rounded px-2 py-1 text-xs"
                   />
                   <span className="text-[10px] text-gray-400">0/vazio = sem limite · salva ao sair do campo</span>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <button onClick={() => verRepasse(c.id)} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                    Ver times / repasse
+                  </button>
+                  {repasse[c.id] === 'loading' && <span className="text-xs text-gray-400 ml-2">carregando…</span>}
+                  {repasse[c.id] && repasse[c.id] !== 'loading' && (() => {
+                    const r = repasse[c.id] as { total: number; diretos: number; coords: { nome: string; empresa: string; alunos: number }[] };
+                    return (
+                      <div className="mt-2 text-xs">
+                        <div className="font-bold text-gray-700 mb-1">
+                          {r.total} alunos no total{r.diretos > 0 ? ` · ${r.diretos} diretos (sem coordenador)` : ''}
+                        </div>
+                        {r.coords.length === 0 ? (
+                          <div className="text-gray-400">Nenhum coordenador (empresa) ainda.</div>
+                        ) : (
+                          <div className="border border-gray-100 rounded-lg divide-y divide-gray-50">
+                            {r.coords.map((co, i) => (
+                              <div key={i} className="flex items-center justify-between px-3 py-1.5">
+                                <span className="text-gray-700 truncate">{co.nome} · <span className="text-gray-400">{co.empresa}</span></span>
+                                <span className="font-black text-gray-800 shrink-0">{co.alunos} aluno{co.alunos === 1 ? '' : 's'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );
