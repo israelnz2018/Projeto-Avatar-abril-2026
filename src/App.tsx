@@ -66,6 +66,7 @@ const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'
 const MinhaVitrine = lazy(() => import('./components/consultor/MinhaVitrine'));
 const VitrinePublica = lazy(() => import('./components/VitrinePublica'));
 const MeusCoordenadores = lazy(() => import('./components/consultor/MeusCoordenadores'));
+const ConfiguracaoConsultor = lazy(() => import('./components/consultor/ConfiguracaoConsultor'));
 const AdminConsultores = lazy(() => import('./components/AdminConsultores'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
@@ -135,16 +136,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
     { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
-    // Papel CONSULTOR — só aparece no site do consultor (israel.…), pro admin OU o próprio consultor.
+    // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).
     ...(siteConsultor && (isAdmin || isConsultor) ? [
-      { name: 'Super-relatório', path: '/super-relatorio', icon: LayoutDashboard },
-      { name: 'Meus Cursos', path: '/meus-cursos', icon: BookOpen },
-      { name: 'Minhas Fases e Ferramentas', path: '/minhas-fases', icon: Settings },
-      { name: 'Meus Alunos', path: '/meus-alunos', icon: Users },
-      { name: 'Meus Coordenadores', path: '/meus-coordenadores', icon: Users2 },
-      { name: 'Minha Vitrine', path: '/minha-vitrine', icon: Megaphone },
-      { name: 'Vitrine (consultores)', path: '/consultores', icon: Store },
-      { name: 'Minha Marca', path: '/marca', icon: Palette },
+      { name: 'Configuração', path: '/configuracao', icon: Settings },
     ] : []),
     ...(isCoordenador ? [
       { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
@@ -545,6 +539,7 @@ export default function App() {
               <Route path="/minha-vitrine" element={<MinhaVitrine />} />
               <Route path="/consultores" element={<VitrinePublica />} />
               <Route path="/meus-coordenadores" element={<MeusCoordenadores />} />
+              <Route path="/configuracao" element={<ConfiguracaoConsultor />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
