@@ -444,6 +444,117 @@ export async function getPainelConsultor(consultorId: string): Promise<PainelCon
   return { totalAlunos, ativos, totalProjetos: projetos.length, ganhoReal, ganhoTeo, videos, certificados, topProjetos: comGanho.slice(0, 5) };
 }
 
+// ---------- Relatório SEGMENTADO do consultor (alunos diretos × empresas) ----------
+
+export interface SegmentoRelatorio {
+  /** 'diretos' ou o empresaId */
+  chave: string;
+  titulo: string;
+  coordenadorNome?: string;
+  totalAlunos: number;
+  ativos: number;
+  totalProjetos: number;
+  ganhoReal: number;
+  ganhoTeo: number;
+  videos: number;
+  certificados: number;
+}
+
+export interface RelatorioConsultor {
+  /** Alunos diretos do consultor (sem empresa/coordenador) */
+  diretos: SegmentoRelatorio;
+  /** Um segmento por empresa (coordenador) */
+  empresas: SegmentoRelatorio[];
+}
+
+/**
+ * Igual ao getPainelConsultor, mas QUEBRA por segmento: alunos diretos do
+ * consultor num bloco, e cada empresa (coordenador) num bloco próprio.
+ * Attribui cada projeto ao segmento do seu dono (ownerUid → empresaId).
+ */
+export async function getRelatorioConsultor(consultorId: string): Promise<RelatorioConsultor> {
+  const usersSnap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId)));
+  const users = usersSnap.docs
+    .map(d => ({ uid: d.id, ...(d.data() as any) }))
+    .filter(u => u.tipoUsuario !== 'admin');
+
+  // Chave de segmento por usuário: coordenador/aluno com empresaId → empresaId; senão → 'diretos'
+  const segDe = (u: any): string =>
+    u.empresaId ? String(u.empresaId) : 'diretos';
+
+  // Nome de exibição de cada empresa (pega do coordenador, ou de qualquer user com empresaNome)
+  const nomeEmpresa = new Map<string, string>();
+  const nomeCoord = new Map<string, string>();
+  users.forEach(u => {
+    if (u.empresaId) {
+      const nome = u.empresaNome || u.empresaId;
+      if (!nomeEmpresa.has(u.empresaId)) nomeEmpresa.set(u.empresaId, nome);
+      if (u.tipoUsuario === 'coordenador') {
+        nomeEmpresa.set(u.empresaId, u.empresaNome || u.empresaId);
+        nomeCoord.set(u.empresaId, u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : ''));
+      }
+    }
+  });
+
+  // Inicializa segmentos
+  const mkSeg = (chave: string, titulo: string, coordenadorNome?: string): SegmentoRelatorio => ({
+    chave, titulo, coordenadorNome,
+    totalAlunos: 0, ativos: 0, totalProjetos: 0, ganhoReal: 0, ganhoTeo: 0, videos: 0, certificados: 0,
+  });
+  const segs = new Map<string, SegmentoRelatorio>();
+  segs.set('diretos', mkSeg('diretos', 'Meus Alunos'));
+  nomeEmpresa.forEach((nome, empId) => segs.set(empId, mkSeg(empId, nome, nomeCoord.get(empId))));
+
+  // Conta alunos + ativos por segmento (só tipoUsuario 'aluno' conta como aluno)
+  const uidSeg = new Map<string, string>();
+  users.forEach(u => {
+    const chave = segDe(u);
+    uidSeg.set(u.uid, chave);
+    const seg = segs.get(chave);
+    if (!seg) return;
+    if (u.tipoUsuario === 'aluno') {
+      seg.totalAlunos++;
+      if (u.primeiroAcessoEm) seg.ativos++;
+    }
+  });
+
+  // Projetos do consultor → atribui ao segmento do dono + soma ganhos
+  const projSnap = await getDocs(query(collection(db, PROJECTS_COLLECTION), where('consultorId', '==', consultorId)));
+  const projetos = projSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+  await Promise.all(projetos.map(async (p) => {
+    const chave = uidSeg.get(p.ownerUid) || 'diretos';
+    const seg = segs.get(chave);
+    if (!seg) return;
+    seg.totalProjetos++;
+    try {
+      const snap = await getDoc(doc(db, PROJECTS_COLLECTION, p.id, 'data', 'tangibleGains'));
+      if (!snap.exists()) return;
+      const content = (snap.data() as any)?.content;
+      const d = content?.toolData || content;
+      const { accReal, accTeo } = computeGanhos(d);
+      seg.ganhoReal += accReal;
+      seg.ganhoTeo += accTeo;
+    } catch { /* sem ganhos/permissão — ignora */ }
+  }));
+
+  // Engajamento por usuário → soma no segmento dele
+  await Promise.all(users.map(async (u) => {
+    const seg = segs.get(uidSeg.get(u.uid) || 'diretos');
+    if (!seg) return;
+    try {
+      const prog = await getUserProgress(u.uid);
+      seg.videos += Object.keys(prog.watchedUrls || {}).length;
+      seg.certificados += Object.keys(prog.certificadosEmitidos || {}).length;
+    } catch { /* ignora */ }
+  }));
+
+  const empresas = Array.from(segs.values())
+    .filter(s => s.chave !== 'diretos')
+    .sort((a, b) => a.titulo.localeCompare(b.titulo));
+
+  return { diretos: segs.get('diretos')!, empresas };
+}
+
 // ---------- Funções extras pros perfis Pago/Coordenador ----------
 
 export interface ProgressoTrilha {
