@@ -1,67 +1,87 @@
 /**
- * MeusAlunos — o consultor vê os usuários do mundo dele e LIBERA cursos por aluno.
- * Fora do mundo Israel não há grátis/pago: o aluno vê só os cursos que o consultor
- * liberou (users/{uid}.cursosLiberados). Ver PLANO-WHITELABEL.md.
+ * MeusAlunos — gestão completa dos alunos do consultor.
+ * Lista + coluna de cursos + editar (cursos com vencimento, add/remove, valor pago) +
+ * adicionar aluno (nome, email, cursos, vencimento default 1 ano, valor). Tudo no Firebase.
+ * Fora do mundo Israel não há grátis/pago — o acesso é por curso. Ver PLANO-WHITELABEL.md.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { X } from 'lucide-react';
+import { db, auth } from '../../lib/firebase';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
+import { useUserAccess } from '../../hooks/useUserAccess';
 
-interface AlunoRow {
-  uid: string;
-  nome: string;
-  email: string;
-  plano: string;
-  tipo: string;
-  acessou: boolean;
-  cursosLiberados: string[];
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const user = auth.currentUser;
+  const headers = new Headers(init.headers || {});
+  if (user) headers.set('Authorization', `Bearer ${await user.getIdToken()}`);
+  return fetch(url, { ...init, headers });
 }
+
+interface CursoAcesso { curso: string; vencimento: string | null; }
+interface Aluno {
+  uid: string; nome: string; email: string; tipo: string; acessou: boolean;
+  cursosAcesso: CursoAcesso[]; valorPago: number;
+}
+
+const emUmAno = () => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+const venceu = (v: string | null) => !!v && new Date(v).getTime() < Date.now();
 
 export default function MeusAlunos() {
   const { consultor, consultorId } = useConsultor();
-  const [rows, setRows] = useState<AlunoRow[]>([]);
+  const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
+  const [rows, setRows] = useState<Aluno[]>([]);
   const [cursos, setCursos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState('');
   const [busca, setBusca] = useState('');
-  // modal de liberar cursos
-  const [alunoAberto, setAlunoAberto] = useState<AlunoRow | null>(null);
-  const [selCursos, setSelCursos] = useState<string[]>([]);
-  const [salvando, setSalvando] = useState(false);
+
+  // adicionar
+  const [addAberto, setAddAberto] = useState(false);
+  const [aNome, setANome] = useState('');
+  const [aEmail, setAEmail] = useState('');
+  const [aCursos, setACursos] = useState<string[]>([]);
+  const [aVenc, setAVenc] = useState(emUmAno());
+  const [aValor, setAValor] = useState('');
+  const [addEnviando, setAddEnviando] = useState(false);
+  const [addMsg, setAddMsg] = useState('');
+
+  // editar
+  const [editUid, setEditUid] = useState<string | null>(null);
+  const [eCursos, setECursos] = useState<CursoAcesso[]>([]);
+  const [eValor, setEValor] = useState('');
+  const [eAddCurso, setEAddCurso] = useState('');
+  const [editSalvando, setEditSalvando] = useState(false);
+  const [editMsg, setEditMsg] = useState('');
 
   const carregar = async () => {
     setLoading(true);
-    setErro('');
     try {
       const [usersSnap, kbSnap] = await Promise.all([
         getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))),
         getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
       ]);
-      const lista: AlunoRow[] = usersSnap.docs
+      const lista: Aluno[] = usersSnap.docs
         .map((d) => {
           const u = d.data() as any;
+          let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso) ? u.cursosAcesso : [];
+          if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null }));
           return {
             uid: d.id,
             nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '—'),
             email: u.email || '',
-            plano: u.plano || 'gratuito',
             tipo: u.tipoUsuario || 'aluno',
             acessou: !!u.primeiroAcessoEm,
-            cursosLiberados: Array.isArray(u.cursosLiberados) ? u.cursosLiberados : [],
+            cursosAcesso: ca,
+            valorPago: typeof u.valorPago === 'number' ? u.valorPago : 0,
           };
         })
-        .filter((u) => u.tipo !== 'admin')
+        .filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor')
         .sort((a, b) => a.nome.localeCompare(b.nome));
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter(Boolean))).sort();
       setRows(lista);
       setCursos(nomesCursos);
-    } catch (e: any) {
-      setErro(e?.message || 'Erro ao carregar alunos.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   };
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [consultorId]);
 
@@ -71,106 +91,173 @@ export default function MeusAlunos() {
     return rows.filter((r) => r.nome.toLowerCase().includes(t) || r.email.toLowerCase().includes(t));
   }, [rows, busca]);
 
-  const abrirCursos = (a: AlunoRow) => {
-    setAlunoAberto(a);
-    setSelCursos(a.cursosLiberados);
-  };
-  const toggleCurso = (nome: string) =>
-    setSelCursos((prev) => (prev.includes(nome) ? prev.filter((c) => c !== nome) : [...prev, nome]));
+  if (loadingAcesso) return <div className="p-8 text-gray-500">Carregando…</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor gerencia alunos.</div>;
 
-  async function salvarCursos() {
-    if (!alunoAberto) return;
-    setSalvando(true);
+  async function adicionar() {
+    const mail = aEmail.trim().toLowerCase();
+    if (!mail || mail.indexOf('@') < 0) { setAddMsg('Informe um e-mail válido.'); return; }
+    setAddEnviando(true); setAddMsg('');
     try {
-      await setDoc(doc(db, 'users', alunoAberto.uid), { cursosLiberados: selCursos }, { merge: true });
-      setRows((prev) => prev.map((r) => (r.uid === alunoAberto.uid ? { ...r, cursosLiberados: selCursos } : r)));
-      setAlunoAberto(null);
-    } catch (e: any) {
-      alert('Erro ao salvar: ' + (e?.message || e));
-    } finally {
-      setSalvando(false);
-    }
+      const cursosAcesso = aCursos.map((c) => ({ curso: c, vencimento: aVenc || null }));
+      const r = await authedFetch('/api/aluno/convidar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: mail, nome: aNome.trim(), cursosAcesso, valorPago: Number(aValor) || 0 }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (r.ok) {
+        setAddMsg(`✅ Aluno ${j.status}${j.emailEnviado ? '' : ' (e-mail falhou)'}`);
+        setANome(''); setAEmail(''); setACursos([]); setAVenc(emUmAno()); setAValor('');
+        setAddAberto(false);
+        carregar();
+      } else setAddMsg('❌ ' + (j.error || 'erro'));
+    } catch (e: any) { setAddMsg('❌ ' + (e?.message || e)); }
+    finally { setAddEnviando(false); }
   }
+
+  function abrirEdit(a: Aluno) {
+    setEditUid(a.uid);
+    setECursos(a.cursosAcesso.map((c) => ({ ...c })));
+    setEValor(a.valorPago ? String(a.valorPago) : '');
+    setEAddCurso('');
+    setEditMsg('');
+  }
+  const setVenc = (curso: string, v: string) => setECursos((p) => p.map((c) => (c.curso === curso ? { ...c, vencimento: v || null } : c)));
+  const removerCurso = (curso: string) => setECursos((p) => p.filter((c) => c.curso !== curso));
+  const addCursoEdit = () => {
+    if (!eAddCurso || eCursos.some((c) => c.curso === eAddCurso)) return;
+    setECursos((p) => [...p, { curso: eAddCurso, vencimento: emUmAno() }]);
+    setEAddCurso('');
+  };
+
+  async function salvarEdit(uid: string) {
+    setEditSalvando(true); setEditMsg('');
+    try {
+      await setDoc(doc(db, 'users', uid), { cursosAcesso: eCursos, valorPago: Number(eValor) || 0 }, { merge: true });
+      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos, valorPago: Number(eValor) || 0 } : r)));
+      setEditMsg('✅ Salvo.');
+    } catch (e: any) { setEditMsg('❌ ' + (e?.message || e)); }
+    finally { setEditSalvando(false); }
+  }
+
+  const campo = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  const cursosDisponiveis = cursos.filter((c) => !eCursos.some((x) => x.curso === c));
 
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Alunos</h1>
-      <p className="text-gray-500 text-sm mb-5">
-        Pessoas do seu site (<b>{consultor.branding.nome}</b>) — {rows.length} no total. Libere os cursos que cada um acessa.
-      </p>
+      <p className="text-gray-500 text-sm mb-5">Gerencie os alunos de <b>{consultor.branding.nome}</b> — cursos, vencimento e valor.</p>
 
-      <input
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        placeholder="Buscar por nome ou e-mail…"
-        className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-
-      {loading && <div className="text-gray-500">Carregando…</div>}
-      {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
-
-      {!loading && !erro && (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[1.4fr_1fr_auto] gap-3 px-4 py-2.5 bg-gray-50 text-[10px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-100">
-            <div>Nome / e-mail</div>
-            <div>Cursos liberados</div>
-            <div className="text-right">Acesso</div>
-          </div>
-          {filtrados.length === 0 && <div className="px-4 py-8 text-center text-gray-400 text-sm">Nenhum aluno.</div>}
-          {filtrados.map((r) => (
-            <div key={r.uid} className="grid grid-cols-[1.4fr_1fr_auto] gap-3 px-4 py-3 items-center border-b border-gray-50 last:border-0">
-              <div className="min-w-0">
-                <div className="font-bold text-gray-800 text-sm truncate">{r.nome}</div>
-                <div className="text-xs text-gray-400 truncate">{r.email}</div>
+      {/* ADICIONAR ALUNO */}
+      <div className="bg-white border border-gray-200 rounded-2xl mb-6">
+        <button onClick={() => setAddAberto((v) => !v)} className="w-full flex items-center justify-between px-5 py-3.5 font-black text-gray-800">
+          <span className="flex items-center gap-2"><Plus size={18} className="text-blue-600" /> Adicionar aluno</span>
+          <ChevronDown size={18} className={`transition-transform ${addAberto ? 'rotate-180' : ''}`} />
+        </button>
+        {addAberto && (
+          <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <input value={aNome} onChange={(e) => setANome(e.target.value)} placeholder="Nome completo" className={campo} />
+              <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
+              <div className="flex flex-wrap gap-2">
+                {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso ainda.</span>}
+                {cursos.map((c) => {
+                  const on = aCursos.includes(c);
+                  return (
+                    <button key={c} onClick={() => setACursos((p) => on ? p.filter((x) => x !== c) : [...p, c])}
+                      className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs font-bold text-gray-500 mb-1">Vencimento dos cursos</div>
+                <input type="date" value={aVenc} onChange={(e) => setAVenc(e.target.value)} className={campo + ' w-full'} />
               </div>
               <div>
-                <button
-                  onClick={() => abrirCursos(r)}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-800 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5"
-                >
-                  {r.cursosLiberados.length > 0 ? `${r.cursosLiberados.length} curso${r.cursosLiberados.length > 1 ? 's' : ''} · editar` : 'liberar cursos'}
-                </button>
-              </div>
-              <div className="text-right">
-                {r.acessou ? <span className="text-xs font-bold text-emerald-600">● ativo</span> : <span className="text-xs text-gray-400">não acessou</span>}
+                <div className="text-xs font-bold text-gray-500 mb-1">Valor pago (R$)</div>
+                <input value={aValor} onChange={(e) => setAValor(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0,00" className={campo + ' w-full'} />
               </div>
             </div>
-          ))}
-        </div>
-      )}
+            <div className="flex items-center gap-3 pt-1">
+              <button onClick={adicionar} disabled={addEnviando} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                {addEnviando ? 'Adicionando…' : 'Adicionar aluno'}
+              </button>
+              {addMsg && <span className="text-sm text-gray-600">{addMsg}</span>}
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* MODAL liberar cursos */}
-      {alunoAberto && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAlunoAberto(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <div className="min-w-0">
-                <div className="font-black text-gray-800 truncate">{alunoAberto.nome}</div>
-                <div className="text-xs text-gray-400 truncate">Marque os cursos que ele pode acessar</div>
+      <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-4'} />
+
+      {loading ? <div className="text-gray-500">Carregando…</div> : (
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <div className="grid grid-cols-[1.3fr_1.4fr_auto] gap-3 px-4 py-2.5 bg-gray-50 text-[10px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-100">
+            <div>Aluno</div><div>Cursos com acesso</div><div className="text-right">Editar</div>
+          </div>
+          {filtrados.length === 0 && <div className="px-4 py-8 text-center text-gray-400 text-sm">Nenhum aluno.</div>}
+          {filtrados.map((a) => (
+            <div key={a.uid} className="border-b border-gray-50 last:border-0">
+              <div className="grid grid-cols-[1.3fr_1.4fr_auto] gap-3 px-4 py-3 items-center">
+                <div className="min-w-0">
+                  <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
+                  <div className="text-xs text-gray-400 truncate">{a.email}</div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {a.cursosAcesso.length === 0 ? <span className="text-xs text-gray-400 italic">nenhum</span> :
+                    a.cursosAcesso.map((c) => (
+                      <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso}</span>
+                    ))}
+                </div>
+                <div className="text-right">
+                  <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                    {editUid === a.uid ? 'fechar' : 'editar'}
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setAlunoAberto(null)} className="p-1 text-gray-400 hover:text-gray-700"><X size={20} /></button>
-            </div>
-            <div className="p-4 overflow-y-auto flex-1">
-              {cursos.length === 0 ? (
-                <div className="text-sm text-gray-400 py-4 text-center">Você ainda não tem cursos. Adicione em "Meus Cursos".</div>
-              ) : (
-                <div className="space-y-1">
-                  {cursos.map((c) => (
-                    <label key={c} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={selCursos.includes(c)} onChange={() => toggleCurso(c)} className="w-4 h-4 accent-blue-600" />
-                      <span className="text-sm text-gray-800">{c}</span>
-                    </label>
-                  ))}
+              {editUid === a.uid && (
+                <div className="px-4 pb-4 bg-gray-50/60">
+                  <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos e vencimentos</div>
+                  <div className="space-y-2 mb-3">
+                    {eCursos.length === 0 && <div className="text-xs text-gray-400">Nenhum curso liberado.</div>}
+                    {eCursos.map((c) => (
+                      <div key={c.curso} className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso}</span>
+                        <input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} />
+                        <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  {cursosDisponiveis.length > 0 && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
+                        <option value="">+ adicionar curso…</option>
+                        {cursosDisponiveis.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-500">Valor pago (R$):</span>
+                      <input value={eValor} onChange={(e) => setEValor(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0,00" className={campo + ' w-28'} />
+                    </div>
+                    <button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+                      {editSalvando ? 'Salvando…' : 'Salvar'}
+                    </button>
+                    {editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}
+                  </div>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-xs text-gray-400">{selCursos.length} de {cursos.length} liberados</span>
-              <button onClick={salvarCursos} disabled={salvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
-                {salvando ? 'Salvando…' : 'Salvar'}
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>

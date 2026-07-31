@@ -59,7 +59,17 @@ export function useUserAccess() {
           empNome = data.empresaNome || null;
           maxAl = typeof data.maxAlunos === 'number' ? data.maxAlunos : null;
           sPpt = typeof data.siglaPpt === 'string' ? data.siglaPpt : '';
-          cursosLib = Array.isArray(data.cursosLiberados) ? data.cursosLiberados : [];
+          // Modelo novo: cursosAcesso [{curso, vencimento}] — ativos = não vencidos.
+          // Fallback pro legado cursosLiberados (string[] sem vencimento).
+          const ca = Array.isArray(data.cursosAcesso) ? data.cursosAcesso : null;
+          if (ca) {
+            cursosLib = ca
+              .filter((c: any) => !c?.vencimento || new Date(c.vencimento).getTime() >= Date.now())
+              .map((c: any) => c?.curso)
+              .filter(Boolean);
+          } else {
+            cursosLib = Array.isArray(data.cursosLiberados) ? data.cursosLiberados : [];
+          }
           // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
           // passou, o "completo" expira e o usuário volta a gratuito.
           // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
