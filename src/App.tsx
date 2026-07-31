@@ -133,7 +133,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Projetos', path: '/projects', icon: ClipboardList },
     { name: 'Data & Analysis', path: '/analysis', icon: Database },
     { name: 'Educação', path: '/education', icon: GraduationCap },
-    { name: 'Checklists, Mapas e PPTs', path: '/recursos', icon: FolderCheck },
+    { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
     // 3 comunidades isoladas. ADM: admin+consultor. Consultor: admin+consultor+alunos diretos.

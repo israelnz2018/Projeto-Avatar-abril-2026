@@ -17,13 +17,12 @@ const VitrinePublica = lazy(() => import('../VitrinePublica'));
 const MinhaMarca = lazy(() => import('./MinhaMarca'));
 
 const ABAS = [
-  { id: 'relatorio', nome: 'Super-relatório', icon: LayoutDashboard, Comp: SuperRelatorio },
+  { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
-  { id: 'fases', nome: 'Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
+  { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
   { id: 'alunos', nome: 'Meus Alunos', icon: Users, Comp: MeusAlunos },
   { id: 'coordenadores', nome: 'Meus Coordenadores', icon: Users2, Comp: MeusCoordenadores },
-  { id: 'vitrine', nome: 'Minha Vitrine', icon: Megaphone, Comp: MinhaVitrine },
-  { id: 'consultores', nome: 'Vitrine', icon: Store, Comp: VitrinePublica },
+  // Minha Vitrine e Vitrine escondidas por ora (discutir depois).
   { id: 'marca', nome: 'Minha Marca', icon: Palette, Comp: MinhaMarca },
 ];
 
