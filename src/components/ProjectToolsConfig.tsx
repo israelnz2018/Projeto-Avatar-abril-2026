@@ -40,6 +40,7 @@ import {
 } from '../services/configService';
 import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
+import { isSiteConsultor } from '../services/consultorService';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
@@ -131,6 +132,9 @@ const AVAILABLE_TOOLS = [
 
 export default function ProjectToolsConfig() {
   const { isAdmin } = useUserAccess();
+  // No SITE do consultor (israel.…) esconde rascunhos mesmo pro admin (visão do consultor).
+  // O marcar rascunho + ver tudo fica no admin (app.…). ehAdminHub = pode marcar/ver tudo.
+  const ehAdminHub = isAdmin && !isSiteConsultor();
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
   const [editingToolName, setEditingToolName] = useState<string>('');
   const [mentorContexts, setMentorContexts] = useState<Record<string, MentorToolContext>>({});
@@ -1048,7 +1052,7 @@ export default function ProjectToolsConfig() {
                               Catálogo de Ferramentas (Clique para adicionar/remover)
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).filter((tool) => isAdmin || !rascunhos.includes(tool.id)).map((tool) => {
+                              {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).filter((tool) => ehAdminHub || !rascunhos.includes(tool.id)).map((tool) => {
                                 const isSelected = config.toolIds.includes(tool.id);
                                 const ctx = mentorContexts[tool.id];
                                 const hasMentorContent = ctx && (
@@ -1091,7 +1095,7 @@ export default function ProjectToolsConfig() {
                                       </div>
                                     </button>
                                     <div className="flex items-center gap-2 ml-2">
-                                      {isAdmin && (
+                                      {ehAdminHub && (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); alternarRascunho(tool.id, !rascunhos.includes(tool.id)); }}
                                           className={cn(
