@@ -191,6 +191,13 @@ export async function uploadAnexo(file: File): Promise<Anexo> {
 
 // ===== Posts =====
 
+// Espaço da comunidade — 3 escopos isolados (abas separadas). Ver PLANO-WHITELABEL.md.
+export type EscopoComunidade = 'rede' | 'consultor' | 'time';
+export interface EspacoComunidade {
+  escopo: EscopoComunidade;
+  empresaId?: string | null; // só pra 'time'
+}
+
 export async function criarPost(input: {
   tipo: PostTipo;
   titulo?: string | null;
@@ -198,8 +205,10 @@ export async function criarPost(input: {
   ferramenta?: string | null;
   projetoNome?: string | null;
   anexos?: Anexo[];
+  espaco?: EspacoComunidade;
 }): Promise<string> {
   const autor = await autorAtual();
+  const esc = input.espaco?.escopo || 'consultor';
   const ref = await addDoc(collection(db, COL), {
     tipo: input.tipo,
     titulo: input.titulo?.trim() || null,
@@ -212,7 +221,10 @@ export async function criarPost(input: {
     likes: [],
     pinned: false,
     anexos: input.anexos || [],
-    consultorId: resolveConsultorId(), // comunidade isolada por consultor
+    escopo: esc,
+    // Rede ADM é cross-tenant (consultores + admin) → 'lbw'. Os outros isolam por consultor.
+    consultorId: esc === 'rede' ? 'lbw' : resolveConsultorId(),
+    empresaId: esc === 'time' ? (input.espaco?.empresaId || null) : null,
     createdAt: serverTimestamp(),
   });
   return ref.id;
@@ -252,17 +264,20 @@ export async function curtirPost(postId: string, jaCurtiu: boolean): Promise<voi
   });
 }
 
-/** Tempo real: todos os posts, mais novos primeiro. */
-export function ouvirPosts(onChange: (posts: CommunityPost[]) => void): () => void {
+/** Tempo real: posts do ESPAÇO escolhido, mais novos primeiro. */
+export function ouvirPosts(espaco: EspacoComunidade, onChange: (posts: CommunityPost[]) => void): () => void {
   const q = query(collection(db, COL), orderBy('createdAt', 'desc'));
-  // Filtra pela comunidade do consultor atual (posts antigos sem consultorId = 'israel').
   const cid = resolveConsultorId();
+  const pertence = (p: any): boolean => {
+    if (espaco.escopo === 'rede') return p.escopo === 'rede';
+    if (espaco.escopo === 'time') {
+      return p.escopo === 'time' && (p.consultorId || 'israel') === cid && p.empresaId === espaco.empresaId;
+    }
+    // 'consultor': posts do consultor (posts antigos sem escopo = comunidade do consultor).
+    return (p.escopo === 'consultor' || !p.escopo) && (p.consultorId || 'israel') === cid;
+  };
   return onSnapshot(q, snap => {
-    onChange(
-      snap.docs
-        .map(d => ({ id: d.id, ...(d.data() as any) }))
-        .filter((p: any) => (p.consultorId || 'israel') === cid)
-    );
+    onChange(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })).filter(pertence));
   }, err => console.error('[ouvirPosts]', err));
 }
 

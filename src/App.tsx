@@ -22,7 +22,8 @@ import {
   Award,
   FolderCheck,
   Palette,
-  Store
+  Store,
+  Shield
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -79,7 +80,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { projetoAtivo } = useProject();
-  const { tipoUsuario, plano, siglaPpt } = useUserAccess();
+  const { tipoUsuario, plano, siglaPpt, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
   // Em site de consultor (israel.…), o dono só vê o papel de CONSULTOR — nunca o admin.
   // O admin (super-admin LBW) vive no hub (app.…). Ver PLANO-WHITELABEL.md.
@@ -135,7 +136,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     { name: 'Checklists, Mapas e PPTs', path: '/recursos', icon: FolderCheck },
     { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
     ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
-    { name: 'Comunidade LBW', path: '/comunidade', icon: Users2, beta: true },
+    // 3 comunidades isoladas. ADM: admin+consultor. Consultor: admin+consultor+alunos diretos.
+    // Coordenador: admin+consultor+coordenador+alunos de empresa (cada empresa é uma bolha).
+    ...(isAdmin || isConsultor ? [{ name: 'Comunidade ADM', path: '/comunidade-adm', icon: Shield }] : []),
+    ...(isAdmin || isConsultor || (!isCoordenador && !empresaId) ? [{ name: 'Comunidade do Consultor', path: '/comunidade', icon: Users2 }] : []),
+    ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade do Coordenador', path: '/comunidade-coordenador', icon: Users }] : []),
     // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).
     ...(siteConsultor && (isAdmin || isConsultor) ? [
       { name: 'Configuração', path: '/configuracao', icon: Settings },
@@ -519,7 +524,9 @@ export default function App() {
               <Route path="/learning" element={<KnowledgeManagerView />} />
               <Route path="/education" element={<LearningView />} />
               <Route path="/recursos" element={<RecursosView />} />
-              <Route path="/comunidade" element={<Comunidade />} />
+              <Route path="/comunidade" element={<Comunidade escopo="consultor" />} />
+              <Route path="/comunidade-adm" element={<Comunidade escopo="rede" />} />
+              <Route path="/comunidade-coordenador" element={<Comunidade escopo="time" />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />

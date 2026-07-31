@@ -20,7 +20,10 @@ import {
   Search, ThumbsUp, Flame, Pin, Pencil, Check, Paperclip, FileText, Loader2,
 } from 'lucide-react';
 import { cn, youtubeThumb } from '../lib/utils';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useUserAccess } from '../hooks/useUserAccess';
+import { resolveConsultorId } from '../services/consultorService';
 import UpgradeBanner from './UpgradeBanner';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
@@ -28,6 +31,7 @@ import {
   editarPost, editarReply, uploadAnexo, bloquearPost, bloquearReply,
   ouvirNotificacoes, marcarNotificacoesLidas,
   CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification, Anexo,
+  EscopoComunidade, EspacoComunidade,
 } from '../services/communityService';
 
 // ===== Config visual dos tipos =====
@@ -677,7 +681,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
 }
 
 // ===== Modal "Nova pergunta" =====
-function NovoPostModal({ onClose }: { onClose: () => void }) {
+function NovoPostModal({ onClose, espaco }: { onClose: () => void; espaco: EspacoComunidade }) {
   const [tipo, setTipo] = useState<PostTipo>('duvida');
   const [titulo, setTitulo] = useState('');
   const [texto, setTexto] = useState('');
@@ -691,7 +695,7 @@ function NovoPostModal({ onClose }: { onClose: () => void }) {
     if (!podeEnviar) return;
     setEnviando(true);
     try {
-      await criarPost({ tipo, titulo: titulo.trim(), texto, ferramenta: ferramenta.trim() || null, anexos });
+      await criarPost({ tipo, titulo: titulo.trim(), texto, ferramenta: ferramenta.trim() || null, anexos, espaco });
       onClose();
     } finally { setEnviando(false); }
   };
@@ -816,7 +820,7 @@ function NotificationsBell() {
 }
 
 // ===== Página =====
-export default function Comunidade() {
+export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoComunidade }) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>('timeline');
@@ -829,10 +833,39 @@ export default function Comunidade() {
   const ADMIN_EMAILS = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
   const meIsAdmin = ADMIN_EMAILS.includes((auth.currentUser?.email || '').toLowerCase());
 
+  // Escopo do time: admin/consultor escolhem a empresa; coordenador/aluno usam a própria.
+  const { isAdmin, isConsultor, empresaId } = useUserAccess();
+  const cid = resolveConsultorId();
+  const podeEscolherEmpresa = escopo === 'time' && (isAdmin || isConsultor);
+  const [empresas, setEmpresas] = useState<{ empresaId: string; nome: string }[]>([]);
+  const [empresaSel, setEmpresaSel] = useState<string>('');
+
   useEffect(() => {
-    const unsub = ouvirPosts(p => { setPosts(p); setLoading(false); });
+    if (!podeEscolherEmpresa) return;
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', cid)));
+        const list = snap.docs
+          .map(d => d.data() as any)
+          .filter(u => u.tipoUsuario === 'coordenador' && u.empresaId)
+          .map(u => ({ empresaId: u.empresaId as string, nome: (u.empresaNome || u.nome || u.empresaId) as string }));
+        setEmpresas(list);
+        if (list.length && !empresaSel) setEmpresaSel(list[0].empresaId);
+      } catch { /* ignore */ }
+    })();
+    // eslint-disable-next-line
+  }, [podeEscolherEmpresa, cid]);
+
+  const empresaAtiva = escopo === 'time' ? (podeEscolherEmpresa ? empresaSel : (empresaId || '')) : null;
+  const espaco: EspacoComunidade = { escopo, empresaId: empresaAtiva };
+
+  useEffect(() => {
+    if (escopo === 'time' && !empresaAtiva) { setPosts([]); setLoading(false); return; }
+    setLoading(true);
+    const unsub = ouvirPosts(espaco, p => { setPosts(p); setLoading(false); });
     return () => unsub();
-  }, []);
+    // eslint-disable-next-line
+  }, [escopo, empresaAtiva]);
 
   const mencionaveis = useMemo(() => extrairMencionaveis(posts, repliesPorPost), [posts, repliesPorPost]);
 
@@ -928,6 +961,17 @@ export default function Comunidade() {
 
       <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano introdutório: participe da comunidade e libere todas as ferramentas." />
 
+      {/* Seletor de empresa — só admin/consultor no escopo do coordenador (cada empresa é isolada) */}
+      {podeEscolherEmpresa && (
+        <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex-wrap">
+          <span className="text-xs font-black uppercase tracking-wide text-amber-700">Empresa:</span>
+          <select value={empresaSel} onChange={e => setEmpresaSel(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+            {empresas.length === 0 && <option value="">nenhuma empresa ainda</option>}
+            {empresas.map(e => <option key={e.empresaId} value={e.empresaId}>{e.nome}</option>)}
+          </select>
+          <span className="text-xs text-amber-600">Cada empresa é uma bolha isolada.</span>
+        </div>
+      )}
 
       {/* Busca */}
       <div className="relative mb-4">
@@ -1029,7 +1073,7 @@ export default function Comunidade() {
       )}
 
       <AnimatePresence>
-        {novoAberto && <NovoPostModal onClose={() => setNovoAberto(false)} />}
+        {novoAberto && <NovoPostModal onClose={() => setNovoAberto(false)} espaco={espaco} />}
       </AnimatePresence>
     </div>
   );
