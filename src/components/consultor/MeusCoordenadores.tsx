@@ -6,7 +6,7 @@
  * Escopo por consultorId. Ver PLANO-WHITELABEL.md.
  */
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { Users2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
@@ -27,6 +27,7 @@ interface CoordRow {
   time: number;
   timeAtivo: number;
   limite: number | null;
+  valorPago: number;
 }
 
 export default function MeusCoordenadores() {
@@ -40,8 +41,15 @@ export default function MeusCoordenadores() {
   const [nome, setNome] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [maxAlunos, setMaxAlunos] = useState('5');
+  const [valorConvite, setValorConvite] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState('');
+  // edição por coordenador
+  const [editUid, setEditUid] = useState<string | null>(null);
+  const [eMax, setEMax] = useState('');
+  const [eValor, setEValor] = useState('');
+  const [eSalvando, setESalvando] = useState(false);
+  const [eMsg, setEMsg] = useState('');
 
   const carregar = async () => {
     setLoading(true);
@@ -62,6 +70,7 @@ export default function MeusCoordenadores() {
             time: time.length,
             timeAtivo: time.filter((a) => a.primeiroAcessoEm).length,
             limite: typeof c.maxAlunos === 'number' ? c.maxAlunos : null,
+            valorPago: typeof c.valorPago === 'number' ? c.valorPago : 0,
           };
         })
         .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -86,12 +95,12 @@ export default function MeusCoordenadores() {
       const r = await authedFetch('/api/coordenador/convidar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: mail, nome: nome.trim(), empresa: empresa.trim(), maxAlunos: Number(maxAlunos) || 5 }),
+        body: JSON.stringify({ email: mail, nome: nome.trim(), empresa: empresa.trim(), maxAlunos: Number(maxAlunos) || 5, valorPago: Number(valorConvite) || 0 }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (r.ok) {
         setMsg(`✅ Convite enviado (${j.status})${j.emailEnviado ? '' : ' — mas o e-mail falhou, cheque o Resend'}`);
-        setEmail(''); setNome(''); setEmpresa('');
+        setEmail(''); setNome(''); setEmpresa(''); setValorConvite('');
         carregar();
       } else {
         setMsg('❌ ' + (j.error || 'erro'));
@@ -101,6 +110,22 @@ export default function MeusCoordenadores() {
     } finally {
       setEnviando(false);
     }
+  }
+
+  function abrirEdit(c: CoordRow) {
+    setEditUid(c.uid);
+    setEMax(c.limite != null ? String(c.limite) : '');
+    setEValor(c.valorPago ? String(c.valorPago) : '');
+    setEMsg('');
+  }
+  async function salvarEdit(uid: string) {
+    setESalvando(true); setEMsg('');
+    try {
+      await setDoc(doc(db, 'users', uid), { maxAlunos: Number(eMax) || 0, valorPago: Number(eValor) || 0 }, { merge: true });
+      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, limite: Number(eMax) || 0, valorPago: Number(eValor) || 0 } : r)));
+      setEMsg('✅ Salvo.');
+    } catch (e: any) { setEMsg('❌ ' + (e?.message || e)); }
+    finally { setESalvando(false); }
   }
 
   const campo = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -120,7 +145,7 @@ export default function MeusCoordenadores() {
           <label className={label}>E-mail</label>
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="coordenador@email.com" className={campo} />
         </div>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <label className={label}>Nome</label>
             <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome" className={campo} />
@@ -129,9 +154,15 @@ export default function MeusCoordenadores() {
             <label className={label}>Time / empresa</label>
             <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex.: Time Fábrica A" className={campo} />
           </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4 mt-4">
           <div>
             <label className={label}>Limite de alunos</label>
             <input value={maxAlunos} onChange={(e) => setMaxAlunos(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="5" className={campo} />
+          </div>
+          <div>
+            <label className={label}>Valor pago pela empresa (R$)</label>
+            <input value={valorConvite} onChange={(e) => setValorConvite(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0,00" className={campo} />
           </div>
         </div>
         <div className="flex items-center gap-4 mt-5">
@@ -154,20 +185,42 @@ export default function MeusCoordenadores() {
       )}
       <div className="grid gap-4">
         {rows.map((c) => (
-          <div key={c.uid} className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
-              <Users2 size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="font-bold text-gray-800 truncate">{c.nome}</div>
-              <div className="text-xs text-gray-400 truncate">{c.email} · {c.empresa}</div>
-            </div>
-            <div className="text-right shrink-0">
-              <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {c.time}{c.limite != null ? ` / ${c.limite}` : ''}
+          <div key={c.uid} className="bg-white border border-gray-200 rounded-2xl p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0">
+                <Users2 size={20} />
               </div>
-              <div className="text-[11px] text-gray-400">{c.timeAtivo} ativos</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-gray-800 truncate">{c.nome}</div>
+                <div className="text-xs text-gray-400 truncate">{c.email} · {c.empresa}</div>
+                {c.valorPago > 0 && <div className="text-xs font-bold text-emerald-600">R$ {c.valorPago.toLocaleString('pt-BR')}</div>}
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {c.time}{c.limite != null ? ` / ${c.limite}` : ''}
+                </div>
+                <div className="text-[11px] text-gray-400">{c.timeAtivo} ativos</div>
+              </div>
+              <button onClick={() => (editUid === c.uid ? setEditUid(null) : abrirEdit(c))} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">
+                {editUid === c.uid ? 'fechar' : 'editar'}
+              </button>
             </div>
+            {editUid === c.uid && (
+              <div className="mt-4 pt-4 border-t border-gray-100 flex items-end gap-3 flex-wrap">
+                <div>
+                  <label className={label}>Limite de alunos</label>
+                  <input value={eMax} onChange={(e) => setEMax(e.target.value.replace(/\D/g, ''))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-28" />
+                </div>
+                <div>
+                  <label className={label}>Valor pago (R$)</label>
+                  <input value={eValor} onChange={(e) => setEValor(e.target.value.replace(/[^\d.,]/g, ''))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32" />
+                </div>
+                <button onClick={() => salvarEdit(c.uid)} disabled={eSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+                  {eSalvando ? 'Salvando…' : 'Salvar'}
+                </button>
+                {eMsg && <span className="text-sm text-gray-600">{eMsg}</span>}
+              </div>
+            )}
           </div>
         ))}
       </div>

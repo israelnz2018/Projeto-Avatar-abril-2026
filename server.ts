@@ -1248,6 +1248,7 @@ async function startServer() {
     const nome = String(req.body?.nome || "").trim();
     const empresaNome = String(req.body?.empresa || "").trim() || nome || email.split("@")[0];
     const maxAlunos = Number(req.body?.maxAlunos) > 0 ? Number(req.body.maxAlunos) : 5;
+    const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const empresaId = "emp_" + email.replace(/[^a-z0-9]/gi, "_");
     const SENHA_CONVITE = "LBW2026";
@@ -1290,6 +1291,7 @@ async function startServer() {
         empresaId: base.empresaId || empresaId,
         empresaNome: base.empresaNome || empresaNome,
         maxAlunos,
+        valorPago, // valor pago pela empresa (repasse)
         plano: "completo",
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
