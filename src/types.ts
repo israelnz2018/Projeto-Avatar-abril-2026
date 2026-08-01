@@ -42,6 +42,12 @@ export interface ConsultorBranding {
     ink: string;
     muted: string;
   };
+  // Modelo de PPT do consultor:
+  //  'padrao' → usa o template LBW e as 3 cores escolhidas (navy/blue/light)
+  //  'proprio' → o consultor sobe as próprias imagens de capa + página interna
+  pptModo?: 'padrao' | 'proprio';
+  pptCapaUrl?: string;    // imagem de fundo da capa (modo 'proprio')
+  pptInternaUrl?: string; // imagem de fundo das páginas internas (modo 'proprio')
 }
 
 // Vitrine — a "prateleira" pública do consultor (marketing + negociação).

@@ -36,6 +36,22 @@ export function setSlideBrand(text: string | null): void {
   slideBrandText = t ? t.slice(0, 7) : 'LBW';
 }
 
+// Cores do template — white-label. O consultor escolhe 3 cores na Minha Marca
+// (escura/destaque/clara) e o ConsultorContext chama setSlideColors ao trocar de
+// tenant. Muta as chaves de THEME que TODOS os exporters já leem em render-time —
+// então a paleta inteira re-veste sem tocar em cada exportador. Default = LBW.
+const CORES_LBW = { navy: '1E2D6E', blue: '0033CC', light: 'F0F2FA' };
+const hex6 = (c?: string): string | null => {
+  if (!c) return null;
+  const h = c.trim().replace(/^#/, '').toUpperCase();
+  return /^[0-9A-F]{6}$/.test(h) ? h : null;
+};
+export function setSlideColors(cores?: { navy?: string; blue?: string; light?: string } | null): void {
+  THEME.NAVY = hex6(cores?.navy) || CORES_LBW.navy;
+  THEME.BLUE = hex6(cores?.blue) || CORES_LBW.blue;
+  THEME.LIGHT = hex6(cores?.light) || CORES_LBW.light;
+}
+
 export function createSlide(
   pres: pptxgen,
   project: Project,
@@ -127,9 +143,9 @@ export function createSlide(
     }
   );
 
-  // Rodapé — texto simples, sem barras decorativas
+  // Rodapé — texto simples, sem barras decorativas (white-label: usa a sigla do consultor)
   slide.addText(
-    `LBW · Continuous Improvement Copilot   ·   ${project.name || ''}   ·   ${today}`,
+    `${slideBrandText} · Continuous Improvement Copilot   ·   ${project.name || ''}   ·   ${today}`,
     {
       x: 0.22, y: 7.30, w: 13.00, h: 0.18,
       fontFace: 'Calibri', fontSize: 7.5, color: THEME.MUTED,
