@@ -174,7 +174,10 @@ export default function MinhaMarca() {
               onFile={(f) => enviarImagem(f, 'logo', setLogoUrl)}
             />
           </div>
-          <p className="text-xs text-gray-400 mt-2">Ideal PNG com fundo transparente. Reduzimos pra até 600px, preservando a transparência.</p>
+          <p className="text-xs text-gray-400 mt-2">
+            Aparece no <b>cabeçalho do seu site</b>. Ideal PNG com fundo transparente — reduzimos pra até 600px, preservando a transparência.
+            Nos slides do PPT, sua marca assina pela <b>sigla</b>.
+          </p>
         </div>
       </div>
 
