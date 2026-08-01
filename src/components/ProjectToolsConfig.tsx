@@ -773,21 +773,21 @@ export default function ProjectToolsConfig() {
             )}
 
             {selectedInitiative && (
-              <div className="flex items-end gap-2">
-                <button 
+              <div className="flex items-center gap-2 shrink-0">
+                <button
                   onClick={() => setIsDeleting(selectedInitiative.id)}
-                  className="p-3 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
+                  className="p-2.5 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
                   title="Excluir este tipo de projeto"
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={18} />
                 </button>
                 <button
                   onClick={() => handleSaveConfigs()}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 whitespace-nowrap bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
-                  Salvar configuração
+                  {saving ? 'Salvando…' : 'Salvar configuração'}
                 </button>
               </div>
             )}
