@@ -32,6 +32,7 @@ import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { getInitiatives } from '../services/configService';
 import { resolveConsultorId } from '../services/consultorService';
+import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
 import { auth } from '../lib/firebase';
 import {
@@ -80,6 +81,8 @@ export default function LearningView() {
   }, []);
 
   const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso } = useUserAccess();
+  const { consultor } = useConsultor();
+  const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
   // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
   const isStarter = !isAdmin && !isCoordenador && plano !== 'completo';
   const consultorAtual = resolveConsultorId();
@@ -297,8 +300,10 @@ export default function LearningView() {
   return (
     <div className="space-y-6">
       <UpgradeBanner mensagem="Você vê os vídeos da trilha introdutória. Libere todos os cursos e vídeos." />
-      {/* Toolbar discreto — só busca + grid/list, sem título */}
-      <div className="flex items-center justify-end gap-3">
+      {/* Título "Cursos de <consultor>" + toolbar (busca + grid/list) */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-black text-gray-800 m-0 truncate">Cursos de {nomeConsultor}</h1>
+        <div className="flex items-center gap-3 shrink-0">
         <div className="flex items-center bg-white p-1 rounded-lg border border-[#e5e7eb]">
           <button
             onClick={() => setViewMode('grid')}
@@ -330,6 +335,7 @@ export default function LearningView() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9 pr-4 py-2 bg-white border border-[#e5e7eb] rounded-lg w-72 focus:outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-blue-100 text-[13px]"
           />
+        </div>
         </div>
       </div>
 
