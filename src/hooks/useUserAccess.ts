@@ -20,7 +20,14 @@ export function useUserAccess() {
   const [pptFonte, setPptFonte] = useState<'consultor' | 'proprio' | null>(null);
   const [pptCores, setPptCores] = useState<{ navy: string; blue: string; light: string } | null>(null);
   const [cursosLiberados, setCursosLiberados] = useState<string[]>([]);
+  // Aluno em modo POR-CURSO: tem cursosAcesso definido (pacote de cursos escolhido
+  // pelo consultor). Nesse modo o acesso é pelos cursos liberados, NÃO pelo plano —
+  // assim o `plano:completo` que o convite grava não faz o aluno "ver tudo".
+  // Sem cursosAcesso (alunos Hotmart atuais) → modelo de plano intacto.
+  const [acessoPorCurso, setAcessoPorCurso] = useState(false);
   const [freeToolIds, setFreeToolIds] = useState<Set<string>>(new Set());
+  // Ferramentas das trilhas do pacote liberado pra ESTE aluno (além das grátis).
+  const [grantedToolIds, setGrantedToolIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -43,6 +50,7 @@ export function useUserAccess() {
         let pFonte: 'consultor' | 'proprio' | null = null;
         let pCores: { navy: string; blue: string; light: string } | null = null;
         let cursosLib: string[] = [];
+        let porCurso = false;
         if (userSnap.exists()) {
           const data = userSnap.data();
           // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
@@ -94,6 +102,9 @@ export function useUserAccess() {
           } else {
             cursosLib = Array.isArray(data.cursosLiberados) ? data.cursosLiberados : [];
           }
+          // Modo por-curso: só quando o aluno TEM cursosAcesso não-vazio (pacote definido
+          // pelo consultor). Vazio/ausente = modelo de plano (preserva os grupos atuais).
+          porCurso = Array.isArray(data.cursosAcesso) && data.cursosAcesso.length > 0;
           // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
           // passou, o "completo" expira e o usuário volta a gratuito.
           // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
@@ -130,6 +141,7 @@ export function useUserAccess() {
         setPptFonte(pFonte);
         setPptCores(pCores);
         setCursosLiberados(cursosLib);
+        setAcessoPorCurso(porCurso);
         const initiatives = await getInitiatives();
         const freeInitiatives = initiatives.filter(i => i.isFree === true);
         const toolIdsSet = new Set<string>();
@@ -142,6 +154,17 @@ export function useUserAccess() {
           });
         }
         setFreeToolIds(toolIdsSet);
+        // Ferramentas do PACOTE liberado pra este aluno (trilhas cujo nome está nos cursos
+        // liberados). Vínculo canônico curso↔trilha é por nome. Só usado no modo por-curso.
+        const liberadosSet = new Set(cursosLib);
+        const grantedToolSet = new Set<string>();
+        for (const initiative of initiatives.filter(i => liberadosSet.has(i.name))) {
+          const configs = await getInitiativeConfigs(initiative.id);
+          configs.forEach(config => {
+            if (Array.isArray(config.toolIds)) config.toolIds.forEach(id => grantedToolSet.add(id));
+          });
+        }
+        setGrantedToolIds(grantedToolSet);
       } catch (error) {
         console.error('Erro ao verificar acesso do usuário:', error);
       } finally {
@@ -153,15 +176,20 @@ export function useUserAccess() {
 
   const canUseTool = (toolId: string) => {
     if (isAdmin) return true;
+    // Modo por-curso: só as ferramentas do pacote (+ grátis). O plano:completo NÃO libera tudo.
+    if (acessoPorCurso) return freeToolIds.has(toolId) || grantedToolIds.has(toolId);
     if (plano === 'completo') return true;
     return freeToolIds.has(toolId);
   };
 
   const canUseInitiative = (initiativeId: string, initiatives: any[]) => {
     if (isAdmin) return true;
-    if (plano === 'completo') return true;
     const initiative = initiatives.find(i => i.id === initiativeId);
-    return initiative?.isFree === true;
+    if (!initiative) return false;
+    // Modo por-curso: só as trilhas do pacote (+ grátis). O plano:completo NÃO libera tudo.
+    if (acessoPorCurso) return initiative.isFree === true || (cursosLiberados || []).includes(initiative.name);
+    if (plano === 'completo') return true;
+    return initiative.isFree === true;
   };
 
   return {
@@ -178,6 +206,7 @@ export function useUserAccess() {
     pptFonte,
     pptCores,
     cursosLiberados,
+    acessoPorCurso,
     freeToolIds,
     canUseTool,
     canUseInitiative,

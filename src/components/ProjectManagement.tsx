@@ -366,6 +366,7 @@ export default function ProjectManagement() {
     if (!selectedParentInitiativeId) return [];
     return initiatives
       .filter(i => i.parentId === selectedParentInitiativeId)
+      .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
       .sort((ca, cb) => {
         const numA = parseInt(ca.name.split('.')[1] || ca.name) || 0;
         const numB = parseInt(cb.name.split('.')[1] || cb.name) || 0;
@@ -791,6 +792,7 @@ export default function ProjectManagement() {
                   <div className="space-y-2 mb-2" data-tour-id="proj-trilhas">
                     {initiatives
                       .filter(i => !i.parentId)
+                      .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
                       .sort((a, b) => {
                         const numA = parseInt(a.name) || 0;
                         const numB = parseInt(b.name) || 0;

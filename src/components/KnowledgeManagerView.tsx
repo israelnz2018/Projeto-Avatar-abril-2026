@@ -55,7 +55,7 @@ import {
   movePlaylistToCourse,
   KNOWLEDGE_COLLECTION
 } from '../services/knowledgeService';
-import { getInitiatives } from '../services/configService';
+import { getInitiatives, updateInitiative } from '../services/configService';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -567,6 +567,8 @@ export default function KnowledgeManagerView() {
   const [seekTime, setSeekTime] = useState<number>(0);
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
+  // Initiatives completas (id + temProjeto) do consultor atual — pro toggle "tem projeto?".
+  const [initiatives, setInitiatives] = useState<any[]>([]);
 
   // Estados do helper de reconciliação de cursos órfãos
   // (cursos que estão nos vídeos mas não existem mais como trilhas no /config — provavelmente foram renomeados)
@@ -582,9 +584,24 @@ export default function KnowledgeManagerView() {
       // vazio. Agora pegamos TODAS as iniciativas como opções de curso.
       const names = list.map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
+      setInitiatives(list);
     }).catch(console.error);
     fetchItems();
   }, []);
+
+  // Liga/desliga "este curso tem projeto?" — grava temProjeto na initiative de mesmo nome.
+  // Default (ausente/true) = tem projeto (comportamento atual). false = curso só-conteúdo.
+  const toggleTemProjeto = async (courseName: string) => {
+    const ini = initiatives.find((i) => i.name === courseName);
+    if (!ini) return; // curso sem trilha correspondente já não vira projeto
+    const novo = ini.temProjeto === false; // estava sem projeto → liga; senão desliga
+    try {
+      await updateInitiative(ini.id, { temProjeto: novo });
+      setInitiatives((prev) => prev.map((i) => (i.id === ini.id ? { ...i, temProjeto: novo } : i)));
+    } catch (e) {
+      console.error('Erro ao alternar "tem projeto":', e);
+    }
+  };
 
   useEffect(() => {
     if (modalConfig.isOpen && modalConfig.type === 'importTranscript' && modalConfig.targetId) {
@@ -1686,6 +1703,21 @@ export default function KnowledgeManagerView() {
                       Filtro ativo · {visibleNoCurso} de {totalDoCurso} visíveis
                     </span>
                   )}
+                  {/* Toggle "tem projeto?" — decide se o curso vira tipo de projeto na aba Projetos */}
+                  {(() => {
+                    const ini = initiatives.find((i) => i.name === course.name);
+                    if (!ini) return <span className="text-[11px] text-gray-400 italic ml-1" title="Curso sem trilha de projeto correspondente">sem projeto</span>;
+                    const temProjeto = ini.temProjeto !== false;
+                    return (
+                      <button
+                        onClick={() => toggleTemProjeto(course.name)}
+                        title="Este curso aparece como projeto na aba Projetos? Clique para alternar."
+                        className={`text-[11px] font-bold px-2 py-1 rounded-full border transition-colors ${temProjeto ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'}`}
+                      >
+                        {temProjeto ? '✓ Tem projeto' : 'Só conteúdo'}
+                      </button>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   <button 

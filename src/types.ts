@@ -23,6 +23,10 @@ export interface Initiative {
   parentId?: string;
   phases?: { id: string, name: string }[];
   isFree?: boolean;
+  // Curso "só conteúdo": quando false, o curso (initiative.name) existe em Educação
+  // mas NÃO aparece como tipo de projeto na aba Projetos. Ausente/true = tem projeto
+  // (comportamento atual preservado). Editável em Meus Cursos.
+  temProjeto?: boolean;
   createdAt: string;
   consultorId?: string; // Multi-tenant: dono do conteúdo (default 'israel' na Fase 0)
 }

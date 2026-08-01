@@ -79,12 +79,10 @@ export default function LearningView() {
     });
   }, []);
 
-  const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados } = useUserAccess();
+  const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso } = useUserAccess();
   // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
   const isStarter = !isAdmin && !isCoordenador && plano !== 'completo';
-  // Mundo do Israel = modelo Hotmart (grátis/pago). Outros consultores = acesso manual por curso.
   const consultorAtual = resolveConsultorId();
-  const mundoIsrael = consultorAtual === 'israel';
 
   // Carrega initiatives (todas) — guardamos pra calcular progresso por trilha + free check.
   // Vínculo com knowledge_base é via `course` que deve bater com `initiative.name`.
@@ -107,9 +105,18 @@ export default function LearningView() {
     return () => unsub();
   }, []);
 
-  // Só o mundo Israel bloqueia por plano (Hotmart). Nos outros consultores o aluno
-  // já vê só os cursos liberados pra ele — então nada de cadeado.
-  const isCourseLocked = (course: string) => mundoIsrael && isStarter && !freeCourseNames.has(course);
+  // Papéis que veem tudo do tenant (staff do consultor).
+  const veTudo = isAdmin || isConsultor || isCoordenador;
+  // Modelo UNIFICADO (todos os consultores, incl. Israel = consultor referência):
+  //  - Modo POR-CURSO (aluno com pacote de cursos): vê os cursos do pacote + os grátis;
+  //    o resto fica com CADEADO. O plano:completo NÃO libera tudo aqui.
+  //  - Modo PLANO (alunos atuais sem pacote): completo vê tudo, starter vê os grátis —
+  //    exatamente como funciona hoje (grupos preservados).
+  const isCourseLocked = (course: string) => {
+    if (veTudo) return false;
+    if (acessoPorCurso) return !freeCourseNames.has(course) && !(cursosLiberados || []).includes(course);
+    return isStarter && !freeCourseNames.has(course);
+  };
 
   useEffect(() => {
     fetchItems();
@@ -194,11 +201,9 @@ export default function LearningView() {
 
   const fetchItems = async () => {
     setLoading(true);
-    let data = await getAllKnowledge(consultorAtual); // escopa o conteúdo pelo consultor do site
-    // Fora do mundo Israel: o ALUNO vê só os cursos liberados pra ele. Consultor/coordenador/admin veem tudo.
-    if (!mundoIsrael && !isAdmin && !isConsultor && !isCoordenador) {
-      data = data.filter(v => (cursosLiberados || []).includes(v.course));
-    }
+    const data = await getAllKnowledge(consultorAtual); // escopa o conteúdo pelo consultor do site
+    // Modelo unificado: TODOS os cursos aparecem; os não liberados ficam com CADEADO
+    // (isCourseLocked), pra todos os consultores — igual à estratégia do Israel.
     setItems(data);
     setLoading(false);
   };
