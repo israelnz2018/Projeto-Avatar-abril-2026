@@ -21,7 +21,7 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 interface CursoAcesso { curso: string; vencimento: string | null; }
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
-  cursosAcesso: CursoAcesso[]; valorPago: number;
+  cursosAcesso: CursoAcesso[]; valorPago: number; completo: boolean;
 }
 
 const emUmAno = () => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -65,6 +65,16 @@ export default function MeusAlunos() {
           const u = d.data() as any;
           let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso) ? u.cursosAcesso : [];
           if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null }));
+          // Acesso Completo (mundo Israel/legado): plano 'completo' válido OU formação avançada.
+          // Mesma regra do useUserAccess — libera TODOS os cursos, sem grant por-curso.
+          const completoValido = (() => {
+            const ate = u.acessoCompletoAte;
+            if (!ate) return true;
+            const dt = new Date(ate);
+            return isNaN(dt.getTime()) ? true : dt.getTime() > Date.now();
+          })();
+          const completo = (u.plano === 'completo' && completoValido)
+            || (Array.isArray(u.formacoes) && u.formacoes.some((f: string) => !String(f).includes('introdutoria') && !String(f).includes('gratuito')));
           return {
             uid: d.id,
             nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '—'),
@@ -73,6 +83,7 @@ export default function MeusAlunos() {
             acessou: !!u.primeiroAcessoEm,
             cursosAcesso: ca,
             valorPago: typeof u.valorPago === 'number' ? u.valorPago : 0,
+            completo,
           };
         })
         .filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor')
@@ -211,10 +222,15 @@ export default function MeusAlunos() {
                   <div className="text-xs text-gray-400 truncate">{a.email}</div>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {a.cursosAcesso.length === 0 ? <span className="text-xs text-gray-400 italic">nenhum</span> :
+                  {a.completo ? (
+                    <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
+                  ) : a.cursosAcesso.length === 0 ? (
+                    <span className="text-xs text-gray-400 italic">nenhum</span>
+                  ) : (
                     a.cursosAcesso.map((c) => (
                       <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso}</span>
-                    ))}
+                    ))
+                  )}
                 </div>
                 <div className="text-right">
                   <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
@@ -224,6 +240,11 @@ export default function MeusAlunos() {
               </div>
               {editUid === a.uid && (
                 <div className="px-4 pb-4 bg-gray-50/60">
+                  {a.completo && (
+                    <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                      Este aluno tem <b>acesso Completo</b> (todos os cursos). Você só precisa mexer aqui embaixo se quiser trocá-lo para <b>acesso por curso</b> (com vencimento).
+                    </div>
+                  )}
                   <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos e vencimentos</div>
                   <div className="space-y-2 mb-3">
                     {eCursos.length === 0 && <div className="text-xs text-gray-400">Nenhum curso liberado.</div>}
