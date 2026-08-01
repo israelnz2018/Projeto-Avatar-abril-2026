@@ -48,53 +48,64 @@ export interface QuizConfig {
   /** % de vídeos assistidos para liberar a prova (0..1). */
   watchGatePct: number;
   questions: QuizQuestion[];
+  /** Dono da prova (multi-tenant). Default 'israel' (consultor #0). */
+  consultorId?: string;
   updatedAt?: string;
 }
 
+// Doc escopado por consultor: `${consultorId}__${trilha}`. Israel (consultor #0)
+// também herda os docs ANTIGOS sem escopo (`quizzes/{trilha}`) como fallback.
+const scopedId = (consultorId: string, trilha: number) => `${consultorId}__${trilha}`;
+
 /**
- * Lê a config da prova de uma trilha. Firestore tem prioridade; cai no seed embutido.
+ * Lê a prova de uma trilha, ESCOPADA por consultor.
+ * Ordem: doc do consultor (`{consultorId}__{trilha}`) → (só Israel) doc legado
+ * (`quizzes/{trilha}`) → seed embutido. Assim cada consultor tem a prova dele e
+ * o Israel não perde as provas que já criou.
  */
-export async function getQuiz(trilha: number): Promise<QuizConfig> {
+export async function getQuiz(trilha: number, consultorId: string = 'israel'): Promise<QuizConfig> {
+  const seed = DEFAULT_QUIZZES[trilha];
+  const build = (data: Partial<QuizConfig>): QuizConfig => ({
+    trilha,
+    titulo: data.titulo || seed?.titulo || `Trilha ${trilha}`,
+    passPct: typeof data.passPct === 'number' ? data.passPct : DEFAULT_PASS_PCT,
+    watchGatePct: typeof data.watchGatePct === 'number' ? data.watchGatePct : DEFAULT_WATCH_GATE_PCT,
+    questions: Array.isArray(data.questions) && data.questions.length > 0 ? data.questions : (seed?.questions || []),
+    consultorId,
+    updatedAt: data.updatedAt,
+  });
   try {
-    const snap = await getDoc(doc(db, QUIZZES_COLLECTION, String(trilha)));
-    if (snap.exists()) {
-      const data = snap.data() as Partial<QuizConfig>;
-      // Merge defensivo com o seed (garante campos e evita quebrar se doc antigo)
-      const seed = DEFAULT_QUIZZES[trilha];
-      return {
-        trilha,
-        titulo: data.titulo || seed?.titulo || `Trilha ${trilha}`,
-        passPct: typeof data.passPct === 'number' ? data.passPct : DEFAULT_PASS_PCT,
-        watchGatePct: typeof data.watchGatePct === 'number' ? data.watchGatePct : DEFAULT_WATCH_GATE_PCT,
-        questions: Array.isArray(data.questions) && data.questions.length > 0 ? data.questions : (seed?.questions || []),
-        updatedAt: data.updatedAt,
-      };
+    const scoped = await getDoc(doc(db, QUIZZES_COLLECTION, scopedId(consultorId, trilha)));
+    if (scoped.exists()) return build(scoped.data() as Partial<QuizConfig>);
+    // Legado: só o Israel herda os quizzes antigos sem escopo.
+    if (consultorId === 'israel') {
+      const legacy = await getDoc(doc(db, QUIZZES_COLLECTION, String(trilha)));
+      if (legacy.exists()) return build(legacy.data() as Partial<QuizConfig>);
     }
   } catch (e) {
     console.error('[quizService] getQuiz erro, usando seed:', e);
   }
-  return DEFAULT_QUIZZES[trilha] || {
-    trilha, titulo: `Trilha ${trilha}`, passPct: DEFAULT_PASS_PCT, watchGatePct: DEFAULT_WATCH_GATE_PCT, questions: [],
-  };
+  return seed
+    ? { ...seed, consultorId }
+    : { trilha, titulo: `Trilha ${trilha}`, passPct: DEFAULT_PASS_PCT, watchGatePct: DEFAULT_WATCH_GATE_PCT, questions: [], consultorId };
 }
 
-/** Lê todas as 8 provas de uma vez (aluno vê a lista de blocos). */
-export async function getAllQuizzes(): Promise<QuizConfig[]> {
+/** Lê todas as 8 provas do consultor (aluno vê a lista de blocos). */
+export async function getAllQuizzes(consultorId: string = 'israel'): Promise<QuizConfig[]> {
   const out: QuizConfig[] = [];
-  // Firestore primeiro (1 leitura por trilha, mas em paralelo)
   const results = await Promise.all(
     [1, 2, 3, 4, 5, 6, 7, 8].map(async (t) => {
-      try { return await getQuiz(t); } catch { return DEFAULT_QUIZZES[t]; }
+      try { return await getQuiz(t, consultorId); } catch { return DEFAULT_QUIZZES[t]; }
     })
   );
   for (const q of results) if (q) out.push(q);
   return out.sort((a, b) => a.trilha - b.trilha);
 }
 
-/** Salva/edita a prova de uma trilha (admin). */
-export async function saveQuiz(config: QuizConfig): Promise<void> {
-  const payload: QuizConfig = { ...config, updatedAt: new Date().toISOString() };
-  await setDoc(doc(db, QUIZZES_COLLECTION, String(config.trilha)), payload, { merge: false });
+/** Salva/edita a prova de uma trilha do consultor. */
+export async function saveQuiz(config: QuizConfig, consultorId: string = 'israel'): Promise<void> {
+  const payload: QuizConfig = { ...config, consultorId, updatedAt: new Date().toISOString() };
+  await setDoc(doc(db, QUIZZES_COLLECTION, scopedId(consultorId, config.trilha)), payload, { merge: false });
 }
 
 /** Corrige uma tentativa: recebe respostas do aluno (índice por questionId) e devolve nota. */

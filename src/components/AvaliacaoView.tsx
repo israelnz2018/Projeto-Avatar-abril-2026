@@ -27,6 +27,7 @@ import {
   type UserProgress, type CertificadoEmitido,
 } from '../services/videoProgressService';
 import { getAllQuizzes, type QuizConfig } from '../services/quizService';
+import { resolveConsultorId } from '../services/consultorService';
 import QuizRunner from './QuizRunner';
 import Certificate from './Certificate';
 import OpiniaoModal from './OpiniaoModal';
@@ -68,7 +69,7 @@ export default function AvaliacaoView() {
     (async () => {
       try {
         const [qs, inits, vids, prog, udata] = await Promise.all([
-          getAllQuizzes(),
+          getAllQuizzes(resolveConsultorId()),
           getInitiatives(),
           getAllKnowledge(),
           uid ? getUserProgress(uid) : Promise.resolve(null),

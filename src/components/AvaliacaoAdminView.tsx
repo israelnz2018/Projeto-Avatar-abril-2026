@@ -17,11 +17,13 @@ import { Save, Plus, Trash2, Check, ChevronDown, RotateCcw } from 'lucide-react'
 import { getQuiz, saveQuiz, type QuizConfig, type QuizQuestion } from '../services/quizService';
 import { DEFAULT_QUIZZES } from '../services/quizSeed';
 import { getOpiniaoItens, saveOpiniaoItens } from '../services/opiniaoService';
+import { resolveConsultorId } from '../services/consultorService';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 const TRILHAS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function AvaliacaoAdminView() {
+  const consultorId = resolveConsultorId(); // prova escopada pelo consultor do site
   const [trilha, setTrilha] = useState(1);
   const [config, setConfig] = useState<QuizConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,11 +47,11 @@ export default function AvaliacaoAdminView() {
 
   useEffect(() => {
     setLoading(true);
-    getQuiz(trilha)
+    getQuiz(trilha, consultorId)
       .then(setConfig)
       .catch((e) => console.error('[AdminAvaliacao] getQuiz:', e))
       .finally(() => setLoading(false));
-  }, [trilha]);
+  }, [trilha, consultorId]);
 
   const update = (patch: Partial<QuizConfig>) => setConfig((c) => (c ? { ...c, ...patch } : c));
 
@@ -100,7 +102,7 @@ export default function AvaliacaoAdminView() {
     if (!config) return;
     setSaving(true); setSavedMsg('');
     try {
-      await saveQuiz(config);
+      await saveQuiz(config, consultorId);
       setSavedMsg('✓ Prova salva com sucesso.');
       setTimeout(() => setSavedMsg(''), 3000);
     } catch (e) {

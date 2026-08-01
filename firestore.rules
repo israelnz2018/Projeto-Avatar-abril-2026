@@ -88,6 +88,14 @@ service cloud.firestore {
       allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
     }
 
+    // Provas de certificação — escopadas por consultor (doc id = `{consultorId}__{trilha}`).
+    // Leitura: qualquer autenticado (o aluno precisa carregar a prova pra fazer).
+    // Escrita: admin OU consultor (cada consultor edita a prova do mundo dele).
+    match /quizzes/{quizId} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin() || ehConsultor();
+    }
+
     // Marca do TIME (PPT) — o coordenador escolhe usar o PPT do consultor ou o dele
     // (sigla + 3 cores). Guarda SÓ sigla + cores (sem dado sensível), então a leitura
     // é aberta a autenticados: o coordenador E os alunos do time leem o MESMO doc pra
