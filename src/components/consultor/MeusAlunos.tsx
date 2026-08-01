@@ -259,10 +259,10 @@ export default function MeusAlunos() {
                     ))
                   ) : freeCursos.length > 0 ? (
                     freeCursos.map((c) => (
-                      <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c} · grátis</span>
+                      <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
                     ))
                   ) : (
-                    <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">Trilha 1 · grátis</span>
+                    <span className="text-xs text-gray-400 italic">—</span>
                   )}
                 </div>
                 <div className="text-right">
