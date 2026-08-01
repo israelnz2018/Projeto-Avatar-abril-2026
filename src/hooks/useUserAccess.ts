@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
-import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getInitiatives, getInitiativeConfigs } from '../services/configService';
 import type { TipoUsuario } from '../services/userService';
 
@@ -63,31 +63,25 @@ export function useUserAccess() {
           empNome = data.empresaNome || null;
           maxAl = typeof data.maxAlunos === 'number' ? data.maxAlunos : null;
           sPpt = typeof data.siglaPpt === 'string' ? data.siglaPpt : '';
-          // Marca do PPT do TIME (white-label por turma):
-          //  - coordenador: usa a escolha do próprio doc (pptFonte/siglaPpt/coresPpt)
-          //  - aluno de um time (empresaId): herda a escolha do coordenador da empresa
-          // Fora desses casos, fica null → o app usa a marca do consultor.
-          const lerCores = (raw: any): { navy: string; blue: string; light: string } | null =>
-            raw && typeof raw === 'object' && raw.navy && raw.blue && raw.light
-              ? { navy: String(raw.navy), blue: String(raw.blue), light: String(raw.light) }
-              : null;
-          if (tipo === 'coordenador') {
-            pFonte = data.pptFonte === 'proprio' ? 'proprio' : 'consultor';
-            if (pFonte === 'proprio') pCores = lerCores(data.coresPpt);
-          } else if (tipo === 'aluno' && empId) {
+          // Marca do PPT do TIME: vive em team_branding/{empresaId} — só sigla + cores,
+          // sem dado sensível. Coordenador e alunos do mesmo time leem o MESMO doc.
+          // Fora de um time (sem empresaId), fica null → o app usa a marca do consultor.
+          if (empId) {
+            const lerCores = (raw: any): { navy: string; blue: string; light: string } | null =>
+              raw && typeof raw === 'object' && raw.navy && raw.blue && raw.light
+                ? { navy: String(raw.navy), blue: String(raw.blue), light: String(raw.light) }
+                : null;
             try {
-              const coordSnap = await getDocs(query(
-                collection(db, 'users'),
-                where('empresaId', '==', empId),
-                where('tipoUsuario', '==', 'coordenador'),
-              ));
-              const coord = coordSnap.docs[0]?.data() as any;
-              if (coord && coord.pptFonte === 'proprio') {
+              const tb = await getDoc(doc(db, 'team_branding', empId));
+              const t = tb.exists() ? (tb.data() as any) : null;
+              if (t && t.pptFonte === 'proprio') {
                 pFonte = 'proprio';
-                sPpt = typeof coord.siglaPpt === 'string' ? coord.siglaPpt : '';
-                pCores = lerCores(coord.coresPpt);
+                sPpt = typeof t.siglaPpt === 'string' ? t.siglaPpt : '';
+                pCores = lerCores(t.coresPpt);
+              } else {
+                pFonte = 'consultor';
               }
-            } catch { /* sem coordenador/permissão — mantém marca do consultor */ }
+            } catch { /* sem doc/permissão — mantém marca do consultor */ }
           }
           // Modelo novo: cursosAcesso [{curso, vencimento}] — ativos = não vencidos.
           // Fallback pro legado cursosLiberados (string[] sem vencimento).

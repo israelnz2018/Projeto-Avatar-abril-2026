@@ -15,8 +15,8 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 const comHash = (c?: string) => (c ? (c.startsWith('#') ? c : `#${c}`) : '');
 
 export default function MarcaDoTime() {
-  const { consultor } = useConsultor();
-  const { isCoordenador, loading, pptFonte, siglaPpt, pptCores } = useUserAccess();
+  const { consultor, consultorId } = useConsultor();
+  const { isCoordenador, loading, empresaId, pptFonte, siglaPpt, pptCores } = useUserAccess();
 
   const [fonte, setFonte] = useState<'consultor' | 'proprio'>('consultor');
   const [sigla, setSigla] = useState('');
@@ -41,11 +41,13 @@ export default function MarcaDoTime() {
     setSalvando(true);
     setMsg('');
     try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) throw new Error('Sessão expirada.');
+      if (!auth.currentUser?.uid) throw new Error('Sessão expirada.');
+      if (!empresaId) throw new Error('Sua conta ainda não está vinculada a uma empresa/time.');
       await setDoc(
-        doc(db, 'users', uid),
+        doc(db, 'team_branding', empresaId),
         {
+          empresaId,
+          consultorId,
           pptFonte: fonte,
           siglaPpt: fonte === 'proprio' ? sigla.trim().toUpperCase().slice(0, 7) : '',
           coresPpt: fonte === 'proprio' ? { navy: corEscura, blue: corDestaque, light: corClara } : null,

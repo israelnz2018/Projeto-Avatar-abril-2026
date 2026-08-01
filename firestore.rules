@@ -88,6 +88,18 @@ service cloud.firestore {
       allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
     }
 
+    // Marca do TIME (PPT) — o coordenador escolhe usar o PPT do consultor ou o dele
+    // (sigla + 3 cores). Guarda SÓ sigla + cores (sem dado sensível), então a leitura
+    // é aberta a autenticados: o coordenador E os alunos do time leem o MESMO doc pra
+    // vestir os PPTs. Escreve: admin OU o coordenador dono daquela empresa (empresaId).
+    match /team_branding/{empresaId} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin() || (
+        isCoordenador() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId
+      );
+    }
+
     match /projects/{projectId} {
       allow read: if isAuthenticated() && (
         isAdmin() ||
