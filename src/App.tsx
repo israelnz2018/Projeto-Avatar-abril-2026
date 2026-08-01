@@ -60,6 +60,7 @@ const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
+const MarcaDoTime = lazy(() => import('./components/consultor/MarcaDoTime'));
 const WhiteLabelSetup = lazy(() => import('./components/WhiteLabelSetup'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
@@ -80,7 +81,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { projetoAtivo } = useProject();
-  const { tipoUsuario, plano, siglaPpt, empresaId } = useUserAccess();
+  const { tipoUsuario, plano, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
   // Em site de consultor (israel.…), o dono só vê o papel de CONSULTOR — nunca o admin.
   // O admin (super-admin LBW) vive no hub (app.…). Ver PLANO-WHITELABEL.md.
@@ -107,12 +108,16 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const isCoordenador = tipoUsuario === 'coordenador';
   const isConsultor = tipoUsuario === 'consultor';
 
-  // Marca do cabeçalho dos PPTs (white-label): a sigla do coordenador (se ele definiu)
-  // sobrepõe a do consultor. Só o Layout tem consultor + papel do usuário juntos.
+  // Marca + cores dos PPTs (white-label). A marca do TIME (coordenador que escolheu
+  // "meu próprio PPT") sobrepõe a do consultor — tanto pro coordenador quanto pros
+  // alunos do time dele (resolvido em useUserAccess). Só o Layout tem consultor +
+  // papel do usuário juntos, então é o único lugar que aplica os dois.
   useEffect(() => {
     const marcaConsultor = consultor.branding.sigla || (consultor.branding.nome || '').split(' ')[0] || 'LBW';
-    setSlideBrand(isCoordenador && siglaPpt ? siglaPpt : marcaConsultor);
-  }, [consultor, isCoordenador, siglaPpt]);
+    const usaTime = pptFonte === 'proprio';
+    setSlideBrand(usaTime && siglaPpt ? siglaPpt : marcaConsultor);
+    setSlideColors(usaTime && pptCores ? pptCores : consultor.branding.cores);
+  }, [consultor, pptFonte, siglaPpt, pptCores]);
 
   const roleLabel = (siteConsultor && (isAdmin || isConsultor))
     ? 'Consultor'
@@ -147,6 +152,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ] : []),
     ...(isCoordenador ? [
       { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
+      { name: 'Marca do Time', path: '/marca-time', icon: Palette },
     ] : []),
     // Papel ADMIN (super-admin LBW) — NUNCA aparece em site de consultor; só no hub (app.…).
     ...(isAdmin && !siteConsultor ? [
@@ -299,7 +305,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ConsultorProvider, useConsultor } from './contexts/ConsultorContext';
 import { isSiteConsultor } from './services/consultorService';
-import { setSlideBrand } from './services/slideTemplate';
+import { setSlideBrand, setSlideColors } from './services/slideTemplate';
 
 const ProfileView = () => {
   const navigate = useNavigate();
@@ -518,6 +524,7 @@ export default function App() {
               <Route path="/" element={<Navigate to="/education" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/equipe" element={<CoordenadorEquipe />} />
+              <Route path="/marca-time" element={<MarcaDoTime />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />
               <Route path="/projects" element={<ProjectManagement />} />

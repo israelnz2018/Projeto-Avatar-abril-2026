@@ -11,7 +11,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Consultor } from '../types';
 import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId, nomeMentorDe, setMentorNome } from '../services/consultorService';
-import { setSlideColors } from '../services/slideTemplate';
 
 interface ConsultorContextValue {
   consultor: Consultor;
@@ -46,11 +45,10 @@ export function ConsultorProvider({ children }: { children: React.ReactNode }) {
   }, [consultorId]);
 
   // Mentor de IA "Fulano digital": nome do mentor = o do consultor atual.
-  // (A sigla do PPT é setada no Layout, pra o coordenador poder sobrepor com a dele.)
-  // As cores do PPT são por-consultor (não sobrepostas pelo coordenador).
+  // (A sigla E as cores do PPT são setadas no Layout, pra o coordenador poder
+  // sobrepor com a marca do time dele — lá tem consultor + papel do usuário juntos.)
   useEffect(() => {
     setMentorNome(nomeMentorDe(consultor));
-    setSlideColors(consultor.branding?.cores);
   }, [consultor]);
 
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { getInitiatives, getInitiativeConfigs } from '../services/configService';
 import type { TipoUsuario } from '../services/userService';
 
@@ -17,6 +17,8 @@ export function useUserAccess() {
   const [empresaNome, setEmpresaNome] = useState<string | null>(null);
   const [maxAlunos, setMaxAlunos] = useState<number | null>(null);
   const [siglaPpt, setSiglaPpt] = useState<string>('');
+  const [pptFonte, setPptFonte] = useState<'consultor' | 'proprio' | null>(null);
+  const [pptCores, setPptCores] = useState<{ navy: string; blue: string; light: string } | null>(null);
   const [cursosLiberados, setCursosLiberados] = useState<string[]>([]);
   const [freeToolIds, setFreeToolIds] = useState<Set<string>>(new Set());
 
@@ -38,6 +40,8 @@ export function useUserAccess() {
         let empNome: string | null = null;
         let maxAl: number | null = null;
         let sPpt = '';
+        let pFonte: 'consultor' | 'proprio' | null = null;
+        let pCores: { navy: string; blue: string; light: string } | null = null;
         let cursosLib: string[] = [];
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -59,6 +63,32 @@ export function useUserAccess() {
           empNome = data.empresaNome || null;
           maxAl = typeof data.maxAlunos === 'number' ? data.maxAlunos : null;
           sPpt = typeof data.siglaPpt === 'string' ? data.siglaPpt : '';
+          // Marca do PPT do TIME (white-label por turma):
+          //  - coordenador: usa a escolha do próprio doc (pptFonte/siglaPpt/coresPpt)
+          //  - aluno de um time (empresaId): herda a escolha do coordenador da empresa
+          // Fora desses casos, fica null → o app usa a marca do consultor.
+          const lerCores = (raw: any): { navy: string; blue: string; light: string } | null =>
+            raw && typeof raw === 'object' && raw.navy && raw.blue && raw.light
+              ? { navy: String(raw.navy), blue: String(raw.blue), light: String(raw.light) }
+              : null;
+          if (tipo === 'coordenador') {
+            pFonte = data.pptFonte === 'proprio' ? 'proprio' : 'consultor';
+            if (pFonte === 'proprio') pCores = lerCores(data.coresPpt);
+          } else if (tipo === 'aluno' && empId) {
+            try {
+              const coordSnap = await getDocs(query(
+                collection(db, 'users'),
+                where('empresaId', '==', empId),
+                where('tipoUsuario', '==', 'coordenador'),
+              ));
+              const coord = coordSnap.docs[0]?.data() as any;
+              if (coord && coord.pptFonte === 'proprio') {
+                pFonte = 'proprio';
+                sPpt = typeof coord.siglaPpt === 'string' ? coord.siglaPpt : '';
+                pCores = lerCores(coord.coresPpt);
+              }
+            } catch { /* sem coordenador/permissão — mantém marca do consultor */ }
+          }
           // Modelo novo: cursosAcesso [{curso, vencimento}] — ativos = não vencidos.
           // Fallback pro legado cursosLiberados (string[] sem vencimento).
           const ca = Array.isArray(data.cursosAcesso) ? data.cursosAcesso : null;
@@ -103,6 +133,8 @@ export function useUserAccess() {
         setEmpresaNome(empNome);
         setMaxAlunos(maxAl);
         setSiglaPpt(sPpt);
+        setPptFonte(pFonte);
+        setPptCores(pCores);
         setCursosLiberados(cursosLib);
         const initiatives = await getInitiatives();
         const freeInitiatives = initiatives.filter(i => i.isFree === true);
@@ -149,6 +181,8 @@ export function useUserAccess() {
     empresaNome,
     maxAlunos,
     siglaPpt,
+    pptFonte,
+    pptCores,
     cursosLiberados,
     freeToolIds,
     canUseTool,
