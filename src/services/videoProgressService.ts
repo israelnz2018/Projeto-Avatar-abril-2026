@@ -306,6 +306,21 @@ export async function checkAndIssueCertificate(
   const trilhaProgress = calculateTrilhaProgress(initiative, allVideos, progress.watchedUrls);
   if (!trilhaProgress.earnedCertificate) return false;
 
+  // TRAVA B2B (garantia do repasse): se o aluno é de uma EMPRESA e existe um repasse
+  // registrado NÃO liberado, segura o certificado até o Israel receber. Só trava quando
+  // há um doc `repasses/{empresaId}` com certificadoLiberado !== true — empresas sem
+  // repasse registrado (e alunos B2C sem empresaId) NÃO são afetados. Fail-open em erro.
+  try {
+    const uSnap = await getDoc(doc(db, 'users', uid));
+    const empresaId = uSnap.exists() ? ((uSnap.data() as any).empresaId || null) : null;
+    if (empresaId) {
+      const rSnap = await getDoc(doc(db, 'repasses', String(empresaId)));
+      if (rSnap.exists() && (rSnap.data() as any).certificadoLiberado !== true) {
+        return false; // repasse registrado e não quitado → segura o certificado
+      }
+    }
+  } catch { /* sem acesso/erro → não trava (fail-open, não quebra aluno) */ }
+
   const certId = generateCertId();
   const issuedAt = new Date().toISOString();
   const nomeNormalizado = alunoNome || 'Aluno LBW';

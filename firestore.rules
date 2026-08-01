@@ -88,6 +88,14 @@ service cloud.firestore {
       allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
     }
 
+    // Repasse B2B (repasses/{empresaId}): valor da NF + parcelas + trava do certificado.
+    // Leitura: autenticado (o aluno precisa checar a trava do certificado da empresa dele).
+    // Escrita: admin OU consultor (o dono do mundo registra/quita o repasse).
+    match /repasses/{empresaId} {
+      allow read:  if isAuthenticated();
+      allow write: if isAdmin() || ehConsultor();
+    }
+
     // Provas de certificação — escopadas por consultor (doc id = `{consultorId}__{trilha}`).
     // Leitura: qualquer autenticado (o aluno precisa carregar a prova pra fazer).
     // Escrita: admin OU consultor (cada consultor edita a prova do mundo dele).
