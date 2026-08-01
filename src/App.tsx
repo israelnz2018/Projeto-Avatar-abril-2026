@@ -61,7 +61,6 @@ const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const MarcaDoTime = lazy(() => import('./components/consultor/MarcaDoTime'));
-const WhiteLabelSetup = lazy(() => import('./components/WhiteLabelSetup'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'));
@@ -134,18 +133,29 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ? <img src={consultor.branding.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
     : <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">{user?.email?.[0].toUpperCase()}</div>;
 
+  // Hub do admin (app.…): o super-admin LBW logado FORA de um site de consultor.
+  // Aqui o menu é PURO de gestão de plataforma — sem curso/projeto (isso é do consultor).
+  const ehAdminHub = isAdmin && !siteConsultor;
   const menuItems = [
-    { name: 'Projetos', path: '/projects', icon: ClipboardList },
-    { name: 'Data & Analysis', path: '/analysis', icon: Database },
-    { name: 'Educação', path: '/education', icon: GraduationCap },
-    { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
-    { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
-    ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
-    // 3 comunidades isoladas. ADM: admin+consultor. Consultor: admin+consultor+alunos diretos.
-    // Coordenador: admin+consultor+coordenador+alunos de empresa (cada empresa é uma bolha).
+    // Experiência de aluno/consultor (curso, projeto, comunidades do consultor/coordenador).
+    // Escondida no hub do admin — o admin não tem curso nem projeto.
+    ...(ehAdminHub ? [] : [
+      { name: 'Projetos', path: '/projects', icon: ClipboardList },
+      { name: 'Data & Analysis', path: '/analysis', icon: Database },
+      { name: 'Educação', path: '/education', icon: GraduationCap },
+      { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
+      { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
+    ]),
+    // AI Assistant — EXCEÇÃO ÚNICA: só o Israel como CONSULTOR (no israel.…) usa.
+    // Não aparece no hub do admin nem pra outros consultores/coordenadores/alunos.
+    ...(siteConsultor && isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
+    // Comunidade ADM: admin + consultor (vale no hub e no site do consultor).
     ...(isAdmin || isConsultor ? [{ name: 'Comunidade ADM', path: '/comunidade-adm', icon: Shield }] : []),
-    ...(isAdmin || isConsultor || (!isCoordenador && !empresaId) ? [{ name: 'Comunidade do Consultor', path: '/comunidade', icon: Users2 }] : []),
-    ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade do Coordenador', path: '/comunidade-coordenador', icon: Users }] : []),
+    // Comunidades de consultor/coordenador — escondidas no hub do admin.
+    ...(ehAdminHub ? [] : [
+      ...(isAdmin || isConsultor || (!isCoordenador && !empresaId) ? [{ name: 'Comunidade do Consultor', path: '/comunidade', icon: Users2 }] : []),
+      ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade do Coordenador', path: '/comunidade-coordenador', icon: Users }] : []),
+    ]),
     // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).
     ...(siteConsultor && (isAdmin || isConsultor) ? [
       { name: 'Configuração', path: '/configuracao', icon: Settings },
@@ -154,21 +164,17 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
       { name: 'Marca do Time', path: '/marca-time', icon: Palette },
     ] : []),
-    // Papel ADMIN (super-admin LBW) — NUNCA aparece em site de consultor; só no hub (app.…).
-    ...(isAdmin && !siteConsultor ? [
+    // Papel ADMIN (super-admin LBW) — só no hub (app.…). Gestão de plataforma pura.
+    // Ferramentas: nível plataforma (o admin cria/melhora as ferramentas-base que os
+    // consultores usam). Fases/projetos são do consultor — simplificação da tela vem depois.
+    ...(ehAdminHub ? [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Consultores', path: '/admin-consultores', icon: Store },
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
-    ] : []),
-    ...(isAdmin && !siteConsultor ? [
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
-      { name: 'Avaliação ADMIN', path: '/avaliacao-admin', icon: ClipboardList },
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
-      { name: 'Certificados', path: '/certificados', icon: Award },
-      { name: 'Base de Conhecimento', path: '/learning', icon: BookOpen },
-      { name: 'Ferramentas por Projeto', path: '/config', icon: Settings },
+      { name: 'Ferramentas', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
-      { name: 'White-Label (setup)', path: '/whitelabel', icon: Unlock },
     ] : []),
   ];
 
@@ -543,7 +549,6 @@ export default function App() {
               <Route path="/opinioes" element={<OpinioesAdminView />} />
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
-              <Route path="/whitelabel" element={<WhiteLabelSetup />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
