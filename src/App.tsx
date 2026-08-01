@@ -23,7 +23,8 @@ import {
   FolderCheck,
   Palette,
   Store,
-  Shield
+  Shield,
+  Wallet
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -61,6 +62,7 @@ const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const MarcaDoTime = lazy(() => import('./components/consultor/MarcaDoTime'));
+const RepassesView = lazy(() => import('./components/RepassesView'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'));
@@ -170,6 +172,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ...(ehAdminHub ? [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Consultores', path: '/admin-consultores', icon: Store },
+      { name: 'Repasses', path: '/repasses', icon: Wallet },
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
@@ -550,6 +553,7 @@ export default function App() {
               <Route path="/config" element={<ProjectToolsConfig />} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
+              <Route path="/repasses" element={<RepassesView />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/minhas-fases" element={<ProjectToolsConfig />} />
