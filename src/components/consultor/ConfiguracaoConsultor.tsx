@@ -6,6 +6,7 @@
 import React, { Suspense, lazy, useState } from 'react';
 import { LayoutDashboard, BookOpen, Users, Users2, Megaphone, Store, Palette, Settings, ClipboardCheck, Award } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useUserAccess } from '../../hooks/useUserAccess';
 
 const SuperRelatorio = lazy(() => import('./SuperRelatorio'));
 const MeusCursos = lazy(() => import('../KnowledgeManagerView'));
@@ -31,14 +32,18 @@ const ABAS = [
 ];
 
 export default function ConfiguracaoConsultor() {
+  const { isAdmin } = useUserAccess();
+  // Modelo B2B: o consultor coloca EMPRESAS (coordenadores), não alunos diretos.
+  // Só o admin (Israel, base legada B2C) mantém a aba "Meus Alunos".
+  const abas = ABAS.filter((a) => a.id !== 'alunos' || isAdmin);
   const [ativa, setAtiva] = useState('relatorio');
-  const AtivaComp = ABAS.find((a) => a.id === ativa)?.Comp || SuperRelatorio;
+  const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || SuperRelatorio;
 
   return (
     <div>
       {/* Abas horizontais no topo */}
       <div className="flex flex-wrap gap-1 border-b border-gray-200 mb-6 -mt-2 sticky top-0 bg-[#f0f2f5] z-10 pt-1">
-        {ABAS.map((a) => {
+        {abas.map((a) => {
           const on = a.id === ativa;
           return (
             <button
