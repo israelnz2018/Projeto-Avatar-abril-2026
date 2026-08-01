@@ -20,6 +20,11 @@ export interface KnowledgeEntry {
   playlistOrder?: number;
   /** Multi-tenant: dono do conteúdo (consultor). Default 'israel' na Fase 0. */
   consultorId?: string;
+  // ===== Migração Bunny (reversível: sourceUrl do YouTube é preservado) =====
+  /** GUID do vídeo no Bunny Stream. Se presente, o player toca pelo Bunny; senão, YouTube. */
+  bunnyVideoId?: string;
+  /** ID da Video Library do Bunny (multi-tenant: uma por consultor). */
+  bunnyLibraryId?: string;
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';

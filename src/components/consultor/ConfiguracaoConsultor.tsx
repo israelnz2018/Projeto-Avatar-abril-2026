@@ -4,7 +4,7 @@
  * aluno/coordenador) + esta única aba "Configuração". Ver PLANO-WHITELABEL.md.
  */
 import React, { Suspense, lazy, useState } from 'react';
-import { LayoutDashboard, BookOpen, Users, Users2, Megaphone, Store, Palette, Settings, ClipboardCheck, Award } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users, Users2, Megaphone, Store, Palette, Settings, ClipboardCheck, Award, Video } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
@@ -18,10 +18,12 @@ const VitrinePublica = lazy(() => import('../VitrinePublica'));
 const MinhaMarca = lazy(() => import('./MinhaMarca'));
 const ProvaCertificacao = lazy(() => import('../AvaliacaoAdminView'));
 const Certificados = lazy(() => import('../CertificadosView'));
+const MeusCursosBunny = lazy(() => import('../EducacaoBunny'));
 
 const ABAS = [
   { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
+  { id: 'bunny', nome: 'Meus Cursos Bunny', icon: Video, Comp: MeusCursosBunny },
   { id: 'prova', nome: 'Prova', icon: ClipboardCheck, Comp: ProvaCertificacao },
   { id: 'certificados', nome: 'Certificados', icon: Award, Comp: Certificados },
   { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
@@ -34,8 +36,9 @@ const ABAS = [
 export default function ConfiguracaoConsultor() {
   const { isAdmin } = useUserAccess();
   // Modelo B2B: o consultor coloca EMPRESAS (coordenadores), não alunos diretos.
-  // Só o admin (Israel, base legada B2C) mantém a aba "Meus Alunos".
-  const abas = ABAS.filter((a) => a.id !== 'alunos' || isAdmin);
+  // Só o admin (Israel, base legada B2C) mantém "Meus Alunos".
+  // "Meus Cursos Bunny" é aba de TESTE da migração — só o Israel (admin).
+  const abas = ABAS.filter((a) => (a.id !== 'alunos' && a.id !== 'bunny') || isAdmin);
   const [ativa, setAtiva] = useState('relatorio');
   const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || SuperRelatorio;
 

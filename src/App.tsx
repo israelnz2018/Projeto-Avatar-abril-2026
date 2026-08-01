@@ -63,6 +63,7 @@ const LandingInstitucional = lazy(() => import('./components/LandingInstituciona
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const MarcaDoTime = lazy(() => import('./components/consultor/MarcaDoTime'));
 const RepassesView = lazy(() => import('./components/RepassesView'));
+const EducacaoBunny = lazy(() => import('./components/EducacaoBunny'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'));
@@ -151,6 +152,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // AI Assistant — EXCEÇÃO ÚNICA: só o Israel como CONSULTOR (no israel.…) usa.
     // Não aparece no hub do admin nem pra outros consultores/coordenadores/alunos.
     ...(siteConsultor && isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
+    // Educação (Bunny) — aba de TESTE do Israel-consultor (no israel.…). Preview de como o
+    // cliente verá com o Bunny. Não afeta a Educação real. Some quando a migração for promovida.
+    ...(siteConsultor && isAdmin ? [{ name: 'Educação (Bunny)', path: '/education-bunny', icon: GraduationCap }] : []),
     // Comunidade ADM: admin + consultor (vale no hub e no site do consultor).
     ...(isAdmin || isConsultor ? [{ name: 'Comunidade ADM', path: '/comunidade-adm', icon: Shield }] : []),
     // Comunidades de consultor/coordenador — escondidas no hub do admin.
@@ -554,6 +558,7 @@ export default function App() {
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
+              <Route path="/education-bunny" element={<EducacaoBunny />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/minhas-fases" element={<ProjectToolsConfig />} />
