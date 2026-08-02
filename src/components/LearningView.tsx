@@ -139,7 +139,9 @@ export default function LearningView({ bunnyEnabled = false }: { bunnyEnabled?: 
   // Modo Bunny (só no tab de teste): vídeo migrado toca no Bunny e usa o tracker do Bunny;
   // o restante (e SEMPRE a Educação real) continua no YouTube. Os handlers são os MESMOS
   // (mesma marca de assistido, mesmo certificado) → experiência idêntica.
-  const selUsaBunny = bunnyEnabled && !!selectedVideo?.bunnyVideoId;
+  // Vídeo toca no Bunny se: (modo teste ligado) OU (é só-Bunny, sem YouTube de fallback — ex.: upload).
+  const selYtId = selectedVideo ? (selectedVideo.sourceUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)?.[1] || '') : '';
+  const selUsaBunny = !!selectedVideo?.bunnyVideoId && (bunnyEnabled || !selYtId);
 
   const handleThresholdReached = async (pct: number) => {
     const uid = auth.currentUser?.uid;
@@ -732,7 +734,7 @@ export default function LearningView({ bunnyEnabled = false }: { bunnyEnabled?: 
                           className="relative flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg order-2"
                           onContextMenu={(e) => e.preventDefault()}
                         >
-                          {bunnyEnabled && item.bunnyVideoId ? (
+                          {(item.bunnyVideoId && (bunnyEnabled || !videoId)) ? (
                             // Player do Bunny (mesmo container/design). Sem os overlays do YouTube.
                             <iframe
                               ref={iframeRef}

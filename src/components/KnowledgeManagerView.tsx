@@ -38,7 +38,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn, youtubeThumb } from '@/src/lib/utils';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
 import { useConsultor } from '../contexts/ConsultorContext';
 import {
@@ -545,6 +545,53 @@ export default function KnowledgeManagerView() {
     setFormData(prev => ({ ...prev, placements: prev.placements.filter((_, i) => i !== idx) }));
   };
   const [isSaving, setIsSaving] = useState(false);
+  // ===== Upload de vídeo pro Bunny (nova origem, além do link do YouTube) =====
+  const [origem, setOrigem] = useState<'upload' | 'youtube'>('upload');
+  const [upFile, setUpFile] = useState<File | null>(null);
+  const [upTitle, setUpTitle] = useState('');
+  const [upProgress, setUpProgress] = useState<number | null>(null);
+  const [upBunny, setUpBunny] = useState<{ guid: string; libraryId: string } | null>(null);
+  const [upErro, setUpErro] = useState('');
+
+  const uploadParaBunny = async () => {
+    if (!upFile) { setUpErro('Escolha um arquivo de vídeo.'); return; }
+    setUpErro(''); setUpProgress(0); setUpBunny(null);
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const nome = (upTitle || upFile.name.replace(/\.[^.]+$/, '')).trim();
+      const r = await fetch('/api/bunny/create-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: nome }),
+      });
+      const cred = await r.json();
+      if (!r.ok) throw new Error(cred.error || 'erro ao criar vídeo no Bunny');
+      const tus = await import('tus-js-client');
+      await new Promise<void>((resolve, reject) => {
+        const up = new tus.Upload(upFile as File, {
+          endpoint: 'https://video.bunnycdn.com/tusupload',
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            AuthorizationSignature: cred.signature,
+            AuthorizationExpire: String(cred.expiration),
+            LibraryId: String(cred.libraryId),
+            VideoId: cred.guid,
+          },
+          metadata: { filetype: (upFile as File).type, title: nome },
+          onError: (e: any) => reject(e),
+          onProgress: (sent: number, total: number) => setUpProgress(Math.round((sent / total) * 100)),
+          onSuccess: () => resolve(),
+        });
+        up.start();
+      });
+      setUpBunny({ guid: cred.guid, libraryId: String(cred.libraryId) });
+      setUpProgress(100);
+    } catch (e: any) {
+      setUpErro(e?.message || String(e));
+      setUpProgress(null);
+    }
+  };
   const [isReprocessing, setIsReprocessing] = useState<string | null>(null);
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
   const [isAnalysesDropdownOpen, setIsAnalysesDropdownOpen] = useState(false);
@@ -947,9 +994,25 @@ export default function KnowledgeManagerView() {
     }
     setIsSaving(true);
     try {
-      {
+      if (origem === 'upload') {
+        if (!upBunny) { alert('Envie o vídeo pro Bunny primeiro (botão "Enviar vídeo").'); setIsSaving(false); return; }
+        const title = (upTitle || upFile?.name?.replace(/\.[^.]+$/, '') || 'Vídeo').trim();
+        // sourceUrl = "bunny:<guid>" → id único do vídeo. Assim o multi-placement e a
+        // sincronização por sourceUrl continuam funcionando (mesmo vídeo em vários cursos).
+        const src = `bunny:${upBunny.guid}`;
+        await Promise.all(resolved.map(p =>
+          saveKnowledge({
+            title, content: '', sourceUrl: src,
+            course: p.course, playlist: p.playlist,
+            rawTranscript: '', summary: [], transcript: '',
+            associatedTools: formData.associatedTools,
+            associatedAnalyses: formData.associatedAnalyses,
+            consultorId,
+            bunnyVideoId: upBunny.guid, bunnyLibraryId: upBunny.libraryId,
+          } as any)
+        ));
+      } else {
         const title = await fetchYoutubeTitle(formData.sourceUrl);
-
         // Se já existe um doc com a mesma sourceUrl, copia transcrição/índice pra novas placements
         const { collection, query, where, getDocs } = await import('firebase/firestore');
         const existingSnap = await getDocs(query(
@@ -960,14 +1023,10 @@ export default function KnowledgeManagerView() {
         const sharedFields = existing
           ? { rawTranscript: existing.rawTranscript || '', summary: existing.summary || [], transcript: existing.transcript || '' }
           : { rawTranscript: '', summary: [], transcript: '' };
-
         await Promise.all(resolved.map(p =>
           saveKnowledge({
-            title,
-            content: '',
-            sourceUrl: formData.sourceUrl,
-            course: p.course,
-            playlist: p.playlist,
+            title, content: '', sourceUrl: formData.sourceUrl,
+            course: p.course, playlist: p.playlist,
             ...sharedFields,
             associatedTools: formData.associatedTools,
             associatedAnalyses: formData.associatedAnalyses,
@@ -977,6 +1036,7 @@ export default function KnowledgeManagerView() {
       }
 
       setFormData(emptyFormData);
+      setOrigem('upload'); setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
       setIsAdding(false);
       setIsToolsDropdownOpen(false);
       setIsAnalysesDropdownOpen(false);
@@ -1479,18 +1539,54 @@ export default function KnowledgeManagerView() {
 
           <form onSubmit={handleSave} className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL do YouTube</label>
-              <div className="relative">
-                <Youtube size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600" />
-                <input
-                  required
-                  type="url"
-                  value={formData.sourceUrl}
-                  onChange={(e) => setFormData({...formData, sourceUrl: e.target.value})}
-                  className="w-full pl-10 pr-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                />
+              {/* Origem do vídeo: upload de arquivo (Bunny) OU link do YouTube */}
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setOrigem('upload')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${origem === 'upload' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                  Upload de arquivo
+                </button>
+                <button type="button" onClick={() => setOrigem('youtube')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${origem === 'youtube' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                  Link do YouTube
+                </button>
               </div>
+
+              {origem === 'upload' ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={upTitle}
+                    onChange={(e) => setUpTitle(e.target.value)}
+                    placeholder="Título do vídeo (ou usa o nome do arquivo)"
+                    className="w-full px-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input type="file" accept="video/*" onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpBunny(null); setUpProgress(null); setUpErro(''); }} className="text-sm" />
+                    <button type="button" onClick={uploadParaBunny} disabled={!upFile || (upProgress !== null && upProgress < 100)} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                      {upProgress !== null && upProgress < 100 ? `Enviando ${upProgress}%` : (upBunny ? 'Enviado ✓' : 'Enviar vídeo')}
+                    </button>
+                  </div>
+                  {upProgress !== null && (
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div className="bg-emerald-500 h-2 transition-all" style={{ width: `${upProgress}%` }} />
+                    </div>
+                  )}
+                  {upBunny && <div className="text-xs font-bold text-emerald-600">✅ Vídeo no Bunny — agora escolha os cursos e salve.</div>}
+                  {upErro && <div className="text-xs font-bold text-red-600">❌ {upErro}</div>}
+                </div>
+              ) : (
+                <>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL do YouTube</label>
+                  <div className="relative">
+                    <Youtube size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600" />
+                    <input
+                      type="url"
+                      value={formData.sourceUrl}
+                      onChange={(e) => setFormData({...formData, sourceUrl: e.target.value})}
+                      className="w-full pl-10 pr-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="space-y-3">
