@@ -87,49 +87,63 @@ function download(ytUrl, out) {
 }
 
 // ---- main ----
-let ref = db.collection('knowledge_base');
-if (COURSE) ref = ref.where('course', '==', COURSE);
-const snap = await ref.get();
-let docs = snap.docs.filter((d) => { const v = d.data(); return !v.bunnyVideoId && v.sourceUrl; });
+// DEDUP por sourceUrl: o MESMO vídeo aparece em vários cursos (multi-placement), cada
+// ocorrência é um doc, mas todos têm o MESMO sourceUrl. Sobe o vídeo pro Bunny UMA vez
+// e aponta TODOS os docs daquele sourceUrl pro mesmo GUID (economiza banda + storage).
+const allSnap = await db.collection('knowledge_base').get();
+const all = allSnap.docs;
+
+// Semente: sourceUrl -> {guid, lib} dos que JÁ têm bunnyVideoId (qualquer curso).
+const guidBySource = new Map();
+for (const d of all) {
+  const v = d.data();
+  if (v.bunnyVideoId && v.sourceUrl && !guidBySource.has(v.sourceUrl)) {
+    guidBySource.set(v.sourceUrl, { guid: v.bunnyVideoId, lib: String(v.bunnyLibraryId || LIBRARY_ID) });
+  }
+}
+
+let docs = all.filter((d) => { const v = d.data(); return v.sourceUrl && !v.bunnyVideoId && (!COURSE || v.course === COURSE); });
 if (LIMIT) docs = docs.slice(0, LIMIT);
 
-console.log(`\nCurso: ${COURSE || '(TODOS)'} | modo: ${MODE} | a migrar: ${docs.length} | DRY_RUN=${DRY_RUN} | limite=${LIMIT || '∞'}\n`);
+console.log(`\nCurso: ${COURSE || '(TODOS)'} | modo: ${MODE} | docs a ligar: ${docs.length} | vídeos únicos já no Bunny: ${guidBySource.size} | DRY_RUN=${DRY_RUN}\n`);
 
-let ok = 0, fail = 0;
+let ok = 0, fail = 0, reusados = 0;
 for (const d of docs) {
   const v = d.data();
   const nome = v.title || d.id;
+  const src = v.sourceUrl;
   try {
-    if (DRY_RUN) { console.log('  [simulação]', nome); ok++; continue; }
+    if (DRY_RUN) { console.log('  [simulação]', nome, guidBySource.has(src) ? '(reusa — já subiu)' : ''); ok++; continue; }
 
-    const guid = await createVideo(nome);
-
-    if (MODE === 'upload') {
-      const out = join(tmpdir(), `bunny-${d.id}.mp4`);
-      console.log('  baixando…', nome);
-      download(v.sourceUrl, out);
-      console.log('  subindo…', guid);
-      await uploadFile(guid, out);
-      try { unlinkSync(out); } catch { /* limpa temp */ }
-    } else {
-      // fetch: Bunny baixa direto do YouTube
-      console.log('  resolvendo URL…', nome);
-      const url = directUrl(v.sourceUrl);
-      await fetchFromUrl(guid, url);
-      console.log('  Bunny processando…', guid);
-      let st = -1, tentativas = 0;
-      while (tentativas++ < 60) { // ~5 min máx
-        await sleep(5000);
-        st = await status(guid);
-        if (st === 4) break;         // Finished
-        if (st >= 5) throw new Error(`Bunny status ${st} (erro no fetch)`);
+    let entry = guidBySource.get(src);
+    if (!entry) {
+      // Primeira vez que vemos este vídeo → sobe UMA vez.
+      const guid = await createVideo(nome);
+      if (MODE === 'upload') {
+        const out = join(tmpdir(), `bunny-${d.id}.mp4`);
+        console.log('  baixando…', nome);
+        download(src, out);
+        console.log('  subindo…', guid);
+        await uploadFile(guid, out);
+        try { unlinkSync(out); } catch { /* limpa temp */ }
+      } else {
+        console.log('  resolvendo URL…', nome);
+        const url = directUrl(src);
+        await fetchFromUrl(guid, url);
+        let st = -1, t = 0;
+        while (t++ < 60) { await sleep(5000); st = await status(guid); if (st === 4) break; if (st >= 5) throw new Error(`Bunny status ${st}`); }
+        if (st !== 4) throw new Error('timeout no processamento do Bunny');
       }
-      if (st !== 4) throw new Error('timeout no processamento do Bunny');
+      entry = { guid, lib: String(LIBRARY_ID) };
+      guidBySource.set(src, entry);
+      console.log('  ✅', nome, '→', guid);
+    } else {
+      // Mesmo vídeo já no Bunny (outro curso/placement) → só aponta pro mesmo GUID.
+      console.log('  ↻ reusa (mesmo vídeo, outro curso):', nome);
+      reusados++;
     }
-
     // 🔒 SÓ estes 2 campos. Transcripts e o resto ficam intactos.
-    await d.ref.update({ bunnyVideoId: guid, bunnyLibraryId: String(LIBRARY_ID) });
-    console.log('  ✅', nome, '→', guid);
+    await d.ref.update({ bunnyVideoId: entry.guid, bunnyLibraryId: entry.lib });
     ok++;
   } catch (e) {
     console.error('  ❌ falha:', nome, '-', e.message);
@@ -137,5 +151,5 @@ for (const d of docs) {
   }
 }
 
-console.log(`\nFim. ok=${ok}  falha=${fail}  ${DRY_RUN ? '(SIMULAÇÃO — nada alterado)' : ''}\n`);
+console.log(`\nFim. ok=${ok} (reusados=${reusados})  falha=${fail}  ${DRY_RUN ? '(SIMULAÇÃO — nada alterado)' : ''}\n`);
 process.exit(0);
