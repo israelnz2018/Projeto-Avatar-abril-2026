@@ -1148,6 +1148,64 @@ async function startServer() {
     }
   });
 
+  // ===== Bunny Stream (multi-tenant: 1 Video Library por consultor) =====
+  const BUNNY_ACCOUNT_API_KEY = process.env.BUNNY_ACCOUNT_API_KEY;
+  async function bunnyCreateLibrary(name: string): Promise<{ libraryId: string; apiKey: string } | null> {
+    if (!BUNNY_ACCOUNT_API_KEY) return null; // sem chave de conta → onboarding não cria (setup manual)
+    const r = await fetch("https://api.bunny.net/videolibrary", {
+      method: "POST",
+      headers: { AccessKey: BUNNY_ACCOUNT_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ Name: name }),
+    });
+    if (!r.ok) throw new Error(`Bunny createLibrary ${r.status}`);
+    const j: any = await r.json();
+    return { libraryId: String(j.Id), apiKey: String(j.ApiKey) };
+  }
+  // Library do consultor (coleção PRIVADA bunny_libraries/{id}; o consultor #0 'israel' cai no env).
+  async function bunnyLibraryDoConsultor(consultorId: string): Promise<{ libraryId: string; apiKey: string } | null> {
+    try {
+      const snap = await adminFirestore().collection("bunny_libraries").doc(consultorId).get();
+      if (snap.exists) { const d = snap.data() as any; if (d?.libraryId && d?.apiKey) return { libraryId: String(d.libraryId), apiKey: String(d.apiKey) }; }
+    } catch { /* ignore */ }
+    if (consultorId === "israel" && process.env.BUNNY_LIBRARY_ID && process.env.BUNNY_STREAM_API_KEY) {
+      return { libraryId: String(process.env.BUNNY_LIBRARY_ID), apiKey: String(process.env.BUNNY_STREAM_API_KEY) };
+    }
+    return null;
+  }
+
+  // POST /api/bunny/create-video — cria o vídeo na library DO CONSULTOR e devolve a
+  // assinatura pro upload DIRETO (TUS) do navegador pro Bunny. A chave nunca vai ao cliente.
+  app.post("/api/bunny/create-video", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const ADMIN_EMAILS = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const ehAdmin = ADMIN_EMAILS.includes((caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !ehAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+    const lib = await bunnyLibraryDoConsultor(consultorId);
+    if (!lib) return res.status(503).json({ error: "Biblioteca Bunny do consultor não configurada." });
+    const title = String(req.body?.title || "Sem título").slice(0, 200);
+    try {
+      const r = await fetch(`https://video.bunnycdn.com/library/${lib.libraryId}/videos`, {
+        method: "POST", headers: { AccessKey: lib.apiKey, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (!r.ok) return res.status(502).json({ error: `Bunny createVideo ${r.status}` });
+      const { guid } = (await r.json()) as any;
+      const expiration = Math.floor(Date.now() / 1000) + 3600;
+      const { createHash } = await import("crypto");
+      const signature = createHash("sha256").update(lib.libraryId + lib.apiKey + expiration + guid).digest("hex");
+      return res.json({ guid, libraryId: lib.libraryId, signature, expiration });
+    } catch (e: any) { return res.status(500).json({ error: e?.message || "Erro Bunny" }); }
+  });
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.
@@ -1187,6 +1245,19 @@ async function startServer() {
         // mantém o estado dele — não mexemos na senha nem forçamos troca.
         ...(novo ? { senhaProvisoria: true } : {}),
       }, { merge: true });
+      // 2b) Multi-tenant: cria a Video Library do Bunny do consultor (1x, se ainda não tem).
+      // Guarda a chave na coleção PRIVADA bunny_libraries/{consultorId} (só o servidor lê).
+      try {
+        const jaTem = await adminFirestore().collection("bunny_libraries").doc(consultorId).get();
+        if (!jaTem.exists) {
+          const lib = await bunnyCreateLibrary(`LBW ${consultorId}`);
+          if (lib) {
+            await adminFirestore().collection("bunny_libraries").doc(consultorId).set(lib);
+            await adminFirestore().collection("consultores").doc(consultorId).set({ bunnyLibraryId: lib.libraryId }, { merge: true });
+            console.log(`[consultor/convidar] Bunny library criada p/ ${consultorId}: ${lib.libraryId}`);
+          }
+        }
+      } catch (e) { console.error("[consultor/convidar] Bunny library:", e); }
       // 3) E-mail de acesso (via Resend) com login + senha padrão + link do site dele.
       let emailEnviado = false;
       try {

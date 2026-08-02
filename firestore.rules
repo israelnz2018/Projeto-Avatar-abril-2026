@@ -88,6 +88,12 @@ service cloud.firestore {
       allow write: if isAdmin() || (ehConsultor() && consultorId == meuConsultorId());
     }
 
+    // Chaves das Video Libraries do Bunny por consultor — SÓ o servidor (admin SDK) lê/escreve.
+    // Guarda a AccessKey da library (SECRETA) — o cliente/consultor NUNCA acessa.
+    match /bunny_libraries/{consultorId} {
+      allow read, write: if isAdmin();
+    }
+
     // Repasse B2B (repasses/{empresaId}): valor da NF + parcelas + trava do certificado.
     // Leitura: autenticado (o aluno precisa checar a trava do certificado da empresa dele).
     // Escrita: admin OU consultor (o dono do mundo registra/quita o repasse).
