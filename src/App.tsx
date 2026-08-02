@@ -63,7 +63,6 @@ const LandingInstitucional = lazy(() => import('./components/LandingInstituciona
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const MarcaDoTime = lazy(() => import('./components/consultor/MarcaDoTime'));
 const RepassesView = lazy(() => import('./components/RepassesView'));
-const EducacaoBunny = lazy(() => import('./components/EducacaoBunny'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
 const MeusAlunos = lazy(() => import('./components/consultor/MeusAlunos'));
 const SuperRelatorio = lazy(() => import('./components/consultor/SuperRelatorio'));
@@ -558,7 +557,7 @@ export default function App() {
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
-              <Route path="/education-bunny" element={<EducacaoBunny />} />
+              <Route path="/education-bunny" element={<LearningView bunnyEnabled />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/minhas-fases" element={<ProjectToolsConfig />} />

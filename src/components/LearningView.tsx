@@ -45,10 +45,11 @@ import {
   type WatchedEntry,
 } from '../services/videoProgressService';
 import { useYouTubeWatchTracker } from '../hooks/useYouTubeWatchTracker';
+import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
 
-export default function LearningView() {
+export default function LearningView({ bunnyEnabled = false }: { bunnyEnabled?: boolean } = {}) {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('Todos');
@@ -135,34 +136,50 @@ export default function LearningView() {
   // Watch tracker: quando o aluno está com vídeo aberto, conta segundos em PLAYING state.
   // Quando passa 70% (WATCH_THRESHOLD_PCT), marca como assistido + checa certificado da trilha.
   // Também persiste a posição atual a cada ~10s pra retomar do mesmo ponto na próxima abertura.
+  // Modo Bunny (só no tab de teste): vídeo migrado toca no Bunny e usa o tracker do Bunny;
+  // o restante (e SEMPRE a Educação real) continua no YouTube. Os handlers são os MESMOS
+  // (mesma marca de assistido, mesmo certificado) → experiência idêntica.
+  const selUsaBunny = bunnyEnabled && !!selectedVideo?.bunnyVideoId;
+
+  const handleThresholdReached = async (pct: number) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !selectedVideo) return;
+    try {
+      const initiative = allInitiatives.find(i => i.name === selectedVideo.course);
+      await markVideoWatched(uid, selectedVideo.sourceUrl, pct, initiative?.id);
+      if (initiative) {
+        const justIssued = await checkAndIssueCertificate(uid, initiative, items, alunoNome);
+        if (justIssued) setJustCompletedCertId(initiative.id);
+      }
+    } catch (err) {
+      console.error('[LearningView] erro ao marcar vídeo assistido:', err);
+    }
+  };
+  const handleTick = (cur: number, dur: number) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || !selectedVideo || dur <= 0) return;
+    const now = Date.now();
+    if (now - lastPositionSaveAt.current < 10_000) return; // throttle 10s
+    lastPositionSaveAt.current = now;
+    saveVideoPosition(uid, selectedVideo.sourceUrl, cur, dur).catch(err =>
+      console.error('[LearningView] erro ao salvar posição:', err),
+    );
+  };
+
   useYouTubeWatchTracker({
     iframeRef,
-    videoId: selectedVideo ? (selectedVideo.sourceUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)?.[1] || null) : null,
+    videoId: (!selUsaBunny && selectedVideo) ? (selectedVideo.sourceUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)?.[1] || null) : null,
     threshold: WATCH_THRESHOLD_PCT,
-    onThresholdReached: async (pct) => {
-      const uid = auth.currentUser?.uid;
-      if (!uid || !selectedVideo) return;
-      try {
-        const initiative = allInitiatives.find(i => i.name === selectedVideo.course);
-        await markVideoWatched(uid, selectedVideo.sourceUrl, pct, initiative?.id);
-        if (initiative) {
-          const justIssued = await checkAndIssueCertificate(uid, initiative, items, alunoNome);
-          if (justIssued) setJustCompletedCertId(initiative.id);
-        }
-      } catch (err) {
-        console.error('[LearningView] erro ao marcar vídeo assistido:', err);
-      }
-    },
-    onTick: (cur, dur) => {
-      const uid = auth.currentUser?.uid;
-      if (!uid || !selectedVideo || dur <= 0) return;
-      const now = Date.now();
-      if (now - lastPositionSaveAt.current < 10_000) return; // throttle 10s
-      lastPositionSaveAt.current = now;
-      saveVideoPosition(uid, selectedVideo.sourceUrl, cur, dur).catch(err =>
-        console.error('[LearningView] erro ao salvar posição:', err),
-      );
-    },
+    onThresholdReached: handleThresholdReached,
+    onTick: handleTick,
+  });
+  useBunnyWatchTracker({
+    iframeRef,
+    bunnyGuid: selUsaBunny ? (selectedVideo?.bunnyVideoId || null) : null,
+    threshold: WATCH_THRESHOLD_PCT,
+    resumeAt: (selUsaBunny && selectedVideo) ? (watchedUrls[selectedVideo.sourceUrl]?.lastPosition || 0) : 0,
+    onThresholdReached: handleThresholdReached,
+    onTick: handleTick,
   });
 
   // Quando troca de vídeo, se já tem lastPosition salvo (> 0), pula pro ponto onde parou.
@@ -715,22 +732,38 @@ export default function LearningView() {
                           className="relative flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg order-2"
                           onContextMenu={(e) => e.preventDefault()}
                         >
-                          <iframe
-                            ref={iframeRef}
-                            width="100%"
-                            height="100%"
-                            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1`}
-                            title={item.title}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          ></iframe>
-                          {/* Overlay topo: bloqueia título clicável e botão compartilhar. */}
-                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
-                          {/* Overlay canto inferior ESQUERDO: bloqueia o botão de copiar link (🔗). */}
-                          <div style={{ position: 'absolute', bottom: 0, left: 0, width: 140, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
-                          {/* Overlay canto inferior DIREITO: bloqueia o logo "YouTube" clicável.
-                              (fullscreen segue disponível por duplo-clique no vídeo) */}
-                          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
+                          {bunnyEnabled && item.bunnyVideoId ? (
+                            // Player do Bunny (mesmo container/design). Sem os overlays do YouTube.
+                            <iframe
+                              ref={iframeRef}
+                              width="100%"
+                              height="100%"
+                              src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true`}
+                              title={item.title}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            ></iframe>
+                          ) : (
+                            <>
+                              <iframe
+                                ref={iframeRef}
+                                width="100%"
+                                height="100%"
+                                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1`}
+                                title={item.title}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              ></iframe>
+                              {/* Overlay topo: bloqueia título clicável e botão compartilhar. */}
+                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
+                              {/* Overlay canto inferior ESQUERDO: bloqueia o botão de copiar link (🔗). */}
+                              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 140, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
+                              {/* Overlay canto inferior DIREITO: bloqueia o logo "YouTube" clicável.
+                                  (fullscreen segue disponível por duplo-clique no vídeo) */}
+                              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
+                            </>
+                          )}
                         </div>
                       </div>
                     </motion.div>
