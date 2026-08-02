@@ -78,7 +78,11 @@ function directUrl(ytUrl) {
   return lines[lines.length - 1];
 }
 function download(ytUrl, out) {
-  const r = spawnSync('yt-dlp', ['-f', 'mp4/bestvideo+bestaudio/best', '--no-playlist', '-o', out, ytUrl], { stdio: 'inherit' });
+  // Até 1080p, mesclado em mp4 (precisa de ffmpeg + um JS runtime, ex.: deno, no PATH).
+  const r = spawnSync('yt-dlp', [
+    '-f', 'bv*[height<=1080]+ba/b[height<=1080]/best',
+    '--merge-output-format', 'mp4', '--no-playlist', '-o', out, ytUrl,
+  ], { stdio: 'inherit' });
   if (r.status !== 0) throw new Error('yt-dlp download falhou');
 }
 
