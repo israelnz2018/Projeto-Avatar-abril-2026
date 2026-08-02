@@ -2,29 +2,28 @@
 /**
  * migrate-bunny.mjs — migra vídeos do YouTube para o Bunny Stream.
  *
+ * 🔒 TRANSCRIPTS SEGUROS: só faz `.update({ bunnyVideoId, bunnyLibraryId })` — no Firestore
+ *    isso mexe SÓ nesses 2 campos. rawTranscript / transcript / summary / sourceUrl / título
+ *    ficam INTACTOS. NUNCA usa `.set()`. Nada de conteúdo é apagado.
+ *
  * SEGURO por padrão:
- *  - DRY-RUN ligado (só lista; não baixa, não sobe, não escreve) até você passar DRY_RUN=false.
- *  - Filtra por curso (piloto = Trilha 1) via MIGRATE_COURSE.
- *  - IDEMPOTENTE/RETOMÁVEL: pula quem já tem bunnyVideoId.
- *  - REVERSÍVEL: só ADICIONA bunnyVideoId/bunnyLibraryId; NUNCA apaga sourceUrl (YouTube fica de fallback).
+ *  - DRY-RUN ligado (só lista) até passar DRY_RUN=false.
+ *  - Filtra por curso (MIGRATE_COURSE). Pula quem já tem bunnyVideoId (retomável).
+ *  - REVERSÍVEL: só ADICIONA campos do Bunny; o sourceUrl do YouTube nunca é tocado.
  *
- * Pré-requisitos:
- *  - Node 18+ (tem fetch nativo)
- *  - yt-dlp instalado e no PATH  (https://github.com/yt-dlp/yt-dlp)
- *  - firebase-admin (já é dependência do projeto)
+ * Dois modos:
+ *  - MIGRATE_MODE=fetch  (padrão) → o BUNNY baixa o vídeo direto do YouTube (leve na sua net).
+ *                                   Usa `yt-dlp -g` só pra pegar a URL direta (720p). Poll de status.
+ *  - MIGRATE_MODE=upload → baixa local (yt-dlp) e sobe pro Bunny (pesado, mas qualidade máxima).
  *
- * Variáveis de ambiente:
- *  - BUNNY_STREAM_API_KEY   (secreta — a API Key da sua Video Library)
- *  - BUNNY_LIBRARY_ID       (id numérico da library)
- *  - FIREBASE_ADMIN_KEY_JSON  ou  FIREBASE_ADMIN_KEY_PATH  (credencial admin, igual ao server)
- *  - MIGRATE_COURSE         (nome EXATO do curso a migrar — piloto: o curso da Trilha 1)
- *  - DRY_RUN=false          (pra valer; sem isso é só simulação)
- *  - MIGRATE_LIMIT=1        (opcional — migra só N vídeos; ótimo pra testar 1 primeiro)
+ * Variáveis (lê do .env local via dotenv):
+ *  BUNNY_STREAM_API_KEY, BUNNY_LIBRARY_ID, FIREBASE_ADMIN_KEY_JSON (ou _PATH),
+ *  MIGRATE_COURSE, DRY_RUN=false, MIGRATE_LIMIT=1, MIGRATE_MODE=fetch|upload
  *
- * Exemplo (testar 1 vídeo de verdade):
- *   BUNNY_STREAM_API_KEY=... BUNNY_LIBRARY_ID=... MIGRATE_COURSE="Como Resolver Problemas no Trabalho - Kit 90 dias" \
- *   DRY_RUN=false MIGRATE_LIMIT=1 node scripts/migrate-bunny.mjs
+ * Exemplo (testar 1 vídeo, modo leve):
+ *   $env:MIGRATE_COURSE="Como Resolver Problemas no Trabalho - Kit 90 dias"; $env:DRY_RUN="false"; $env:MIGRATE_LIMIT="1"; node scripts/migrate-bunny.mjs
  */
+import 'dotenv/config';
 import { readFileSync, unlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -34,13 +33,11 @@ import admin from 'firebase-admin';
 const API_KEY = process.env.BUNNY_STREAM_API_KEY;
 const LIBRARY_ID = process.env.BUNNY_LIBRARY_ID;
 const COURSE = process.env.MIGRATE_COURSE || '';
-const DRY_RUN = process.env.DRY_RUN !== 'false'; // default: simulação
-const LIMIT = Number(process.env.MIGRATE_LIMIT || '0'); // 0 = sem limite
+const DRY_RUN = process.env.DRY_RUN !== 'false';
+const LIMIT = Number(process.env.MIGRATE_LIMIT || '0');
+const MODE = (process.env.MIGRATE_MODE || 'fetch').toLowerCase();
 
-if (!API_KEY || !LIBRARY_ID) {
-  console.error('❌ Faltam BUNNY_STREAM_API_KEY e/ou BUNNY_LIBRARY_ID.');
-  process.exit(1);
-}
+if (!API_KEY || !LIBRARY_ID) { console.error('❌ Faltam BUNNY_STREAM_API_KEY e/ou BUNNY_LIBRARY_ID no .env'); process.exit(1); }
 
 // ---- Firebase Admin (mesma credencial do server) ----
 const svc = process.env.FIREBASE_ADMIN_KEY_JSON
@@ -49,44 +46,50 @@ const svc = process.env.FIREBASE_ADMIN_KEY_JSON
 admin.initializeApp({ credential: admin.credential.cert(svc) });
 const db = admin.firestore();
 
-// ---- Bunny Stream API ----
-async function bunnyCreateVideo(title) {
-  const r = await fetch(`https://video.bunnycdn.com/library/${LIBRARY_ID}/videos`, {
-    method: 'POST',
-    headers: { AccessKey: API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ title: title || 'Sem título' }),
-  });
+const H = { AccessKey: API_KEY, Accept: 'application/json' };
+const base = `https://video.bunnycdn.com/library/${LIBRARY_ID}/videos`;
+
+async function createVideo(title) {
+  const r = await fetch(base, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title || 'Sem título' }) });
   if (!r.ok) throw new Error(`createVideo HTTP ${r.status}`);
-  const j = await r.json();
-  return j.guid;
+  return (await r.json()).guid;
 }
-async function bunnyUpload(guid, filePath) {
-  const data = readFileSync(filePath);
-  const r = await fetch(`https://video.bunnycdn.com/library/${LIBRARY_ID}/videos/${guid}`, {
-    method: 'PUT',
-    headers: { AccessKey: API_KEY },
-    body: data,
-  });
+async function fetchFromUrl(guid, url) {
+  const r = await fetch(`${base}/${guid}/fetch`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+  if (!r.ok) throw new Error(`fetch HTTP ${r.status}`);
+}
+async function uploadFile(guid, filePath) {
+  const r = await fetch(`${base}/${guid}`, { method: 'PUT', headers: { AccessKey: API_KEY }, body: readFileSync(filePath) });
   if (!r.ok) throw new Error(`upload HTTP ${r.status}`);
 }
+async function status(guid) {
+  const r = await fetch(`${base}/${guid}`, { headers: H });
+  if (!r.ok) return -1;
+  return (await r.json()).status; // 4 = Finished, >=5 = erro
+}
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
-// ---- yt-dlp (baixa o vídeo do seu próprio canal a partir do link) ----
-function ytdlp(url, out) {
-  const r = spawnSync('yt-dlp', ['-f', 'mp4/bestvideo+bestaudio/best', '--no-playlist', '-o', out, url], { stdio: 'inherit' });
-  if (r.status !== 0) throw new Error('yt-dlp falhou');
+// yt-dlp: -g pega a URL direta (progressive 720p/360p, com áudio) sem baixar.
+function directUrl(ytUrl) {
+  const r = spawnSync('yt-dlp', ['-f', '22/18/best[ext=mp4]', '-g', '--no-playlist', ytUrl], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error('yt-dlp -g falhou');
+  const lines = String(r.stdout || '').trim().split('\n').filter(Boolean);
+  if (!lines.length) throw new Error('yt-dlp não retornou URL');
+  return lines[lines.length - 1];
+}
+function download(ytUrl, out) {
+  const r = spawnSync('yt-dlp', ['-f', 'mp4/bestvideo+bestaudio/best', '--no-playlist', '-o', out, ytUrl], { stdio: 'inherit' });
+  if (r.status !== 0) throw new Error('yt-dlp download falhou');
 }
 
 // ---- main ----
 let ref = db.collection('knowledge_base');
 if (COURSE) ref = ref.where('course', '==', COURSE);
 const snap = await ref.get();
-let docs = snap.docs.filter((d) => {
-  const v = d.data();
-  return !v.bunnyVideoId && v.sourceUrl; // só os que ainda não foram e têm link
-});
+let docs = snap.docs.filter((d) => { const v = d.data(); return !v.bunnyVideoId && v.sourceUrl; });
 if (LIMIT) docs = docs.slice(0, LIMIT);
 
-console.log(`\nCurso: ${COURSE || '(TODOS)'} | a migrar: ${docs.length} | DRY_RUN=${DRY_RUN} | limite=${LIMIT || '∞'}\n`);
+console.log(`\nCurso: ${COURSE || '(TODOS)'} | modo: ${MODE} | a migrar: ${docs.length} | DRY_RUN=${DRY_RUN} | limite=${LIMIT || '∞'}\n`);
 
 let ok = 0, fail = 0;
 for (const d of docs) {
@@ -94,15 +97,34 @@ for (const d of docs) {
   const nome = v.title || d.id;
   try {
     if (DRY_RUN) { console.log('  [simulação]', nome); ok++; continue; }
-    const out = join(tmpdir(), `bunny-${d.id}.mp4`);
-    console.log('  baixando…', nome);
-    ytdlp(v.sourceUrl, out);
-    const guid = await bunnyCreateVideo(nome);
-    console.log('  subindo pro Bunny…', guid);
-    await bunnyUpload(guid, out);
-    // NÃO toca no sourceUrl — só adiciona os campos do Bunny (reversível).
+
+    const guid = await createVideo(nome);
+
+    if (MODE === 'upload') {
+      const out = join(tmpdir(), `bunny-${d.id}.mp4`);
+      console.log('  baixando…', nome);
+      download(v.sourceUrl, out);
+      console.log('  subindo…', guid);
+      await uploadFile(guid, out);
+      try { unlinkSync(out); } catch { /* limpa temp */ }
+    } else {
+      // fetch: Bunny baixa direto do YouTube
+      console.log('  resolvendo URL…', nome);
+      const url = directUrl(v.sourceUrl);
+      await fetchFromUrl(guid, url);
+      console.log('  Bunny processando…', guid);
+      let st = -1, tentativas = 0;
+      while (tentativas++ < 60) { // ~5 min máx
+        await sleep(5000);
+        st = await status(guid);
+        if (st === 4) break;         // Finished
+        if (st >= 5) throw new Error(`Bunny status ${st} (erro no fetch)`);
+      }
+      if (st !== 4) throw new Error('timeout no processamento do Bunny');
+    }
+
+    // 🔒 SÓ estes 2 campos. Transcripts e o resto ficam intactos.
     await d.ref.update({ bunnyVideoId: guid, bunnyLibraryId: String(LIBRARY_ID) });
-    try { unlinkSync(out); } catch { /* limpa o temp */ }
     console.log('  ✅', nome, '→', guid);
     ok++;
   } catch (e) {
@@ -111,5 +133,5 @@ for (const d of docs) {
   }
 }
 
-console.log(`\nFim. ok=${ok}  falha=${fail}  ${DRY_RUN ? '(SIMULAÇÃO — nada foi alterado)' : ''}\n`);
+console.log(`\nFim. ok=${ok}  falha=${fail}  ${DRY_RUN ? '(SIMULAÇÃO — nada alterado)' : ''}\n`);
 process.exit(0);
