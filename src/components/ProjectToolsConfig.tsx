@@ -33,8 +33,6 @@ import {
   saveInitiativeConfig,
   seedDefaultInitiative,
   restoreDefaultMethodologies,
-  mergeInitiativeInto,
-  previewMergeImpact,
   getFerramentasRascunho,
   toggleFerramentaRascunho,
   getToolCategories,
@@ -311,13 +309,6 @@ export default function ProjectToolsConfig() {
   };
 
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  // Fusão de iniciativas — admin clica "Fundir" e escolhe qual iniciativa-alvo
-  // recebe os vídeos da source. Operação destrutiva: source é deletada no fim.
-  const [isMerging, setIsMerging] = useState(false);
-  const [mergeTargetId, setMergeTargetId] = useState<string>('');
-  const [mergeNewName, setMergeNewName] = useState<string>('');
-  const [mergePreview, setMergePreview] = useState<{ videosCount: number; sourceName: string } | null>(null);
-  const [mergeExecuting, setMergeExecuting] = useState(false);
   const [isEditingInitiative, setIsEditingInitiative] = useState(false);
   const [editingInitiativeName, setEditingInitiativeName] = useState('');
   const [editingInitiativeParentId, setEditingInitiativeParentId] = useState<string>('');
@@ -329,67 +320,6 @@ export default function ProjectToolsConfig() {
     setEditingInitiativeParentId(selectedInitiative.parentId || '');
     setEditIsFree(selectedInitiative.isFree || false);
     setIsEditingInitiative(true);
-  };
-
-  // Abre o modal de fusão e carrega preview de quantos vídeos serão movidos.
-  // Selected initiative vira a SOURCE (a que vai sumir); admin escolhe TARGET.
-  const handleOpenMerge = async () => {
-    if (!selectedInitiative) return;
-    try {
-      const preview = await previewMergeImpact(selectedInitiative.id);
-      setMergePreview(preview);
-      setMergeTargetId('');
-      setMergeNewName('');
-      setIsMerging(true);
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao calcular impacto da fusão.');
-    }
-  };
-
-  // Executa a fusão (chama mergeInitiativeInto + atualiza UI local).
-  // Operação destrutiva: source é deletada do Firestore + configs apagadas.
-  const handleConfirmMerge = async () => {
-    if (!selectedInitiative || !mergeTargetId) return;
-    setMergeExecuting(true);
-    try {
-      const target = initiatives.find(i => i.id === mergeTargetId);
-      if (!target) throw new Error('Iniciativa-alvo não encontrada.');
-
-      const videosMoved = await mergeInitiativeInto(
-        selectedInitiative.id,
-        mergeTargetId,
-        mergeNewName.trim() || undefined
-      );
-
-      // Atualiza lista local: remove a source, eventualmente renomeia target
-      const finalTargetName = mergeNewName.trim() || target.name;
-      const novaLista = initiatives
-        .filter(i => i.id !== selectedInitiative.id)
-        .map(i => i.id === mergeTargetId ? { ...i, name: finalTargetName } : i);
-
-      setInitiatives(novaLista);
-      // Seleciona automaticamente a target (que sobreviveu)
-      const targetAtualizada = novaLista.find(i => i.id === mergeTargetId);
-      if (targetAtualizada) {
-        await handleSelectInitiative(targetAtualizada);
-      } else {
-        setSelectedInitiative(null);
-        setConfigs([]);
-      }
-
-      setIsMerging(false);
-      setMergePreview(null);
-      toast.success(
-        videosMoved > 0
-          ? `Fusão concluída: ${videosMoved} vídeo${videosMoved > 1 ? 's' : ''} movido${videosMoved > 1 ? 's' : ''} e iniciativa "${mergePreview?.sourceName}" deletada.`
-          : `Fusão concluída: iniciativa "${mergePreview?.sourceName}" deletada (não tinha vídeos vinculados).`
-      );
-    } catch (error: any) {
-      console.error('[Merge Initiative] Falha:', error);
-      toast.error(error.message || 'Erro na fusão. Veja o console.');
-    } finally {
-      setMergeExecuting(false);
-    }
   };
 
   const handleSaveInitiativeEdit = async () => {
@@ -559,119 +489,6 @@ export default function ProjectToolsConfig() {
 
   return (
     <div className="flex flex-col gap-6 p-6 bg-[#f0f2f5] min-h-screen">
-      {/* Merge Initiative Modal — funde a iniciativa selecionada (source) em outra (target).
-          Move vídeos da source pra target via updateCourseName, e deleta a source.
-          Opcionalmente renomeia a target. Usado pra colapsar iniciativas duplicadas
-          (ex: T1 + T2 conceitualmente fundidas no frontend mas separadas no Firestore). */}
-      <AnimatePresence>
-        {isMerging && selectedInitiative && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-amber-50">
-                <div className="flex items-center gap-3">
-                  <Layers size={24} className="text-amber-700" />
-                  <h2 className="text-lg font-black text-amber-900">Fundir Iniciativa em Outra</h2>
-                </div>
-                <button onClick={() => setIsMerging(false)} className="text-amber-700 hover:text-amber-900">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-5">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-                  <AlertCircle size={18} className="text-red-600 mt-0.5 shrink-0" />
-                  <div className="text-sm text-red-800">
-                    <p className="font-bold mb-1">Operação destrutiva</p>
-                    <p className="leading-relaxed">
-                      A iniciativa <strong>"{selectedInitiative.name}"</strong> vai ser <strong>DELETADA</strong> após mover seus
-                      vídeos pra iniciativa-alvo. As configurações de fases dela também serão apagadas. Não tem undo.
-                    </p>
-                  </div>
-                </div>
-
-                {mergePreview && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-900">
-                    <p className="font-bold mb-1">Impacto previsto:</p>
-                    <p>
-                      {mergePreview.videosCount > 0
-                        ? <><strong>{mergePreview.videosCount}</strong> vídeo{mergePreview.videosCount > 1 ? 's' : ''} ser{mergePreview.videosCount > 1 ? 'ão' : 'á'} movido{mergePreview.videosCount > 1 ? 's' : ''} pra iniciativa-alvo.</>
-                        : <>Nenhum vídeo vinculado a essa iniciativa — só vai deletar o cadastro.</>
-                      }
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
-                    Iniciativa-alvo (que recebe os vídeos e sobrevive)
-                  </label>
-                  <select
-                    value={mergeTargetId}
-                    onChange={(e) => setMergeTargetId(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  >
-                    <option value="">Selecione a iniciativa que vai receber...</option>
-                    {initiatives
-                      .filter(i => i.id !== selectedInitiative.id)
-                      .map(i => (
-                        <option key={i.id} value={i.id}>{i.name}</option>
-                      ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
-                    (Opcional) Renomear iniciativa-alvo depois da fusão
-                  </label>
-                  <input
-                    type="text"
-                    value={mergeNewName}
-                    onChange={(e) => setMergeNewName(e.target.value)}
-                    placeholder="Deixe em branco pra manter o nome atual da alvo"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-                    Se preencher, a iniciativa-alvo será renomeada e a propagação automática vai atualizar todos os vídeos dela (atuais + recém-movidos da source).
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setIsMerging(false)}
-                  className="px-5 py-2 text-gray-600 hover:bg-white rounded-lg transition-colors text-sm font-bold"
-                  disabled={mergeExecuting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConfirmMerge}
-                  disabled={!mergeTargetId || mergeExecuting}
-                  className="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {mergeExecuting ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Fundindo...
-                    </>
-                  ) : (
-                    <>
-                      <Layers size={14} />
-                      Fundir AGORA
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* Edit Initiative Modal */}
       <AnimatePresence>
         {isEditingInitiative && (
@@ -796,14 +613,6 @@ export default function ProjectToolsConfig() {
                       title="Editar Tipo de Projeto"
                     >
                       <Settings size={18} />
-                    </button>
-                    <button
-                      onClick={handleOpenMerge}
-                      className="px-4 py-2 bg-amber-50 text-amber-700 rounded-lg font-bold hover:bg-amber-100 transition-colors flex items-center gap-2 border border-amber-200"
-                      title="Fundir esta iniciativa em outra (move vídeos + deleta esta)"
-                    >
-                      <Layers size={18} />
-                      <span className="text-xs uppercase tracking-widest">Fundir</span>
                     </button>
                   </>
                 )}
