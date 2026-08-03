@@ -36,7 +36,10 @@ import {
   mergeInitiativeInto,
   previewMergeImpact,
   getFerramentasRascunho,
-  toggleFerramentaRascunho
+  toggleFerramentaRascunho,
+  getToolCategories,
+  saveToolCategories,
+  ToolCategoryId,
 } from '../services/configService';
 import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -130,6 +133,47 @@ const AVAILABLE_TOOLS = [
   { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', phase: 'Pre-Definir' },
 ];
 
+const TOOL_CATEGORIES = [
+  {
+    id: 'quality',
+    name: 'Gerenciamento da Qualidade',
+    description: 'Análise, melhoria e controle de processos',
+    icon: Wrench,
+    accent: 'blue',
+    toolIds: [
+      'brief', 'charter', 'sipoc', 'indicadores', 'processMap', 'brainstorming',
+      'brainstormingImprove', 'measureIshikawa', 'measureMatrix', 'beforeAfter', 'rab',
+      'gut', 'effortImpact', 'dataCollection', 'vsm', 'directObservation', 'fiveWhys',
+      'fta', 'statisticalAnalysis', 'dataNature', 'fmea', 'plan5w2h', 'actionPlan',
+      'sop', 'controlPlan', 'processCanva', 'processModeling', 'processValidation',
+    ],
+  },
+  {
+    id: 'projects',
+    name: 'Gerenciamento de Projetos',
+    description: 'Planejamento, execução, riscos e encerramento',
+    icon: Layers,
+    accent: 'indigo',
+    toolIds: [
+      'mapa90dias', 'projectCharterPMI', 'timeline', 'wbs', 'gpPlanPMI', 'raci',
+      'organograma', 'detailedTimeline', 'riskManagementPMI', 'riskMonitoringPMI',
+      'improvementPlan', 'stakeholderAnalysisPMI', 'tangibleGains', 'projectClose',
+      'improvementIdea',
+    ],
+  },
+  {
+    id: 'change',
+    name: 'Gerenciamento de Mudanças',
+    description: 'Pessoas, engajamento e adoção da mudança',
+    icon: Sparkles,
+    accent: 'violet',
+    toolIds: [
+      'stakeholderAdkar', 'measureAdkar', 'analyzeAdkar', 'improveAdkar',
+      'controlAdkar', 'stakeholders',
+    ],
+  },
+] as const;
+
 export default function ProjectToolsConfig() {
   const { isAdmin } = useUserAccess();
   // No SITE do consultor (israel.…) esconde rascunhos mesmo pro admin (visão do consultor).
@@ -140,11 +184,35 @@ export default function ProjectToolsConfig() {
   const [mentorContexts, setMentorContexts] = useState<Record<string, MentorToolContext>>({});
   // F6: ferramentas em rascunho (não prontas). Admin marca; consultor não vê.
   const [rascunhos, setRascunhos] = useState<string[]>([]);
+  const [toolCategories, setToolCategories] = useState<Record<string, ToolCategoryId>>({});
+  const [movingToolId, setMovingToolId] = useState<string | null>(null);
 
   useEffect(() => {
     getAllToolContexts().then(data => setMentorContexts(data));
     getFerramentasRascunho().then(setRascunhos);
+    getToolCategories().then(setToolCategories);
   }, []);
+
+  const defaultCategoryFor = (toolId: string): ToolCategoryId =>
+    (TOOL_CATEGORIES.find((category) => category.toolIds.includes(toolId as never))?.id || 'quality') as ToolCategoryId;
+
+  const categoryFor = (toolId: string): ToolCategoryId => toolCategories[toolId] || defaultCategoryFor(toolId);
+
+  const moveToolToCategory = async (toolId: string, categoryId: ToolCategoryId) => {
+    const previous = toolCategories;
+    const next = { ...toolCategories, [toolId]: categoryId };
+    setToolCategories(next);
+    setMovingToolId(toolId);
+    try {
+      await saveToolCategories(next);
+      toast.success('Ferramenta movida para outra categoria.');
+    } catch (error) {
+      setToolCategories(previous);
+      toast.error('Não foi possível salvar a categoria.');
+    } finally {
+      setMovingToolId(null);
+    }
+  };
 
   const alternarRascunho = async (toolId: string, rascunho: boolean) => {
     const nova = await toggleFerramentaRascunho(toolId, rascunho, rascunhos);
@@ -696,19 +764,19 @@ export default function ProjectToolsConfig() {
       <div className="max-w-5xl mx-auto w-full space-y-6">
         {/* Step 1: Project Type Selection Dropdown */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="space-y-5">
             <div className="flex-1">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">
                 1. Selecione o Tipo de Projeto
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <select
                   value={selectedInitiative?.id || ''}
                   onChange={(e) => {
                     const initiative = initiatives.find(i => i.id === e.target.value);
                     if (initiative) handleSelectInitiative(initiative);
                   }}
-                  className="flex-1 p-3 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  className="min-w-[280px] flex-1 p-3 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
                   <option value="">Selecione uma trilha para configurar...</option>
                   {initiatives
@@ -773,18 +841,19 @@ export default function ProjectToolsConfig() {
             )}
 
             {selectedInitiative && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 border-t border-gray-100 pt-4">
                 <button
                   onClick={() => setIsDeleting(selectedInitiative.id)}
-                  className="p-2.5 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all text-xs font-bold"
                   title="Excluir este tipo de projeto"
                 >
                   <Trash2 size={18} />
+                  Excluir tipo
                 </button>
                 <button
                   onClick={() => handleSaveConfigs()}
                   disabled={saving}
-                  className="flex items-center justify-center gap-2 whitespace-nowrap bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 whitespace-nowrap bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-all shadow-sm shadow-blue-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
                   {saving ? 'Salvando…' : 'Salvar configuração'}
@@ -1051,8 +1120,37 @@ export default function ProjectToolsConfig() {
                             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                               Catálogo de Ferramentas (Clique para adicionar/remover)
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {[...AVAILABLE_TOOLS].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).filter((tool) => ehAdminHub || !rascunhos.includes(tool.id)).map((tool) => {
+                            <div className="space-y-6">
+                              {TOOL_CATEGORIES.map((category) => {
+                                const CategoryIcon = category.icon;
+                                const categoryTools = AVAILABLE_TOOLS
+                                  .filter((tool) => categoryFor(tool.id) === category.id)
+                                  .filter((tool) => ehAdminHub || !rascunhos.includes(tool.id))
+                                  .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+                                if (categoryTools.length === 0) return null;
+
+                                return (
+                                  <section key={category.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50/50">
+                                    <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-5 py-4">
+                                      <div className={cn(
+                                        "flex h-10 w-10 items-center justify-center rounded-xl",
+                                        category.accent === 'blue' && "bg-blue-50 text-blue-600",
+                                        category.accent === 'indigo' && "bg-indigo-50 text-indigo-600",
+                                        category.accent === 'violet' && "bg-violet-50 text-violet-600"
+                                      )}>
+                                        <CategoryIcon size={19} />
+                                      </div>
+                                      <div>
+                                        <h5 className="text-sm font-black text-gray-800">{category.name}</h5>
+                                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{category.description}</p>
+                                      </div>
+                                      <span className="ml-auto rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[10px] font-black text-gray-500">
+                                        {categoryTools.length}
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 lg:grid-cols-3">
+                                      {categoryTools.map((tool) => {
                                 const isSelected = config.toolIds.includes(tool.id);
                                 const ctx = mentorContexts[tool.id];
                                 const hasMentorContent = ctx && (
@@ -1063,7 +1161,7 @@ export default function ProjectToolsConfig() {
                                   <div
                                     key={tool.id}
                                     className={cn(
-                                      "flex items-center justify-between p-4 rounded-xl border text-left transition-all group relative",
+                                      "flex flex-col rounded-xl border text-left transition-all group relative overflow-hidden",
                                       isSelected
                                         ? "bg-blue-600 border-blue-600 shadow-md ring-2 ring-blue-100"
                                         : "bg-white border-gray-100 hover:border-blue-200"
@@ -1071,7 +1169,7 @@ export default function ProjectToolsConfig() {
                                   >
                                     <button
                                       onClick={() => toggleTool(phase.id, tool.id)}
-                                      className="flex items-center gap-3 flex-1 text-left bg-transparent border-none cursor-pointer p-0"
+                                      className="flex items-center gap-3 w-full flex-1 text-left bg-transparent border-none cursor-pointer p-4"
                                     >
                                       <div className={cn(
                                         "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
@@ -1094,7 +1192,7 @@ export default function ProjectToolsConfig() {
                                         )}
                                       </div>
                                     </button>
-                                    <div className="flex items-center gap-2 ml-2">
+                                    <div className="absolute right-4 top-4 flex items-center gap-2">
                                       {ehAdminHub && (
                                         <button
                                           onClick={(e) => { e.stopPropagation(); alternarRascunho(tool.id, !rascunhos.includes(tool.id)); }}
@@ -1111,7 +1209,43 @@ export default function ProjectToolsConfig() {
                                       )}
                                       {isSelected && <CheckCircle2 size={18} className="text-white" />}
                                     </div>
+                                    {ehAdminHub && (
+                                      <div className={cn(
+                                        "mt-auto flex items-center gap-2 border-t px-3 py-2",
+                                        isSelected ? "border-white/20 bg-blue-700/40" : "border-gray-100 bg-gray-50/70"
+                                      )}>
+                                        <span className={cn(
+                                          "shrink-0 text-[9px] font-black uppercase tracking-wider",
+                                          isSelected ? "text-blue-100" : "text-gray-400"
+                                        )}>
+                                          Mover para
+                                        </span>
+                                        <select
+                                          value={categoryFor(tool.id)}
+                                          disabled={movingToolId === tool.id}
+                                          onClick={(event) => event.stopPropagation()}
+                                          onChange={(event) => moveToolToCategory(tool.id, event.target.value as ToolCategoryId)}
+                                          className={cn(
+                                            "min-w-0 flex-1 cursor-pointer rounded-md border px-2 py-1 text-[10px] font-bold outline-none disabled:cursor-wait disabled:opacity-60",
+                                            isSelected
+                                              ? "border-white/30 bg-blue-600 text-white"
+                                              : "border-gray-200 bg-white text-gray-600 focus:border-blue-400"
+                                          )}
+                                          aria-label={`Mover ${tool.name} para outra categoria`}
+                                        >
+                                          {TOOL_CATEGORIES.map((option) => (
+                                            <option key={option.id} value={option.id} className="bg-white text-gray-700">
+                                              {option.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    )}
                                   </div>
+                                );
+                                      })}
+                                    </div>
+                                  </section>
                                 );
                               })}
                             </div>

@@ -166,6 +166,23 @@ export const toggleFerramentaRascunho = async (toolId: string, rascunho: boolean
   return nova;
 };
 
+export type ToolCategoryId = 'quality' | 'projects' | 'change';
+
+// Organização GLOBAL do catálogo, definida somente pelo admin no app.*.
+// Os sites dos consultores apenas leem e exibem essa organização.
+export const getToolCategories = async (): Promise<Record<string, ToolCategoryId>> => {
+  try {
+    const snap = await getDoc(doc(db, 'app_config', 'ferramentas'));
+    return (snap.data()?.categorias || {}) as Record<string, ToolCategoryId>;
+  } catch {
+    return {};
+  }
+};
+
+export const saveToolCategories = async (categories: Record<string, ToolCategoryId>): Promise<void> => {
+  await setDoc(doc(db, 'app_config', 'ferramentas'), { categorias: categories }, { merge: true });
+};
+
 export const getInitiativeConfigs = async (initiativeId: string): Promise<InitiativePhaseConfig[]> => {
   const q = query(collection(db, CONFIG_COLLECTION), where('initiativeId', '==', initiativeId));
   const snapshot = await getDocs(q);
