@@ -28,6 +28,7 @@ import {
 } from '../services/videoProgressService';
 import { getAllQuizzes, type QuizConfig } from '../services/quizService';
 import { resolveConsultorId } from '../services/consultorService';
+import { useConsultor } from '../contexts/ConsultorContext';
 import QuizRunner from './QuizRunner';
 import Certificate from './Certificate';
 import OpiniaoModal from './OpiniaoModal';
@@ -51,6 +52,7 @@ interface BlocoState {
 }
 
 export default function AvaliacaoView() {
+  const { consultor } = useConsultor();
   const { loading: accessLoading, plano, isAdmin } = useUserAccess();
   const [loading, setLoading] = useState(true);
   const [quizzes, setQuizzes] = useState<QuizConfig[]>([]);
@@ -132,9 +134,10 @@ export default function AvaliacaoView() {
   if (activeQuizTrilha !== null) {
     const quiz = quizzes.find((q) => q.trilha === activeQuizTrilha);
     if (quiz) {
+      const curso = initiatives.find((initiative) => trilhaNumFromName(initiative.name) === activeQuizTrilha);
       return (
         <QuizRunner
-          quiz={quiz}
+          quiz={{ ...quiz, titulo: curso?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo }}
           onExit={() => setActiveQuizTrilha(null)}
           onPassed={() => handlePassed(activeQuizTrilha)}
         />
@@ -164,7 +167,10 @@ export default function AvaliacaoView() {
             bloco={b}
             index={i}
             certAluno={alunoNome}
-            onStart={() => setOpiniaoTrilha(b.quiz.trilha)}
+            onStart={() => {
+              if (consultor.depoimentoPreProvaAtivo === false) setActiveQuizTrilha(b.quiz.trilha);
+              else setOpiniaoTrilha(b.quiz.trilha);
+            }}
             showCongrats={justPassedTrilha === b.quiz.trilha}
           />
         ))}
@@ -180,7 +186,7 @@ export default function AvaliacaoView() {
             alunoNome={alunoNome}
             alunoEmail={auth.currentUser?.email || ''}
             trilha={opiniaoTrilha}
-            trilhaTitulo={quiz.titulo}
+            trilhaTitulo={blocos.find((b) => b.quiz.trilha === opiniaoTrilha)?.initiative?.name || quiz.titulo}
             /* Trilha 1 do aluno gratuito: depoimento obrigatório, sem opção de pular. */
             obrigatorioSemSaida={opiniaoTrilha === 1 && plano !== 'completo' && !isAdmin}
             onCancel={() => setOpiniaoTrilha(null)}
@@ -211,17 +217,17 @@ function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
       className="relative rounded-2xl border bg-white p-5 flex flex-col shadow-sm"
       style={{ borderColor: aprovado ? '#10B981' : unlocked ? 'rgba(0,51,204,.25)' : '#E5E7EB' }}
     >
-      {/* Badge trilha */}
+      {/* Identificação do curso */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-[11px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full"
           style={{ background: 'rgba(0,51,204,.1)', color: LBW.blue }}>
-          Trilha {quiz.trilha}
+          Curso
         </span>
         {!unlocked && <Lock size={18} className="text-gray-400" />}
         {aprovado && <CheckCircle2 size={20} className="text-emerald-500" />}
       </div>
 
-      <h3 className="font-bold text-gray-900 leading-snug mb-1">{quiz.titulo}</h3>
+      <h3 className="font-bold text-gray-900 leading-snug mb-1">{bloco.initiative?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo}</h3>
       <p className="text-xs text-gray-400 mb-4">{quiz.questions.length} questões · aprovação {Math.round(quiz.passPct * 100)}%</p>
 
       {/* Progresso de vídeos */}

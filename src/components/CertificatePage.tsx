@@ -81,6 +81,7 @@ export function CertificatePage() {
           issuedAt={new Date().toISOString()}
           certId={`PREVIEW-${previewInitiative.id.slice(0, 6).toUpperCase()}`}
           mode="student"
+          consultorId={previewInitiative.consultorId}
         />
       </>
     );
@@ -95,6 +96,7 @@ export function CertificatePage() {
       issuedAt={cert.issuedAt}
       certId={cert.certId}
       mode="student"
+      consultorId={cert.consultorId}
     />
   );
 }
@@ -166,6 +168,7 @@ export function VerificarPage() {
       issuedAt={cert.issuedAt}
       certId={cert.certId}
       mode="public"
+      consultorId={cert.consultorId}
     />
   );
 }

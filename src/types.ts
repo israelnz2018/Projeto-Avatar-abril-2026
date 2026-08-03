@@ -54,6 +54,20 @@ export interface ConsultorBranding {
   pptInternaUrl?: string; // imagem de fundo das páginas internas (modo 'proprio')
 }
 
+export interface ConsultorCertificateConfig {
+  modo: 'padrao' | 'proprio';
+  /** Fundo A4 paisagem exportado do PowerPoint/Canva como PNG ou JPG. */
+  fundoUrl?: string;
+  assinaturaUrl?: string;
+  instituicao?: string;
+  emissorNome?: string;
+  emissorCargo?: string;
+  textoRodape?: string;
+  /** Incrementada a cada salvamento para identificar a arte usada na emissão. */
+  versao?: number;
+  atualizadoEm?: string;
+}
+
 // Vitrine — a "prateleira" pública do consultor (marketing + negociação).
 // Vive no doc do consultor (que é público). Nunca guarda dado sensível.
 export interface ConsultorVitrine {
@@ -74,6 +88,9 @@ export interface Consultor {
   mentorNome?: string;   // nome do mentor de IA ("Israel Souza" → "Fulano") por consultor
   capAlunos?: number;    // teto total de alunos da base do consultor (admin define). 0/ausente = sem limite
   branding: ConsultorBranding;
+  certificado?: ConsultorCertificateConfig;
+  /** Se false, a prova abre direto, sem solicitar depoimento/opinião antes. */
+  depoimentoPreProvaAtivo?: boolean;
   vitrine?: ConsultorVitrine;
   plano?: string;        // faixa SaaS (monetização)
   ativo: boolean;

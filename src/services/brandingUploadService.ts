@@ -14,7 +14,7 @@
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../lib/firebase';
 
-export type BrandingAsset = 'foto' | 'logo' | 'ppt-capa' | 'ppt-interna';
+export type BrandingAsset = 'foto' | 'logo' | 'ppt-capa' | 'ppt-interna' | 'certificado-fundo' | 'certificado-assinatura';
 
 const MAX_ORIGEM_BYTES = 6 * 1024 * 1024;
 
@@ -23,6 +23,8 @@ const CONFIG: Record<BrandingAsset, { max: number; mime: 'image/jpeg' | 'image/p
   'logo':        { max: 600,  mime: 'image/png',  q: 0.92 },
   'ppt-capa':    { max: 1920, mime: 'image/png',  q: 0.92 },
   'ppt-interna': { max: 1920, mime: 'image/png',  q: 0.92 },
+  'certificado-fundo':      { max: 2400, mime: 'image/png', q: 0.94 },
+  'certificado-assinatura': { max: 1000, mime: 'image/png', q: 0.94 },
 };
 
 /** Redimensiona no canvas mantendo proporção; exporta no mime pedido. */

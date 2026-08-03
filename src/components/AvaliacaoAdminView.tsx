@@ -1,10 +1,10 @@
 /**
- * AvaliacaoAdminView — aba "Teste de Avaliação ADMIN" (só admin).
+ * AvaliacaoAdminView — configuração das provas do consultor.
  *
  * Permite ao Israel:
- *   - Escolher a trilha (1..8).
+ *   - Escolher o curso (mantém a numeração 1..8 internamente).
  *   - Definir os critérios do topo: % de aprovação e % de vídeos para liberar a prova.
- *   - Editar o título da prova.
+ *   - O título da prova é o nome do curso e não é editável aqui.
  *   - Para cada pergunta: editar o enunciado, as 4 alternativas e MARCAR a correta (radio).
  *   - Adicionar/remover perguntas e adicionar/remover alternativas.
  *   - Salvar no Firestore (passa a ter prioridade sobre o seed).
@@ -13,18 +13,24 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Save, Plus, Trash2, Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { Save, Plus, Trash2, Check, ChevronDown } from 'lucide-react';
 import { getQuiz, saveQuiz, type QuizConfig, type QuizQuestion } from '../services/quizService';
-import { DEFAULT_QUIZZES } from '../services/quizSeed';
 import { getOpiniaoItens, saveOpiniaoItens } from '../services/opiniaoService';
 import { resolveConsultorId } from '../services/consultorService';
+import { getInitiatives } from '../services/configService';
+import { useConsultor } from '../contexts/ConsultorContext';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import type { Initiative } from '../types';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 const TRILHAS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function AvaliacaoAdminView() {
   const consultorId = resolveConsultorId(); // prova escopada pelo consultor do site
+  const { consultor, refresh } = useConsultor();
   const [trilha, setTrilha] = useState(1);
+  const [cursos, setCursos] = useState<Initiative[]>([]);
   const [config, setConfig] = useState<QuizConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,6 +38,18 @@ export default function AvaliacaoAdminView() {
   // Itens de opinião (depoimento pré-prova) — config global editável.
   const [opiniaoItens, setOpiniaoItens] = useState<string[]>([]);
   const [opiniaoMsg, setOpiniaoMsg] = useState('');
+  const [salvandoDepoimento, setSalvandoDepoimento] = useState(false);
+
+  const cursoNumero = (nome: string) => Number(nome.match(/\d+/)?.[0] || 0);
+  const cursosOrdenados = [...cursos]
+    .filter((curso) => cursoNumero(curso.name) > 0)
+    .sort((a, b) => cursoNumero(a.name) - cursoNumero(b.name));
+  const cursoSelecionado = cursosOrdenados.find((curso) => cursoNumero(curso.name) === trilha);
+  const nomeCursoSelecionado = cursoSelecionado?.name || config?.titulo || `Curso ${trilha}`;
+
+  useEffect(() => {
+    getInitiatives().then(setCursos).catch(() => setCursos([]));
+  }, []);
 
   useEffect(() => {
     getOpiniaoItens().then(setOpiniaoItens).catch(() => {});
@@ -48,10 +66,24 @@ export default function AvaliacaoAdminView() {
   useEffect(() => {
     setLoading(true);
     getQuiz(trilha, consultorId)
-      .then(setConfig)
+      .then((quiz) => setConfig({ ...quiz, titulo: cursoSelecionado?.name || quiz.titulo }))
       .catch((e) => console.error('[AdminAvaliacao] getQuiz:', e))
       .finally(() => setLoading(false));
-  }, [trilha, consultorId]);
+  }, [trilha, consultorId, cursoSelecionado?.name]);
+
+  const handleToggleDepoimento = async (ativo: boolean) => {
+    setSalvandoDepoimento(true);
+    setOpiniaoMsg('');
+    try {
+      await setDoc(doc(db, 'consultores', consultorId), { depoimentoPreProvaAtivo: ativo }, { merge: true });
+      await refresh();
+      setOpiniaoMsg(ativo ? '✓ Depoimento ativado.' : '✓ Depoimento desativado.');
+    } catch {
+      setOpiniaoMsg('✗ Erro ao salvar opção.');
+    } finally {
+      setSalvandoDepoimento(false);
+    }
+  };
 
   const update = (patch: Partial<QuizConfig>) => setConfig((c) => (c ? { ...c, ...patch } : c));
 
@@ -102,7 +134,7 @@ export default function AvaliacaoAdminView() {
     if (!config) return;
     setSaving(true); setSavedMsg('');
     try {
-      await saveQuiz(config, consultorId);
+      await saveQuiz({ ...config, titulo: nomeCursoSelecionado }, consultorId);
       setSavedMsg('✓ Prova salva com sucesso.');
       setTimeout(() => setSavedMsg(''), 3000);
     } catch (e) {
@@ -113,23 +145,15 @@ export default function AvaliacaoAdminView() {
     }
   };
 
-  const handleResetSeed = () => {
-    if (!confirm('Restaurar esta prova para a versão original (seed)? As edições não salvas serão perdidas.')) return;
-    setConfig(structuredClone(DEFAULT_QUIZZES[trilha]));
-  };
-
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teste de Avaliação — ADMIN</h1>
-          <p className="text-gray-500 text-sm">Edite critérios, perguntas, alternativas e o gabarito de cada trilha.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Teste de Avaliação</h1>
+          <p className="text-gray-500 text-sm">Edite os critérios, perguntas, alternativas e o gabarito de cada curso.</p>
         </div>
         <div className="flex items-center gap-2">
           {savedMsg && <span className={`text-sm font-bold ${savedMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{savedMsg}</span>}
-          <button onClick={handleResetSeed} className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm font-bold flex items-center gap-2">
-            <RotateCcw size={15} /> Restaurar original
-          </button>
           <button onClick={handleSave} disabled={saving}
             className="px-4 py-2 rounded-lg text-white text-sm font-bold flex items-center gap-2 disabled:opacity-60"
             style={{ background: LBW.blue }}>
@@ -143,7 +167,7 @@ export default function AvaliacaoAdminView() {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
             <h2 className="font-bold text-gray-800">Depoimento pré-prova — itens avaliados (nota 1-5)</h2>
-            <p className="text-xs text-gray-400">Aparecem no pop-up que o aluno preenche antes de cada avaliação. Vale para todas as trilhas.</p>
+            <p className="text-xs text-gray-400">Escolha se os alunos devem preencher o depoimento antes das provas. A opção vale para todos os seus cursos.</p>
           </div>
           <div className="flex items-center gap-2">
             {opiniaoMsg && <span className={`text-sm font-bold ${opiniaoMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{opiniaoMsg}</span>}
@@ -152,6 +176,19 @@ export default function AvaliacaoAdminView() {
             </button>
           </div>
         </div>
+        <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <input
+            type="checkbox"
+            checked={consultor.depoimentoPreProvaAtivo !== false}
+            disabled={salvandoDepoimento}
+            onChange={(event) => handleToggleDepoimento(event.target.checked)}
+            className="h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+          />
+          <div>
+            <div className="text-sm font-bold text-gray-800">Solicitar depoimento antes da prova</div>
+            <div className="text-xs text-gray-500">Desmarque para abrir a avaliação diretamente.</div>
+          </div>
+        </label>
         <div className="space-y-2">
           {opiniaoItens.map((item, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -172,13 +209,14 @@ export default function AvaliacaoAdminView() {
         </button>
       </div>
 
-      {/* Seletor de trilha */}
+      {/* Seletor de curso (a prova continua usando o número internamente). */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {TRILHAS.map((t) => (
-          <button key={t} onClick={() => setTrilha(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold ${trilha === t ? 'text-white' : 'bg-gray-100 text-gray-600'}`}
-            style={trilha === t ? { background: LBW.navy } : {}}>
-            Trilha {t}
+        {(cursosOrdenados.length ? cursosOrdenados.map((curso) => ({ numero: cursoNumero(curso.name), nome: curso.name })) : TRILHAS.map((numero) => ({ numero, nome: `Curso ${numero}` }))).map(({ numero, nome }) => (
+          <button key={numero} onClick={() => setTrilha(numero)}
+            className={`max-w-[260px] truncate px-4 py-2 rounded-lg text-sm font-bold ${trilha === numero ? 'text-white' : 'bg-gray-100 text-gray-600'}`}
+            style={trilha === numero ? { background: LBW.navy } : {}}
+            title={nome}>
+            {nome.replace(/^\d+\s*[-—]?\s*/, '')}
           </button>
         ))}
       </div>
@@ -189,13 +227,15 @@ export default function AvaliacaoAdminView() {
         <>
           {/* Critérios do topo */}
           <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
-            <h2 className="font-bold text-gray-800 mb-4">Critérios da Trilha {trilha}</h2>
+            <h2 className="font-bold text-gray-800 mb-4">Critérios do curso: {nomeCursoSelecionado.replace(/^\d+\s*[-—]?\s*/, '')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <label className="block">
+              <div className="block">
                 <span className="text-xs font-bold text-gray-500 uppercase">Título da prova</span>
-                <input value={config.titulo} onChange={(e) => update({ titulo: e.target.value })}
-                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-              </label>
+                <div className="mt-1 min-h-[38px] w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
+                  {nomeCursoSelecionado.replace(/^\d+\s*[-—]?\s*/, '')}
+                </div>
+                <p className="mt-1 text-[10px] text-gray-400">Definido pelo nome do curso e não pode ser alterado aqui.</p>
+              </div>
               <label className="block">
                 <span className="text-xs font-bold text-gray-500 uppercase">% para aprovar</span>
                 <div className="flex items-center gap-2 mt-1">

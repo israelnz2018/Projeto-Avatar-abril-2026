@@ -62,6 +62,9 @@ export interface CertificadoEmitido {
   certId: string;
   /** Nome do aluno NO MOMENTO da emissão — congela mesmo se o aluno trocar o nome depois. */
   alunoNomeAtIssue: string;
+  /** Tenant emissor e versão do visual, congelados na emissão. */
+  consultorId?: string;
+  templateVersion?: number;
 }
 
 export interface UserProgress {
@@ -324,6 +327,12 @@ export async function checkAndIssueCertificate(
   const certId = generateCertId();
   const issuedAt = new Date().toISOString();
   const nomeNormalizado = alunoNome || 'Aluno LBW';
+  const consultorId = initiative.consultorId || 'israel';
+  let templateVersion: number | undefined;
+  try {
+    const consultorSnap = await getDoc(doc(db, 'consultores', consultorId));
+    templateVersion = Number(consultorSnap.data()?.certificado?.versao || 0) || undefined;
+  } catch { /* certificado continua emitindo mesmo se a configuração visual falhar */ }
 
   const updated: UserProgress = {
     ...progress,
@@ -335,6 +344,8 @@ export async function checkAndIssueCertificate(
         initiativeNameAtIssue: initiative.name,
         certId,
         alunoNomeAtIssue: nomeNormalizado,
+        consultorId,
+        templateVersion,
       },
     },
     lastUpdated: issuedAt,
@@ -349,6 +360,7 @@ export async function checkAndIssueCertificate(
       alunoNome: nomeNormalizado,
       initiativeName: initiative.name,
       issuedAt,
+      consultorId,
     }),
   ]);
   return true;
@@ -360,6 +372,7 @@ export interface CertificadoPublico {
   alunoNome: string;
   initiativeName: string;
   issuedAt: string;
+  consultorId?: string;
 }
 
 export async function getCertificadoPublico(certId: string): Promise<CertificadoPublico | null> {

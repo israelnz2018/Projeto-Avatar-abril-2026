@@ -16,9 +16,12 @@
  * Print: window.print(); CSS @media print isola a folha. "Salvar como PDF".
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Printer, Link2, Check, Award, ShieldCheck } from 'lucide-react';
+import { useConsultor } from '../contexts/ConsultorContext';
+import { getConsultor } from '../services/consultorService';
+import type { Consultor, ConsultorCertificateConfig } from '../types';
 
 interface Props {
   alunoNome: string;
@@ -27,6 +30,9 @@ interface Props {
   issuedAt: string;
   certId: string;
   mode?: 'student' | 'public';
+  consultorId?: string;
+  /** Usado pela tela de edição para prévia antes de salvar. */
+  configOverride?: ConsultorCertificateConfig;
 }
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC', ink: '#0F172A' };
@@ -70,12 +76,36 @@ function formatDataPorExtenso(iso: string): string {
   return `${dia} de ${meses[mes]} de ${ano}`;
 }
 
-export default function Certificate({ alunoNome, initiativeName, issuedAt, certId, mode = 'student' }: Props) {
+export default function Certificate({ alunoNome, initiativeName, issuedAt, certId, mode = 'student', consultorId, configOverride }: Props) {
+  const { consultor: consultorAtual } = useConsultor();
+  const [consultor, setConsultor] = useState<Consultor>(consultorAtual);
+
+  useEffect(() => {
+    if (!consultorId || consultorId === consultorAtual.id) {
+      setConsultor(consultorAtual);
+      return;
+    }
+    getConsultor(consultorId).then(setConsultor);
+  }, [consultorId, consultorAtual]);
+
   const numero = extractTrilhaNumero(initiativeName);
-  const carga = CARGA_HORARIA[numero];
+  const isIsrael = consultor.id === 'israel';
+  const carga = isIsrael ? CARGA_HORARIA[numero] : undefined;
   // Usa o título formal do certificado; cai pro nome da trilha se não houver mapa.
-  const nomeTrilha = TITULO_CERTIFICADO[numero] || initiativeName.replace(/^\d+\s*[-·]\s*/, '');
+  const nomeTrilha = (consultor.id === 'israel' ? TITULO_CERTIFICADO[numero] : undefined)
+    || initiativeName.replace(/^\d+\s*[-·]\s*/, '');
   const [copied, setCopied] = useState(false);
+  // No LBW, somente o admin do app pode salvar estes dados; no site israel.* a tela
+  // permanece somente leitura. Sem configuração salva, o modelo original é idêntico.
+  const certificado = configOverride || consultor.certificado;
+  const branding = consultor.branding;
+  const usaFundoProprio = certificado?.modo === 'proprio' && !!certificado.fundoUrl;
+  const fundo = isIsrael ? MODELO_BG : (usaFundoProprio ? certificado!.fundoUrl! : MODELO_BG);
+  const corNavy = isIsrael ? LBW.navy : (branding?.cores?.navy || LBW.navy);
+  const corBlue = isIsrael ? LBW.blue : (branding?.cores?.blue || LBW.blue);
+  const instituicao = certificado?.instituicao || (isIsrael ? 'Educação pelo Trabalho' : (branding?.nome || consultor.nome));
+  const emissorNome = certificado?.emissorNome || (isIsrael ? 'Israel Cavalcanti de Souza' : consultor.nome);
+  const emissorCargo = certificado?.emissorCargo || (isIsrael ? 'CEO Learning by Working' : 'Responsável pela formação');
 
   const verifyUrl = `${window.location.origin}/verificar/${certId}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent(verifyUrl)}`;
@@ -155,7 +185,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
         className="cert-paper cert-bg-print relative w-full max-w-4xl overflow-hidden"
         style={{
           aspectRatio: '926 / 680',
-          backgroundImage: `url(${MODELO_BG})`,
+          backgroundImage: `url(${fundo})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           borderRadius: 6,
@@ -164,13 +194,17 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
         }}
       >
         {/* Camada de texto, posicionada em % sobre a arte (escala junto com a folha) */}
-        <div className="absolute inset-0" style={{ color: LBW.navy }}>
+        {!usaFundoProprio && consultor.id !== 'israel' && (
+          <div className="absolute bg-white" style={{ left: '38%', bottom: '8%', width: '28%', height: '16%' }} />
+        )}
+
+        <div className="absolute inset-0" style={{ color: corNavy }}>
 
           {/* Logomarca LBW (topo centro) */}
           <div className="absolute w-full flex flex-col items-center" style={{ top: '11%' }}>
-            <img src="/favicon.png" alt="Learning by Working" style={{ height: 'clamp(20px,3vw,34px)', width: 'auto' }} />
+            <img src={isIsrael ? '/favicon.png' : (branding?.logoUrl || '/favicon.png')} alt={instituicao} style={{ height: 'clamp(20px,3vw,34px)', maxWidth: '24%', objectFit: 'contain' }} />
             <span style={{ fontSize: 'clamp(7px,1vw,11px)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase', color: '#5B6472', marginTop: 4 }}>
-              Educação pelo Trabalho
+              {instituicao}
             </span>
           </div>
 
@@ -185,15 +219,15 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           <div className="absolute w-full text-center px-[14%]" style={{ top: '27%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: '#5B6472' }}>Certificamos que</p>
             <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
-              {alunoNome}
+              <span style={{ color: corBlue }}>{alunoNome}</span>
             </p>
           </div>
 
           {/* Frase de conclusão (trilha + carga + aprovação) */}
           <div className="absolute w-full text-center px-[15%]" style={{ top: '46%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(10px,1.45vw,16px)', color: '#3A4150', lineHeight: 1.5 }}>
-              concluiu com êxito a formação <b style={{ color: LBW.navy, textTransform: 'uppercase' }}>{nomeTrilha}</b>
-              {carga ? <>, com carga horária de <b style={{ color: LBW.navy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
+              concluiu com êxito a formação <b style={{ color: corNavy, textTransform: 'uppercase' }}>{nomeTrilha}</b>
+              {carga ? <>, com carga horária de <b style={{ color: corNavy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
             </p>
           </div>
 
@@ -204,12 +238,24 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             </p>
           </div>
 
-          {/* Credenciais do Israel (acima da assinatura manuscrita da imagem) */}
-          <div className="absolute w-full text-center" style={{ top: '69%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: LBW.navy }}>Israel Cavalcanti de Souza</p>
-            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: LBW.navy }}>CEO Learning by Working</p>
-            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>Consultor Sênior em Melhoria de Processos e Negócios</p>
-          </div>
+          {isIsrael ? (
+            <div className="absolute w-full text-center" style={{ top: '69%' }}>
+              <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: LBW.navy }}>{emissorNome}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: LBW.navy }}>{emissorCargo}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>{certificado?.textoRodape || 'Consultor Sênior em Melhoria de Processos e Negócios'}</p>
+            </div>
+          ) : (
+            <div className="absolute w-full text-center flex flex-col items-center" style={{ top: '68%' }}>
+              {certificado?.assinaturaUrl && (
+                <img src={certificado.assinaturaUrl} alt="Assinatura" style={{ height: 'clamp(24px,4vw,48px)', maxWidth: '24%', objectFit: 'contain', marginBottom: 2 }} />
+              )}
+              <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
+              {certificado?.textoRodape && (
+                <p className="m-0" style={{ fontSize: 'clamp(7px,1vw,10px)', fontWeight: 600, color: '#3A4150' }}>{certificado.textoRodape}</p>
+              )}
+            </div>
+          )}
 
           {/* QR + verificação: QR em cima, texto em 2 linhas logo abaixo */}
           <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '13%' }}>
