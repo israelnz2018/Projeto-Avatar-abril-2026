@@ -612,7 +612,7 @@ export default function ProjectToolsConfig() {
                       className="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg font-bold hover:bg-gray-100 transition-colors flex items-center gap-2 border border-gray-200"
                       title="Editar Tipo de Projeto"
                     >
-                      <Settings size={18} />
+                      <Edit3 size={18} />
                     </button>
                   </>
                 )}
