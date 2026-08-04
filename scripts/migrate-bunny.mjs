@@ -79,10 +79,17 @@ function directUrl(ytUrl) {
 }
 function download(ytUrl, out) {
   // Até 1080p, mesclado em mp4 (precisa de ffmpeg + um JS runtime, ex.: deno, no PATH).
-  const r = spawnSync('yt-dlp', [
+  // Anti-bloqueio do YouTube: usa o LOGIN do dono (cookies do navegador) + pausas entre pedidos.
+  const args = [
     '-f', 'bv*[height<=1080]+ba/b[height<=1080]/best',
-    '--merge-output-format', 'mp4', '--no-playlist', '-o', out, ytUrl,
-  ], { stdio: 'inherit' });
+    '--merge-output-format', 'mp4', '--no-playlist',
+    '--sleep-requests', '1.5', '--sleep-interval', '2', '--max-sleep-interval', '8',
+    '-o', out, ytUrl,
+  ];
+  // Ex.: YTDLP_COOKIES_BROWSER=edge  (chrome | edge | firefox | brave). O navegador
+  // precisa estar logado no YouTube (é o SEU canal). Chrome/Edge: feche o navegador antes.
+  if (process.env.YTDLP_COOKIES_BROWSER) args.unshift('--cookies-from-browser', process.env.YTDLP_COOKIES_BROWSER);
+  const r = spawnSync('yt-dlp', args, { stdio: 'inherit' });
   if (r.status !== 0) throw new Error('yt-dlp download falhou');
 }
 

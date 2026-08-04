@@ -401,12 +401,12 @@ function SortableVideoRow({
                   </div>
                 </div>
                 <div className="bg-black rounded-lg overflow-hidden h-[450px] flex items-center justify-center shadow-sm">
-                  {videoId ? (
+                  {item.bunnyVideoId && item.bunnyLibraryId ? (
                     <iframe
                       ref={iframeRef}
                       width="100%" height="100%"
-                      src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
-                      title="YouTube video player" frameBorder="0"
+                      src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=false&preload=true&captions=pt&t=${seekTime}`}
+                      title={item.title} frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen />
                   ) : <p className="text-white">Vídeo indisponível</p>}
@@ -517,14 +517,12 @@ export default function KnowledgeManagerView() {
   const { consultorId } = useConsultor();
 
   const [formData, setFormData] = useState({
-    sourceUrl: '',
     placements: [{ course: '', playlist: '', newPlaylistName: '' }] as Array<{ course: string; playlist: string; newPlaylistName: string }>,
     associatedTools: [] as string[],
     associatedAnalyses: [] as string[]
   });
 
   const emptyFormData = {
-    sourceUrl: '',
     placements: [{ course: '', playlist: '', newPlaylistName: '' }],
     associatedTools: [] as string[],
     associatedAnalyses: [] as string[]
@@ -545,8 +543,7 @@ export default function KnowledgeManagerView() {
     setFormData(prev => ({ ...prev, placements: prev.placements.filter((_, i) => i !== idx) }));
   };
   const [isSaving, setIsSaving] = useState(false);
-  // ===== Upload de vídeo pro Bunny (nova origem, além do link do YouTube) =====
-  const [origem, setOrigem] = useState<'upload' | 'youtube'>('upload');
+  // ===== Upload direto de vídeo (o provedor fica invisível para o consultor) =====
   const [upFile, setUpFile] = useState<File | null>(null);
   const [upTitle, setUpTitle] = useState('');
   const [upProgress, setUpProgress] = useState<number | null>(null);
@@ -566,7 +563,7 @@ export default function KnowledgeManagerView() {
         body: JSON.stringify({ title: nome }),
       });
       const cred = await r.json();
-      if (!r.ok) throw new Error(cred.error || 'erro ao criar vídeo no Bunny');
+      if (!r.ok) throw new Error('Não foi possível preparar o envio do vídeo.');
       const tus = await import('tus-js-client');
       await new Promise<void>((resolve, reject) => {
         const up = new tus.Upload(upFile as File, {
@@ -590,6 +587,24 @@ export default function KnowledgeManagerView() {
     } catch (e: any) {
       setUpErro(e?.message || String(e));
       setUpProgress(null);
+    }
+  };
+  const processUploadedVideoAutomatically = async (bunnyVideoId: string, title: string) => {
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const response = await fetch('/api/bunny/transcribe-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bunnyVideoId }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+      await fetchItems();
+      alert(`✅ Processamento automático concluído para “${title}”.\n\nTranscript, legenda em português e índice foram gerados.`);
+    } catch (error: any) {
+      console.error('[processUploadedVideoAutomatically]', error);
+      alert(`⚠️ O vídeo foi salvo, mas o processamento automático ainda não terminou.\n\n${error?.message || 'Erro desconhecido'}\n\nO botão de transcripts faltantes pode retomar sem cobrar novamente etapas já concluídas.`);
     }
   };
   const [isReprocessing, setIsReprocessing] = useState<string | null>(null);
@@ -692,15 +707,19 @@ export default function KnowledgeManagerView() {
     });
   }, [searchTerm, items]);
 
-  // Processa em lote todos os vídeos sem transcript:
-  // Baixa o transcript BRUTO e COMPLETO do YouTube e salva direto no Firestore.
-  // NÃO usa Gemini/IA — o conteúdo original é preservado integralmente.
+  // Processa uma única vez cada vídeo Bunny sem transcript. O servidor usa Groq
+  // Whisper, publica a legenda pt no player e devolve o texto completo com tempos.
   const handleBulkImportTranscripts = async () => {
-    const pending = items.filter(item => {
-      const hasTranscript = item.transcript && item.transcript.trim().length > 0;
-      const hasRaw = item.rawTranscript && item.rawTranscript.trim().length > 0;
-      return !hasTranscript && !hasRaw;
-    });
+    const grouped = new Map<string, { item: KnowledgeEntry; hasTranscript: boolean }>();
+    for (const item of items) {
+      const key = item.bunnyVideoId || item.sourceUrl;
+      if (!key) continue;
+      const hasTranscript = Boolean(item.rawTranscript?.trim() || item.transcript?.trim());
+      const current = grouped.get(key);
+      if (!current) grouped.set(key, { item, hasTranscript });
+      else current.hasTranscript ||= hasTranscript;
+    }
+    const pending = [...grouped.values()].filter(group => !group.hasTranscript).map(group => group.item);
 
     if (pending.length === 0) {
       alert('✅ Todos os vídeos já possuem transcript. Nada a fazer.');
@@ -711,9 +730,10 @@ export default function KnowledgeManagerView() {
       `Importar transcripts faltantes em lote?\n\n` +
       `Vídeos a processar: ${pending.length}\n\n` +
       `O que vai acontecer:\n` +
-      `• Baixa a legenda COMPLETA e ORIGINAL do YouTube\n` +
-      `• Salva integralmente no Firestore (sem resumo de IA)\n` +
-      `• Tempo: ~2 a 5 segundos por vídeo (rápido)\n\n` +
+      `• Transcreve o áudio do vídeo com Groq Whisper\n` +
+      `• Publica a legenda em português no player\n` +
+      `• Salva o transcript integral com timestamps\n` +
+      `• Processa apenas uma vez vídeos usados em vários cursos\n\n` +
       `Não feche essa aba durante o processo.\n\n` +
       `Continuar?`
     );
@@ -740,10 +760,13 @@ export default function KnowledgeManagerView() {
           throw new Error('Item sem id no Firestore');
         }
 
-        const res = await fetch('/api/youtube-transcript', {
+        if (!item.bunnyVideoId) throw new Error('Vídeo sem identificação Bunny');
+        const user = auth.currentUser;
+        const token = user ? await user.getIdToken() : '';
+        const res = await fetch('/api/bunny/transcribe-video', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoUrl: item.sourceUrl })
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ bunnyVideoId: item.bunnyVideoId })
         });
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({}));
@@ -751,10 +774,10 @@ export default function KnowledgeManagerView() {
         }
         const { transcript: rawTranscript } = await res.json();
         if (!rawTranscript || rawTranscript.trim().length === 0) {
-          throw new Error('Transcript vazio retornado pelo YouTube');
+          throw new Error('Transcript vazio retornado pela transcrição');
         }
 
-        await updateKnowledge(item.id, {
+        await syncSiblingsBySourceUrl(item.sourceUrl, {
           rawTranscript,
           transcript: rawTranscript,
           summary: []
@@ -935,16 +958,6 @@ export default function KnowledgeManagerView() {
     setLoading(false);
   };
 
-  const fetchYoutubeTitle = async (url: string) => {
-    try {
-      const res = await fetch(`https://noembed.com/embed?url=${url}`);
-      const data = await res.json();
-      return data.title || 'Vídeo do YouTube';
-    } catch (e) {
-      return 'Vídeo do YouTube';
-    }
-  };
-
   const toggleTool = (toolId: string) => {
     setFormData(prev => ({
       ...prev,
@@ -994,49 +1007,28 @@ export default function KnowledgeManagerView() {
     }
     setIsSaving(true);
     try {
-      if (origem === 'upload') {
-        if (!upBunny) { alert('Envie o vídeo pro Bunny primeiro (botão "Enviar vídeo").'); setIsSaving(false); return; }
-        const title = (upTitle || upFile?.name?.replace(/\.[^.]+$/, '') || 'Vídeo').trim();
-        // sourceUrl = "bunny:<guid>" → id único do vídeo. Assim o multi-placement e a
-        // sincronização por sourceUrl continuam funcionando (mesmo vídeo em vários cursos).
-        const src = `bunny:${upBunny.guid}`;
-        await Promise.all(resolved.map(p =>
-          saveKnowledge({
-            title, content: '', sourceUrl: src,
-            course: p.course, playlist: p.playlist,
-            rawTranscript: '', summary: [], transcript: '',
-            associatedTools: formData.associatedTools,
-            associatedAnalyses: formData.associatedAnalyses,
-            consultorId,
-            bunnyVideoId: upBunny.guid, bunnyLibraryId: upBunny.libraryId,
-          } as any)
-        ));
-      } else {
-        const title = await fetchYoutubeTitle(formData.sourceUrl);
-        // Se já existe um doc com a mesma sourceUrl, copia transcrição/índice pra novas placements
-        const { collection, query, where, getDocs } = await import('firebase/firestore');
-        const existingSnap = await getDocs(query(
-          collection(db, KNOWLEDGE_COLLECTION),
-          where('sourceUrl', '==', formData.sourceUrl)
-        ));
-        const existing = existingSnap.docs[0]?.data();
-        const sharedFields = existing
-          ? { rawTranscript: existing.rawTranscript || '', summary: existing.summary || [], transcript: existing.transcript || '' }
-          : { rawTranscript: '', summary: [], transcript: '' };
-        await Promise.all(resolved.map(p =>
-          saveKnowledge({
-            title, content: '', sourceUrl: formData.sourceUrl,
-            course: p.course, playlist: p.playlist,
-            ...sharedFields,
-            associatedTools: formData.associatedTools,
-            associatedAnalyses: formData.associatedAnalyses,
-            consultorId
-          })
-        ));
-      }
+      if (!upBunny) { alert('Envie o arquivo de vídeo primeiro.'); setIsSaving(false); return; }
+      const title = (upTitle || upFile?.name?.replace(/\.[^.]+$/, '') || 'Vídeo').trim();
+      // ID técnico único preserva multi-placement sem expor o provedor na interface.
+      const src = `bunny:${upBunny.guid}`;
+      await Promise.all(resolved.map(p =>
+        saveKnowledge({
+          title, content: '', sourceUrl: src,
+          course: p.course, playlist: p.playlist,
+          rawTranscript: '', summary: [], transcript: '',
+          associatedTools: formData.associatedTools,
+          associatedAnalyses: formData.associatedAnalyses,
+          consultorId,
+          bunnyVideoId: upBunny.guid, bunnyLibraryId: upBunny.libraryId,
+        } as any)
+      ));
+
+      // Inicia automaticamente as três etapas no servidor. Não bloqueia o fechamento
+      // do formulário; o servidor aguarda a codificação do Bunny e atualiza os placements.
+      void processUploadedVideoAutomatically(upBunny.guid, title);
 
       setFormData(emptyFormData);
-      setOrigem('upload'); setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
+      setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
       setIsAdding(false);
       setIsToolsDropdownOpen(false);
       setIsAnalysesDropdownOpen(false);
@@ -1365,7 +1357,7 @@ export default function KnowledgeManagerView() {
             onClick={handleBulkImportTranscripts}
             disabled={bulkProgress?.running}
             className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-purple-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Baixa o transcript COMPLETO do YouTube e salva direto, sem resumo de IA"
+            title="Transcreve vídeos novos, publica legenda em português e salva o transcript completo"
           >
             {bulkProgress?.running && bulkProgress.kind === 'transcript' ? (
               <>
@@ -1529,7 +1521,7 @@ export default function KnowledgeManagerView() {
         >
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-bold flex items-center gap-2">
-              <Youtube className="text-red-600" size={24} />
+              <Video className="text-blue-600" size={24} />
               Adicionar Novo Vídeo
             </h2>
             <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-gray-100 rounded-full border-none bg-transparent cursor-pointer">
@@ -1538,55 +1530,28 @@ export default function KnowledgeManagerView() {
           </div>
 
           <form onSubmit={handleSave} className="space-y-6">
-            <div>
-              {/* Origem do vídeo: upload de arquivo (Bunny) OU link do YouTube */}
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => setOrigem('upload')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${origem === 'upload' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
-                  Upload de arquivo
-                </button>
-                <button type="button" onClick={() => setOrigem('youtube')} className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${origem === 'youtube' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
-                  Link do YouTube
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-gray-500 uppercase">Arquivo de vídeo</label>
+              <input
+                type="text"
+                value={upTitle}
+                onChange={(e) => setUpTitle(e.target.value)}
+                placeholder="Título do vídeo (ou use o nome do arquivo)"
+                className="w-full px-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <input type="file" accept="video/*" onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpBunny(null); setUpProgress(null); setUpErro(''); }} className="text-sm" />
+                <button type="button" onClick={uploadParaBunny} disabled={!upFile || (upProgress !== null && upProgress < 100)} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                  {upProgress !== null && upProgress < 100 ? `Enviando ${upProgress}%` : (upBunny ? 'Enviado ✓' : 'Enviar vídeo')}
                 </button>
               </div>
-
-              {origem === 'upload' ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={upTitle}
-                    onChange={(e) => setUpTitle(e.target.value)}
-                    placeholder="Título do vídeo (ou usa o nome do arquivo)"
-                    className="w-full px-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
-                  />
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <input type="file" accept="video/*" onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpBunny(null); setUpProgress(null); setUpErro(''); }} className="text-sm" />
-                    <button type="button" onClick={uploadParaBunny} disabled={!upFile || (upProgress !== null && upProgress < 100)} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
-                      {upProgress !== null && upProgress < 100 ? `Enviando ${upProgress}%` : (upBunny ? 'Enviado ✓' : 'Enviar vídeo')}
-                    </button>
-                  </div>
-                  {upProgress !== null && (
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div className="bg-emerald-500 h-2 transition-all" style={{ width: `${upProgress}%` }} />
-                    </div>
-                  )}
-                  {upBunny && <div className="text-xs font-bold text-emerald-600">✅ Vídeo no Bunny — agora escolha os cursos e salve.</div>}
-                  {upErro && <div className="text-xs font-bold text-red-600">❌ {upErro}</div>}
+              {upProgress !== null && (
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div className="bg-emerald-500 h-2 transition-all" style={{ width: `${upProgress}%` }} />
                 </div>
-              ) : (
-                <>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL do YouTube</label>
-                  <div className="relative">
-                    <Youtube size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600" />
-                    <input
-                      type="url"
-                      value={formData.sourceUrl}
-                      onChange={(e) => setFormData({...formData, sourceUrl: e.target.value})}
-                      className="w-full pl-10 pr-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                  </div>
-                </>
               )}
+              {upBunny && <div className="text-xs font-bold text-emerald-600">✅ Vídeo enviado — agora escolha os cursos e salve.</div>}
+              {upErro && <div className="text-xs font-bold text-red-600">❌ {upErro}</div>}
             </div>
 
             <div className="space-y-3">

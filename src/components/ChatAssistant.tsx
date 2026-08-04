@@ -14,6 +14,7 @@ import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedV
 import { getInitiatives } from '../services/configService';
 import type { Initiative } from '../types';
 import { getGlobalKnowledge, getTrilhaKnowledge, getAllKnowledge } from '../knowledge/loader';
+import { KNOWLEDGE_COLLECTION } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
 
@@ -97,6 +98,33 @@ function normalizeConfig(data: any): AIConfig {
       })(),
     })),
   };
+}
+
+async function enrichConfigWithBunny(config: AIConfig): Promise<AIConfig> {
+  const ids = new Set<string>();
+  const collect = (nodes: TreeNode[]) => nodes.forEach(node => {
+    node.videos.forEach(video => ids.add(video.id));
+    collect(node.children || []);
+  });
+  config.categories.forEach(category => collect(category.items));
+  const values = await Promise.all([...ids].map(async id => {
+    const snap = await getDoc(doc(db, KNOWLEDGE_COLLECTION, id));
+    return snap.exists() ? [id, snap.data()] as const : null;
+  }));
+  const byId = new Map(values.filter(Boolean) as Array<readonly [string, any]>);
+  const enrich = (nodes: TreeNode[]): TreeNode[] => nodes.map(node => ({
+    ...node,
+    videos: node.videos.map(video => {
+      const entry = byId.get(video.id);
+      return {
+        ...video,
+        bunnyVideoId: entry?.bunnyVideoId || video.bunnyVideoId,
+        bunnyLibraryId: entry?.bunnyLibraryId || video.bunnyLibraryId,
+      };
+    }),
+    children: enrich(node.children || []),
+  }));
+  return { ...config, categories: config.categories.map(category => ({ ...category, items: enrich(category.items) })) };
 }
 
 function MentorOrb({ size = 56, showHalo = true, isSpeaking = false, online = true, crop = 'head' }: {
@@ -479,7 +507,7 @@ export default function ChatAssistant() {
       try {
         const ref = doc(db, AI_CONFIG_DOC.collection, AI_CONFIG_DOC.id);
         const snap = await getDoc(ref);
-        if (snap.exists()) setConfig(normalizeConfig(snap.data()));
+        if (snap.exists()) setConfig(await enrichConfigWithBunny(normalizeConfig(snap.data())));
       } catch (e) { console.error('[ChatAssistant]', e); }
       finally { setConfigLoaded(true); }
     };
@@ -1017,9 +1045,9 @@ export default function ChatAssistant() {
                       <div className="relative rounded-[20px] overflow-hidden bg-stone-900 border border-black/[0.08]"
                         style={{ boxShadow: `0 24px 60px -28px ${TYPE_PALETTE[currentType].glow}` }}>
                         <div className="relative" style={{ paddingBottom: '56.25%' }}>
-                          {getYoutubeId(activeVideo.sourceUrl) ? (
+                          {activeVideo.bunnyVideoId && activeVideo.bunnyLibraryId ? (
                             <iframe
-                              src={`https://www.youtube.com/embed/${getYoutubeId(activeVideo.sourceUrl)}?rel=0`}
+                              src={`https://iframe.mediadelivery.net/embed/${activeVideo.bunnyLibraryId}/${activeVideo.bunnyVideoId}?autoplay=false&preload=true&captions=pt`}
                               title={activeVideo.title}
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen className="absolute inset-0 w-full h-full" style={{ border: 'none' }}

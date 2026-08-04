@@ -49,7 +49,7 @@ import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
 
-export default function LearningView({ bunnyEnabled = false }: { bunnyEnabled?: boolean } = {}) {
+export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('Todos');
@@ -136,12 +136,9 @@ export default function LearningView({ bunnyEnabled = false }: { bunnyEnabled?: 
   // Watch tracker: quando o aluno está com vídeo aberto, conta segundos em PLAYING state.
   // Quando passa 70% (WATCH_THRESHOLD_PCT), marca como assistido + checa certificado da trilha.
   // Também persiste a posição atual a cada ~10s pra retomar do mesmo ponto na próxima abertura.
-  // Modo Bunny (só no tab de teste): vídeo migrado toca no Bunny e usa o tracker do Bunny;
-  // o restante (e SEMPRE a Educação real) continua no YouTube. Os handlers são os MESMOS
-  // (mesma marca de assistido, mesmo certificado) → experiência idêntica.
-  // Vídeo toca no Bunny se: (modo teste ligado) OU (é só-Bunny, sem YouTube de fallback — ex.: upload).
-  const selYtId = selectedVideo ? (selectedVideo.sourceUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)?.[1] || '') : '';
-  const selUsaBunny = !!selectedVideo?.bunnyVideoId && (bunnyEnabled || !selYtId);
+  // Todos os vídeos da plataforma usam Bunny. sourceUrl permanece apenas como
+  // identificador histórico/deduplicação e nunca decide qual player abrir.
+  const selUsaBunny = !!selectedVideo?.bunnyVideoId;
 
   const handleThresholdReached = async (pct: number) => {
     const uid = auth.currentUser?.uid;
@@ -734,13 +731,13 @@ export default function LearningView({ bunnyEnabled = false }: { bunnyEnabled?: 
                           className="relative flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg order-2"
                           onContextMenu={(e) => e.preventDefault()}
                         >
-                          {(item.bunnyVideoId && (bunnyEnabled || !videoId)) ? (
+                          {item.bunnyVideoId ? (
                             // Player do Bunny (mesmo container/design). Sem os overlays do YouTube.
                             <iframe
                               ref={iframeRef}
                               width="100%"
                               height="100%"
-                              src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true`}
+                              src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
                               title={item.title}
                               frameBorder="0"
                               allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"

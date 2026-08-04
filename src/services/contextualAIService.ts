@@ -49,6 +49,8 @@ export interface VideoSource {
   id: string;
   title: string;
   sourceUrl: string;
+  bunnyVideoId?: string;
+  bunnyLibraryId?: string;
 }
 
 export interface MentorResponse {
@@ -303,7 +305,10 @@ export async function askMentor(
       if (result.found && result.confidence >= 0.4) {
         const usedVideos = level1Videos
           .filter(v => result.usedVideoIds.includes(v.id!))
-          .map(v => ({ id: v.id!, title: v.title, sourceUrl: v.sourceUrl }));
+          .map(v => ({
+            id: v.id!, title: v.title, sourceUrl: v.sourceUrl,
+            bunnyVideoId: v.bunnyVideoId, bunnyLibraryId: v.bunnyLibraryId,
+          }));
 
         return {
           answer: result.answer,
@@ -328,7 +333,10 @@ export async function askMentor(
     if (result.found && result.confidence >= CONFIDENCE_THRESHOLD) {
       const usedVideos = videosToSearch
         .filter(v => result.usedVideoIds.includes(v.id!))
-        .map(v => ({ id: v.id!, title: v.title, sourceUrl: v.sourceUrl }));
+        .map(v => ({
+          id: v.id!, title: v.title, sourceUrl: v.sourceUrl,
+          bunnyVideoId: v.bunnyVideoId, bunnyLibraryId: v.bunnyLibraryId,
+        }));
 
       return {
         answer: result.answer,

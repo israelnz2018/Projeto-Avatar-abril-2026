@@ -1206,6 +1206,157 @@ async function startServer() {
     } catch (e: any) { return res.status(500).json({ error: e?.message || "Erro Bunny" }); }
   });
 
+  // POST /api/bunny/transcribe-video — transcreve um vídeo já enviado ao Bunny usando
+  // Groq Whisper (muito mais barato que Bunny Transcribe), publica a legenda pt no player
+  // e devolve o transcript com timestamps. A chave do Groq e a chave Bunny ficam no servidor.
+  app.post("/api/bunny/transcribe-video", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+
+    const consultorId = String(caller.consultorId || "israel");
+    const videoId = String(req.body?.bunnyVideoId || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(videoId)) return res.status(400).json({ error: "Vídeo Bunny inválido." });
+
+    try {
+      // Confirma que o GUID pertence à base deste consultor antes de usar suas credenciais.
+      const videoDocs = await adminFirestore().collection("knowledge_base")
+        .where("bunnyVideoId", "==", videoId).get();
+      if (videoDocs.empty) return res.status(404).json({ error: "Vídeo não encontrado na plataforma." });
+      const belongsToTenant = videoDocs.docs.some((doc) => {
+        const owner = String((doc.data() as any).consultorId || "israel");
+        return owner === consultorId;
+      });
+      if (!isAdmin && !belongsToTenant) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
+
+      const lib = await bunnyLibraryDoConsultor(consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca Bunny do consultor não configurada." });
+      const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${videoId}`;
+
+      const saved = videoDocs.docs.map(doc => doc.data() as any);
+      let rawTranscript = String(saved.find(value => value.rawTranscript?.trim())?.rawTranscript || "");
+      const savedSummary = saved.find(value => Array.isArray(value.summary) && value.summary.length)?.summary;
+      if (rawTranscript && savedSummary) {
+        return res.json({ transcript: rawTranscript, summary: savedSummary, reused: true, complete: true });
+      }
+
+      if (!rawTranscript) {
+        const groqKey = process.env.GROQ_API_KEY;
+        if (!groqKey) return res.status(503).json({ error: "GROQ_API_KEY não configurada no servidor." });
+
+        // O upload TUS termina antes da codificação. Aguarda até 10 minutos pelo MP4.
+        let mediaUrl = "";
+        for (let attempt = 0; attempt < 60 && !mediaUrl; attempt++) {
+          const playResponse = await fetch(`${base}/play`);
+          if (playResponse.ok) {
+            const play = await playResponse.json() as any;
+            mediaUrl = String(play.fallbackUrl || play.originalUrl || "");
+          }
+          if (!mediaUrl) await new Promise(resolve => setTimeout(resolve, 10_000));
+        }
+        if (!mediaUrl) throw new Error("Bunny não disponibilizou o arquivo MP4 dentro de 10 minutos.");
+
+        const form = new FormData();
+        form.append("url", mediaUrl);
+        form.append("model", "whisper-large-v3");
+        form.append("language", "pt");
+        form.append("response_format", "verbose_json");
+        form.append("timestamp_granularities[]", "segment");
+        form.append("temperature", "0");
+        form.append("prompt", "Aula técnica em português sobre Lean Six Sigma, DMAIC, Minitab, capabilidade, MSA, CEP e gestão de projetos de melhoria.");
+
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${groqKey}` },
+          body: form,
+        });
+        if (!groqResponse.ok) {
+          const detail = await groqResponse.text().catch(() => "");
+          throw new Error(`Groq HTTP ${groqResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
+        }
+        const transcription = await groqResponse.json() as any;
+        const segments = Array.isArray(transcription.segments)
+          ? transcription.segments.filter((segment: any) => String(segment.text || "").trim())
+          : [];
+        if (!segments.length) throw new Error("Groq não retornou segmentos com timestamps.");
+
+        const stamp = (seconds: number) => {
+          const ms = Math.max(0, Math.round(Number(seconds || 0) * 1000));
+          const h = Math.floor(ms / 3600000);
+          const m = Math.floor((ms % 3600000) / 60000);
+          const s = Math.floor((ms % 60000) / 1000);
+          const milli = ms % 1000;
+          return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(milli).padStart(3, "0")}`;
+        };
+        rawTranscript = segments.map((segment: any) => {
+          const total = Math.floor(Number(segment.start || 0));
+          const h = Math.floor(total / 3600);
+          const m = Math.floor((total % 3600) / 60);
+          const s = total % 60;
+          const time = h
+            ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+            : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+          return `[${time}] ${String(segment.text).trim()}`;
+        }).join("\n");
+        const vtt = `WEBVTT\n\n${segments.map((segment: any) =>
+          `${stamp(segment.start)} --> ${stamp(Math.max(Number(segment.end || 0), Number(segment.start || 0) + 0.5))}\n${String(segment.text).replace(/-->/g, "→").trim()}`
+        ).join("\n\n")}\n`;
+
+        const captionResponse = await fetch(`${base}/captions/pt`, {
+          method: "POST",
+          headers: { AccessKey: lib.apiKey, "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ srclang: "pt", label: "Português", captionsFile: Buffer.from(vtt, "utf8").toString("base64") }),
+        });
+        if (!captionResponse.ok) throw new Error(`Bunny caption HTTP ${captionResponse.status}`);
+
+        // Persiste o transcript antes do índice: uma repetição nunca cobra Groq novamente.
+        const transcriptBatch = adminFirestore().batch();
+        videoDocs.docs.forEach(doc => transcriptBatch.update(doc.ref, { rawTranscript }));
+        await transcriptBatch.commit();
+      }
+
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) throw new Error("Gemini API key não configurada para gerar o índice.");
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const prompt = `TRANSCRIÇÃO COMPLETA (com tempos):\n${rawTranscript}\n\nCrie um índice clicável e um resumo detalhado. Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"descrição"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
+      const generated = await ai.models.generateContent({
+        model: geminiModel,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { responseMimeType: "application/json", maxOutputTokens: 8192, temperature: 0.4 },
+      });
+      const cleaned = String(generated.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
+      if (!Array.isArray(parsed.summary) || !parsed.summary.length) throw new Error("Gemini retornou índice vazio.");
+      const indexBatch = adminFirestore().batch();
+      videoDocs.docs.forEach(doc => indexBatch.update(doc.ref, {
+        rawTranscript,
+        summary: parsed.summary,
+        transcript: String(parsed.transcript || ""),
+      }));
+      await indexBatch.commit();
+
+      return res.json({ transcript: rawTranscript, summary: parsed.summary, caption: "pt", complete: true });
+    } catch (error: any) {
+      console.error("[/api/bunny/transcribe-video] erro:", error);
+      return res.status(500).json({ error: error?.message || "Erro ao transcrever vídeo." });
+    }
+  });
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.

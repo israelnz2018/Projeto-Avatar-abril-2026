@@ -7,7 +7,13 @@ import { cn, youtubeThumb } from '@/src/lib/utils';
 import { KNOWLEDGE_COLLECTION } from '@/src/services/knowledgeService';
 
 export interface CustomField { id: string; label: string; content: string; }
-export interface LinkedVideo { id: string; title: string; sourceUrl: string; }
+export interface LinkedVideo {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  bunnyVideoId?: string;
+  bunnyLibraryId?: string;
+}
 export type LeafAction = 'home' | 'projects' | 'data' | 'none';
 
 export interface TreeNode {
@@ -168,7 +174,16 @@ function moveNode(items: TreeNode[], path: Path, direction: -1 | 1): TreeNode[] 
   return items.map(n => n.id !== head ? n : { ...n, children: moveNode(n.children || [], rest, direction) });
 }
 
-interface KnowledgeEntry { id: string; title: string; sourceUrl: string; course: string; playlist: string; playlistOrder?: number; }
+interface KnowledgeEntry {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  course: string;
+  playlist: string;
+  playlistOrder?: number;
+  bunnyVideoId?: string;
+  bunnyLibraryId?: string;
+}
 
 function InlineVideoList({ selected, onToggle }: {
   selected: LinkedVideo[];
@@ -243,7 +258,13 @@ function InlineVideoList({ selected, onToggle }: {
             const ytId = getYoutubeId(v.sourceUrl);
             const sel = isSelected(v.id);
             return (
-              <button key={v.id} onClick={() => onToggle({ id: v.id, title: v.title, sourceUrl: v.sourceUrl })}
+              <button key={v.id} onClick={() => onToggle({
+                id: v.id,
+                title: v.title,
+                sourceUrl: v.sourceUrl,
+                bunnyVideoId: v.bunnyVideoId,
+                bunnyLibraryId: v.bunnyLibraryId,
+              })}
                 className={cn('flex items-center gap-2 px-3 py-2 border-b border-[#f1f5f9] last:border-b-0 text-left cursor-pointer w-full',
                   sel ? 'bg-blue-50' : 'bg-white hover:bg-[#f8fafc]')}>
                 <div className={cn('w-4 h-4 rounded-[3px] border flex items-center justify-center flex-shrink-0',

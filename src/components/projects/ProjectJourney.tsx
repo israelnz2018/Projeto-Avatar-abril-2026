@@ -809,7 +809,7 @@ useEffect(() => {
                     key={`${selectedVideo.id}-${seekTime}-${seekNonce}`}
                     width="100%"
                     height="100%"
-                    src={`https://www.youtube-nocookie.com/embed/${getYoutubeId(selectedVideo.sourceUrl)}?start=${seekTime}&autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`}
+                    src={`https://iframe.mediadelivery.net/embed/${selectedVideo.bunnyLibraryId}/${selectedVideo.bunnyVideoId}?autoplay=true&preload=true&captions=pt&t=${seekTime}`}
                     title={selectedVideo.title}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

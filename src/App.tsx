@@ -557,7 +557,7 @@ export default function App() {
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
-              <Route path="/education-bunny" element={<LearningView bunnyEnabled />} />
+              <Route path="/education-bunny" element={<LearningView />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/minhas-fases" element={<ProjectToolsConfig />} />

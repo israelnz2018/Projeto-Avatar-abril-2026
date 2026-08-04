@@ -16,7 +16,7 @@ const ytId = (url: string) => {
   return m ? m[1] : '';
 };
 const bunnyEmbed = (libId: string, guid: string) =>
-  `https://iframe.mediadelivery.net/embed/${libId}/${guid}?autoplay=false&preload=true`;
+  `https://iframe.mediadelivery.net/embed/${libId}/${guid}?autoplay=false&preload=true&captions=pt`;
 const ytEmbed = (v: KnowledgeEntry) => `https://www.youtube.com/embed/${ytId(v.sourceUrl)}?rel=0`;
 
 export default function EducacaoBunny() {
