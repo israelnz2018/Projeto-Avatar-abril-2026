@@ -151,9 +151,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // AI Assistant — EXCEÇÃO ÚNICA: só o Israel como CONSULTOR (no israel.…) usa.
     // Não aparece no hub do admin nem pra outros consultores/coordenadores/alunos.
     ...(siteConsultor && isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
-    // Educação (Bunny) — aba de TESTE do Israel-consultor (no israel.…). Preview de como o
-    // cliente verá com o Bunny. Não afeta a Educação real. Some quando a migração for promovida.
-    ...(siteConsultor && isAdmin ? [{ name: 'Educação (Bunny)', path: '/education-bunny', icon: GraduationCap }] : []),
     // Comunidade ADM: admin + consultor (vale no hub e no site do consultor).
     ...(isAdmin || isConsultor ? [{ name: 'Comunidade ADM', path: '/comunidade-adm', icon: Shield }] : []),
     // Comunidades de consultor/coordenador — escondidas no hub do admin.
@@ -557,7 +554,6 @@ export default function App() {
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
-              <Route path="/education-bunny" element={<LearningView />} />
               <Route path="/marca" element={<MinhaMarca />} />
               <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
               <Route path="/minhas-fases" element={<ProjectToolsConfig />} />

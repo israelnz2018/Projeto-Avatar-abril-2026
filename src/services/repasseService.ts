@@ -8,7 +8,7 @@
  * videoProgressService.checkAndIssueCertificate.
  */
 import { db } from '../lib/firebase';
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 
 export interface RepasseParcela {
   vencimento: string | null;
@@ -37,8 +37,9 @@ export async function getRepasse(empresaId: string): Promise<Repasse | null> {
   return snap.exists() ? (snap.data() as Repasse) : null;
 }
 
-export async function getTodosRepasses(): Promise<Record<string, Repasse>> {
-  const snap = await getDocs(collection(db, COL));
+export async function getTodosRepasses(consultorId?: string): Promise<Record<string, Repasse>> {
+  const ref = collection(db, COL);
+  const snap = await getDocs(consultorId ? query(ref, where('consultorId', '==', consultorId)) : ref);
   const out: Record<string, Repasse> = {};
   snap.docs.forEach((d) => { out[d.id] = d.data() as Repasse; });
   return out;

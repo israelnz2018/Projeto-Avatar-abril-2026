@@ -60,6 +60,86 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(otherUserId)).data.consultorId == meuConsultorId();
     }
 
+    function pertenceAoMeuConsultor() {
+      return resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel');
+    }
+
+    function novoPertenceAoMeuConsultor() {
+      return request.resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in request.resource.data) && meuConsultorId() == 'israel');
+    }
+
+    function minhaEmpresaId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId;
+    }
+
+    function podeAcessarComunidade(d) {
+      return isAuthenticated() && (
+        (d.escopo == 'rede' && (isAdmin() || ehConsultor())) ||
+        (d.escopo == 'consultor' && d.consultorId == meuConsultorId()) ||
+        (d.escopo == 'time' && d.consultorId == meuConsultorId() && d.empresaId == minhaEmpresaId()) ||
+        (!('escopo' in d) && meuConsultorId() == 'israel')
+      );
+    }
+
+    function ownerPodeAtualizarPerfil() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'lastLogin',
+        'primeiroAcessoEm',
+        'senhaProvisoria',
+        'nome',
+        'siglaPpt',
+        'creditoIA'
+      ]) &&
+      request.resource.data.tipoUsuario == resource.data.tipoUsuario &&
+      request.resource.data.plano == resource.data.plano &&
+      request.resource.data.consultorId == resource.data.consultorId &&
+      request.resource.data.empresaId == resource.data.empresaId &&
+      request.resource.data.empresaNome == resource.data.empresaNome &&
+      request.resource.data.maxAlunos == resource.data.maxAlunos &&
+      request.resource.data.formacoes == resource.data.formacoes &&
+      request.resource.data.cursosAcesso == resource.data.cursosAcesso &&
+      creditoIAOwnerValido();
+    }
+
+    function creditoIAOwnerValido() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['creditoIA']) || (
+        request.resource.data.creditoIA.limite == resource.data.creditoIA.limite &&
+        request.resource.data.creditoIA.keys().hasOnly([
+          'limite',
+          'usado',
+          'resetEm',
+          'solicitouMais',
+          'solicitadoEm'
+        ]) &&
+        (
+          // Consumo normal: só pode aumentar o usado.
+          request.resource.data.creditoIA.usado >= resource.data.creditoIA.usado ||
+          // Reset mensal controlado pelo app: só zera, mantendo o limite.
+          request.resource.data.creditoIA.usado == 0
+        )
+      );
+    }
+
+    function apiUsageValido(docId) {
+      return request.resource.data.keys().hasOnly([
+        'date',
+        'geminiCalls',
+        'geminiPromptTokens',
+        'geminiCandidatesTokens',
+        'geminiTotalTokens',
+        'geminiFailures',
+        'anthropicCalls',
+        'anthropicInputTokens',
+        'anthropicOutputTokens',
+        'anthropicTotalTokens',
+        'anthropicFailures',
+        'lastUpdatedAt'
+      ]) &&
+      request.resource.data.date == docId;
+    }
+
     match /users/{userId} {
       allow read:   if isAuthenticated() && (
         isAdmin() ||
@@ -70,15 +150,26 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.auth.uid == userId;
       // Consultor pode atualizar os usuários do mundo dele (ex.: liberar cursos por aluno).
       allow update: if isAuthenticated() && (
-        isAdmin() || isOwner(userId) || (ehConsultor() && mesmoConsultorUser(userId))
+        isAdmin() ||
+        (isOwner(userId) && ownerPodeAtualizarPerfil()) ||
+        (ehConsultor() && !isOwner(userId) && mesmoConsultorUser(userId))
       );
       allow delete: if isAdmin();
     }
 
     match /invites/{inviteKey} {
-      allow read:   if isAuthenticated();
-      allow write:  if isAdmin();
-      allow delete: if isAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
+      allow read: if isAdmin() ||
+        (isAuthenticated() && resource.data.email == request.auth.token.email) ||
+        (ehConsultor() && resource.data.consultorId == meuConsultorId()) ||
+        (isCoordenador() && resource.data.empresaId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId);
+      allow create: if isAdmin() ||
+        (ehConsultor() && request.resource.data.consultorId == meuConsultorId()) ||
+        (isCoordenador() && request.resource.data.empresaId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId);
+      allow update: if isAdmin();
+      allow delete: if isAdmin() ||
+        (isAuthenticated() && resource.data.email == request.auth.token.email) ||
+        (ehConsultor() && resource.data.consultorId == meuConsultorId()) ||
+        (isCoordenador() && resource.data.empresaId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId);
     }
 
     // Consultores (tenants white-label) — marca/vitrine é PÚBLICA (sem dado sensível).
@@ -98,16 +189,27 @@ service cloud.firestore {
     // Leitura: autenticado (o aluno precisa checar a trava do certificado da empresa dele).
     // Escrita: admin OU consultor (o dono do mundo registra/quita o repasse).
     match /repasses/{empresaId} {
-      allow read:  if isAuthenticated();
-      allow write: if isAdmin() || ehConsultor();
+      allow read:  if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId == empresaId
+      );
+      allow write: if isAdmin() || (ehConsultor() && request.resource.data.consultorId == meuConsultorId());
     }
 
     // Provas de certificação — escopadas por consultor (doc id = `{consultorId}__{trilha}`).
-    // Leitura: qualquer autenticado (o aluno precisa carregar a prova pra fazer).
+    // Leitura direta (client SDK): só admin OU o consultor DONO daquela prova (o aluno
+    // carrega a prova pelo servidor, via /api/quizzes/list, sem gabarito — não lê este doc).
     // Escrita: admin OU consultor (cada consultor edita a prova do mundo dele).
     match /quizzes/{quizId} {
-      allow read:  if isAuthenticated();
-      allow write: if isAdmin() || ehConsultor();
+      allow read:  if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor());
+      allow create: if isAdmin() || (ehConsultor() && novoPertenceAoMeuConsultor());
+      allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
+    }
+
+    match /quiz_attempts/{attemptId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
     // Marca do TIME (PPT) — o coordenador escolhe usar o PPT do consultor ou o dele
@@ -142,26 +244,50 @@ service cloud.firestore {
     }
 
     match /initiatives/{initiativeId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+      );
+      allow create: if isAdmin() || (ehConsultor() && novoPertenceAoMeuConsultor());
+      allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
     }
 
     match /initiative_configs/{configId} {
-      allow read, write: if true;
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+      );
+      allow create: if isAdmin() || (ehConsultor() && novoPertenceAoMeuConsultor());
+      allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
     }
 
     match /courses/{courseId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+      );
       allow write: if isAdmin();
     }
 
     match /playlists/{playlistId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+      );
       allow write: if isAdmin();
     }
 
     match /knowledge_base/{itemId} {
-      // Leitura segue autenticada (o app já filtra o conteúdo por consultorId na query).
-      allow read: if isAuthenticated();
+      // Leitura isolada por tenant. Itens legados sem consultorId pertencem ao Israel.
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+      );
       // Escrita isolada por tenant: admin, OU consultor no conteúdo do PRÓPRIO consultorId.
       // (Antes era `if isAuthenticated()` — qualquer um escrevia; só o admin usava.)
       allow create: if isAuthenticated() && (
@@ -202,7 +328,8 @@ service cloud.firestore {
 
     match /api_usage/{docId} {
       allow read: if isAdmin();
-      allow write: if isAuthenticated();
+      allow create, update: if isAuthenticated() && apiUsageValido(docId);
+      allow delete: if isAdmin();
     }
 
     match /feedback/{feedbackId} {
@@ -213,22 +340,40 @@ service cloud.firestore {
 
     // ===== Comunidade LBW =====
     match /community/{postId} {
-      allow read:   if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.autor.uid == request.auth.uid;
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated() && (isAdmin() || resource.data.autor.uid == request.auth.uid);
+      allow read:   if isAdmin() || podeAcessarComunidade(resource.data);
+      allow create: if isAuthenticated() &&
+        request.resource.data.autor.uid == request.auth.uid &&
+        podeAcessarComunidade(request.resource.data);
+      allow update: if isAuthenticated() &&
+        (isAdmin() || resource.data.autor.uid == request.auth.uid) &&
+        podeAcessarComunidade(resource.data) &&
+        podeAcessarComunidade(request.resource.data);
+      allow delete: if isAuthenticated() &&
+        (isAdmin() || resource.data.autor.uid == request.auth.uid) &&
+        podeAcessarComunidade(resource.data);
 
       match /replies/{replyId} {
-        allow read:   if isAuthenticated();
-        allow create: if isAuthenticated() && request.resource.data.autor.uid == request.auth.uid;
-        allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.autor.uid == request.auth.uid);
+        allow read: if isAdmin() ||
+          podeAcessarComunidade(get(/databases/$(database)/documents/community/$(postId)).data);
+        allow create: if isAuthenticated() &&
+          request.resource.data.autor.uid == request.auth.uid &&
+          podeAcessarComunidade(get(/databases/$(database)/documents/community/$(postId)).data);
+        allow update, delete: if isAuthenticated() &&
+          (isAdmin() || resource.data.autor.uid == request.auth.uid) &&
+          podeAcessarComunidade(get(/databases/$(database)/documents/community/$(postId)).data);
       }
     }
 
     match /community_notifications/{notifId} {
       allow read:   if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated() &&
+        request.resource.data.keys().hasOnly(['toUid', 'postId', 'fromNome', 'trecho', 'lida', 'createdAt']) &&
+        request.resource.data.toUid != request.auth.uid &&
+        request.resource.data.lida == false &&
+        podeAcessarComunidade(get(/databases/$(database)/documents/community/$(request.resource.data.postId)).data);
+      allow update: if isAuthenticated() &&
+        (isAdmin() || resource.data.toUid == request.auth.uid) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lida']);
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.toUid == request.auth.uid);
     }
     // ===== Fim Comunidade LBW =====
@@ -240,6 +385,9 @@ service cloud.firestore {
     }
 
     // Progresso de vídeos assistidos — 1 doc por aluno (id = uid).
+    // certificadosEmitidos só é gravado pelo servidor (/api/certificados/emitir, Admin SDK,
+    // já coberto pelo override global de admin no topo do arquivo) — o dono pode gravar
+    // watchedUrls/lastUpdated livremente, mas NÃO pode criar/alterar certificado direto.
     match /userProgress/{userId} {
       allow read:   if isAuthenticated() && (
         isAdmin() ||
@@ -247,14 +395,23 @@ service cloud.firestore {
         (isCoordenador() && sameEmpresa(userId)) ||
         (ehConsultor() && mesmoConsultorUser(userId))
       );
-      allow create, update: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow create: if isAuthenticated() && (isAdmin() || (
+        isOwner(userId) &&
+        (!('certificadosEmitidos' in request.resource.data) || request.resource.data.certificadosEmitidos.size() == 0)
+      ));
+      allow update: if isAuthenticated() && (isAdmin() || (
+        isOwner(userId) && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['certificadosEmitidos']) ||
+          request.resource.data.certificadosEmitidos == resource.data.certificadosEmitidos
+        )
+      ));
       allow delete: if isAdmin();
     }
 
     // Snapshot público de certificados — leitura ABERTA (qualquer pessoa com o certId valida).
     match /certificadosPublicos/{certId} {
       allow read:  if true;
-      allow create, update: if isAuthenticated();
+      allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
   }

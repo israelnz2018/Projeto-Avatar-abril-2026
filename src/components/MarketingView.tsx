@@ -43,7 +43,7 @@ export default function MarketingView() {
   // Conceder acesso cortesia — lista de pessoas (nome + email) — item 3
   const [cortPessoas, setCortPessoas] = useState<{ nome: string; email: string }[]>([{ nome: '', email: '' }]);
   const [cortLoading, setCortLoading] = useState(false);
-  const [cortResults, setCortResults] = useState<{ email: string; status: string; emailEnviado: boolean; ok: boolean }[]>([]);
+  const [cortResults, setCortResults] = useState<{ email: string; status: string; emailEnviado: boolean; ok: boolean; senha?: string }[]>([]);
   const [cortErro, setCortErro] = useState('');
 
   // Blindar atuais (Fase 0 da Trilha 1 paga) — marca cadastrados como cortesia introdutória
@@ -143,7 +143,7 @@ export default function MarketingView() {
   };
 
   const criarContasConvidados = async () => {
-    if (!window.confirm('Criar contas de acesso COMPLETO (grátis até 31/12/2026) para todos os contatos do Reach?\n\nTodos recebem a MESMA senha temporária (LBW2026) e são obrigados a trocá-la no 1º acesso.')) return;
+    if (!window.confirm('Criar contas de acesso COMPLETO (grátis até 31/12/2026) para todos os contatos do Reach?\n\nCada pessoa receberá uma senha temporária única e será obrigada a trocá-la no 1º acesso.')) return;
     setCriando(true); setReativacao(null); setReativErro('');
     try {
       const r = await authedFetch('/api/reativacao/criar-contas', { method: 'POST' });
@@ -225,8 +225,7 @@ export default function MarketingView() {
           Dê <b>acesso completo grátis</b> (válido até 31 de dezembro de 2026) para <b>uma pessoa</b> —
           ideal para quem te procura pelo LinkedIn. Funciona tanto para quem <b>já tem cadastro</b> quanto
           para quem <b>nunca deu os dados</b>: o sistema cria no Firebase se não existir, ou atualiza se já
-          existir. A pessoa recebe o e-mail com a senha padrão <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-indigo-700">LBW2026</code>
-          {' '}e troca no primeiro acesso.
+          existir. A pessoa recebe o e-mail com uma senha provisória única e troca no primeiro acesso.
         </p>
         <div className="space-y-2">
           {cortPessoas.map((p, i) => (
@@ -264,7 +263,7 @@ export default function MarketingView() {
                         {r.status === 'atualizado'
                           ? <>já tinha cadastro — <b>acesso atualizado</b> para completo</>
                           : <>novo cadastro criado — <b>acesso completo</b></>}
-                        {' '}(até 31/12/2026, senha <b>LBW2026</b>). {r.emailEnviado ? 'E-mail enviado.' : '⚠️ E-mail não saiu — passe a senha LBW2026 pela pessoa.'}
+                        {' '}(até 31/12/2026, senha provisória única). {r.emailEnviado ? 'E-mail enviado.' : <>⚠️ E-mail não saiu — senha provisória: <b>{r.senha || 'não retornada'}</b>.</>}
                       </>
                     : <>{r.status}</>}
                 </span>
@@ -297,8 +296,7 @@ export default function MarketingView() {
         {reativacao && (
           <>
             <div className="mt-5 flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
-              <span className="text-sm text-indigo-900">Senha temporária de todos (use no e-mail de convite):</span>
-              <code className="bg-white px-3 py-1 rounded font-mono font-bold text-indigo-700 border border-indigo-200">LBW2026</code>
+              <span className="text-sm text-indigo-900">Cada convidado recebeu uma senha provisória única. Baixe o CSV para conferir/enviar manualmente se necessário.</span>
             </div>
             <div className="mt-5 grid grid-cols-4 gap-3">
               {[

@@ -25,7 +25,7 @@ import {
   Award,
   Link2,
 } from 'lucide-react';
-import { cn, youtubeThumb } from '@/src/lib/utils';
+import { cn } from '@/src/lib/utils';
 import UpgradeBanner from './UpgradeBanner';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
@@ -44,7 +44,6 @@ import {
   CERTIFICATE_THRESHOLD_PCT,
   type WatchedEntry,
 } from '../services/videoProgressService';
-import { useYouTubeWatchTracker } from '../hooks/useYouTubeWatchTracker';
 import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
@@ -165,13 +164,6 @@ export default function LearningView() {
     );
   };
 
-  useYouTubeWatchTracker({
-    iframeRef,
-    videoId: (!selUsaBunny && selectedVideo) ? (selectedVideo.sourceUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)?.[1] || null) : null,
-    threshold: WATCH_THRESHOLD_PCT,
-    onThresholdReached: handleThresholdReached,
-    onTick: handleTick,
-  });
   useBunnyWatchTracker({
     iframeRef,
     bunnyGuid: selUsaBunny ? (selectedVideo?.bunnyVideoId || null) : null,
@@ -198,14 +190,17 @@ export default function LearningView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVideo?.id]);
 
+  // Protocolo player.js do Bunny (mesmo usado em useBunnyWatchTracker) — TODOS os
+  // vídeos da plataforma tocam pelo Bunny, então o seek manual (clique no Sumário
+  // do Vídeo) precisa falar esse protocolo, não o postMessage antigo do YouTube.
   useEffect(() => {
     if (seekTime > 0 && iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'seekTo', args: [seekTime, true] }),
+        JSON.stringify({ context: 'player.js', method: 'setCurrentTime', value: seekTime }),
         '*'
       );
       iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+        JSON.stringify({ context: 'player.js', method: 'play' }),
         '*'
       );
     }
@@ -221,9 +216,10 @@ export default function LearningView() {
   const fetchItems = async () => {
     setLoading(true);
     const data = await getAllKnowledge(consultorAtual); // escopa o conteúdo pelo consultor do site
+    const somenteBunny = data.filter((item) => Boolean(item.bunnyVideoId && item.bunnyLibraryId));
     // Modelo unificado: TODOS os cursos aparecem; os não liberados ficam com CADEADO
     // (isCourseLocked), pra todos os consultores — igual à estratégia do Israel.
-    setItems(data);
+    setItems(somenteBunny);
     setLoading(false);
   };
 
@@ -306,12 +302,6 @@ export default function LearningView() {
                        item.content.toLowerCase().includes(searchTerm.toLowerCase());
     return categoryMatch && playlistMatch && searchMatch;
   });
-
-  const getYoutubeId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
 
   return (
     <div className="space-y-6">
@@ -566,7 +556,6 @@ export default function LearningView() {
           viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
         )}>
           {filteredItems.map((item, i) => {
-            const videoId = getYoutubeId(item.sourceUrl);
             const isSelected = selectedVideo?.id === item.id;
             const videoLocked = isCourseLocked(item.course);
             const isWatched = !!watchedUrls[item.sourceUrl];
@@ -596,15 +585,12 @@ export default function LearningView() {
                     "relative overflow-hidden",
                     viewMode === 'grid' ? "aspect-video" : "w-56 h-full"
                   )}>
-                    <img
-                      src={youtubeThumb(videoId, 'hqdefault')}
-                      alt={item.title}
-                      className={cn(
-                        "w-full h-full object-cover transition-transform duration-500",
-                        videoLocked ? "grayscale-[40%] brightness-75" : "group-hover:scale-105"
-                      )}
-                      referrerPolicy="no-referrer"
-                    />
+                    <div className={cn(
+                      "w-full h-full bg-slate-900 flex items-center justify-center transition-transform duration-500",
+                      videoLocked ? "grayscale-[40%] brightness-75" : "group-hover:scale-105"
+                    )}>
+                      <PlayCircle className="text-white/70" size={44} />
+                    </div>
                     {/* Badge de "Assistido" — canto superior esquerdo, sempre visível */}
                     {isWatched && !videoLocked && (
                       <div className="absolute top-2 left-2 z-10 bg-emerald-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg border-2 border-white"
@@ -658,11 +644,9 @@ export default function LearningView() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Link carrega o id do doc (abre o vídeo), o youtubeId (thumbnail)
-                              // e o título — pra a Comunidade montar a mini-telinha do vídeo.
-                              const yt = getYoutubeId(item.sourceUrl) || '';
+                              // Link carrega o id do doc (abre o vídeo) e o título
+                              // para a Comunidade montar a mini-telinha do vídeo.
                               const link = `${window.location.origin}/education?video=${item.id}` +
-                                (yt ? `&yt=${yt}` : '') +
                                 `&t=${encodeURIComponent(item.title || '')}`;
                               navigator.clipboard.writeText(link)
                                 .then(() => setCopiedVideoId(item.id!))
@@ -731,38 +715,16 @@ export default function LearningView() {
                           className="relative flex-1 aspect-video bg-black rounded-[4px] overflow-hidden shadow-lg order-2"
                           onContextMenu={(e) => e.preventDefault()}
                         >
-                          {item.bunnyVideoId ? (
-                            // Player do Bunny (mesmo container/design). Sem os overlays do YouTube.
-                            <iframe
-                              ref={iframeRef}
-                              width="100%"
-                              height="100%"
-                              src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
-                              title={item.title}
-                              frameBorder="0"
-                              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                            ></iframe>
-                          ) : (
-                            <>
-                              <iframe
-                                ref={iframeRef}
-                                width="100%"
-                                height="100%"
-                                src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1`}
-                                title={item.title}
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              ></iframe>
-                              {/* Overlay topo: bloqueia título clicável e botão compartilhar. */}
-                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
-                              {/* Overlay canto inferior ESQUERDO: bloqueia o botão de copiar link (🔗). */}
-                              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 140, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
-                              {/* Overlay canto inferior DIREITO: bloqueia o logo "YouTube" clicável.
-                                  (fullscreen segue disponível por duplo-clique no vídeo) */}
-                              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 320, height: 95, zIndex: 20, pointerEvents: 'auto' }} />
-                            </>
-                          )}
+                          <iframe
+                            ref={iframeRef}
+                            width="100%"
+                            height="100%"
+                            src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
+                            title={item.title}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
                         </div>
                       </div>
                     </motion.div>

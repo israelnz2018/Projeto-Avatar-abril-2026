@@ -6,9 +6,9 @@ import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
-import { YoutubeTranscript } from "youtube-transcript";
-import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore } from "./src/lib/firebaseAdmin";
+import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } from "./src/lib/firebaseAdmin";
 import { campanhaCortesiaHtml, CAMPANHA_ASSUNTO } from "./src/services/campanhaCortesiaEmail";
+import { DEFAULT_QUIZZES } from "./src/services/quizSeed";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +18,37 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  function gerarSenhaProvisoria(): string {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    const random = crypto.randomBytes(14);
+    return Array.from(random, (b) => alphabet[b % alphabet.length]).join("");
+  }
+
+  function slugCurto(valor: string): string {
+    return valor
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 32) || "time";
+  }
+
+  function gerarEmpresaId(consultorId: string, base: string): string {
+    return `emp_${slugCurto(consultorId)}_${slugCurto(base)}_${crypto.randomBytes(4).toString("hex")}`;
+  }
+
+  // Impede que dois coordenadores diferentes acabem com o mesmo empresaId (o que faria
+  // seus times se misturarem — alunos aparecendo/sendo contados nas duas equipes).
+  async function empresaIdJaUsadoPorOutroCoordenador(empresaId: string, excludeUid?: string): Promise<boolean> {
+    if (!empresaId) return false;
+    const snap = await adminFirestore().collection("users")
+      .where("empresaId", "==", empresaId)
+      .where("tipoUsuario", "==", "coordenador")
+      .get();
+    return snap.docs.some((d) => d.id !== excludeUid);
+  }
 
   // Firebase Admin SDK — usado pelos endpoints /api/admin/*
   initFirebaseAdmin();
@@ -279,6 +310,241 @@ async function startServer() {
     }
   }
 
+  async function requireUser(req: any, res: any, next: any) {
+    if (!isAdminReady()) {
+      return res.status(503).json({ error: "Firebase Admin não configurado no servidor." });
+    }
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    try {
+      const decoded = await adminAuth().verifyIdToken(idToken);
+      req.userUid = decoded.uid;
+      req.userEmail = (decoded.email || "").toLowerCase();
+      next();
+    } catch {
+      return res.status(401).json({ error: "Token inválido." });
+    }
+  }
+
+  function generateCertId(): string {
+    const year = new Date().getFullYear();
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let suffix = "";
+    for (let i = 0; i < 6; i++) suffix += chars[Math.floor(Math.random() * chars.length)];
+    return `LBW-${year}-${suffix}`;
+  }
+
+  function normalizeSourceUrl(video: any): string {
+    return String(video?.sourceUrl || video?.bunnyVideoId || video?.id || "");
+  }
+
+  async function issueCertificateForUser(uid: string, initiativeId: string): Promise<{ issued: boolean; certId?: string; already?: boolean }> {
+    const [userSnap, initiativeSnap, progressSnap, videosSnap] = await Promise.all([
+      adminFirestore().collection("users").doc(uid).get(),
+      adminFirestore().collection("initiatives").doc(initiativeId).get(),
+      adminFirestore().collection("userProgress").doc(uid).get(),
+      adminFirestore().collection("knowledge_base").get(),
+    ]);
+
+    if (!userSnap.exists) throw new Error("Usuário não encontrado.");
+    if (!initiativeSnap.exists) throw new Error("Curso/trilha não encontrado.");
+
+    const user = userSnap.data() as any;
+    const initiative = { id: initiativeSnap.id, ...(initiativeSnap.data() as any) };
+    const consultorId = String(initiative.consultorId || user.consultorId || "israel");
+    if (user.consultorId && String(user.consultorId) !== consultorId) {
+      throw new Error("Esta trilha não pertence ao consultor do usuário.");
+    }
+
+    const progress = progressSnap.exists
+      ? (progressSnap.data() as any)
+      : { uid, watchedUrls: {}, certificadosEmitidos: {}, lastUpdated: new Date().toISOString() };
+    if (progress.certificadosEmitidos?.[initiativeId]) {
+      return { issued: false, already: true, certId: progress.certificadosEmitidos[initiativeId].certId };
+    }
+
+    const videos = videosSnap.docs
+      .map((d) => ({ id: d.id, ...(d.data() as any) }))
+      .filter((v) => String(v.consultorId || "israel") === consultorId && String(v.course || "") === String(initiative.name || ""));
+    const uniqueUrls = Array.from(new Set(videos.map(normalizeSourceUrl).filter(Boolean)));
+    const watchedUrls = progress.watchedUrls || {};
+    const watched = uniqueUrls.filter((url) => watchedUrls[url]);
+    const pct = uniqueUrls.length === 0 ? 0 : watched.length / uniqueUrls.length;
+    if (uniqueUrls.length === 0 || pct < 0.70) return { issued: false };
+
+    if (user.empresaId) {
+      const repasseSnap = await adminFirestore().collection("repasses").doc(String(user.empresaId)).get();
+      if (repasseSnap.exists && (repasseSnap.data() as any).certificadoLiberado !== true) {
+        return { issued: false };
+      }
+    }
+
+    const certId = generateCertId();
+    const issuedAt = new Date().toISOString();
+    const alunoNome = String(user.nome || user.displayName || user.email?.split("@")[0] || "Aluno LBW");
+    const consultorSnap = await adminFirestore().collection("consultores").doc(consultorId).get();
+    const templateVersion = Number((consultorSnap.data() as any)?.certificado?.versao || 0) || undefined;
+    const certificado = {
+      issuedAt,
+      pctAtIssue: pct,
+      initiativeNameAtIssue: String(initiative.name || ""),
+      certId,
+      alunoNomeAtIssue: alunoNome,
+      consultorId,
+      ...(templateVersion ? { templateVersion } : {}),
+    };
+    const updated = {
+      ...progress,
+      uid,
+      certificadosEmitidos: {
+        ...(progress.certificadosEmitidos || {}),
+        [initiativeId]: certificado,
+      },
+      lastUpdated: issuedAt,
+    };
+    await Promise.all([
+      adminFirestore().collection("userProgress").doc(uid).set(updated, { merge: false }),
+      adminFirestore().collection("certificadosPublicos").doc(certId).set({
+        certId,
+        alunoNome,
+        initiativeName: String(initiative.name || ""),
+        issuedAt,
+        consultorId,
+        uid,
+        initiativeId,
+      }),
+    ]);
+    return { issued: true, certId };
+  }
+
+  app.post("/api/certificados/emitir", requireUser, async (req: any, res) => {
+    try {
+      const initiativeId = String(req.body?.initiativeId || "").trim();
+      if (!initiativeId) return res.status(400).json({ error: "initiativeId obrigatório." });
+      const result = await issueCertificateForUser(req.userUid, initiativeId);
+      return res.json({ ok: true, ...result });
+    } catch (err: any) {
+      console.error("[POST /api/certificados/emitir] erro:", err);
+      return res.status(400).json({ error: err?.message || "Erro ao emitir certificado." });
+    }
+  });
+
+  function scopedQuizId(consultorId: string, trilha: number): string {
+    return `${consultorId}__${trilha}`;
+  }
+
+  async function loadQuizForServer(trilha: number, consultorId: string): Promise<any | null> {
+    const scoped = await adminFirestore().collection("quizzes").doc(scopedQuizId(consultorId, trilha)).get();
+    if (scoped.exists) return { ...scoped.data(), trilha, consultorId };
+    if (consultorId === "israel") {
+      const legacy = await adminFirestore().collection("quizzes").doc(String(trilha)).get();
+      if (legacy.exists) return { ...legacy.data(), trilha, consultorId };
+    }
+    const seed = (DEFAULT_QUIZZES as any)[trilha];
+    return seed ? { ...seed, consultorId } : null;
+  }
+
+  function publicQuizPayload(quiz: any) {
+    return {
+      trilha: Number(quiz.trilha) || 0,
+      titulo: String(quiz.titulo || `Trilha ${quiz.trilha || ""}`),
+      passPct: typeof quiz.passPct === "number" ? quiz.passPct : 0.7,
+      watchGatePct: typeof quiz.watchGatePct === "number" ? quiz.watchGatePct : 0.7,
+      consultorId: String(quiz.consultorId || "israel"),
+      updatedAt: quiz.updatedAt || null,
+      questions: Array.isArray(quiz.questions)
+        ? quiz.questions.map((q: any) => ({
+            id: String(q.id || ""),
+            text: String(q.text || ""),
+            options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : [],
+          }))
+        : [],
+    };
+  }
+
+  app.get("/api/quizzes/list", requireUser, async (req: any, res) => {
+    try {
+      const userSnap = await adminFirestore().collection("users").doc(req.userUid).get();
+      const user = userSnap.exists ? (userSnap.data() as any) : {};
+      const requested = String(req.query?.consultorId || user.consultorId || "israel");
+      const consultorId = user.consultorId && user.tipoUsuario !== "admin" ? String(user.consultorId) : requested;
+      const quizzes = [];
+      for (let trilha = 1; trilha <= 8; trilha++) {
+        const quiz = await loadQuizForServer(trilha, consultorId);
+        if (quiz) quizzes.push(publicQuizPayload(quiz));
+      }
+      return res.json({ ok: true, quizzes });
+    } catch (err: any) {
+      console.error("[GET /api/quizzes/list] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao carregar provas." });
+    }
+  });
+
+  app.post("/api/quizzes/grade", requireUser, async (req: any, res) => {
+    try {
+      const trilha = Number(req.body?.trilha) || 0;
+      if (trilha < 1 || trilha > 8) return res.status(400).json({ error: "Trilha inválida." });
+      const userSnap = await adminFirestore().collection("users").doc(req.userUid).get();
+      const user = userSnap.exists ? (userSnap.data() as any) : {};
+      const consultorId = String(user.consultorId || req.body?.consultorId || "israel");
+      const quiz = await loadQuizForServer(trilha, consultorId);
+      if (!quiz) return res.status(404).json({ error: "Prova não encontrada." });
+
+      const tentativaJanelaMs = 24 * 60 * 60 * 1000;
+      const maxTentativasJanela = 3;
+      const desde = Date.now() - tentativaJanelaMs;
+      const tentativasSnap = await adminFirestore()
+        .collection("quiz_attempts")
+        .where("uid", "==", req.userUid)
+        .get();
+      const tentativasRecentes = tentativasSnap.docs
+        .map((d) => d.data() as any)
+        .filter((a) =>
+          Number(a.trilha) === trilha &&
+          String(a.consultorId || "israel") === consultorId &&
+          Date.parse(String(a.createdAt || "")) >= desde
+        );
+      if (tentativasRecentes.length >= maxTentativasJanela) {
+        return res.status(429).json({
+          error: "Limite de tentativas atingido. Tente novamente em 24 horas.",
+          attemptsUsed: tentativasRecentes.length,
+          maxAttempts: maxTentativasJanela,
+        });
+      }
+
+      const answers = req.body?.answers && typeof req.body.answers === "object" ? req.body.answers : {};
+      const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+      let correct = 0;
+      const perQuestion = questions.map((q: any) => {
+        const chosenText = String(answers[String(q.id)] ?? "");
+        const correctText = String((q.options || [])[Number(q.correctIndex)] ?? "");
+        const ok = !!chosenText && chosenText === correctText;
+        if (ok) correct++;
+        return { id: String(q.id || ""), correct: ok, chosenText };
+      });
+      const total = questions.length;
+      const pct = total === 0 ? 0 : correct / total;
+      const passPct = typeof quiz.passPct === "number" ? quiz.passPct : 0.7;
+      const passed = pct >= passPct;
+      await adminFirestore().collection("quiz_attempts").add({
+        uid: req.userUid,
+        email: req.userEmail || user.email || "",
+        consultorId,
+        trilha,
+        total,
+        correct,
+        pct,
+        passed,
+        createdAt: new Date().toISOString(),
+      });
+      return res.json({ ok: true, total, correct, pct, passed, perQuestion });
+    } catch (err: any) {
+      console.error("[POST /api/quizzes/grade] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao corrigir prova." });
+    }
+  });
+
   // GET /api/admin/users/list — lista TODOS os usuários (Auth + Firestore merged)
   // Resolve a "lacuna": usuários que existem no Firebase Auth mas não têm doc Firestore
   // aparecem aqui marcados como `_hasDoc: false` — admin pode regularizar com 1 clique.
@@ -484,6 +750,9 @@ async function startServer() {
     const formacoesFinal = planoFinal === "gratuito"
       ? ["projetos-melhoria-introdutoria"]
       : ["projetos-melhoria-completo"];
+    if (tipo === "coordenador" && empresaId && await empresaIdJaUsadoPorOutroCoordenador(empresaId)) {
+      return res.status(409).json({ error: `empresaId "${empresaId}" já pertence a outro coordenador. Escolha outro identificador.` });
+    }
     try {
       const userRecord = await adminAuth().createUser({
         email: email.toLowerCase().trim(),
@@ -560,6 +829,13 @@ async function startServer() {
         firestoreUpdate.formacoes = firestoreUpdate.plano === "gratuito"
           ? ["projetos-melhoria-introdutoria"]
           : ["projetos-melhoria-completo"];
+      }
+      if (firestoreUpdate.empresaId !== undefined) {
+        const atualSnap = await adminFirestore().collection("users").doc(uid).get();
+        const tipoAtual = firestoreUpdate.tipoUsuario ?? (atualSnap.exists ? (atualSnap.data() as any).tipoUsuario : undefined);
+        if (tipoAtual === "coordenador" && await empresaIdJaUsadoPorOutroCoordenador(firestoreUpdate.empresaId, uid)) {
+          return res.status(409).json({ error: `empresaId "${firestoreUpdate.empresaId}" já pertence a outro coordenador. Escolha outro identificador.` });
+        }
       }
       if (Object.keys(firestoreUpdate).length > 0) {
         await adminFirestore().collection("users").doc(uid).set(firestoreUpdate, { merge: true });
@@ -1057,11 +1333,10 @@ async function startServer() {
       // 2) cria/atualiza cada conta como completo + validade.
       // Senha temporária ÚNICA (igual pra todos) -> permite um e-mail de convite em massa idêntico.
       // senhaProvisoria:true força a troca obrigatória no 1º login (App.tsx + DefinirSenha.tsx).
-      const SENHA_CONVITE = "LBW2026";
       const credenciais: { email: string; senha: string; status: string }[] = [];
       let criados = 0, atualizados = 0, falhas = 0;
       for (const email of unicos) {
-        const senha = SENHA_CONVITE;
+        const senha = gerarSenhaProvisoria();
         try {
           let uid: string, novo = false;
           try { uid = (await adminAuth().getUserByEmail(email)).uid; await adminAuth().updateUser(uid, { password: senha }); }
@@ -1104,15 +1379,15 @@ async function startServer() {
     if (!email || email.indexOf("@") < 0) {
       return res.status(400).json({ error: "E-mail inválido." });
     }
-    const SENHA_CONVITE = "LBW2026";
+    const senhaProvisoria = gerarSenhaProvisoria();
     try {
       // 1) Cria no Auth se não existir; se existir, redefine a senha padrão.
       let uid: string, novo = false;
       try {
         uid = (await adminAuth().getUserByEmail(email)).uid;
-        await adminAuth().updateUser(uid, { password: SENHA_CONVITE, ...(nome ? { displayName: nome } : {}) });
+        await adminAuth().updateUser(uid, { password: senhaProvisoria, ...(nome ? { displayName: nome } : {}) });
       } catch {
-        uid = (await adminAuth().createUser({ email, password: SENHA_CONVITE, ...(nome ? { displayName: nome } : {}) })).uid;
+        uid = (await adminAuth().createUser({ email, password: senhaProvisoria, ...(nome ? { displayName: nome } : {}) })).uid;
         novo = true;
       }
       // 2) Cria/atualiza o doc Firestore: completo + validade até 31/12 + senha provisória.
@@ -1135,13 +1410,13 @@ async function startServer() {
       // "Seu acesso gratuito à plataforma LBW — meu presente para você 🎁".
       let emailEnviado = false;
       try {
-        const r = await resendSend({ to: email, subject: CAMPANHA_ASSUNTO, html: campanhaCortesiaHtml(email) });
+        const r = await resendSend({ to: email, subject: CAMPANHA_ASSUNTO, html: campanhaCortesiaHtml(email, senhaProvisoria) });
         emailEnviado = r.ok;
       } catch (e) {
         console.error("[reativacao/criar-um] falha no envio Resend:", e);
       }
       console.log(`[reativacao/criar-um] ${novo ? "CRIADO" : "ATUALIZADO"} ${email} email=${emailEnviado}`);
-      return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, senha: SENHA_CONVITE, emailEnviado, acessoAte: REATIVACAO_ATE });
+      return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, senha: senhaProvisoria, emailEnviado, acessoAte: REATIVACAO_ATE });
     } catch (err: any) {
       console.error("[POST /api/reativacao/criar-um] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao conceder acesso." });
@@ -1171,6 +1446,28 @@ async function startServer() {
       return { libraryId: String(process.env.BUNNY_LIBRARY_ID), apiKey: String(process.env.BUNNY_STREAM_API_KEY) };
     }
     return null;
+  }
+
+  // Hostname do CDN (Pull Zone) da library — precisa da chave de CONTA (Bunny Account API),
+  // diferente da chave de STREAM (por library). Usado só pra montar a URL da thumbnail.
+  // Sem BUNNY_ACCOUNT_API_KEY configurada, thumbnail fica desabilitada (não quebra o resto).
+  const bunnyLibraryHostnameCache = new Map<string, string>();
+  async function getBunnyLibraryHostname(libraryId: string): Promise<string | null> {
+    const accountKey = process.env.BUNNY_ACCOUNT_API_KEY;
+    if (!accountKey) return null;
+    if (bunnyLibraryHostnameCache.has(libraryId)) return bunnyLibraryHostnameCache.get(libraryId)!;
+    try {
+      const r = await fetch(`https://api.bunny.net/videolibrary/${libraryId}`, {
+        headers: { AccessKey: accountKey, Accept: "application/json" },
+      });
+      if (!r.ok) return null;
+      const body = await r.json() as any;
+      const hostname = String(body?.Hostnames?.[0]?.Value || body?.PullZoneHostname || "") || null;
+      if (hostname) bunnyLibraryHostnameCache.set(libraryId, hostname);
+      return hostname;
+    } catch {
+      return null;
+    }
   }
 
   // POST /api/bunny/create-video — cria o vídeo na library DO CONSULTOR e devolve a
@@ -1207,8 +1504,8 @@ async function startServer() {
   });
 
   // POST /api/bunny/transcribe-video — transcreve um vídeo já enviado ao Bunny usando
-  // Groq Whisper (muito mais barato que Bunny Transcribe), publica a legenda pt no player
-  // e devolve o transcript com timestamps. A chave do Groq e a chave Bunny ficam no servidor.
+  // DeepInfra Whisper (muito mais barato que Bunny Transcribe), publica a legenda pt no player
+  // e devolve o transcript com timestamps. A chave da DeepInfra e a chave Bunny ficam no servidor.
   app.post("/api/bunny/transcribe-video", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 
@@ -1230,9 +1527,10 @@ async function startServer() {
     const videoId = String(req.body?.bunnyVideoId || "").trim();
     if (!/^[0-9a-f-]{36}$/i.test(videoId)) return res.status(400).json({ error: "Vídeo Bunny inválido." });
 
+    let videoDocs: admin.firestore.QuerySnapshot | null = null;
     try {
       // Confirma que o GUID pertence à base deste consultor antes de usar suas credenciais.
-      const videoDocs = await adminFirestore().collection("knowledge_base")
+      videoDocs = await adminFirestore().collection("knowledge_base")
         .where("bunnyVideoId", "==", videoId).get();
       if (videoDocs.empty) return res.status(404).json({ error: "Vídeo não encontrado na plataforma." });
       const belongsToTenant = videoDocs.docs.some((doc) => {
@@ -1248,13 +1546,29 @@ async function startServer() {
       const saved = videoDocs.docs.map(doc => doc.data() as any);
       let rawTranscript = String(saved.find(value => value.rawTranscript?.trim())?.rawTranscript || "");
       const savedSummary = saved.find(value => Array.isArray(value.summary) && value.summary.length)?.summary;
+
+      // Thumbnail é independente do transcript — busca 1x e propaga pra todos os placements.
+      if (!saved.some(value => value.bunnyThumbnailUrl)) {
+        const hostname = await getBunnyLibraryHostname(lib.libraryId);
+        if (hostname) {
+          const bunnyThumbnailUrl = `https://${hostname}/${videoId}/thumbnail.jpg`;
+          const thumbBatch = adminFirestore().batch();
+          videoDocs.docs.forEach(doc => thumbBatch.update(doc.ref, { bunnyThumbnailUrl }));
+          await thumbBatch.commit();
+        }
+      }
+
       if (rawTranscript && savedSummary) {
+        // Sucesso (ou já processado antes) — limpa qualquer erro anterior persistido.
+        const clearBatch = adminFirestore().batch();
+        videoDocs.docs.forEach(doc => clearBatch.update(doc.ref, { transcricaoErro: admin.firestore.FieldValue.delete() }));
+        await clearBatch.commit().catch(() => {});
         return res.json({ transcript: rawTranscript, summary: savedSummary, reused: true, complete: true });
       }
 
       if (!rawTranscript) {
-        const groqKey = process.env.GROQ_API_KEY;
-        if (!groqKey) return res.status(503).json({ error: "GROQ_API_KEY não configurada no servidor." });
+        const deepinfraKey = process.env.DEEPINFRA_API_KEY;
+        if (!deepinfraKey) return res.status(503).json({ error: "DEEPINFRA_API_KEY não configurada no servidor." });
 
         // O upload TUS termina antes da codificação. Aguarda até 10 minutos pelo MP4.
         let mediaUrl = "";
@@ -1268,25 +1582,30 @@ async function startServer() {
         }
         if (!mediaUrl) throw new Error("Bunny não disponibilizou o arquivo MP4 dentro de 10 minutos.");
 
+        // DeepInfra (diferente do Groq) não aceita "url" — precisa do arquivo em si no form.
+        const mediaResponse = await fetch(mediaUrl);
+        if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do Bunny: HTTP ${mediaResponse.status}`);
+        const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
+
         const form = new FormData();
-        form.append("url", mediaUrl);
-        form.append("model", "whisper-large-v3");
+        form.append("file", new Blob([mediaBuffer]), "video.mp4");
+        form.append("model", "openai/whisper-large-v3-turbo");
         form.append("language", "pt");
         form.append("response_format", "verbose_json");
         form.append("timestamp_granularities[]", "segment");
         form.append("temperature", "0");
         form.append("prompt", "Aula técnica em português sobre Lean Six Sigma, DMAIC, Minitab, capabilidade, MSA, CEP e gestão de projetos de melhoria.");
 
-        const groqResponse = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+        const deepinfraResponse = await fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
           method: "POST",
-          headers: { Authorization: `Bearer ${groqKey}` },
+          headers: { Authorization: `Bearer ${deepinfraKey}` },
           body: form,
         });
-        if (!groqResponse.ok) {
-          const detail = await groqResponse.text().catch(() => "");
-          throw new Error(`Groq HTTP ${groqResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
+        if (!deepinfraResponse.ok) {
+          const detail = await deepinfraResponse.text().catch(() => "");
+          throw new Error(`DeepInfra HTTP ${deepinfraResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
         }
-        const transcription = await groqResponse.json() as any;
+        const transcription = await deepinfraResponse.json() as any;
         const segments = Array.isArray(transcription.segments)
           ? transcription.segments.filter((segment: any) => String(segment.text || "").trim())
           : [];
@@ -1350,10 +1669,27 @@ async function startServer() {
       }));
       await indexBatch.commit();
 
+      const clearBatch = adminFirestore().batch();
+      videoDocs.docs.forEach(doc => clearBatch.update(doc.ref, { transcricaoErro: admin.firestore.FieldValue.delete() }));
+      await clearBatch.commit().catch(() => {});
+
       return res.json({ transcript: rawTranscript, summary: parsed.summary, caption: "pt", complete: true });
     } catch (error: any) {
       console.error("[/api/bunny/transcribe-video] erro:", error);
-      return res.status(500).json({ error: error?.message || "Erro ao transcrever vídeo." });
+      const errorMessage = String(error?.message || "Erro ao transcrever vídeo.").slice(0, 500);
+      if (videoDocs && !videoDocs.empty) {
+        const failureBatch = adminFirestore().batch();
+        videoDocs.docs.forEach(doc => failureBatch.update(doc.ref, {
+          transcricaoErro: {
+            mensagem: errorMessage,
+            ocorridoEm: new Date().toISOString(),
+          },
+        }));
+        await failureBatch.commit().catch((persistError) => {
+          console.error("[/api/bunny/transcribe-video] falha ao persistir status:", persistError);
+        });
+      }
+      return res.status(500).json({ error: errorMessage });
     }
   });
 
@@ -1367,7 +1703,7 @@ async function startServer() {
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     if (!consultorId) return res.status(400).json({ error: "consultorId obrigatório." });
     const site = `https://${consultorId}.educacaopelotrabalho.com`;
-    const SENHA_CONVITE = "LBW2026";
+    const SENHA_CONVITE = gerarSenhaProvisoria();
     try {
       // 1) Se já existe (aluno pago/grátis), NÃO reseta a senha — ele mantém a que já
       //    usa; só promovemos o papel. Se é conta nova, cria com a senha padrão.
@@ -1472,8 +1808,8 @@ async function startServer() {
     const maxAlunos = Number(req.body?.maxAlunos) > 0 ? Number(req.body.maxAlunos) : 5;
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
-    const empresaId = "emp_" + email.replace(/[^a-z0-9]/gi, "_");
-    const SENHA_CONVITE = "LBW2026";
+    const empresaId = gerarEmpresaId(consultorId, empresaNome || email);
+    const SENHA_CONVITE = gerarSenhaProvisoria();
 
     // Enforcement do cap total de alunos do consultor (se o admin definiu capAlunos).
     // O consultor não pode distribuir aos coordenadores mais vagas do que a base permite.
@@ -1505,12 +1841,25 @@ async function startServer() {
       const ref = adminFirestore().collection("users").doc(uid);
       const snap = await ref.get();
       const base = snap.exists ? (snap.data() as any) : {};
+      let empresaIdFinal = base.empresaId ? String(base.empresaId) : empresaId;
+      if (base.empresaId) {
+        const donoEmpresaSnap = await adminFirestore()
+          .collection("users")
+          .where("empresaId", "==", String(base.empresaId))
+          .where("tipoUsuario", "==", "coordenador")
+          .limit(1)
+          .get();
+        const donoEmpresa = donoEmpresaSnap.empty ? null : (donoEmpresaSnap.docs[0].data() as any);
+        if (donoEmpresa && String(donoEmpresa.consultorId || "israel") !== consultorId) {
+          empresaIdFinal = empresaId;
+        }
+      }
       await ref.set({
         uid, email,
         nome: nome || base.nome || "",
         tipoUsuario: base.tipoUsuario === "admin" ? "admin" : "coordenador",
         consultorId,
-        empresaId: base.empresaId || empresaId,
+        empresaId: empresaIdFinal,
         empresaNome: base.empresaNome || empresaNome,
         maxAlunos,
         valorPago, // valor pago pela empresa (repasse)
@@ -1572,8 +1921,10 @@ async function startServer() {
     const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
     const ADMIN_EMAILS = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
     const callerEhAdmin = ADMIN_EMAILS.includes((caller.email || "").toLowerCase());
-    if (caller.tipoUsuario !== "consultor" && !callerEhAdmin) {
-      return res.status(403).json({ error: "Só consultor ou admin pode adicionar aluno." });
+    const callerEhCoordenador = caller.tipoUsuario === "coordenador";
+    const callerEhConsultor = caller.tipoUsuario === "consultor";
+    if (!callerEhConsultor && !callerEhCoordenador && !callerEhAdmin) {
+      return res.status(403).json({ error: "Só consultor, coordenador ou admin pode adicionar aluno." });
     }
     const consultorId = String(caller.consultorId || "israel");
 
@@ -1582,7 +1933,50 @@ async function startServer() {
     const cursosAcesso = Array.isArray(req.body?.cursosAcesso) ? req.body.cursosAcesso : [];
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
-    const SENHA_CONVITE = "LBW2026";
+    const SENHA_CONVITE = gerarSenhaProvisoria();
+    let empresaId: string | null = null;
+    let empresaNome: string | null = null;
+
+    if (callerEhCoordenador) {
+      empresaId = caller.empresaId ? String(caller.empresaId) : null;
+      empresaNome = caller.empresaNome ? String(caller.empresaNome) : null;
+      if (!empresaId) return res.status(400).json({ error: "Seu usuário de coordenador ainda não tem empresaId." });
+    } else if (req.body?.empresaId) {
+      const requestedEmpresaId = String(req.body.empresaId);
+      const coordSnap = await adminFirestore()
+        .collection("users")
+        .where("consultorId", "==", consultorId)
+        .where("empresaId", "==", requestedEmpresaId)
+        .where("tipoUsuario", "==", "coordenador")
+        .limit(1)
+        .get();
+      if (coordSnap.empty) return res.status(400).json({ error: "Empresa/time não pertence a este consultor." });
+      const coord = coordSnap.docs[0].data() as any;
+      empresaId = requestedEmpresaId;
+      empresaNome = coord.empresaNome || null;
+    }
+
+    if (empresaId) {
+      const [usersSnap, invitesSnap] = await Promise.all([
+        adminFirestore().collection("users").where("empresaId", "==", empresaId).where("tipoUsuario", "==", "aluno").get(),
+        adminFirestore().collection("invites").where("empresaId", "==", empresaId).get(),
+      ]);
+      const coordSnap = await adminFirestore()
+        .collection("users")
+        .where("consultorId", "==", consultorId)
+        .where("empresaId", "==", empresaId)
+        .where("tipoUsuario", "==", "coordenador")
+        .limit(1)
+        .get();
+      const coord = coordSnap.empty ? caller : (coordSnap.docs[0].data() as any);
+      const maxAlunos = Number(coord.maxAlunos) || 0;
+      const currentStudent = await adminAuth().getUserByEmail(email).then((u) => u.uid).catch(() => null);
+      const jaContaNoTime = currentStudent ? usersSnap.docs.some((d) => d.id === currentStudent) : false;
+      const usados = usersSnap.size + invitesSnap.size;
+      if (maxAlunos > 0 && !jaContaNoTime && usados >= maxAlunos) {
+        return res.status(400).json({ error: `Limite de vagas atingido (${usados}/${maxAlunos}).` });
+      }
+    }
     try {
       let uid: string, novo = false;
       try {
@@ -1600,8 +1994,10 @@ async function startServer() {
         nome: nome || base.nome || "",
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId,
+        ...(empresaId ? { empresaId } : {}),
+        ...(empresaNome ? { empresaNome } : {}),
         plano: "completo", // no mundo do consultor não há paywall; o acesso a conteúdo é por curso
-        cursosAcesso, // [{ curso, vencimento }]
+        cursosAcesso: cursosAcesso.length > 0 ? cursosAcesso : (Array.isArray(base.cursosAcesso) ? base.cursosAcesso : []), // [{ curso, vencimento }]
         valorPago,
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
@@ -3093,9 +3489,7 @@ async function startServer() {
         // sempre informar a mesma senha, sem depender de achar o e-mail original).
         // PAGO (completo OU Trilha 1 comprada): senha aleatória (mais seguro para quem
         // comprou). Todos trocam no 1º acesso.
-        const senhaProvisoria = (planoSolicitado === "completo" || isCompraTrilha1)
-          ? Math.random().toString(36).slice(-10)
-          : "LBW2026";
+        const senhaProvisoria = gerarSenhaProvisoria();
         const novo = await adminAuth().createUser({
           email,
           password: senhaProvisoria,
@@ -3180,60 +3574,6 @@ async function startServer() {
     } catch (err: any) {
       console.error("[acesso/liberar] ERRO:", err?.message || err);
       return res.status(500).json({ error: err?.message || "Falha ao liberar acesso." });
-    }
-  });
-
-  // YouTube Transcript Endpoint
-  // Busca o transcript bruto (com timestamps) diretamente do YouTube.
-  // Body: { videoUrl: string, lang?: string }  → Response: { transcript: string }
-  app.post("/api/youtube-transcript", async (req, res) => {
-    const { videoUrl, lang } = req.body as { videoUrl?: string; lang?: string };
-    if (!videoUrl) {
-      return res.status(400).json({ error: "videoUrl é obrigatório" });
-    }
-    try {
-      // Tenta primeiro no idioma solicitado (default pt), depois cai para pt-BR, en e default.
-      const candidates = [lang, "pt", "pt-BR", "en", undefined].filter(
-        (v, i, arr) => arr.indexOf(v) === i
-      );
-      let segments: { text: string; offset: number; duration: number }[] | null = null;
-      let lastError: unknown = null;
-      for (const candidate of candidates) {
-        try {
-          const opts = candidate ? { lang: candidate } : undefined;
-          segments = (await YoutubeTranscript.fetchTranscript(videoUrl, opts)) as any;
-          if (segments && segments.length > 0) break;
-        } catch (err) {
-          lastError = err;
-        }
-      }
-      if (!segments || segments.length === 0) {
-        const msg = lastError instanceof Error ? lastError.message : "Sem legendas disponíveis";
-        return res.status(404).json({ error: `Nenhuma legenda encontrada: ${msg}` });
-      }
-
-      // A lib retorna offset/duration em ms (formato srv3) ou em segundos (formato classic).
-      // Detecta a unidade pela duração mediana dos segmentos: frases típicas duram 1-10s,
-      // então se a mediana de "duration" for > 60, está em ms.
-      const sortedDurations = segments.map(s => s.duration).sort((a, b) => a - b);
-      const medianDuration = sortedDurations[Math.floor(sortedDurations.length / 2)];
-      const inMs = medianDuration > 60;
-
-      const formatTs = (offset: number) => {
-        const totalSeconds = Math.floor(inMs ? offset / 1000 : offset);
-        const m = Math.floor(totalSeconds / 60);
-        const s = totalSeconds % 60;
-        return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-      };
-
-      const transcript = segments
-        .map((seg) => `[${formatTs(seg.offset)}] ${seg.text}`)
-        .join("\n");
-
-      res.json({ transcript, segments: segments.length });
-    } catch (err: any) {
-      console.error("[/api/youtube-transcript] erro:", err);
-      res.status(500).json({ error: err?.message || "Erro ao buscar transcript" });
     }
   });
 

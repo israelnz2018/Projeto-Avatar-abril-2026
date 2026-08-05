@@ -5,12 +5,13 @@
  * do certificado. O certificado dos alunos da empresa só sai com "Certificado liberado".
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import { Building2, Upload, FileText, Plus, Trash2, Lock, Unlock } from 'lucide-react';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { getTodosRepasses, salvarRepasse, REPASSE_PCT, type Repasse, type RepasseParcela } from '../services/repasseService';
+import { resolveConsultorId } from '../services/consultorService';
 
 interface Empresa {
   empresaId: string;
@@ -25,6 +26,7 @@ const emUmMes = () => new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
 
 export default function RepassesView() {
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
+  const consultorIdAtual = resolveConsultorId();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [repasses, setRepasses] = useState<Record<string, Repasse>>({});
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,9 @@ export default function RepassesView() {
   const carregar = async () => {
     setLoading(true);
     try {
-      const [usersSnap, reps] = await Promise.all([getDocs(collection(db, 'users')), getTodosRepasses()]);
+      const usersRef = collection(db, 'users');
+      const usersQuery = isAdmin ? usersRef : query(usersRef, where('consultorId', '==', consultorIdAtual));
+      const [usersSnap, reps] = await Promise.all([getDocs(usersQuery), getTodosRepasses(isAdmin ? undefined : consultorIdAtual)]);
       const users = usersSnap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
       const coords = users.filter((u) => u.tipoUsuario === 'coordenador' && u.empresaId);
       const lista: Empresa[] = coords.map((c) => ({
@@ -126,7 +130,7 @@ export default function RepassesView() {
                           <div className="text-[11px] font-bold text-gray-500 mb-1">Seus {Math.round(REPASSE_PCT * 100)}%</div>
                           <div className="px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 font-black text-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(dezPct)}</div>
                         </div>
-                        <NfUpload empresaId={e.empresaId} url={r.notaFiscalUrl} onUrl={(url) => patch(e.empresaId, { notaFiscalUrl: url })} />
+                        <NfUpload repasse={{ ...r, empresaId: e.empresaId, consultorId: e.consultorId, empresaNome: e.empresaNome }} onUrl={(url) => patch(e.empresaId, { notaFiscalUrl: url })} />
                       </div>
 
                       {/* Parcelas (espelha o cronograma do consultor) */}
@@ -152,14 +156,15 @@ export default function RepassesView() {
 
 /* ---------- sub-componentes ---------- */
 
-function NfUpload({ empresaId, url, onUrl }: { empresaId: string; url: string; onUrl: (u: string) => void }) {
+function NfUpload({ repasse, onUrl }: { repasse: Repasse; onUrl: (u: string) => void }) {
   const ref = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   async function enviar(file?: File) {
     if (!file) return;
     setEnviando(true);
     try {
-      const sref = storageRef(storage, `repasses/${empresaId}/nf-${file.name.replace(/[^\w.\-]/g, '_')}`);
+      await salvarRepasse(repasse);
+      const sref = storageRef(storage, `repasses/${repasse.empresaId}/nf-${file.name.replace(/[^\w.\-]/g, '_')}`);
       await uploadBytes(sref, file, { contentType: file.type || 'application/pdf' });
       onUrl(await getDownloadURL(sref));
     } catch { /* ignore */ }
@@ -170,9 +175,9 @@ function NfUpload({ empresaId, url, onUrl }: { empresaId: string; url: string; o
       <div className="text-[11px] font-bold text-gray-500 mb-1">Nota fiscal (lastro)</div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => ref.current?.click()} disabled={enviando} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40">
-          <Upload size={14} /> {enviando ? 'Enviando…' : url ? 'Trocar' : 'Anexar'}
+          <Upload size={14} /> {enviando ? 'Enviando…' : repasse.notaFiscalUrl ? 'Trocar' : 'Anexar'}
         </button>
-        {url && <a href={url} target="_blank" rel="noreferrer" className="text-blue-600" title="Ver NF"><FileText size={16} /></a>}
+        {repasse.notaFiscalUrl && <a href={repasse.notaFiscalUrl} target="_blank" rel="noreferrer" className="text-blue-600" title="Ver NF"><FileText size={16} /></a>}
       </div>
       <input ref={ref} type="file" accept="application/pdf,image/*" className="hidden" onChange={(ev) => { enviar(ev.target.files?.[0]); ev.target.value = ''; }} />
     </div>

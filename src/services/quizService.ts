@@ -8,18 +8,16 @@
  *   - Pré-requisito de acesso à prova: % de vídeos assistidos da trilha (usa videoProgressService).
  *
  * Persistência:
- *   Firestore `quizzes/{trilhaNum}` = QuizConfig. Se não existir no Firestore,
- *   o app usa o SEED embutido (DEFAULT_QUIZZES). O admin edita e salva no Firestore,
- *   que passa a ter prioridade. Assim funciona "out of the box" e é editável.
+ *   Firestore `quizzes/{trilhaNum}` = QuizConfig. O aluno carrega a versão pública
+ *   pelo servidor, sem gabarito. O seed/gabarito padrão fica apenas no servidor.
  *
  * Regras de conteúdo (montadas no seed):
  *   - Trilhas 1..7: 15 questões cada, SEM repetir questões entre elas.
  *   - Trilha 8: 25 questões amostradas das trilhas 2..7 (idênticas às originais).
  */
 
-import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
-import { DEFAULT_QUIZZES } from './quizSeed';
+import { auth, db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export const QUIZZES_COLLECTION = 'quizzes';
 
@@ -35,7 +33,7 @@ export interface QuizQuestion {
   /** Exatamente 4 alternativas. */
   options: string[];
   /** Índice (0..3) da alternativa correta. */
-  correctIndex: number;
+  correctIndex?: number;
 }
 
 export interface QuizConfig {
@@ -64,13 +62,12 @@ const scopedId = (consultorId: string, trilha: number) => `${consultorId}__${tri
  * o Israel não perde as provas que já criou.
  */
 export async function getQuiz(trilha: number, consultorId: string = 'israel'): Promise<QuizConfig> {
-  const seed = DEFAULT_QUIZZES[trilha];
   const build = (data: Partial<QuizConfig>): QuizConfig => ({
     trilha,
-    titulo: data.titulo || seed?.titulo || `Trilha ${trilha}`,
+    titulo: data.titulo || `Trilha ${trilha}`,
     passPct: typeof data.passPct === 'number' ? data.passPct : DEFAULT_PASS_PCT,
     watchGatePct: typeof data.watchGatePct === 'number' ? data.watchGatePct : DEFAULT_WATCH_GATE_PCT,
-    questions: Array.isArray(data.questions) && data.questions.length > 0 ? data.questions : (seed?.questions || []),
+    questions: Array.isArray(data.questions) ? data.questions : [],
     consultorId,
     updatedAt: data.updatedAt,
   });
@@ -83,19 +80,25 @@ export async function getQuiz(trilha: number, consultorId: string = 'israel'): P
       if (legacy.exists()) return build(legacy.data() as Partial<QuizConfig>);
     }
   } catch (e) {
-    console.error('[quizService] getQuiz erro, usando seed:', e);
+    console.error('[quizService] getQuiz erro:', e);
   }
-  return seed
-    ? { ...seed, consultorId }
-    : { trilha, titulo: `Trilha ${trilha}`, passPct: DEFAULT_PASS_PCT, watchGatePct: DEFAULT_WATCH_GATE_PCT, questions: [], consultorId };
+  return { trilha, titulo: `Trilha ${trilha}`, passPct: DEFAULT_PASS_PCT, watchGatePct: DEFAULT_WATCH_GATE_PCT, questions: [], consultorId };
 }
 
 /** Lê todas as 8 provas do consultor (aluno vê a lista de blocos). */
 export async function getAllQuizzes(consultorId: string = 'israel'): Promise<QuizConfig[]> {
+  const token = await auth.currentUser?.getIdToken().catch(() => null);
+  if (token) {
+    const r = await fetch(`/api/quizzes/list?consultorId=${encodeURIComponent(consultorId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await r.json().catch(() => ({} as any));
+    if (r.ok && Array.isArray(body?.quizzes)) return body.quizzes as QuizConfig[];
+  }
   const out: QuizConfig[] = [];
   const results = await Promise.all(
     [1, 2, 3, 4, 5, 6, 7, 8].map(async (t) => {
-      try { return await getQuiz(t, consultorId); } catch { return DEFAULT_QUIZZES[t]; }
+      try { return await getQuiz(t, consultorId); } catch { return null; }
     })
   );
   for (const q of results) if (q) out.push(q);
@@ -108,30 +111,8 @@ export async function saveQuiz(config: QuizConfig, consultorId: string = 'israel
   await setDoc(doc(db, QUIZZES_COLLECTION, scopedId(consultorId, config.trilha)), payload, { merge: false });
 }
 
-/** Corrige uma tentativa: recebe respostas do aluno (índice por questionId) e devolve nota. */
-export interface QuizResult {
-  total: number;
-  correct: number;
-  pct: number;
-  passed: boolean;
-  /** Por questão: se acertou. */
-  perQuestion: { id: string; correct: boolean; chosen: number; correctIndex: number }[];
-}
-
-export function gradeQuiz(config: QuizConfig, answers: Record<string, number>): QuizResult {
-  const perQuestion = config.questions.map((q) => {
-    const chosen = answers[q.id];
-    const correct = chosen === q.correctIndex;
-    return { id: q.id, correct, chosen: chosen ?? -1, correctIndex: q.correctIndex };
-  });
-  const correct = perQuestion.filter((p) => p.correct).length;
-  const total = config.questions.length;
-  const pct = total === 0 ? 0 : correct / total;
-  return { total, correct, pct, passed: pct >= (config.passPct ?? DEFAULT_PASS_PCT), perQuestion };
-}
-
-/** Embaralha alternativas mantendo o rastreio da correta (Fisher-Yates determinístico por seed simples). */
-export function shuffleOptions(q: QuizQuestion, seed: number): { options: string[]; correctIndex: number } {
+/** Embaralha alternativas sem expor gabarito no cliente (Fisher-Yates determinístico por seed simples). */
+export function shuffleOptions(q: QuizQuestion, seed: number): { options: string[] } {
   const idx = q.options.map((_, i) => i);
   // shuffle determinístico por seed (não usa Math.random pra ser estável na sessão)
   let s = seed + q.id.length;
@@ -141,6 +122,5 @@ export function shuffleOptions(q: QuizQuestion, seed: number): { options: string
     [idx[i], idx[j]] = [idx[j], idx[i]];
   }
   const options = idx.map((i) => q.options[i]);
-  const correctIndex = idx.indexOf(q.correctIndex);
-  return { options, correctIndex };
+  return { options };
 }

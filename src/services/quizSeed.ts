@@ -12,9 +12,12 @@
 
 import type { QuizConfig, QuizQuestion } from './quizService';
 
-const q = (id: string, text: string, options: [string, string, string, string], correctIndex: number): QuizQuestion => ({
-  id, text, options, correctIndex,
-});
+const q = (id: string, text: string, options: [string, string, string, string], correctIndex: number): QuizQuestion => {
+  const targetIndex = Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0) % options.length;
+  const shift = (targetIndex - correctIndex + options.length) % options.length;
+  const rotated = options.map((_, index) => options[(index - shift + options.length) % options.length]) as typeof options;
+  return { id, text, options: rotated, correctIndex: targetIndex };
+};
 
 // ===================================================================================
 // TRILHA 1 — Sobreviva em uma Nova Área e se Destaque no Trabalho (cert. sem "Kit 90 Dias")

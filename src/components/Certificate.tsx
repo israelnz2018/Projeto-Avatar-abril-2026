@@ -103,6 +103,8 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
   const fundo = isIsrael ? MODELO_BG : (usaFundoProprio ? certificado!.fundoUrl! : MODELO_BG);
   const corNavy = isIsrael ? LBW.navy : (branding?.cores?.navy || LBW.navy);
   const corBlue = isIsrael ? LBW.blue : (branding?.cores?.blue || LBW.blue);
+  const corInk = isIsrael ? LBW.ink : (branding?.cores?.ink || LBW.ink);
+  const corMuted = isIsrael ? '#5B6472' : (branding?.cores?.muted || '#5B6472');
   const instituicao = certificado?.instituicao || (isIsrael ? 'Educação pelo Trabalho' : (branding?.nome || consultor.nome));
   const emissorNome = certificado?.emissorNome || (isIsrael ? 'Israel Cavalcanti de Souza' : consultor.nome);
   const emissorCargo = certificado?.emissorCargo || (isIsrael ? 'CEO Learning by Working' : 'Responsável pela formação');
@@ -171,7 +173,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             {copied ? <Check size={14} className="text-emerald-600" /> : <Link2 size={14} />}
             {copied ? 'Link copiado' : 'Copiar link de verificação'}
           </button>
-          <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-2 rounded-lg text-white text-xs font-bold transition-colors" style={{ background: LBW.navy }}>
+          <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-2 rounded-lg text-white text-xs font-bold transition-colors" style={{ background: corNavy }}>
             <Printer size={14} /> Imprimir / PDF
           </button>
         </div>
@@ -203,21 +205,21 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
           {/* Logomarca LBW (topo centro) */}
           <div className="absolute w-full flex flex-col items-center" style={{ top: '11%' }}>
             <img src={isIsrael ? '/favicon.png' : (branding?.logoUrl || '/favicon.png')} alt={instituicao} style={{ height: 'clamp(20px,3vw,34px)', maxWidth: '24%', objectFit: 'contain' }} />
-            <span style={{ fontSize: 'clamp(7px,1vw,11px)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase', color: '#5B6472', marginTop: 4 }}>
+            <span style={{ fontSize: 'clamp(7px,1vw,11px)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase', color: corMuted, marginTop: 4 }}>
               {instituicao}
             </span>
           </div>
 
           {/* Eyebrow */}
           <div className="absolute w-full text-center" style={{ top: '19.5%' }}>
-            <span style={{ fontSize: 'clamp(11px,1.7vw,18px)', letterSpacing: '0.3em', fontWeight: 800, color: '#5B6472' }}>
+            <span style={{ fontSize: 'clamp(11px,1.7vw,18px)', letterSpacing: '0.3em', fontWeight: 800, color: corMuted }}>
               CERTIFICADO DE CONCLUSÃO
             </span>
           </div>
 
           {/* Certificamos que + nome do aluno */}
           <div className="absolute w-full text-center px-[14%]" style={{ top: '27%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: '#5B6472' }}>Certificamos que</p>
+            <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: corMuted }}>Certificamos que</p>
             <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
               <span style={{ color: corBlue }}>{alunoNome}</span>
             </p>
@@ -225,7 +227,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
 
           {/* Frase de conclusão (trilha + carga + aprovação) */}
           <div className="absolute w-full text-center px-[15%]" style={{ top: '46%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(10px,1.45vw,16px)', color: '#3A4150', lineHeight: 1.5 }}>
+            <p className="m-0" style={{ fontSize: 'clamp(10px,1.45vw,16px)', color: corInk, lineHeight: 1.5 }}>
               concluiu com êxito a formação <b style={{ color: corNavy, textTransform: 'uppercase' }}>{nomeTrilha}</b>
               {carga ? <>, com carga horária de <b style={{ color: corNavy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
             </p>
@@ -233,16 +235,16 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
 
           {/* Data */}
           <div className="absolute w-full text-center" style={{ top: '62%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', color: '#5B6472' }}>
+            <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', color: corMuted }}>
               {formatDataPorExtenso(issuedAt)}
             </p>
           </div>
 
           {isIsrael ? (
             <div className="absolute w-full text-center" style={{ top: '69%' }}>
-              <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: LBW.navy }}>{emissorNome}</p>
-              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: LBW.navy }}>{emissorCargo}</p>
-              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: '#3A4150' }}>{certificado?.textoRodape || 'Consultor Sênior em Melhoria de Processos e Negócios'}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
+              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: corInk }}>{certificado?.textoRodape || 'Consultor Sênior em Melhoria de Processos e Negócios'}</p>
             </div>
           ) : (
             <div className="absolute w-full text-center flex flex-col items-center" style={{ top: '68%' }}>
@@ -252,7 +254,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
               <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
               <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
               {certificado?.textoRodape && (
-                <p className="m-0" style={{ fontSize: 'clamp(7px,1vw,10px)', fontWeight: 600, color: '#3A4150' }}>{certificado.textoRodape}</p>
+                <p className="m-0" style={{ fontSize: 'clamp(7px,1vw,10px)', fontWeight: 600, color: corInk }}>{certificado.textoRodape}</p>
               )}
             </div>
           )}
@@ -262,7 +264,7 @@ export default function Certificate({ alunoNome, initiativeName, issuedAt, certI
             <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
             </div>
-            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: '#5B6472', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: corMuted, whiteSpace: 'nowrap', lineHeight: 1.4 }}>
               {verifyUrl.replace(/^https?:\/\//, '')}<br />Nº {certId}
             </p>
           </div>

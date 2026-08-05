@@ -19,7 +19,7 @@
  *   }
  */
 
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc, getDocs, collection, serverTimestamp } from 'firebase/firestore';
 import type { Initiative } from '../types';
 import type { KnowledgeEntry } from './knowledgeService';
@@ -275,20 +275,6 @@ export function calculateAllTrilhasProgress(
 // ===================================================================================
 
 /**
- * Gera um certId único e legível no formato LBW-YYYY-XXXXXX.
- * 6 chars alfanuméricos com 36^6 ≈ 2.2 bilhões de combinações — colisão é desprezível na escala do app.
- */
-function generateCertId(): string {
-  const year = new Date().getFullYear();
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let suffix = '';
-  for (let i = 0; i < 6; i++) {
-    suffix += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return `LBW-${year}-${suffix}`;
-}
-
-/**
  * Verifica se o aluno cruzou o threshold da trilha e, se sim, registra o certificado emitido.
  * Idempotente — não re-emite. Devolve true se emitiu agora, false se já estava emitido.
  *
@@ -303,67 +289,19 @@ export async function checkAndIssueCertificate(
   allVideos: KnowledgeEntry[],
   alunoNome: string,
 ): Promise<boolean> {
-  const progress = await getUserProgress(uid);
-  if (progress.certificadosEmitidos[initiative.id]) return false; // já emitido
-
-  const trilhaProgress = calculateTrilhaProgress(initiative, allVideos, progress.watchedUrls);
-  if (!trilhaProgress.earnedCertificate) return false;
-
-  // TRAVA B2B (garantia do repasse): se o aluno é de uma EMPRESA e existe um repasse
-  // registrado NÃO liberado, segura o certificado até o Israel receber. Só trava quando
-  // há um doc `repasses/{empresaId}` com certificadoLiberado !== true — empresas sem
-  // repasse registrado (e alunos B2C sem empresaId) NÃO são afetados. Fail-open em erro.
-  try {
-    const uSnap = await getDoc(doc(db, 'users', uid));
-    const empresaId = uSnap.exists() ? ((uSnap.data() as any).empresaId || null) : null;
-    if (empresaId) {
-      const rSnap = await getDoc(doc(db, 'repasses', String(empresaId)));
-      if (rSnap.exists() && (rSnap.data() as any).certificadoLiberado !== true) {
-        return false; // repasse registrado e não quitado → segura o certificado
-      }
-    }
-  } catch { /* sem acesso/erro → não trava (fail-open, não quebra aluno) */ }
-
-  const certId = generateCertId();
-  const issuedAt = new Date().toISOString();
-  const nomeNormalizado = alunoNome || 'Aluno LBW';
-  const consultorId = initiative.consultorId || 'israel';
-  let templateVersion: number | undefined;
-  try {
-    const consultorSnap = await getDoc(doc(db, 'consultores', consultorId));
-    templateVersion = Number(consultorSnap.data()?.certificado?.versao || 0) || undefined;
-  } catch { /* certificado continua emitindo mesmo se a configuração visual falhar */ }
-
-  const updated: UserProgress = {
-    ...progress,
-    certificadosEmitidos: {
-      ...progress.certificadosEmitidos,
-      [initiative.id]: {
-        issuedAt,
-        pctAtIssue: trilhaProgress.pct,
-        initiativeNameAtIssue: initiative.name,
-        certId,
-        alunoNomeAtIssue: nomeNormalizado,
-        consultorId,
-        templateVersion,
-      },
-    },
-    lastUpdated: issuedAt,
-  };
-
-  // Escrita dupla: o doc completo do aluno + o snapshot público do certificado.
-  // O snapshot público tem só o estritamente necessário pra /verificar/{certId} validar.
-  await Promise.all([
-    setDoc(doc(db, USER_PROGRESS_COLLECTION, uid), updated, { merge: false }),
-    setDoc(doc(db, PUBLIC_CERTIFICATES_COLLECTION, certId), {
-      certId,
-      alunoNome: nomeNormalizado,
-      initiativeName: initiative.name,
-      issuedAt,
-      consultorId,
-    }),
-  ]);
-  return true;
+  void allVideos;
+  void alunoNome;
+  if (!uid || !initiative?.id) return false;
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) return false;
+  const res = await fetch('/api/certificados/emitir', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ initiativeId: initiative.id }),
+  });
+  const body = await res.json().catch(() => ({} as any));
+  if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
+  return body?.issued === true;
 }
 
 /** Lê um certificado público pelo certId. Usado na rota /verificar/{certId} (sem auth). */

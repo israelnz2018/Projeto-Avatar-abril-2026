@@ -9,7 +9,6 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/src/lib/firebase';
-import { youtubeThumb } from '@/src/lib/utils';
 import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedVideo, LeafAction } from './AIAssistantConfig';
 import { getInitiatives } from '../services/configService';
 import type { Initiative } from '../types';
@@ -60,12 +59,6 @@ const ISRAEL_PHOTO = '/avatar-israel.png';
 
 interface ClassificationData { type: ProjectType; duration: string; justification: string; question: string; }
 interface ChatMessage { id: string; role: 'user' | 'ai'; text?: string; classification?: ClassificationData; }
-
-function getYoutubeId(url: string): string | null {
-  if (!url) return null;
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
-}
 
 function normalizeNode(n: any): TreeNode {
   return {
@@ -1067,17 +1060,15 @@ export default function ChatAssistant() {
                         <div className="flex flex-col max-h-[400px] overflow-y-auto">
                           {currentNode.videos.map((v) => {
                             const active = v.id === activeVideo.id;
-                            const ytId = getYoutubeId(v.sourceUrl);
                             return (
                               <button key={v.id} onClick={() => setActiveVideoId(v.id)}
                                 className="flex items-center gap-3 px-3 py-2.5 border-b border-stone-100 last:border-b-0 text-left transition-colors"
                                 style={active ? { background: TYPE_PALETTE[currentType].soft } : { background: 'transparent' }}
                               >
                                 <div className="relative flex-shrink-0">
-                                  {ytId ? (
-                                    <img src={youtubeThumb(ytId, 'hqdefault')} alt=""
-                                      className="w-[88px] h-[50px] object-cover rounded-md" />
-                                  ) : (<div className="w-[88px] h-[50px] bg-stone-200 rounded-md" />)}
+                                  <div className="w-[88px] h-[50px] bg-stone-200 rounded-md flex items-center justify-center">
+                                    <Play size={18} className="text-stone-500" />
+                                  </div>
                                   {active && (
                                     <div className="absolute inset-0 rounded-md flex items-center justify-center"
                                       style={{ background: `${TYPE_PALETTE[currentType].from}66` }}>

@@ -27,6 +27,11 @@ interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
   cursosAcesso: CursoAcesso[]; completo: boolean;
 }
+interface Equipe {
+  empresaId: string;
+  nome: string;
+  coordenador: string;
+}
 
 const emUmAno = () => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 const venceu = (v: string | null) => !!v && new Date(v).getTime() < Date.now();
@@ -40,6 +45,7 @@ export default function MeusAlunos() {
   const [rows, setRows] = useState<Aluno[]>([]);
   const [cursos, setCursos] = useState<string[]>([]);
   const [freeCursos, setFreeCursos] = useState<string[]>([]);
+  const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
 
@@ -47,6 +53,7 @@ export default function MeusAlunos() {
   const [addAberto, setAddAberto] = useState(false);
   const [aNome, setANome] = useState('');
   const [aEmail, setAEmail] = useState('');
+  const [aEmpresaId, setAEmpresaId] = useState('');
   const [aItens, setAItens] = useState<{ curso: string; vencimento: string; valor: string }[]>([]);
   const [addEnviando, setAddEnviando] = useState(false);
   const [addMsg, setAddMsg] = useState('');
@@ -66,9 +73,10 @@ export default function MeusAlunos() {
         getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
         getInitiatives(),
       ]);
-      const lista: Aluno[] = usersSnap.docs
+      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const lista: Aluno[] = allUsers
         .map((d) => {
-          const u = d.data() as any;
+          const u = d as any;
           let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
             ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0 })).filter((c: CursoAcesso) => c.curso)
             : [];
@@ -94,11 +102,22 @@ export default function MeusAlunos() {
         })
         .filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor')
         .sort((a, b) => a.nome.localeCompare(b.nome));
+      const equipesMap = new Map<string, Equipe>();
+      allUsers
+        .filter((u: any) => u.tipoUsuario === 'coordenador' && u.empresaId)
+        .forEach((u: any) => {
+          equipesMap.set(String(u.empresaId), {
+            empresaId: String(u.empresaId),
+            nome: u.empresaNome || u.nome || u.empresaId,
+            coordenador: u.nome || u.email || 'Coordenador',
+          });
+        });
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter(Boolean))).sort();
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       setRows(lista);
       setCursos(nomesCursos);
       setFreeCursos(gratis);
+      setEquipes(Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome)));
     } catch { /* ignore */ }
     finally { setLoading(false); }
   };
@@ -131,12 +150,12 @@ export default function MeusAlunos() {
       const valorPago = cursosAcesso.reduce((s, c) => s + c.valor, 0);
       const r = await authedFetch('/api/aluno/convidar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: mail, nome: aNome.trim(), cursosAcesso, valorPago }),
+        body: JSON.stringify({ email: mail, nome: aNome.trim(), empresaId: aEmpresaId || undefined, cursosAcesso, valorPago }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (r.ok) {
         setAddMsg(`✅ Aluno ${j.status}${j.emailEnviado ? '' : ' (e-mail falhou)'}`);
-        setANome(''); setAEmail(''); setAItens([]);
+        setANome(''); setAEmail(''); setAEmpresaId(''); setAItens([]);
         setAddAberto(false);
         carregar();
       } else setAddMsg('❌ ' + (j.error || 'erro'));
@@ -191,6 +210,19 @@ export default function MeusAlunos() {
               <input value={aNome} onChange={(e) => setANome(e.target.value)} placeholder="Nome completo" className={campo} />
               <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} />
             </div>
+            {equipes.length > 0 && (
+              <div>
+                <div className="text-xs font-bold text-gray-500 mb-1">Time/coordenador do aluno</div>
+                <select value={aEmpresaId} onChange={(e) => setAEmpresaId(e.target.value)} className={campo + ' w-full'}>
+                  <option value="">Aluno direto do consultor</option>
+                  {equipes.map((e) => (
+                    <option key={e.empresaId} value={e.empresaId}>
+                      {e.nome} — {e.coordenador}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
               <div className="flex flex-wrap gap-2">

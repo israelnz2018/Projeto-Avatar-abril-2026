@@ -1,8 +1,7 @@
 import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
+import { THEME, getSlideBrand } from './slideTemplate';
 
-const NAVY    = '1E2D6E';
-const BLUE    = '0033CC';
 const ACCENT  = '8AA0E5';
 const LIGHT_T = 'C7D2FF';
 const SUBTLE  = '6B7AB8';
@@ -22,13 +21,14 @@ export function addCoverSlide(
   phase: string = ''
 ): void {
   const dateStr = ptBrDateLong(new Date());
+  const brandText = getSlideBrand();
   const slide = pres.addSlide();
-  slide.background = { color: NAVY };
+  slide.background = { color: THEME.NAVY };
 
-  // LBW brand mark — topo-esquerda, tipografia pura
-  slide.addText('LBW', {
-    x: 0.62, y: 0.42, w: 1.20, h: 0.32,
-    fontFace: 'Calibri', fontSize: 22, bold: true, color: 'FFFFFF',
+  // Brand mark — topo-esquerda, tipografia pura (white-label)
+  slide.addText(brandText, {
+    x: 0.62, y: 0.42, w: 1.70, h: 0.32,
+    fontFace: 'Calibri', fontSize: brandText.length > 4 ? 18 : 22, bold: true, color: 'FFFFFF',
     charSpacing: 3,
   });
   slide.addText('CONTINUOUS IMPROVEMENT COPILOT', {
@@ -40,7 +40,7 @@ export function addCoverSlide(
   // Linha vertical de destaque (à esquerda do bloco de título)
   slide.addShape('rect', {
     x: 0.62, y: 2.50, w: 0.04, h: 1.67,
-    fill: { color: BLUE }, line: { type: 'none' },
+    fill: { color: THEME.BLUE }, line: { type: 'none' },
   });
 
   // Eyebrow

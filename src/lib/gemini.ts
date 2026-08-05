@@ -1,5 +1,5 @@
 /**
- * Geração de índice/resumo da transcrição de vídeos do YouTube.
+ * Geração de índice/resumo da transcrição de vídeos da plataforma.
  *
  * Provider: **Gemini 2.5 Flash** (escolhido por custo-benefício).
  * - Input ~$0,075/M tokens · Output ~$0,30/M tokens
@@ -15,7 +15,7 @@ export async function generateSummaryFromRawTranscript(url: string, rawTranscrip
   try {
     const parsed = await callGeminiJSON<{ summary?: any[]; transcript?: string }>({
       system:
-        "Você gera índices clicáveis e resumos detalhados a partir de transcrições de vídeos do YouTube. Sempre responde com JSON puro.",
+        "Você gera índices clicáveis e resumos detalhados a partir de transcrições de vídeos de uma plataforma de cursos. Sempre responde com JSON puro.",
       userPrompt: `Vídeo: ${url}\n\nTRANSCRIÇÃO COMPLETA (com tempos):\n${rawTranscript}\n\nSua tarefa:\n\nPASSO 1 — ÍNDICE: divida o vídeo em capítulos/tópicos principais. Extraia o tempo exato em que cada tópico começa (formato MM:SS).\n\nPASSO 2 — RESUMO DETALHADO: para CADA item do índice, escreva um parágrafo detalhado dos principais aprendizados daquele trecho, usando apenas a transcrição fornecida.\n\nRetorne APENAS um objeto JSON neste formato exato:\n{\n  "summary": [{"time": "MM:SS", "topic": "descrição"}, ...],\n  "transcript": "texto longo do resumo detalhado, com tempos e parágrafos"\n}`,
       maxTokens: 8192,
       temperature: 0.4,

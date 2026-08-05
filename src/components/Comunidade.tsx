@@ -19,7 +19,7 @@ import {
   Wrench, Clock, ListFilter, Plus, Trash2, MessageCircle, Shield, X, Bell,
   Search, ThumbsUp, Flame, Pin, Pencil, Check, Paperclip, FileText, Loader2,
 } from 'lucide-react';
-import { cn, youtubeThumb } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { auth, db } from '../lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -97,17 +97,15 @@ function TextoComMencoes({ texto }: { texto: string }) {
           if (interno) {
             const href = p.replace(/^https?:\/\/[^/]+/, ''); // caminho relativo
             if (href.includes('/education?video=')) {
-              // Mini-telinha do vídeo: thumbnail + play + título (dados vêm no link).
-              let yt = '', titulo = '';
+              // Mini-telinha do vídeo: card interno + título (dados vêm no link).
+              let titulo = '';
               try {
                 const qs = new URLSearchParams(href.split('?')[1] || '');
-                yt = qs.get('yt') || '';
                 titulo = qs.get('t') || 'Assistir o vídeo';
               } catch { /* ignore */ }
               return (
                 <a key={i} href={href} className="mt-2 flex items-center gap-3 max-w-sm bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-400 hover:shadow-md transition no-underline">
                   <div className="relative w-28 h-16 bg-gray-900 shrink-0">
-                    {yt && <img src={youtubeThumb(yt, 'mqdefault')} alt="" className="w-full h-full object-cover" />}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
                         <span className="text-white text-xs ml-0.5">▶</span>

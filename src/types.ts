@@ -101,6 +101,7 @@ export interface InitiativePhaseConfig {
   initiativeId: string;
   phaseId: string; // e.g., 'Define', 'Measure', etc.
   toolIds: string[]; // List of tool IDs assigned to this phase in this initiative
+  consultorId?: string;
 }
 
 export interface ToolDefinition {

@@ -186,12 +186,15 @@ export const saveToolCategories = async (categories: Record<string, ToolCategory
 export const getInitiativeConfigs = async (initiativeId: string): Promise<InitiativePhaseConfig[]> => {
   const q = query(collection(db, CONFIG_COLLECTION), where('initiativeId', '==', initiativeId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => doc.data() as InitiativePhaseConfig);
+  const cid = resolveConsultorId();
+  return snapshot.docs
+    .map(doc => doc.data() as InitiativePhaseConfig)
+    .filter(c => ((c as any).consultorId || 'israel') === cid);
 };
 
 export const saveInitiativeConfig = async (config: InitiativePhaseConfig): Promise<void> => {
   const docId = `${config.initiativeId}_${config.phaseId}`;
-  await setDoc(doc(db, CONFIG_COLLECTION, docId), config);
+  await setDoc(doc(db, CONFIG_COLLECTION, docId), { ...config, consultorId: config.consultorId || resolveConsultorId() });
 };
 
 export const restoreDefaultMethodologies = async (availableTools: any[]): Promise<void> => {

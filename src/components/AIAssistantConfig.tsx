@@ -3,7 +3,7 @@ import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Save, Edit2, X, Check, Loader2, Plus, Trash2, ChevronRight, ChevronDown, Video, FileText, Search, ArrowUp, ArrowDown } from 'lucide-react';
-import { cn, youtubeThumb } from '@/src/lib/utils';
+import { cn } from '@/src/lib/utils';
 import { KNOWLEDGE_COLLECTION } from '@/src/services/knowledgeService';
 
 export interface CustomField { id: string; label: string; content: string; }
@@ -88,11 +88,6 @@ Fale sempre em portugues do Brasil, direto e tecnico.
 };
 
 const genId = () => Math.random().toString(36).slice(2, 9);
-
-const getYoutubeId = (url: string): string | null => {
-  const m = url?.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
-};
 
 function normalizeNode(n: any): TreeNode {
   return {
@@ -255,7 +250,6 @@ function InlineVideoList({ selected, onToggle }: {
           <p className="text-[12px] text-[#aaa] text-center p-4">Nenhum video encontrado.</p>
         ) : (
           filtered.map(v => {
-            const ytId = getYoutubeId(v.sourceUrl);
             const sel = isSelected(v.id);
             return (
               <button key={v.id} onClick={() => onToggle({
@@ -271,12 +265,9 @@ function InlineVideoList({ selected, onToggle }: {
                   sel ? 'border-[#3b82f6] bg-[#3b82f6]' : 'border-[#ccc]')}>
                   {sel && <Check size={10} className="text-white" />}
                 </div>
-                {ytId ? (
-                  <img src={youtubeThumb(ytId, 'default')} alt=""
-                    className="w-[40px] h-[24px] object-cover rounded-[2px] flex-shrink-0" />
-                ) : (
-                  <div className="w-[40px] h-[24px] bg-[#e2e8f0] rounded-[2px] flex-shrink-0" />
-                )}
+                <div className="w-[40px] h-[24px] bg-[#e2e8f0] rounded-[2px] flex-shrink-0 flex items-center justify-center">
+                  <Video size={12} className="text-[#94a3b8]" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] text-[#334155] truncate leading-tight">{v.title}</p>
                   <p className="text-[10px] text-[#94a3b8] mt-0.5">{v.playlist}</p>
@@ -378,10 +369,11 @@ function NodeEditor({ node, onSave, onCancel }: {
           {localVideos.length > 0 && (
             <div className="flex flex-col gap-1 mb-2">
               {localVideos.map(v => {
-                const ytId = getYoutubeId(v.sourceUrl);
                 return (
                   <div key={v.id} className="flex items-center gap-2 bg-white border border-[#e2e8f0] rounded-[3px] px-2 py-1">
-                    {ytId && <img src={youtubeThumb(ytId, 'default')} alt="" className="w-[40px] h-[24px] object-cover rounded-[2px] flex-shrink-0" />}
+                    <div className="w-[40px] h-[24px] bg-[#e2e8f0] rounded-[2px] flex-shrink-0 flex items-center justify-center">
+                      <Video size={12} className="text-[#94a3b8]" />
+                    </div>
                     <p className="flex-1 text-[12px] text-[#334155] truncate">{v.title}</p>
                     <button onClick={() => setLocalVideos(prev => prev.filter(x => x.id !== v.id))}
                       className="border-none bg-transparent cursor-pointer text-[#ccc] hover:text-red-500 p-1">

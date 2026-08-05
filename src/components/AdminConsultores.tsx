@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 import { collection, doc, getDocs, setDoc, query, where } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { CONSULTOR_PADRAO } from '../services/consultorService';
 import { Consultor } from '../types';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -64,6 +63,13 @@ export default function AdminConsultores() {
   if (!isAdmin) return <div className="p-8 text-red-600 font-bold">Acesso restrito ao administrador.</div>;
 
   const slug = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
+  const siglaDe = (s: string) => {
+    const partes = s.trim().split(/\s+/).filter(Boolean);
+    const sigla = partes.length > 1
+      ? partes.slice(0, 3).map((p) => p[0]).join('')
+      : (partes[0] || '').slice(0, 3);
+    return (sigla || 'CON').toUpperCase();
+  };
 
   async function criar() {
     const cid = slug(id);
@@ -85,9 +91,16 @@ export default function AdminConsultores() {
         ...(existente ? {} : { criadoEm: new Date().toISOString() }),
         branding: existente?.branding || {
           nome: nome.trim() || cid,
-          // Logo o próprio consultor põe em "Minha Marca". Placeholder até lá.
-          logoUrl: CONSULTOR_PADRAO.branding.logoUrl,
-          cores: CONSULTOR_PADRAO.branding.cores,
+          sigla: siglaDe(nome.trim() || cid),
+          // O próprio consultor coloca logo/cores em "Minha Marca".
+          logoUrl: '',
+          cores: {
+            navy: '#334155',
+            blue: '#64748B',
+            light: '#F8FAFC',
+            ink: '#1F2937',
+            muted: '#94A3B8',
+          },
         },
       }, { merge: true });
       setMsg(existente

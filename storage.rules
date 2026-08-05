@@ -1,27 +1,91 @@
 rules_version = '2';
 
-// Regras do Firebase Storage.
-// Anexos da Comunidade LBW ficam em community_uploads/{uid}/...
-// Qualquer usuário autenticado lê os anexos (a Comunidade é pública entre alunos).
-// Cada usuário só escreve dentro da própria pasta (uid).
-// NUNCA vídeos: a validação de tipo é feita no cliente (uploadAnexo) — aqui
-// limitamos o tamanho como rede de segurança.
-
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return firestore.get(/databases/(default)/documents/users/$(uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == "israelnz2018@hotmail.com" ||
+        request.auth.token.email == "israel@learningbyworking.com"
+      );
+    }
+
+    function isCoordenador() {
+      return signedIn() && userDoc(request.auth.uid).tipoUsuario == 'coordenador';
+    }
+
+    function isConsultor() {
+      return signedIn() && userDoc(request.auth.uid).tipoUsuario == 'consultor';
+    }
+
+    function project(projectId) {
+      return firestore.get(/databases/(default)/documents/projects/$(projectId)).data;
+    }
+
+    function projectOwner(projectId) {
+      return signedIn() && project(projectId).ownerUid == request.auth.uid;
+    }
+
+    function projectSameEmpresa(projectId) {
+      return signedIn() &&
+        userDoc(request.auth.uid).empresaId != null &&
+        firestore.get(/databases/(default)/documents/users/$(project(projectId).ownerUid)).data.empresaId == userDoc(request.auth.uid).empresaId;
+    }
+
+    function projectSameConsultor(projectId) {
+      return signedIn() &&
+        project(projectId).consultorId != null &&
+        project(projectId).consultorId == userDoc(request.auth.uid).consultorId;
+    }
+
+    function repasse(empresaId) {
+      return firestore.get(/databases/(default)/documents/repasses/$(empresaId)).data;
+    }
+
+    function repasseMesmoConsultor(empresaId) {
+      return signedIn() &&
+        repasse(empresaId).consultorId != null &&
+        repasse(empresaId).consultorId == userDoc(request.auth.uid).consultorId;
+    }
 
     match /community_uploads/{uid}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
+      allow read: if signedIn();
+      allow write: if signedIn()
                    && request.auth.uid == uid
                    && request.resource.size < 10 * 1024 * 1024
                    && !request.resource.contentType.matches('video/.*');
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
 
-    // Demais caminhos: mantenha o que já existe no seu projeto.
+    match /projects/{projectId}/spreadsheet/{fileName} {
+      allow read: if isAdmin() ||
+        projectOwner(projectId) ||
+        (isCoordenador() && projectSameEmpresa(projectId)) ||
+        (isConsultor() && projectSameConsultor(projectId));
+      allow write, delete: if isAdmin() || projectOwner(projectId);
+    }
+
+    match /mentor_audio/{fileName} {
+      allow read: if signedIn();
+      allow write, delete: if isAdmin();
+    }
+
+    match /repasses/{empresaId}/{fileName} {
+      allow read: if isAdmin() ||
+        (signedIn() && userDoc(request.auth.uid).empresaId == empresaId) ||
+        (isConsultor() && repasseMesmoConsultor(empresaId));
+      allow write, delete: if isAdmin() || (isConsultor() && repasseMesmoConsultor(empresaId));
+    }
+
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAdmin();
     }
   }
 }

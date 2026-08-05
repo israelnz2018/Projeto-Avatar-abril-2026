@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getInitiatives, getInitiativeConfigs } from '../services/configService';
 import type { TipoUsuario } from '../services/userService';
 
-type Plano = 'gratuito' | 'completo';
+type Plano = 'gratuito' | 'completo' | 'coordenador';
 
 export function useUserAccess() {
   const [loading, setLoading] = useState(true);
@@ -126,9 +126,10 @@ export function useUserAccess() {
             userPlano = temAvancada ? 'completo' : 'gratuito';
           }
         }
-        // Consultor tem acesso total às ferramentas (como o completo). Não depende
-        // de plano/validade — o papel garante. Preserva os cursos que ele já tinha.
+        // Consultor e coordenador têm acesso total às ferramentas (como o completo).
+        // Não depende de plano/validade — o papel garante. Preserva os cursos que já tinham.
         if (cons) userPlano = 'completo';
+        if (coord) userPlano = 'completo';
         setPlano(userPlano);
         setIsAdmin(admin);
         setIsCoordenador(coord);

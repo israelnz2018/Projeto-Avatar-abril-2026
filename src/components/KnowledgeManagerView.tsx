@@ -4,7 +4,6 @@ import {
   Plus,
   Search,
   Trash2,
-  Youtube,
   Save,
   X,
   Video,
@@ -37,7 +36,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { cn, youtubeThumb } from '@/src/lib/utils';
+import { cn } from '@/src/lib/utils';
 import { db, auth } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -212,7 +211,6 @@ interface SortableVideoRowProps {
   expandedId: string | null;
   seekTime: number;
   isReprocessing: string | null;
-  getYoutubeId: (url: string) => string | null;
   parseTimeToSeconds: (timeStr: string) => number;
   handleRegenerateIndex: (item: KnowledgeEntry) => void;
   setModalConfig: React.Dispatch<React.SetStateAction<ModalConfig>>;
@@ -225,7 +223,7 @@ interface SortableVideoRowProps {
 
 function SortableVideoRow({
   item, items, expandedId, seekTime, isReprocessing,
-  getYoutubeId, parseTimeToSeconds, handleRegenerateIndex,
+  parseTimeToSeconds, handleRegenerateIndex,
   setModalConfig, setExpandedId, setSeekTime,
   setEditVideoData, setEditPlacements, setEditOriginalIds,
 }: SortableVideoRowProps) {
@@ -253,8 +251,6 @@ function SortableVideoRow({
     position: 'relative' as const,
     zIndex: isDragging ? 1 : 'auto' as any,
   };
-  const videoId = getYoutubeId(item.sourceUrl);
-
   return (
     <React.Fragment>
       <tr ref={setNodeRef} style={style} className="border-b border-[#eee] last:border-0 hover:bg-gray-50 transition-colors group/row">
@@ -270,29 +266,16 @@ function SortableVideoRow({
         </td>
         <td className="p-4 pl-2">
           <div className="flex items-center gap-3">
-            <div className="w-24 aspect-video rounded overflow-hidden flex-shrink-0 border border-[#eee] relative group">
-              {videoId ? (
-                <>
-                  <img
-                    src={youtubeThumb(videoId, 'hqdefault')}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-transparent group-hover:bg-black/20 transition-all flex items-center justify-center">
-                    <Youtube className="text-white opacity-0 group-hover:opacity-100" size={24} />
-                  </div>
-                </>
+            <div className="w-24 aspect-video rounded overflow-hidden flex-shrink-0 border border-[#eee] relative group bg-slate-100 flex items-center justify-center">
+              {item.bunnyThumbnailUrl ? (
+                <img src={item.bunnyThumbnailUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <Video className="w-full h-full p-2 text-gray-300" />
+                <Video className="w-10 h-10 text-slate-300" />
               )}
             </div>
             <div>
               <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">
-                  Acessar no YouTube
-                </a>
                 <button
                   onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })}
                   disabled={isReprocessing === item.id}
@@ -302,7 +285,7 @@ function SortableVideoRow({
                       ? "bg-teal-600 border-teal-600 text-white hover:bg-teal-700"
                       : "bg-white border-blue-500 text-blue-600 hover:bg-blue-50"
                   )}
-                  title={item.rawTranscript ? 'Ver/editar transcrição e reprocessar' : 'Colar transcrição do YouTube — a IA gera índice e resumo automaticamente'}
+                  title={item.rawTranscript ? 'Ver/editar transcrição e reprocessar' : 'Colar transcrição do vídeo — a IA gera índice e resumo automaticamente'}
                 >
                   <ListVideo size={12} />
                   {isReprocessing === item.id
@@ -1197,13 +1180,6 @@ export default function KnowledgeManagerView() {
     }
   };
 
-  const getYoutubeId = (url: string) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
   const parseTimeToSeconds = (timeStr: string) => {
     const parts = timeStr.split(':').map(Number);
     if (parts.length === 2) return parts[0] * 60 + parts[1];
@@ -1848,7 +1824,6 @@ export default function KnowledgeManagerView() {
                               expandedId={expandedId}
                               seekTime={seekTime}
                               isReprocessing={isReprocessing}
-                              getYoutubeId={getYoutubeId}
                               parseTimeToSeconds={parseTimeToSeconds}
                               handleRegenerateIndex={handleRegenerateIndex}
                               setModalConfig={setModalConfig}
@@ -1910,7 +1885,7 @@ export default function KnowledgeManagerView() {
                 
                 {modalConfig.type === 'importTranscript' && (
                   <div className="space-y-4">
-                    <p>Cole abaixo a <strong>transcrição completa</strong> do YouTube (com os tempos). A IA vai ler 100% do texto para gerar um índice clicável e um resumo detalhado, e o texto original ficará salvo para você ler.</p>
+                    <p>Cole abaixo a <strong>transcrição completa</strong> do vídeo (com os tempos). A IA vai ler 100% do texto para gerar um índice clicável e um resumo detalhado, e o texto original ficará salvo para você ler.</p>
                     <textarea
                       value={rawTranscriptText}
                       onChange={(e) => setRawTranscriptText(e.target.value)}

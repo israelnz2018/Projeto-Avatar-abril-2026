@@ -23,7 +23,7 @@ const TRILHAS = [
 ];
 
 /** Gera o HTML do e-mail. `emailDestino` aparece no bloco de dados de acesso. */
-export function campanhaCortesiaHtml(emailDestino: string): string {
+export function campanhaCortesiaHtml(emailDestino: string, senhaProvisoria: string = 'enviada separadamente'): string {
   const APP = 'https://app.educacaopelotrabalho.com';
   const trilhasHtml = TRILHAS.map((t) =>
     `<tr><td style="padding:7px 0;border-bottom:1px solid #EAEDF5;font-size:14px;color:${INK};">${t}</td></tr>`
@@ -54,7 +54,7 @@ export function campanhaCortesiaHtml(emailDestino: string): string {
           <div style="font-size:12px;font-weight:bold;letter-spacing:1px;color:${NAVY};margin-bottom:10px;">SEUS DADOS DE ACESSO</div>
           <div style="font-size:14px;margin:4px 0;"><strong>E-mail:</strong> ${emailDestino}</div>
           <div style="font-size:14px;margin:4px 0;"><strong>Senha provisória:</strong>
-            <code style="background:#fff;border:1px solid #ccd;border-radius:4px;padding:3px 8px;font-family:monospace;">LBW2026</code>
+            <code style="background:#fff;border:1px solid #ccd;border-radius:4px;padding:3px 8px;font-family:monospace;">${senhaProvisoria}</code>
           </div>
           <div style="font-size:12px;color:#7A828F;margin-top:8px;">É obrigatório trocar a senha no primeiro acesso.</div>
         </div>

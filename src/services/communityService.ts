@@ -266,18 +266,22 @@ export async function curtirPost(postId: string, jaCurtiu: boolean): Promise<voi
 
 /** Tempo real: posts do ESPAÇO escolhido, mais novos primeiro. */
 export function ouvirPosts(espaco: EspacoComunidade, onChange: (posts: CommunityPost[]) => void): () => void {
-  const q = query(collection(db, COL), orderBy('createdAt', 'desc'));
   const cid = resolveConsultorId();
-  const pertence = (p: any): boolean => {
-    if (espaco.escopo === 'rede') return p.escopo === 'rede';
-    if (espaco.escopo === 'time') {
-      return p.escopo === 'time' && (p.consultorId || 'israel') === cid && p.empresaId === espaco.empresaId;
-    }
-    // 'consultor': posts do consultor (posts antigos sem escopo = comunidade do consultor).
-    return (p.escopo === 'consultor' || !p.escopo) && (p.consultorId || 'israel') === cid;
-  };
+  const constraints = espaco.escopo === 'rede'
+    ? [where('escopo', '==', 'rede')]
+    : espaco.escopo === 'time'
+      ? [where('escopo', '==', 'time'), where('consultorId', '==', cid), where('empresaId', '==', espaco.empresaId || null)]
+      : [where('escopo', '==', 'consultor'), where('consultorId', '==', cid)];
+  const q = query(collection(db, COL), ...constraints);
   return onSnapshot(q, snap => {
-    onChange(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })).filter(pertence));
+    const posts = snap.docs
+      .map(d => ({ id: d.id, ...(d.data() as any) }) as CommunityPost)
+      .sort((a: any, b: any) => {
+        const ad = a.createdAt?.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
+        const bd = b.createdAt?.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt || 0).getTime();
+        return bd - ad;
+      });
+    onChange(posts);
   }, err => console.error('[ouvirPosts]', err));
 }
 

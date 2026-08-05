@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Project } from '../types';
+import { resolveConsultorId } from './consultorService';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
@@ -29,6 +30,7 @@ export const createProject = async (name: string, initiativeId?: string, current
     name,
     ownerUid: user.uid,
     ownerEmail: user.email,
+    consultorId: resolveConsultorId(),
     currentPhase: currentPhase,
     initiativeId: initiativeId || null,
     createdAt: serverTimestamp(),

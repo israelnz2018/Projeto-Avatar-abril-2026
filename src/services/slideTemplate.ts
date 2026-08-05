@@ -35,21 +35,26 @@ export function setSlideBrand(text: string | null): void {
   const t = (text || '').trim().toUpperCase();
   slideBrandText = t ? t.slice(0, 7) : 'LBW';
 }
+export function getSlideBrand(): string {
+  return slideBrandText;
+}
 
 // Cores do template — white-label. O consultor escolhe 3 cores na Minha Marca
 // (escura/destaque/clara) e o ConsultorContext chama setSlideColors ao trocar de
 // tenant. Muta as chaves de THEME que TODOS os exporters já leem em render-time —
 // então a paleta inteira re-veste sem tocar em cada exportador. Default = LBW.
-const CORES_LBW = { navy: '1E2D6E', blue: '0033CC', light: 'F0F2FA' };
+const CORES_LBW = { navy: '1E2D6E', blue: '0033CC', light: 'F0F2FA', ink: '2A2F3A', muted: '9CA3AF' };
 const hex6 = (c?: string): string | null => {
   if (!c) return null;
   const h = c.trim().replace(/^#/, '').toUpperCase();
   return /^[0-9A-F]{6}$/.test(h) ? h : null;
 };
-export function setSlideColors(cores?: { navy?: string; blue?: string; light?: string } | null): void {
+export function setSlideColors(cores?: { navy?: string; blue?: string; light?: string; ink?: string; muted?: string } | null): void {
   THEME.NAVY = hex6(cores?.navy) || CORES_LBW.navy;
   THEME.BLUE = hex6(cores?.blue) || CORES_LBW.blue;
   THEME.LIGHT = hex6(cores?.light) || CORES_LBW.light;
+  THEME.INK = hex6(cores?.ink) || CORES_LBW.ink;
+  THEME.MUTED = hex6(cores?.muted) || CORES_LBW.muted;
 }
 
 export function createSlide(

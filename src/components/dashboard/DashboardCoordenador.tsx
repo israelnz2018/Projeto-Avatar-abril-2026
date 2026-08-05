@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { criarConvite, deletarConvite, listarConvitesPorEmpresa, PendingInvite, updateUserSiglaPpt } from '../../services/userService';
+import { deletarConvite, listarConvitesPorEmpresa, PendingInvite, updateUserSiglaPpt } from '../../services/userService';
 import { getProjetosComDetalhes, ProjetoComDetalhes } from '../../services/dashboardDataService';
 import {
   useResumoEquipe,
@@ -64,6 +64,14 @@ function formatISORelative(iso?: string): string {
 }
 
 const fmtBRL = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
+
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const user = auth.currentUser;
+  const headers = new Headers(init.headers || {});
+  if (user) headers.set('Authorization', `Bearer ${await user.getIdToken()}`);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  return fetch(url, { ...init, headers });
+}
 
 export default function DashboardCoordenador({ nome }: Props) {
   const uid = auth.currentUser?.uid || null;
@@ -165,7 +173,12 @@ export default function DashboardCoordenador({ nome }: Props) {
     if (vagasCheias) { setErrMsg('Limite de vagas atingido — peça ao admin para aumentar.'); return; }
     setAddingMember(true); setErrMsg(null);
     try {
-      await criarConvite({ email, formacoes: [], tipoUsuario: 'aluno', empresaId, empresaNome: empresaNome || undefined, criadoPor: 'coordenador' });
+      const r = await authedFetch('/api/aluno/convidar', {
+        method: 'POST',
+        body: JSON.stringify({ email, cursosAcesso: [] }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j?.error || 'Falha ao convidar.');
       setNovoEmail('');
       await carregarInvites();
     } catch (e: any) { setErrMsg(e?.message || 'Falha ao convidar.'); }

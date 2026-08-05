@@ -27,6 +27,8 @@ export default function MinhaMarca() {
   const [corEscura, setCorEscura] = useState('#1E2D6E');
   const [corDestaque, setCorDestaque] = useState('#0033CC');
   const [corClara, setCorClara] = useState('#F0F2FA');
+  const [corTexto, setCorTexto] = useState('#2A2F3A');
+  const [corSuave, setCorSuave] = useState('#9CA3AF');
   const [pptCapaUrl, setPptCapaUrl] = useState('');
   const [pptInternaUrl, setPptInternaUrl] = useState('');
 
@@ -46,6 +48,8 @@ export default function MinhaMarca() {
     setCorEscura(comHash(b.cores?.navy) || '#1E2D6E');
     setCorDestaque(comHash(b.cores?.blue) || '#0033CC');
     setCorClara(comHash(b.cores?.light) || '#F0F2FA');
+    setCorTexto(comHash(b.cores?.ink) || '#2A2F3A');
+    setCorSuave(comHash(b.cores?.muted) || '#9CA3AF');
     setPptCapaUrl(b.pptCapaUrl || '');
     setPptInternaUrl(b.pptInternaUrl || '');
   }, [consultor]);
@@ -89,6 +93,8 @@ export default function MinhaMarca() {
               navy: corEscura,
               blue: corDestaque,
               light: corClara,
+              ink: corTexto,
+              muted: corSuave,
             },
           },
         },
@@ -193,13 +199,15 @@ export default function MinhaMarca() {
             <span className="font-bold text-gray-800 text-sm">Usar o nosso modelo + suas cores</span>
           </div>
           <p className="text-xs text-gray-500 mt-1 ml-6">
-            O template pronto da plataforma, com a <b>sua sigla</b> no topo de cada slide (igual ao “LBW” do Israel). Escolha 3 cores:
+            O template pronto da plataforma, com a <b>sua sigla</b> no topo de cada slide. Escolha as cores:
           </p>
           {pptModo === 'padrao' && (
-            <div className="grid grid-cols-3 gap-3 mt-3 ml-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 ml-6">
               <CorPicker rotulo="Escura (cabeçalho)" valor={corEscura} onChange={setCorEscura} />
               <CorPicker rotulo="Destaque (chips/linhas)" valor={corDestaque} onChange={setCorDestaque} />
               <CorPicker rotulo="Clara (painéis)" valor={corClara} onChange={setCorClara} />
+              <CorPicker rotulo="Texto principal" valor={corTexto} onChange={setCorTexto} />
+              <CorPicker rotulo="Texto suave" valor={corSuave} onChange={setCorSuave} />
             </div>
           )}
         </label>

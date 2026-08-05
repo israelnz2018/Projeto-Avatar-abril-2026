@@ -1,5 +1,6 @@
 import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, deleteDoc, updateDoc, writeBatch, where } from 'firebase/firestore';
+import { resolveConsultorId } from './consultorService';
 
 export interface KnowledgeEntry {
   id?: string;
@@ -20,11 +21,13 @@ export interface KnowledgeEntry {
   playlistOrder?: number;
   /** Multi-tenant: dono do conteúdo (consultor). Default 'israel' na Fase 0. */
   consultorId?: string;
-  // ===== Migração Bunny (reversível: sourceUrl do YouTube é preservado) =====
-  /** GUID do vídeo no Bunny Stream. Se presente, o player toca pelo Bunny; senão, YouTube. */
+  // ===== Vídeo Bunny =====
+  /** GUID do vídeo no Bunny Stream. Se presente, o player toca pelo Bunny. */
   bunnyVideoId?: string;
   /** ID da Video Library do Bunny (multi-tenant: uma por consultor). */
   bunnyLibraryId?: string;
+  /** URL pública da thumbnail gerada pelo Bunny (preenchida no processamento automático). */
+  bunnyThumbnailUrl?: string;
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';
@@ -103,11 +106,10 @@ export async function getRecentKnowledge(limitCount = 100): Promise<KnowledgeEnt
 
 export async function getAllKnowledge(consultorId?: string): Promise<KnowledgeEntry[]> {
   try {
+    const scopedConsultorId = consultorId || resolveConsultorId();
     // Com consultorId: filtra pelo tenant (sem orderBy pra não exigir índice
     // composto; a ordenação é feita em memória logo abaixo). Sem: ordena no servidor.
-    const q = consultorId
-      ? query(collection(db, KNOWLEDGE_COLLECTION), where('consultorId', '==', consultorId))
-      : query(collection(db, KNOWLEDGE_COLLECTION), orderBy('timestamp', 'desc'));
+    const q = query(collection(db, KNOWLEDGE_COLLECTION), where('consultorId', '==', scopedConsultorId));
     const querySnapshot = await getDocs(q);
     const items = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -149,16 +151,18 @@ export async function updateKnowledge(id: string, data: Partial<KnowledgeEntry>)
   await updateDoc(doc(db, KNOWLEDGE_COLLECTION, id), data);
 }
 
-export async function deleteCourse(courseName: string) {
-  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName));
+export async function deleteCourse(courseName: string, consultorId?: string) {
+  const scopedConsultorId = consultorId || resolveConsultorId();
+  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName), where('consultorId', '==', scopedConsultorId));
   const snapshot = await getDocs(q);
   const batch = writeBatch(db);
   snapshot.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
 }
 
-export async function updateCourseName(oldName: string, newName: string) {
-  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', oldName));
+export async function updateCourseName(oldName: string, newName: string, consultorId?: string) {
+  const scopedConsultorId = consultorId || resolveConsultorId();
+  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', oldName), where('consultorId', '==', scopedConsultorId));
   const snapshot = await getDocs(q);
   const batch = writeBatch(db);
   snapshot.docs.forEach(d => batch.update(d.ref, { course: newName }));
@@ -166,38 +170,43 @@ export async function updateCourseName(oldName: string, newName: string) {
 }
 
 /**
- * Conta quantos vídeos têm um curso específico (por nome).
+ * Conta quantos vídeos têm um curso específico (por nome), dentro do tenant.
  * Usado pra mostrar confirmação antes de propagar renomeação de trilha no /config.
  * Operação de leitura — não modifica nada no Firestore.
  */
-export async function countVideosByCourse(courseName: string): Promise<number> {
-  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName));
+export async function countVideosByCourse(courseName: string, consultorId?: string): Promise<number> {
+  const scopedConsultorId = consultorId || resolveConsultorId();
+  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName), where('consultorId', '==', scopedConsultorId));
   const snapshot = await getDocs(q);
   return snapshot.size;
 }
 
-export async function deletePlaylist(courseName: string, playlistName: string) {
-  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName), where('playlist', '==', playlistName));
+export async function deletePlaylist(courseName: string, playlistName: string, consultorId?: string) {
+  const scopedConsultorId = consultorId || resolveConsultorId();
+  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName), where('playlist', '==', playlistName), where('consultorId', '==', scopedConsultorId));
   const snapshot = await getDocs(q);
   const batch = writeBatch(db);
   snapshot.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
 }
 
-export async function updatePlaylistName(courseName: string, oldName: string, newName: string) {
-  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName), where('playlist', '==', oldName));
+export async function updatePlaylistName(courseName: string, oldName: string, newName: string, consultorId?: string) {
+  const scopedConsultorId = consultorId || resolveConsultorId();
+  const q = query(collection(db, KNOWLEDGE_COLLECTION), where('course', '==', courseName), where('playlist', '==', oldName), where('consultorId', '==', scopedConsultorId));
   const snapshot = await getDocs(q);
   const batch = writeBatch(db);
   snapshot.docs.forEach(d => batch.update(d.ref, { playlist: newName }));
   await batch.commit();
 }
 
-export async function movePlaylistToCourse(currentCourse: string, playlistName: string, newCourse: string): Promise<number> {
+export async function movePlaylistToCourse(currentCourse: string, playlistName: string, newCourse: string, consultorId?: string): Promise<number> {
   if (currentCourse === newCourse) return 0;
+  const scopedConsultorId = consultorId || resolveConsultorId();
   const q = query(
     collection(db, KNOWLEDGE_COLLECTION),
     where('course', '==', currentCourse),
-    where('playlist', '==', playlistName)
+    where('playlist', '==', playlistName),
+    where('consultorId', '==', scopedConsultorId)
   );
   const snapshot = await getDocs(q);
   if (snapshot.empty) return 0;
