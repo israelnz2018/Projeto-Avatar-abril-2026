@@ -57,6 +57,7 @@ export default function LearningView() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [seekTime, setSeekTime] = useState(0);
+  const [seekNonce, setSeekNonce] = useState(0);
   const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
   const [freeCourseNames, setFreeCourseNames] = useState<Set<string>>(new Set());
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
@@ -127,6 +128,7 @@ export default function LearningView() {
 
   useEffect(() => {
     setSeekTime(0);
+    setSeekNonce(0);
   }, [selectedVideo?.id]);
 
   // Throttle refs pra salvar posição no máximo a cada 10s (evita writes em rajada)
@@ -194,23 +196,39 @@ export default function LearningView() {
   // vídeos da plataforma tocam pelo Bunny, então o seek manual (clique no Sumário
   // do Vídeo) precisa falar esse protocolo, não o postMessage antigo do YouTube.
   useEffect(() => {
-    if (seekTime > 0 && iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
+    if (seekNonce === 0) return;
+    const seek = () => {
+      const player = iframeRef.current?.contentWindow;
+      if (!player) return;
+      player.postMessage(
         JSON.stringify({ context: 'player.js', method: 'setCurrentTime', value: seekTime }),
         '*'
       );
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ context: 'player.js', method: 'play' }),
-        '*'
-      );
-    }
-  }, [seekTime]);
+      player.postMessage(JSON.stringify({ context: 'player.js', method: 'play' }), '*');
+    };
+    seek();
+    // O iframe normalmente já está pronto, mas os retries cobrem cliques feitos
+    // durante a inicialização do player sem recriar o iframe nem perder o progresso.
+    const retry1 = window.setTimeout(seek, 250);
+    const retry2 = window.setTimeout(seek, 750);
+    return () => {
+      window.clearTimeout(retry1);
+      window.clearTimeout(retry2);
+    };
+  }, [seekTime, seekNonce]);
 
   const parseTimeToSeconds = (timeStr: string) => {
-    const parts = timeStr.split(':').map(Number);
+    const clean = String(timeStr || '').trim().replace(/^\[/, '').replace(/\]$/, '');
+    const parts = clean.split(':').map(part => Number(part.replace(',', '.')));
+    if (parts.some(part => !Number.isFinite(part))) return 0;
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return 0;
+  };
+
+  const handleSummarySeek = (timeStr: string) => {
+    setSeekTime(parseTimeToSeconds(timeStr));
+    setSeekNonce(value => value + 1);
   };
 
   const fetchItems = async () => {
@@ -693,7 +711,7 @@ export default function LearningView() {
                                 item.summary.map((point, idx) => (
                                   <button
                                     key={idx}
-                                    onClick={() => setSeekTime(parseTimeToSeconds(point.time))}
+                                    onClick={() => handleSummarySeek(point.time)}
                                     className="w-full flex gap-3 text-left p-1.5 -mx-1.5 rounded hover:bg-blue-50 transition-colors group/point border-none bg-transparent cursor-pointer"
                                   >
                                     <span className="text-blue-600 font-mono text-xs font-bold bg-blue-50 group-hover/point:bg-blue-100 px-2 py-0.5 rounded h-fit transition-colors flex-shrink-0">
