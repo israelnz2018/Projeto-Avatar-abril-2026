@@ -25,7 +25,7 @@ import {
   Award,
   Link2,
 } from 'lucide-react';
-import { cn } from '@/src/lib/utils';
+import { cn, youtubeThumb } from '@/src/lib/utils';
 import UpgradeBanner from './UpgradeBanner';
 import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
@@ -224,6 +224,11 @@ export default function LearningView() {
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return 0;
+  };
+
+  const getYoutubeId = (url: string) => {
+    const match = String(url || '').match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+    return match && match[2].length === 11 ? match[2] : null;
   };
 
   const handleSummarySeek = (timeStr: string) => {
@@ -574,6 +579,10 @@ export default function LearningView() {
           viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
         )}>
           {filteredItems.map((item, i) => {
+            const youtubeId = getYoutubeId(item.sourceUrl);
+            const thumbnailUrl = youtubeId
+              ? youtubeThumb(youtubeId, 'hqdefault')
+              : item.bunnyThumbnailUrl || '';
             const isSelected = selectedVideo?.id === item.id;
             const videoLocked = isCourseLocked(item.course);
             const isWatched = !!watchedUrls[item.sourceUrl];
@@ -603,12 +612,21 @@ export default function LearningView() {
                     "relative overflow-hidden",
                     viewMode === 'grid' ? "aspect-video" : "w-56 h-full"
                   )}>
-                    <div className={cn(
-                      "w-full h-full bg-slate-900 flex items-center justify-center transition-transform duration-500",
-                      videoLocked ? "grayscale-[40%] brightness-75" : "group-hover:scale-105"
-                    )}>
-                      <PlayCircle className="text-white/70" size={44} />
-                    </div>
+                    {thumbnailUrl ? (
+                      <img
+                        src={thumbnailUrl}
+                        alt={item.title}
+                        className={cn(
+                          "w-full h-full object-cover transition-transform duration-500",
+                          videoLocked ? "grayscale-[40%] brightness-75" : "group-hover:scale-105"
+                        )}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-900 flex items-center justify-center">
+                        <PlayCircle className="text-white/70" size={44} />
+                      </div>
+                    )}
                     {/* Badge de "Assistido" — canto superior esquerdo, sempre visível */}
                     {isWatched && !videoLocked && (
                       <div className="absolute top-2 left-2 z-10 bg-emerald-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg border-2 border-white"

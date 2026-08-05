@@ -36,7 +36,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { cn } from '@/src/lib/utils';
+import { cn, youtubeThumb } from '@/src/lib/utils';
 import { db, auth } from '../lib/firebase';
 import { writeBatch, doc } from 'firebase/firestore';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -251,6 +251,9 @@ function SortableVideoRow({
     position: 'relative' as const,
     zIndex: isDragging ? 1 : 'auto' as any,
   };
+  const youtubeMatch = String(item.sourceUrl || '').match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+  const youtubeId = youtubeMatch && youtubeMatch[2].length === 11 ? youtubeMatch[2] : null;
+  const thumbnailUrl = youtubeId ? youtubeThumb(youtubeId, 'hqdefault') : item.bunnyThumbnailUrl || '';
   return (
     <React.Fragment>
       <tr ref={setNodeRef} style={style} className="border-b border-[#eee] last:border-0 hover:bg-gray-50 transition-colors group/row">
@@ -267,8 +270,8 @@ function SortableVideoRow({
         <td className="p-4 pl-2">
           <div className="flex items-center gap-3">
             <div className="w-24 aspect-video rounded overflow-hidden flex-shrink-0 border border-[#eee] relative group bg-slate-100 flex items-center justify-center">
-              {item.bunnyThumbnailUrl ? (
-                <img src={item.bunnyThumbnailUrl} alt="" className="w-full h-full object-cover" />
+              {thumbnailUrl ? (
+                <img src={thumbnailUrl} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
                 <Video className="w-10 h-10 text-slate-300" />
               )}
