@@ -23,7 +23,6 @@ import {
   Lock,
   Check,
   Award,
-  Link2,
 } from 'lucide-react';
 import { cn, youtubeThumb } from '@/src/lib/utils';
 import UpgradeBanner from './UpgradeBanner';
@@ -58,7 +57,6 @@ export default function LearningView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [seekTime, setSeekTime] = useState(0);
   const [seekNonce, setSeekNonce] = useState(0);
-  const [copiedVideoId, setCopiedVideoId] = useState<string | null>(null);
   const [freeCourseNames, setFreeCourseNames] = useState<Set<string>>(new Set());
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   const [allInitiatives, setAllInitiatives] = useState<Initiative[]>([]);
@@ -676,25 +674,6 @@ export default function LearningView() {
                           <Layers size={12} />
                           {item.playlist}
                         </div>
-                        {isAdmin && item.id && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Link carrega o id do doc (abre o vídeo) e o título
-                              // para a Comunidade montar a mini-telinha do vídeo.
-                              const link = `${window.location.origin}/education?video=${item.id}` +
-                                `&t=${encodeURIComponent(item.title || '')}`;
-                              navigator.clipboard.writeText(link)
-                                .then(() => setCopiedVideoId(item.id!))
-                                .catch(() => {});
-                              setTimeout(() => setCopiedVideoId(null), 1800);
-                            }}
-                            title="Copiar link deste vídeo (para colar numa resposta da Comunidade)"
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800"
-                          >
-                            <Link2 size={12} /> {copiedVideoId === item.id ? 'copiado!' : 'copiar link'}
-                          </button>
-                        )}
                       </div>
                       {isSelected ? <ChevronUp size={16} className="text-blue-600" /> : <ChevronDown size={16} />}
                     </div>
