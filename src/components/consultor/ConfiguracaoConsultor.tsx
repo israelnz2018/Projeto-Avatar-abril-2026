@@ -4,7 +4,7 @@
  * aluno/coordenador) + esta única aba "Configuração". Ver PLANO-WHITELABEL.md.
  */
 import React, { Suspense, lazy, useState } from 'react';
-import { LayoutDashboard, BookOpen, Users, Users2, Palette, Settings, ClipboardCheck, Award } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
@@ -18,10 +18,12 @@ const VitrinePublica = lazy(() => import('../VitrinePublica'));
 const MinhaMarca = lazy(() => import('./MinhaMarca'));
 const ProvaCertificacao = lazy(() => import('../AvaliacaoAdminView'));
 const Certificados = lazy(() => import('../CertificadosView'));
+const MateriaisApoio = lazy(() => import('./MateriaisApoio'));
 
 const ABAS = [
   { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
+  { id: 'materiais', nome: 'Material de Apoio', icon: FolderUp, Comp: MateriaisApoio },
   { id: 'prova', nome: 'Prova', icon: ClipboardCheck, Comp: ProvaCertificacao },
   { id: 'certificados', nome: 'Certificados', icon: Award, Comp: Certificados },
   { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },

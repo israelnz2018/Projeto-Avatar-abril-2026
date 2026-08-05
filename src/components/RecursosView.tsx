@@ -6,11 +6,13 @@
  * Card sem acesso mostra cadeado + convite pra comprar (checkout Hotmart).
  * Clicar num card liberado abre um modal com o conteúdo + botão "Imprimir como PDF".
  */
-import React, { useState, useRef } from 'react';
-import { FileCheck2, Lock, Map, Presentation, X, Printer, Table2 } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { FileCheck2, Lock, Map, Presentation, X, Printer, Table2, Download, FileText } from 'lucide-react';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL, KIT90_CHECKOUT_URL } from '../lib/constants';
 import ChecklistMapa90Dias from './recursos/ChecklistMapa90Dias';
+import { listSupportMaterials, SupportMaterial } from '../services/supportMaterialService';
+import { resolveConsultorId } from '../services/consultorService';
 
 type Nivel = 'trilha1' | 'completo';
 
@@ -101,7 +103,12 @@ const CATEGORIA_COR: Record<Recurso['categoria'], string> = {
 export default function RecursosView() {
   const { plano, isAdmin, isCoordenador } = useUserAccess();
   const [aberto, setAberto] = useState<Recurso | null>(null);
+  const [materiaisConsultor, setMateriaisConsultor] = useState<SupportMaterial[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    listSupportMaterials(resolveConsultorId()).then(setMateriaisConsultor).catch(() => setMateriaisConsultor([]));
+  }, []);
 
   // Regra de acesso por card. 'trilha1' = qualquer pagante (introdutório/gratuito
   // com a Trilha 1, ou completo). 'completo' = só plano completo. Admin/coord veem tudo.
@@ -170,6 +177,28 @@ export default function RecursosView() {
           Materiais prontos pra você aplicar no seu trabalho real. Clique num card para abrir e imprimir.
         </p>
       </div>
+
+      {materiaisConsultor.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-lg font-black text-gray-900 mb-4">Materiais do seu consultor</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {materiaisConsultor.map(material => (
+              <a key={material.id} href={material.arquivoUrl} target="_blank" rel="noopener noreferrer"
+                className="relative rounded-2xl border border-gray-200 bg-white p-5 hover:border-blue-400 hover:shadow-lg transition-all no-underline">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0033CC] to-[#1E2D6E] text-white flex items-center justify-center">
+                    <FileText size={22} />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full bg-blue-100 text-blue-700">Arquivo</span>
+                </div>
+                <h3 className="font-bold text-gray-900 text-[15px] leading-snug">{material.titulo}</h3>
+                <p className="text-[13px] text-gray-500 mt-1.5 leading-relaxed line-clamp-3">{material.descricao || material.arquivoNome}</p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-[12px] font-bold text-blue-700"><Download size={13} /> Abrir material</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Grade de cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

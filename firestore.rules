@@ -300,6 +300,24 @@ service cloud.firestore {
       );
     }
 
+    match /support_materials/{materialId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId()
+      );
+      allow create: if isAdmin() || (
+        ehConsultor() && request.resource.data.consultorId == meuConsultorId()
+      );
+      allow update: if isAdmin() || (
+        ehConsultor() &&
+        resource.data.consultorId == meuConsultorId() &&
+        request.resource.data.consultorId == meuConsultorId()
+      );
+      allow delete: if isAdmin() || (
+        ehConsultor() && resource.data.consultorId == meuConsultorId()
+      );
+    }
+
     match /test/{docId} {
       allow read: if true;
     }

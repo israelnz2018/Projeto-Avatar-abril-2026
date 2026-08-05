@@ -84,6 +84,24 @@ service firebase.storage {
       allow write, delete: if isAdmin() || (isConsultor() && repasseMesmoConsultor(empresaId));
     }
 
+    match /support_materials/{consultorId}/{uid}/{fileName} {
+      allow read: if signedIn() && (
+        isAdmin() || userDoc(request.auth.uid).consultorId == consultorId
+      );
+      allow create, update: if isAdmin() || (
+        isConsultor() &&
+        request.auth.uid == uid &&
+        userDoc(request.auth.uid).consultorId == consultorId &&
+        request.resource.size < 50 * 1024 * 1024 &&
+        !request.resource.contentType.matches('video/.*')
+      );
+      allow delete: if isAdmin() || (
+        isConsultor() &&
+        request.auth.uid == uid &&
+        userDoc(request.auth.uid).consultorId == consultorId
+      );
+    }
+
     match /{allPaths=**} {
       allow read, write: if isAdmin();
     }
