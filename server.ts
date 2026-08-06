@@ -1989,6 +1989,9 @@ async function startServer() {
       const ref = adminFirestore().collection("users").doc(uid);
       const snap = await ref.get();
       const base = snap.exists ? (snap.data() as any) : {};
+      if (!callerEhAdmin && base.consultorId && String(base.consultorId) !== consultorId) {
+        return res.status(409).json({ error: "Este aluno já está vinculado a outro consultor." });
+      }
       await ref.set({
         uid, email,
         nome: nome || base.nome || "",
@@ -2029,6 +2032,58 @@ async function startServer() {
     } catch (err: any) {
       console.error("[POST /api/aluno/convidar] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao adicionar aluno." });
+    }
+  });
+
+  // DELETE /api/aluno/:uid — remove o aluno do tenant sem apagar a conta Auth,
+  // os projetos ou o histórico. O aluno deixa de ter acesso aos cursos deste consultor.
+  app.delete("/api/aluno/:uid", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    try {
+      const [callerSnap, targetSnap] = await Promise.all([
+        adminFirestore().collection("users").doc(callerUid).get(),
+        adminFirestore().collection("users").doc(String(req.params.uid || "")).get(),
+      ]);
+      if (!targetSnap.exists) return res.status(404).json({ error: "Aluno não encontrado." });
+      const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+      const target = targetSnap.data() as any;
+      const callerEhAdmin = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"]
+        .includes(String(caller.email || "").toLowerCase());
+      const callerEhConsultor = caller.tipoUsuario === "consultor";
+      if (!callerEhAdmin && !callerEhConsultor) {
+        return res.status(403).json({ error: "Só consultor ou admin pode remover aluno." });
+      }
+      if (["admin", "consultor", "coordenador"].includes(String(target.tipoUsuario || ""))) {
+        return res.status(400).json({ error: "Este usuário não é aluno." });
+      }
+      const consultorId = String(caller.consultorId || "israel");
+      if (!callerEhAdmin && String(target.consultorId || "israel") !== consultorId) {
+        return res.status(403).json({ error: "Este aluno não pertence ao seu ambiente." });
+      }
+
+      await targetSnap.ref.update({
+        consultorId: "__sem_consultor__",
+        empresaId: admin.firestore.FieldValue.delete(),
+        empresaNome: admin.firestore.FieldValue.delete(),
+        cursosAcesso: [],
+        cursosLiberados: admin.firestore.FieldValue.delete(),
+        formacoes: [],
+        plano: "gratuito",
+        valorPago: 0,
+        desvinculadoDe: String(target.consultorId || consultorId),
+        desvinculadoEm: new Date().toISOString(),
+      });
+      return res.json({ ok: true, uid: targetSnap.id });
+    } catch (err: any) {
+      console.error("[DELETE /api/aluno/:uid] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao remover aluno." });
     }
   });
 

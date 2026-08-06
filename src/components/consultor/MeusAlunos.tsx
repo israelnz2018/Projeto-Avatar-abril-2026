@@ -64,6 +64,7 @@ export default function MeusAlunos() {
   const [eAddCurso, setEAddCurso] = useState('');
   const [editSalvando, setEditSalvando] = useState(false);
   const [editMsg, setEditMsg] = useState('');
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
 
   const carregar = async () => {
     setLoading(true);
@@ -190,6 +191,20 @@ export default function MeusAlunos() {
     finally { setEditSalvando(false); }
   }
 
+  async function removerAluno(aluno: Aluno) {
+    if (!window.confirm(`Remover ${aluno.nome} do seu ambiente?\n\nA conta e o histórico não serão apagados, mas o aluno perderá o acesso aos seus cursos.`)) return;
+    setRemovingUid(aluno.uid);
+    try {
+      const response = await authedFetch(`/api/aluno/${encodeURIComponent(aluno.uid)}`, { method: 'DELETE' });
+      const body = await response.json().catch(() => ({} as any));
+      if (!response.ok) throw new Error(body?.error || 'Erro ao remover aluno.');
+      setRows(current => current.filter(item => item.uid !== aluno.uid));
+      if (editUid === aluno.uid) setEditUid(null);
+    } catch (error: any) {
+      window.alert(error?.message || 'Erro ao remover aluno.');
+    } finally { setRemovingUid(null); }
+  }
+
   const campo = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const cursosDisponiveis = cursos.filter((c) => !eCursos.some((x) => x.curso === c));
 
@@ -272,7 +287,7 @@ export default function MeusAlunos() {
       {loading ? <div className="text-gray-500">Carregando…</div> : (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="grid grid-cols-[1.3fr_1.4fr_auto] gap-3 px-4 py-2.5 bg-gray-50 text-[10px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-100">
-            <div>Aluno</div><div>Cursos com acesso</div><div className="text-right">Editar</div>
+            <div>Aluno</div><div>Cursos com acesso</div><div className="text-right">Ações</div>
           </div>
           {filtrados.length === 0 && <div className="px-4 py-8 text-center text-gray-400 text-sm">Nenhum aluno.</div>}
           {filtrados.map((a) => (
@@ -297,9 +312,13 @@ export default function MeusAlunos() {
                     <span className="text-xs text-gray-400 italic">—</span>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="flex items-center justify-end gap-2">
                   <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
                     {editUid === a.uid ? 'fechar' : 'editar'}
+                  </button>
+                  <button onClick={() => removerAluno(a)} disabled={removingUid === a.uid}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
