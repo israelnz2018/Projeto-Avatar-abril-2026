@@ -284,6 +284,60 @@ async function startServer() {
     }
   }
 
+  async function sendAlunoBloqueadoEmail(params: {
+    para: string;
+    nome?: string;
+    consultorNome?: string;
+  }): Promise<boolean> {
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || "465", 10);
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const fromEmail = process.env.SMTP_FROM || user;
+    const from = `LBW - Educacao pelo Trabalho <${fromEmail}>`;
+    if (!host || !user || !pass) {
+      console.warn("[sendAlunoBloqueadoEmail] SMTP nao configurado. Pulando envio.");
+      return false;
+    }
+    const nome = params.nome || params.para.split("@")[0];
+    const consultor = params.consultorNome || "seu consultor";
+    const linkApp = process.env.APP_URL || "https://app.educacaopelotrabalho.com";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #2A2F3A;">
+        <h2 style="color: #1E2D6E; margin: 0 0 16px 0;">Atualizacao sobre seu acesso</h2>
+        <p>Ola ${nome},</p>
+        <p>Seu acesso aos conteudos e recursos do ambiente de ${consultor} foi bloqueado.</p>
+        <div style="background: #FFF7ED; border-left: 4px solid #F97316; padding: 16px 18px; margin: 20px 0;">
+          <p style="margin: 0; font-size: 14px;">
+            Seus dados, historico e projetos permanecem preservados na plataforma e ficarao disponiveis por ate 3 meses.
+          </p>
+        </div>
+        <p>Se voce acredita que isso aconteceu por engano ou deseja reativar o acesso, fale diretamente com ${consultor}.</p>
+        <p style="font-size: 12px; color: #9CA3AF; margin-top: 28px;">
+          Plataforma: <a href="${linkApp}" style="color:#0033CC;">${linkApp}</a>
+        </p>
+      </div>
+    `;
+    try {
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+      });
+      await transporter.sendMail({
+        from,
+        to: params.para,
+        subject: "Atualizacao sobre seu acesso - LBW",
+        html,
+      });
+      return true;
+    } catch (err: any) {
+      console.error("[sendAlunoBloqueadoEmail] Erro SMTP:", err?.message || err);
+      return false;
+    }
+  }
+
   // Verifica que o request vem de um admin autenticado (idToken Firebase no header).
   async function requireAdmin(req: any, res: any, next: any) {
     if (!isAdminReady()) {
@@ -2068,6 +2122,19 @@ async function startServer() {
         return res.status(403).json({ error: "Este aluno não pertence ao seu ambiente." });
       }
 
+      const bloqueadoEm = new Date().toISOString();
+      const consultorNome = String(caller.nome || caller.displayName || caller.email || "seu consultor");
+      const avisoBloqueio = {
+        tipo: "acesso_bloqueado",
+        titulo: "Seu acesso foi bloqueado",
+        mensagem: "Seu acesso aos conteudos deste consultor foi bloqueado. Seus dados, historico e projetos permanecem preservados na plataforma e ficarao disponiveis por ate 3 meses.",
+        consultorId: String(target.consultorId || consultorId),
+        consultorNome,
+        criadoEm: bloqueadoEm,
+        expiraEm: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        lida: false,
+      };
+
       await targetSnap.ref.update({
         consultorId: "__sem_consultor__",
         empresaId: admin.firestore.FieldValue.delete(),
@@ -2078,12 +2145,114 @@ async function startServer() {
         plano: "gratuito",
         valorPago: 0,
         desvinculadoDe: String(target.consultorId || consultorId),
-        desvinculadoEm: new Date().toISOString(),
+        desvinculadoEm: bloqueadoEm,
+        avisoBloqueio,
       });
-      return res.json({ ok: true, uid: targetSnap.id });
+      let emailEnviado = false;
+      if (target.email) {
+        emailEnviado = await sendAlunoBloqueadoEmail({
+          para: String(target.email),
+          nome: String(target.nome || target.displayName || ""),
+          consultorNome,
+        });
+      }
+      return res.json({ ok: true, uid: targetSnap.id, emailEnviado });
     } catch (err: any) {
       console.error("[DELETE /api/aluno/:uid] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao remover aluno." });
+    }
+  });
+
+  // DELETE /api/aluno/:uid/definitivo — apaga a conta e dados do aluno somente
+  // depois de 90 dias da desvinculacao. A primeira remocao preserva tudo.
+  app.delete("/api/aluno/:uid/definitivo", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin nao configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticacao obrigatoria." });
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token invalido." }); }
+
+    const deleteQueryDocs = async (collectionName: string, field: string, value: string): Promise<number> => {
+      const snap = await adminFirestore().collection(collectionName).where(field, "==", value).get();
+      let count = 0;
+      for (let i = 0; i < snap.docs.length; i += 450) {
+        const batch = adminFirestore().batch();
+        snap.docs.slice(i, i + 450).forEach((d) => { batch.delete(d.ref); count += 1; });
+        await batch.commit();
+      }
+      return count;
+    };
+
+    try {
+      const uid = String(req.params.uid || "");
+      const [callerSnap, targetSnap] = await Promise.all([
+        adminFirestore().collection("users").doc(callerUid).get(),
+        adminFirestore().collection("users").doc(uid).get(),
+      ]);
+      if (!targetSnap.exists) return res.status(404).json({ error: "Aluno nao encontrado." });
+
+      const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+      const target = targetSnap.data() as any;
+      const callerEhAdmin = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"]
+        .includes(String(caller.email || "").toLowerCase());
+      const callerEhConsultor = caller.tipoUsuario === "consultor";
+      if (!callerEhAdmin && !callerEhConsultor) {
+        return res.status(403).json({ error: "So consultor ou admin pode excluir aluno definitivamente." });
+      }
+      if (["admin", "consultor", "coordenador"].includes(String(target.tipoUsuario || ""))) {
+        return res.status(400).json({ error: "Este usuario nao e aluno." });
+      }
+      const consultorId = String(caller.consultorId || "israel");
+      const donoOriginal = String(target.desvinculadoDe || target.avisoBloqueio?.consultorId || "");
+      if (!callerEhAdmin && donoOriginal !== consultorId) {
+        return res.status(403).json({ error: "Este aluno nao foi removido do seu ambiente." });
+      }
+      if (String(target.consultorId || "") !== "__sem_consultor__" || !target.desvinculadoEm) {
+        return res.status(400).json({ error: "Remova/bloqueie o aluno antes da exclusao definitiva." });
+      }
+      const desvinculadoMs = new Date(String(target.desvinculadoEm)).getTime();
+      const limiteMs = 90 * 24 * 60 * 60 * 1000;
+      if (!desvinculadoMs || Number.isNaN(desvinculadoMs) || Date.now() - desvinculadoMs < limiteMs) {
+        return res.status(400).json({ error: "A exclusao definitiva so fica disponivel apos 3 meses do bloqueio." });
+      }
+
+      const projectSnap = await adminFirestore().collection("projects").where("ownerUid", "==", uid).get();
+      let projectDataDeleted = 0;
+      for (const p of projectSnap.docs) {
+        const dataSnap = await p.ref.collection("data").get();
+        for (let i = 0; i < dataSnap.docs.length; i += 450) {
+          const batch = adminFirestore().batch();
+          dataSnap.docs.slice(i, i + 450).forEach((d) => { batch.delete(d.ref); projectDataDeleted += 1; });
+          await batch.commit();
+        }
+      }
+      let projectsDeleted = 0;
+      for (let i = 0; i < projectSnap.docs.length; i += 450) {
+        const batch = adminFirestore().batch();
+        projectSnap.docs.slice(i, i + 450).forEach((d) => { batch.delete(d.ref); projectsDeleted += 1; });
+        await batch.commit();
+      }
+
+      const [mentorDeleted, pendingDeleted] = await Promise.all([
+        deleteQueryDocs("mentor_conversations", "userId", uid),
+        deleteQueryDocs("pending_questions", "userId", uid),
+      ]);
+      await Promise.allSettled([
+        adminFirestore().collection("userProgress").doc(uid).delete(),
+        adminFirestore().collection("users").doc(uid).delete(),
+        adminAuth().deleteUser(uid),
+      ]);
+
+      return res.json({
+        ok: true,
+        uid,
+        removidos: { projects: projectsDeleted, projectData: projectDataDeleted, mentorConversations: mentorDeleted, pendingQuestions: pendingDeleted, userProgress: 1, user: 1, auth: 1 },
+      });
+    } catch (err: any) {
+      console.error("[DELETE /api/aluno/:uid/definitivo] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao excluir aluno definitivamente." });
     }
   });
 

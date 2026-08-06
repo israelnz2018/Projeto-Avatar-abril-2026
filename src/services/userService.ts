@@ -55,6 +55,16 @@ export interface UserData {
   maxAlunos?: number;
   /** Multi-tenant: consultor a que este usuário pertence (default 'israel'). */
   consultorId?: string;
+  avisoBloqueio?: {
+    tipo: 'acesso_bloqueado';
+    titulo: string;
+    mensagem: string;
+    consultorId?: string;
+    consultorNome?: string;
+    criadoEm: string;
+    expiraEm?: string;
+    lida?: boolean;
+  };
 }
 
 export interface PendingInvite {

@@ -24,7 +24,8 @@ import {
   Palette,
   Store,
   Shield,
-  Wallet
+  Wallet,
+  AlertTriangle
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -81,6 +82,7 @@ import { useProject } from './contexts/ProjectContext';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [avisoBloqueio, setAvisoBloqueio] = useState<{ titulo?: string; mensagem?: string; consultorNome?: string; expiraEm?: string } | null>(null);
   const { projetoAtivo } = useProject();
   const { tipoUsuario, plano, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
@@ -108,6 +110,24 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
   const isCoordenador = tipoUsuario === 'coordenador';
   const isConsultor = tipoUsuario === 'consultor';
+
+  useEffect(() => {
+    let ativo = true;
+    if (!user?.uid) {
+      setAvisoBloqueio(null);
+      return;
+    }
+    getUserData(user.uid)
+      .then((dados: any) => {
+        if (!ativo) return;
+        const aviso = dados?.avisoBloqueio;
+        setAvisoBloqueio(aviso?.tipo === 'acesso_bloqueado' ? aviso : null);
+      })
+      .catch(() => {
+        if (ativo) setAvisoBloqueio(null);
+      });
+    return () => { ativo = false; };
+  }, [user?.uid]);
 
   // Marca + cores dos PPTs (white-label). A marca do TIME (coordenador que escolheu
   // "meu próprio PPT") sobrepõe a do consultor — tanto pro coordenador quanto pros
@@ -299,6 +319,24 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <div className="p-8">
+          {avisoBloqueio && !isAdmin && !isConsultor && !isCoordenador && (
+            <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4 text-orange-950 shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertTriangle size={22} className="mt-0.5 shrink-0 text-orange-600" />
+                <div>
+                  <h2 className="text-base font-black">{avisoBloqueio.titulo || 'Seu acesso foi bloqueado'}</h2>
+                  <p className="mt-1 text-sm leading-relaxed">
+                    {avisoBloqueio.mensagem || 'Voce perdeu o acesso aos conteudos deste consultor, mas seus dados e projetos ficarao disponiveis por ate 3 meses.'}
+                  </p>
+                  {avisoBloqueio.consultorNome && (
+                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-orange-700">
+                      Consultor: {avisoBloqueio.consultorNome}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {children}
         </div>
       </main>

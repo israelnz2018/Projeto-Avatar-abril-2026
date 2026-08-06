@@ -26,6 +26,8 @@ interface CursoAcesso { curso: string; vencimento: string | null; valor: number;
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
   cursosAcesso: CursoAcesso[]; completo: boolean;
+  desvinculadoEm?: string;
+  avisoBloqueio?: { expiraEm?: string };
 }
 interface Equipe {
   empresaId: string;
@@ -65,12 +67,42 @@ export default function MeusAlunos() {
   const [editSalvando, setEditSalvando] = useState(false);
   const [editMsg, setEditMsg] = useState('');
   const [removingUid, setRemovingUid] = useState<string | null>(null);
+  const [bloqueados, setBloqueados] = useState<Aluno[]>([]);
+  const [deletingUid, setDeletingUid] = useState<string | null>(null);
+
+  const toAluno = (d: any): Aluno => {
+    const u = d as any;
+    let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
+      ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0 })).filter((c: CursoAcesso) => c.curso)
+      : [];
+    if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0 }));
+    const completoValido = (() => {
+      const ate = u.acessoCompletoAte;
+      if (!ate) return true;
+      const dt = new Date(ate);
+      return isNaN(dt.getTime()) ? true : dt.getTime() > Date.now();
+    })();
+    const completo = (u.plano === 'completo' && completoValido)
+      || (Array.isArray(u.formacoes) && u.formacoes.some((f: string) => !String(f).includes('introdutoria') && !String(f).includes('gratuito')));
+    return {
+      uid: d.id,
+      nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '-'),
+      email: u.email || '',
+      tipo: u.tipoUsuario || 'aluno',
+      acessou: !!u.primeiroAcessoEm,
+      cursosAcesso: ca,
+      completo,
+      desvinculadoEm: u.desvinculadoEm,
+      avisoBloqueio: u.avisoBloqueio,
+    };
+  };
 
   const carregar = async () => {
     setLoading(true);
     try {
-      const [usersSnap, kbSnap, inits] = await Promise.all([
+      const [usersSnap, blockedSnap, kbSnap, inits] = await Promise.all([
         getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))),
+        getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
         getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
         getInitiatives(),
       ]);
@@ -116,6 +148,7 @@ export default function MeusAlunos() {
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter(Boolean))).sort();
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       setRows(lista);
+      setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
       setEquipes(Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome)));
@@ -203,6 +236,45 @@ export default function MeusAlunos() {
     } catch (error: any) {
       window.alert(error?.message || 'Erro ao remover aluno.');
     } finally { setRemovingUid(null); }
+  }
+
+  async function bloquearAluno(aluno: Aluno) {
+    if (!window.confirm(`Bloquear/remover ${aluno.nome} do seu ambiente?\n\nO aluno perdera o acesso aos seus cursos agora. A conta, historico e projetos ficarao preservados por ate 3 meses antes de qualquer exclusao definitiva.`)) return;
+    setRemovingUid(aluno.uid);
+    try {
+      const response = await authedFetch(`/api/aluno/${encodeURIComponent(aluno.uid)}`, { method: 'DELETE' });
+      const body = await response.json().catch(() => ({} as any));
+      if (!response.ok) throw new Error(body?.error || 'Erro ao remover aluno.');
+      setRows(current => current.filter(item => item.uid !== aluno.uid));
+      if (editUid === aluno.uid) setEditUid(null);
+      carregar();
+    } catch (error: any) {
+      window.alert(error?.message || 'Erro ao remover aluno.');
+    } finally { setRemovingUid(null); }
+  }
+
+  const diasDesdeBloqueio = (aluno: Aluno) => {
+    const raw = aluno.desvinculadoEm;
+    if (!raw) return 0;
+    const ms = Date.now() - new Date(raw).getTime();
+    return Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+  };
+
+  const podeExcluirDefinitivo = (aluno: Aluno) => diasDesdeBloqueio(aluno) >= 90;
+
+  async function excluirDefinitivo(aluno: Aluno) {
+    const nome = aluno.nome || aluno.email || aluno.uid;
+    if (!window.confirm(`Excluir definitivamente ${nome}?\n\nIsso vai apagar a conta do Firebase Auth, o cadastro, progresso, projetos e conversas do mentor desse aluno. Esta acao nao pode ser desfeita.`)) return;
+    setDeletingUid(aluno.uid);
+    try {
+      const response = await authedFetch(`/api/aluno/${encodeURIComponent(aluno.uid)}/definitivo`, { method: 'DELETE' });
+      const body = await response.json().catch(() => ({} as any));
+      if (!response.ok) throw new Error(body?.error || 'Erro ao excluir definitivamente.');
+      setBloqueados(current => current.filter(item => item.uid !== aluno.uid));
+      window.alert('Aluno excluido definitivamente do Firebase.');
+    } catch (error: any) {
+      window.alert(error?.message || 'Erro ao excluir definitivamente.');
+    } finally { setDeletingUid(null); }
   }
 
   const campo = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -316,7 +388,7 @@ export default function MeusAlunos() {
                   <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
                     {editUid === a.uid ? 'fechar' : 'editar'}
                   </button>
-                  <button onClick={() => removerAluno(a)} disabled={removingUid === a.uid}
+                  <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
                     className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
                     <Trash2 size={15} />
                   </button>
@@ -366,6 +438,42 @@ export default function MeusAlunos() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {bloqueados.length > 0 && (
+        <div className="mt-8 bg-white border border-orange-200 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 bg-orange-50 border-b border-orange-100">
+            <h2 className="text-sm font-black text-orange-950">Alunos removidos em retencao</h2>
+            <p className="text-xs text-orange-700 mt-0.5">Eles perderam o acesso, mas dados e projetos ficam preservados por 3 meses.</p>
+          </div>
+          {bloqueados.map((a) => {
+            const dias = diasDesdeBloqueio(a);
+            const pronto = podeExcluirDefinitivo(a);
+            return (
+              <div key={a.uid} className="grid grid-cols-[1.2fr_1fr_auto] gap-3 px-4 py-3 items-center border-b border-orange-50 last:border-0">
+                <div className="min-w-0">
+                  <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
+                  <div className="text-xs text-gray-400 truncate">{a.email}</div>
+                </div>
+                <div className="text-xs text-gray-600">
+                  <span className={pronto ? 'font-black text-red-600' : 'font-bold text-orange-700'}>
+                    {pronto ? 'Mais de 3 meses' : `${dias}/90 dias`}
+                  </span>
+                  {a.desvinculadoEm && <span className="block text-[11px] text-gray-400">bloqueado em {new Date(a.desvinculadoEm).toLocaleDateString('pt-BR')}</span>}
+                </div>
+                <button
+                  onClick={() => excluirDefinitivo(a)}
+                  disabled={!pronto || deletingUid === a.uid}
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  title={pronto ? 'Excluir definitivamente do Firebase' : 'Disponivel apos 3 meses'}
+                >
+                  <Trash2 size={14} />
+                  {deletingUid === a.uid ? 'Excluindo...' : 'Excluir total'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
