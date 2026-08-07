@@ -119,6 +119,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const [addingMember, setAddingMember] = useState(false);
   const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
   const carregarInvites = useCallback(async () => {
     if (!empresaId) { setInvites([]); return; }
     try { setInvites(await listarConvitesPorEmpresa(empresaId)); } catch { /* ignora */ }
@@ -216,7 +217,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     const usadoCurso = usoPorCurso.get(curso) || 0;
     setCursosConvite((current) => current.some((c) => c.curso === curso)
       ? current.filter((c) => c.curso !== curso)
-      : limiteCurso > 0 && usadoCurso >= limiteCurso
+      : limiteCurso <= 0 || usadoCurso >= limiteCurso
       ? current
       : [...current, { curso, vencimento: cursoBase?.vencimento || null, valor: cursoBase?.valor || 0 }]);
   };
@@ -229,7 +230,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     if (cursosConvite.length === 0) { setErrMsg('Escolha ao menos um curso para o aluno.'); return; }
     if (cursosConvite.some((c) => !c.vencimento)) { setErrMsg('Informe a data de expiracao de todos os cursos.'); return; }
     if (vagasCheias) { setErrMsg('Limite de vagas atingido — peça ao admin para aumentar.'); return; }
-    setAddingMember(true); setErrMsg(null);
+    setAddingMember(true); setErrMsg(null); setOkMsg(null);
     try {
       const r = await authedFetch('/api/aluno/convidar', {
         method: 'POST',
@@ -240,6 +241,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
       setNovoNome('');
       setNovoEmail('');
       setCursosConvite([]);
+      setOkMsg(`Aluno ${j.status === 'criado' ? 'cadastrado' : 'atualizado'} com sucesso. ${j.emailEnviado ? 'Convite enviado por e-mail.' : 'Cadastro salvo, mas o e-mail nao foi enviado.'}`);
       await carregarInvites();
     } catch (e: any) { setErrMsg(e?.message || 'Falha ao convidar.'); }
     finally { setAddingMember(false); }
@@ -370,7 +372,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                       const base = cursosAcesso.find((c) => c.curso === curso);
                       const limiteCurso = Number((base as any)?.quantidade) || 0;
                       const usadoCurso = usoPorCurso.get(curso) || 0;
-                      return limiteCurso > 0 && usadoCurso >= limiteCurso ? null : { curso, vencimento: base?.vencimento || null, valor: base?.valor || 0 };
+                      return limiteCurso <= 0 || usadoCurso >= limiteCurso ? null : { curso, vencimento: base?.vencimento || null, valor: base?.valor || 0 };
                     }).filter(Boolean) as CursoConvite[])}
                     className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1"
                   >
@@ -392,14 +394,15 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                   const limiteCurso = Number((cursoBase as any)?.quantidade) || 0;
                   const usadoCurso = usoPorCurso.get(curso) || 0;
                   const restante = Math.max(0, limiteCurso - usadoCurso);
-                  const semSaldo = limiteCurso > 0 && restante <= 0 && !selecionado;
+                  const semConfiguracao = limiteCurso <= 0;
+                  const semSaldo = (semConfiguracao || restante <= 0) && !selecionado;
                   return (
                     <div key={curso} className={`rounded-xl border px-3 py-2 ${semSaldo ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-gray-200'}`}>
                       <label className="flex items-center gap-2 text-sm font-bold text-gray-800">
                         <input type="checkbox" checked={selecionado} disabled={semSaldo} onChange={() => toggleCursoConvite(curso)} className="h-4 w-4" />
                         <span className="flex-1">{curso}</span>
                         <span className="text-[11px] font-black text-blue-700 bg-blue-50 rounded px-2 py-1">
-                          {limiteCurso > 0 ? `${restante}/${limiteCurso} restantes` : 'sem limite'}
+                          {semConfiguracao ? 'sem acessos configurados' : `${restante}/${limiteCurso} restantes`}
                         </span>
                         <span className="text-[11px] font-bold text-gray-500">
                           Expira em {vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : 'sem data'}
@@ -420,6 +423,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
             </button>
           </div>
           {vagasCheias && <p className="text-rose-300 text-xs mt-2 mb-0">Vagas esgotadas. Peça ao admin para aumentar o limite do seu time.</p>}
+          {okMsg && <p className="text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-sm font-bold mt-3 mb-0">{okMsg}</p>}
           {limite == null && <p className="text-white/40 text-xs mt-2 mb-0">O admin ainda não definiu um limite de vagas pro seu time.</p>}
           {errMsg && <p className="text-rose-300 text-xs mt-2 mb-0">{errMsg}</p>}
 

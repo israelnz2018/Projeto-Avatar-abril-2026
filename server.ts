@@ -1870,6 +1870,7 @@ async function startServer() {
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     if (!acessoCompletoAte || Number.isNaN(new Date(acessoCompletoAte).getTime())) return res.status(400).json({ error: "Informe uma data de expiração válida." });
     if (cursosAcesso.length === 0) return res.status(400).json({ error: "Escolha ao menos um curso para o coordenador e o time dele." });
+    if (cursosAcesso.some((c: any) => (Number(c?.quantidade) || 0) <= 0)) return res.status(400).json({ error: "Informe a quantidade de acessos de cada curso liberado." });
     const empresaId = gerarEmpresaId(consultorId, empresaNome || email);
     const SENHA_CONVITE = gerarSenhaProvisoria();
 
