@@ -105,7 +105,7 @@ function CoordenadorShell({ children, light = false }: { children: React.ReactNo
 export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
-  const { empresaId, empresaNome, maxAlunos, siglaPpt, cursosLiberados, cursosAcesso } = useUserAccess();
+  const { empresaId, empresaNome, siglaPpt, cursosLiberados, cursosAcesso } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
   const meusProjetos = useProjetosComDetalhes(null);
@@ -196,9 +196,6 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     );
   }
 
-  const usados = alunosTotal + invites.length;
-  const limite = maxAlunos;
-  const vagasCheias = limite != null && usados >= limite;
   const emailConviteValido = novoEmail.trim().includes('@');
   const nomeConviteValido = novoNome.trim().length >= 2;
   const cadastroConviteValido = emailConviteValido && nomeConviteValido && cursosConvite.length > 0 && cursosConvite.every((c) => !!c.vencimento);
@@ -210,6 +207,9 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
       if (curso) usoPorCurso.set(curso, (usoPorCurso.get(curso) || 0) + 1);
     });
   });
+  const totalAcessosCursos = cursosAcesso.reduce((s, c) => s + (Number((c as any).quantidade) || 0), 0);
+  const totalUsadoCursos = cursosAcesso.reduce((s, c) => s + (usoPorCurso.get(c.curso) || 0), 0);
+  const totalRestanteCursos = Math.max(0, totalAcessosCursos - totalUsadoCursos);
 
   const toggleCursoConvite = (curso: string) => {
     const cursoBase = cursosAcesso.find((c) => c.curso === curso);
@@ -229,7 +229,6 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     if (!email.includes('@')) { setErrMsg('Informe um e-mail valido.'); return; }
     if (cursosConvite.length === 0) { setErrMsg('Escolha ao menos um curso para o aluno.'); return; }
     if (cursosConvite.some((c) => !c.vencimento)) { setErrMsg('Informe a data de expiracao de todos os cursos.'); return; }
-    if (vagasCheias) { setErrMsg('Limite de vagas atingido — peça ao admin para aumentar.'); return; }
     setAddingMember(true); setErrMsg(null); setOkMsg(null);
     try {
       const r = await authedFetch('/api/aluno/convidar', {
@@ -347,7 +346,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
 
       {/* ====== CONVIDAR / GERENCIAR MEMBROS ====== */}
       {!isReport && <div className="mb-10">
-        <SectionLabel rightSlot={limite != null ? <span className={vagasCheias ? 'text-rose-300' : ''}>{usados} / {limite} vagas</span> : `${usados} no time`}>
+        <SectionLabel rightSlot={`${totalRestanteCursos} / ${totalAcessosCursos} acessos restantes`}>
           Convidar membros
         </SectionLabel>
         <div className="rounded-2xl p-4 md:p-5 bg-gray-50 border border-gray-200 shadow-sm">
@@ -424,15 +423,14 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
           </div>
 
           <div className="flex justify-end">
-            <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !cadastroConviteValido}
+            <button onClick={adicionarMembro} disabled={addingMember || !cadastroConviteValido}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors bg-blue-600 border-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
-              style={{ color: (addingMember || vagasCheias || !cadastroConviteValido) ? '#9ca3af' : '#ffffff' }}>
+              style={{ color: (addingMember || !cadastroConviteValido) ? '#9ca3af' : '#ffffff' }}>
               <UserPlus size={14} /> {addingMember ? 'Convidando…' : 'Convidar'}
             </button>
           </div>
-          {vagasCheias && <p className="text-rose-300 text-xs mt-2 mb-0">Vagas esgotadas. Peça ao admin para aumentar o limite do seu time.</p>}
           {okMsg && <p className="text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-sm font-bold mt-3 mb-0">{okMsg}</p>}
-          {limite == null && <p className="text-white/40 text-xs mt-2 mb-0">O admin ainda não definiu um limite de vagas pro seu time.</p>}
+          <p className="text-gray-500 text-xs mt-2 mb-0">O saldo é controlado por curso, conforme a quantidade liberada pelo consultor.</p>
           {errMsg && <p className="text-rose-300 text-xs mt-2 mb-0">{errMsg}</p>}
 
           {invites.length > 0 && (

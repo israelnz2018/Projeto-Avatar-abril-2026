@@ -121,7 +121,7 @@ export function useUserAccess() {
           }
           // Modo por-curso: só quando o aluno TEM cursosAcesso não-vazio (pacote definido
           // pelo consultor). Vazio/ausente = modelo de plano (preserva os grupos atuais).
-          porCurso = tipo !== 'coordenador' && Array.isArray(data.cursosAcesso) && data.cursosAcesso.length > 0;
+          porCurso = Array.isArray(data.cursosAcesso) && data.cursosAcesso.length > 0;
           // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
           // passou, o "completo" expira e o usuário volta a gratuito.
           // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
@@ -146,7 +146,6 @@ export function useUserAccess() {
         // Consultor e coordenador têm acesso total às ferramentas (como o completo).
         // Não depende de plano/validade — o papel garante. Preserva os cursos que já tinham.
         if (cons) userPlano = 'completo';
-        if (coord) userPlano = 'completo';
         setPlano(userPlano);
         setIsAdmin(admin);
         setIsCoordenador(coord);
@@ -161,7 +160,7 @@ export function useUserAccess() {
         setCursosAcesso(cursosAcc);
         setCursosLiberados(cursosLib);
         setAcessoPorCurso(porCurso);
-        if (admin || cons || coord) {
+        if (admin || cons) {
           setFreeToolIds(new Set());
           setGrantedToolIds(new Set());
           return;
@@ -200,6 +199,7 @@ export function useUserAccess() {
 
   const canUseTool = (toolId: string) => {
     if (isAdmin) return true;
+    if (isCoordenador && cursosLiberados.length > 0) return freeToolIds.has(toolId) || grantedToolIds.has(toolId);
     // Modo por-curso: só as ferramentas do pacote (+ grátis). O plano:completo NÃO libera tudo.
     if (acessoPorCurso) return freeToolIds.has(toolId) || grantedToolIds.has(toolId);
     if (plano === 'completo') return true;
@@ -210,6 +210,7 @@ export function useUserAccess() {
     if (isAdmin) return true;
     const initiative = initiatives.find(i => i.id === initiativeId);
     if (!initiative) return false;
+    if (isCoordenador && cursosLiberados.length > 0) return initiative.isFree === true || (cursosLiberados || []).includes(initiative.name);
     // Modo por-curso: só as trilhas do pacote (+ grátis). O plano:completo NÃO libera tudo.
     if (acessoPorCurso) return initiative.isFree === true || (cursosLiberados || []).includes(initiative.name);
     if (plano === 'completo') return true;

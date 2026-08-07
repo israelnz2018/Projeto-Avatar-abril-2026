@@ -108,7 +108,7 @@ export default function LearningView() {
   }, []);
 
   // Papéis que veem tudo do tenant (staff do consultor).
-  const veTudo = isAdmin || isConsultor || isCoordenador;
+  const veTudo = isAdmin || isConsultor;
   // Modelo UNIFICADO (todos os consultores, incl. Israel = consultor referência):
   //  - Modo POR-CURSO (aluno com pacote de cursos): vê os cursos do pacote + os grátis;
   //    o resto fica com CADEADO. O plano:completo NÃO libera tudo aqui.
@@ -116,6 +116,7 @@ export default function LearningView() {
   //    exatamente como funciona hoje (grupos preservados).
   const isCourseLocked = (course: string) => {
     if (veTudo) return false;
+    if (isCoordenador) return !freeCourseNames.has(course) && !(cursosLiberados || []).includes(course);
     if (acessoPorCurso) return !freeCourseNames.has(course) && !(cursosLiberados || []).includes(course);
     return isStarter && !freeCourseNames.has(course);
   };

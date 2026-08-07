@@ -1859,18 +1859,23 @@ async function startServer() {
     const email = String(req.body?.email || "").toLowerCase().trim();
     const nome = String(req.body?.nome || "").trim();
     const empresaNome = String(req.body?.empresa || "").trim() || nome || email.split("@")[0];
-    const maxAlunos = Number(req.body?.maxAlunos) > 0 ? Number(req.body.maxAlunos) : 5;
-    const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
-    const acessoCompletoAte = String(req.body?.acessoCompletoAte || "").trim();
     const cursosAcesso = Array.isArray(req.body?.cursosAcesso)
       ? req.body.cursosAcesso
-          .map((c: any) => ({ curso: String(c?.curso || "").trim(), vencimento: c?.vencimento || null, valor: typeof c?.valor === "number" ? c.valor : 0, quantidade: Number(c?.quantidade) > 0 ? Number(c.quantidade) : 0 }))
+          .map((c: any) => ({
+            curso: String(c?.curso || "").trim(),
+            vencimento: c?.vencimento ? String(c.vencimento).slice(0, 10) : null,
+            valor: Number(c?.valor) >= 0 ? Number(c.valor) : 0,
+            quantidade: Number(c?.quantidade) > 0 ? Number(c.quantidade) : 0,
+          }))
           .filter((c: any) => c.curso)
       : [];
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
-    if (!acessoCompletoAte || Number.isNaN(new Date(acessoCompletoAte).getTime())) return res.status(400).json({ error: "Informe uma data de expiração válida." });
     if (cursosAcesso.length === 0) return res.status(400).json({ error: "Escolha ao menos um curso para o coordenador e o time dele." });
     if (cursosAcesso.some((c: any) => (Number(c?.quantidade) || 0) <= 0)) return res.status(400).json({ error: "Informe a quantidade de acessos de cada curso liberado." });
+    if (cursosAcesso.some((c: any) => !c.vencimento || Number.isNaN(new Date(c.vencimento).getTime()))) return res.status(400).json({ error: "Informe a expiração de cada curso liberado." });
+    const maxAlunos = cursosAcesso.reduce((s: number, c: any) => s + (Number(c.quantidade) || 0), 0);
+    const valorPago = cursosAcesso.reduce((s: number, c: any) => s + (Number(c.valor) || 0), 0);
+    const acessoCompletoAte = cursosAcesso.map((c: any) => String(c.vencimento)).sort().pop() || "";
     const empresaId = gerarEmpresaId(consultorId, empresaNome || email);
     const SENHA_CONVITE = gerarSenhaProvisoria();
 
