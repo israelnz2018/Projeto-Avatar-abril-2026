@@ -1,7 +1,7 @@
 /** MarcaDoTime — escolha entre os dois fundos do consultor ou dois fundos próprios. */
 import React, { useEffect, useRef, useState } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
-import { Download, FileImage, Upload } from 'lucide-react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Building2, Download, FileImage, Upload, X } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -11,6 +11,8 @@ export default function MarcaDoTime() {
   const { consultor, consultorId } = useConsultor();
   const { isCoordenador, loading, empresaId, pptFonte, pptCapaUrl: capaSalva, pptInternaUrl: internaSalva } = useUserAccess();
   const [fonte, setFonte] = useState<'consultor' | 'proprio'>('consultor');
+  const [nomeEmpresa, setNomeEmpresa] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [pptCapaUrl, setPptCapaUrl] = useState('');
   const [pptInternaUrl, setPptInternaUrl] = useState('');
   const [enviando, setEnviando] = useState<BrandingAsset | null>(null);
@@ -22,6 +24,16 @@ export default function MarcaDoTime() {
     setPptCapaUrl(capaSalva || '');
     setPptInternaUrl(internaSalva || '');
   }, [pptFonte, capaSalva, internaSalva]);
+
+  useEffect(() => {
+    if (!empresaId) return;
+    getDoc(doc(db, 'team_branding', empresaId)).then((snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as any;
+      setNomeEmpresa(typeof data.nomeEmpresa === 'string' ? data.nomeEmpresa : '');
+      setLogoUrl(typeof data.logoUrl === 'string' ? data.logoUrl : '');
+    }).catch(() => {});
+  }, [empresaId]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
   if (!isCoordenador) return <div className="p-8 text-red-600 font-bold">Só o coordenador edita a marca do time.</div>;
@@ -47,6 +59,8 @@ export default function MarcaDoTime() {
       await setDoc(doc(db, 'team_branding', empresaId), {
         empresaId,
         consultorId,
+        nomeEmpresa: nomeEmpresa.trim(),
+        logoUrl: logoUrl || null,
         pptFonte: fonte,
         pptCapaUrl: fonte === 'proprio' ? pptCapaUrl : null,
         pptInternaUrl: fonte === 'proprio' ? pptInternaUrl : null,
@@ -66,6 +80,35 @@ export default function MarcaDoTime() {
       <p className="text-gray-500 text-sm mb-6">Escolha o modelo usado nos PowerPoints exportados pela sua turma.</p>
 
       <div className="space-y-5">
+        <section className="bg-white border border-gray-200 rounded-2xl p-6">
+          <h2 className="font-black text-gray-800 mb-1">Identidade da empresa/time</h2>
+          <p className="text-sm text-gray-500 mb-4">Configure o nome e a logo que representam este time.</p>
+          <div className="grid md:grid-cols-[1fr_auto] gap-5 items-end">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Nome da empresa</label>
+              <input
+                value={nomeEmpresa}
+                onChange={(e) => setNomeEmpresa(e.target.value)}
+                placeholder="Ex.: Empresa X"
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-28 h-16 rounded-xl border border-gray-200 bg-gray-50 grid place-items-center overflow-hidden">
+                {logoUrl ? <img src={logoUrl} alt="Logo da empresa" className="max-w-full max-h-full object-contain p-1" /> : <Building2 size={24} className="text-gray-300" />}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Upload size={14} />
+                  {enviando === 'logo' ? 'Enviando...' : logoUrl ? 'Trocar logo' : 'Fazer upload'}
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={(e) => { enviar(e.target.files?.[0], 'logo', setLogoUrl); e.target.value = ''; }} />
+                </label>
+                {logoUrl && <button type="button" onClick={() => setLogoUrl('')} className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50"><X size={14} /> Remover</button>}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className={`bg-white border rounded-2xl p-6 ${fonte === 'consultor' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'}`}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="radio" name="fontePpt" checked={fonte === 'consultor'} onChange={() => setFonte('consultor')} />
