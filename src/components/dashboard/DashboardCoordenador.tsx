@@ -25,7 +25,6 @@ import { deletarConvite, listarConvitesPorEmpresa, PendingInvite, updateUserSigl
 import { getProjetosComDetalhes, ProjetoComDetalhes } from '../../services/dashboardDataService';
 import {
   useResumoEquipe,
-  useUserUsageStats,
   useProjetosComDetalhes,
   useResultadosEquipe,
 } from '../../hooks/useDashboardData';
@@ -74,13 +73,35 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
   return fetch(url, { ...init, headers });
 }
 
+function CoordenadorShell({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
+  if (!light) return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <div className="coord-light -m-8 min-h-screen bg-white text-gray-900">
+      <style>{`
+        .coord-light [class*="text-white"] { color: #111827 !important; }
+        .coord-light [class*="text-white/"] { color: #4b5563 !important; }
+        .coord-light [class*="border-white"] { border-color: #e5e7eb !important; }
+        .coord-light [class*="bg-white/"] { background-color: #f9fafb !important; }
+        .coord-light [style*="rgba(255,255,255"] {
+          background: #ffffff !important;
+          border-color: #e5e7eb !important;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+        }
+        .coord-light [style*="#0f1626"] { background: #ffffff !important; }
+      `}</style>
+      <div className="relative z-10 px-6 md:px-12 lg:px-16 py-10">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
   const { empresaId, empresaNome, maxAlunos, siglaPpt } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
-  const meusStats = useUserUsageStats(null);
   const meusProjetos = useProjetosComDetalhes(null);
   const resultados = useResultadosEquipe(isReport ? empresaId : null, uid);
 
@@ -136,7 +157,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   // Coordenador sem empresaId → estado vazio elegante
   if (!empresaId) {
     return (
-      <DashboardShell>
+      <CoordenadorShell light={!isReport}>
         <SectionLabel live rightSlot={<>Coordenador</>}>
           Painel do Coordenador
         </SectionLabel>
@@ -162,7 +183,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
             Você é coordenador, mas o seu doc não tem <code className="text-white/75">empresaId</code> definido. Peça pro admin vincular sua conta a uma empresa pra começar a montar o time.
           </p>
         </motion.div>
-      </DashboardShell>
+      </CoordenadorShell>
     );
   }
 
@@ -203,7 +224,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   };
 
   return (
-    <DashboardShell>
+    <CoordenadorShell light={!isReport}>
       {/* ====== HEADER ====== */}
       <motion.header
         initial={{ opacity: 0, y: 10 }}
@@ -223,7 +244,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
             : <>Você acompanha <span className="text-white font-bold">{alunosTotal} aluno{alunosTotal > 1 ? 's' : ''}</span>{alunosTravados > 0 ? <> · <span className="text-rose-300 font-bold">{alunosTravados} precisa{alunosTravados === 1 ? '' : 'm'} de atenção</span></> : null}.</>
           }
         </p>
-        {uid && (
+        {false && uid && (
           <div className="mt-5 flex items-center gap-3 flex-wrap">
             <label className="text-white/55 text-xs font-bold uppercase tracking-wide">Sua sigla nos PPTs:</label>
             <input
@@ -587,7 +608,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
       </div>}
 
       {/* ====== MEUS PROJETOS (condensado) ====== */}
-      {(meusProjetos.data || []).length > 0 && (
+      {false && (meusProjetos.data || []).length > 0 && (
         <div className="mb-6">
           <SectionLabel rightSlot={<a href="/projects" className="hover:text-white">Ver todos →</a>}>
             Meus projetos
@@ -678,6 +699,6 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
           </div>
         </div>
       )}
-    </DashboardShell>
+    </CoordenadorShell>
   );
 }
