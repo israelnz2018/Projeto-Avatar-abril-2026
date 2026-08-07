@@ -64,6 +64,12 @@ function formatISORelative(iso?: string): string {
 }
 
 const fmtBRL = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
+const emUmAno = () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+interface CursoConvite {
+  curso: string;
+  vencimento: string;
+}
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -99,7 +105,7 @@ function CoordenadorShell({ children, light = false }: { children: React.ReactNo
 export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
-  const { empresaId, empresaNome, maxAlunos, siglaPpt } = useUserAccess();
+  const { empresaId, empresaNome, maxAlunos, siglaPpt, cursosLiberados } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
   const meusProjetos = useProjetosComDetalhes(null);
@@ -107,7 +113,9 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
 
   // Convites pendentes do time (auto-serviço do coordenador).
   const [invites, setInvites] = useState<PendingInvite[]>([]);
+  const [novoNome, setNovoNome] = useState('');
   const [novoEmail, setNovoEmail] = useState('');
+  const [cursosConvite, setCursosConvite] = useState<CursoConvite[]>([]);
   const [addingMember, setAddingMember] = useState(false);
   const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -191,20 +199,38 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const limite = maxAlunos;
   const vagasCheias = limite != null && usados >= limite;
   const emailConviteValido = novoEmail.trim().includes('@');
+  const nomeConviteValido = novoNome.trim().length >= 2;
+  const cadastroConviteValido = emailConviteValido && nomeConviteValido && cursosConvite.length > 0 && cursosConvite.every((c) => !!c.vencimento);
+
+  const toggleCursoConvite = (curso: string) => {
+    setCursosConvite((current) => current.some((c) => c.curso === curso)
+      ? current.filter((c) => c.curso !== curso)
+      : [...current, { curso, vencimento: emUmAno() }]);
+  };
+
+  const setVencimentoConvite = (curso: string, vencimento: string) => {
+    setCursosConvite((current) => current.map((c) => c.curso === curso ? { ...c, vencimento } : c));
+  };
 
   const adicionarMembro = async () => {
     const email = novoEmail.trim().toLowerCase();
-    if (!email.includes('@') || !empresaId) return;
+    if (!empresaId) return;
+    if (!nomeConviteValido) { setErrMsg('Informe o nome do aluno.'); return; }
+    if (!email.includes('@')) { setErrMsg('Informe um e-mail valido.'); return; }
+    if (cursosConvite.length === 0) { setErrMsg('Escolha ao menos um curso para o aluno.'); return; }
+    if (cursosConvite.some((c) => !c.vencimento)) { setErrMsg('Informe a data de expiracao de todos os cursos.'); return; }
     if (vagasCheias) { setErrMsg('Limite de vagas atingido — peça ao admin para aumentar.'); return; }
     setAddingMember(true); setErrMsg(null);
     try {
       const r = await authedFetch('/api/aluno/convidar', {
         method: 'POST',
-        body: JSON.stringify({ email, cursosAcesso: [] }),
+        body: JSON.stringify({ nome: novoNome.trim(), email, cursosAcesso: cursosConvite }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (!r.ok) throw new Error(j?.error || 'Falha ao convidar.');
+      setNovoNome('');
       setNovoEmail('');
+      setCursosConvite([]);
       await carregarInvites();
     } catch (e: any) { setErrMsg(e?.message || 'Falha ao convidar.'); }
     finally { setAddingMember(false); }
@@ -306,17 +332,59 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
           Convidar membros
         </SectionLabel>
         <div className="rounded-2xl p-4 md:p-5 bg-gray-50 border border-gray-200 shadow-sm">
-          <p className="text-xs font-bold text-gray-600 mb-2 mt-0">E-mail do aluno convidado</p>
-          <div className="flex gap-2 flex-wrap items-center">
+          <p className="text-xs font-bold text-gray-600 mb-2 mt-0">Dados do aluno convidado</p>
+          <div className="grid md:grid-cols-2 gap-2 mb-4">
+            <input
+              value={novoNome}
+              onChange={(e) => setNovoNome(e.target.value)}
+              placeholder="Nome completo"
+              className="rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 bg-white border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
             <input
               type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') adicionarMembro(); }}
               placeholder="email@empresa.com"
-              className="flex-1 min-w-[220px] rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 bg-white border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 bg-white border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !emailConviteValido}
+          </div>
+
+          <div className="mb-4">
+            <p className="text-xs font-bold text-gray-600 mb-2 mt-0">Cursos que este aluno vai acessar</p>
+            {cursosLiberados.length === 0 ? (
+              <p className="text-red-600 text-xs mt-0 mb-0">Este coordenador ainda nao tem cursos liberados pelo consultor.</p>
+            ) : (
+              <div className="space-y-2">
+                {cursosLiberados.map((curso) => {
+                  const item = cursosConvite.find((c) => c.curso === curso);
+                  const selecionado = !!item;
+                  return (
+                    <div key={curso} className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+                      <label className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                        <input type="checkbox" checked={selecionado} onChange={() => toggleCursoConvite(curso)} className="h-4 w-4" />
+                        <span className="flex-1">{curso}</span>
+                      </label>
+                      {selecionado && (
+                        <div className="mt-2 flex items-center gap-2 pl-6">
+                          <span className="text-[11px] font-bold text-gray-500">Expira em</span>
+                          <input
+                            type="date"
+                            value={item.vencimento}
+                            onChange={(e) => setVencimentoConvite(curso, e.target.value)}
+                            className="rounded-lg px-2 py-1.5 text-xs text-gray-900 bg-white border border-gray-300 focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !cadastroConviteValido}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors bg-blue-600 border-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
-              style={{ color: (addingMember || vagasCheias || !emailConviteValido) ? '#9ca3af' : '#ffffff' }}>
+              style={{ color: (addingMember || vagasCheias || !cadastroConviteValido) ? '#9ca3af' : '#ffffff' }}>
               <UserPlus size={14} /> {addingMember ? 'Convidando…' : 'Convidar'}
             </button>
           </div>
