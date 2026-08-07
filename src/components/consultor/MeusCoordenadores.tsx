@@ -198,6 +198,16 @@ export default function MeusCoordenadores() {
         </div>
         <div className="mt-4">
           <label className={label}>Cursos liberados para o coordenador e o time</label>
+          {cursos.length > 0 && (
+            <div className="flex gap-2 mb-2">
+              <button type="button" onClick={() => setCursosConvite(cursos)} className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1">
+                Selecionar todos
+              </button>
+              <button type="button" onClick={() => setCursosConvite([])} className="text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
+                Limpar seleção
+              </button>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso cadastrado ainda.</span>}
             {cursos.map((curso) => {
@@ -289,6 +299,16 @@ export default function MeusCoordenadores() {
                   <p className="text-xs text-gray-500 mb-2 mt-0">
                     Marque os cursos que este coordenador podera liberar para os alunos dele.
                   </p>
+                  {cursos.length > 0 && (
+                    <div className="flex gap-2 mb-2">
+                      <button type="button" onClick={() => setECursos(cursos)} className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1">
+                        Selecionar todos
+                      </button>
+                      <button type="button" onClick={() => setECursos([])} className="text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
+                        Limpar seleção
+                      </button>
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso cadastrado ainda.</span>}
                     {cursos.map((curso) => {

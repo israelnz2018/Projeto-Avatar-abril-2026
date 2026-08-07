@@ -354,6 +354,22 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
               <p className="text-red-600 text-xs mt-0 mb-0">O consultor ainda nao liberou cursos para este coordenador e o time dele.</p>
             ) : (
               <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCursosConvite(cursosLiberados.map((curso) => ({ curso, vencimento: emUmAno() })))}
+                    className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1"
+                  >
+                    Selecionar todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCursosConvite([])}
+                    className="text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1"
+                  >
+                    Limpar seleção
+                  </button>
+                </div>
                 {cursosLiberados.map((curso) => {
                   const item = cursosConvite.find((c) => c.curso === curso);
                   const selecionado = !!item;
