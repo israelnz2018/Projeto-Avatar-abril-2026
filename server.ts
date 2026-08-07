@@ -1557,6 +1557,53 @@ async function startServer() {
     } catch (e: any) { return res.status(500).json({ error: e?.message || "Erro Bunny" }); }
   });
 
+  // Gera índice (capítulos) + resumo a partir de uma transcrição, via Gemini — SEMPRE
+  // no servidor (a chave nunca vai ao navegador). Usado pelo transcribe-video e pelo
+  // endpoint dedicado /api/gerar-indice (reprocessamento manual/em lote no cliente).
+  async function gerarIndicePorIA(rawTranscript: string): Promise<{ summary: any[]; transcript: string }> {
+    const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+    const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+    const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+    const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+    if (!geminiKey) throw new Error("Gemini API key não configurada para gerar o índice.");
+    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const prompt = `TRANSCRIÇÃO COMPLETA (com tempos):\n${rawTranscript}\n\nCrie um índice clicável e um resumo detalhado. Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"descrição"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
+    const generated = await ai.models.generateContent({
+      model: geminiModel,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json", maxOutputTokens: 8192, temperature: 0.4 },
+    });
+    const cleaned = String(generated.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (!Array.isArray(parsed.summary) || !parsed.summary.length) throw new Error("Gemini retornou índice vazio.");
+    return { summary: parsed.summary, transcript: String(parsed.transcript || "") };
+  }
+
+  // POST /api/gerar-indice — gera índice/resumo a partir de uma transcrição já salva
+  // (reprocessamento manual por vídeo, ou o botão "Gerar índice" em lote). Roda 100% no
+  // servidor: o consultor nunca vê qual IA/provedor a plataforma usa por baixo.
+  app.post("/api/gerar-indice", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    try { await adminAuth().verifyIdToken(idToken); }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const rawTranscript = String(req.body?.rawTranscript || "").trim();
+    if (!rawTranscript) return res.status(400).json({ error: "rawTranscript obrigatório." });
+    try {
+      const { summary, transcript } = await gerarIndicePorIA(rawTranscript);
+      return res.json({ summary, transcript });
+    } catch (error: any) {
+      console.error("[/api/gerar-indice] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao gerar índice.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // POST /api/bunny/transcribe-video — transcreve um vídeo já enviado ao Bunny usando
   // DeepInfra Whisper (muito mais barato que Bunny Transcribe), publica a legenda pt no player
   // e devolve o transcript com timestamps. A chave da DeepInfra e a chave Bunny ficam no servidor.
@@ -1700,26 +1747,12 @@ async function startServer() {
         await transcriptBatch.commit();
       }
 
-      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
-      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
-      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
-      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
-      if (!geminiKey) throw new Error("Gemini API key não configurada para gerar o índice.");
-      const ai = new GoogleGenAI({ apiKey: geminiKey });
-      const prompt = `TRANSCRIÇÃO COMPLETA (com tempos):\n${rawTranscript}\n\nCrie um índice clicável e um resumo detalhado. Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"descrição"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
-      const generated = await ai.models.generateContent({
-        model: geminiModel,
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { responseMimeType: "application/json", maxOutputTokens: 8192, temperature: 0.4 },
-      });
-      const cleaned = String(generated.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
-      const parsed = JSON.parse(cleaned);
-      if (!Array.isArray(parsed.summary) || !parsed.summary.length) throw new Error("Gemini retornou índice vazio.");
+      const { summary, transcript: indiceTranscript } = await gerarIndicePorIA(rawTranscript);
       const indexBatch = adminFirestore().batch();
       videoDocs.docs.forEach(doc => indexBatch.update(doc.ref, {
         rawTranscript,
-        summary: parsed.summary,
-        transcript: String(parsed.transcript || ""),
+        summary,
+        transcript: indiceTranscript,
       }));
       await indexBatch.commit();
 
@@ -1727,7 +1760,7 @@ async function startServer() {
       videoDocs.docs.forEach(doc => clearBatch.update(doc.ref, { transcricaoErro: admin.firestore.FieldValue.delete() }));
       await clearBatch.commit().catch(() => {});
 
-      return res.json({ transcript: rawTranscript, summary: parsed.summary, caption: "pt", complete: true });
+      return res.json({ transcript: rawTranscript, summary, caption: "pt", complete: true });
     } catch (error: any) {
       // Log completo (com nome de fornecedor/detalhe técnico) só no servidor. O consultor
       // nunca vê qual software/provedor a plataforma usa por baixo dos panos.
