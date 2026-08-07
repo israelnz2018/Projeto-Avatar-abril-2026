@@ -5,6 +5,7 @@ import { getInitiatives, getInitiativeConfigs } from '../services/configService'
 import type { TipoUsuario } from '../services/userService';
 
 type Plano = 'gratuito' | 'completo' | 'coordenador';
+type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
 
 export function useUserAccess() {
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,7 @@ export function useUserAccess() {
   const [pptCapaUrl, setPptCapaUrl] = useState('');
   const [pptInternaUrl, setPptInternaUrl] = useState('');
   const [cursosLiberados, setCursosLiberados] = useState<string[]>([]);
+  const [cursosAcesso, setCursosAcesso] = useState<CursoAcesso[]>([]);
   // Aluno em modo POR-CURSO: tem cursosAcesso definido (pacote de cursos escolhido
   // pelo consultor). Nesse modo o acesso é pelos cursos liberados, NÃO pelo plano —
   // assim o `plano:completo` que o convite grava não faz o aluno "ver tudo".
@@ -52,6 +54,7 @@ export function useUserAccess() {
         let pFonte: 'consultor' | 'proprio' | null = null;
         let pCores: { navy: string; blue: string; light: string } | null = null;
         let cursosLib: string[] = [];
+        let cursosAcc: CursoAcesso[] = [];
         let porCurso = false;
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -101,6 +104,14 @@ export function useUserAccess() {
           // Fallback pro legado cursosLiberados (string[] sem vencimento).
           const ca = Array.isArray(data.cursosAcesso) ? data.cursosAcesso : null;
           if (ca) {
+            cursosAcc = ca
+              .map((c: any) => ({
+                curso: String(c?.curso || '').trim(),
+                vencimento: c?.vencimento ? String(c.vencimento) : null,
+                valor: typeof c?.valor === 'number' ? c.valor : 0,
+                quantidade: typeof c?.quantidade === 'number' ? c.quantidade : undefined,
+              }))
+              .filter((c: CursoAcesso) => c.curso);
             cursosLib = ca
               .filter((c: any) => !c?.vencimento || new Date(c.vencimento).getTime() >= Date.now())
               .map((c: any) => c?.curso)
@@ -147,6 +158,7 @@ export function useUserAccess() {
         setSiglaPpt(sPpt);
         setPptFonte(pFonte);
         setPptCores(pCores);
+        setCursosAcesso(cursosAcc);
         setCursosLiberados(cursosLib);
         setAcessoPorCurso(porCurso);
         if (admin || cons || coord) {
@@ -220,6 +232,7 @@ export function useUserAccess() {
     pptCapaUrl,
     pptInternaUrl,
     cursosLiberados,
+    cursosAcesso,
     acessoPorCurso,
     freeToolIds,
     canUseTool,

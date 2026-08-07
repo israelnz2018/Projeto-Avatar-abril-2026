@@ -64,11 +64,11 @@ function formatISORelative(iso?: string): string {
 }
 
 const fmtBRL = (n: number) => `R$ ${Math.round(n).toLocaleString('pt-BR')}`;
-const emUmAno = () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 interface CursoConvite {
   curso: string;
-  vencimento: string;
+  vencimento: string | null;
+  valor?: number;
 }
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -105,7 +105,7 @@ function CoordenadorShell({ children, light = false }: { children: React.ReactNo
 export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
-  const { empresaId, empresaNome, maxAlunos, siglaPpt, cursosLiberados } = useUserAccess();
+  const { empresaId, empresaNome, maxAlunos, siglaPpt, cursosLiberados, cursosAcesso } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
   const meusProjetos = useProjetosComDetalhes(null);
@@ -201,15 +201,24 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const emailConviteValido = novoEmail.trim().includes('@');
   const nomeConviteValido = novoNome.trim().length >= 2;
   const cadastroConviteValido = emailConviteValido && nomeConviteValido && cursosConvite.length > 0 && cursosConvite.every((c) => !!c.vencimento);
+  const usoPorCurso = new Map<string, number>();
+  time.forEach((a) => {
+    const lista = Array.isArray((a.user as any).cursosAcesso) ? (a.user as any).cursosAcesso : [];
+    lista.forEach((c: any) => {
+      const curso = String(c?.curso || '').trim();
+      if (curso) usoPorCurso.set(curso, (usoPorCurso.get(curso) || 0) + 1);
+    });
+  });
 
   const toggleCursoConvite = (curso: string) => {
+    const cursoBase = cursosAcesso.find((c) => c.curso === curso);
+    const limiteCurso = Number((cursoBase as any)?.quantidade) || 0;
+    const usadoCurso = usoPorCurso.get(curso) || 0;
     setCursosConvite((current) => current.some((c) => c.curso === curso)
       ? current.filter((c) => c.curso !== curso)
-      : [...current, { curso, vencimento: emUmAno() }]);
-  };
-
-  const setVencimentoConvite = (curso: string, vencimento: string) => {
-    setCursosConvite((current) => current.map((c) => c.curso === curso ? { ...c, vencimento } : c));
+      : limiteCurso > 0 && usadoCurso >= limiteCurso
+      ? current
+      : [...current, { curso, vencimento: cursoBase?.vencimento || null, valor: cursoBase?.valor || 0 }]);
   };
 
   const adicionarMembro = async () => {
@@ -357,7 +366,12 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setCursosConvite(cursosLiberados.map((curso) => ({ curso, vencimento: emUmAno() })))}
+                    onClick={() => setCursosConvite(cursosLiberados.map((curso) => {
+                      const base = cursosAcesso.find((c) => c.curso === curso);
+                      const limiteCurso = Number((base as any)?.quantidade) || 0;
+                      const usadoCurso = usoPorCurso.get(curso) || 0;
+                      return limiteCurso > 0 && usadoCurso >= limiteCurso ? null : { curso, vencimento: base?.vencimento || null, valor: base?.valor || 0 };
+                    }).filter(Boolean) as CursoConvite[])}
                     className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1"
                   >
                     Selecionar todos
@@ -372,24 +386,25 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                 </div>
                 {cursosLiberados.map((curso) => {
                   const item = cursosConvite.find((c) => c.curso === curso);
+                  const cursoBase = cursosAcesso.find((c) => c.curso === curso);
                   const selecionado = !!item;
+                  const vencimento = cursoBase?.vencimento || item?.vencimento || null;
+                  const limiteCurso = Number((cursoBase as any)?.quantidade) || 0;
+                  const usadoCurso = usoPorCurso.get(curso) || 0;
+                  const restante = Math.max(0, limiteCurso - usadoCurso);
+                  const semSaldo = limiteCurso > 0 && restante <= 0 && !selecionado;
                   return (
-                    <div key={curso} className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+                    <div key={curso} className={`rounded-xl border px-3 py-2 ${semSaldo ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-gray-200'}`}>
                       <label className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                        <input type="checkbox" checked={selecionado} onChange={() => toggleCursoConvite(curso)} className="h-4 w-4" />
+                        <input type="checkbox" checked={selecionado} disabled={semSaldo} onChange={() => toggleCursoConvite(curso)} className="h-4 w-4" />
                         <span className="flex-1">{curso}</span>
+                        <span className="text-[11px] font-black text-blue-700 bg-blue-50 rounded px-2 py-1">
+                          {limiteCurso > 0 ? `${restante}/${limiteCurso} restantes` : 'sem limite'}
+                        </span>
+                        <span className="text-[11px] font-bold text-gray-500">
+                          Expira em {vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : 'sem data'}
+                        </span>
                       </label>
-                      {selecionado && (
-                        <div className="mt-2 flex items-center gap-2 pl-6">
-                          <span className="text-[11px] font-bold text-gray-500">Expira em</span>
-                          <input
-                            type="date"
-                            value={item.vencimento}
-                            onChange={(e) => setVencimentoConvite(curso, e.target.value)}
-                            className="rounded-lg px-2 py-1.5 text-xs text-gray-900 bg-white border border-gray-300 focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -443,6 +458,9 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                   <div className="min-w-0">
                     <p className="text-white font-bold text-sm m-0 truncate">{a.user.nome || a.user.email.split('@')[0]}</p>
                     <p className="text-white/40 text-[11px] m-0 truncate">{a.user.email}</p>
+                    <p className="text-white/40 text-[11px] m-0 truncate">
+                      Incluido em {new Date(a.user.incluidoNoTimeEm || a.user.criadoEm).toLocaleDateString('pt-BR')}
+                    </p>
                   </div>
                   <button onClick={() => removerMembro(a.user.uid)} disabled={removingUid === a.user.uid}
                     className="px-3 py-1.5 rounded-lg text-xs font-black text-rose-200 border border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-40">

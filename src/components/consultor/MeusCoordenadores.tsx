@@ -28,7 +28,7 @@ interface CoordRow {
   timeAtivo: number;
   limite: number | null;
   valorPago: number;
-  cursosAcesso: { curso: string; vencimento: string | null; valor?: number }[];
+  cursosAcesso: { curso: string; vencimento: string | null; valor?: number; quantidade?: number }[];
   vencimento: string;
 }
 
@@ -46,6 +46,8 @@ export default function MeusCoordenadores() {
   const [maxAlunos, setMaxAlunos] = useState('5');
   const [valorConvite, setValorConvite] = useState('');
   const [cursosConvite, setCursosConvite] = useState<string[]>([]);
+  const [qtdConvite, setQtdConvite] = useState<Record<string, string>>({});
+  const [valorCursoConvite, setValorCursoConvite] = useState<Record<string, string>>({});
   const [vencimentoConvite, setVencimentoConvite] = useState(() => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10));
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState('');
@@ -54,6 +56,8 @@ export default function MeusCoordenadores() {
   const [eMax, setEMax] = useState('');
   const [eValor, setEValor] = useState('');
   const [eCursos, setECursos] = useState<string[]>([]);
+  const [eQtdCursos, setEQtdCursos] = useState<Record<string, string>>({});
+  const [eValorCursos, setEValorCursos] = useState<Record<string, string>>({});
   const [eVencimento, setEVencimento] = useState('');
   const [eSalvando, setESalvando] = useState(false);
   const [eMsg, setEMsg] = useState('');
@@ -103,6 +107,7 @@ export default function MeusCoordenadores() {
     const mail = email.trim().toLowerCase();
     if (!mail || mail.indexOf('@') < 0) { setMsg('Informe um e-mail válido.'); return; }
     if (cursosConvite.length === 0) { setMsg('Escolha ao menos um curso para este coordenador e o time dele.'); return; }
+    if (cursosConvite.some((curso) => (Number(qtdConvite[curso]) || 0) <= 0)) { setMsg('Informe a quantidade de acessos de cada curso selecionado.'); return; }
     if (!vencimentoConvite) { setMsg('Informe a data de expiração do acesso.'); return; }
     setEnviando(true);
     setMsg('');
@@ -117,13 +122,13 @@ export default function MeusCoordenadores() {
           maxAlunos: Number(maxAlunos) || 5,
           valorPago: Number(valorConvite) || 0,
           acessoCompletoAte: vencimentoConvite,
-          cursosAcesso: cursosConvite.map((curso) => ({ curso, vencimento: vencimentoConvite, valor: 0 })),
+          cursosAcesso: cursosConvite.map((curso) => ({ curso, vencimento: vencimentoConvite, valor: Number(String(valorCursoConvite[curso] || '0').replace(',', '.')) || 0, quantidade: Number(qtdConvite[curso]) || 0 })),
         }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (r.ok) {
         setMsg(`✅ Convite enviado (${j.status})${j.emailEnviado ? '' : ' — mas o e-mail falhou, cheque o Resend'}`);
-        setEmail(''); setNome(''); setEmpresa(''); setValorConvite(''); setCursosConvite([]);
+        setEmail(''); setNome(''); setEmpresa(''); setValorConvite(''); setCursosConvite([]); setQtdConvite({}); setValorCursoConvite({});
         carregar();
       } else {
         setMsg('❌ ' + (j.error || 'erro'));
@@ -140,6 +145,8 @@ export default function MeusCoordenadores() {
     setEMax(c.limite != null ? String(c.limite) : '');
     setEValor(c.valorPago ? String(c.valorPago) : '');
     setECursos(c.cursosAcesso.map((curso) => curso.curso).filter(Boolean));
+    setEQtdCursos(Object.fromEntries(c.cursosAcesso.map((curso) => [curso.curso, String(curso.quantidade || '')])));
+    setEValorCursos(Object.fromEntries(c.cursosAcesso.map((curso) => [curso.curso, curso.valor ? String(curso.valor) : ''])));
     setEVencimento(c.vencimento);
     setEMsg('');
   }
@@ -147,7 +154,7 @@ export default function MeusCoordenadores() {
     setESalvando(true); setEMsg('');
     try {
       if (!eVencimento) { setEMsg('Informe a data de expiração.'); return; }
-      const cursosAcesso = eCursos.map((curso) => ({ curso, vencimento: eVencimento, valor: 0 }));
+      const cursosAcesso = eCursos.map((curso) => ({ curso, vencimento: eVencimento, valor: Number(String(eValorCursos[curso] || '0').replace(',', '.')) || 0, quantidade: Number(eQtdCursos[curso]) || 0 }));
       await setDoc(doc(db, 'users', uid), { maxAlunos: Number(eMax) || 0, valorPago: Number(eValor) || 0, acessoCompletoAte: eVencimento, cursosAcesso }, { merge: true });
       setRows((p) => p.map((r) => (r.uid === uid ? { ...r, limite: Number(eMax) || 0, valorPago: Number(eValor) || 0, vencimento: eVencimento, cursosAcesso } : r)));
       setEMsg('✅ Salvo.');
@@ -213,14 +220,21 @@ export default function MeusCoordenadores() {
             {cursos.map((curso) => {
               const on = cursosConvite.includes(curso);
               return (
-                <button
-                  key={curso}
-                  type="button"
-                  onClick={() => setCursosConvite((atual) => on ? atual.filter((c) => c !== curso) : [...atual, curso])}
-                  className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
-                >
-                  {curso}
-                </button>
+                <div key={curso} className={`rounded-xl border p-3 ${on ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setCursosConvite((atual) => on ? atual.filter((c) => c !== curso) : [...atual, curso])}
+                    className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+                  >
+                    {curso}
+                  </button>
+                  {on && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <input value={qtdConvite[curso] || ''} onChange={(e) => setQtdConvite((p) => ({ ...p, [curso]: e.target.value.replace(/\D/g, '') }))} placeholder="Qtd. acessos" className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+                      <input value={valorCursoConvite[curso] || ''} onChange={(e) => setValorCursoConvite((p) => ({ ...p, [curso]: e.target.value.replace(/[^\d.,]/g, '') }))} placeholder="Valor R$" className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -259,7 +273,9 @@ export default function MeusCoordenadores() {
                     <span className="text-[10px] font-bold rounded px-2 py-1 bg-red-50 text-red-600">Sem cursos liberados</span>
                   ) : (
                     c.cursosAcesso.map((curso) => (
-                      <span key={curso.curso} className="text-[10px] font-bold rounded px-2 py-1 bg-blue-50 text-blue-700">{curso.curso}</span>
+                      <span key={curso.curso} className="text-[10px] font-bold rounded px-2 py-1 bg-blue-50 text-blue-700">
+                        {curso.curso} {curso.quantidade ? `· ${curso.quantidade} acessos` : ''}
+                      </span>
                     ))
                   )}
                 </div>
@@ -314,14 +330,21 @@ export default function MeusCoordenadores() {
                     {cursos.map((curso) => {
                       const on = eCursos.includes(curso);
                       return (
-                        <button
-                          key={curso}
-                          type="button"
-                          onClick={() => setECursos((atual) => on ? atual.filter((item) => item !== curso) : [...atual, curso])}
-                          className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
-                        >
-                          {curso}
-                        </button>
+                        <div key={curso} className={`rounded-xl border p-3 ${on ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                          <button
+                            type="button"
+                            onClick={() => setECursos((atual) => on ? atual.filter((item) => item !== curso) : [...atual, curso])}
+                            className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+                          >
+                            {curso}
+                          </button>
+                          {on && (
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              <input value={eQtdCursos[curso] || ''} onChange={(e) => setEQtdCursos((p) => ({ ...p, [curso]: e.target.value.replace(/\D/g, '') }))} placeholder="Qtd. acessos" className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+                              <input value={eValorCursos[curso] || ''} onChange={(e) => setEValorCursos((p) => ({ ...p, [curso]: e.target.value.replace(/[^\d.,]/g, '') }))} placeholder="Valor R$" className="border border-gray-300 rounded-lg px-2 py-1.5 text-xs" />
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>

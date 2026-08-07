@@ -36,6 +36,8 @@ export interface UserData {
   };
   tipoUsuario: TipoUsuario;
   criadoEm: string;
+  /** Data em que o aluno foi incluido no time/coordenador atual. */
+  incluidoNoTimeEm?: string;
   /** Atualizado a cada login (ISO string). Usado pelo Dashboard do Coordenador
    *  pra detectar alunos inativos. Pode estar ausente em docs antigos. */
   lastLogin?: string;

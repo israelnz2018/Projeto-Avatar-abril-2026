@@ -1864,7 +1864,7 @@ async function startServer() {
     const acessoCompletoAte = String(req.body?.acessoCompletoAte || "").trim();
     const cursosAcesso = Array.isArray(req.body?.cursosAcesso)
       ? req.body.cursosAcesso
-          .map((c: any) => ({ curso: String(c?.curso || "").trim(), vencimento: c?.vencimento || null, valor: typeof c?.valor === "number" ? c.valor : 0 }))
+          .map((c: any) => ({ curso: String(c?.curso || "").trim(), vencimento: c?.vencimento || null, valor: typeof c?.valor === "number" ? c.valor : 0, quantidade: Number(c?.quantidade) > 0 ? Number(c.quantidade) : 0 }))
           .filter((c: any) => c.curso)
       : [];
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
@@ -2056,6 +2056,25 @@ async function startServer() {
             return res.status(400).json({ error: `Este time nao tem acesso a: ${foraDoPacote.join(", ")}.` });
           }
         }
+        const cursosSolicitados = new Set(cursosAcesso.map((c: any) => String(c?.curso || "").trim()).filter(Boolean));
+        const usoPorCurso = new Map<string, number>();
+        usersSnap.docs.forEach((d) => {
+          if (currentStudent && d.id === currentStudent) return;
+          const lista = Array.isArray((d.data() as any).cursosAcesso) ? (d.data() as any).cursosAcesso : [];
+          lista.forEach((c: any) => {
+            const curso = String(c?.curso || "").trim();
+            if (curso) usoPorCurso.set(curso, (usoPorCurso.get(curso) || 0) + 1);
+          });
+        });
+        for (const c of cursosCoord) {
+          const curso = String(c?.curso || "").trim();
+          const quantidade = Number(c?.quantidade) || 0;
+          if (!curso || quantidade <= 0 || !cursosSolicitados.has(curso)) continue;
+          const usado = usoPorCurso.get(curso) || 0;
+          if (usado >= quantidade) {
+            return res.status(400).json({ error: `Limite do curso "${curso}" atingido (${usado}/${quantidade}).` });
+          }
+        }
       }
     }
     cursosAcesso = cursosAcesso
@@ -2083,6 +2102,8 @@ async function startServer() {
       const ref = adminFirestore().collection("users").doc(uid);
       const snap = await ref.get();
       const base = snap.exists ? (snap.data() as any) : {};
+      const agoraIso = new Date().toISOString();
+      const mesmoTime = empresaId && base.empresaId && String(base.empresaId) === String(empresaId);
       if (!callerEhAdmin && base.consultorId && String(base.consultorId) !== consultorId) {
         return res.status(409).json({ error: "Este aluno já está vinculado a outro consultor." });
       }
@@ -2098,7 +2119,8 @@ async function startServer() {
         valorPago,
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
-        criadoEm: base.criadoEm || new Date().toISOString(),
+        criadoEm: base.criadoEm || agoraIso,
+        incluidoNoTimeEm: mesmoTime && base.incluidoNoTimeEm ? base.incluidoNoTimeEm : agoraIso,
         ...(novo ? { senhaProvisoria: true } : {}),
       }, { merge: true });
 
