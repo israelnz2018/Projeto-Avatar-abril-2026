@@ -243,6 +243,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
       setCursosConvite([]);
       setOkMsg(`Aluno ${j.status === 'criado' ? 'cadastrado' : 'atualizado'} com sucesso. ${j.emailEnviado ? 'Convite enviado por e-mail.' : 'Cadastro salvo, mas o e-mail nao foi enviado.'}`);
       await carregarInvites();
+      equipe.refetch();
     } catch (e: any) { setErrMsg(e?.message || 'Falha ao convidar.'); }
     finally { setAddingMember(false); }
   };
@@ -448,7 +449,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
       {!isReport && (
         <div className="mb-10">
           <SectionLabel rightSlot={`${alunosTotal} membro${alunosTotal === 1 ? '' : 's'}`}>
-            Membros cadastrados
+            Alunos cadastrados / convidados
           </SectionLabel>
           {alunosTotal === 0 ? (
             <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)' }}>

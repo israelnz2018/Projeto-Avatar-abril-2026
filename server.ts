@@ -2129,20 +2129,28 @@ async function startServer() {
       let emailEnviado = false;
       try {
         const saud = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
+        const nomeQuemConvidou = String(caller.nome || caller.displayName || caller.email || "O coordenador da empresa").trim();
+        const empresaConviteNome = String(empresaNome || caller.empresaNome || "sua empresa").trim();
+        const cursosEmail = cursosAcesso.map((c: any) => String(c?.curso || "").trim()).filter(Boolean);
+        const listaCursosHtml = cursosEmail.length
+          ? `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;margin:16px 0"><p style="margin:0 0 8px;font-size:14px"><strong>${nomeQuemConvidou}, coordenador da empresa ${empresaConviteNome}, te convidou para acessar a plataforma LBW com os seguintes cursos:</strong></p><ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.6">${cursosEmail.map((curso: string) => `<li>${curso}</li>`).join("")}</ul></div>`
+          : "";
         const blocoAcesso = novo
           ? `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px"><strong>Seu acesso:</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:2px 6px;border:1px solid #ccc;border-radius:4px">${SENHA_CONVITE}</code></p><p style="font-size:14px">No primeiro acesso o sistema vai pedir pra você criar uma senha nova.</p>`
-          : `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px">Entre com o seu <strong>e-mail (${email})</strong> e a <strong>senha que você já usa</strong>.</p>`;
+          : `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px">Entre com o seu <strong>e-mail (${email})</strong> e a <strong>senha que você já usa</strong>.<br><br>Caso não lembre da senha, clique em <strong>Esqueci minha senha</strong> na tela de login.</p>`;
         const html = `
 <div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto">
-  <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:22px">Seu acesso à plataforma</h1></div>
+  <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:22px">Seu acesso à plataforma LBW foi liberado</h1></div>
   <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px">
     <p style="font-size:15px">${saud}</p>
-    <p>Seu acesso aos cursos foi liberado.</p>
+    <p>${nomeQuemConvidou}, coordenador da empresa ${empresaConviteNome}, te convidou para acessar a plataforma LBW.</p>
+    ${listaCursosHtml}
     ${blocoAcesso}
-    <p style="text-align:center;margin:24px 0"><a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar</a></p>
+    <p style="font-size:14px;margin-top:18px">Acesse pelo site:<br><a href="${site}" style="color:#0033CC;font-weight:bold">${site}</a></p>
+    <p style="text-align:center;margin:24px 0"><a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar plataforma</a></p>
   </div>
 </div>`;
-        const r = await resendSend({ to: email, subject: "Seu acesso aos cursos", html });
+        const r = await resendSend({ to: email, subject: "Seu acesso à plataforma LBW foi liberado", html });
         emailEnviado = r.ok;
       } catch (e) { console.error("[aluno/convidar] falha e-mail:", e); }
       return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, emailEnviado });
