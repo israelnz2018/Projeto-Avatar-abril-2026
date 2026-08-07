@@ -755,7 +755,12 @@ export default function LearningView() {
         </div>
       )}
 
-      <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
+      <LockedToolPopup
+        isOpen={lockedPopupOpen}
+        onClose={() => setLockedPopupOpen(false)}
+        variant={(isCoordenador || acessoPorCurso) ? 'consultor' : 'upgrade'}
+        consultorNome={nomeConsultor}
+      />
     </div>
   );
 }

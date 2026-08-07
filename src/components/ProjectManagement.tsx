@@ -17,6 +17,7 @@ import { getInitiatives } from '../services/configService';
 import { Initiative, Project } from '../types';
 import { Toaster, toast } from 'sonner';
 import { useUserAccess } from '../hooks/useUserAccess';
+import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
 import UpgradeBanner from './UpgradeBanner';
 import { Lock } from 'lucide-react';
@@ -253,7 +254,7 @@ function HeroInitiativeCard({ initiative, variant, icon: Icon, index, isSelected
 }
 
 // Card de sub-iniciativa (trilha)
-function SubInitiativeCard({ child, index, onClick }: { child: Initiative; index: number; onClick: () => void }) {
+function SubInitiativeCard({ child, index, onClick, locked }: { child: Initiative; index: number; onClick: () => void; locked?: boolean }) {
   // Tenta extrair número da trilha (ex: "1.1", "1.2") - se não tiver, mostra os primeiros caracteres
   const numMatch = child.name.match(/^([\d.]+)/);
   const num = numMatch ? numMatch[1] : '';
@@ -266,9 +267,17 @@ function SubInitiativeCard({ child, index, onClick }: { child: Initiative; index
       transition={{ delay: index * 0.05, type: 'spring', stiffness: 220, damping: 18 }}
       whileHover={{ x: 4 }}
       onClick={onClick}
-      className="w-full bg-white/95 backdrop-blur hover:bg-white border border-blue-100 hover:border-blue-500 rounded-[14px] p-3 flex items-start justify-between transition-all cursor-pointer group min-h-[64px]"
+      className={cn(
+        "relative w-full bg-white/95 backdrop-blur hover:bg-white border border-blue-100 hover:border-blue-500 rounded-[14px] p-3 flex items-start justify-between transition-all cursor-pointer group min-h-[64px]",
+        locked && "opacity-70 grayscale-[35%]",
+      )}
       style={{ boxShadow: '0 4px 12px -4px rgba(30, 45, 110, 0.1)' }}
     >
+      {locked && (
+        <div className="absolute top-1.5 right-1.5 z-20 w-5 h-5 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center border border-white/30">
+          <Lock size={10} className="text-white" />
+        </div>
+      )}
       <div className="flex items-start gap-3 flex-1 min-w-0">
         {num && (
           <div className="w-8 h-8 rounded-[10px] flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-0.5"
@@ -351,7 +360,12 @@ export default function ProjectManagement() {
   // Projeto aguardando confirmação de "gerar apresentação completa".
   const [pptConfirmProject, setPptConfirmProject] = useState<Project | null>(null);
 
-  const { canUseInitiative } = useUserAccess();
+  const { canUseInitiative, isCoordenador, acessoPorCurso } = useUserAccess();
+  const { consultor } = useConsultor();
+  // Modelo por-consultor (coordenador ou aluno com pacote): não existe upgrade
+  // self-service — o popup de bloqueio orienta a falar com o consultor, não a Hotmart.
+  const porConsultor = isCoordenador || acessoPorCurso;
+  const nomeConsultorPopup = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
 
   const isAdmin = auth.currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
 
@@ -806,10 +820,12 @@ export default function ProjectManagement() {
                         const numero = numeroMatch ? numeroMatch[1].padStart(2, '0') : '—';
                         const titleClean = initiative.name.replace(/^\d+\s*[-—]?\s*/, '');
                         const VisualIcon = visual.Icon;
+                        const locked = !canUseInitiative(initiative.id, initiatives);
                         return (
                           <motion.button
                             key={initiative.id}
                             onClick={() => {
+                              if (locked) { setLockedPopupOpen(true); return; }
                               setSelectedInitiativeId(initiative.id);
                               setIsCreating(true);
                             }}
@@ -817,12 +833,20 @@ export default function ProjectManagement() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.03, duration: 0.25 }}
                             whileHover={{ x: 4 }}
-                            className="group relative w-full flex items-center gap-4 pl-5 pr-4 py-3.5 rounded-2xl bg-white hover:bg-gradient-to-r hover:from-white hover:to-blue-50/40 transition-all cursor-pointer text-left overflow-hidden"
+                            className={cn(
+                              "group relative w-full flex items-center gap-4 pl-5 pr-4 py-3.5 rounded-2xl bg-white hover:bg-gradient-to-r hover:from-white hover:to-blue-50/40 transition-all cursor-pointer text-left overflow-hidden",
+                              locked && "opacity-70 grayscale-[35%]",
+                            )}
                             style={{
                               borderLeft: `4px solid ${visual.borderColor}`,
                               boxShadow: '0 6px 16px -8px rgba(30, 45, 110, 0.12), 0 0 0 1px rgba(229, 231, 235, 0.6)',
                             }}
                           >
+                            {locked && (
+                              <div className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                                <Lock size={11} className="text-white" />
+                              </div>
+                            )}
                             {/* Glow do gradiente — sutil no fundo */}
                             <div
                               className={`absolute -left-8 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gradient-to-br ${visual.gradient} opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-300`}
@@ -928,17 +952,22 @@ export default function ProjectManagement() {
                                   const numB = parseInt(cb.name.split('.')[1] || cb.name) || 0;
                                   return numA - numB;
                                 })
-                                .map((child, idx) => (
-                                  <SubInitiativeCard
-                                    key={child.id}
-                                    child={child}
-                                    index={idx}
-                                    onClick={() => {
-                                      setSelectedInitiativeId(child.id);
-                                      setIsCreating(true);
-                                    }}
-                                  />
-                                ))}
+                                .map((child, idx) => {
+                                  const childLocked = !canUseInitiative(child.id, initiatives);
+                                  return (
+                                    <SubInitiativeCard
+                                      key={child.id}
+                                      child={child}
+                                      index={idx}
+                                      locked={childLocked}
+                                      onClick={() => {
+                                        if (childLocked) { setLockedPopupOpen(true); return; }
+                                        setSelectedInitiativeId(child.id);
+                                        setIsCreating(true);
+                                      }}
+                                    />
+                                  );
+                                })}
                             </div>
                           </div>
                       </motion.div>
@@ -1152,7 +1181,12 @@ export default function ProjectManagement() {
           </div>
         )}
       </AnimatePresence>
-      <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
+      <LockedToolPopup
+        isOpen={lockedPopupOpen}
+        onClose={() => setLockedPopupOpen(false)}
+        variant={porConsultor ? 'consultor' : 'upgrade'}
+        consultorNome={nomeConsultorPopup}
+      />
     </div>
   );
 }
