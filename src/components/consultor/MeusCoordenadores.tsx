@@ -244,6 +244,15 @@ export default function MeusCoordenadores() {
                 <div className="font-bold text-gray-800 truncate">{c.nome}</div>
                 <div className="text-xs text-gray-400 truncate">{c.email} · {c.empresa}</div>
                 {c.valorPago > 0 && <div className="text-xs font-bold text-emerald-600">R$ {c.valorPago.toLocaleString('pt-BR')}</div>}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {c.cursosAcesso.length === 0 ? (
+                    <span className="text-[10px] font-bold rounded px-2 py-1 bg-red-50 text-red-600">Sem cursos liberados</span>
+                  ) : (
+                    c.cursosAcesso.map((curso) => (
+                      <span key={curso.curso} className="text-[10px] font-bold rounded px-2 py-1 bg-blue-50 text-blue-700">{curso.curso}</span>
+                    ))
+                  )}
+                </div>
               </div>
               <div className="text-right shrink-0">
                 <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -256,7 +265,8 @@ export default function MeusCoordenadores() {
               </button>
             </div>
             {editUid === c.uid && (
-              <div className="mt-4 pt-4 border-t border-gray-100 flex items-end gap-3 flex-wrap">
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-end gap-3 flex-wrap">
                 <div>
                   <label className={label}>Limite de alunos</label>
                   <input value={eMax} onChange={(e) => setEMax(e.target.value.replace(/\D/g, ''))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-28" />
@@ -273,6 +283,32 @@ export default function MeusCoordenadores() {
                   {eSalvando ? 'Salvando…' : 'Salvar'}
                 </button>
                 {eMsg && <span className="text-sm text-gray-600">{eMsg}</span>}
+                </div>
+                <div className="mt-4">
+                  <label className={label}>Cursos liberados para este coordenador e o time</label>
+                  <p className="text-xs text-gray-500 mb-2 mt-0">
+                    Marque os cursos que este coordenador podera liberar para os alunos dele.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso cadastrado ainda.</span>}
+                    {cursos.map((curso) => {
+                      const on = eCursos.includes(curso);
+                      return (
+                        <button
+                          key={curso}
+                          type="button"
+                          onClick={() => setECursos((atual) => on ? atual.filter((item) => item !== curso) : [...atual, curso])}
+                          className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+                        >
+                          {curso}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button onClick={() => salvarEdit(c.uid)} disabled={eSalvando} className="mt-3 px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+                    {eSalvando ? 'Salvandoâ€¦' : 'Salvar cursos do coordenador'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

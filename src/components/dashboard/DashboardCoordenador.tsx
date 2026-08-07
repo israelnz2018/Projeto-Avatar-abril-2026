@@ -351,7 +351,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
           <div className="mb-4">
             <p className="text-xs font-bold text-gray-600 mb-2 mt-0">Cursos que este aluno vai acessar</p>
             {cursosLiberados.length === 0 ? (
-              <p className="text-red-600 text-xs mt-0 mb-0">Este coordenador ainda nao tem cursos liberados pelo consultor.</p>
+              <p className="text-red-600 text-xs mt-0 mb-0">O consultor ainda nao liberou cursos para este coordenador e o time dele.</p>
             ) : (
               <div className="space-y-2">
                 {cursosLiberados.map((curso) => {
