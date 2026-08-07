@@ -21,7 +21,6 @@ const Certificados = lazy(() => import('../CertificadosView'));
 const MateriaisApoio = lazy(() => import('./MateriaisApoio'));
 
 const ABAS = [
-  { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
   { id: 'materiais', nome: 'Material de Apoio', icon: FolderUp, Comp: MateriaisApoio },
   { id: 'prova', nome: 'Prova', icon: ClipboardCheck, Comp: ProvaCertificacao },
@@ -31,6 +30,7 @@ const ABAS = [
   { id: 'coordenadores', nome: 'Meus Coordenadores', icon: Users2, Comp: MeusCoordenadores },
   // Minha Vitrine e Vitrine escondidas por ora (discutir depois).
   { id: 'marca', nome: 'Minha Marca', icon: Palette, Comp: MinhaMarca },
+  { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
 ];
 
 export default function ConfiguracaoConsultor() {
@@ -38,8 +38,8 @@ export default function ConfiguracaoConsultor() {
   // Modelo B2B: o consultor coloca EMPRESAS (coordenadores), não alunos diretos.
   // Só o admin (Israel, base legada B2C) mantém "Meus Alunos".
   const abas = ABAS.filter((a) => a.id !== 'alunos' || isAdmin || isConsultor);
-  const [ativa, setAtiva] = useState('relatorio');
-  const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || SuperRelatorio;
+  const [ativa, setAtiva] = useState('cursos');
+  const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || MeusCursos;
 
   return (
     <div>

@@ -116,8 +116,11 @@ export default function LearningView() {
   //    exatamente como funciona hoje (grupos preservados).
   const isCourseLocked = (course: string) => {
     if (veTudo) return false;
-    if (isCoordenador) return !freeCourseNames.has(course) && !(cursosLiberados || []).includes(course);
-    if (acessoPorCurso) return !freeCourseNames.has(course) && !(cursosLiberados || []).includes(course);
+    // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "curso grátis" no
+    // sistema — só os cursos explicitamente liberados pelo consultor (isFree não faz bypass).
+    if (isCoordenador) return !(cursosLiberados || []).includes(course);
+    if (acessoPorCurso) return !(cursosLiberados || []).includes(course);
+    // Modelo de plano LEGADO (aluno solo, sem coordenador/pacote): mantém os cursos grátis.
     return isStarter && !freeCourseNames.has(course);
   };
 

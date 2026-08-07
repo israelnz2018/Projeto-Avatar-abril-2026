@@ -199,9 +199,12 @@ export function useUserAccess() {
 
   const canUseTool = (toolId: string) => {
     if (isAdmin) return true;
-    if (isCoordenador && cursosLiberados.length > 0) return freeToolIds.has(toolId) || grantedToolIds.has(toolId);
-    // Modo por-curso: só as ferramentas do pacote (+ grátis). O plano:completo NÃO libera tudo.
-    if (acessoPorCurso) return freeToolIds.has(toolId) || grantedToolIds.has(toolId);
+    // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "grátis" no
+    // sistema — o acesso é SÓ o que o consultor liberou explicitamente. Se o consultor
+    // quiser dar de graça, ele escolhe o curso com valor=0 (ainda assim precisa liberar).
+    if (isCoordenador && cursosLiberados.length > 0) return grantedToolIds.has(toolId);
+    if (acessoPorCurso) return grantedToolIds.has(toolId);
+    // Modelo de plano LEGADO (aluno solo, sem coordenador/pacote): mantém as ferramentas grátis.
     if (plano === 'completo') return true;
     return freeToolIds.has(toolId);
   };
@@ -210,9 +213,10 @@ export function useUserAccess() {
     if (isAdmin) return true;
     const initiative = initiatives.find(i => i.id === initiativeId);
     if (!initiative) return false;
-    if (isCoordenador && cursosLiberados.length > 0) return initiative.isFree === true || (cursosLiberados || []).includes(initiative.name);
-    // Modo por-curso: só as trilhas do pacote (+ grátis). O plano:completo NÃO libera tudo.
-    if (acessoPorCurso) return initiative.isFree === true || (cursosLiberados || []).includes(initiative.name);
+    // Modelo POR-CONSULTOR: idem — só o que foi explicitamente liberado, sem bypass de isFree.
+    if (isCoordenador && cursosLiberados.length > 0) return (cursosLiberados || []).includes(initiative.name);
+    if (acessoPorCurso) return (cursosLiberados || []).includes(initiative.name);
+    // Modelo de plano LEGADO: mantém as trilhas grátis do aluno solo (sem coordenador).
     if (plano === 'completo') return true;
     return initiative.isFree === true;
   };
