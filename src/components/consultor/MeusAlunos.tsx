@@ -28,6 +28,7 @@ interface Aluno {
   cursosAcesso: CursoAcesso[]; completo: boolean;
   desvinculadoEm?: string;
   avisoBloqueio?: { expiraEm?: string };
+  inativo?: boolean;
 }
 interface Equipe {
   empresaId: string;
@@ -94,6 +95,7 @@ export default function MeusAlunos() {
       completo,
       desvinculadoEm: u.desvinculadoEm,
       avisoBloqueio: u.avisoBloqueio,
+      inativo: true,
     };
   };
 
@@ -158,13 +160,14 @@ export default function MeusAlunos() {
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [consultorId]);
 
   const filtrados = useMemo(() => {
+    const todos = [...rows, ...bloqueados];
     const t = busca.trim().toLowerCase();
-    if (!t) return rows;
-    return rows.filter((r) => r.nome.toLowerCase().includes(t) || r.email.toLowerCase().includes(t));
-  }, [rows, busca]);
+    if (!t) return todos;
+    return todos.filter((r) => r.nome.toLowerCase().includes(t) || r.email.toLowerCase().includes(t));
+  }, [rows, bloqueados, busca]);
 
   if (loadingAcesso) return <div className="p-8 text-gray-500">Carregando…</div>;
-  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor gerencia alunos.</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Apenas consultores e admins gerenciam alunos dos times.</div>;
 
   // ----- adicionar -----
   const toggleCursoAdd = (curso: string) =>
@@ -177,7 +180,9 @@ export default function MeusAlunos() {
   async function adicionar() {
     const mail = aEmail.trim().toLowerCase();
     if (!mail || mail.indexOf('@') < 0) { setAddMsg('Informe um e-mail válido.'); return; }
+    if (!aEmpresaId) { setAddMsg('Escolha o time/coordenador do aluno.'); return; }
     if (aItens.length === 0) { setAddMsg('Escolha ao menos um curso.'); return; }
+    if (aItens.some((i) => !i.vencimento)) { setAddMsg('Informe a data de expiração de todos os cursos.'); return; }
     setAddEnviando(true); setAddMsg('');
     try {
       const cursosAcesso = aItens.map((i) => ({ curso: i.curso, vencimento: i.vencimento || null, valor: parseValor(i.valor) }));
@@ -282,7 +287,7 @@ export default function MeusAlunos() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Alunos</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos dos Times</h1>
       <p className="text-gray-500 text-sm mb-5">Gerencie os alunos de <b>{consultor.branding.nome}</b> — cursos, vencimento e valor por curso.</p>
 
       {/* ADICIONAR ALUNO */}
@@ -301,7 +306,7 @@ export default function MeusAlunos() {
               <div>
                 <div className="text-xs font-bold text-gray-500 mb-1">Time/coordenador do aluno</div>
                 <select value={aEmpresaId} onChange={(e) => setAEmpresaId(e.target.value)} className={campo + ' w-full'}>
-                  <option value="">Aluno direto do consultor</option>
+                  <option value="">Escolha o time/coordenador</option>
                   {equipes.map((e) => (
                     <option key={e.empresaId} value={e.empresaId}>
                       {e.nome} — {e.coordenador}
@@ -358,19 +363,24 @@ export default function MeusAlunos() {
 
       {loading ? <div className="text-gray-500">Carregando…</div> : (
         <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[1.3fr_1.4fr_auto] gap-3 px-4 py-2.5 bg-gray-50 text-[10px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-100">
-            <div>Aluno</div><div>Cursos com acesso</div><div className="text-right">Ações</div>
+          <div className="grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-2.5 bg-gray-50 text-[10px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-100">
+            <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div className="text-right">Ações</div>
           </div>
           {filtrados.length === 0 && <div className="px-4 py-8 text-center text-gray-400 text-sm">Nenhum aluno.</div>}
           {filtrados.map((a) => (
             <div key={a.uid} className="border-b border-gray-50 last:border-0">
-              <div className="grid grid-cols-[1.3fr_1.4fr_auto] gap-3 px-4 py-3 items-center">
+              <div className={`grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
                 <div className="min-w-0">
                   <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
                   <div className="text-xs text-gray-400 truncate">{a.email}</div>
                 </div>
+                <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 ${a.inativo ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {a.inativo ? 'Inativo' : 'Ativo'}
+                </span>
                 <div className="flex flex-wrap gap-1">
-                  {a.completo ? (
+                  {a.inativo ? (
+                    <span className="text-xs text-gray-400 italic">Acesso removido</span>
+                  ) : a.completo ? (
                     <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
                   ) : a.cursosAcesso.length > 0 ? (
                     a.cursosAcesso.map((c) => (
@@ -385,16 +395,21 @@ export default function MeusAlunos() {
                   )}
                 </div>
                 <div className="flex items-center justify-end gap-2">
-                  <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                  {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
                     {editUid === a.uid ? 'fechar' : 'editar'}
-                  </button>
-                  <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
+                  </button>}
+                  {!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
                     className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
                     <Trash2 size={15} />
-                  </button>
+                  </button> : (
+                    <button onClick={() => excluirDefinitivo(a)} disabled={!podeExcluirDefinitivo(a) || deletingUid === a.uid}
+                      className="text-xs font-bold text-red-600 disabled:text-gray-300" title={podeExcluirDefinitivo(a) ? 'Excluir definitivamente' : 'Disponível após 90 dias'}>
+                      excluir
+                    </button>
+                  )}
                 </div>
               </div>
-              {editUid === a.uid && (
+              {!a.inativo && editUid === a.uid && (
                 <div className="px-4 pb-4 bg-gray-50/60">
                   {a.completo && (
                     <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
@@ -441,7 +456,7 @@ export default function MeusAlunos() {
         </div>
       )}
 
-      {bloqueados.length > 0 && (
+      {false && bloqueados.length > 0 && (
         <div className="mt-8 bg-white border border-orange-200 rounded-2xl overflow-hidden">
           <div className="px-4 py-3 bg-orange-50 border-b border-orange-100">
             <h2 className="text-sm font-black text-orange-950">Alunos removidos em retencao</h2>

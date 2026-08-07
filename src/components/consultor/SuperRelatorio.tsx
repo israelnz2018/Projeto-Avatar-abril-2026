@@ -65,12 +65,12 @@ export default function SuperRelatorio() {
       {!loading && !erro && r && (
         <>
           {/* BLOCO 1 — MEUS ALUNOS (diretos) */}
-          <section className="mb-10">
+          {false && <section className="mb-10">
             <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-gray-500 mb-3">
               <Users size={15} /> Meus Alunos
             </h2>
             <Cards s={r.diretos} />
-          </section>
+          </section>}
 
           {/* BLOCO 2 — EMPRESAS (quebrado por empresa) */}
           <section>

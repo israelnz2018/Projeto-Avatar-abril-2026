@@ -19,6 +19,19 @@ import path from "path";
 const PROJECT_ID = "senha-92ce1";
 
 function loadServiceAccount(): admin.ServiceAccount | null {
+  const preferredFilePath = process.env.FIREBASE_ADMIN_KEY_PATH;
+  if (preferredFilePath) {
+    try {
+      const resolved = path.isAbsolute(preferredFilePath) ? preferredFilePath : path.resolve(process.cwd(), preferredFilePath);
+      if (fs.existsSync(resolved)) {
+        const content = fs.readFileSync(resolved, "utf-8");
+        return JSON.parse(content) as admin.ServiceAccount;
+      }
+    } catch (err) {
+      console.error("[firebaseAdmin] erro ao ler FIREBASE_ADMIN_KEY_PATH:", err);
+    }
+  }
+
   // 1) Inline no .env (recomendado pra deploy)
   const inlineJson = process.env.FIREBASE_ADMIN_KEY_JSON;
   if (inlineJson) {
@@ -28,22 +41,6 @@ function loadServiceAccount(): admin.ServiceAccount | null {
       console.error("[firebaseAdmin] FIREBASE_ADMIN_KEY_JSON inválido:", err);
     }
   }
-
-  // 2) Caminho pra arquivo .json
-  const filePath = process.env.FIREBASE_ADMIN_KEY_PATH;
-  if (filePath) {
-    try {
-      const resolved = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
-      if (fs.existsSync(resolved)) {
-        const content = fs.readFileSync(resolved, "utf-8");
-        return JSON.parse(content) as admin.ServiceAccount;
-      }
-      console.error(`[firebaseAdmin] FIREBASE_ADMIN_KEY_PATH aponta pra arquivo inexistente: ${resolved}`);
-    } catch (err) {
-      console.error("[firebaseAdmin] erro ao ler FIREBASE_ADMIN_KEY_PATH:", err);
-    }
-  }
-
   return null;
 }
 

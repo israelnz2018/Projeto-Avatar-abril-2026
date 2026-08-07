@@ -28,12 +28,15 @@ interface CoordRow {
   timeAtivo: number;
   limite: number | null;
   valorPago: number;
+  cursosAcesso: { curso: string; vencimento: string | null; valor?: number }[];
+  vencimento: string;
 }
 
 export default function MeusCoordenadores() {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const [rows, setRows] = useState<CoordRow[]>([]);
+  const [cursos, setCursos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
   // form de convite
@@ -42,12 +45,16 @@ export default function MeusCoordenadores() {
   const [empresa, setEmpresa] = useState('');
   const [maxAlunos, setMaxAlunos] = useState('5');
   const [valorConvite, setValorConvite] = useState('');
+  const [cursosConvite, setCursosConvite] = useState<string[]>([]);
+  const [vencimentoConvite, setVencimentoConvite] = useState(() => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10));
   const [enviando, setEnviando] = useState(false);
   const [msg, setMsg] = useState('');
   // edição por coordenador
   const [editUid, setEditUid] = useState<string | null>(null);
   const [eMax, setEMax] = useState('');
   const [eValor, setEValor] = useState('');
+  const [eCursos, setECursos] = useState<string[]>([]);
+  const [eVencimento, setEVencimento] = useState('');
   const [eSalvando, setESalvando] = useState(false);
   const [eMsg, setEMsg] = useState('');
 
@@ -55,7 +62,10 @@ export default function MeusCoordenadores() {
     setLoading(true);
     setErro('');
     try {
-      const snap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId)));
+      const [snap, kbSnap] = await Promise.all([
+        getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))),
+        getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
+      ]);
       const users = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
       const coords = users.filter((u) => u.tipoUsuario === 'coordenador');
       const alunos = users.filter((u) => u.tipoUsuario !== 'coordenador' && u.tipoUsuario !== 'admin');
@@ -71,10 +81,13 @@ export default function MeusCoordenadores() {
             timeAtivo: time.filter((a) => a.primeiroAcessoEm).length,
             limite: typeof c.maxAlunos === 'number' ? c.maxAlunos : null,
             valorPago: typeof c.valorPago === 'number' ? c.valorPago : 0,
+            cursosAcesso: Array.isArray(c.cursosAcesso) ? c.cursosAcesso : [],
+            vencimento: c.acessoCompletoAte ? String(c.acessoCompletoAte).slice(0, 10) : (Array.isArray(c.cursosAcesso) ? String(c.cursosAcesso.find((curso: any) => curso?.vencimento)?.vencimento || '').slice(0, 10) : ''),
           };
         })
         .sort((a, b) => a.nome.localeCompare(b.nome));
       setRows(lista);
+      setCursos(Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter(Boolean))).sort());
     } catch (e: any) {
       setErro(e?.message || 'Erro ao carregar coordenadores.');
     } finally {
@@ -89,18 +102,28 @@ export default function MeusCoordenadores() {
   async function convidar() {
     const mail = email.trim().toLowerCase();
     if (!mail || mail.indexOf('@') < 0) { setMsg('Informe um e-mail válido.'); return; }
+    if (cursosConvite.length === 0) { setMsg('Escolha ao menos um curso para este coordenador e o time dele.'); return; }
+    if (!vencimentoConvite) { setMsg('Informe a data de expiração do acesso.'); return; }
     setEnviando(true);
     setMsg('');
     try {
       const r = await authedFetch('/api/coordenador/convidar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: mail, nome: nome.trim(), empresa: empresa.trim(), maxAlunos: Number(maxAlunos) || 5, valorPago: Number(valorConvite) || 0 }),
+        body: JSON.stringify({
+          email: mail,
+          nome: nome.trim(),
+          empresa: empresa.trim(),
+          maxAlunos: Number(maxAlunos) || 5,
+          valorPago: Number(valorConvite) || 0,
+          acessoCompletoAte: vencimentoConvite,
+          cursosAcesso: cursosConvite.map((curso) => ({ curso, vencimento: vencimentoConvite, valor: 0 })),
+        }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (r.ok) {
         setMsg(`✅ Convite enviado (${j.status})${j.emailEnviado ? '' : ' — mas o e-mail falhou, cheque o Resend'}`);
-        setEmail(''); setNome(''); setEmpresa(''); setValorConvite('');
+        setEmail(''); setNome(''); setEmpresa(''); setValorConvite(''); setCursosConvite([]);
         carregar();
       } else {
         setMsg('❌ ' + (j.error || 'erro'));
@@ -116,13 +139,17 @@ export default function MeusCoordenadores() {
     setEditUid(c.uid);
     setEMax(c.limite != null ? String(c.limite) : '');
     setEValor(c.valorPago ? String(c.valorPago) : '');
+    setECursos(c.cursosAcesso.map((curso) => curso.curso).filter(Boolean));
+    setEVencimento(c.vencimento);
     setEMsg('');
   }
   async function salvarEdit(uid: string) {
     setESalvando(true); setEMsg('');
     try {
-      await setDoc(doc(db, 'users', uid), { maxAlunos: Number(eMax) || 0, valorPago: Number(eValor) || 0 }, { merge: true });
-      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, limite: Number(eMax) || 0, valorPago: Number(eValor) || 0 } : r)));
+      if (!eVencimento) { setEMsg('Informe a data de expiração.'); return; }
+      const cursosAcesso = eCursos.map((curso) => ({ curso, vencimento: eVencimento, valor: 0 }));
+      await setDoc(doc(db, 'users', uid), { maxAlunos: Number(eMax) || 0, valorPago: Number(eValor) || 0, acessoCompletoAte: eVencimento, cursosAcesso }, { merge: true });
+      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, limite: Number(eMax) || 0, valorPago: Number(eValor) || 0, vencimento: eVencimento, cursosAcesso } : r)));
       setEMsg('✅ Salvo.');
     } catch (e: any) { setEMsg('❌ ' + (e?.message || e)); }
     finally { setESalvando(false); }
@@ -163,6 +190,29 @@ export default function MeusCoordenadores() {
           <div>
             <label className={label}>Valor pago pela empresa (R$)</label>
             <input value={valorConvite} onChange={(e) => setValorConvite(e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0,00" className={campo} />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className={label}>Data de expiração do acesso</label>
+          <input type="date" value={vencimentoConvite} onChange={(e) => setVencimentoConvite(e.target.value)} required className={campo} />
+        </div>
+        <div className="mt-4">
+          <label className={label}>Cursos liberados para o coordenador e o time</label>
+          <div className="flex flex-wrap gap-2">
+            {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso cadastrado ainda.</span>}
+            {cursos.map((curso) => {
+              const on = cursosConvite.includes(curso);
+              return (
+                <button
+                  key={curso}
+                  type="button"
+                  onClick={() => setCursosConvite((atual) => on ? atual.filter((c) => c !== curso) : [...atual, curso])}
+                  className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+                >
+                  {curso}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex items-center gap-4 mt-5">
@@ -214,6 +264,10 @@ export default function MeusCoordenadores() {
                 <div>
                   <label className={label}>Valor pago (R$)</label>
                   <input value={eValor} onChange={(e) => setEValor(e.target.value.replace(/[^\d.,]/g, ''))} className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32" />
+                </div>
+                <div>
+                  <label className={label}>Expira em</label>
+                  <input type="date" value={eVencimento} onChange={(e) => setEVencimento(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                 </div>
                 <button onClick={() => salvarEdit(c.uid)} disabled={eSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
                   {eSalvando ? 'Salvando…' : 'Salvar'}

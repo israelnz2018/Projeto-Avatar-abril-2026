@@ -1861,7 +1861,15 @@ async function startServer() {
     const empresaNome = String(req.body?.empresa || "").trim() || nome || email.split("@")[0];
     const maxAlunos = Number(req.body?.maxAlunos) > 0 ? Number(req.body.maxAlunos) : 5;
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
+    const acessoCompletoAte = String(req.body?.acessoCompletoAte || "").trim();
+    const cursosAcesso = Array.isArray(req.body?.cursosAcesso)
+      ? req.body.cursosAcesso
+          .map((c: any) => ({ curso: String(c?.curso || "").trim(), vencimento: c?.vencimento || null, valor: typeof c?.valor === "number" ? c.valor : 0 }))
+          .filter((c: any) => c.curso)
+      : [];
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
+    if (!acessoCompletoAte || Number.isNaN(new Date(acessoCompletoAte).getTime())) return res.status(400).json({ error: "Informe uma data de expiração válida." });
+    if (cursosAcesso.length === 0) return res.status(400).json({ error: "Escolha ao menos um curso para o coordenador e o time dele." });
     const empresaId = gerarEmpresaId(consultorId, empresaNome || email);
     const SENHA_CONVITE = gerarSenhaProvisoria();
 
@@ -1918,6 +1926,8 @@ async function startServer() {
         maxAlunos,
         valorPago, // valor pago pela empresa (repasse)
         plano: "completo",
+        acessoCompletoAte,
+        cursosAcesso,
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || new Date().toISOString(),
@@ -1984,7 +1994,7 @@ async function startServer() {
 
     const email = String(req.body?.email || "").toLowerCase().trim();
     const nome = String(req.body?.nome || "").trim();
-    const cursosAcesso = Array.isArray(req.body?.cursosAcesso) ? req.body.cursosAcesso : [];
+    let cursosAcesso = Array.isArray(req.body?.cursosAcesso) ? req.body.cursosAcesso : [];
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const SENHA_CONVITE = gerarSenhaProvisoria();
@@ -2009,6 +2019,9 @@ async function startServer() {
       empresaId = requestedEmpresaId;
       empresaNome = coord.empresaNome || null;
     }
+    if (!empresaId) {
+      return res.status(400).json({ error: "Aluno precisa estar vinculado a um time/coordenador. Informe o empresaId do coordenador." });
+    }
 
     if (empresaId) {
       const [usersSnap, invitesSnap] = await Promise.all([
@@ -2030,6 +2043,33 @@ async function startServer() {
       if (maxAlunos > 0 && !jaContaNoTime && usados >= maxAlunos) {
         return res.status(400).json({ error: `Limite de vagas atingido (${usados}/${maxAlunos}).` });
       }
+      const cursosCoord = Array.isArray(coord.cursosAcesso) ? coord.cursosAcesso : [];
+      const nomesCoord = new Set(cursosCoord.map((c: any) => String(c?.curso || "").trim()).filter(Boolean));
+      if (nomesCoord.size > 0) {
+        if (cursosAcesso.length === 0) {
+          cursosAcesso = cursosCoord;
+        } else {
+          const foraDoPacote = cursosAcesso
+            .map((c: any) => String(c?.curso || "").trim())
+            .filter((curso: string) => curso && !nomesCoord.has(curso));
+          if (foraDoPacote.length > 0) {
+            return res.status(400).json({ error: `Este time nao tem acesso a: ${foraDoPacote.join(", ")}.` });
+          }
+        }
+      }
+    }
+    cursosAcesso = cursosAcesso
+      .map((c: any) => ({
+        curso: String(c?.curso || "").trim(),
+        vencimento: c?.vencimento ? String(c.vencimento) : null,
+        valor: typeof c?.valor === "number" ? c.valor : 0,
+      }))
+      .filter((c: any) => c.curso);
+    if (cursosAcesso.length === 0) {
+      return res.status(400).json({ error: "Escolha ao menos um curso para o aluno." });
+    }
+    if (cursosAcesso.some((c: any) => !c.vencimento || Number.isNaN(new Date(c.vencimento).getTime()))) {
+      return res.status(400).json({ error: "Informe uma data de expiração válida para todos os cursos." });
     }
     try {
       let uid: string, novo = false;
@@ -2111,13 +2151,20 @@ async function startServer() {
       const callerEhAdmin = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"]
         .includes(String(caller.email || "").toLowerCase());
       const callerEhConsultor = caller.tipoUsuario === "consultor";
-      if (!callerEhAdmin && !callerEhConsultor) {
+      const callerEhCoordenador = caller.tipoUsuario === "coordenador";
+      if (!callerEhAdmin && !callerEhConsultor && !callerEhCoordenador) {
         return res.status(403).json({ error: "Só consultor ou admin pode remover aluno." });
       }
       if (["admin", "consultor", "coordenador"].includes(String(target.tipoUsuario || ""))) {
         return res.status(400).json({ error: "Este usuário não é aluno." });
       }
       const consultorId = String(caller.consultorId || "israel");
+      if (callerEhCoordenador) {
+        const callerEmpresaId = String(caller.empresaId || "");
+        if (!callerEmpresaId || String(target.empresaId || "") !== callerEmpresaId) {
+          return res.status(403).json({ error: "Este aluno nao pertence ao seu time." });
+        }
+      }
       if (!callerEhAdmin && String(target.consultorId || "israel") !== consultorId) {
         return res.status(403).json({ error: "Este aluno não pertence ao seu ambiente." });
       }

@@ -1,16 +1,9 @@
-/**
- * CoordenadorEquipe — a aba "Minha Equipe" (rota /equipe).
- *
- * É a tela dedicada do coordenador: renderiza o painel do time (super-relatório
- * + convidar/gerenciar membros). Cada coordenador vê SÓ os dados do seu time
- * (vínculo por empresaId, dentro do DashboardCoordenador).
- */
 import React, { useEffect, useState } from 'react';
 import { auth } from '../../lib/firebase';
 import { getUserData } from '../../services/userService';
 import DashboardCoordenador from './DashboardCoordenador';
 
-export default function CoordenadorEquipe() {
+export default function CoordenadorReport() {
   const [nome, setNome] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,5 +14,5 @@ export default function CoordenadorEquipe() {
       .catch(() => setNome(auth.currentUser?.displayName || null));
   }, []);
 
-  return <DashboardCoordenador nome={nome} modo="gestao" />;
+  return <DashboardCoordenador nome={nome} modo="report" />;
 }

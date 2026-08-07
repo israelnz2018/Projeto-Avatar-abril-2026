@@ -19,6 +19,8 @@ export function useUserAccess() {
   const [siglaPpt, setSiglaPpt] = useState<string>('');
   const [pptFonte, setPptFonte] = useState<'consultor' | 'proprio' | null>(null);
   const [pptCores, setPptCores] = useState<{ navy: string; blue: string; light: string } | null>(null);
+  const [pptCapaUrl, setPptCapaUrl] = useState('');
+  const [pptInternaUrl, setPptInternaUrl] = useState('');
   const [cursosLiberados, setCursosLiberados] = useState<string[]>([]);
   // Aluno em modo POR-CURSO: tem cursosAcesso definido (pacote de cursos escolhido
   // pelo consultor). Nesse modo o acesso é pelos cursos liberados, NÃO pelo plano —
@@ -86,8 +88,12 @@ export function useUserAccess() {
                 pFonte = 'proprio';
                 sPpt = typeof t.siglaPpt === 'string' ? t.siglaPpt : '';
                 pCores = lerCores(t.coresPpt);
+                setPptCapaUrl(typeof t.pptCapaUrl === 'string' ? t.pptCapaUrl : '');
+                setPptInternaUrl(typeof t.pptInternaUrl === 'string' ? t.pptInternaUrl : '');
               } else {
                 pFonte = 'consultor';
+                setPptCapaUrl('');
+                setPptInternaUrl('');
               }
             } catch { /* sem doc/permissão — mantém marca do consultor */ }
           }
@@ -104,7 +110,7 @@ export function useUserAccess() {
           }
           // Modo por-curso: só quando o aluno TEM cursosAcesso não-vazio (pacote definido
           // pelo consultor). Vazio/ausente = modelo de plano (preserva os grupos atuais).
-          porCurso = Array.isArray(data.cursosAcesso) && data.cursosAcesso.length > 0;
+          porCurso = tipo !== 'coordenador' && Array.isArray(data.cursosAcesso) && data.cursosAcesso.length > 0;
           // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
           // passou, o "completo" expira e o usuário volta a gratuito.
           // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
@@ -143,6 +149,11 @@ export function useUserAccess() {
         setPptCores(pCores);
         setCursosLiberados(cursosLib);
         setAcessoPorCurso(porCurso);
+        if (admin || cons || coord) {
+          setFreeToolIds(new Set());
+          setGrantedToolIds(new Set());
+          return;
+        }
         const initiatives = await getInitiatives();
         const freeInitiatives = initiatives.filter(i => i.isFree === true);
         const toolIdsSet = new Set<string>();
@@ -206,6 +217,8 @@ export function useUserAccess() {
     siglaPpt,
     pptFonte,
     pptCores,
+    pptCapaUrl,
+    pptInternaUrl,
     cursosLiberados,
     acessoPorCurso,
     freeToolIds,

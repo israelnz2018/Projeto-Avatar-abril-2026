@@ -27,17 +27,17 @@ const ABAS = [
   { id: 'prova', nome: 'Prova', icon: ClipboardCheck, Comp: ProvaCertificacao },
   { id: 'certificados', nome: 'Certificados', icon: Award, Comp: Certificados },
   { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
-  { id: 'alunos', nome: 'Meus Alunos', icon: Users, Comp: MeusAlunos },
+  { id: 'alunos', nome: 'Alunos dos Times', icon: Users, Comp: MeusAlunos },
   { id: 'coordenadores', nome: 'Meus Coordenadores', icon: Users2, Comp: MeusCoordenadores },
   // Minha Vitrine e Vitrine escondidas por ora (discutir depois).
   { id: 'marca', nome: 'Minha Marca', icon: Palette, Comp: MinhaMarca },
 ];
 
 export default function ConfiguracaoConsultor() {
-  const { isAdmin } = useUserAccess();
+  const { isAdmin, isConsultor } = useUserAccess();
   // Modelo B2B: o consultor coloca EMPRESAS (coordenadores), não alunos diretos.
   // Só o admin (Israel, base legada B2C) mantém "Meus Alunos".
-  const abas = ABAS.filter((a) => a.id !== 'alunos' || isAdmin);
+  const abas = ABAS.filter((a) => a.id !== 'alunos' || isAdmin || isConsultor);
   const [ativa, setAtiva] = useState('relatorio');
   const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || SuperRelatorio;
 

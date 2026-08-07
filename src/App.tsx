@@ -25,7 +25,8 @@ import {
   Store,
   Shield,
   Wallet,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -62,6 +63,7 @@ const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
+const CoordenadorReport = lazy(() => import('./components/dashboard/CoordenadorReport'));
 const MarcaDoTime = lazy(() => import('./components/consultor/MarcaDoTime'));
 const RepassesView = lazy(() => import('./components/RepassesView'));
 const MinhaMarca = lazy(() => import('./components/consultor/MinhaMarca'));
@@ -184,6 +186,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ] : []),
     ...(isCoordenador ? [
       { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
+      { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
       { name: 'Marca do Time', path: '/marca-time', icon: Palette },
     ] : []),
     // Papel ADMIN (super-admin LBW) — só no hub (app.…). Gestão de plataforma pura.
@@ -571,6 +574,7 @@ export default function App() {
               <Route path="/" element={<Navigate to="/education" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/equipe" element={<CoordenadorEquipe />} />
+              <Route path="/report-time" element={<CoordenadorReport />} />
               <Route path="/marca-time" element={<MarcaDoTime />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />

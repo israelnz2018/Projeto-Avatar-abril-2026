@@ -36,6 +36,7 @@ import {
 
 interface Props {
   nome?: string | null;
+  modo?: 'gestao' | 'report';
 }
 
 const FASE_TONE: Record<string, GradientKey> = {
@@ -73,19 +74,21 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
   return fetch(url, { ...init, headers });
 }
 
-export default function DashboardCoordenador({ nome }: Props) {
+export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
+  const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
   const { empresaId, empresaNome, maxAlunos, siglaPpt } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
-  const meusStats = useUserUsageStats(uid);
-  const meusProjetos = useProjetosComDetalhes(uid);
-  const resultados = useResultadosEquipe(empresaId, uid);
+  const meusStats = useUserUsageStats(null);
+  const meusProjetos = useProjetosComDetalhes(null);
+  const resultados = useResultadosEquipe(isReport ? empresaId : null, uid);
 
   // Convites pendentes do time (auto-serviço do coordenador).
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [novoEmail, setNovoEmail] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const carregarInvites = useCallback(async () => {
     if (!empresaId) { setInvites([]); return; }
@@ -108,11 +111,11 @@ export default function DashboardCoordenador({ nome }: Props) {
     return () => { cancel = true; };
   }, [drillMember]);
 
-  if (equipe.loading || meusStats.loading || meusProjetos.loading) {
+  if (equipe.loading) {
     return <DashboardLoading />;
   }
   if (equipe.error) return <DashboardError message={equipe.error.message} />;
-  if (!equipe.data || !meusStats.data || !meusProjetos.data) {
+  if (!equipe.data) {
     return <DashboardError message="Dados indisponíveis." />;
   }
 
@@ -187,6 +190,17 @@ export default function DashboardCoordenador({ nome }: Props) {
   const removerInvite = async (email: string) => {
     try { await deletarConvite(email); await carregarInvites(); } catch { /* ignora */ }
   };
+  const removerMembro = async (memberUid: string) => {
+    if (!window.confirm('Remover este aluno do seu time?')) return;
+    setRemovingUid(memberUid); setErrMsg(null);
+    try {
+      const r = await authedFetch(`/api/aluno/${encodeURIComponent(memberUid)}`, { method: 'DELETE' });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j?.error || 'Falha ao remover aluno.');
+      equipe.refetch();
+    } catch (e: any) { setErrMsg(e?.message || 'Falha ao remover aluno.'); }
+    finally { setRemovingUid(null); }
+  };
 
   return (
     <DashboardShell>
@@ -226,7 +240,7 @@ export default function DashboardCoordenador({ nome }: Props) {
       </motion.header>
 
       {/* ====== STATS DO TIME ====== */}
-      <div className="mb-10">
+      {isReport && <div className="mb-10">
         <SectionLabel>Visão do time</SectionLabel>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -262,10 +276,10 @@ export default function DashboardCoordenador({ nome }: Props) {
             delay={0.2}
           />
         </div>
-      </div>
+      </div>}
 
       {/* ====== CONVIDAR / GERENCIAR MEMBROS ====== */}
-      <div className="mb-10">
+      {!isReport && <div className="mb-10">
         <SectionLabel rightSlot={limite != null ? <span className={vagasCheias ? 'text-rose-300' : ''}>{usados} / {limite} vagas</span> : `${usados} no time`}>
           Convidar membros
         </SectionLabel>
@@ -304,10 +318,39 @@ export default function DashboardCoordenador({ nome }: Props) {
           )}
           <p className="text-white/35 text-[11px] mt-3 mb-0">O convidado entra no seu time ao criar a conta com esse e-mail.</p>
         </div>
-      </div>
+      </div>}
+
+      {!isReport && (
+        <div className="mb-10">
+          <SectionLabel rightSlot={`${alunosTotal} membro${alunosTotal === 1 ? '' : 's'}`}>
+            Membros cadastrados
+          </SectionLabel>
+          {alunosTotal === 0 ? (
+            <div className="rounded-2xl p-8 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)' }}>
+              <p className="text-white/65 font-bold text-sm m-0 mb-2">Time vazio</p>
+              <p className="text-white/45 text-xs m-0">Use o campo de convite acima para adicionar os primeiros alunos ao seu time.</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {time.map((a) => (
+                <div key={a.user.uid} className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-white/5 last:border-0">
+                  <div className="min-w-0">
+                    <p className="text-white font-bold text-sm m-0 truncate">{a.user.nome || a.user.email.split('@')[0]}</p>
+                    <p className="text-white/40 text-[11px] m-0 truncate">{a.user.email}</p>
+                  </div>
+                  <button onClick={() => removerMembro(a.user.uid)} disabled={removingUid === a.user.uid}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black text-rose-200 border border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-40">
+                    {removingUid === a.user.uid ? 'Removendo...' : 'Remover'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ====== RESULTADOS & ENGAJAMENTO ====== */}
-      <div className="mb-10">
+      {isReport && <div className="mb-10">
         <SectionLabel rightSlot={resultados.loading ? 'calculando…' : 'ao vivo'}>
           Resultados &amp; engajamento do time
         </SectionLabel>
@@ -360,10 +403,10 @@ export default function DashboardCoordenador({ nome }: Props) {
             })}
           </motion.div>
         )}
-      </div>
+      </div>}
 
       {/* ====== TABELA DO TIME ====== */}
-      <div className="mb-10">
+      {isReport && <div className="mb-10">
         <SectionLabel rightSlot={alunosTravados > 0 ? <span className="text-rose-300">{alunosTravados} travado{alunosTravados > 1 ? 's' : ''}</span> : 'todos ativos'}>
           Meu time
         </SectionLabel>
@@ -541,16 +584,16 @@ export default function DashboardCoordenador({ nome }: Props) {
             })}
           </motion.div>
         )}
-      </div>
+      </div>}
 
       {/* ====== MEUS PROJETOS (condensado) ====== */}
-      {meusProjetos.data.length > 0 && (
+      {(meusProjetos.data || []).length > 0 && (
         <div className="mb-6">
           <SectionLabel rightSlot={<a href="/projects" className="hover:text-white">Ver todos →</a>}>
             Meus projetos
           </SectionLabel>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {meusProjetos.data.slice(0, 3).map((p, i) => {
+            {(meusProjetos.data || []).slice(0, 3).map((p, i) => {
               const tone: GradientKey = FASE_TONE[p.currentPhase] || 'navy';
               return (
                 <motion.a
