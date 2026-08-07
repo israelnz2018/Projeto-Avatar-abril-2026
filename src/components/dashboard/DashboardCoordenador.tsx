@@ -251,7 +251,14 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     try { await deletarConvite(email); await carregarInvites(); } catch { /* ignora */ }
   };
   const removerMembro = async (memberUid: string) => {
-    if (!window.confirm('Remover este aluno do seu time?')) return;
+    const aluno = time.find((item) => item.user.uid === memberUid)?.user;
+    const nomeAluno = aluno?.nome || aluno?.email || 'este aluno';
+    if (!window.confirm(
+      `Tem certeza que deseja remover ${nomeAluno} do seu time?\n\n` +
+      'Atenção: ao remover, o aluno perderá o acesso aos cursos deste time. ' +
+      'O histórico, progresso e projetos vinculados podem ser perdidos ou deixar de aparecer para o time.\n\n' +
+      'Essa ação não deve ser feita sem certeza.'
+    )) return;
     setRemovingUid(memberUid); setErrMsg(null);
     try {
       const r = await authedFetch(`/api/aluno/${encodeURIComponent(memberUid)}`, { method: 'DELETE' });
@@ -467,8 +474,13 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                       Incluido em {new Date(a.user.incluidoNoTimeEm || a.user.criadoEm).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
-                  <button onClick={() => removerMembro(a.user.uid)} disabled={removingUid === a.user.uid}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black text-rose-200 border border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-40">
+                  <button
+                    onClick={() => removerMembro(a.user.uid)}
+                    disabled={removingUid === a.user.uid}
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-red-600 shadow-sm transition-colors hover:bg-red-50 hover:border-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Remover aluno do time"
+                  >
+                    <X size={14} />
                     {removingUid === a.user.uid ? 'Removendo...' : 'Remover'}
                   </button>
                 </div>
