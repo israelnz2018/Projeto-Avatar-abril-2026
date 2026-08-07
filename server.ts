@@ -1729,8 +1729,15 @@ async function startServer() {
 
       return res.json({ transcript: rawTranscript, summary: parsed.summary, caption: "pt", complete: true });
     } catch (error: any) {
+      // Log completo (com nome de fornecedor/detalhe técnico) só no servidor. O consultor
+      // nunca vê qual software/provedor a plataforma usa por baixo dos panos.
       console.error("[/api/bunny/transcribe-video] erro:", error);
-      const errorMessage = String(error?.message || "Erro ao transcrever vídeo.").slice(0, 500);
+      const errorMessage = String(error?.message || "Erro ao transcrever vídeo.")
+        .replace(/deepinfra/gi, "serviço de transcrição")
+        .replace(/\bgroq\b/gi, "serviço de transcrição")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .replace(/\bbunny\b/gi, "servidor de vídeo")
+        .slice(0, 500);
       if (videoDocs && !videoDocs.empty) {
         const failureBatch = adminFirestore().batch();
         videoDocs.docs.forEach(doc => failureBatch.update(doc.ref, {

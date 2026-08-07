@@ -27,11 +27,8 @@ export async function generateSummaryFromRawTranscript(url: string, rawTranscrip
   } catch (error: any) {
     console.error("[generateSummaryFromRawTranscript] erro:", error);
     if (error?.message?.includes("Gemini API key não configurada")) {
-      throw error;
+      throw new Error("Serviço de IA não configurado. Fale com o administrador da plataforma.");
     }
-    throw new Error(
-      error.message ||
-        "Erro ao gerar índice. Verifique a configuração da Gemini em /api-settings."
-    );
+    throw new Error("Erro ao gerar índice. Tente novamente em instantes.");
   }
 }

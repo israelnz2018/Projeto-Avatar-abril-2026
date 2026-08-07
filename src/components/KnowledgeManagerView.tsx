@@ -716,7 +716,7 @@ export default function KnowledgeManagerView() {
       `Importar transcripts faltantes em lote?\n\n` +
       `Vídeos a processar: ${pending.length}\n\n` +
       `O que vai acontecer:\n` +
-      `• Transcreve o áudio do vídeo com Groq Whisper\n` +
+      `• Transcreve o áudio do vídeo com IA\n` +
       `• Publica a legenda em português no player\n` +
       `• Salva o transcript integral com timestamps\n` +
       `• Processa apenas uma vez vídeos usados em vários cursos\n\n` +
@@ -832,7 +832,7 @@ export default function KnowledgeManagerView() {
       `Gerar índices faltantes em lote?\n\n` +
       `Vídeos a processar: ${pending.length}\n\n` +
       `PRIMEIROS 8 DA FILA (confira se realmente faltam):\n${preview}${remaining}\n\n` +
-      `Provedor: Gemini 2.5 Flash · ~$0,003/vídeo\n` +
+      `Custo estimado: ~$0,003/vídeo\n` +
       `Tempo: ~15s por vídeo (com throttle de 10s entre chamadas)\n\n` +
       `Lista completa logada no Console (F12) pra conferência.\n\n` +
       `Continuar?`
@@ -1045,7 +1045,7 @@ export default function KnowledgeManagerView() {
       if (!Array.isArray(summary) || summary.length === 0) {
         // Gemini engoliu o erro internamente e retornou vazio. Não sobrescrevemos
         // o doc com vazio — informamos o usuário pra ele saber que algo falhou.
-        throw new Error('A IA retornou índice vazio. Verifique o console (F12) — pode ser quota do Gemini, modelo indisponível ou erro de parse.');
+        throw new Error('A IA retornou índice vazio. Verifique o console (F12) — pode ser limite de uso, serviço indisponível ou erro de leitura.');
       }
       await syncSiblingsBySourceUrl(item.sourceUrl, {
         summary,
