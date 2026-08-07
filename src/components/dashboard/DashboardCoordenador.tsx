@@ -305,16 +305,18 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
         <SectionLabel rightSlot={limite != null ? <span className={vagasCheias ? 'text-rose-300' : ''}>{usados} / {limite} vagas</span> : `${usados} no time`}>
           Convidar membros
         </SectionLabel>
-        <div className="rounded-2xl p-4 md:p-5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="rounded-2xl p-4 md:p-5 bg-gray-50 border border-gray-200 shadow-sm">
+          <p className="text-xs font-bold text-gray-600 mb-2 mt-0">E-mail do aluno convidado</p>
           <div className="flex gap-2 flex-wrap items-center">
             <input
               type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') adicionarMembro(); }}
               placeholder="email@empresa.com"
-              className="flex-1 min-w-[220px] rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 bg-white border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="flex-1 min-w-[220px] rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 bg-white border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
             <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !emailConviteValido}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors bg-blue-600 text-white border-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors bg-blue-600 border-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
+              style={{ color: (addingMember || vagasCheias || !emailConviteValido) ? '#9ca3af' : '#ffffff' }}>
               <UserPlus size={14} /> {addingMember ? 'Convidando…' : 'Convidar'}
             </button>
           </div>
