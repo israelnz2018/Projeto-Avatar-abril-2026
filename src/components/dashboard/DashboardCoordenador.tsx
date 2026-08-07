@@ -190,6 +190,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const usados = alunosTotal + invites.length;
   const limite = maxAlunos;
   const vagasCheias = limite != null && usados >= limite;
+  const emailConviteValido = novoEmail.trim().includes('@');
 
   const adicionarMembro = async () => {
     const email = novoEmail.trim().toLowerCase();
@@ -310,12 +311,10 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
               type="email" value={novoEmail} onChange={(e) => setNovoEmail(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') adicionarMembro(); }}
               placeholder="email@empresa.com"
-              className="flex-1 min-w-[220px] rounded-lg px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/30"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}
+              className="flex-1 min-w-[220px] rounded-xl px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 bg-white border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !novoEmail.includes('@')}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-xs font-black uppercase tracking-widest border-none cursor-pointer"
-              style={{ background: vagasCheias ? 'rgba(255,255,255,0.1)' : 'linear-gradient(120deg,#0033CC,#2563EB)', opacity: (addingMember || vagasCheias || !novoEmail.includes('@')) ? 0.55 : 1 }}>
+            <button onClick={adicionarMembro} disabled={addingMember || vagasCheias || !emailConviteValido}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors bg-blue-600 text-white border-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed">
               <UserPlus size={14} /> {addingMember ? 'Convidando…' : 'Convidar'}
             </button>
           </div>
