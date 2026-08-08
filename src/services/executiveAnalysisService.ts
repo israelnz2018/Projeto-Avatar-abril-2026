@@ -1,7 +1,9 @@
 import { Project } from '../types';
 
-// URL do backend de análises (proxy Claude). Sobrescrevível via env VITE_ANALISES_API_URL.
-const ANALISES_API = import.meta.env.VITE_ANALISES_API_URL || 'https://analises-production.up.railway.app';
+// Backend de análises (proxy Claude), SEMPRE via /api/analises (proxy do server.ts) —
+// mesma origem, senão o CORS de lá bloqueia os subdomínios de consultor. O upstream
+// real é escolhido no servidor (env ANALISES_API_URL).
+const ANALISES_API = '/api/analises';
 
 export interface AnalysisInput {
   project: Project;

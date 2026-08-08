@@ -19,6 +19,46 @@ async function startServer() {
 
   app.use(express.json());
 
+  // ===================================================================
+  // PROXY do serviço de ANÁLISES ESTATÍSTICAS (Data Analysis).
+  // O serviço roda em outro domínio (Railway) e tem whitelist de CORS que só
+  // conhece `app.educacaopelotrabalho.com` — então, a partir de QUALQUER
+  // subdomínio de consultor (israel., fulano., ...) o navegador bloqueava a
+  // chamada ("Failed to fetch"). Como o modelo white-label cria um subdomínio
+  // por consultor, manter whitelist lá é insustentável: o front passa a chamar
+  // /api/analises/* (mesma origem, sem CORS) e aqui repassamos pro serviço.
+  // Suporta multipart (planilha via FormData) e resposta binária (xlsx).
+  const ANALISES_UPSTREAM = process.env.ANALISES_API_URL || "https://analises-production.up.railway.app";
+  app.use("/api/analises", async (req: any, res) => {
+    try {
+      const upstream = ANALISES_UPSTREAM + req.url;
+      const ehJson = req.is("application/json");
+      const headers: Record<string, string> = {};
+      if (req.headers["content-type"]) headers["content-type"] = String(req.headers["content-type"]);
+      if (req.headers["authorization"]) headers["authorization"] = String(req.headers["authorization"]);
+
+      const temCorpo = req.method !== "GET" && req.method !== "HEAD";
+      const resposta = await fetch(upstream, {
+        method: req.method,
+        headers,
+        // JSON já foi consumido pelo express.json() -> re-serializa. Multipart/stream
+        // (upload de planilha) não é consumido -> repassa o stream cru.
+        ...(temCorpo ? { body: ehJson ? JSON.stringify(req.body ?? {}) : req, duplex: "half" } as any : {}),
+      });
+
+      res.status(resposta.status);
+      const tipo = resposta.headers.get("content-type");
+      if (tipo) res.setHeader("content-type", tipo);
+      const disp = resposta.headers.get("content-disposition");
+      if (disp) res.setHeader("content-disposition", disp);
+      // arrayBuffer cobre JSON e binário (planilha do Gage R&R) igualmente.
+      return res.send(Buffer.from(await resposta.arrayBuffer()));
+    } catch (erro: any) {
+      console.error("[/api/analises] proxy falhou:", erro?.message || erro);
+      return res.status(502).json({ erro: "Serviço de análises indisponível. Tente novamente." });
+    }
+  });
+
   function gerarSenhaProvisoria(): string {
     const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     const random = crypto.randomBytes(14);

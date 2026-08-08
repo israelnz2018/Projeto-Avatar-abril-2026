@@ -37,11 +37,17 @@ import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
 /**
- * URL base do backend de análises (Python — repo israelnz2018/Analises rodando no Railway).
- * Sobrescrevível via env VITE_ANALISES_API_URL. Fallback aponta pro serviço em produção
- * pra não quebrar caso o env não esteja setado (defensivo).
+ * Backend de análises (Python — repo israelnz2018/Analises no Railway), acessado SEMPRE
+ * via PROXY do nosso servidor (/api/analises -> server.ts). Chamar direto o domínio do
+ * serviço quebrava com "Failed to fetch" em todo subdomínio de consultor: a whitelist
+ * de CORS de lá só conhece `app.educacaopelotrabalho.com`. Pelo proxy é mesma origem,
+ * então funciona em israel.*, em qualquer consultor novo e no domínio raiz.
+ *
+ * Fixo de propósito (sem VITE_ANALISES_API_URL): aquela env estava setada com a URL
+ * absoluta e reintroduziria o bug. Pra apontar noutro backend, use ANALISES_API_URL
+ * no servidor — é lá que a escolha do upstream passa a viver.
  */
-const ANALISES_API = import.meta.env.VITE_ANALISES_API_URL || 'https://analises-production.up.railway.app';
+const ANALISES_API = '/api/analises';
 
 // --- CONFIGURATIONS FROM entradadedados.js ---
 const configuracoesFerramentas: Record<string, any[]> = {
@@ -334,6 +340,22 @@ function getYoutubeId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+/** "MM:SS" ou "HH:MM:SS" → segundos totais. */
+function tempoParaSegundos(tempo: string): number {
+  const partes = String(tempo || '').split(':').map(Number);
+  if (partes.some(isNaN)) return 0;
+  if (partes.length === 3) return partes[0] * 3600 + partes[1] * 60 + partes[2];
+  if (partes.length === 2) return partes[0] * 60 + partes[1];
+  return partes[0] || 0;
+}
+
+/** Pula pra um tempo do vídeo DENTRO do player do Bunny (protocolo player.js) — nunca
+ *  navega pro YouTube, já que todos os vídeos da plataforma tocam pelo Bunny. */
+function seekBunnyVideo(iframe: HTMLIFrameElement | null, seconds: number) {
+  if (!iframe?.contentWindow) return;
+  iframe.contentWindow.postMessage(JSON.stringify({ context: 'player.js', method: 'setCurrentTime', value: seconds }), '*');
+}
+
 export default function DataAnalysis() {
   const { projetoAtivo } = useProject();
   const { plano, isAdmin } = useUserAccess();
@@ -395,6 +417,7 @@ export default function DataAnalysis() {
   const [ferramentaAtual, setFerramentaAtual] = useState("");
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeEntry[]>([]);
   const [selectedAnalysisVideo, setSelectedAnalysisVideo] = useState<KnowledgeEntry | null>(null);
+  const supportVideoIframeRef = useRef<HTMLIFrameElement>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
   const [showEduVideos, setShowEduVideos] = useState(false);
 
@@ -1896,14 +1919,13 @@ export default function DataAnalysis() {
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <a
-                        href={selectedAnalysisVideo.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] text-blue-500 hover:text-blue-700 font-bold border border-blue-200 rounded px-2 py-0.5"
+                      <button
+                        type="button"
+                        onClick={() => supportVideoIframeRef.current?.requestFullscreen?.()}
+                        className="text-[10px] text-blue-500 hover:text-blue-700 font-bold border border-blue-200 rounded px-2 py-0.5 bg-transparent cursor-pointer"
                       >
                         ⛶ Tela cheia
-                      </a>
+                      </button>
                       <button
                         onClick={() => setSelectedAnalysisVideo(null)}
                         className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-all cursor-pointer border-none bg-transparent"
@@ -1917,12 +1939,13 @@ export default function DataAnalysis() {
                     onContextMenu={(e) => e.preventDefault()}
                   >
                     <iframe
+                      ref={supportVideoIframeRef}
                       width="100%"
                       height="100%"
                       src={`https://iframe.mediadelivery.net/embed/${selectedAnalysisVideo.bunnyLibraryId}/${selectedAnalysisVideo.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
                       title={selectedAnalysisVideo.title}
                       frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     />
                     {/* Overlays: topo (título/compartilhar) e cantos inferiores (link 🔗 / logo YouTube) */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 70, zIndex: 20, pointerEvents: 'auto' }} />
@@ -1936,18 +1959,17 @@ export default function DataAnalysis() {
                       </p>
                       <div className="flex flex-col gap-0.5 max-h-[100px] overflow-y-auto">
                         {selectedAnalysisVideo.summary.map((ch, i) => (
-                          <a
+                          <button
                             key={i}
-                            href={`${selectedAnalysisVideo.sourceUrl}&t=${ch.time}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-[10px] hover:bg-blue-50 rounded px-1 py-0.5 transition-colors"
+                            type="button"
+                            onClick={() => seekBunnyVideo(supportVideoIframeRef.current, tempoParaSegundos(ch.time))}
+                            className="flex items-center gap-2 text-[10px] hover:bg-blue-50 rounded px-1 py-0.5 transition-colors text-left bg-transparent border-none cursor-pointer w-full"
                           >
                             <span className="font-mono font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded text-[9px] flex-shrink-0">
                               {ch.time}
                             </span>
                             <span className="text-gray-600 truncate">{ch.topic}</span>
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </div>

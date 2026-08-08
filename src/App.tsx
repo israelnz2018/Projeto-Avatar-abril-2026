@@ -164,7 +164,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const menuItems = [
     // Experiência de aluno/consultor (curso, projeto, comunidades do consultor/coordenador).
     // Escondida no hub do admin — o admin não tem curso nem projeto.
-    ...(ehAdminHub ? [] : [
+    ...(ehAdminHub ? [
+      // Data & Analysis fica visível TAMBÉM no hub do admin: o Israel usa a análise
+      // estatística direto por aqui (o resto — curso/projeto — segue sendo do consultor).
+      { name: 'Data & Analysis', path: '/analysis', icon: Database },
+    ] : [
       { name: 'Projetos', path: '/projects', icon: ClipboardList },
       { name: 'Data & Analysis', path: '/analysis', icon: Database },
       { name: 'Educação', path: '/education', icon: GraduationCap },

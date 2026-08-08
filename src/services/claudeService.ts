@@ -15,7 +15,10 @@ import { buildPrompt, AI_PROMPTS } from './aiPrompts';
 // (era sempre undefined → fallback hardcoded sempre vencia). Trocado pra
 // `import.meta.env.VITE_*` que é o padrão Vite. Backward-compatible: mesma
 // URL fallback caso o env não esteja setado.
-const API_URL = import.meta.env.VITE_ANALISES_API_URL || 'https://analises-production.up.railway.app';
+// SEMPRE via /api/analises (proxy do server.ts) — mesma origem, senão o CORS do serviço
+// bloqueia os subdomínios de consultor (só `app.` está na whitelist de lá). O upstream
+// real é escolhido no servidor (env ANALISES_API_URL).
+const API_URL = '/api/analises';
  
 /**
  * Sanitiza os dados retornados pela IA, garantindo arrays e estruturas esperadas.
