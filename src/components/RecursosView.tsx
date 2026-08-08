@@ -1,23 +1,20 @@
 /**
  * RecursosView — aba "Checklists, Mapas e PPTs".
  * Biblioteca de materiais (recursos) em cards, TOTALMENTE editável pelo consultor em
- * Configuração > Material de Apoio (support_materials, campo `nivel` controla o acesso):
- *   'todos'    → qualquer aluno logado
- *   'trilha1'  → liberado pra quem tem a Trilha 1 OU completo (todos os pagantes)
- *   'completo' → só plano completo
- * Card sem acesso mostra cadeado + convite pra comprar (checkout Hotmart).
+ * Configuração > Material de Apoio (support_materials, campo `cursos` controla o acesso:
+ * vazio = todos os cursos; senão, o aluno precisa ter pelo menos 1 dos cursos liberado —
+ * MESMA regra de acesso usada em Educação e Projetos, pra ficar tudo consistente).
  * O único item fixo no código é o Checklist dos 90 dias (é um componente interativo,
- * não um arquivo — não dá pra "fazer upload" dele).
+ * não um arquivo — não dá pra "fazer upload" dele, e fica aberto pra qualquer aluno logado).
  */
 import React, { useEffect, useState, useRef } from 'react';
-import { FileCheck2, Lock, Map, Presentation, X, Printer, Table2, Download, FileText } from 'lucide-react';
+import { FileCheck2, Lock, Map, Presentation, X, Printer, Table2, FileText } from 'lucide-react';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { HOTMART_CHECKOUT_URL, KIT90_CHECKOUT_URL } from '../lib/constants';
+import { useConsultor } from '../contexts/ConsultorContext';
+import { LockedToolPopup } from './LockedToolPopup';
 import ChecklistMapa90Dias from './recursos/ChecklistMapa90Dias';
-import { listSupportMaterials, SupportMaterial, CategoriaMaterial, NivelMaterial } from '../services/supportMaterialService';
+import { listSupportMaterials, SupportMaterial, CategoriaMaterial } from '../services/supportMaterialService';
 import { resolveConsultorId } from '../services/consultorService';
-
-type Nivel = NivelMaterial;
 
 interface Recurso {
   id: string;
@@ -25,7 +22,7 @@ interface Recurso {
   descricao: string;
   categoria: 'Checklist' | 'Mapa' | 'PPT' | 'Planilha' | 'Material';
   icone: React.ComponentType<{ size?: number; className?: string }>;
-  nivel: Nivel;
+  cursos: string[];       // vazio = todos os cursos
   conteudo?: React.ComponentType;   // componente React aberto em modal (só o checklist)
   arquivoUrl?: string;              // link do arquivo (abre em nova aba)
 }
@@ -47,10 +44,13 @@ const CATEGORIA_COR: Record<Recurso['categoria'], string> = {
 };
 
 export default function RecursosView() {
-  const { plano, isAdmin, isCoordenador } = useUserAccess();
+  const { isAdmin, isCoordenador, isConsultor, plano, cursosLiberados, acessoPorCurso } = useUserAccess();
+  const { consultor } = useConsultor();
+  const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
   const [aberto, setAberto] = useState<Recurso | null>(null);
   const [materiais, setMateriais] = useState<SupportMaterial[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,7 +60,8 @@ export default function RecursosView() {
       .finally(() => setLoading(false));
   }, []);
 
-  // O checklist é o único recurso fixo (componente interativo, não é um arquivo).
+  // O checklist é o único recurso fixo (componente interativo, não é um arquivo) —
+  // aberto pra qualquer aluno logado.
   const recursos: Recurso[] = [
     {
       id: 'mapa-90-dias',
@@ -68,7 +69,7 @@ export default function RecursosView() {
       descricao: 'Seu checklist de progresso — 60 ações, uma por dia, do "cheguei perdido" ao "olha o que eu entreguei".',
       categoria: 'Checklist',
       icone: FileCheck2,
-      nivel: 'trilha1',
+      cursos: [],
       conteudo: ChecklistMapa90Dias,
     },
     ...materiais.map((m): Recurso => ({
@@ -77,24 +78,26 @@ export default function RecursosView() {
       descricao: m.descricao,
       categoria: m.categoria || 'Material',
       icone: ICONE_POR_CATEGORIA[m.categoria || 'Material'],
-      nivel: m.nivel || 'todos',
+      cursos: m.cursos || [],
       arquivoUrl: m.arquivoUrl,
     })),
   ];
 
-  // Regra de acesso por card. 'todos' = qualquer aluno logado. 'trilha1' = qualquer
-  // pagante (introdutório/gratuito com a Trilha 1, ou completo). 'completo' = só plano
-  // completo. Admin/coordenador veem tudo.
-  const temAcesso = (nivel: Nivel): boolean => {
-    if (isAdmin || isCoordenador) return true;
-    if (nivel === 'todos') return true;
-    if (plano === 'completo') return true;
-    if (nivel === 'trilha1') return true; // todo aluno logado tem ao menos a Trilha 1
-    return false;
+  // MESMA regra de acesso por-curso usada em Educação/Projetos: staff do consultor vê
+  // tudo; cursos=[] (todos) é aberto pra qualquer aluno logado; senão, precisa ter pelo
+  // menos 1 dos cursos do material liberado (cursosLiberados).
+  const veTudo = isAdmin || isConsultor;
+  const temAcesso = (cursos: string[]): boolean => {
+    if (veTudo) return true; // staff vê tudo
+    if (cursos.length === 0) return true; // todos os cursos
+    // Legado (plano completo sem pacote por-curso, ex.: Hotmart antigo) — vê tudo, como já
+    // acontece em Educação/Projetos pra esse mesmo perfil.
+    if (plano === 'completo' && !acessoPorCurso) return true;
+    return cursos.some(c => (cursosLiberados || []).includes(c));
   };
 
   const abrir = (r: Recurso) => {
-    if (!temAcesso(r.nivel)) return;
+    if (!temAcesso(r.cursos)) { setLockedPopupOpen(true); return; }
     if (r.arquivoUrl) { window.open(r.arquivoUrl, '_blank', 'noopener'); return; }
     if (r.conteudo) setAberto(r);
   };
@@ -135,9 +138,6 @@ export default function RecursosView() {
     setTimeout(() => { win.print(); }, 350);
   };
 
-  const checkoutDoNivel = (nivel: Nivel) =>
-    nivel === 'trilha1' ? KIT90_CHECKOUT_URL : HOTMART_CHECKOUT_URL;
-
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       {/* Cabeçalho */}
@@ -155,23 +155,27 @@ export default function RecursosView() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {recursos.map((r) => {
-            const liberado = temAcesso(r.nivel);
+            const liberado = temAcesso(r.cursos);
             const Icone = r.icone;
-            const bloqueado = !liberado;
             return (
               <div
                 key={r.id}
                 onClick={() => abrir(r)}
                 className={
-                  'relative rounded-2xl border p-5 transition-all ' +
-                  (bloqueado
-                    ? 'border-gray-200 bg-gray-50 opacity-90 cursor-default'
-                    : 'border-gray-200 bg-white hover:border-blue-400 hover:shadow-lg cursor-pointer')
+                  'relative rounded-2xl border p-5 transition-all cursor-pointer ' +
+                  (liberado
+                    ? 'border-gray-200 bg-white hover:border-blue-400 hover:shadow-lg'
+                    : 'border-gray-200 bg-gray-50 opacity-70 grayscale-[35%]')
                 }
               >
+                {!liberado && (
+                  <div className="absolute top-3 right-3 z-20 w-6 h-6 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                    <Lock size={12} className="text-white" />
+                  </div>
+                )}
                 <div className="flex items-start justify-between mb-3">
-                  <div className={'w-11 h-11 rounded-xl flex items-center justify-center ' + (bloqueado ? 'bg-gray-200 text-gray-400' : 'bg-gradient-to-br from-[#0033CC] to-[#1E2D6E] text-white')}>
-                    {bloqueado ? <Lock size={20} /> : <Icone size={22} />}
+                  <div className={'w-11 h-11 rounded-xl flex items-center justify-center ' + (liberado ? 'bg-gradient-to-br from-[#0033CC] to-[#1E2D6E] text-white' : 'bg-gray-200 text-gray-400')}>
+                    {liberado ? <Icone size={22} /> : <Lock size={20} />}
                   </div>
                   <span className={'text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ' + CATEGORIA_COR[r.categoria]}>
                     {r.categoria}
@@ -182,16 +186,8 @@ export default function RecursosView() {
 
                 {/* Rodapé do card */}
                 <div className="mt-4">
-                  {bloqueado ? (
-                    <a
-                      href={checkoutDoNivel(r.nivel)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 text-[12px] font-bold text-blue-700 hover:text-blue-900"
-                    >
-                      <Lock size={13} /> {r.nivel === 'trilha1' ? 'Disponível no Kit 90 Dias →' : 'Disponível no plano Completo →'}
-                    </a>
+                  {!liberado ? (
+                    <span className="text-[12px] font-bold text-gray-400">🔒 Ainda não liberado</span>
                   ) : (
                     <span className="text-[12px] font-bold text-blue-700">
                       {r.arquivoUrl
@@ -244,6 +240,13 @@ export default function RecursosView() {
           </div>
         </div>
       )}
+
+      <LockedToolPopup
+        isOpen={lockedPopupOpen}
+        onClose={() => setLockedPopupOpen(false)}
+        variant={acessoPorCurso || isCoordenador ? 'consultor' : 'upgrade'}
+        consultorNome={nomeConsultor}
+      />
     </div>
   );
 }

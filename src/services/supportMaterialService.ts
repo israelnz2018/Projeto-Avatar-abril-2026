@@ -4,8 +4,6 @@ import { auth, db, storage } from '../lib/firebase';
 import { resolveConsultorId } from './consultorService';
 
 export type CategoriaMaterial = 'Material' | 'Checklist' | 'Mapa' | 'PPT' | 'Planilha';
-/** Nível de acesso do aluno: 'todos' (qualquer aluno logado), 'trilha1' (Kit 90+), 'completo' (plano Completo). */
-export type NivelMaterial = 'todos' | 'trilha1' | 'completo';
 
 export interface SupportMaterial {
   id: string;
@@ -13,7 +11,8 @@ export interface SupportMaterial {
   titulo: string;
   descricao: string;
   categoria: CategoriaMaterial;
-  nivel: NivelMaterial;
+  /** Cursos (nomes das trilhas) liberados pra ver este material. Vazio = todos os cursos. */
+  cursos: string[];
   arquivoNome: string;
   arquivoUrl: string;
   storagePath: string;
@@ -26,7 +25,7 @@ const COLLECTION = 'support_materials';
 export async function listSupportMaterials(consultorId = resolveConsultorId()): Promise<SupportMaterial[]> {
   const snap = await getDocs(query(collection(db, COLLECTION), where('consultorId', '==', consultorId)));
   return snap.docs
-    .map(item => ({ categoria: 'Material', nivel: 'todos', ...item.data(), id: item.id } as SupportMaterial))
+    .map(item => ({ categoria: 'Material', cursos: [], ...item.data(), id: item.id } as SupportMaterial))
     .sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')));
 }
 
@@ -36,7 +35,7 @@ export async function uploadSupportMaterial(input: {
   file: File;
   consultorId?: string;
   categoria?: CategoriaMaterial;
-  nivel?: NivelMaterial;
+  cursos?: string[];
 }): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Sessão expirada. Entre novamente.');
@@ -52,7 +51,7 @@ export async function uploadSupportMaterial(input: {
       titulo: input.titulo.trim(),
       descricao: input.descricao.trim(),
       categoria: input.categoria || 'Material',
-      nivel: input.nivel || 'todos',
+      cursos: input.cursos || [],
       arquivoNome: input.file.name,
       arquivoUrl,
       storagePath,
@@ -66,10 +65,10 @@ export async function uploadSupportMaterial(input: {
   }
 }
 
-/** Edita título/descrição/categoria/nível — e, opcionalmente, troca o arquivo (apaga o antigo do Storage). */
+/** Edita título/descrição/categoria/cursos — e, opcionalmente, troca o arquivo (apaga o antigo do Storage). */
 export async function updateSupportMaterial(
   material: SupportMaterial,
-  patch: { titulo: string; descricao: string; categoria: CategoriaMaterial; nivel: NivelMaterial },
+  patch: { titulo: string; descricao: string; categoria: CategoriaMaterial; cursos: string[] },
   newFile?: File,
 ): Promise<void> {
   const user = auth.currentUser;
@@ -78,7 +77,7 @@ export async function updateSupportMaterial(
     titulo: patch.titulo.trim(),
     descricao: patch.descricao.trim(),
     categoria: patch.categoria,
-    nivel: patch.nivel,
+    cursos: patch.cursos,
   };
   if (newFile) {
     const consultorId = material.consultorId || resolveConsultorId();
