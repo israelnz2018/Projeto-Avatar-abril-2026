@@ -2018,6 +2018,31 @@ async function startServer() {
   // POST /api/aluno/convidar — o CONSULTOR (ou admin) adiciona/promove um ALUNO no tenant dele,
   // com cursos liberados (cada um com vencimento) e o valor pago. Conta nova = LBW2026 + troca no
   // 1º login; existente = mantém a senha e só ajusta. Autoriza consultor OU admin.
+  // POST /api/leads-consultor — formulário PÚBLICO (sem login) da landing /consultores.
+  // Captura quem quer conhecer a plataforma como consultor parceiro. Salva o lead;
+  // o link da Comunidade WhatsApp é mostrado no front após o envio.
+  app.post("/api/leads-consultor", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const nome = String(req.body?.nome || "").trim().slice(0, 120);
+    const empresa = String(req.body?.empresa || "").trim().slice(0, 120);
+    const funcao = String(req.body?.funcao || "").trim().slice(0, 120);
+    const whatsapp = String(req.body?.whatsapp || "").trim().slice(0, 40);
+    const origem = String(req.body?.origem || "landing-consultores").trim().slice(0, 60);
+    if (!nome || !empresa || !funcao || !whatsapp) {
+      return res.status(400).json({ error: "Preencha todos os campos." });
+    }
+    try {
+      await adminFirestore().collection("leads_consultores").add({
+        nome, empresa, funcao, whatsapp, origem,
+        criadoEm: new Date().toISOString(),
+      });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[POST /api/leads-consultor] erro:", err);
+      return res.status(500).json({ error: "Erro ao salvar. Tente novamente." });
+    }
+  });
+
   app.post("/api/aluno/convidar", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const header = req.headers.authorization || "";
