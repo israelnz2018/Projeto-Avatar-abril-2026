@@ -8,8 +8,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
-// Preencher com o link real da Comunidade WhatsApp assim que criada.
-const WHATSAPP_COMUNIDADE_URL = 'https://chat.whatsapp.com/SEU-LINK-AQUI';
+const WHATSAPP_COMUNIDADE_URL = 'https://chat.whatsapp.com/KpijG8eqP98CqKx2UD3enV';
 
 const CSS = `
 .k9{--ink:#0A0F24;--navy:#1E2D6E;--blue:#0033CC;--line:rgba(255,255,255,.10);--txt:rgba(255,255,255,.74);--txt2:rgba(255,255,255,.5);--card:rgba(255,255,255,.04)}
