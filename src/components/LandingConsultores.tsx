@@ -6,7 +6,7 @@
  * de terça/sexta. Ao enviar, mostra o link da Comunidade WhatsApp.
  */
 import React, { useRef, useEffect, useState } from 'react';
-import RodapeInstitucional from './RodapeInstitucional';
+import RodapeConsultores from './RodapeConsultores';
 
 const WHATSAPP_COMUNIDADE_URL = 'https://chat.whatsapp.com/KpijG8eqP98CqKx2UD3enV';
 
@@ -159,8 +159,8 @@ export default function LandingConsultores() {
       <header className="hero">
         <div className="wrap">
           <span className="eyebrow">LBW - Educação pelo Trabalho</span>
-          <h1>Você monta apresentação, controla aluno em planilha e ainda tenta parecer<br /><span className="grad">uma empresa grande sozinho.</span></h1>
-          <p className="sub">Conheça a plataforma completa de melhoria contínua que você pode usar com a sua marca — cursos, ferramentas, certificado automático e gestão de alunos prontos.</p>
+          <h1>Uma plataforma pronta pra você colocar<br /><span className="grad">os seus cursos e os seus clientes.</span></h1>
+          <p className="sub">Suba o conteúdo que você já ensina, adicione quantas empresas-cliente quiser — cada uma com o próprio ecossistema, independente das outras — e acompanhe tudo de um único lugar. Com a sua marca.</p>
           <button className="cta" onClick={scrollToOferta}>Quero conhecer a plataforma →</button>
         </div>
       </header>
@@ -172,7 +172,7 @@ export default function LandingConsultores() {
           <p className="lead">E aí vêm as perguntas de sempre:</p>
           <ul>
             <li>Você ainda monta a apresentação de cada projeto do zero, pra cada cliente?</li>
-            <li>Controla quem já assistiu o quê numa planilha?</li>
+            <li>Controla quem já assistiu o quê numa planilha, cliente por cliente?</li>
             <li>Não tem como emitir certificado automaticamente pros seus alunos?</li>
             <li>Quando alguém pergunta "você tem uma plataforma?", você fica sem resposta?</li>
           </ul>
@@ -180,18 +180,31 @@ export default function LandingConsultores() {
         </div>
       </section>
 
-      {/* O QUE RECEBE */}
+      {/* MODELO MULTI-CLIENTE */}
       <section>
         <div className="wrap">
-          <h2>O que você recebe</h2>
-          <p className="lead">Uma plataforma completa, não um curso solto.</p>
+          <h2>Seu ecossistema, multiplicado pra cada cliente</h2>
+          <p className="lead">Você sobe os seus cursos uma vez. Depois, adiciona quantas empresas-cliente quiser.</p>
           <div className="kit">
-            <div className="item"><span className="ck">✓</span> 8 trilhas prontas de melhoria contínua, com ferramentas DMAIC completas</div>
-            <div className="item"><span className="ck">✓</span> Sua marca, sua logo, suas cores — nos slides, no certificado, no site</div>
-            <div className="item"><span className="ck">✓</span> Certificado emitido automaticamente quando o aluno conclui</div>
-            <div className="item"><span className="ck">✓</span> Gestão de alunos e empresas sem planilha — tudo dentro da plataforma</div>
-            <div className="item"><span className="ck">✓</span> Software de análise de dados e apresentações em PowerPoint geradas na hora</div>
-            <div className="item"><span className="ck">✓</span> Assistente de IA que orienta o aluno passo a passo dentro de cada ferramenta</div>
+            <div className="item"><span className="ck">✓</span> Cada empresa é independente — turma própria, dados próprios, comunidade própria</div>
+            <div className="item"><span className="ck">✓</span> Nenhum cliente vê o conteúdo ou os alunos de outro</div>
+            <div className="item"><span className="ck">✓</span> Você acompanha tudo de um único painel — todos os clientes, um lugar só</div>
+            <div className="item"><span className="ck">✓</span> Tudo com a sua marca: logo, cores e certificado, não a da LBW</div>
+          </div>
+        </div>
+      </section>
+
+      {/* O QUE CADA CLIENTE RECEBE */}
+      <section className="dor">
+        <div className="wrap">
+          <h2>O que cada empresa-cliente recebe</h2>
+          <p className="lead">Dentro do ecossistema dela, os funcionários têm acesso a:</p>
+          <div className="kit">
+            <div className="item"><span className="ck">1</span> O(s) curso(s) que você publicar — o seu conteúdo, do seu jeito</div>
+            <div className="item"><span className="ck">2</span> Software estatístico LBW completo</div>
+            <div className="item"><span className="ck">3</span> Ferramentas da qualidade já prontas pra preencher — sem montar do zero</div>
+            <div className="item"><span className="ck">4</span> Gestão de projetos de melhoria com apoio de IA, e apresentações prontas pra eles usarem com os clientes deles</div>
+            <div className="item"><span className="ck">5</span> Gestão do programa — visão de alunos e visão financeira, tudo dentro da plataforma</div>
           </div>
         </div>
       </section>
@@ -323,7 +336,7 @@ export default function LandingConsultores() {
         </div>
       </section>
 
-      <RodapeInstitucional />
+      <RodapeConsultores />
     </div>
   );
 }
