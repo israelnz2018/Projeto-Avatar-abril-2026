@@ -525,22 +525,9 @@ export default function ProjectToolsConfig() {
                     O estado editingInitiativeParentId e o save no Firestore continuam intactos,
                     preservando qualquer parentId histórico que já exista (não apaga dados). */}
 
-                {/* "Trilha 1 grátis" é um artefato específico do curso do Israel — no modelo
-                    por-consultor o acesso é sempre pelo que o consultor libera explicitamente
-                    (sem bypass de curso "grátis"), então esse toggle não se aplica aos outros. */}
-                {ehIsrael && <div className="w-full">
-                  <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={editIsFree}
-                      onChange={(e) => setEditIsFree(e.target.checked)}
-                      className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-bold text-blue-700">
-                      Trilha 1 (acessível para todos os alunos)
-                    </span>
-                  </label>
-                </div>}
+                {/* Checkbox "Trilha 1 grátis" removido daqui — artefato antigo do modelo
+                    B2C do Israel. O valor de isFree já salvo continua preservado (outras
+                    telas ainda leem esse campo), só não dá mais pra editar por aqui. */}
               </div>
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
