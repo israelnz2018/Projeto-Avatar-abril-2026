@@ -95,6 +95,10 @@ export interface Consultor {
   plano?: string;        // faixa SaaS (monetização)
   ativo: boolean;
   criadoEm: string;
+  /** Checklist "Comece por Aqui" — cada item marcado manualmente pelo consultor. */
+  onboarding?: Record<string, boolean>;
+  /** Texto de boas-vindas mostrado no topo da Comunidade dos Meus Clientes. */
+  comunidadeBoasVindas?: string;
 }
 
 export interface InitiativePhaseConfig {

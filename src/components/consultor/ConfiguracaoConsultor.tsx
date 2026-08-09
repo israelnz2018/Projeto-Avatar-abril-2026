@@ -4,6 +4,7 @@
  * aluno/coordenador) + esta única aba "Configuração". Ver PLANO-WHITELABEL.md.
  */
 import React, { Suspense, lazy, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Users, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -38,7 +39,11 @@ export default function ConfiguracaoConsultor() {
   // Modelo B2B: o consultor coloca EMPRESAS (coordenadores), não alunos diretos.
   // Só o admin (Israel, base legada B2C) mantém "Meus Alunos".
   const abas = ABAS.filter((a) => a.id !== 'alunos' || isAdmin || isConsultor);
-  const [ativa, setAtiva] = useState('cursos');
+  // Deep-link do "Comece por Aqui" (ex.: /configuracao?aba=marca) — só lido no
+  // primeiro render; trocar de aba depois é sempre local (clique nas abas).
+  const [searchParams] = useSearchParams();
+  const abaUrl = searchParams.get('aba');
+  const [ativa, setAtiva] = useState(abaUrl && ABAS.some((a) => a.id === abaUrl) ? abaUrl : 'cursos');
   const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || MeusCursos;
 
   return (

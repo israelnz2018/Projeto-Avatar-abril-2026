@@ -24,6 +24,7 @@ import { auth, db } from '../lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { resolveConsultorId, empresaIdDireto } from '../services/consultorService';
+import { useConsultor } from '../contexts/ConsultorContext';
 import UpgradeBanner from './UpgradeBanner';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
@@ -833,6 +834,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
 
   // Escopo do time: admin/consultor escolhem a empresa; coordenador/aluno usam a própria.
   const { isAdmin, isConsultor, empresaId } = useUserAccess();
+  const { consultor } = useConsultor();
   const cid = resolveConsultorId();
   const podeEscolherEmpresa = escopo === 'time' && (isAdmin || isConsultor);
   const [empresas, setEmpresas] = useState<{ empresaId: string; nome: string }[]>([]);
@@ -961,6 +963,15 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
       </div>
 
       <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano introdutório: participe da comunidade e libere todas as ferramentas." />
+
+      {/* Boas-vindas do consultor — só na Comunidade dos Meus Clientes (escopo 'time'),
+          texto configurado em "Comece por Aqui". Texto simples, sem caixa/banner —
+          como se fosse a primeira mensagem escrita ali mesmo. */}
+      {escopo === 'time' && consultor.comunidadeBoasVindas && (
+        <p className="mb-5 whitespace-pre-line text-sm text-gray-700">
+          {consultor.comunidadeBoasVindas}
+        </p>
+      )}
 
       {/* Seletor de empresa — só admin/consultor no escopo do coordenador (cada empresa é isolada) */}
       {podeEscolherEmpresa && (

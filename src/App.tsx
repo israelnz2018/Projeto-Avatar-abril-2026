@@ -25,7 +25,8 @@ import {
   Shield,
   Wallet,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
+  Rocket
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth } from './lib/firebase';
@@ -73,6 +74,7 @@ const MinhaVitrine = lazy(() => import('./components/consultor/MinhaVitrine'));
 const VitrinePublica = lazy(() => import('./components/VitrinePublica'));
 const MeusCoordenadores = lazy(() => import('./components/consultor/MeusCoordenadores'));
 const ConfiguracaoConsultor = lazy(() => import('./components/consultor/ConfiguracaoConsultor'));
+const ComecePorAqui = lazy(() => import('./components/consultor/ComecePorAqui'));
 const AdminConsultores = lazy(() => import('./components/AdminConsultores'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
@@ -161,6 +163,10 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   // Aqui o menu é PURO de gestão de plataforma — sem curso/projeto (isso é do consultor).
   const ehAdminHub = isAdmin && !siteConsultor;
   const menuItems = [
+    // "COMECE POR AQUI" — sempre a primeiríssima aba do consultor, checklist de onboarding.
+    ...(siteConsultor && (isAdmin || isConsultor) ? [
+      { name: 'COMECE POR AQUI', path: '/comece-por-aqui', icon: Rocket },
+    ] : []),
     // Experiência de aluno/consultor (curso, projeto, comunidades do consultor/coordenador).
     // Escondida no hub do admin — o admin não tem curso nem projeto.
     ...(ehAdminHub ? [
@@ -622,6 +628,7 @@ export default function App() {
               <Route path="/consultores" element={<VitrinePublica />} />
               <Route path="/meus-coordenadores" element={<MeusCoordenadores />} />
               <Route path="/configuracao" element={<ConfiguracaoConsultor />} />
+              <Route path="/comece-por-aqui" element={<ComecePorAqui />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

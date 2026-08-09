@@ -1,0 +1,182 @@
+/**
+ * ComecePorAqui — checklist de onboarding do consultor. Cada item tem um texto
+ * explicando o que fazer e um botão que leva direto pra tela certa. O check é
+ * marcado manualmente pelo próprio consultor (não é detectado automaticamente).
+ * O item "Comunidade" é diferente: edita e publica o texto de boas-vindas ali
+ * mesmo, sem precisar navegar pra outro lugar.
+ */
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { doc, setDoc } from 'firebase/firestore';
+import { CheckCircle2, Circle, Rocket } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { useConsultor } from '../../contexts/ConsultorContext';
+import { useUserAccess } from '../../hooks/useUserAccess';
+
+const MODELO_BOAS_VINDAS = `Seja bem-vindo(a) à nossa comunidade! 🎉
+
+Aqui é o espaço para trocar experiências, tirar dúvidas e comemorar conquistas durante a sua jornada de melhoria contínua.
+
+Algumas boas práticas para a gente manter esse espaço produtivo:
+• Seja respeitoso(a) e educado(a) nas trocas
+• Antes de perguntar, veja se sua dúvida já foi respondida por aqui
+• Compartilhe seus aprendizados — o que ajudou você pode ajudar outra pessoa também
+• Erros fazem parte do processo: pergunte sem medo
+
+Bora construir isso juntos!`;
+
+interface Item {
+  id: string;
+  titulo: string;
+  texto: string;
+  botao: string;
+  path: string;
+}
+
+const ITENS: Item[] = [
+  {
+    id: 'marca',
+    titulo: 'Sua marca',
+    texto: 'Coloque o nome, a sigla, a logo e as cores da sua plataforma — é isso que os seus alunos veem no dia a dia e nos PPTs exportados.',
+    botao: 'Configurar minha marca',
+    path: '/configuracao?aba=marca',
+  },
+  {
+    id: 'cursos',
+    titulo: 'Seus cursos',
+    texto: 'Cadastre pelo menos um curso. Sem curso, não dá pra criar projeto, nem liberar acesso pra ninguém.',
+    botao: 'Ir para Meus Cursos',
+    path: '/configuracao?aba=cursos',
+  },
+  {
+    id: 'fases',
+    titulo: 'Ferramentas de cada projeto',
+    texto: 'Escolha quais ferramentas de qualidade (as que a plataforma já aprovou) ficam disponíveis em cada fase do seu curso.',
+    botao: 'Configurar ferramentas',
+    path: '/configuracao?aba=fases',
+  },
+  {
+    id: 'prova',
+    titulo: 'Prova',
+    texto: 'Configure as perguntas, alternativas e o gabarito de cada curso.',
+    botao: 'Configurar a prova',
+    path: '/configuracao?aba=prova',
+  },
+  {
+    id: 'certificado',
+    titulo: 'Certificado',
+    texto: 'Envie o seu próprio modelo de certificado — é o que o aluno recebe ao concluir o curso.',
+    botao: 'Configurar certificado',
+    path: '/configuracao?aba=certificados',
+  },
+  {
+    id: 'depoimento',
+    titulo: 'Depoimento pré-prova',
+    texto: 'Decida se o aluno preenche um depoimento antes de fazer a prova, e revise os itens que ele avalia.',
+    botao: 'Configurar depoimento',
+    path: '/configuracao?aba=prova',
+  },
+  {
+    id: 'coordenadores',
+    titulo: 'Coordenadores e alunos',
+    texto: 'Adicione um coordenador, ou decida atender os alunos diretamente (sem coordenador) — depois adicione os alunos.',
+    botao: 'Ir para Meus Clientes',
+    path: '/configuracao?aba=coordenadores',
+  },
+];
+
+export default function ComecePorAqui() {
+  const navigate = useNavigate();
+  const { consultor, consultorId, refresh } = useConsultor();
+  const { isAdmin, isConsultor, loading } = useUserAccess();
+  const [boasVindas, setBoasVindas] = useState(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
+  const [publicando, setPublicando] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor vê essa página.</div>;
+
+  const marcado = (id: string) => !!consultor.onboarding?.[id];
+
+  async function alternar(id: string) {
+    const novo = !marcado(id);
+    await setDoc(doc(db, 'consultores', consultorId), { [`onboarding.${id}`]: novo }, { merge: true });
+    await refresh();
+  }
+
+  async function publicarBoasVindas() {
+    setPublicando(true);
+    setMsg('');
+    try {
+      await setDoc(doc(db, 'consultores', consultorId), {
+        comunidadeBoasVindas: boasVindas.trim(),
+        [`onboarding.comunidade`]: true,
+      }, { merge: true });
+      await refresh();
+      setMsg('✅ Publicado! Já aparece no topo da Comunidade dos Meus Clientes.');
+    } catch (e: any) {
+      setMsg('❌ ' + (e?.message || e));
+    } finally {
+      setPublicando(false);
+    }
+  }
+
+  const Checkbox = ({ id }: { id: string }) => (
+    <button onClick={() => alternar(id)} className="shrink-0 mt-0.5">
+      {marcado(id) ? <CheckCircle2 size={22} className="text-emerald-600" /> : <Circle size={22} className="text-gray-300" />}
+    </button>
+  );
+
+  return (
+    <div className="max-w-3xl mx-auto pb-12">
+      <div className="flex items-center gap-3 mb-1">
+        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 grid place-items-center"><Rocket size={20} /></div>
+        <h1 className="text-2xl font-black text-gray-800">Comece por Aqui</h1>
+      </div>
+      <p className="text-gray-500 text-sm mb-6">
+        Um passo a passo pra deixar <b>{consultor.branding.nome}</b> pronta. Marque o que já fez — nada aqui bloqueia o resto da plataforma, é só um guia.
+      </p>
+
+      <div className="space-y-3">
+        {ITENS.map((item) => (
+          <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
+            <Checkbox id={item.id} />
+            <div className="min-w-0 flex-1">
+              <div className={`font-bold ${marcado(item.id) ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.titulo}</div>
+              <p className="text-sm text-gray-500 mt-1">{item.texto}</p>
+              <button
+                onClick={() => navigate(item.path)}
+                className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800"
+              >
+                {item.botao} →
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Comunidade — edita e publica o texto ali mesmo, sem navegar. */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
+          <Checkbox id="comunidade" />
+          <div className="min-w-0 flex-1">
+            <div className={`font-bold ${marcado('comunidade') ? 'text-gray-400 line-through' : 'text-gray-800'}`}>Comunidade</div>
+            <p className="text-sm text-gray-500 mt-1 mb-3">
+              Já deixamos um texto pronto (boas-vindas + regras) — edite do seu jeito e publique.
+            </p>
+            <textarea
+              value={boasVindas}
+              onChange={(e) => setBoasVindas(e.target.value)}
+              rows={9}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex items-center gap-3 mt-3">
+              <button onClick={publicarBoasVindas} disabled={publicando || !boasVindas.trim()} className="px-5 py-2 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                {publicando ? 'Publicando…' : 'Publicar'}
+              </button>
+              {msg && <span className="text-sm text-gray-600">{msg}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
