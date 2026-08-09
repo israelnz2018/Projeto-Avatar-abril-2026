@@ -24,87 +24,6 @@ import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
-/**
- * Tipo de projeto — derivado do prefixo numérico da trilha (initiative.name).
- * Aparece como badge + descrição customizada no popup "Novo Projeto".
- * Mapeamento fixo no código: trilha é editada via Firestore, mas a categorização
- * (tipo de projeto, ferramentas que vai carregar) mora aqui.
- */
-function getTipoProjeto(numero: number | undefined): {
-  label: string;
-  subtitle: string | null;
-  descricao: string;
-  placeholder: string;
-} {
-  switch (numero) {
-    // Numeração alinhada com as 8 trilhas reais (pós-fusão T1+T2, jun/2026).
-    // Badge + subtítulo descrevem o TIPO de projeto de cada trilha.
-    case 1: // Como Chegar em uma Área Nova e Já Entregar Resultado
-      return {
-        label: 'Projeto de Melhoria',
-        subtitle: 'adequação e pequenas melhorias',
-        descricao: 'Vamos conhecer as ferramentas básicas (SIPOC, 5W2H, Brainstorming) aplicadas num caso real seu.',
-        placeholder: 'Ex: Conhecer as ferramentas no setor de compras',
-      };
-    case 2: // Como Recomendar Melhorias com Base em Análise de Dados
-      return {
-        label: 'Projeto de Análise',
-        subtitle: 'análise de dados',
-        descricao: 'Vamos transformar dados em recomendação — Pareto, Histograma, Boxplot e interpretação pra decisão.',
-        placeholder: 'Ex: Investigar queda de vendas no Q3',
-      };
-    case 3: // Como Conduzir Mudanças com Menos Resistência
-      return {
-        label: 'Projeto de Mudança',
-        subtitle: 'gestão de mudança',
-        descricao: 'Vamos mapear stakeholders e estruturar a mudança com o framework ADKAR.',
-        placeholder: 'Ex: Implementar trabalho híbrido no time comercial',
-      };
-    case 4: // Como Criar Apresentações que Convencem
-      return {
-        label: 'Projeto de Apresentação',
-        subtitle: 'recomendações executivas',
-        descricao: 'Vamos estruturar suas recomendações e gerar slides executivos prontos.',
-        placeholder: 'Ex: Apresentar plano de redução de custos ao board',
-      };
-    case 5: // Como Antecipar Riscos Antes que Virem Problemas
-      return {
-        label: 'Projeto de Risco',
-        subtitle: 'gestão de riscos',
-        descricao: 'Vamos aplicar FMEA, plano B em 1 página e o ritual pré-go-live que reduz surpresa.',
-        placeholder: 'Ex: Avaliar riscos da migração do ERP',
-      };
-    case 6: // Cultura Lean na Prática
-      return {
-        label: 'Projeto de Estudo',
-        subtitle: 'cultura Lean',
-        descricao: 'Vamos treinar o olhar Lean — os 8 desperdícios, gemba walk, kaizen e os 5 princípios na sua rotina.',
-        placeholder: 'Ex: Aplicar 5S e gemba na minha área',
-      };
-    case 7: // Como Fazer Análises Estatísticas Aplicadas a Negócios
-      return {
-        label: 'Projeto de Análise Estatística',
-        subtitle: 'estudos pontuais',
-        descricao: 'Estudos estatísticos pontuais — correlação, regressão, teste de hipótese aplicados ao seu problema.',
-        placeholder: 'Ex: Correlação temperatura × taxa de defeito',
-      };
-    case 8: // Como Se Tornar um Especialista em Gestão de Projetos de Melhoria
-      return {
-        label: 'Projeto de Gestão de Melhoria',
-        subtitle: 'especialista',
-        descricao: 'Vamos estruturar projeto complexo de 12-18 meses com PMI — charter, WBS, risk register, cronograma.',
-        placeholder: 'Ex: Programa de excelência operacional 2027',
-      };
-    default:
-      return {
-        label: 'Projeto',
-        subtitle: null,
-        descricao: 'O Mentor IA vai carregar as ferramentas e vídeos específicos pra essa trilha.',
-        placeholder: 'Ex: Redução de Desperdício na Linha A',
-      };
-  }
-}
-
 // LBW Brand Palette
 const LBW = {
   navy: '#1E2D6E',
@@ -821,7 +740,6 @@ export default function ProjectManagement() {
                       })
                       .map((initiative, index) => {
                         const numeroVisual = initiative.ordem ?? (index + 1);
-                        const tipo = getTipoProjeto(numeroVisual);
                         const visual = getTrilhaVisual(numeroVisual);
                         const numero = String(numeroVisual).padStart(2, '0');
                         const titleClean = initiative.name;
@@ -876,24 +794,12 @@ export default function ProjectManagement() {
                               <VisualIcon size={22} className="text-white" />
                             </div>
 
-                            {/* Nome + tipo */}
+                            {/* Nome — sem badge/subtítulo de "tipo de projeto" (removido: complicava
+                                mais do que ajudava e o texto podia ficar descolado do curso). */}
                             <div className="relative z-10 flex-1 min-w-0">
                               <p className="text-[13px] font-black leading-tight m-0 truncate uppercase tracking-tight" style={{ color: LBW.navy }}>
                                 {titleClean}
                               </p>
-                              <div className="flex items-center gap-1.5 mt-1.5">
-                                <span
-                                  className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white"
-                                  style={{ background: visual.borderColor }}
-                                >
-                                  {tipo.label}
-                                </span>
-                                {tipo.subtitle && (
-                                  <span className="text-[10px] font-bold text-slate-500 italic">
-                                    {tipo.subtitle}
-                                  </span>
-                                )}
-                              </div>
                             </div>
 
                             {/* Seta indicando ação */}
@@ -1213,18 +1119,11 @@ function CreateProjectModalContent({
   onClose: () => void;
   isSubmitting: boolean;
 }) {
-  const tipo = getTipoProjeto(trilha?.ordem);
   return (
     <form onSubmit={handleCreateProject}>
       <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
         <div className="min-w-0 flex-1">
           <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Novo Projeto</h3>
-          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-full">
-            <span className="text-[10px] font-black uppercase tracking-widest">{tipo.label}</span>
-            {tipo.subtitle && (
-              <span className="text-[10px] font-bold text-white/85">· {tipo.subtitle}</span>
-            )}
-          </div>
           {trilha?.name && (
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-2 truncate">
               Trilha: {trilha.name}
@@ -1248,20 +1147,11 @@ function CreateProjectModalContent({
           <input
             autoFocus
             type="text"
-            placeholder={tipo.placeholder}
+            placeholder="Ex: Redução de Desperdício na Linha A"
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
             className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
           />
-        </div>
-
-        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-4 items-center">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shrink-0">
-            <Sparkles size={20} />
-          </div>
-          <p className="text-[11px] font-bold text-blue-800 leading-relaxed">
-            {tipo.descricao}
-          </p>
         </div>
       </div>
 
