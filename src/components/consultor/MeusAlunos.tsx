@@ -36,6 +36,7 @@ interface Equipe {
   empresaId: string;
   nome: string;
   coordenador: string;
+  direto?: boolean;
 }
 
 const emUmAno = () => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -164,7 +165,7 @@ export default function MeusAlunos() {
       // pro consultor atender aluno avulso sem precisar de uma conta de coordenador fake.
       const equipesReais = Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
       setEquipes([
-        { empresaId: empresaIdDireto(consultorId), nome: 'Meus próprios alunos', coordenador: consultor.branding.nome || 'você' },
+        { empresaId: empresaIdDireto(consultorId), nome: 'Meus próprios alunos', coordenador: consultor.branding.nome || 'você', direto: true },
         ...equipesReais,
       ]);
     } catch { /* ignore */ }
@@ -173,19 +174,20 @@ export default function MeusAlunos() {
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [consultorId]);
 
   // Agrupa os alunos ativos por time (empresaId) — cada time é um acordeão em
-  // "Alunos na Plataforma". Busca filtra dentro dos grupos.
+  // "Alunos na Plataforma". Busca filtra dentro dos grupos. Aluno legado sem empresaId
+  // (cadastrado antes dessa hierarquia existir) cai direto em "Meus próprios alunos".
   const alunosPorEmpresa = useMemo(() => {
     const t = busca.trim().toLowerCase();
+    const direto = empresaIdDireto(consultorId);
     const mapa = new Map<string, Aluno[]>();
     for (const a of rows) {
       if (t && !a.nome.toLowerCase().includes(t) && !a.email.toLowerCase().includes(t)) continue;
-      const key = a.empresaId || '';
+      const key = a.empresaId || direto;
       if (!mapa.has(key)) mapa.set(key, []);
       mapa.get(key)!.push(a);
     }
     return mapa;
-  }, [rows, busca]);
-  const semTime = alunosPorEmpresa.get('') || [];
+  }, [rows, busca, consultorId]);
   const buscando = busca.trim().length > 0;
 
   if (loadingAcesso) return <div className="p-8 text-gray-500">Carregando…</div>;
@@ -330,6 +332,10 @@ export default function MeusAlunos() {
             freeCursos.map((c) => (
               <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
             ))
+          ) : cursos.length > 0 ? (
+            // Sem cursosAcesso, sem completo, sem curso gratuito configurado — cai no
+            // primeiro curso de Meus Cursos em vez de ficar em branco.
+            <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursos[0]}</span>
           ) : (
             <span className="text-xs text-gray-400 italic">—</span>
           )}
@@ -470,7 +476,9 @@ export default function MeusAlunos() {
                   className="w-full flex items-center justify-between gap-3 px-4 py-3.5"
                 >
                   <span className="flex items-center gap-2 min-w-0">
-                    <span className="font-black text-gray-800 truncate">{eq.nome}</span>
+                    <span className="font-black text-gray-800 truncate">
+                      {eq.direto ? eq.nome : `${eq.coordenador}${eq.nome && eq.nome !== eq.coordenador ? ' — ' + eq.nome : ''}`}
+                    </span>
                     <span className="text-xs text-gray-400 shrink-0">({alunosDoTime.length})</span>
                   </span>
                   <ChevronDown size={18} className={`text-gray-400 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`} />
@@ -495,15 +503,6 @@ export default function MeusAlunos() {
               </div>
             );
           })}
-
-          {semTime.length > 0 && (
-            <div className="bg-white border border-amber-200 rounded-2xl overflow-hidden">
-              <div className="px-4 py-3.5 font-black text-amber-800 bg-amber-50">Sem time definido ({semTime.length})</div>
-              <div className="border-t border-amber-100">
-                {semTime.map(renderLinha)}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
