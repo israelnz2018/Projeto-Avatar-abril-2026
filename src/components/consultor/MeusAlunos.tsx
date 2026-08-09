@@ -298,24 +298,35 @@ export default function MeusAlunos() {
         </button>
         {addAberto && (
           <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <input value={aNome} onChange={(e) => setANome(e.target.value)} placeholder="Nome completo" className={campo} />
-              <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} />
-            </div>
-            {equipes.length > 0 && (
-              <div>
-                <div className="text-xs font-bold text-gray-500 mb-1">Time/coordenador do aluno</div>
-                <select value={aEmpresaId} onChange={(e) => setAEmpresaId(e.target.value)} className={campo + ' w-full'}>
-                  <option value="">Escolha o time/coordenador</option>
-                  {equipes.map((e) => (
-                    <option key={e.empresaId} value={e.empresaId}>
-                      {e.nome} — {e.coordenador}
-                    </option>
-                  ))}
-                </select>
+            {/* Hierarquia: SEMPRE escolhe o coordenador/empresa antes de colocar o aluno.
+                Sem nenhum coordenador ainda, nem mostra o resto do formulário — antes
+                disso o aluno ficava sem time possível de escolher e o erro só aparecia
+                depois de tentar salvar, sem explicação. */}
+            {equipes.length === 0 ? (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+                Você ainda não tem nenhum coordenador cadastrado. Primeiro adicione um coordenador em
+                {' '}<b>Meus Coordenadores</b>, depois volte aqui para adicionar os alunos do time dele.
               </div>
+            ) : (
+              <>
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-1">1. Empresa / coordenador do aluno</div>
+                  <select value={aEmpresaId} onChange={(e) => setAEmpresaId(e.target.value)} className={campo + ' w-full'}>
+                    <option value="">Escolha a empresa/coordenador</option>
+                    {equipes.map((e) => (
+                      <option key={e.empresaId} value={e.empresaId}>
+                        {e.nome} (coordenador: {e.coordenador})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input value={aNome} onChange={(e) => setANome(e.target.value)} placeholder="Nome completo" className={campo} disabled={!aEmpresaId} />
+                  <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} disabled={!aEmpresaId} />
+                </div>
+              </>
             )}
-            <div>
+            <div className={!aEmpresaId ? 'opacity-40 pointer-events-none' : ''}>
               <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
               <div className="flex flex-wrap gap-2">
                 {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso ainda.</span>}
@@ -349,12 +360,14 @@ export default function MeusAlunos() {
                 ))}
               </div>
             )}
-            <div className="flex items-center gap-3 pt-1">
-              <button onClick={adicionar} disabled={addEnviando} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
-                {addEnviando ? 'Adicionando…' : 'Adicionar aluno'}
-              </button>
-              {addMsg && <span className="text-sm text-gray-600">{addMsg}</span>}
-            </div>
+            {equipes.length > 0 && (
+              <div className="flex items-center gap-3 pt-1">
+                <button onClick={adicionar} disabled={addEnviando || !aEmpresaId} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                  {addEnviando ? 'Adicionando…' : 'Adicionar aluno'}
+                </button>
+                {addMsg && <span className="text-sm text-gray-600">{addMsg}</span>}
+              </div>
+            )}
           </div>
         )}
       </div>
