@@ -312,7 +312,7 @@ export default function MeusAlunos() {
             {equipes.length === 0 ? (
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
                 Você ainda não tem nenhum coordenador cadastrado. Primeiro adicione um coordenador em
-                {' '}<b>Meus Coordenadores</b>, depois volte aqui para adicionar os alunos do time dele.
+                {' '}<b>Meus Clientes</b>, depois volte aqui para adicionar os alunos do time dele.
               </div>
             ) : (
               <>

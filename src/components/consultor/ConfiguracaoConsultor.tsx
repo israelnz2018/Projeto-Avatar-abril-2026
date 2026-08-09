@@ -27,7 +27,7 @@ const ABAS = [
   { id: 'certificados', nome: 'Certificados', icon: Award, Comp: Certificados },
   { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
   { id: 'alunos', nome: 'Alunos dos Times', icon: Users, Comp: MeusAlunos },
-  { id: 'coordenadores', nome: 'Meus Coordenadores', icon: Users2, Comp: MeusCoordenadores },
+  { id: 'coordenadores', nome: 'Meus Clientes', icon: Users2, Comp: MeusCoordenadores },
   // Minha Vitrine e Vitrine escondidas por ora (discutir depois).
   { id: 'marca', nome: 'Minha Marca', icon: Palette, Comp: MinhaMarca },
   { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },

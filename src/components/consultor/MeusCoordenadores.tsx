@@ -46,6 +46,7 @@ export default function MeusCoordenadores() {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const navigate = useNavigate();
+  const [aba, setAba] = useState<'diretos' | 'coordenadores'>('diretos');
   const [diretoStats, setDiretoStats] = useState({ time: 0, timeAtivo: 0 });
   const [rows, setRows] = useState<CoordRow[]>([]);
   const [cursos, setCursos] = useState<string[]>([]);
@@ -267,13 +268,50 @@ export default function MeusCoordenadores() {
     </div>
   );
 
+  const abaBtn = 'px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors';
+  const abaBtnOn = 'bg-blue-600 text-white border-blue-600';
+  const abaBtnOff = 'bg-white text-gray-600 border-gray-200 hover:border-gray-300';
+
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Coordenadores</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Clientes</h1>
       <p className="text-gray-500 text-sm mb-6">
-        Convide coordenadores para o seu mundo (<b>{consultor.branding.nome}</b>). Cada curso fica em uma linha, com acessos, valor e expiração próprios.
+        Escolha como você atende os alunos de <b>{consultor.branding.nome}</b>: pessoalmente, ou através de coordenadores.
       </p>
 
+      <div className="flex gap-2 mb-8">
+        <button onClick={() => setAba('diretos')} className={`${abaBtn} ${aba === 'diretos' ? abaBtnOn : abaBtnOff}`}>
+          1. Eu coordenando os meus alunos
+        </button>
+        <button onClick={() => setAba('coordenadores')} className={`${abaBtn} ${aba === 'coordenadores' ? abaBtnOn : abaBtnOff}`}>
+          2. Cadastro dos coordenadores
+        </button>
+      </div>
+
+      {/* Alunos diretos — um único grupo fixo, sem coordenador: o consultor atende esse
+          time pessoalmente. Não é um coordenador de verdade (sem doc próprio), por isso
+          não tem "editar cursos" nem "remover" — só o resumo e o atalho pra adicionar. */}
+      {aba === 'diretos' && (
+        <div className="bg-white border border-blue-100 rounded-2xl p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 grid place-items-center shrink-0"><Users2 size={20} /></div>
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-gray-800">Alunos diretos (sem coordenador)</div>
+              <div className="text-xs text-gray-400">Alunos que você atende pessoalmente, sem passar por um coordenador.</div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>{diretoStats.time}</div>
+              <div className="text-[11px] text-gray-400">{diretoStats.timeAtivo} ativos</div>
+            </div>
+            <button onClick={() => navigate('/meus-alunos')} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">
+              adicionar aluno
+            </button>
+          </div>
+        </div>
+      )}
+
+      {aba === 'coordenadores' && (
+      <>
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
         <h2 className="font-black text-gray-800 mb-4">Convidar coordenador</h2>
         <div className="mb-4">
@@ -306,27 +344,6 @@ export default function MeusCoordenadores() {
             {enviando ? 'Enviando...' : 'Convidar coordenador'}
           </button>
           {msg && <span className="text-sm text-gray-600">{msg}</span>}
-        </div>
-      </div>
-
-      {/* Alunos diretos — um único grupo fixo, sem coordenador: o consultor atende esse
-          time pessoalmente. Não é um coordenador de verdade (sem doc próprio), por isso
-          não tem "editar cursos" nem "remover" — só o resumo e o atalho pra adicionar. */}
-      <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Alunos diretos</h2>
-      <div className="bg-white border border-blue-100 rounded-2xl p-5 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 grid place-items-center shrink-0"><Users2 size={20} /></div>
-          <div className="min-w-0 flex-1">
-            <div className="font-bold text-gray-800">Alunos diretos (sem coordenador)</div>
-            <div className="text-xs text-gray-400">Alunos que você atende pessoalmente, sem passar por um coordenador.</div>
-          </div>
-          <div className="text-right shrink-0">
-            <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>{diretoStats.time}</div>
-            <div className="text-[11px] text-gray-400">{diretoStats.timeAtivo} ativos</div>
-          </div>
-          <button onClick={() => navigate('/meus-alunos')} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">
-            adicionar aluno
-          </button>
         </div>
       </div>
 
@@ -401,6 +418,8 @@ export default function MeusCoordenadores() {
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 }

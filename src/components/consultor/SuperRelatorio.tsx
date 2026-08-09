@@ -79,7 +79,7 @@ export default function SuperRelatorio() {
             </h2>
             {r.empresas.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center text-gray-500">
-                Nenhuma empresa ainda. Convide um coordenador em <b>Meus Coordenadores</b>.
+                Nenhuma empresa ainda. Convide um coordenador em <b>Meus Clientes</b>.
               </div>
             ) : (
               <div className="space-y-8">
