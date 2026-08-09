@@ -14,6 +14,7 @@ import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
+import { empresaIdDireto } from '../../services/consultorService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -153,7 +154,13 @@ export default function MeusAlunos() {
       setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
-      setEquipes(Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome)));
+      // "Alunos diretos" sempre disponível no topo — um único grupo fixo, sem coordenador,
+      // pro consultor atender aluno avulso sem precisar de uma conta de coordenador fake.
+      const equipesReais = Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+      setEquipes([
+        { empresaId: empresaIdDireto(consultorId), nome: 'Alunos diretos (sem coordenador)', coordenador: consultor.branding.nome || 'você' },
+        ...equipesReais,
+      ]);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   };

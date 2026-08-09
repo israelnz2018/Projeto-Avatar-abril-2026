@@ -40,6 +40,16 @@ export const CONSULTOR_PADRAO: Consultor = {
 };
 
 /**
+ * empresaId reservado pro time de "alunos diretos" do consultor — alunos que ele atende
+ * sem passar por nenhum coordenador. Não é um doc de coordenador de verdade; é só um
+ * balde por consultor (um único grupo, sempre o mesmo, escopado por consultorId pra não
+ * colidir com o de outro consultor — os demais empresaId's precisam ser globalmente únicos).
+ */
+export function empresaIdDireto(consultorId: string): string {
+  return `__direto__${consultorId}`;
+}
+
+/**
  * Resolve o consultorId a partir do hostname (subdomínio).
  *   israel.educacaopelotrabalho.com → 'israel'
  *   consultorX.educacaopelotrabalho.com → 'consultorx'

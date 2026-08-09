@@ -4,6 +4,8 @@ import { db, auth } from '../../lib/firebase';
 import { Users2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
+import { useNavigate } from 'react-router-dom';
+import { empresaIdDireto } from '../../services/consultorService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -43,6 +45,8 @@ const maiorVencimento = (lista: { vencimento: string | null }[]) => {
 export default function MeusCoordenadores() {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
+  const navigate = useNavigate();
+  const [diretoStats, setDiretoStats] = useState({ time: 0, timeAtivo: 0 });
   const [rows, setRows] = useState<CoordRow[]>([]);
   const [cursos, setCursos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +103,8 @@ export default function MeusCoordenadores() {
       const users = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
       const coords = users.filter((u) => u.tipoUsuario === 'coordenador');
       const alunos = users.filter((u) => u.tipoUsuario !== 'coordenador' && u.tipoUsuario !== 'admin');
+      const timeDireto = alunos.filter((a) => a.empresaId === empresaIdDireto(consultorId));
+      setDiretoStats({ time: timeDireto.length, timeAtivo: timeDireto.filter((a) => a.primeiroAcessoEm).length });
       setRows(coords.map((c) => {
         const time = alunos.filter((a) => a.empresaId && a.empresaId === c.empresaId);
         const cursosAcesso = Array.isArray(c.cursosAcesso) ? c.cursosAcesso : [];
@@ -300,6 +306,27 @@ export default function MeusCoordenadores() {
             {enviando ? 'Enviando...' : 'Convidar coordenador'}
           </button>
           {msg && <span className="text-sm text-gray-600">{msg}</span>}
+        </div>
+      </div>
+
+      {/* Alunos diretos — um único grupo fixo, sem coordenador: o consultor atende esse
+          time pessoalmente. Não é um coordenador de verdade (sem doc próprio), por isso
+          não tem "editar cursos" nem "remover" — só o resumo e o atalho pra adicionar. */}
+      <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Alunos diretos</h2>
+      <div className="bg-white border border-blue-100 rounded-2xl p-5 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 grid place-items-center shrink-0"><Users2 size={20} /></div>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-gray-800">Alunos diretos (sem coordenador)</div>
+            <div className="text-xs text-gray-400">Alunos que você atende pessoalmente, sem passar por um coordenador.</div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>{diretoStats.time}</div>
+            <div className="text-[11px] text-gray-400">{diretoStats.timeAtivo} ativos</div>
+          </div>
+          <button onClick={() => navigate('/meus-alunos')} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">
+            adicionar aluno
+          </button>
         </div>
       </div>
 

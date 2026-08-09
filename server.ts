@@ -9,6 +9,7 @@ import nodemailer from "nodemailer";
 import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } from "./src/lib/firebaseAdmin";
 import { campanhaCortesiaHtml, CAMPANHA_ASSUNTO } from "./src/services/campanhaCortesiaEmail";
 import { DEFAULT_QUIZZES } from "./src/services/quizSeed";
+import { empresaIdDireto } from "./src/services/consultorService";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2118,17 +2119,27 @@ async function startServer() {
       if (!empresaId) return res.status(400).json({ error: "Seu usuário de coordenador ainda não tem empresaId." });
     } else if (req.body?.empresaId) {
       const requestedEmpresaId = String(req.body.empresaId);
-      const coordSnap = await adminFirestore()
-        .collection("users")
-        .where("consultorId", "==", consultorId)
-        .where("empresaId", "==", requestedEmpresaId)
-        .where("tipoUsuario", "==", "coordenador")
-        .limit(1)
-        .get();
-      if (coordSnap.empty) return res.status(400).json({ error: "Empresa/time não pertence a este consultor." });
-      const coord = coordSnap.docs[0].data() as any;
-      empresaId = requestedEmpresaId;
-      empresaNome = coord.empresaNome || null;
+      if (requestedEmpresaId === empresaIdDireto(consultorId)) {
+        // "Alunos diretos (sem coordenador)": só o consultor/admin monta esse time —
+        // não existe doc de coordenador pra validar, é o próprio consultor quem responde.
+        if (!callerEhConsultor && !callerEhAdmin) {
+          return res.status(403).json({ error: "Só o consultor pode adicionar alunos diretos (sem coordenador)." });
+        }
+        empresaId = requestedEmpresaId;
+        empresaNome = "Alunos diretos (sem coordenador)";
+      } else {
+        const coordSnap = await adminFirestore()
+          .collection("users")
+          .where("consultorId", "==", consultorId)
+          .where("empresaId", "==", requestedEmpresaId)
+          .where("tipoUsuario", "==", "coordenador")
+          .limit(1)
+          .get();
+        if (coordSnap.empty) return res.status(400).json({ error: "Empresa/time não pertence a este consultor." });
+        const coord = coordSnap.docs[0].data() as any;
+        empresaId = requestedEmpresaId;
+        empresaNome = coord.empresaNome || null;
+      }
     }
     if (!empresaId) {
       return res.status(400).json({ error: "Aluno precisa estar vinculado a um time/coordenador. Informe o empresaId do coordenador." });
