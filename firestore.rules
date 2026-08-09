@@ -352,10 +352,13 @@ service cloud.firestore {
 
     match /knowledge_base/{itemId} {
       // Leitura isolada por tenant. Itens legados sem consultorId pertencem ao Israel.
+      // Exceção: institucional==true são os vídeos fixos de "como usar a plataforma"
+      // (aba Data Analysis) — visíveis para qualquer consultor, não só o dono do conteúdo.
       allow read: if isAuthenticated() && (
         isAdmin() ||
         resource.data.consultorId == meuConsultorId() ||
-        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel') ||
+        resource.data.institucional == true
       );
       // Escrita isolada por tenant: admin, OU consultor no conteúdo do PRÓPRIO consultorId.
       // (Antes era `if isAuthenticated()` — qualquer um escrevia; só o admin usava.)

@@ -104,6 +104,22 @@ export async function getRecentKnowledge(limitCount = 100): Promise<KnowledgeEnt
   }
 }
 
+/** Vídeos institucionais (institucional:true) — fixos para qualquer consultor,
+ * independente do tenant, ex.: os 4 vídeos de "como usar a plataforma" na aba Data Analysis. */
+export async function getInstitutionalKnowledge(): Promise<KnowledgeEntry[]> {
+  try {
+    const q = query(collection(db, KNOWLEDGE_COLLECTION), where('institucional', '==', true));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return { id: doc.id, ...data, timestamp: data.timestamp.toDate() } as KnowledgeEntry;
+    });
+  } catch (error) {
+    console.error("Error getting institutional knowledge:", error);
+    return [];
+  }
+}
+
 export async function getAllKnowledge(consultorId?: string): Promise<KnowledgeEntry[]> {
   try {
     const scopedConsultorId = consultorId || resolveConsultorId();

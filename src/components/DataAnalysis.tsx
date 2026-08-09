@@ -26,7 +26,7 @@ import {
   baixarPlanilhaProjeto,
   PlanilhaInfo,
 } from '../services/analysisDataService';
-import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
+import { getAllKnowledge, getInstitutionalKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
 import UpgradeBanner from './UpgradeBanner';
@@ -367,7 +367,15 @@ export default function DataAnalysis() {
   const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => {
-    getAllKnowledge().then(items => setKnowledgeItems(items)).catch(console.error);
+    // Vídeos institucionais (ex.: os 4 fixos de "como usar a plataforma") ficam disponíveis
+    // pra qualquer consultor, além dos vídeos do tenant do consultor logado.
+    Promise.all([getAllKnowledge(), getInstitutionalKnowledge()])
+      .then(([tenantItems, institucionais]) => {
+        const porId = new Map(tenantItems.map(item => [item.id, item]));
+        for (const item of institucionais) porId.set(item.id, item);
+        setKnowledgeItems(Array.from(porId.values()));
+      })
+      .catch(console.error);
   }, []);
 
   // Tour da aba: só abre pelo botão "Iniciar tour" — não abre mais automaticamente.
