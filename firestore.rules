@@ -330,6 +330,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
     }
 
+    match /config/{docId} {
+      // Config genérica por tenant (ex.: itens do depoimento pré-prova). Doc legado
+      // 'opiniaoItens' sem consultorId pertence ao Israel (mesma regra de initiatives/courses).
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.consultorId == meuConsultorId() ||
+        (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+      );
+      allow create: if isAdmin() || (ehConsultor() && novoPertenceAoMeuConsultor());
+      allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
+    }
+
     match /courses/{courseId} {
       allow read: if isAuthenticated() && (
         isAdmin() ||

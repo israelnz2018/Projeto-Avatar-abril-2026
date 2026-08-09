@@ -13,21 +13,29 @@
 
 import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, doc, getDoc, setDoc, query, orderBy } from 'firebase/firestore';
+import { resolveConsultorId } from './consultorService';
 
 export const OPINIOES_COLLECTION = 'opiniaoClientes';
 export const OPINIAO_CONFIG_DOC = 'opiniaoItens'; // dentro da coleção 'config'
 const CONFIG_COLLECTION = 'config';
 
-/** Itens avaliados (nota 1-5). Editáveis pelo admin. Definidos pelo Israel: */
+/** Itens avaliados (nota 1-5). Editáveis por cada consultor — texto genérico, sem nome próprio. */
 export const DEFAULT_ITENS: string[] = [
-  'A didática do Israel',
+  'A didática do curso',
   'O software estatístico LBW',
   'Os vídeos do treinamento',
-  'O Israel digital (mentor)',
+  'O mentor digital (IA)',
   'As ferramentas da qualidade disponíveis nas trilhas',
   'O suporte que oferecemos',
   'Avaliação geral do curso e da plataforma',
 ];
+
+// O Israel (consultor 'israel') mantém o doc legado 'opiniaoItens' (sem consultorId,
+// já existia antes do modelo multi-tenant). Os demais consultores ganham um doc próprio
+// 'opiniaoItens_{consultorId}' — cada um edita e vê só a sua lista.
+function docIdOpiniaoItens(consultorId: string): string {
+  return consultorId === 'israel' ? OPINIAO_CONFIG_DOC : `${OPINIAO_CONFIG_DOC}_${consultorId}`;
+}
 
 export interface OpiniaoItemNota {
   item: string;
@@ -54,8 +62,9 @@ export interface Opiniao {
 // ===================================================================================
 
 export async function getOpiniaoItens(): Promise<string[]> {
+  const consultorId = resolveConsultorId();
   try {
-    const snap = await getDoc(doc(db, CONFIG_COLLECTION, OPINIAO_CONFIG_DOC));
+    const snap = await getDoc(doc(db, CONFIG_COLLECTION, docIdOpiniaoItens(consultorId)));
     if (snap.exists()) {
       const data = snap.data() as { itens?: string[] };
       if (Array.isArray(data.itens) && data.itens.length > 0) return data.itens;
@@ -67,9 +76,10 @@ export async function getOpiniaoItens(): Promise<string[]> {
 }
 
 export async function saveOpiniaoItens(itens: string[]): Promise<void> {
+  const consultorId = resolveConsultorId();
   const limpos = itens.map((i) => i.trim()).filter(Boolean);
-  await setDoc(doc(db, CONFIG_COLLECTION, OPINIAO_CONFIG_DOC), {
-    itens: limpos, updatedAt: new Date().toISOString(),
+  await setDoc(doc(db, CONFIG_COLLECTION, docIdOpiniaoItens(consultorId)), {
+    itens: limpos, consultorId, updatedAt: new Date().toISOString(),
   });
 }
 
