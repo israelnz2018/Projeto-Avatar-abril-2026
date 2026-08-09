@@ -158,22 +158,29 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
+      // ehConsultor() && resource.data.consultorId == meuConsultorId() — comparação DIRETA
+      // no próprio documento sendo lido, em vez de mesmoConsultorUser(userId) (que fazia um
+      // get() redundante no MESMO doc, já que resource.data JÁ é os dados desse userId).
+      // Esse get() auto-referente quebrava QUERIES em lista (ex.: Meus Coordenadores, Meus
+      // Alunos filtrando users por consultorId) com "Missing or insufficient permissions" —
+      // o Firestore não consegue provar a regra pra uma lista quando ela depende de um
+      // get() por documento. Comparação direta de campo é 100% "list-safe".
       allow read:   if isAuthenticated() && (
         isAdmin() ||
         isOwner(userId) ||
         (isCoordenador() && resourceMesmaEmpresa()) ||
-        (ehConsultor() && mesmoConsultorUser(userId))
+        (ehConsultor() && resource.data.consultorId == meuConsultorId())
       );
       allow create: if isAuthenticated() && request.auth.uid == userId;
       // Consultor pode atualizar os usuários do mundo dele (ex.: liberar cursos por aluno).
       allow update: if isAuthenticated() && (
         isAdmin() ||
         (isOwner(userId) && ownerPodeAtualizarPerfil()) ||
-        (ehConsultor() && !isOwner(userId) && mesmoConsultorUser(userId) && userMesmoConsultorPorDados(request.resource.data)) ||
+        (ehConsultor() && !isOwner(userId) && resource.data.consultorId == meuConsultorId() && userMesmoConsultorPorDados(request.resource.data)) ||
         (isCoordenador() && !isOwner(userId) && resourceMesmaEmpresa() && novoMesmaEmpresa())
       );
       allow delete: if isAdmin() ||
-        (ehConsultor() && !isOwner(userId) && mesmoConsultorUser(userId)) ||
+        (ehConsultor() && !isOwner(userId) && resource.data.consultorId == meuConsultorId()) ||
         (isCoordenador() && !isOwner(userId) && resourceMesmaEmpresa());
     }
 
