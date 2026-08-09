@@ -1885,7 +1885,7 @@ async function startServer() {
         const saud = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
         const blocoAcesso = novo
           ? `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px"><strong>Seus dados de acesso:</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:2px 6px;border:1px solid #ccc;border-radius:4px">${SENHA_CONVITE}</code></p><p style="font-size:14px">No primeiro acesso o sistema vai pedir pra você criar uma senha nova.</p>`
-          : `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px">Entre com o seu <strong>e-mail (${email})</strong> e a <strong>senha que você já usa</strong> na plataforma — seu acesso de consultor já está liberado.</p>`;
+          : `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px">Entre com o seu <strong>e-mail (${email})</strong> e a <strong>senha que você já usa</strong> na plataforma — seu acesso de consultor já está liberado. Se não lembrar a senha, clique em "Esqueci minha senha" na tela de login.</p>`;
         const html = `
 <div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto">
   <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0">
@@ -1893,12 +1893,12 @@ async function startServer() {
   </div>
   <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px">
     <p style="font-size:15px">${saud}</p>
-    <p>Seu site de consultor está pronto: <a href="${site}">${consultorId}.educacaopelotrabalho.com</a></p>
+    <p>Sua plataforma para gerenciar os seus cursos e os seus futuros clientes está pronta: <a href="${site}">${consultorId}.educacaopelotrabalho.com</a></p>
     ${blocoAcesso}
     <p style="text-align:center;margin:24px 0">
-      <a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar meu site</a>
+      <a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar minha plataforma</a>
     </p>
-    <p style="font-size:13px;color:#666">Lá dentro você monta seus cursos, sua marca e sua vitrine.</p>
+    <p style="font-size:13px;color:#666">Use o nosso ecossistema pra transformar o seu conhecimento em cursos, ferramentas e resultados prontos pros seus clientes.</p>
   </div>
 </div>`;
         const r = await resendSend({ to: email, subject: "Seu acesso de Consultor na LBW", html });
