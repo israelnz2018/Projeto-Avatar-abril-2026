@@ -185,7 +185,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // sempre isolada por time (coordenador OU "alunos diretos"); nunca um feed geral
     // misturando públicos diferentes — nem pro Israel como consultor.
     ...(ehAdminHub ? [] : [
-      ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade do Coordenador', path: '/comunidade-coordenador', icon: Users }] : []),
+      ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users }] : []),
     ]),
     // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).
     ...(siteConsultor && (isAdmin || isConsultor) ? [
