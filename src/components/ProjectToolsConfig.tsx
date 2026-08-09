@@ -41,7 +41,7 @@ import {
 } from '../services/configService';
 import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { isSiteConsultor } from '../services/consultorService';
+import { isSiteConsultor, resolveConsultorId } from '../services/consultorService';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
@@ -177,6 +177,9 @@ export default function ProjectToolsConfig() {
   // No SITE do consultor (israel.…) esconde rascunhos mesmo pro admin (visão do consultor).
   // O marcar rascunho + ver tudo fica no admin (app.…). ehAdminHub = pode marcar/ver tudo.
   const ehAdminHub = isAdmin && !isSiteConsultor();
+  // "Trilha" é vocabulário específico do curso do Israel — outros consultores usam
+  // "curso", termo genérico já usado no resto da plataforma (Meus Cursos etc.).
+  const ehIsrael = resolveConsultorId() === 'israel';
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
   const [editingToolName, setEditingToolName] = useState<string>('');
   const [mentorContexts, setMentorContexts] = useState<Record<string, MentorToolContext>>({});
@@ -522,7 +525,10 @@ export default function ProjectToolsConfig() {
                     O estado editingInitiativeParentId e o save no Firestore continuam intactos,
                     preservando qualquer parentId histórico que já exista (não apaga dados). */}
 
-                <div className="w-full">
+                {/* "Trilha 1 grátis" é um artefato específico do curso do Israel — no modelo
+                    por-consultor o acesso é sempre pelo que o consultor libera explicitamente
+                    (sem bypass de curso "grátis"), então esse toggle não se aplica aos outros. */}
+                {ehIsrael && <div className="w-full">
                   <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
                     <input
                       type="checkbox"
@@ -534,7 +540,7 @@ export default function ProjectToolsConfig() {
                       Trilha 1 (acessível para todos os alunos)
                     </span>
                   </label>
-                </div>
+                </div>}
               </div>
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
@@ -595,7 +601,7 @@ export default function ProjectToolsConfig() {
                   }}
                   className="min-w-[280px] flex-1 p-3 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
-                  <option value="">Selecione uma trilha para configurar...</option>
+                  <option value="">{ehIsrael ? 'Selecione uma trilha para configurar...' : 'Escolha ou crie o seu curso...'}</option>
                   {initiatives
                     .slice()
                     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
@@ -681,7 +687,7 @@ export default function ProjectToolsConfig() {
               >
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
-                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Nome da Nova Trilha</label>
+                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">{ehIsrael ? 'Nome da Nova Trilha' : 'Nome do Novo Curso'}</label>
                     <input
                       autoFocus
                       type="text"
@@ -717,7 +723,7 @@ export default function ProjectToolsConfig() {
                   </div>
                 </div>
 
-                <div className="w-full mt-4">
+                {ehIsrael && <div className="w-full mt-4">
                   <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
                     <input
                       type="checkbox"
@@ -729,7 +735,7 @@ export default function ProjectToolsConfig() {
                       Trilha 1 (acessível para todos os alunos)
                     </span>
                   </label>
-                </div>
+                </div>}
               </motion.div>
             )}
           </AnimatePresence>
@@ -1068,17 +1074,55 @@ export default function ProjectToolsConfig() {
             </div>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-20 text-center">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-            >
-              <Settings size={64} className="mx-auto mb-6 text-gray-200 animate-pulse" />
-              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Configurador de Metodologias</h3>
-              <p className="text-gray-500 max-w-md mx-auto mt-2">
-                Selecione uma iniciativa no dropdown acima para definir quais fases e ferramentas o aluno terá acesso.
-              </p>
-            </motion.div>
+          <div className="space-y-6">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-16 text-center">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <Settings size={56} className="mx-auto mb-5 text-gray-200" />
+                <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Escolha ou crie o seu curso</h3>
+                <p className="text-gray-500 max-w-md mx-auto mt-2">
+                  Selecione um curso no dropdown acima (ou crie um novo) pra definir quais fases e ferramentas o aluno terá acesso.
+                </p>
+              </motion.div>
+            </div>
+
+            {/* Catálogo de ferramentas aprovadas pela plataforma — visível mesmo sem
+                curso selecionado, pra o consultor conhecer o que já pode usar. */}
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                Ferramentas disponíveis na plataforma
+              </h4>
+              <div className="space-y-6">
+                {TOOL_CATEGORIES.map((category) => {
+                  const CategoryIcon = category.icon;
+                  const categoryTools = AVAILABLE_TOOLS
+                    .filter((tool) => categoryFor(tool.id) === category.id)
+                    .filter((tool) => ehAdminHub || !rascunhos.includes(tool.id))
+                    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+                  if (categoryTools.length === 0) return null;
+                  return (
+                    <section key={category.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50/50">
+                      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-5 py-4">
+                        <CategoryIcon size={18} className="text-gray-400" />
+                        <div>
+                          <h5 className="text-sm font-black text-gray-800">{category.name}</h5>
+                          <p className="text-[11px] text-gray-500">{category.description}</p>
+                        </div>
+                      </div>
+                      <div className="p-4 flex flex-wrap gap-2">
+                        {categoryTools.map((tool) => (
+                          <span key={tool.id} className="px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-600">
+                            {tool.name}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
