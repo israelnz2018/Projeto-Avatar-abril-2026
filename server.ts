@@ -2351,6 +2351,124 @@ async function startServer() {
     }
   });
 
+  // DELETE /api/coordenador/:uid — remove o coordenador do tenant sem apagar a conta Auth
+  // (mesmo padrao do DELETE /api/aluno/:uid: reversivel, dados preservados por 3 meses).
+  // Em cascata, bloqueia tambem os alunos do time desse coordenador (mesmo empresaId),
+  // pois sem coordenador o time fica orfao — obedece a hierarquia coordenador -> aluno.
+  app.delete("/api/coordenador/:uid", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    try {
+      const [callerSnap, targetSnap] = await Promise.all([
+        adminFirestore().collection("users").doc(callerUid).get(),
+        adminFirestore().collection("users").doc(String(req.params.uid || "")).get(),
+      ]);
+      if (!targetSnap.exists) return res.status(404).json({ error: "Coordenador não encontrado." });
+      const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+      const target = targetSnap.data() as any;
+      const callerEhAdmin = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"]
+        .includes(String(caller.email || "").toLowerCase());
+      const callerEhConsultor = caller.tipoUsuario === "consultor";
+      if (!callerEhAdmin && !callerEhConsultor) {
+        return res.status(403).json({ error: "Só o consultor ou admin pode remover coordenador." });
+      }
+      if (String(target.tipoUsuario || "") !== "coordenador") {
+        return res.status(400).json({ error: "Este usuário não é coordenador." });
+      }
+      const consultorId = String(caller.consultorId || "israel");
+      if (!callerEhAdmin && String(target.consultorId || "israel") !== consultorId) {
+        return res.status(403).json({ error: "Este coordenador não pertence ao seu ambiente." });
+      }
+
+      const bloqueadoEm = new Date().toISOString();
+      const consultorNome = String(caller.nome || caller.displayName || caller.email || "seu consultor");
+      const targetConsultorId = String(target.consultorId || consultorId);
+      const avisoBloqueioCoord = {
+        tipo: "acesso_bloqueado",
+        titulo: "Seu acesso foi bloqueado",
+        mensagem: "Seu acesso como coordenador deste ambiente foi bloqueado. Seus dados, historico e time permanecem preservados na plataforma e ficarao disponiveis por ate 3 meses.",
+        consultorId: targetConsultorId,
+        consultorNome,
+        criadoEm: bloqueadoEm,
+        expiraEm: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        lida: false,
+      };
+
+      await targetSnap.ref.update({
+        consultorId: "__sem_consultor__",
+        cursosAcesso: [],
+        maxAlunos: 0,
+        valorPago: 0,
+        desvinculadoDe: targetConsultorId,
+        desvinculadoEm: bloqueadoEm,
+        avisoBloqueio: avisoBloqueioCoord,
+      });
+
+      // Cascata: bloqueia o time (alunos com o mesmo empresaId) — sem coordenador,
+      // o time nao pode ficar com acesso ativo (obedece a hierarquia).
+      const empresaId = String(target.empresaId || "");
+      let timeBloqueado = 0;
+      if (empresaId) {
+        const timeSnap = await adminFirestore().collection("users")
+          .where("consultorId", "==", targetConsultorId)
+          .where("empresaId", "==", empresaId)
+          .get();
+        const avisoBloqueioTime = {
+          tipo: "acesso_bloqueado",
+          titulo: "Seu acesso foi bloqueado",
+          mensagem: "Seu acesso aos conteudos deste consultor foi bloqueado porque o seu coordenador foi removido. Seus dados, historico e projetos permanecem preservados na plataforma e ficarao disponiveis por ate 3 meses.",
+          consultorId: targetConsultorId,
+          consultorNome,
+          criadoEm: bloqueadoEm,
+          expiraEm: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+          lida: false,
+        };
+        const batch = adminFirestore().batch();
+        for (const alunoDoc of timeSnap.docs) {
+          const aluno = alunoDoc.data() as any;
+          if (["admin", "consultor", "coordenador"].includes(String(aluno.tipoUsuario || ""))) continue;
+          batch.update(alunoDoc.ref, {
+            consultorId: "__sem_consultor__",
+            empresaId: admin.firestore.FieldValue.delete(),
+            empresaNome: admin.firestore.FieldValue.delete(),
+            cursosAcesso: [],
+            cursosLiberados: admin.firestore.FieldValue.delete(),
+            formacoes: [],
+            plano: "gratuito",
+            valorPago: 0,
+            desvinculadoDe: targetConsultorId,
+            desvinculadoEm: bloqueadoEm,
+            avisoBloqueio: avisoBloqueioTime,
+          });
+          timeBloqueado++;
+          if (aluno.email) {
+            sendAlunoBloqueadoEmail({ para: String(aluno.email), nome: String(aluno.nome || aluno.displayName || ""), consultorNome }).catch(() => {});
+          }
+        }
+        if (timeBloqueado > 0) await batch.commit();
+      }
+
+      let emailEnviado = false;
+      if (target.email) {
+        emailEnviado = await sendAlunoBloqueadoEmail({
+          para: String(target.email),
+          nome: String(target.nome || target.displayName || ""),
+          consultorNome,
+        });
+      }
+      return res.json({ ok: true, uid: targetSnap.id, emailEnviado, timeBloqueado });
+    } catch (err: any) {
+      console.error("[DELETE /api/coordenador/:uid] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao remover coordenador." });
+    }
+  });
+
   // DELETE /api/aluno/:uid/definitivo — apaga a conta e dados do aluno somente
   // depois de 90 dias da desvinculacao. A primeira remocao preserva tudo.
   app.delete("/api/aluno/:uid/definitivo", async (req: any, res) => {

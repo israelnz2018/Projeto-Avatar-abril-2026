@@ -63,6 +63,7 @@ export default function MeusCoordenadores() {
   const [eVencimentoCursos, setEVencimentoCursos] = useState<Record<string, string>>({});
   const [eSalvando, setESalvando] = useState(false);
   const [eMsg, setEMsg] = useState('');
+  const [removendoUid, setRemovendoUid] = useState<string | null>(null);
 
   const montarResumo = (
     selecionados: string[],
@@ -186,6 +187,23 @@ export default function MeusCoordenadores() {
       setEMsg('✅ Salvo.');
     } catch (e: any) { setEMsg('❌ ' + (e?.message || e)); }
     finally { setESalvando(false); }
+  }
+
+  async function remover(c: CoordRow) {
+    if (!window.confirm(`Remover ${c.nome} como coordenador?\n\nIsso bloqueia o acesso dele e de TODO o time (${c.time} alunos) imediatamente. Os dados ficam preservados por 3 meses e essa acao pode ser revertida pelo suporte nesse periodo.`)) return;
+    setRemovendoUid(c.uid);
+    try {
+      const r = await authedFetch(`/api/coordenador/${encodeURIComponent(c.uid)}`, { method: 'DELETE' });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j.error || 'erro');
+      setRows((atual) => atual.filter((row) => row.uid !== c.uid));
+      if (editUid === c.uid) setEditUid(null);
+      window.alert(`Coordenador removido. ${j.timeBloqueado || 0} aluno(s) do time também foram bloqueados.`);
+    } catch (e: any) {
+      window.alert('❌ ' + (e?.message || e));
+    } finally {
+      setRemovendoUid(null);
+    }
   }
 
   const toggleConvite = (curso: string) => {
@@ -325,9 +343,14 @@ export default function MeusCoordenadores() {
                   expira {(() => { const v = editUid === c.uid ? resumoEdit.vencimentoGeral : c.vencimento; return v ? new Date(v).toLocaleDateString('pt-BR') : '—'; })()}
                 </div>
               </div>
-              <button onClick={() => (editUid === c.uid ? setEditUid(null) : abrirEdit(c))} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">
-                {editUid === c.uid ? 'fechar' : 'editar'}
-              </button>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <button onClick={() => (editUid === c.uid ? setEditUid(null) : abrirEdit(c))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                  {editUid === c.uid ? 'fechar' : 'editar'}
+                </button>
+                <button onClick={() => remover(c)} disabled={removendoUid === c.uid} className="text-xs font-bold text-red-600 hover:text-red-800 disabled:opacity-40">
+                  {removendoUid === c.uid ? 'removendo...' : 'remover'}
+                </button>
+              </div>
             </div>
             {editUid === c.uid && (
               <div className="mt-4 pt-4 border-t border-gray-100">
