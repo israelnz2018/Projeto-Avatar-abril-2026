@@ -179,12 +179,14 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // AI Assistant — EXCEÇÃO ÚNICA: só o Israel como CONSULTOR (no israel.…) usa.
     // Não aparece no hub do admin nem pra outros consultores/coordenadores/alunos.
     ...(siteConsultor && isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
-    // Comunidade ADM: admin + consultor (vale no hub e no site do consultor).
-    ...(isAdmin || isConsultor ? [{ name: 'Comunidade ADM', path: '/comunidade-adm', icon: Shield }] : []),
+    // Comunidade LBW (rede entre consultores): só no site do consultor, nunca no hub
+    // puro do admin — apenas consultores (o admin só vê quando também está de site
+    // consultor, ex.: israel.…).
     // Comunidade por time — escondida no hub do admin. Um único tipo de comunidade,
     // sempre isolada por time (coordenador OU "alunos diretos"); nunca um feed geral
     // misturando públicos diferentes — nem pro Israel como consultor.
     ...(ehAdminHub ? [] : [
+      ...(isAdmin || isConsultor ? [{ name: 'Comunidade LBW', path: '/comunidade-adm', icon: Shield }] : []),
       ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users }] : []),
     ]),
     // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).
