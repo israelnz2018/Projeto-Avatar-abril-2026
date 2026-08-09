@@ -741,7 +741,6 @@ export default function ProjectManagement() {
                       .map((initiative, index) => {
                         const numeroVisual = initiative.ordem ?? (index + 1);
                         const visual = getTrilhaVisual(numeroVisual);
-                        const numero = String(numeroVisual).padStart(2, '0');
                         const titleClean = initiative.name;
                         const VisualIcon = visual.Icon;
                         const locked = !canUseInitiative(initiative.id, initiatives);
@@ -775,16 +774,6 @@ export default function ProjectManagement() {
                             <div
                               className={`absolute -left-8 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gradient-to-br ${visual.gradient} opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-300`}
                             />
-
-                            {/* Número grande (decorativo) */}
-                            <div className="relative z-10 flex flex-col items-center justify-center shrink-0 w-12">
-                              <span
-                                className="text-[28px] font-black leading-none tabular-nums"
-                                style={{ color: visual.borderColor, textShadow: `0 2px 8px ${visual.borderColor}30` }}
-                              >
-                                {numero}
-                              </span>
-                            </div>
 
                             {/* Ícone único da trilha */}
                             <div
@@ -1126,7 +1115,7 @@ function CreateProjectModalContent({
           <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">Novo Projeto</h3>
           {trilha?.name && (
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-2 truncate">
-              Trilha: {trilha.name}
+              {trilha.name}
             </p>
           )}
         </div>
