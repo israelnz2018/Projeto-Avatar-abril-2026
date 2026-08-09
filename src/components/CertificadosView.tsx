@@ -28,7 +28,10 @@ export default function CertificadosView() {
 
   useEffect(() => {
     setConfig({
-      modo: consultor.certificado?.modo || 'padrao',
+      // Consultor (não-Israel) só tem o próprio design — não existe "modelo padrão
+      // da LBW" pra ele escolher. O Israel mantém o certificado oficial à parte
+      // (IsraelCertificatePreview, somente leitura).
+      modo: consultor.certificado?.modo || (consultorId === 'israel' ? 'padrao' : 'proprio'),
       fundoUrl: consultor.certificado?.fundoUrl || '',
       assinaturaUrl: consultor.certificado?.assinaturaUrl || '',
       instituicao: consultor.certificado?.instituicao || consultor.branding?.nome || consultor.nome,
@@ -69,6 +72,9 @@ export default function CertificadosView() {
     try {
       const novaConfig: ConsultorCertificateConfig = {
         ...config,
+        // Consultor (não-Israel) só tem "próprio design" — força mesmo se algum dado
+        // antigo tivesse ficado salvo como 'padrao'.
+        modo: consultorId === 'israel' ? config.modo : 'proprio',
         instituicao: config.instituicao?.trim(),
         emissorNome: config.emissorNome?.trim(),
         emissorCargo: config.emissorCargo?.trim(),
@@ -115,29 +121,13 @@ export default function CertificadosView() {
       <div className="mb-6 grid gap-6 lg:grid-cols-[380px_1fr]">
         <div className="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <div>
-            <h2 className="font-black text-gray-800">{isLbwAdmin ? 'Certificado oficial LBW' : '1. Escolha o modelo'}</h2>
+            <h2 className="font-black text-gray-800">{isLbwAdmin ? 'Certificado oficial LBW' : '1. Seu certificado'}</h2>
             <p className="mt-1 text-xs text-gray-500">A configuração vale para todos os seus cursos.</p>
           </div>
 
-          {!isLbwAdmin && <label className={`block cursor-pointer rounded-xl border p-4 ${config.modo === 'padrao' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-            <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
-              <input type="radio" checked={config.modo === 'padrao'} onChange={() => patch('modo', 'padrao')} />
-              Modelo padrão da plataforma
-            </div>
-            <p className="ml-6 mt-1 text-xs text-gray-500">Usa a arte profissional da plataforma com seu logo, suas cores e seus dados.</p>
-          </label>}
-
-          {!isLbwAdmin && <label className={`block cursor-pointer rounded-xl border p-4 ${config.modo === 'proprio' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-            <div className="flex items-center gap-2 text-sm font-bold text-gray-800">
-              <input type="radio" checked={config.modo === 'proprio'} onChange={() => patch('modo', 'proprio')} />
-              Meu próprio design
-            </div>
-            <p className="ml-6 mt-1 text-xs text-gray-500">Crie no PowerPoint ou Canva, exporte em PNG/JPG no formato A4 paisagem e envie abaixo.</p>
-          </label>}
-
-          {!isLbwAdmin && config.modo === 'proprio' && (
+          {!isLbwAdmin && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-              Deixe o centro e o canto inferior esquerdo livres. A plataforma colocará os dados oficiais e o QR Code sobre a sua arte.
+              Crie no PowerPoint ou Canva, exporte em PNG/JPG no formato A4 paisagem (retrato) e envie abaixo. Deixe o centro e o canto inferior esquerdo livres — a plataforma coloca os dados oficiais e o QR Code sobre a sua arte.
             </div>
           )}
 
@@ -145,7 +135,6 @@ export default function CertificadosView() {
             titulo="Fundo do certificado"
             descricao="PNG ou JPG em A4 paisagem (proporção aproximada 1,414:1)."
             url={config.fundoUrl || ''}
-            disabled={config.modo !== 'proprio'}
             loading={enviando === 'certificado-fundo'}
             onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')}
           />}
