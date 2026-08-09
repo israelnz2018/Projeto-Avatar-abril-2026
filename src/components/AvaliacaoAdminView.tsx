@@ -24,7 +24,6 @@ import { db } from '../lib/firebase';
 import type { Initiative } from '../types';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
-const TRILHAS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function AvaliacaoAdminView() {
   const consultorId = resolveConsultorId(); // prova escopada pelo consultor do site
@@ -209,19 +208,29 @@ export default function AvaliacaoAdminView() {
         </button>
       </div>
 
-      {/* Seletor de curso (a prova continua usando o número internamente). */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {(cursosOrdenados.length ? cursosOrdenados.map((curso) => ({ numero: cursoNumero(curso.name), nome: curso.name })) : TRILHAS.map((numero) => ({ numero, nome: `Curso ${numero}` }))).map(({ numero, nome }) => (
-          <button key={numero} onClick={() => setTrilha(numero)}
-            className={`max-w-[260px] truncate px-4 py-2 rounded-lg text-sm font-bold ${trilha === numero ? 'text-white' : 'bg-gray-100 text-gray-600'}`}
-            style={trilha === numero ? { background: LBW.navy } : {}}
-            title={nome}>
-            {nome.replace(/^\d+\s*[-—]?\s*/, '')}
-          </button>
-        ))}
-      </div>
+      {/* Seletor de curso (a prova continua usando o número internamente). Sem curso
+          cadastrado ainda, não faz sentido mostrar 8 abas fictícias — avisa em vez disso. */}
+      {cursosOrdenados.length === 0 ? (
+        <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center mb-6">
+          <p className="text-sm font-bold text-gray-700 mb-1">Você ainda não tem nenhum curso cadastrado.</p>
+          <p className="text-xs text-gray-500">
+            Primeiro adicione um curso em <b>Configuração → Meus Cursos</b>, depois volte aqui pra configurar a prova dele.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {cursosOrdenados.map((curso) => ({ numero: cursoNumero(curso.name), nome: curso.name })).map(({ numero, nome }) => (
+            <button key={numero} onClick={() => setTrilha(numero)}
+              className={`max-w-[260px] truncate px-4 py-2 rounded-lg text-sm font-bold ${trilha === numero ? 'text-white' : 'bg-gray-100 text-gray-600'}`}
+              style={trilha === numero ? { background: LBW.navy } : {}}
+              title={nome}>
+              {nome.replace(/^\d+\s*[-—]?\s*/, '')}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {loading || !config ? (
+      {cursosOrdenados.length === 0 ? null : loading || !config ? (
         <div className="text-gray-400 py-10 text-center">Carregando…</div>
       ) : (
         <>

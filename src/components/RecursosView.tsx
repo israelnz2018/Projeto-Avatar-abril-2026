@@ -60,18 +60,19 @@ export default function RecursosView() {
       .finally(() => setLoading(false));
   }, []);
 
-  // O checklist é o único recurso fixo (componente interativo, não é um arquivo) —
-  // aberto pra qualquer aluno logado.
+  // O checklist é conteúdo FIXO do curso do Israel (Kit 90 Dias) — não é um material
+  // genérico da plataforma. Só aparece no mundo dele; cada consultor tem só os
+  // materiais que ele mesmo publicou em "Material de Apoio".
   const recursos: Recurso[] = [
-    {
+    ...(resolveConsultorId() === 'israel' ? [{
       id: 'mapa-90-dias',
       titulo: 'O Mapa dos 90 Dias',
       descricao: 'Seu checklist de progresso — 60 ações, uma por dia, do "cheguei perdido" ao "olha o que eu entreguei".',
-      categoria: 'Checklist',
+      categoria: 'Checklist' as const,
       icone: FileCheck2,
       cursos: [],
       conteudo: ChecklistMapa90Dias,
-    },
+    }] : []),
     ...materiais.map((m): Recurso => ({
       id: m.id,
       titulo: m.titulo,

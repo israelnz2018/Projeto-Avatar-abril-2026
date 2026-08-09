@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Star, Heart, Loader2 } from 'lucide-react';
 import { getOpiniaoItens, salvarOpiniao } from '../services/opiniaoService';
+import { useConsultor } from '../contexts/ConsultorContext';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
@@ -36,6 +37,8 @@ export default function OpiniaoModal({
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [enviado, setEnviado] = useState(false); // mostra tela de agradecimento
+  const { consultor } = useConsultor();
+  const nomeMarca = consultor.branding.nome || 'a plataforma';
 
   useEffect(() => {
     getOpiniaoItens().then(setItens).finally(() => setLoading(false));
@@ -166,7 +169,7 @@ export default function OpiniaoModal({
                 <input type="checkbox" checked={autoriza} onChange={(e) => setAutoriza(e.target.checked)}
                   className="mt-0.5 w-4 h-4 shrink-0" style={{ accentColor: LBW.blue }} />
                 <span className="text-xs text-gray-600 leading-relaxed">
-                  Autorizo a Learning by Working a divulgar meu depoimento (com meu primeiro nome)
+                  Autorizo {nomeMarca} a divulgar meu depoimento (com meu primeiro nome)
                   nas redes sociais e materiais de divulgação.
                 </span>
               </label>

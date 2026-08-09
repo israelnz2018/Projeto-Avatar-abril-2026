@@ -160,6 +160,15 @@ export default function AvaliacaoView() {
         )}
       </p>
 
+      {blocos.length === 0 && (
+        <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center">
+          <p className="text-sm font-bold text-gray-700 mb-1">Ainda não há avaliações configuradas.</p>
+          <p className="text-xs text-gray-500">
+            Primeiro adicione os cursos e configure as avaliações em <b>Configuração → Prova</b>.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {blocos.map((b, i) => (
           <BlocoCard

@@ -804,6 +804,14 @@ export default function ProjectManagement() {
 
                   {/* Lista de trilhas — clique abre o popup direto */}
                   <div className="space-y-2 mb-2" data-tour-id="proj-trilhas">
+                    {initiatives.filter(i => !i.parentId).filter(i => i.temProjeto !== false).length === 0 && (
+                      <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center">
+                        <p className="text-sm font-bold text-gray-700 mb-1">Você ainda não tem nenhum curso cadastrado.</p>
+                        <p className="text-xs text-gray-500">
+                          Primeiro adicione um curso em <b>Configuração → Meus Cursos</b>, e depois associe esse curso a um projeto por aqui.
+                        </p>
+                      </div>
+                    )}
                     {initiatives
                       .filter(i => !i.parentId)
                       .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
