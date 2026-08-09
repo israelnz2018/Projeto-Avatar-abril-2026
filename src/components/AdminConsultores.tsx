@@ -4,7 +4,7 @@
  * Não cria usuário (isso é do n8n) — só o tenant/marca. Ver PLANO-WHITELABEL.md.
  */
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDocs, setDoc, query, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, setDoc, query, where } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { Consultor } from '../types';
@@ -25,6 +25,10 @@ export default function AdminConsultores() {
   const [email, setEmail] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
+  // Edição: quando setado, o formulário "Novo consultor" vira "Editar consultor" e o
+  // campo ID fica travado (mudar o ID criaria outro tenant, não renomearia o atual).
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
   const [status, setStatus] = useState<Record<string, 'checando' | 'live' | 'pendente'>>({});
   const [enviando, setEnviando] = useState<Record<string, boolean>>({});
   const [conviteMsg, setConviteMsg] = useState<Record<string, string>>({});
@@ -104,14 +108,48 @@ export default function AdminConsultores() {
         },
       }, { merge: true });
       setMsg(existente
-        ? `✅ Consultor "${cid}" atualizado (e-mail salvo).`
-        : `✅ Cadastro criado. Falta o subdomínio (Railway + Hostinger) — a lista mostra "Validado" quando ficar no ar.`);
-      setId(''); setNome(''); setEmail('');
+        ? `✅ Consultor "${cid}" atualizado.`
+        : `✅ Cadastro criado. O subdomínio já responde automaticamente (DNS curinga) — a lista mostra "Validado" assim que confirmar.`);
+      setId(''); setNome(''); setEmail(''); setEditandoId(null);
       carregar();
     } catch (e: any) {
       setMsg('❌ ' + (e?.message || e));
     } finally {
       setSalvando(false);
+    }
+  }
+
+  function editar(c: Consultor) {
+    setEditandoId(c.id);
+    setId(c.id);
+    setNome(c.nome || '');
+    setEmail((c as any).email || '');
+    setMsg('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelarEdicao() {
+    setEditandoId(null);
+    setId(''); setNome(''); setEmail(''); setMsg('');
+  }
+
+  async function excluir(c: Consultor) {
+    const cid = c.id;
+    if (!window.confirm(
+      `Excluir o consultor "${c.nome || cid}" (${cid})?\n\n` +
+      `Isso remove o cadastro do tenant (marca/subdomínio). NÃO apaga a conta de login ` +
+      `dele nem os alunos/coordenadores já cadastrados sob esse consultorId — se ele já ` +
+      `tiver usuários reais, apague-os separadamente antes.`
+    )) return;
+    setExcluindo(cid);
+    try {
+      await deleteDoc(doc(db, 'consultores', cid));
+      if (editandoId === cid) cancelarEdicao();
+      carregar();
+    } catch (e: any) {
+      setMsg('❌ Erro ao excluir: ' + (e?.message || e));
+    } finally {
+      setExcluindo(null);
     }
   }
 
@@ -178,7 +216,7 @@ export default function AdminConsultores() {
       <p className="text-gray-500 text-sm mb-6">Crie e liste os consultores da plataforma. Cria só o tenant/marca — não cria usuário.</p>
 
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
-        <h2 className="font-black text-gray-800 mb-4">Novo consultor</h2>
+        <h2 className="font-black text-gray-800 mb-4">{editandoId ? `Editar consultor — ${editandoId}` : 'Novo consultor'}</h2>
         <div className="mb-4">
           <label className={label}>E-mail do consultor</label>
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="consultor@email.com" className={campo} />
@@ -190,15 +228,22 @@ export default function AdminConsultores() {
           </div>
           <div>
             <label className={label}>Subdomínio (id)</label>
-            <input value={id} onChange={(e) => setId(e.target.value)} placeholder="joao" className={campo} />
-            <div className="text-xs text-gray-400 mt-1">{slug(id) || '…'}.educacaopelotrabalho.com</div>
+            <input value={id} onChange={(e) => setId(e.target.value)} placeholder="joao" disabled={!!editandoId} className={`${campo} ${editandoId ? 'bg-gray-100 text-gray-500' : ''}`} />
+            <div className="text-xs text-gray-400 mt-1">
+              {slug(id) || '…'}.educacaopelotrabalho.com{editandoId ? ' · fixo (crie um novo consultor pra mudar o subdomínio)' : ''}
+            </div>
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-2">O logo e as cores o próprio consultor coloca em "Minha Marca", no site dele.</p>
         <div className="flex items-center gap-4 mt-5">
           <button onClick={criar} disabled={salvando} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40">
-            {salvando ? 'Criando…' : 'Criar consultor'}
+            {salvando ? 'Salvando…' : editandoId ? 'Salvar alterações' : 'Criar consultor'}
           </button>
+          {editandoId && (
+            <button onClick={cancelarEdicao} className="px-4 py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
+              Cancelar
+            </button>
+          )}
           {msg && <span className="text-sm text-gray-600">{msg}</span>}
         </div>
       </div>
@@ -250,6 +295,16 @@ export default function AdminConsultores() {
                     className="text-xs font-bold rounded-lg px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {enviando[c.id] ? 'Enviando…' : 'Enviar convite'}
+                  </button>
+                  <button onClick={() => editar(c)} className="text-xs font-bold text-gray-600 hover:text-gray-800">
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => excluir(c)}
+                    disabled={excluindo === c.id}
+                    className="text-xs font-bold text-red-600 hover:text-red-800 disabled:opacity-40"
+                  >
+                    {excluindo === c.id ? 'Excluindo…' : 'Excluir'}
                   </button>
                   {conviteMsg[c.id] && <span className="text-xs text-gray-600">{conviteMsg[c.id]}</span>}
                 </div>
