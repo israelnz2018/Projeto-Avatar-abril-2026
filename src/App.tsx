@@ -15,7 +15,6 @@ import {
   ChevronDown,
   Settings,
   Users,
-  Users2,
   Key,
   Unlock,
   Megaphone,
@@ -182,9 +181,10 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ...(siteConsultor && isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
     // Comunidade ADM: admin + consultor (vale no hub e no site do consultor).
     ...(isAdmin || isConsultor ? [{ name: 'Comunidade ADM', path: '/comunidade-adm', icon: Shield }] : []),
-    // Comunidades de consultor/coordenador — escondidas no hub do admin.
+    // Comunidade por time — escondida no hub do admin. Um único tipo de comunidade,
+    // sempre isolada por time (coordenador OU "alunos diretos"); nunca um feed geral
+    // misturando públicos diferentes — nem pro Israel como consultor.
     ...(ehAdminHub ? [] : [
-      ...(isAdmin || isConsultor || (!isCoordenador && !empresaId) ? [{ name: 'Comunidade do Consultor', path: '/comunidade', icon: Users2 }] : []),
       ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade do Coordenador', path: '/comunidade-coordenador', icon: Users }] : []),
     ]),
     // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).

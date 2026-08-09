@@ -95,7 +95,10 @@ service cloud.firestore {
       return isAuthenticated() && (
         (d.escopo == 'rede' && (isAdmin() || ehConsultor())) ||
         (d.escopo == 'consultor' && d.consultorId == meuConsultorId()) ||
-        (d.escopo == 'time' && d.consultorId == meuConsultorId() && d.empresaId == minhaEmpresaId()) ||
+        // 'time': o dono do time (mesmo empresaId) sempre lê o próprio. O consultor
+        // dono do tenant lê QUALQUER time dele (precisa pro seletor de comunidade por
+        // coordenador/alunos diretos) — sem isso só o admin (bypass global) conseguia trocar de time.
+        (d.escopo == 'time' && d.consultorId == meuConsultorId() && (d.empresaId == minhaEmpresaId() || ehConsultor())) ||
         (!('escopo' in d) && meuConsultorId() == 'israel')
       );
     }

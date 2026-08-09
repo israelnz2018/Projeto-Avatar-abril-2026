@@ -23,7 +23,7 @@ import { cn } from '../lib/utils';
 import { auth, db } from '../lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { resolveConsultorId } from '../services/consultorService';
+import { resolveConsultorId, empresaIdDireto } from '../services/consultorService';
 import UpgradeBanner from './UpgradeBanner';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
@@ -843,10 +843,13 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
     (async () => {
       try {
         const snap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', cid)));
-        const list = snap.docs
+        const coordenadores = snap.docs
           .map(d => d.data() as any)
           .filter(u => u.tipoUsuario === 'coordenador' && u.empresaId)
           .map(u => ({ empresaId: u.empresaId as string, nome: (u.empresaNome || u.nome || u.empresaId) as string }));
+        // "Alunos diretos" é mais um time isolado no seletor — nunca mistura com o de
+        // nenhum coordenador (cada empresaId tem seu próprio feed, sem cruzamento).
+        const list = [{ empresaId: empresaIdDireto(cid), nome: 'Alunos diretos (sem coordenador)' }, ...coordenadores];
         setEmpresas(list);
         if (list.length && !empresaSel) setEmpresaSel(list[0].empresaId);
       } catch { /* ignore */ }
