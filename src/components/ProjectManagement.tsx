@@ -30,13 +30,12 @@ const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
  * Mapeamento fixo no código: trilha é editada via Firestore, mas a categorização
  * (tipo de projeto, ferramentas que vai carregar) mora aqui.
  */
-function getTipoProjeto(initiativeName: string | undefined): {
+function getTipoProjeto(numero: number | undefined): {
   label: string;
   subtitle: string | null;
   descricao: string;
   placeholder: string;
 } {
-  const numero = parseInt(initiativeName || '');
   switch (numero) {
     // Numeração alinhada com as 8 trilhas reais (pós-fusão T1+T2, jun/2026).
     // Badge + subtítulo descrevem o TIPO de projeto de cada trilha.
@@ -297,15 +296,14 @@ function SubInitiativeCard({ child, index, onClick, locked }: { child: Initiativ
 }
 
 /**
- * Visual único por trilha (ícone + gradiente + borda).
- * Casado pelo prefixo numérico do nome da initiative.
+ * Visual único por trilha (ícone + gradiente + borda), pelo número de exibição
+ * (initiative.ordem) — NUNCA pelo nome. Renomear o curso não pode mudar a cor.
  */
-function getTrilhaVisual(initiativeName: string | undefined): {
+function getTrilhaVisual(numero: number | undefined): {
   Icon: React.ComponentType<{ size?: number; className?: string }>;
   gradient: string;
   borderColor: string;
 } {
-  const numero = parseInt(initiativeName || '');
   switch (numero) {
     case 1: return { Icon: Footprints,    gradient: 'from-sky-500 to-indigo-700',         borderColor: '#0EA5E9' };
     case 2: return { Icon: Target,        gradient: 'from-emerald-500 to-teal-700',       borderColor: '#10B981' };
@@ -382,8 +380,8 @@ export default function ProjectManagement() {
       .filter(i => i.parentId === selectedParentInitiativeId)
       .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
       .sort((ca, cb) => {
-        const numA = parseInt(ca.name.split('.')[1] || ca.name) || 0;
-        const numB = parseInt(cb.name.split('.')[1] || cb.name) || 0;
+        const numA = ca.ordem ?? (parseInt(ca.name.split('.')[1] || ca.name) || 0);
+        const numB = cb.ordem ?? (parseInt(cb.name.split('.')[1] || cb.name) || 0);
         return numA - numB;
       });
   }, [initiatives, selectedParentInitiativeId]);
@@ -816,17 +814,17 @@ export default function ProjectManagement() {
                       .filter(i => !i.parentId)
                       .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
                       .sort((a, b) => {
-                        const numA = parseInt(a.name) || 0;
-                        const numB = parseInt(b.name) || 0;
+                        const numA = a.ordem ?? 0;
+                        const numB = b.ordem ?? 0;
                         if (numA !== numB) return numA - numB;
                         return a.name.localeCompare(b.name);
                       })
                       .map((initiative, index) => {
-                        const tipo = getTipoProjeto(initiative.name);
-                        const visual = getTrilhaVisual(initiative.name);
-                        const numeroMatch = initiative.name.match(/^(\d+)/);
-                        const numero = numeroMatch ? numeroMatch[1].padStart(2, '0') : '—';
-                        const titleClean = initiative.name.replace(/^\d+\s*[-—]?\s*/, '');
+                        const numeroVisual = initiative.ordem ?? (index + 1);
+                        const tipo = getTipoProjeto(numeroVisual);
+                        const visual = getTrilhaVisual(numeroVisual);
+                        const numero = String(numeroVisual).padStart(2, '0');
+                        const titleClean = initiative.name;
                         const VisualIcon = visual.Icon;
                         const locked = !canUseInitiative(initiative.id, initiatives);
                         return (
@@ -924,8 +922,8 @@ export default function ProjectManagement() {
                             {/* Conector visual saindo do card selecionado */}
                             {(() => {
                               const rootInitiatives = initiatives.filter(i => !i.parentId).sort((a, b) => {
-                                const numA = parseInt(a.name) || 0;
-                                const numB = parseInt(b.name) || 0;
+                                const numA = a.ordem ?? 0;
+                                const numB = b.ordem ?? 0;
                                 if (numA !== numB) return numA - numB;
                                 return a.name.localeCompare(b.name);
                               });
@@ -1215,7 +1213,7 @@ function CreateProjectModalContent({
   onClose: () => void;
   isSubmitting: boolean;
 }) {
-  const tipo = getTipoProjeto(trilha?.name);
+  const tipo = getTipoProjeto(trilha?.ordem);
   return (
     <form onSubmit={handleCreateProject}>
       <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">

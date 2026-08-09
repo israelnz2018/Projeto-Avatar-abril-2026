@@ -483,7 +483,7 @@ export default function ChatAssistant() {
   const isCardLocked = (card: TrilhaHeroCard): boolean => {
     if (isAdmin || plano === 'completo') return false;
     const num = parseInt(card.num, 10);
-    const init = allInitiatives.find(i => parseInt(i.name, 10) === num);
+    const init = allInitiatives.find(i => i.ordem === num);
     if (!init) return card.id !== 'ferramentas-dia-a-dia'; // fallback: só a trilha 1 livre
     return !canUseInitiative(init.id, allInitiatives);
   };

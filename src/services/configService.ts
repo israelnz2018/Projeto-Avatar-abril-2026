@@ -1,12 +1,13 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  deleteDoc, 
-  query, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  query,
   where,
+  writeBatch,
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -27,6 +28,46 @@ export const getInitiatives = async (): Promise<Initiative[]> => {
     .filter(i => ((i as any).consultorId || 'israel') === cid);
 };
 
+/**
+ * Renomear uma trilha quebra o vínculo de quem já tem esse curso liberado —
+ * users/{uid}.cursosAcesso[].curso (e o legado cursosLiberados[]) guardam o
+ * NOME do curso, não o id da iniciativa. Sem propagar, todo coordenador/aluno
+ * que já tinha esse curso liberado passa a ver tudo bloqueado (o nome antigo
+ * não bate com nenhuma iniciativa). Mesmo princípio do updateCourseName (que já
+ * faz isso pros vídeos da Base de Conhecimento) — aqui é a mesma coisa pros acessos.
+ */
+export async function propagarRenomeacaoParaAcessos(oldName: string, newName: string, consultorId?: string): Promise<number> {
+  const cid = consultorId || resolveConsultorId();
+  const snap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', cid)));
+  const batch = writeBatch(db);
+  let afetados = 0;
+  snap.docs.forEach((d) => {
+    const data = d.data() as any;
+    let mudou = false;
+    const cursosAcesso = Array.isArray(data.cursosAcesso)
+      ? data.cursosAcesso.map((c: any) => {
+          if (c?.curso === oldName) { mudou = true; return { ...c, curso: newName }; }
+          return c;
+        })
+      : null;
+    const cursosLiberados = Array.isArray(data.cursosLiberados)
+      ? data.cursosLiberados.map((c: string) => {
+          if (c === oldName) { mudou = true; return newName; }
+          return c;
+        })
+      : null;
+    if (mudou) {
+      afetados++;
+      const updates: any = {};
+      if (cursosAcesso) updates.cursosAcesso = cursosAcesso;
+      if (cursosLiberados) updates.cursosLiberados = cursosLiberados;
+      batch.update(d.ref, updates);
+    }
+  });
+  if (afetados > 0) await batch.commit();
+  return afetados;
+}
+
 export const getInitiative = async (id: string): Promise<Initiative | null> => {
   const docRef = doc(db, INITIATIVES_COLLECTION, id);
   const snapshot = await getDoc(docRef);
@@ -37,10 +78,11 @@ export const getInitiative = async (id: string): Promise<Initiative | null> => {
 };
 
 export const createInitiative = async (
-  name: string, 
-  description?: string, 
+  name: string,
+  description?: string,
   parentId?: string,
-  isFree?: boolean
+  isFree?: boolean,
+  ordem?: number
 ): Promise<Initiative> => {
   const id = crypto.randomUUID();
   const initiative: Initiative = {
@@ -57,6 +99,9 @@ export const createInitiative = async (
   }
   if (isFree !== undefined) {
     initiative.isFree = isFree;
+  }
+  if (ordem !== undefined) {
+    initiative.ordem = ordem;
   }
   await setDoc(doc(db, INITIATIVES_COLLECTION, id), initiative);
   return initiative;

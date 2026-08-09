@@ -29,6 +29,10 @@ export interface Initiative {
   temProjeto?: boolean;
   createdAt: string;
   consultorId?: string; // Multi-tenant: dono do conteúdo (default 'israel' na Fase 0)
+  /** Número de exibição (ordem + cor/ícone da trilha) — INDEPENDENTE do nome.
+   * Renomear o curso nunca deve afetar ordem/visual; por isso isso não vem mais
+   * de parsear o começo de `name`. */
+  ordem?: number;
 }
 
 // ===== Multi-tenant (white-label) =====
