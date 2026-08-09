@@ -4,7 +4,6 @@ import { db, auth } from '../../lib/firebase';
 import { Users2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { useNavigate } from 'react-router-dom';
 import { empresaIdDireto } from '../../services/consultorService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -45,7 +44,6 @@ const maiorVencimento = (lista: { vencimento: string | null }[]) => {
 export default function MeusCoordenadores() {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
-  const navigate = useNavigate();
   const [diretoStats, setDiretoStats] = useState({ time: 0, timeAtivo: 0 });
   const [rows, setRows] = useState<CoordRow[]>([]);
   const [cursos, setCursos] = useState<string[]>([]);
@@ -317,8 +315,8 @@ export default function MeusCoordenadores() {
       )}
       <div className="grid gap-4">
         {/* "Eu coordenando os meus alunos" — sempre a primeira linha, fixa. Não é um
-            coordenador de verdade (sem doc próprio), por isso não tem editar/remover,
-            só o resumo do time e o atalho pra adicionar aluno. */}
+            coordenador de verdade (sem doc próprio), por isso só mostra o resumo do
+            time — adicionar/editar/remover aluno é tudo feito em Alunos na Plataforma. */}
         <div className="bg-white border border-blue-100 rounded-2xl p-5">
           <div className="flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 grid place-items-center shrink-0"><Users2 size={20} /></div>
@@ -330,9 +328,6 @@ export default function MeusCoordenadores() {
               <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>{diretoStats.time}</div>
               <div className="text-[11px] text-gray-400">{diretoStats.timeAtivo} ativos</div>
             </div>
-            <button onClick={() => navigate('/meus-alunos')} className="text-xs font-bold text-blue-600 hover:text-blue-800 shrink-0">
-              adicionar aluno
-            </button>
           </div>
         </div>
         {rows.map((c) => (

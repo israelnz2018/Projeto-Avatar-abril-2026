@@ -27,6 +27,7 @@ interface CursoAcesso { curso: string; vencimento: string | null; valor: number;
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
   cursosAcesso: CursoAcesso[]; completo: boolean;
+  empresaId?: string;
   desvinculadoEm?: string;
   avisoBloqueio?: { expiraEm?: string };
   inativo?: boolean;
@@ -53,8 +54,12 @@ export default function MeusAlunos() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
 
+  // agrupamento por time — cada grupo (meus próprios alunos + cada coordenador) é um
+  // acordeão independente; abre/fecha e tem seu próprio "adicionar aluno" já escopado.
+  const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
+  const [addAbertoEmpresaId, setAddAbertoEmpresaId] = useState<string | null>(null);
+
   // adicionar — cada curso do pacote com vencimento + valor próprios
-  const [addAberto, setAddAberto] = useState(false);
   const [aNome, setANome] = useState('');
   const [aEmail, setAEmail] = useState('');
   const [aEmpresaId, setAEmpresaId] = useState('');
@@ -134,6 +139,7 @@ export default function MeusAlunos() {
             acessou: !!u.primeiroAcessoEm,
             cursosAcesso: ca,
             completo,
+            empresaId: u.empresaId ? String(u.empresaId) : undefined,
           };
         })
         .filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor')
@@ -158,7 +164,7 @@ export default function MeusAlunos() {
       // pro consultor atender aluno avulso sem precisar de uma conta de coordenador fake.
       const equipesReais = Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
       setEquipes([
-        { empresaId: empresaIdDireto(consultorId), nome: 'Alunos diretos (sem coordenador)', coordenador: consultor.branding.nome || 'você' },
+        { empresaId: empresaIdDireto(consultorId), nome: 'Meus próprios alunos', coordenador: consultor.branding.nome || 'você' },
         ...equipesReais,
       ]);
     } catch { /* ignore */ }
@@ -166,12 +172,21 @@ export default function MeusAlunos() {
   };
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [consultorId]);
 
-  const filtrados = useMemo(() => {
-    const todos = [...rows, ...bloqueados];
+  // Agrupa os alunos ativos por time (empresaId) — cada time é um acordeão em
+  // "Alunos na Plataforma". Busca filtra dentro dos grupos.
+  const alunosPorEmpresa = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    if (!t) return todos;
-    return todos.filter((r) => r.nome.toLowerCase().includes(t) || r.email.toLowerCase().includes(t));
-  }, [rows, bloqueados, busca]);
+    const mapa = new Map<string, Aluno[]>();
+    for (const a of rows) {
+      if (t && !a.nome.toLowerCase().includes(t) && !a.email.toLowerCase().includes(t)) continue;
+      const key = a.empresaId || '';
+      if (!mapa.has(key)) mapa.set(key, []);
+      mapa.get(key)!.push(a);
+    }
+    return mapa;
+  }, [rows, busca]);
+  const semTime = alunosPorEmpresa.get('') || [];
+  const buscando = busca.trim().length > 0;
 
   if (loadingAcesso) return <div className="p-8 text-gray-500">Carregando…</div>;
   if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Apenas consultores e admins gerenciam alunos dos times.</div>;
@@ -201,8 +216,8 @@ export default function MeusAlunos() {
       const j = await r.json().catch(() => ({} as any));
       if (r.ok) {
         setAddMsg(`✅ Aluno ${j.status}${j.emailEnviado ? '' : ' (e-mail falhou)'}`);
-        setANome(''); setAEmail(''); setAEmpresaId(''); setAItens([]);
-        setAddAberto(false);
+        setANome(''); setAEmail(''); setAItens([]);
+        setAddAbertoEmpresaId(null);
         carregar();
       } else setAddMsg('❌ ' + (j.error || 'erro'));
     } catch (e: any) { setAddMsg('❌ ' + (e?.message || e)); }
@@ -292,187 +307,203 @@ export default function MeusAlunos() {
   const campo = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const cursosDisponiveis = cursos.filter((c) => !eCursos.some((x) => x.curso === c));
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos dos Times</h1>
-      <p className="text-gray-500 text-sm mb-5">Gerencie os alunos de <b>{consultor.branding.nome}</b> — cursos, vencimento e valor por curso.</p>
-
-      {/* ADICIONAR ALUNO */}
-      <div className="bg-white border border-gray-200 rounded-2xl mb-6">
-        <button onClick={() => setAddAberto((v) => !v)} className="w-full flex items-center justify-between px-5 py-3.5 font-black text-gray-800">
-          <span className="flex items-center gap-2"><Plus size={18} className="text-blue-600" /> Adicionar aluno</span>
-          <ChevronDown size={18} className={`transition-transform ${addAberto ? 'rotate-180' : ''}`} />
-        </button>
-        {addAberto && (
-          <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
-            {/* Hierarquia: SEMPRE escolhe o coordenador/empresa antes de colocar o aluno.
-                Sem nenhum coordenador ainda, nem mostra o resto do formulário — antes
-                disso o aluno ficava sem time possível de escolher e o erro só aparecia
-                depois de tentar salvar, sem explicação. */}
-            {equipes.length === 0 ? (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-                Você ainda não tem nenhum coordenador cadastrado. Primeiro adicione um coordenador em
-                {' '}<b>Meus Clientes</b>, depois volte aqui para adicionar os alunos do time dele.
-              </div>
-            ) : (
-              <>
-                <div>
-                  <div className="text-xs font-bold text-gray-500 mb-1">1. Empresa / coordenador do aluno</div>
-                  <select value={aEmpresaId} onChange={(e) => setAEmpresaId(e.target.value)} className={campo + ' w-full'}>
-                    <option value="">Escolha a empresa/coordenador</option>
-                    {equipes.map((e) => (
-                      <option key={e.empresaId} value={e.empresaId}>
-                        {e.nome} (coordenador: {e.coordenador})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <input value={aNome} onChange={(e) => setANome(e.target.value)} placeholder="Nome completo" className={campo} disabled={!aEmpresaId} />
-                  <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} disabled={!aEmpresaId} />
-                </div>
-              </>
-            )}
-            <div className={!aEmpresaId ? 'opacity-40 pointer-events-none' : ''}>
-              <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
-              <div className="flex flex-wrap gap-2">
-                {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso ainda.</span>}
-                {cursos.map((c) => {
-                  const on = aItens.some((i) => i.curso === c);
-                  return (
-                    <button key={c} onClick={() => toggleCursoAdd(c)}
-                      className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
-                      {c}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {/* Por curso escolhido: vencimento + valor */}
-            {aItens.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs font-black uppercase tracking-wide text-gray-400">Vencimento e valor de cada curso</div>
-                {aItens.map((i) => (
-                  <div key={i.curso} className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{i.curso}</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-gray-400">vence</span>
-                      <input type="date" value={i.vencimento} onChange={(e) => setItemVenc(i.curso, e.target.value)} className={campo} />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-gray-400">R$</span>
-                      <input value={i.valor} onChange={(e) => setItemValor(i.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {equipes.length > 0 && (
-              <div className="flex items-center gap-3 pt-1">
-                <button onClick={adicionar} disabled={addEnviando || !aEmpresaId} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
-                  {addEnviando ? 'Adicionando…' : 'Adicionar aluno'}
-                </button>
-                {addMsg && <span className="text-sm text-gray-600">{addMsg}</span>}
-              </div>
-            )}
-          </div>
-        )}
+  const renderLinha = (a: Aluno) => (
+    <div key={a.uid} className="border-b border-gray-50 last:border-0">
+      <div className={`grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
+        <div className="min-w-0">
+          <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
+          <div className="text-xs text-gray-400 truncate">{a.email}</div>
+        </div>
+        <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 ${a.inativo ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'}`}>
+          {a.inativo ? 'Inativo' : 'Ativo'}
+        </span>
+        <div className="flex flex-wrap gap-1">
+          {a.inativo ? (
+            <span className="text-xs text-gray-400 italic">Acesso removido</span>
+          ) : a.completo ? (
+            <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
+          ) : a.cursosAcesso.length > 0 ? (
+            a.cursosAcesso.map((c) => (
+              <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso}</span>
+            ))
+          ) : freeCursos.length > 0 ? (
+            freeCursos.map((c) => (
+              <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
+            ))
+          ) : (
+            <span className="text-xs text-gray-400 italic">—</span>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+            {editUid === a.uid ? 'fechar' : 'editar'}
+          </button>}
+          {!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
+            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
+            <Trash2 size={15} />
+          </button> : (
+            <button onClick={() => excluirDefinitivo(a)} disabled={!podeExcluirDefinitivo(a) || deletingUid === a.uid}
+              className="text-xs font-bold text-red-600 disabled:text-gray-300" title={podeExcluirDefinitivo(a) ? 'Excluir definitivamente' : 'Disponível após 90 dias'}>
+              excluir
+            </button>
+          )}
+        </div>
       </div>
-
-      <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-4'} />
-
-      {loading ? <div className="text-gray-500">Carregando…</div> : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-2.5 bg-gray-50 text-[10px] font-black uppercase tracking-wide text-gray-400 border-b border-gray-100">
-            <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div className="text-right">Ações</div>
-          </div>
-          {filtrados.length === 0 && <div className="px-4 py-8 text-center text-gray-400 text-sm">Nenhum aluno.</div>}
-          {filtrados.map((a) => (
-            <div key={a.uid} className="border-b border-gray-50 last:border-0">
-              <div className={`grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
-                <div className="min-w-0">
-                  <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
-                  <div className="text-xs text-gray-400 truncate">{a.email}</div>
+      {!a.inativo && editUid === a.uid && (
+        <div className="px-4 pb-4 bg-gray-50/60">
+          {a.completo && (
+            <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+              Este aluno tem <b>acesso Completo</b> (todos os cursos). Você só precisa mexer aqui embaixo se quiser trocá-lo para <b>acesso por curso</b>.
+            </div>
+          )}
+          <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
+          <div className="space-y-2 mb-3">
+            {eCursos.length === 0 && <div className="text-xs text-gray-400">Nenhum curso liberado.</div>}
+            {eCursos.map((c) => (
+              <div key={c.curso} className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso}</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] text-gray-400">vence</span>
+                  <input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} />
                 </div>
-                <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 ${a.inativo ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'}`}>
-                  {a.inativo ? 'Inativo' : 'Ativo'}
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {a.inativo ? (
-                    <span className="text-xs text-gray-400 italic">Acesso removido</span>
-                  ) : a.completo ? (
-                    <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
-                  ) : a.cursosAcesso.length > 0 ? (
-                    a.cursosAcesso.map((c) => (
-                      <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso}</span>
-                    ))
-                  ) : freeCursos.length > 0 ? (
-                    freeCursos.map((c) => (
-                      <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">—</span>
-                  )}
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] text-gray-400">R$</span>
+                  <input value={fmtValor(c.valor)} onChange={(e) => setValorCurso(c.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} />
                 </div>
-                <div className="flex items-center justify-end gap-2">
-                  {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
-                    {editUid === a.uid ? 'fechar' : 'editar'}
-                  </button>}
-                  {!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
-                    <Trash2 size={15} />
-                  </button> : (
-                    <button onClick={() => excluirDefinitivo(a)} disabled={!podeExcluirDefinitivo(a) || deletingUid === a.uid}
-                      className="text-xs font-bold text-red-600 disabled:text-gray-300" title={podeExcluirDefinitivo(a) ? 'Excluir definitivamente' : 'Disponível após 90 dias'}>
-                      excluir
-                    </button>
-                  )}
-                </div>
+                <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
               </div>
-              {!a.inativo && editUid === a.uid && (
-                <div className="px-4 pb-4 bg-gray-50/60">
-                  {a.completo && (
-                    <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-                      Este aluno tem <b>acesso Completo</b> (todos os cursos). Você só precisa mexer aqui embaixo se quiser trocá-lo para <b>acesso por curso</b>.
-                    </div>
-                  )}
-                  <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
-                  <div className="space-y-2 mb-3">
-                    {eCursos.length === 0 && <div className="text-xs text-gray-400">Nenhum curso liberado.</div>}
-                    {eCursos.map((c) => (
-                      <div key={c.curso} className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso}</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[11px] text-gray-400">vence</span>
-                          <input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} />
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[11px] text-gray-400">R$</span>
-                          <input value={fmtValor(c.valor)} onChange={(e) => setValorCurso(c.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} />
-                        </div>
-                        <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
-                      </div>
-                    ))}
-                  </div>
-                  {cursosDisponiveis.length > 0 && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
-                        <option value="">+ adicionar curso…</option>
-                        {cursosDisponiveis.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                      <button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
-                      {editSalvando ? 'Salvando…' : 'Salvar'}
-                    </button>
-                    {editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}
-                  </div>
-                </div>
-              )}
+            ))}
+          </div>
+          {cursosDisponiveis.length > 0 && (
+            <div className="flex items-center gap-2 mb-3">
+              <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
+                <option value="">+ adicionar curso…</option>
+                {cursosDisponiveis.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button>
+            </div>
+          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            <button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+              {editSalvando ? 'Salvando…' : 'Salvar'}
+            </button>
+            {editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderFormAdicionar = (empresaId: string) => (
+    <div className="px-4 pb-4 pt-3 bg-blue-50/40 border-t border-blue-100 space-y-4">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <input value={aNome} onChange={(e) => setANome(e.target.value)} placeholder="Nome completo" className={campo} />
+        <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} />
+      </div>
+      <div>
+        <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
+        <div className="flex flex-wrap gap-2">
+          {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso ainda.</span>}
+          {cursos.map((c) => {
+            const on = aItens.some((i) => i.curso === c);
+            return (
+              <button key={c} onClick={() => toggleCursoAdd(c)}
+                className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+                {c}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {aItens.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-black uppercase tracking-wide text-gray-400">Vencimento e valor de cada curso</div>
+          {aItens.map((i) => (
+            <div key={i.curso} className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{i.curso}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-400">vence</span>
+                <input type="date" value={i.vencimento} onChange={(e) => setItemVenc(i.curso, e.target.value)} className={campo} />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-gray-400">R$</span>
+                <input value={i.valor} onChange={(e) => setItemValor(i.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} />
+              </div>
             </div>
           ))}
+        </div>
+      )}
+      <div className="flex items-center gap-3">
+        <button onClick={adicionar} disabled={addEnviando || aEmpresaId !== empresaId} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+          {addEnviando ? 'Adicionando…' : 'Adicionar aluno'}
+        </button>
+        {addMsg && <span className="text-sm text-gray-600">{addMsg}</span>}
+      </div>
+    </div>
+  );
+
+  const abrirFormAdicionar = (empresaId: string) => {
+    if (addAbertoEmpresaId === empresaId) { setAddAbertoEmpresaId(null); return; }
+    setAddAbertoEmpresaId(empresaId);
+    setAEmpresaId(empresaId);
+    setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos na Plataforma</h1>
+      <p className="text-gray-500 text-sm mb-5">
+        Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
+      </p>
+
+      <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-5'} />
+
+      {loading ? <div className="text-gray-500">Carregando…</div> : (
+        <div className="space-y-4">
+          {equipes.map((eq) => {
+            const alunosDoTime = alunosPorEmpresa.get(eq.empresaId) || [];
+            const aberto = buscando ? alunosDoTime.length > 0 : !!gruposAbertos[eq.empresaId];
+            return (
+              <div key={eq.empresaId} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setGruposAbertos((p) => ({ ...p, [eq.empresaId]: !p[eq.empresaId] }))}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3.5"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="font-black text-gray-800 truncate">{eq.nome}</span>
+                    <span className="text-xs text-gray-400 shrink-0">({alunosDoTime.length})</span>
+                  </span>
+                  <ChevronDown size={18} className={`text-gray-400 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`} />
+                </button>
+                {aberto && (
+                  <div className="border-t border-gray-100">
+                    <div className="px-4 py-2.5 bg-gray-50 flex items-center justify-between">
+                      <div className="grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 flex-1 text-[10px] font-black uppercase tracking-wide text-gray-400">
+                        <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
+                      </div>
+                    </div>
+                    {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
+                    {alunosDoTime.map(renderLinha)}
+                    <div className="px-4 py-3 border-t border-gray-100">
+                      <button onClick={() => abrirFormAdicionar(eq.empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
+                        <Plus size={14} /> {addAbertoEmpresaId === eq.empresaId ? 'fechar' : 'adicionar aluno'}
+                      </button>
+                    </div>
+                    {addAbertoEmpresaId === eq.empresaId && renderFormAdicionar(eq.empresaId)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {semTime.length > 0 && (
+            <div className="bg-white border border-amber-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3.5 font-black text-amber-800 bg-amber-50">Sem time definido ({semTime.length})</div>
+              <div className="border-t border-amber-100">
+                {semTime.map(renderLinha)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
