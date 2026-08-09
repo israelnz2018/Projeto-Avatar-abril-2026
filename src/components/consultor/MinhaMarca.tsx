@@ -11,26 +11,16 @@ import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { uploadBrandingImage, BrandingAsset } from '../../services/brandingUploadService';
-import { resolveConsultorId } from '../../services/consultorService';
-
-const comHash = (c?: string) => (c ? (c.startsWith('#') ? c : `#${c}`) : '');
 
 export default function MinhaMarca() {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading } = useUserAccess();
-  const ehIsrael = resolveConsultorId() === 'israel';
 
   const [nome, setNome] = useState('');
   const [sigla, setSigla] = useState('');
   const [mentor, setMentor] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
-  const [pptModo, setPptModo] = useState<'padrao' | 'proprio'>('padrao');
-  const [corEscura, setCorEscura] = useState('#1E2D6E');
-  const [corDestaque, setCorDestaque] = useState('#0033CC');
-  const [corClara, setCorClara] = useState('#F0F2FA');
-  const [corTexto, setCorTexto] = useState('#2A2F3A');
-  const [corSuave, setCorSuave] = useState('#9CA3AF');
   const [pptCapaUrl, setPptCapaUrl] = useState('');
   const [pptInternaUrl, setPptInternaUrl] = useState('');
 
@@ -46,12 +36,6 @@ export default function MinhaMarca() {
     setMentor(consultor.mentorNome || '');
     setFotoUrl(b.fotoUrl || '');
     setLogoUrl(b.logoUrl || '');
-    setPptModo(ehIsrael ? (b.pptModo === 'proprio' ? 'proprio' : 'padrao') : 'proprio');
-    setCorEscura(comHash(b.cores?.navy) || '#1E2D6E');
-    setCorDestaque(comHash(b.cores?.blue) || '#0033CC');
-    setCorClara(comHash(b.cores?.light) || '#F0F2FA');
-    setCorTexto(comHash(b.cores?.ink) || '#2A2F3A');
-    setCorSuave(comHash(b.cores?.muted) || '#9CA3AF');
     setPptCapaUrl(b.pptCapaUrl || '');
     setPptInternaUrl(b.pptInternaUrl || '');
   }, [consultor]);
@@ -87,17 +71,9 @@ export default function MinhaMarca() {
             sigla: sigla.trim().toUpperCase().slice(0, 7),
             fotoUrl: fotoUrl.trim(),
             logoUrl: logoUrl.trim(),
-            pptModo: ehIsrael ? pptModo : 'proprio',
+            pptModo: 'proprio',
             pptCapaUrl: pptCapaUrl.trim(),
             pptInternaUrl: pptInternaUrl.trim(),
-            cores: {
-              ...consultor.branding.cores,
-              navy: corEscura,
-              blue: corDestaque,
-              light: corClara,
-              ink: corTexto,
-              muted: corSuave,
-            },
           },
         },
         { merge: true }
@@ -194,103 +170,39 @@ export default function MinhaMarca() {
         <h2 className="flex items-center gap-2 font-black text-gray-800"><Palette size={16} /> Modelo de PPT</h2>
         <p className="text-xs text-gray-500">Como os slides que seus alunos exportam vão parecer.</p>
 
-        {/* Opção 1 — nosso modelo (só o Israel, dono do template padrão da LBW) */}
-        {ehIsrael && (
-          <label className={`block border rounded-xl p-4 cursor-pointer transition-colors ${pptModo === 'padrao' ? 'border-blue-500 bg-blue-50/40' : 'border-gray-200 hover:border-gray-300'}`}>
-            <div className="flex items-center gap-2">
-              <input type="radio" name="pptModo" checked={pptModo === 'padrao'} onChange={() => setPptModo('padrao')} />
-              <span className="font-bold text-gray-800 text-sm">Usar o nosso modelo + suas cores</span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 ml-6">
-              O template pronto da plataforma, com a <b>sua sigla</b> no topo de cada slide. Escolha as cores:
-            </p>
-            {pptModo === 'padrao' && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 ml-6">
-                <CorPicker rotulo="Escura (cabeçalho)" valor={corEscura} onChange={setCorEscura} />
-                <CorPicker rotulo="Destaque (chips/linhas)" valor={corDestaque} onChange={setCorDestaque} />
-                <CorPicker rotulo="Clara (painéis)" valor={corClara} onChange={setCorClara} />
-                <CorPicker rotulo="Texto principal" valor={corTexto} onChange={setCorTexto} />
-                <CorPicker rotulo="Texto suave" valor={corSuave} onChange={setCorSuave} />
-              </div>
-            )}
-          </label>
-        )}
-
-        {/* Opção 2 — template próprio (única opção pra quem não é Israel) */}
-        {ehIsrael ? (
-          <label className={`block border rounded-xl p-4 cursor-pointer transition-colors ${pptModo === 'proprio' ? 'border-blue-500 bg-blue-50/40' : 'border-gray-200 hover:border-gray-300'}`}>
-            <div className="flex items-center gap-2">
-              <input type="radio" name="pptModo" checked={pptModo === 'proprio'} onChange={() => setPptModo('proprio')} />
-              <span className="font-bold text-gray-800 text-sm">Usar o meu próprio template</span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1 ml-6">
-              Envie dois fundos de slide (16:9): a <b>capa</b> e a <b>página interna</b> (usada em todos os slides de conteúdo).
-            </p>
-            {pptModo === 'proprio' && (
-              <div className="ml-6 mt-3 space-y-4">
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-                  <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800">
-                    <b>Atenção:</b> a área útil do slide (cabeçalho, título, conteúdo e rodapé) é preenchida pela plataforma e
-                    <b> pode conflitar com o design do seu template</b>. Deixe as bordas e o miolo do slide livres — evite textos
-                    ou elementos importantes onde o conteúdo será inserido.
-                  </p>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <FundoUpload
-                    rotulo="Capa"
-                    url={pptCapaUrl}
-                    carregando={enviando === 'ppt-capa'}
-                    onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl)}
-                  />
-                  <FundoUpload
-                    rotulo="Página interna"
-                    url={pptInternaUrl}
-                    carregando={enviando === 'ppt-interna'}
-                    onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl)}
-                  />
-                </div>
-                <p className="text-xs text-gray-400">
-                  Enquanto ativamos a renderização do seu template nos slides, o PPT continua usando o modelo padrão com suas cores.
-                </p>
-              </div>
-            )}
-          </label>
-        ) : (
-          <div className="border border-gray-200 rounded-xl p-4">
-            <span className="font-bold text-gray-800 text-sm">Seu template de PPT</span>
-            <p className="text-xs text-gray-500 mt-1">
-              Envie dois fundos de slide (16:9): a <b>capa</b> e a <b>página interna</b> (usada em todos os slides de conteúdo).
-            </p>
-            <div className="mt-3 space-y-4">
-              <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-                <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-800">
-                  <b>Atenção:</b> a área útil do slide (cabeçalho, título, conteúdo e rodapé) é preenchida pela plataforma e
-                  <b> pode conflitar com o design do seu template</b>. Deixe as bordas e o miolo do slide livres — evite textos
-                  ou elementos importantes onde o conteúdo será inserido.
-                </p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <FundoUpload
-                  rotulo="Capa"
-                  url={pptCapaUrl}
-                  carregando={enviando === 'ppt-capa'}
-                  onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl)}
-                />
-                <FundoUpload
-                  rotulo="Página interna"
-                  url={pptInternaUrl}
-                  carregando={enviando === 'ppt-interna'}
-                  onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl)}
-                />
-              </div>
-              <p className="text-xs text-gray-400">
-                Enquanto ativamos a renderização do seu template nos slides, o PPT continua usando o modelo padrão com suas cores.
+        <div className="border border-gray-200 rounded-xl p-4">
+          <span className="font-bold text-gray-800 text-sm">Seu template de PPT</span>
+          <p className="text-xs text-gray-500 mt-1">
+            Envie dois fundos de slide (16:9): a <b>capa</b> e a <b>página interna</b> (usada em todos os slides de conteúdo).
+          </p>
+          <div className="mt-3 space-y-4">
+            <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">
+                <b>Atenção:</b> a área útil do slide (cabeçalho, título, conteúdo e rodapé) é preenchida pela plataforma e
+                <b> pode conflitar com o design do seu template</b>. Deixe as bordas e o miolo do slide livres — evite textos
+                ou elementos importantes onde o conteúdo será inserido.
               </p>
             </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <FundoUpload
+                rotulo="Capa"
+                url={pptCapaUrl}
+                carregando={enviando === 'ppt-capa'}
+                onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl)}
+              />
+              <FundoUpload
+                rotulo="Página interna"
+                url={pptInternaUrl}
+                carregando={enviando === 'ppt-interna'}
+                onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl)}
+              />
+            </div>
+            <p className="text-xs text-gray-400">
+              Enquanto ativamos a renderização do seu template nos slides, o PPT continua usando o modelo padrão com suas cores.
+            </p>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
@@ -329,18 +241,6 @@ function UploadBtn({ titulo, carregando, onFile }: { titulo: string; carregando:
         onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
       />
     </>
-  );
-}
-
-function CorPicker({ rotulo, valor, onChange }: { rotulo: string; valor: string; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <div className="text-[11px] font-bold text-gray-500 mb-1">{rotulo}</div>
-      <div className="flex items-center gap-2">
-        <input type="color" value={valor} onChange={(e) => onChange(e.target.value)} className="h-9 w-9 rounded border border-gray-300 cursor-pointer bg-white" />
-        <span className="text-xs text-gray-500 uppercase" style={{ fontVariantNumeric: 'tabular-nums' }}>{valor}</span>
-      </div>
-    </div>
   );
 }
 
