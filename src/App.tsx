@@ -219,7 +219,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         <div className="p-4 flex items-start justify-between gap-2 border-b border-gray-700">
           {isSidebarOpen && (
             <Link to="/" className="flex flex-col items-center gap-2 flex-1 min-w-0 no-underline" title="Ir para a página principal">
-              <img src={consultor.branding.logoUrl} alt="Logo" className="h-10 w-auto" />
+              <img src={consultor.branding.logoUrl || CONSULTOR_PADRAO.branding.logoUrl} alt="Logo" className="h-10 w-auto" />
               <span className="font-bold text-sm whitespace-nowrap text-center text-white">Educação pelo Trabalho</span>
             </Link>
           )}
@@ -359,7 +359,7 @@ import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ConsultorProvider, useConsultor } from './contexts/ConsultorContext';
-import { isSiteConsultor } from './services/consultorService';
+import { isSiteConsultor, CONSULTOR_PADRAO } from './services/consultorService';
 import { setSlideBrand, setSlideColors } from './services/slideTemplate';
 
 const ProfileView = () => {
