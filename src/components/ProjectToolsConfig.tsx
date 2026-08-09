@@ -234,7 +234,6 @@ export default function ProjectToolsConfig() {
   const [newInitiativeName, setNewInitiativeName] = useState('');
   const [newInitiativeParentId, setNewInitiativeParentId] = useState('');
   const [newInitiativeIsFree, setNewInitiativeIsFree] = useState<boolean>(false);
-  const [newInitiativeOrdem, setNewInitiativeOrdem] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [editedPhases, setEditedPhases] = useState<{id: string, name: string}[]>([]);
   const [activeConfigPhaseId, setActiveConfigPhaseId] = useState<string | null>(null);
@@ -318,14 +317,12 @@ export default function ProjectToolsConfig() {
   const [editingInitiativeName, setEditingInitiativeName] = useState('');
   const [editingInitiativeParentId, setEditingInitiativeParentId] = useState<string>('');
   const [editIsFree, setEditIsFree] = useState<boolean>(false);
-  const [editOrdem, setEditOrdem] = useState<string>('');
 
   const handleOpenEditInitiative = () => {
     if (!selectedInitiative) return;
     setEditingInitiativeName(selectedInitiative.name);
     setEditingInitiativeParentId(selectedInitiative.parentId || '');
     setEditIsFree(selectedInitiative.isFree || false);
-    setEditOrdem(selectedInitiative.ordem !== undefined ? String(selectedInitiative.ordem) : '');
     setIsEditingInitiative(true);
   };
 
@@ -357,7 +354,6 @@ export default function ProjectToolsConfig() {
       const updates: any = {
         name: nomeNovo,
         isFree: editIsFree,
-        ordem: editOrdem.trim() ? parseInt(editOrdem, 10) : null,
       };
       if (editingInitiativeParentId) {
         updates.parentId = editingInitiativeParentId;
@@ -407,13 +403,11 @@ export default function ProjectToolsConfig() {
     }
 
     try {
-      const ordemNum = newInitiativeOrdem.trim() ? parseInt(newInitiativeOrdem, 10) : undefined;
-      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined, newInitiativeIsFree, ordemNum);
+      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined, newInitiativeIsFree);
       setInitiatives(prev => [...prev, initiative]);
       setNewInitiativeName('');
       setNewInitiativeParentId('');
       setNewInitiativeIsFree(false);
-      setNewInitiativeOrdem('');
       setIsCreating(false);
       
       // Select the new initiative and clear configs (it's new)
@@ -537,22 +531,8 @@ export default function ProjectToolsConfig() {
                     B2C do Israel. O valor de isFree já salvo continua preservado (outras
                     telas ainda leem esse campo), só não dá mais pra editar por aqui. */}
 
-                <div>
-                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">
-                    Ordem de exibição (opcional)
-                  </label>
-                  <input
-                    type="number"
-                    value={editOrdem}
-                    onChange={(e) => setEditOrdem(e.target.value)}
-                    className="w-24 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="—"
-                  />
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    Controla a ordem, o número e a cor do card na aba Projetos — independente do
-                    nome. Mudar o nome do curso nunca muda isso.
-                  </p>
-                </div>
+                {/* "Ordem" (número/cor do card em Projetos) fica interna — o consultor não
+                    precisa ver/editar isso, é gerenciado por trás. Ver initiative.ordem. */}
               </div>
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
@@ -714,17 +694,6 @@ export default function ProjectToolsConfig() {
                       newInitiativeParentId continua no estado mas nunca recebe valor — createInitiative
                       é chamado com undefined no 3º arg, então o Firestore não recebe o campo. */}
 
-                  <div className="w-full md:w-28">
-                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Ordem</label>
-                    <input
-                      type="number"
-                      placeholder="—"
-                      value={newInitiativeOrdem}
-                      onChange={(e) => setNewInitiativeOrdem(e.target.value)}
-                      className="w-full p-3 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-bold bg-white"
-                    />
-                  </div>
-
                   <div className="flex gap-2 w-full md:w-auto">
                     <button 
                       onClick={handleCreateInitiative}
@@ -738,7 +707,6 @@ export default function ProjectToolsConfig() {
                         setNewInitiativeParentId('');
                         setNewInitiativeName('');
                         setNewInitiativeIsFree(false);
-                        setNewInitiativeOrdem('');
                       }}
                       className="flex-1 md:flex-none bg-white text-gray-500 px-8 py-3 rounded-lg border border-gray-200 font-black text-xs hover:bg-gray-50 uppercase tracking-wider"
                     >
