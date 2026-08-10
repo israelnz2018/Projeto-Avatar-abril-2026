@@ -16,12 +16,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle,
-  Wrench, Clock, ListFilter, Plus, Trash2, MessageCircle, Shield, X, Bell,
+  Wrench, Clock, ListFilter, Trash2, MessageCircle, Shield, X, Bell,
   Search, ThumbsUp, Flame, Pin, Pencil, Check, Paperclip, FileText, Loader2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth, db } from '../lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { resolveConsultorId, empresaIdDireto } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -44,6 +44,18 @@ const TIPO_CFG: Record<PostTipo, { label: string; icon: any; cls: string; dot: s
 };
 
 type ViewMode = 'timeline' | 'curtidos' | 'ferramenta' | 'tipo';
+
+const MODELO_BOAS_VINDAS = `Seja bem-vindo(a) à nossa comunidade! 🎉
+
+Aqui é o espaço para trocar experiências, tirar dúvidas e comemorar conquistas durante a sua jornada de melhoria contínua.
+
+Algumas boas práticas para a gente manter esse espaço produtivo:
+• Seja respeitoso(a) e educado(a) nas trocas
+• Antes de perguntar, veja se sua dúvida já foi respondida por aqui
+• Compartilhe seus aprendizados — o que ajudou você pode ajudar outra pessoa também
+• Erros fazem parte do processo: pergunte sem medo
+
+Bora construir isso juntos!`;
 
 // ===== Helpers =====
 function iniciais(nome: string): string {
@@ -682,88 +694,6 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesL
   );
 }
 
-// ===== Modal "Nova publicacao" =====
-function NovoPostModal({ onClose, espaco }: { onClose: () => void; espaco: EspacoComunidade }) {
-  const [tipo, setTipo] = useState<PostTipo>('comentario');
-  const [titulo, setTitulo] = useState('');
-  const [texto, setTexto] = useState('');
-  const [ferramenta, setFerramenta] = useState('');
-  const [anexos, setAnexos] = useState<Anexo[]>([]);
-  const [enviando, setEnviando] = useState(false);
-
-  const podeEnviar = titulo.trim().length >= 3 && texto.trim().length >= 5;
-
-  const enviar = async () => {
-    if (!podeEnviar) return;
-    setEnviando(true);
-    try {
-      await criarPost({ tipo, titulo: titulo.trim(), texto, ferramenta: ferramenta.trim() || null, anexos, espaco });
-      onClose();
-    } finally { setEnviando(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
-        onClick={e => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
-      >
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-lg font-black text-gray-800 m-0">Nova publicação</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full border-none bg-transparent cursor-pointer text-gray-500"><X size={18} /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-4 gap-2">
-            {(['duvida', 'sugestao', 'comentario', 'bug'] as PostTipo[]).map(t => {
-              const c = TIPO_CFG[t]; const Icon = c.icon; const sel = tipo === t;
-              return (
-                <button key={t} onClick={() => setTipo(t)}
-                  className={cn('flex flex-col items-center gap-1.5 p-3 border rounded-xl cursor-pointer transition',
-                    sel ? `${c.cls} ring-2 ring-current font-bold` : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600')}>
-                  <Icon size={20} /><span className="text-[11px]">{c.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Título <span className="text-red-500">*</span></label>
-            <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Resuma em poucas palavras"
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sobre qual ferramenta / vídeo? (opcional)</label>
-            <input value={ferramenta} onChange={e => setFerramenta(e.target.value)} placeholder="Ex: Espinha de Peixe, vídeo de SIPOC…"
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sua mensagem <span className="text-red-500">*</span></label>
-            <textarea rows={5} value={texto} onChange={e => setTexto(e.target.value)}
-              placeholder="Escreva seu comentário, sugestão, dúvida ou o bug que encontrou. Quanto mais específico, melhor."
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Anexos (opcional)</label>
-            <AnexosInput anexos={anexos} setAnexos={setAnexos} />
-          </div>
-          <div className="flex items-start gap-2 text-[12px] bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2.5 leading-relaxed">
-            <Users2 size={15} className="shrink-0 mt-0.5" />
-            <span>Será publicado na Comunidade, visível para todos os alunos, <strong>com o seu nome</strong>. Não inclua informações confidenciais.</span>
-          </div>
-        </div>
-        <div className="p-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-bold bg-white border border-gray-300 cursor-pointer">Cancelar</button>
-          <button onClick={enviar} disabled={enviando || !podeEnviar}
-            className={cn('px-4 py-2 rounded-xl text-sm font-bold border-none cursor-pointer flex items-center gap-2',
-              enviando || !podeEnviar ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700')}>
-            <Send size={14} /> Publicar
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
 // ===== Sino de notificações de @menção =====
 function NotificationsBell() {
   const [notifs, setNotifs] = useState<CommunityNotification[]>([]);
@@ -821,6 +751,68 @@ function NotificationsBell() {
   );
 }
 
+function BoasVindasComunidade({ podeEditar }: { podeEditar: boolean }) {
+  const { consultor, consultorId, refresh } = useConsultor();
+  const [texto, setTexto] = useState(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    setTexto(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
+  }, [consultor.comunidadeBoasVindas]);
+
+  async function confirmar() {
+    if (!texto.trim()) return;
+    setSalvando(true);
+    setMsg('');
+    try {
+      await setDoc(doc(db, 'consultores', consultorId), {
+        comunidadeBoasVindas: texto.trim(),
+        'onboarding.comunidade': true,
+      }, { merge: true });
+      await refresh();
+      setMsg('Texto confirmado.');
+      setTimeout(() => setMsg(''), 3000);
+    } catch (e: any) {
+      setMsg(e?.message || 'Erro ao confirmar.');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (!podeEditar) {
+    const publicado = consultor.comunidadeBoasVindas?.trim();
+    return publicado ? <p className="mb-5 whitespace-pre-line text-sm text-gray-700">{publicado}</p> : null;
+  }
+
+  return (
+    <div className="mb-5 rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="m-0 text-sm font-black text-gray-900">Primeiro texto da comunidade</h2>
+          <p className="m-0 mt-0.5 text-xs text-gray-500">Edite o comentario inicial que seus alunos verao no topo.</p>
+        </div>
+        {msg && <span className="text-xs font-bold text-emerald-600">{msg}</span>}
+      </div>
+      <textarea
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        rows={9}
+        className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2.5 text-sm leading-relaxed text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <div className="mt-3 flex justify-end">
+        <button
+          onClick={confirmar}
+          disabled={salvando || !texto.trim()}
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
+        >
+          <Check size={14} /> {salvando ? 'Confirmando...' : 'Confirmar texto'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ===== Página =====
 export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoComunidade }) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -828,7 +820,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const [view, setView] = useState<ViewMode>('timeline');
   const [tipoFiltro, setTipoFiltro] = useState<PostTipo | 'todos'>('todos');
   const [busca, setBusca] = useState('');
-  const [novoAberto, setNovoAberto] = useState(false);
   const [repliesPorPost, setRepliesPorPost] = useState<Record<string, CommunityReply[]>>({});
 
   const meUid = auth.currentUser?.uid || '';
@@ -952,30 +943,14 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
               Comunidade LBW
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2 py-0.5">Versão beta</span>
             </h1>
-            <p className="text-xs text-gray-500 m-0 mt-0.5">Comente, ajude, sugira. Todos veem e podem responder.</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <NotificationsBell />
-          <button
-            onClick={() => setNovoAberto(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest cursor-pointer border-none transition"
-          >
-            <Plus size={16} /> <span className="hidden sm:inline">Nova publicação</span>
-          </button>
         </div>
       </div>
 
       <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano introdutório: participe da comunidade e libere todas as ferramentas." />
-
-      {/* Boas-vindas do consultor — só na Comunidade dos Meus Clientes (escopo 'time'),
-          texto configurado em "Comece por Aqui". Texto simples, sem caixa/banner —
-          como se fosse a primeira mensagem escrita ali mesmo. */}
-      {escopo === 'time' && consultor.comunidadeBoasVindas && (
-        <p className="mb-5 whitespace-pre-line text-sm text-gray-700">
-          {consultor.comunidadeBoasVindas}
-        </p>
-      )}
 
       {/* Seletor de empresa — só admin/consultor no escopo do coordenador (cada empresa é isolada) */}
       {podeEscolherEmpresa && (
@@ -988,6 +963,8 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
           <span className="text-xs text-amber-600">Cada empresa é uma bolha isolada.</span>
         </div>
       )}
+
+      {escopo === 'time' && <BoasVindasComunidade podeEditar={isAdmin || isConsultor} />}
 
       {/* Busca */}
       <div className="relative mb-4">
@@ -1045,9 +1022,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl">
           <Users2 size={32} className="text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500 mb-4">Nenhuma publicação ainda. Seja o primeiro a comentar!</p>
-          <button onClick={() => setNovoAberto(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest cursor-pointer border-none">
-            <Plus size={14} /> Nova publicação
-          </button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -1089,10 +1063,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
           ))}
         </div>
       )}
-
-      <AnimatePresence>
-        {novoAberto && <NovoPostModal onClose={() => setNovoAberto(false)} espaco={espaco} />}
-      </AnimatePresence>
     </div>
   );
 }

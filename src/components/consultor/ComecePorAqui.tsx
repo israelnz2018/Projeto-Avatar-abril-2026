@@ -14,18 +14,6 @@ import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 
-const MODELO_BOAS_VINDAS = `Seja bem-vindo(a) à nossa comunidade! 🎉
-
-Aqui é o espaço para trocar experiências, tirar dúvidas e comemorar conquistas durante a sua jornada de melhoria contínua.
-
-Algumas boas práticas para a gente manter esse espaço produtivo:
-• Seja respeitoso(a) e educado(a) nas trocas
-• Antes de perguntar, veja se sua dúvida já foi respondida por aqui
-• Compartilhe seus aprendizados — o que ajudou você pode ajudar outra pessoa também
-• Erros fazem parte do processo: pergunte sem medo
-
-Bora construir isso juntos!`;
-
 interface Item {
   id: string;
   titulo: string;
@@ -90,9 +78,6 @@ export default function ComecePorAqui() {
   const navigate = useNavigate();
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading } = useUserAccess();
-  const [boasVindas, setBoasVindas] = useState(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
-  const [publicando, setPublicando] = useState(false);
-  const [msg, setMsg] = useState('');
   const [autoChecks, setAutoChecks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -196,23 +181,6 @@ export default function ComecePorAqui() {
     await refresh();
   }
 
-  async function publicarBoasVindas() {
-    setPublicando(true);
-    setMsg('');
-    try {
-      await setDoc(doc(db, 'consultores', consultorId), {
-        comunidadeBoasVindas: boasVindas.trim(),
-        [`onboarding.comunidade`]: true,
-      }, { merge: true });
-      await refresh();
-      setMsg('✅ Publicado! Já aparece no topo da Comunidade dos Meus Clientes.');
-    } catch (e: any) {
-      setMsg('❌ ' + (e?.message || e));
-    } finally {
-      setPublicando(false);
-    }
-  }
-
   const Checkbox = ({ id }: { id: string }) => (
     <button onClick={() => alternar(id)} className="shrink-0 mt-0.5">
       {marcado(id) ? <CheckCircle2 size={22} className="text-emerald-600" /> : <Circle size={22} className="text-gray-300" />}
@@ -246,26 +214,20 @@ export default function ComecePorAqui() {
           </div>
         ))}
 
-        {/* Comunidade — edita e publica o texto ali mesmo, sem navegar. */}
+        {/* Comunidade */}
         <div className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
           <Checkbox id="comunidade" />
           <div className="min-w-0 flex-1">
             <div className={`font-bold ${marcado('comunidade') ? 'text-gray-400 line-through' : 'text-gray-800'}`}>Comunidade</div>
-            <p className="text-sm text-gray-500 mt-1 mb-3">
-              Já deixamos um texto pronto (boas-vindas + regras) — edite do seu jeito e publique.
+            <p className="text-sm text-gray-500 mt-1">
+              Edite e confirme o primeiro texto diretamente na página da Comunidade dos Meus Clientes.
             </p>
-            <textarea
-              value={boasVindas}
-              onChange={(e) => setBoasVindas(e.target.value)}
-              rows={9}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="flex items-center gap-3 mt-3">
-              <button onClick={publicarBoasVindas} disabled={publicando || !boasVindas.trim()} className="px-5 py-2 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
-                {publicando ? 'Publicando…' : 'Publicar'}
-              </button>
-              {msg && <span className="text-sm text-gray-600">{msg}</span>}
-            </div>
+            <button
+              onClick={() => navigate('/comunidade-coordenador')}
+              className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800"
+            >
+              Ir para Comunidade →
+            </button>
           </div>
         </div>
       </div>
