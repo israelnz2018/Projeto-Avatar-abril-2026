@@ -250,6 +250,8 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'empresaId',
         'consultorId',
+        'nomeEmpresa',
+        'logoUrl',
         'pptFonte',
         'pptCapaUrl',
         'pptInternaUrl',
@@ -257,6 +259,8 @@ service cloud.firestore {
       ]) &&
       request.resource.data.empresaId == empresaId &&
       request.resource.data.consultorId == meuConsultorId() &&
+      (!('nomeEmpresa' in request.resource.data) || request.resource.data.nomeEmpresa is string) &&
+      (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == null || request.resource.data.logoUrl is string) &&
       request.resource.data.pptFonte in ['consultor', 'proprio'] &&
       (
         request.resource.data.pptFonte == 'consultor' ||
