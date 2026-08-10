@@ -99,14 +99,23 @@ export async function autorAtual(): Promise<Autor> {
   // Tenta pegar o nome do doc users/{uid}; cai pro displayName/email.
   let nome = u.displayName || '';
   let fotoDoc: string | null = null;
+  let tipoUsuario = '';
   try {
     const snap = await getDoc(doc(db, 'users', u.uid));
     if (snap.exists()) {
       const d = snap.data() as any;
       if (d.nome) nome = d.nome;
       if (d.fotoUrl) fotoDoc = d.fotoUrl;
+      if (d.tipoUsuario) tipoUsuario = d.tipoUsuario;
     }
   } catch { /* silencioso */ }
+  if (!fotoDoc && tipoUsuario === 'consultor') {
+    try {
+      const consultorSnap = await getDoc(doc(db, 'consultores', resolveConsultorId()));
+      const fotoConsultor = consultorSnap.exists() ? (consultorSnap.data() as any)?.branding?.fotoUrl : null;
+      if (fotoConsultor) fotoDoc = fotoConsultor;
+    } catch { /* silencioso */ }
+  }
   if (!nome) nome = u.email?.split('@')[0] || 'Aluno';
   const email = u.email || '';
   return {

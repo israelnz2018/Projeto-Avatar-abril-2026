@@ -68,10 +68,11 @@ function tempoRelativo(ts: any): string {
 }
 
 // ===== Avatar =====
-function Avatar({ autor, size = 38 }: { autor: Autor; size?: number }) {
+function Avatar({ autor, size = 38, fallbackPhotoUrl = '' }: { autor: Autor; size?: number; fallbackPhotoUrl?: string }) {
   const nome = autor.nome || autor.email || 'Aluno';
-  if (autor.photoURL) {
-    return <img src={autor.photoURL} alt={nome} className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
+  const photoURL = autor.photoURL || fallbackPhotoUrl;
+  if (photoURL) {
+    return <img src={photoURL} alt={nome} className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
   }
   return (
     <div
@@ -317,10 +318,11 @@ function ReplyComposer({ mencionaveis, onSubmit }: {
 }
 
 // ===== Thread de um post =====
-function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
+function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesLoaded }: {
   post: CommunityPost;
   meUid: string;
   meIsAdmin: boolean;
+  mePhotoUrl: string;
   mencionaveis: Autor[];
   onRepliesLoaded: (postId: string, replies: CommunityReply[]) => void;
 }) {
@@ -336,6 +338,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   const cfg = TIPO_CFG[post.tipo];
   const TipoIcon = cfg.icon;
   const souAutor = post.autor?.uid === meUid;
+  const fotoDoAutorAtual = (autor?: Autor) => autor?.uid === meUid ? mePhotoUrl : '';
   const likes = post.likes || [];
   const jaCurti = likes.includes(meUid);
 
@@ -367,7 +370,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
       {/* Cabeçalho do post */}
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <Avatar autor={post.autor} />
+          <Avatar autor={post.autor} fallbackPhotoUrl={fotoDoAutorAtual(post.autor)} />
           <div className="flex-1 min-w-0">
             {/* Título (se houver) — escondido no modo edição */}
             {post.titulo && !editando && (
@@ -566,7 +569,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
           className="w-full text-left border-t border-gray-100 bg-gray-50/60 px-4 py-3 hover:bg-gray-100 transition cursor-pointer border-x-0 border-b-0"
         >
           <div className="flex items-start gap-2.5">
-            <Avatar autor={replies[0].autor} size={26} />
+            <Avatar autor={replies[0].autor} size={26} fallbackPhotoUrl={fotoDoAutorAtual(replies[0].autor)} />
             <div className="min-w-0 flex-1">
               <span className="text-[12px] font-bold text-gray-700">{replies[0].autor?.nome}</span>
               <span className="text-[13px] text-gray-500 ml-1.5">
@@ -588,7 +591,7 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
         <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-3">
           {replies.map((r, ri) => (
             <div key={r.id} className="flex items-start gap-2.5">
-              <Avatar autor={r.autor} size={30} />
+              <Avatar autor={r.autor} size={30} fallbackPhotoUrl={fotoDoAutorAtual(r.autor)} />
               <div className="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl px-3 py-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[12px] font-black text-gray-800">{r.autor?.nome || r.autor?.email}</span>
@@ -835,6 +838,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   // Escopo do time: admin/consultor escolhem a empresa; coordenador/aluno usam a própria.
   const { isAdmin, isConsultor, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
+  const mePhotoUrl = consultor.branding?.fotoUrl || auth.currentUser?.photoURL || '';
   const cid = resolveConsultorId();
   const podeEscolherEmpresa = escopo === 'time' && (isAdmin || isConsultor);
   const [empresas, setEmpresas] = useState<{ empresaId: string; nome: string }[]>([]);
@@ -1056,6 +1060,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
                   post={post}
                   meUid={meUid}
                   meIsAdmin={meIsAdmin}
+                  mePhotoUrl={mePhotoUrl}
                   mencionaveis={mencionaveis}
                   onRepliesLoaded={onRepliesLoaded}
                 />
@@ -1075,6 +1080,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
                   post={post}
                   meUid={meUid}
                   meIsAdmin={meIsAdmin}
+                  mePhotoUrl={mePhotoUrl}
                   mencionaveis={mencionaveis}
                   onRepliesLoaded={onRepliesLoaded}
                 />
