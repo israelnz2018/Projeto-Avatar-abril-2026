@@ -76,6 +76,7 @@ export default function MinhaMarca() {
               pptCapaUrl: pptCapaUrl.trim(),
               pptInternaUrl: pptInternaUrl.trim(),
             },
+            'onboarding.marca': true,
           },
           { merge: true }
         );

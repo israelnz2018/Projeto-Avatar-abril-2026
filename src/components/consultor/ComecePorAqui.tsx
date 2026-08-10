@@ -5,13 +5,15 @@
  * O item "Comunidade" é diferente: edita e publica o texto de boas-vindas ali
  * mesmo, sem precisar navegar pra outro lugar.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { CheckCircle2, Circle, Rocket } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
+import { getAllQuizzes } from '../../services/quizService';
+import { getInitiatives } from '../../services/configService';
 
 const MODELO_BOAS_VINDAS = `Seja bem-vindo(a) à nossa comunidade! 🎉
 
@@ -92,11 +94,92 @@ export default function ComecePorAqui() {
   const [boasVindas, setBoasVindas] = useState(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
   const [publicando, setPublicando] = useState(false);
   const [msg, setMsg] = useState('');
+  const [autoChecks, setAutoChecks] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarChecksAutomaticos() {
+      try {
+        const [cursos, quizzes, usersSnap, opiniaoSnap] = await Promise.all([
+          getInitiatives().catch(() => []),
+          getAllQuizzes(consultorId).catch(() => []),
+          getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))).catch(() => null),
+          getDoc(doc(db, 'config', consultorId === 'israel' ? 'opiniaoItens' : `opiniaoItens_${consultorId}`)).catch(() => null),
+        ]);
+
+        const cursosComProjeto = cursos.filter((curso: any) => curso.temProjeto !== false);
+        const fases = await Promise.all(
+          cursosComProjeto.map((curso: any) =>
+            getDocs(query(collection(db, 'initiative_configs'), where('initiativeId', '==', curso.id))).catch(() => null)
+          )
+        );
+        const temFaseConfigurada = fases.some((snap) =>
+          snap?.docs.some((d) => {
+            const data = d.data() as any;
+            return ((data.consultorId || 'israel') === consultorId) && Array.isArray(data.toolIds) && data.toolIds.length > 0;
+          })
+        );
+
+        const usuarios = usersSnap?.docs.map((d) => d.data() as any) || [];
+        const temClienteOuAluno = usuarios.some((u) => (
+          u.tipoUsuario === 'coordenador' ||
+          (u.tipoUsuario !== 'admin' && u.tipoUsuario !== 'consultor')
+        ));
+        const temProvaConfigurada = quizzes.some((quiz: any) => Array.isArray(quiz.questions) && quiz.questions.length > 0);
+        const depoimentoConfigurado = consultor.depoimentoPreProvaAtivo !== undefined || !!opiniaoSnap?.exists();
+        const certificado = consultor.certificado;
+        const certificadoConfigurado = !!(
+          certificado?.atualizadoEm ||
+          certificado?.versao ||
+          certificado?.fundoUrl ||
+          certificado?.assinaturaUrl ||
+          certificado?.instituicao ||
+          certificado?.emissorNome ||
+          certificado?.emissorCargo ||
+          certificado?.textoRodape
+        );
+
+        if (!ativo) return;
+        setAutoChecks({
+          cursos: cursos.length > 0,
+          fases: temFaseConfigurada,
+          prova: temProvaConfigurada,
+          certificado: certificadoConfigurado,
+          depoimento: depoimentoConfigurado,
+          coordenadores: temClienteOuAluno,
+          comunidade: !!consultor.comunidadeBoasVindas?.trim(),
+        });
+      } catch {
+        if (ativo) setAutoChecks({});
+      }
+    }
+
+    carregarChecksAutomaticos();
+    return () => { ativo = false; };
+  }, [consultorId, consultor.certificado, consultor.comunidadeBoasVindas, consultor.depoimentoPreProvaAtivo]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
   if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor vê essa página.</div>;
 
-  const marcado = (id: string) => !!consultor.onboarding?.[id];
+  const marcaConfigurada = () => {
+    const b = consultor.branding;
+    return !!(
+      b.nome?.trim()
+      || b.slogan?.trim()
+      || b.logoUrl?.trim()
+      || b.fotoUrl?.trim()
+      || b.pptCapaUrl?.trim()
+      || b.pptInternaUrl?.trim()
+      || consultor.mentorNome?.trim()
+    );
+  };
+
+  const marcado = (id: string) => (
+    id === 'marca'
+      ? !!consultor.onboarding?.[id] || marcaConfigurada()
+      : !!consultor.onboarding?.[id] || !!autoChecks[id]
+  );
 
   async function alternar(id: string) {
     const novo = !marcado(id);
