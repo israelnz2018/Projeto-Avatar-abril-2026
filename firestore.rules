@@ -252,6 +252,8 @@ service cloud.firestore {
         'consultorId',
         'nomeEmpresa',
         'logoUrl',
+        'siglaPpt',
+        'coresPpt',
         'pptFonte',
         'pptCapaUrl',
         'pptInternaUrl',
@@ -261,6 +263,8 @@ service cloud.firestore {
       request.resource.data.consultorId == meuConsultorId() &&
       (!('nomeEmpresa' in request.resource.data) || request.resource.data.nomeEmpresa is string) &&
       (!('logoUrl' in request.resource.data) || request.resource.data.logoUrl == null || request.resource.data.logoUrl is string) &&
+      (!('siglaPpt' in request.resource.data) || request.resource.data.siglaPpt is string) &&
+      (!('coresPpt' in request.resource.data) || request.resource.data.coresPpt is map) &&
       request.resource.data.pptFonte in ['consultor', 'proprio'] &&
       (
         request.resource.data.pptFonte == 'consultor' ||

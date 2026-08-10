@@ -5,7 +5,7 @@
  * Regras de tamanho/formato (protege o Storage e o carregamento do app):
  *  - foto  → JPEG, máx 512px  (é retrato; JPEG comprime bem)
  *  - logo  → PNG, máx 600px   (PRESERVA transparência — logo não pode virar JPEG)
- *  - ppt   → aceita PNG/JPG/SVG ou PPT/PPTX. Imagens são otimizadas; PPT/PPTX sobe bruto.
+ *  - ppt   → aceita PNG/JPG/SVG ou PPTX. Imagens são otimizadas; PPTX sobe bruto.
  *
  * Caminho no Storage: community_uploads/{uid}/branding-{tipo}-{stamp}
  * (reusa a regra JÁ deployada de community_uploads — sem mexer no storage.rules).
@@ -64,21 +64,20 @@ export async function uploadBrandingImage(file: File, tipo: BrandingAsset): Prom
   if (!u) throw new Error('Você precisa estar logado.');
   const isPptAsset = tipo === 'ppt-capa' || tipo === 'ppt-interna';
   const extOriginal = (file.name.split('.').pop() || '').toLowerCase();
-  const isPowerPoint = ['ppt', 'pptx'].includes(extOriginal)
-    || file.type === 'application/vnd.ms-powerpoint'
+  const isPowerPoint = extOriginal === 'pptx'
     || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
   if (isPptAsset && isPowerPoint) {
     if (file.size > MAX_PPT_BYTES) throw new Error('Arquivo PowerPoint muito grande (máx. 30 MB). Reduza e tente de novo.');
-    const contentType = file.type || (extOriginal === 'ppt' ? 'application/vnd.ms-powerpoint' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-    const caminho = `community_uploads/${u.uid}/branding-${tipo}.${extOriginal || 'pptx'}`;
+    const contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    const caminho = `community_uploads/${u.uid}/branding-${tipo}.pptx`;
     const sref = storageRef(storage, caminho);
     await uploadBytes(sref, file, { contentType });
     return getDownloadURL(sref);
   }
 
   if (!(file.type || '').startsWith('image/')) {
-    throw new Error(isPptAsset ? 'Envie uma imagem (PNG, JPG…) ou um PowerPoint (.ppt/.pptx).' : 'Envie um arquivo de imagem (PNG, JPG…).');
+    throw new Error(isPptAsset ? 'Envie uma imagem (PNG, JPG...) ou um PowerPoint (.pptx).' : 'Envie um arquivo de imagem (PNG, JPG...).');
   }
   if (file.size > MAX_ORIGEM_BYTES) throw new Error('Imagem muito grande (máx. 6 MB). Reduza e tente de novo.');
 
