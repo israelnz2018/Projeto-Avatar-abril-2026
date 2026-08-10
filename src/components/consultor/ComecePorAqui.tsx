@@ -12,7 +12,6 @@ import { CheckCircle2, Circle, Rocket } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { getAllQuizzes } from '../../services/quizService';
 import { getInitiatives } from '../../services/configService';
 
 const MODELO_BOAS_VINDAS = `Seja bem-vindo(a) à nossa comunidade! 🎉
@@ -101,9 +100,8 @@ export default function ComecePorAqui() {
 
     async function carregarChecksAutomaticos() {
       try {
-        const [cursos, quizzes, usersSnap, opiniaoSnap] = await Promise.all([
+        const [cursos, usersSnap, opiniaoSnap] = await Promise.all([
           getInitiatives().catch(() => []),
-          getAllQuizzes(consultorId).catch(() => []),
           getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))).catch(() => null),
           getDoc(doc(db, 'config', consultorId === 'israel' ? 'opiniaoItens' : `opiniaoItens_${consultorId}`)).catch(() => null),
         ]);
@@ -126,7 +124,18 @@ export default function ComecePorAqui() {
           u.tipoUsuario === 'coordenador' ||
           (u.tipoUsuario !== 'admin' && u.tipoUsuario !== 'consultor')
         ));
-        const temProvaConfigurada = quizzes.some((quiz: any) => Array.isArray(quiz.questions) && quiz.questions.length > 0);
+        const cursoNumero = (nome: string) => Number(nome.match(/\d+/)?.[0] || 0);
+        const quizDocs = await Promise.all(
+          cursos
+            .map((curso: any) => cursoNumero(curso.name || ''))
+            .filter((trilha: number) => trilha > 0)
+            .map((trilha: number) => getDoc(doc(db, 'quizzes', `${consultorId}__${trilha}`)).catch(() => null))
+        );
+        const temProvaConfigurada = quizDocs.some((snap) => {
+          if (!snap?.exists()) return false;
+          const quiz = snap.data() as any;
+          return Array.isArray(quiz.questions) && quiz.questions.length > 0 && quiz.updatedAt;
+        });
         const depoimentoConfigurado = consultor.depoimentoPreProvaAtivo !== undefined || !!opiniaoSnap?.exists();
         const certificado = consultor.certificado;
         const certificadoConfigurado = !!(
