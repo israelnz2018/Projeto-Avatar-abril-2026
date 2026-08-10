@@ -679,9 +679,9 @@ function PostCard({ post, meUid, meIsAdmin, mencionaveis, onRepliesLoaded }: {
   );
 }
 
-// ===== Modal "Nova pergunta" =====
+// ===== Modal "Nova publicacao" =====
 function NovoPostModal({ onClose, espaco }: { onClose: () => void; espaco: EspacoComunidade }) {
-  const [tipo, setTipo] = useState<PostTipo>('duvida');
+  const [tipo, setTipo] = useState<PostTipo>('comentario');
   const [titulo, setTitulo] = useState('');
   const [texto, setTexto] = useState('');
   const [ferramenta, setFerramenta] = useState('');
@@ -736,7 +736,7 @@ function NovoPostModal({ onClose, espaco }: { onClose: () => void; espaco: Espac
           <div>
             <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">Sua mensagem <span className="text-red-500">*</span></label>
             <textarea rows={5} value={texto} onChange={e => setTexto(e.target.value)}
-              placeholder="Escreva sua pergunta, sugestão, comentário ou o bug que encontrou. Quanto mais específico, melhor."
+              placeholder="Escreva seu comentário, sugestão, dúvida ou o bug que encontrou. Quanto mais específico, melhor."
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
@@ -948,7 +948,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
               Comunidade LBW
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2 py-0.5">Versão beta</span>
             </h1>
-            <p className="text-xs text-gray-500 m-0 mt-0.5">Pergunte, ajude, sugira. Todos veem e podem responder.</p>
+            <p className="text-xs text-gray-500 m-0 mt-0.5">Comente, ajude, sugira. Todos veem e podem responder.</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1040,7 +1040,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
       ) : postsFiltrados.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl">
           <Users2 size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500 mb-4">Nenhuma publicação ainda. Seja o primeiro a perguntar!</p>
+          <p className="text-sm text-gray-500 mb-4">Nenhuma publicação ainda. Seja o primeiro a comentar!</p>
           <button onClick={() => setNovoAberto(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest cursor-pointer border-none">
             <Plus size={14} /> Nova publicação
           </button>
