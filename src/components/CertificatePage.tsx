@@ -46,19 +46,19 @@ export function CertificatePage() {
           setCert(c);
           return;
         }
-        // Admin override: gera preview pra testar o visual de cada trilha sem precisar concluir.
+        // Admin override: gera preview pra testar o visual de cada curso sem precisar concluir.
         if (isAdmin) {
           const [inits, userData] = await Promise.all([getInitiatives(), getUserData(uid)]);
           const init = inits.find(i => i.id === initiativeId);
           if (!init) {
-            setErro('Trilha não encontrada.');
+            setErro('Curso não encontrado.');
             return;
           }
           setPreviewInitiative(init);
           setPreviewNome(userData?.nome || auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Admin');
           return;
         }
-        setErro('Você ainda não concluiu esta trilha. Volte ao Dashboard pra ver seu progresso.');
+        setErro('Você ainda não concluiu este curso. Volte ao Dashboard pra ver seu progresso.');
       } catch (err) {
         console.error('[CertificatePage]', err);
         setErro('Erro ao carregar certificado.');

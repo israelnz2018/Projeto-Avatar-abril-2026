@@ -57,7 +57,7 @@ export default function OpinioesAdminView() {
   );
 
   const exportCSV = () => {
-    const rows = [['Data', 'Nome', 'Email', 'Trilha', 'Média', 'Autoriza', 'Comentário',
+    const rows = [['Data', 'Nome', 'Email', 'Curso', 'Média', 'Autoriza', 'Comentário',
       ...(filtradas[0]?.notas || []).map((n) => n.item)]];
     for (const o of filtradas) {
       rows.push([
@@ -136,8 +136,8 @@ export default function OpinioesAdminView() {
             <Filter size={16} className="text-gray-400" />
             <select value={filtroTrilha} onChange={(e) => setFiltroTrilha(e.target.value === 'todas' ? 'todas' : Number(e.target.value))}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
-              <option value="todas">Todas as trilhas</option>
-              {trilhasDisponiveis.map((t) => <option key={t} value={t}>Trilha {t}</option>)}
+              <option value="todas">Todos os cursos</option>
+              {trilhasDisponiveis.map((t) => <option key={t} value={t}>Curso {t}</option>)}
             </select>
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
               <input type="checkbox" checked={soAutorizados} onChange={(e) => setSoAutorizados(e.target.checked)}
@@ -155,7 +155,7 @@ export default function OpinioesAdminView() {
                     <p className="font-bold text-gray-900">{o.alunoNome}
                       <span className="text-xs font-normal text-gray-400 ml-2">{o.alunoEmail}</span>
                     </p>
-                    <p className="text-xs text-gray-400">Trilha {o.trilha} · {o.trilhaTitulo} · {new Date(o.criadoEm).toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs text-gray-400">Curso {o.trilha} · {o.trilhaTitulo} · {new Date(o.criadoEm).toLocaleDateString('pt-BR')}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Stars value={o.mediaNota} />

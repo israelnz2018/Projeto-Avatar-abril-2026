@@ -2,7 +2,7 @@
  * MenuTour — tour da aba Projetos. Dois modos de passo:
  *
  *  A) Passo "na tela real": destaca (spotlight) um elemento da página viva via
- *     `selector` (data-tour-id). Usado pra Projetos ativos e lista de trilhas.
+ *     `selector` (data-tour-id). Usado pra Projetos ativos e lista de cursos.
  *
  *  B) Passo "na imagem": mostra a imagem da tela de dentro do projeto em GRANDE
  *     (quase tela cheia) e destaca uma REGIÃO dela via `region` (coordenadas em %
@@ -36,8 +36,8 @@ const STEPS: MenuTourStep[] = [
   },
   {
     selector: '[data-tour-id="proj-trilhas"]',
-    title: 'Escolha uma trilha',
-    description: 'Estas são as trilhas disponíveis — cada uma resolve um tipo de problema. Clique na que combina com o que você quer melhorar pra criar um novo projeto.',
+    title: 'Escolha um curso',
+    description: 'Estes são os cursos disponíveis. Clique no curso que combina com o que você quer melhorar pra criar um novo projeto.',
   },
   // --- Modo B: imagem grande da tela de dentro do projeto, com 3 regiões ---
   {

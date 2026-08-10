@@ -574,9 +574,9 @@ export default function ChatAssistant() {
       return `- "${i.name}"${desc}`;
     }).join('\n');
     return (
-      `TRILHAS REAIS DA PLATAFORMA LBW (use SEMPRE o nome exato da lista abaixo, NUNCA invente nome novo):\n` +
+      `CURSOS REAIS DA PLATAFORMA LBW (use SEMPRE o nome exato da lista abaixo, NUNCA invente nome novo):\n` +
       `${linhas}\n\n` +
-      `Ao recomendar, escreva entre aspas o nome EXATO da trilha tal como aparece acima.`
+      `Ao recomendar, escreva entre aspas o nome EXATO do curso tal como aparece acima.`
     );
   };
 
@@ -771,7 +771,7 @@ export default function ChatAssistant() {
                     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                       transition={{ delay: 0.4 }}
                       className="text-center text-[12px] text-stone-500 mt-1 mb-2 max-w-3xl mx-auto w-full">
-                      Escolha uma trilha acima para começar a conversar com o Israel.
+                      Escolha um curso acima para começar a conversar com o Israel.
                     </motion.p>
                   </>
                 )}
@@ -909,7 +909,7 @@ export default function ChatAssistant() {
                           </motion.button>
                         </div>
                         <p className="text-[11px] text-stone-500 leading-snug mt-2 px-1">
-                          Use este campo para <strong>perguntas gerais sobre esta trilha</strong>. Para dúvidas específicas
+                          Use este campo para <strong>perguntas gerais sobre este curso</strong>. Para dúvidas específicas
                           (por exemplo, sobre uma ferramenta), use o <strong>Agente Israel Digital</strong> dentro do seu projeto — a resposta será mais precisa.
                         </p>
                       </div>

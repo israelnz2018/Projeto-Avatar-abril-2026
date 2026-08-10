@@ -152,10 +152,10 @@ export default function AvaliacaoView() {
         <h1 className="text-2xl font-bold text-gray-900">Teste de Avaliação e Certificado</h1>
       </div>
       <p className="text-gray-500 mb-8">
-        Complete os vídeos de cada trilha, faça a avaliação e conquiste seu certificado.
+        Complete os vídeos de cada curso, faça a avaliação e conquiste seu certificado.
         {plano !== 'completo' && !isAdmin && (
           <span className="block mt-1 text-amber-600 font-semibold">
-            No plano introdutório, apenas a Trilha 1 está disponível.
+            No plano introdutório, apenas o curso introdutório está disponível.
           </span>
         )}
       </p>
@@ -196,7 +196,7 @@ export default function AvaliacaoView() {
             alunoEmail={auth.currentUser?.email || ''}
             trilha={opiniaoTrilha}
             trilhaTitulo={blocos.find((b) => b.quiz.trilha === opiniaoTrilha)?.initiative?.name || quiz.titulo}
-            /* Trilha 1 do aluno gratuito: depoimento obrigatório, sem opção de pular. */
+            /* Curso introdutório do aluno gratuito: depoimento obrigatório, sem opção de pular. */
             obrigatorioSemSaida={opiniaoTrilha === 1 && plano !== 'completo' && !isAdmin}
             onCancel={() => setOpiniaoTrilha(null)}
             onDone={() => { const t = opiniaoTrilha; setOpiniaoTrilha(null); setActiveQuizTrilha(t); }}
@@ -208,7 +208,7 @@ export default function AvaliacaoView() {
 }
 
 // ===================================================================================
-// Card de cada trilha
+// Card de cada curso
 // ===================================================================================
 function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
   bloco: BlocoState; index: number; certAluno: string; onStart: () => void; showCongrats: boolean;

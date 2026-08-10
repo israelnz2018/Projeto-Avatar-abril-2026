@@ -1,7 +1,7 @@
 /**
  * OpiniaoModal — pop-up de depoimento OBRIGATÓRIO (e educado) antes da prova.
  *
- * Mostra: nome do aluno, a trilha que está concluindo, uma lista de itens com
+ * Mostra: nome do aluno, o curso que está concluindo, uma lista de itens com
  * rating 1-5 estrelas cada, um campo de comentário e um checkbox de autorização
  * para divulgar nas redes. Só libera a prova depois de todas as notas preenchidas.
  */
@@ -108,14 +108,14 @@ export default function OpiniaoModal({
           </div>
           <h2 className="text-xl font-bold text-gray-900">Antes de começar, {alunoNome.split(' ')[0]} 💙</h2>
           <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-            Você está concluindo a trilha <b style={{ color: LBW.navy }}>{trilhaTitulo}</b>.
+            Você está concluindo o curso <b style={{ color: LBW.navy }}>{trilhaTitulo}</b>.
             Sua opinião sincera nos ajuda muito a melhorar. Leva menos de 1 minuto — e é o que
             nos permite continuar evoluindo por você.
           </p>
           {obrigatorioSemSaida && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-3 leading-relaxed">
               Antes de seguir para a prova, pedimos com todo o carinho que compartilhe sua
-              avaliação desta primeira trilha. É a nossa forma de continuar evoluindo e
+              avaliação deste primeiro curso. É a nossa forma de continuar evoluindo e
               oferecendo conteúdo de qualidade. 💙
             </p>
           )}

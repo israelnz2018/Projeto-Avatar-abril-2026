@@ -369,7 +369,7 @@ export default function ProjectToolsConfig() {
       setInitiatives(initiatives.map(i => i.id === updated.id ? updated : i));
       setIsEditingInitiative(false);
       if (renomeou) {
-        toast.success("Trilha renomeada e vídeos vinculados atualizados.");
+        toast.success("Curso renomeado e vídeos vinculados atualizados.");
       } else {
         toast.success("Iniciativa atualizada com sucesso!");
       }
@@ -594,13 +594,13 @@ export default function ProjectToolsConfig() {
                   }}
                   className="min-w-[280px] flex-1 p-3 border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
-                  <option value="">{ehIsrael ? 'Selecione uma trilha para configurar...' : 'Escolha ou crie o seu curso...'}</option>
+                  <option value="">Selecione um curso para configurar...</option>
                   {initiatives
                     .slice()
                     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-                    .map((trilha) => (
-                      <option key={trilha.id} value={trilha.id}>
-                        {trilha.name}
+                    .map((curso) => (
+                      <option key={curso.id} value={curso.id}>
+                        {curso.name}
                       </option>
                     ))}
                 </select>
@@ -680,7 +680,7 @@ export default function ProjectToolsConfig() {
               >
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
-                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">{ehIsrael ? 'Nome da Nova Trilha' : 'Nome do Novo Curso'}</label>
+                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Nome do Novo Curso</label>
                     <input
                       autoFocus
                       type="text"
@@ -725,7 +725,7 @@ export default function ProjectToolsConfig() {
                       className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm font-bold text-blue-700">
-                      Trilha 1 (acessível para todos os alunos)
+                      Curso introdutório (acessível para todos os alunos)
                     </span>
                   </label>
                 </div>}

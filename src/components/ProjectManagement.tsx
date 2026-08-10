@@ -157,7 +157,7 @@ function HeroInitiativeCard({ initiative, variant, icon: Icon, index, isSelected
       {/* Rodapé com seta */}
       <div className="relative flex items-center justify-between">
         <span className="text-[12px] font-medium" style={{ color: beganColor }}>
-          {isSelected ? 'Escolha sua trilha →' : 'Começar'}
+          {isSelected ? 'Escolha seu curso →' : 'Começar'}
         </span>
         <motion.div
           className="w-9 h-9 rounded-full flex items-center justify-center"
@@ -701,7 +701,7 @@ export default function ProjectManagement() {
                       style={{ color: LBW.navy, letterSpacing: '-0.02em' }}
                     >
                       {selectedParentInitiativeId ? (
-                        <>Escolha sua <span style={{ color: LBW.blue }}>trilha</span></>
+                        <>Escolha seu <span style={{ color: LBW.blue }}>curso</span></>
                       ) : (
                         <>O que vamos <span style={{ color: LBW.blue }}>melhorar</span> hoje?</>
                       )}
@@ -714,12 +714,12 @@ export default function ProjectManagement() {
                       style={{ color: '#52596B' }}
                     >
                       {selectedParentInitiativeId
-                        ? 'Selecione uma trilha para criar o projeto'
+                        ? 'Selecione um curso para criar o projeto'
                         : 'Selecione uma iniciativa para iniciar sua jornada'}
                     </motion.p>
                   </div>
 
-                  {/* Lista de trilhas — clique abre o popup direto */}
+                  {/* Lista de cursos — clique abre o popup direto */}
                   <div className="space-y-2 mb-2" data-tour-id="proj-trilhas">
                     {initiatives.filter(i => !i.parentId).filter(i => i.temProjeto !== false).length === 0 && (
                       <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center">
@@ -775,7 +775,7 @@ export default function ProjectManagement() {
                               className={`absolute -left-8 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-gradient-to-br ${visual.gradient} opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-300`}
                             />
 
-                            {/* Ícone único da trilha */}
+                            {/* Ícone único do curso */}
                             <div
                               className={`relative z-10 w-12 h-12 rounded-xl flex items-center justify-center text-white shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 bg-gradient-to-br ${visual.gradient}`}
                               style={{ boxShadow: `0 8px 16px -6px ${visual.borderColor}55` }}
@@ -801,7 +801,7 @@ export default function ProjectManagement() {
                       })}
                   </div>
 
-                  {/* Painel de sub-iniciativas (trilhas) - desce abaixo dos cards */}
+                  {/* Painel de sub-iniciativas (cursos) - desce abaixo dos cards */}
                   <AnimatePresence mode="wait">
                     {selectedParentInitiativeId && initiatives.filter(i => i.parentId === selectedParentInitiativeId).length > 0 && (
                       <motion.div
@@ -838,11 +838,11 @@ export default function ProjectManagement() {
                             <div className="flex items-center gap-2 mb-3">
                               <div className="w-[3px] h-[14px] rounded-full" style={{ background: LBW.blue }} />
                               <div className="text-[10px] font-bold tracking-[0.14em] uppercase" style={{ color: LBW.navy }}>
-                                Trilhas Disponíveis
+                                Cursos Disponíveis
                               </div>
                               <div className="flex-1 h-px bg-blue-100" />
                               <div className="text-[10px] font-semibold" style={{ color: '#6B7180' }}>
-                                {children.length} {children.length === 1 ? 'trilha' : 'trilhas'}
+                                {children.length} {children.length === 1 ? 'curso' : 'cursos'}
                               </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

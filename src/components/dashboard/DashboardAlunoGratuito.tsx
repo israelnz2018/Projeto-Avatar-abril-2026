@@ -78,9 +78,9 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
         </h1>
         <p className="text-white/55 text-sm md:text-base max-w-2xl m-0 mb-6">
           {trilhaAtual ? (
-            <>Você está em <span className="text-white font-bold">{trilhaAtual.name}</span>. Bora avançar?</>
+            <>Você está no curso <span className="text-white font-bold">{trilhaAtual.name}</span>. Bora avançar?</>
           ) : (
-            <>Você ainda não tem uma trilha ativa.</>
+            <>Você ainda não tem um curso ativo.</>
           )}
         </p>
 
@@ -88,7 +88,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
           <div className="max-w-2xl">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] font-black tracking-[0.25em] uppercase text-white/50 m-0">
-                Progresso na trilha
+                Progresso no curso
               </p>
               <p className="text-[11px] font-bold text-white/70 m-0">
                 {ferramentasFeitas} de {ferramentasTotais} ferramentas
@@ -151,7 +151,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
           transition={{ delay: 0.25, duration: 0.5 }}
           className="mb-10"
         >
-          <SectionLabel>Sua trilha agora</SectionLabel>
+          <SectionLabel>Seu curso agora</SectionLabel>
           <div
             className="relative rounded-2xl overflow-hidden p-6 md:p-8"
             style={{
@@ -164,7 +164,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
             <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
-                  <Pill tone="info">trilha {totalAcessiveis > 1 ? `1 de ${totalAcessiveis}` : 'ativa'}</Pill>
+                  <Pill tone="info">curso {totalAcessiveis > 1 ? `1 de ${totalAcessiveis}` : 'ativo'}</Pill>
                   {trilhaAtual.description && (
                     <span className="text-[10px] text-white/45 font-bold tracking-wider uppercase">{trilhaAtual.description.slice(0, 40)}</span>
                   )}
@@ -216,10 +216,10 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
                     Plano Completo
                   </p>
                   <h3 className="text-white font-black text-[1.2rem] md:text-[1.4rem] m-0 leading-tight">
-                    Desbloqueie {bloqueadas} {bloqueadas === 1 ? 'trilha' : 'trilhas'} a mais
+                    Desbloqueie {bloqueadas} {bloqueadas === 1 ? 'curso' : 'cursos'} a mais
                   </h3>
                   <p className="text-white/70 text-sm mt-1.5 m-0">
-                    Você está em {totalAcessiveis} de {totalGeral} trilhas. A próxima camada técnica espera.
+                    Você está em {totalAcessiveis} de {totalGeral} cursos. A próxima camada técnica espera.
                   </p>
                 </div>
               </div>
@@ -238,7 +238,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
         </motion.div>
       )}
 
-      {/* ====== Progresso de vídeos por trilha (apenas trilhas acessíveis ao Starter) ====== */}
+      {/* ====== Progresso de vídeos por curso (apenas cursos acessíveis ao Starter) ====== */}
       <VideoProgressSection accessibleInitiatives={scope.data.initiatives} />
     </DashboardShell>
   );

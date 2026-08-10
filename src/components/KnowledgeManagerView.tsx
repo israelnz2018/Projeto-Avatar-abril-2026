@@ -1250,11 +1250,11 @@ export default function KnowledgeManagerView() {
   const handleReconcile = async (orfao: string) => {
     const destino = reconcileTarget[orfao];
     if (!destino) {
-      alert('Selecione a trilha de destino antes de reconciliar.');
+      alert('Selecione o curso de destino antes de reconciliar.');
       return;
     }
     if (destino === orfao) {
-      alert('A trilha de destino tem o mesmo nome atual. Nada a fazer.');
+      alert('O curso de destino tem o mesmo nome atual. Nada a fazer.');
       return;
     }
     const qtd = items.filter(v => v.course === orfao).length;
@@ -1275,7 +1275,7 @@ export default function KnowledgeManagerView() {
         return rest;
       });
       await fetchItems();
-      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's' : ''} atualizado${qtd > 1 ? 's' : ''} para a trilha "${destino}".`);
+      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's' : ''} atualizado${qtd > 1 ? 's' : ''} para o curso "${destino}".`);
     } catch (e) {
       console.error('[Reconcile] Falha:', e);
       alert('Falha ao reconciliar: ' + (e as Error).message);
@@ -1405,7 +1405,7 @@ export default function KnowledgeManagerView() {
       {/* ───────────────────────────────────────────────────────────────────
           BANNER DE RECONCILIAÇÃO DE NOMES ANTIGOS DE CURSO
           Aparece quando há vídeos vinculados a nomes de curso que não
-          existem mais como trilha no /config (geralmente após renomeação).
+          existem mais como curso no /config (geralmente após renomeação).
           ─────────────────────────────────────────────────────────────────── */}
       {orfaosComContagem.length > 0 && (
         <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-5">
@@ -1416,8 +1416,8 @@ export default function KnowledgeManagerView() {
                 {orfaosComContagem.length} nome{orfaosComContagem.length > 1 ? 's' : ''} antigo{orfaosComContagem.length > 1 ? 's' : ''} de curso detectado{orfaosComContagem.length > 1 ? 's' : ''}
               </h3>
               <p className="text-xs text-yellow-800 mt-1 mb-4 m-0 leading-relaxed">
-                Estes nomes aparecem nos vídeos do Firestore, mas não batem com nenhuma trilha atual do <code className="bg-yellow-100 px-1 rounded">/config</code>.
-                Isso não deleta curso nem projeto: escolha a trilha correta e clique em <strong>ATUALIZAR VÍNCULO</strong> para corrigir somente o campo de curso dos vídeos.
+                Estes nomes aparecem nos vídeos do Firestore, mas não batem com nenhum curso atual do <code className="bg-yellow-100 px-1 rounded">/config</code>.
+                Isso não deleta curso nem projeto: escolha o curso correto e clique em <strong>ATUALIZAR VÍNCULO</strong> para corrigir somente o campo de curso dos vídeos.
               </p>
               <div className="space-y-2">
                 {orfaosComContagem.map(({ nome, qtd }) => (
@@ -1745,7 +1745,7 @@ export default function KnowledgeManagerView() {
                   {/* Toggle "tem projeto?" — decide se o curso vira tipo de projeto na aba Projetos */}
                   {(() => {
                     const ini = initiatives.find((i) => i.name === course.name);
-                    if (!ini) return <span className="text-[11px] text-gray-400 italic ml-1" title="Curso sem trilha de projeto correspondente">sem projeto</span>;
+                    if (!ini) return <span className="text-[11px] text-gray-400 italic ml-1" title="Curso sem projeto correspondente">sem projeto</span>;
                     const temProjeto = ini.temProjeto !== false;
                     return (
                       <button

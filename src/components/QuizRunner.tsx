@@ -79,13 +79,13 @@ export default function QuizRunner({ quiz, onExit, onPassed }: {
           <div className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(0,51,204,.1)' }}>
             <Flag size={30} style={{ color: LBW.blue }} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Avaliacao da Trilha {quiz.trilha}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Avaliacao do curso</h2>
           <p className="text-gray-500 mb-6">{quiz.titulo}</p>
           <div className="text-left bg-gray-50 rounded-xl p-5 mb-6 space-y-2 text-sm text-gray-600">
             <p>✓ <b>{total} questoes</b> de multipla escolha</p>
             <p>✓ Voce precisa acertar <b>{Math.round(quiz.passPct * 100)}%</b> para ser aprovado</p>
             <p>✓ Pode navegar entre as questoes e revisar antes de enviar</p>
-            <p>✓ Limite de <b>3 tentativas por trilha a cada 24h</b></p>
+            <p>✓ Limite de <b>3 tentativas por curso a cada 24h</b></p>
             <p>✓ Ao ser aprovado, seu <b>certificado</b> e gerado automaticamente</p>
           </div>
           <button onClick={() => setPhase('running')} className="w-full py-3 rounded-xl text-white font-bold transition-transform hover:scale-[1.02]" style={{ background: LBW.blue }}>

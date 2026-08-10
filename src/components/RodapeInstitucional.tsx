@@ -31,7 +31,7 @@ export default function RodapeInstitucional() {
           </p>
         </div>
         <div>
-          <div style={tituloCol}>Trilhas</div>
+          <div style={tituloCol}>Cursos</div>
           <div style={{ fontSize: 13, color: TXT2, lineHeight: 2 }}>
             01 · Como Resolver Problemas no Trabalho<br/>
             02 · Como Recomendar Melhorias com Base em Análise de Dados<br/>
