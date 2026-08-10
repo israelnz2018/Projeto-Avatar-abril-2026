@@ -28,6 +28,7 @@ export const CONSULTOR_PADRAO: Consultor = {
   branding: {
     nome: 'Learning by Working — Educação pelo Trabalho',
     sigla: 'LBW',
+    slogan: 'Educação pelo Trabalho',
     logoUrl: 'https://i.postimg.cc/7PgJFtZK/logo-LBW.png',
     cores: {
       navy: '#1E2D6E',

@@ -230,7 +230,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           {isSidebarOpen && (
             <Link to="/" className="flex flex-col items-center gap-2 flex-1 min-w-0 no-underline" title="Ir para a página principal">
               <img src={consultor.branding.logoUrl || CONSULTOR_PADRAO.branding.logoUrl} alt="Logo" className="h-10 w-auto" />
-              <span className="font-bold text-sm whitespace-nowrap text-center text-white">Educação pelo Trabalho</span>
+              <span className="font-bold text-sm whitespace-nowrap text-center text-white">
+                {consultor.branding.slogan?.trim() || CONSULTOR_PADRAO.branding.slogan || 'Educação pelo Trabalho'}
+              </span>
             </Link>
           )}
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-700 rounded shrink-0">

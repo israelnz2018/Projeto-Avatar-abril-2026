@@ -41,6 +41,7 @@ export interface Initiative {
 export interface ConsultorBranding {
   nome: string;   // nome/marca exibida
   sigla?: string; // marca curta (até 7 chars) que aparece no cabeçalho dos PPTs
+  slogan?: string; // texto curto exibido junto/abaixo da logo no menu lateral
   fotoUrl?: string; // foto do consultor (aparece no avatar no lugar das iniciais)
   logoUrl: string;
   cores: {

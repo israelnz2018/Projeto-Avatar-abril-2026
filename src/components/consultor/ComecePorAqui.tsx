@@ -37,7 +37,7 @@ const ITENS: Item[] = [
   {
     id: 'marca',
     titulo: 'Sua marca',
-    texto: 'Coloque o nome, a sigla, a logo e as cores da sua plataforma — é isso que os seus alunos veem no dia a dia e nos PPTs exportados.',
+    texto: 'Coloque o nome, o texto da marca, a logo e os modelos de PPT da sua plataforma — é isso que os seus alunos veem no dia a dia.',
     botao: 'Configurar minha marca',
     path: '/configuracao?aba=marca',
   },

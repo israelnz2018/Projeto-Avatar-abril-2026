@@ -1,12 +1,11 @@
 /**
- * brandingUploadService — upload das imagens da marca do consultor (foto, logo,
- * páginas do PPT próprio) pro Firebase Storage, com redimensionamento no browser.
+ * brandingUploadService — upload dos arquivos da marca do consultor (foto, logo,
+ * imagens ou arquivos PPT próprios) pro Firebase Storage.
  *
  * Regras de tamanho/formato (protege o Storage e o carregamento do app):
  *  - foto  → JPEG, máx 512px  (é retrato; JPEG comprime bem)
  *  - logo  → PNG, máx 600px   (PRESERVA transparência — logo não pode virar JPEG)
- *  - ppt   → PNG, máx 1920px  (fundo de slide 16:9; qualidade pra texto)
- * Arquivo de origem é validado em ≤ 6 MB e precisa ser imagem.
+ *  - ppt   → aceita PNG/JPG/SVG ou PPT/PPTX. Imagens são otimizadas; PPT/PPTX sobe bruto.
  *
  * Caminho no Storage: community_uploads/{uid}/branding-{tipo}-{stamp}
  * (reusa a regra JÁ deployada de community_uploads — sem mexer no storage.rules).
@@ -17,6 +16,7 @@ import { auth, storage } from '../lib/firebase';
 export type BrandingAsset = 'foto' | 'logo' | 'ppt-capa' | 'ppt-interna' | 'certificado-fundo' | 'certificado-assinatura';
 
 const MAX_ORIGEM_BYTES = 6 * 1024 * 1024;
+const MAX_PPT_BYTES = 30 * 1024 * 1024;
 
 const CONFIG: Record<BrandingAsset, { max: number; mime: 'image/jpeg' | 'image/png'; q: number }> = {
   'foto':        { max: 512,  mime: 'image/jpeg', q: 0.85 },
@@ -62,7 +62,24 @@ function redimensionar(file: File, max: number, mime: string, q: number): Promis
 export async function uploadBrandingImage(file: File, tipo: BrandingAsset): Promise<string> {
   const u = auth.currentUser;
   if (!u) throw new Error('Você precisa estar logado.');
-  if (!(file.type || '').startsWith('image/')) throw new Error('Envie um arquivo de imagem (PNG, JPG…).');
+  const isPptAsset = tipo === 'ppt-capa' || tipo === 'ppt-interna';
+  const extOriginal = (file.name.split('.').pop() || '').toLowerCase();
+  const isPowerPoint = ['ppt', 'pptx'].includes(extOriginal)
+    || file.type === 'application/vnd.ms-powerpoint'
+    || file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+  if (isPptAsset && isPowerPoint) {
+    if (file.size > MAX_PPT_BYTES) throw new Error('Arquivo PowerPoint muito grande (máx. 30 MB). Reduza e tente de novo.');
+    const contentType = file.type || (extOriginal === 'ppt' ? 'application/vnd.ms-powerpoint' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    const caminho = `community_uploads/${u.uid}/branding-${tipo}.${extOriginal || 'pptx'}`;
+    const sref = storageRef(storage, caminho);
+    await uploadBytes(sref, file, { contentType });
+    return getDownloadURL(sref);
+  }
+
+  if (!(file.type || '').startsWith('image/')) {
+    throw new Error(isPptAsset ? 'Envie uma imagem (PNG, JPG…) ou um PowerPoint (.ppt/.pptx).' : 'Envie um arquivo de imagem (PNG, JPG…).');
+  }
   if (file.size > MAX_ORIGEM_BYTES) throw new Error('Imagem muito grande (máx. 6 MB). Reduza e tente de novo.');
 
   const cfg = CONFIG[tipo];

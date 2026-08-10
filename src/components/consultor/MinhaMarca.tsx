@@ -1,6 +1,6 @@
 /**
  * MinhaMarca — o consultor monta a própria marca: identidade (nome, mentor,
- * sigla, foto, logo) + modelo de PPT (nosso template com 3 cores OU template
+ * foto, logo, texto da marca) + modelo de PPT (nosso template com 3 cores OU template
  * próprio via upload). Salva em consultores/{consultorId} e o app re-veste ao
  * vivo (refresh). Ver PLANO-WHITELABEL.md.
  */
@@ -17,7 +17,7 @@ export default function MinhaMarca() {
   const { isAdmin, isConsultor, loading } = useUserAccess();
 
   const [nome, setNome] = useState('');
-  const [sigla, setSigla] = useState('');
+  const [slogan, setSlogan] = useState('');
   const [mentor, setMentor] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -32,7 +32,7 @@ export default function MinhaMarca() {
   useEffect(() => {
     const b = consultor.branding;
     setNome(b.nome || '');
-    setSigla(b.sigla || '');
+    setSlogan(b.slogan || '');
     setMentor(consultor.mentorNome || '');
     setFotoUrl(b.fotoUrl || '');
     setLogoUrl(b.logoUrl || '');
@@ -68,7 +68,7 @@ export default function MinhaMarca() {
           branding: {
             ...consultor.branding,
             nome: nome.trim(),
-            sigla: sigla.trim().toUpperCase().slice(0, 7),
+            slogan: slogan.trim(),
             fotoUrl: fotoUrl.trim(),
             logoUrl: logoUrl.trim(),
             pptModo: 'proprio',
@@ -110,23 +110,17 @@ export default function MinhaMarca() {
         </div>
 
         <div>
-          <label className={label}>Nome do mentor (o "digital" da IA)</label>
-          <input value={mentor} onChange={(e) => setMentor(e.target.value)} placeholder="Ex.: João Silva" className={campo} />
-          <p className="text-xs text-gray-400 mt-1">É o nome que a IA usa ao se apresentar aos seus alunos.</p>
+          <label className={label}>Texto abaixo da logo</label>
+          <input value={slogan} onChange={(e) => setSlogan(e.target.value)} placeholder="Ex.: Educação pelo Trabalho" className={campo} />
+          <p className="text-xs text-gray-400 mt-1">
+            Aparece no menu lateral, junto da sua logo. Se ficar vazio, usamos o padrão LBW: <b>Educação pelo Trabalho</b>.
+          </p>
         </div>
 
         <div>
-          <label className={label}>Sigla</label>
-          <input
-            value={sigla}
-            onChange={(e) => setSigla(e.target.value.toUpperCase().slice(0, 7))}
-            placeholder="Ex.: JSC"
-            className="w-40 border border-gray-300 rounded-lg px-3 py-2.5 text-sm uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-gray-400 mt-1">
-            Marca curta (até 7 letras) que aparece no <b>cabeçalho de cada slide</b> dos PPTs exportados —
-            é assim que sua marca assina os relatórios. Hoje o Israel usa <b>“LBW”</b>.
-          </p>
+          <label className={label}>Nome do mentor (o "digital" da IA)</label>
+          <input value={mentor} onChange={(e) => setMentor(e.target.value)} placeholder="Ex.: João Silva" className={campo} />
+          <p className="text-xs text-gray-400 mt-1">É o nome que a IA usa ao se apresentar aos seus alunos.</p>
         </div>
 
         {/* FOTO — upload */}
@@ -160,7 +154,7 @@ export default function MinhaMarca() {
           </div>
           <p className="text-xs text-gray-400 mt-2">
             Aparece no <b>cabeçalho do seu site</b>. Ideal PNG com fundo transparente — reduzimos pra até 600px, preservando a transparência.
-            Nos slides do PPT, sua marca assina pela <b>sigla</b>.
+            Se você não enviar uma logo, o sistema usa a logo padrão LBW.
           </p>
         </div>
       </div>
@@ -173,7 +167,7 @@ export default function MinhaMarca() {
         <div className="border border-gray-200 rounded-xl p-4">
           <span className="font-bold text-gray-800 text-sm">Seu template de PPT</span>
           <p className="text-xs text-gray-500 mt-1">
-            Envie dois fundos de slide (16:9): a <b>capa</b> e a <b>página interna</b> (usada em todos os slides de conteúdo).
+            Envie seu modelo PowerPoint ou uma imagem de fundo (16:9): a <b>capa</b> e a <b>página interna</b> (usada em todos os slides de conteúdo).
           </p>
           <div className="mt-3 space-y-4">
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
@@ -199,7 +193,7 @@ export default function MinhaMarca() {
               />
             </div>
             <p className="text-xs text-gray-400">
-              Enquanto ativamos a renderização do seu template nos slides, o PPT continua usando o modelo padrão com suas cores.
+              Aceita PowerPoint (.ppt/.pptx) ou imagem (PNG/JPG). Se não enviar nada, fica o modelo padrão LBW.
             </p>
           </div>
         </div>
@@ -245,13 +239,41 @@ function UploadBtn({ titulo, carregando, onFile }: { titulo: string; carregando:
 }
 
 function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url: string; carregando: boolean; onFile: (f?: File) => void }) {
+  const isPowerPoint = /\.pptx?(\?|$)/i.test(url);
   return (
     <div>
       <div className="text-xs font-black uppercase tracking-wide text-gray-500 mb-1">{rotulo}</div>
       <div className="aspect-video w-full rounded-lg border border-gray-200 bg-gray-50 overflow-hidden mb-2 grid place-items-center">
-        {url ? <img src={url} alt={rotulo} className="w-full h-full object-cover" /> : <span className="text-xs text-gray-300">16:9</span>}
+        {url ? (
+          isPowerPoint
+            ? <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">PowerPoint enviado</span>
+            : <img src={url} alt={rotulo} className="w-full h-full object-cover" />
+        ) : <span className="text-xs text-gray-300">16:9 ou PPT</span>}
       </div>
-      <UploadBtn titulo={url ? 'Trocar' : 'Enviar'} carregando={carregando} onFile={onFile} />
+      <UploadArquivoBtn titulo={url ? 'Trocar' : 'Enviar'} carregando={carregando} onFile={onFile} />
     </div>
+  );
+}
+
+function UploadArquivoBtn({ titulo, carregando, onFile }: { titulo: string; carregando: boolean; onFile: (f?: File) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => ref.current?.click()}
+        disabled={carregando}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+      >
+        <Upload size={15} /> {carregando ? 'Enviando…' : titulo}
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*,.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        className="hidden"
+        onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
+      />
+    </>
   );
 }
