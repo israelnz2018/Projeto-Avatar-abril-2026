@@ -28,7 +28,6 @@ import {
   getInitiatives,
   createInitiative,
   updateInitiative,
-  deleteInitiative,
   getInitiativeConfigs,
   saveInitiativeConfig,
   seedDefaultInitiative,
@@ -259,6 +258,7 @@ export default function ProjectToolsConfig() {
     setLoading(true);
     try {
       const data = await getInitiatives();
+      const projectTypes = data.filter(i => i.temProjeto !== false);
       if (data.length === 0) {
         // Auto-seed if empty
         try {
@@ -268,12 +268,13 @@ export default function ProjectToolsConfig() {
           // Don't fail the whole fetch if seeding fails, just show empty
         }
         const seededData = await getInitiatives();
-        setInitiatives(seededData);
-        if (seededData.length > 0) handleSelectInitiative(seededData[0]);
+        const seededProjectTypes = seededData.filter(i => i.temProjeto !== false);
+        setInitiatives(seededProjectTypes);
+        if (seededProjectTypes.length > 0) handleSelectInitiative(seededProjectTypes[0]);
       } else {
-        setInitiatives(data);
-        if (data.length > 0 && !selectedInitiative) {
-          handleSelectInitiative(data[0]);
+        setInitiatives(projectTypes);
+        if (projectTypes.length > 0 && !selectedInitiative) {
+          handleSelectInitiative(projectTypes[0]);
         }
       }
     } catch (error: any) {
@@ -380,16 +381,16 @@ export default function ProjectToolsConfig() {
 
   const handleDeleteInitiative = async (id: string) => {
     try {
-      await deleteInitiative(id);
+      await updateInitiative(id, { temProjeto: false });
       setInitiatives(initiatives.filter(i => i.id !== id));
       if (selectedInitiative?.id === id) {
         setSelectedInitiative(null);
         setConfigs([]);
       }
-      toast.success("Iniciativa excluída");
+      toast.success("Tipo de projeto removido desta aba. O curso e os vídeos continuam existindo.");
       setIsDeleting(null);
     } catch (error) {
-      toast.error("Erro ao excluir iniciativa");
+      toast.error("Erro ao remover tipo de projeto");
     }
   };
 
@@ -537,14 +538,14 @@ export default function ProjectToolsConfig() {
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
                   onClick={() => {
-                    if (confirm("Tem certeza que deseja excluir este tipo de projeto? Isso não excluirá os projetos associados, mas eles ficarão órfãos.")) {
+                    if (confirm("Remover este tipo da aba Projetos?\n\nO curso e os vídeos continuam existindo em Meus Cursos. Esta ação só faz este curso parar de aparecer como tipo de projeto.")) {
                       handleDeleteInitiative(selectedInitiative!.id);
                       setIsEditingInitiative(false);
                     }
                   }}
                   className="px-4 py-2 text-sm font-black text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  EXCLUIR
+                  REMOVER DA ABA PROJETOS
                 </button>
                 <div className="flex gap-3">
                   <button
@@ -628,7 +629,7 @@ export default function ProjectToolsConfig() {
               <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3 text-red-700">
                   <AlertCircle size={20} />
-                  <p className="font-bold text-sm">Tem certeza que deseja excluir este tipo de projeto?</p>
+                  <p className="font-bold text-sm">Remover este tipo da aba Projetos?</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -641,7 +642,7 @@ export default function ProjectToolsConfig() {
                     onClick={() => handleDeleteInitiative(isDeleting)}
                     className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs font-bold shadow-sm"
                   >
-                    Excluir AGORA
+                    Remover AGORA
                   </button>
                 </div>
               </div>
@@ -652,10 +653,10 @@ export default function ProjectToolsConfig() {
                 <button
                   onClick={() => setIsDeleting(selectedInitiative.id)}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all text-xs font-bold"
-                  title="Excluir este tipo de projeto"
+                  title="Remover este curso da lista de tipos de projeto"
                 >
                   <Trash2 size={18} />
-                  Excluir tipo
+                  Remover tipo
                 </button>
                 <button
                   onClick={() => handleSaveConfigs()}
