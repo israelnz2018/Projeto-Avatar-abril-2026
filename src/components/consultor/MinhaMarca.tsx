@@ -61,26 +61,36 @@ export default function MinhaMarca() {
     setSalvando(true);
     setMsg('');
     try {
-      await setDoc(
-        doc(db, 'consultores', consultorId),
-        {
-          mentorNome: mentor.trim(),
-          branding: {
-            ...consultor.branding,
-            nome: nome.trim(),
-            slogan: slogan.trim(),
-            fotoUrl: fotoUrl.trim(),
-            logoUrl: logoUrl.trim(),
-            pptModo: 'proprio',
-            pptCapaUrl: pptCapaUrl.trim(),
-            pptInternaUrl: pptInternaUrl.trim(),
+      try {
+        await setDoc(
+          doc(db, 'consultores', consultorId),
+          {
+            mentorNome: mentor.trim(),
+            branding: {
+              ...consultor.branding,
+              nome: nome.trim(),
+              slogan: slogan.trim(),
+              fotoUrl: fotoUrl.trim(),
+              logoUrl: logoUrl.trim(),
+              pptModo: 'proprio',
+              pptCapaUrl: pptCapaUrl.trim(),
+              pptInternaUrl: pptInternaUrl.trim(),
+            },
           },
-        },
-        { merge: true }
-      );
+          { merge: true }
+        );
+      } catch (e: any) {
+        throw new Error(`Não foi possível salvar a marca do consultor “${consultorId}”: ${e?.message || e}`);
+      }
       // Foto também no doc do usuário (comunidade e avatar).
       const uid = auth.currentUser?.uid;
-      if (uid) await setDoc(doc(db, 'users', uid), { fotoUrl: fotoUrl.trim() }, { merge: true });
+      if (uid) {
+        try {
+          await setDoc(doc(db, 'users', uid), { fotoUrl: fotoUrl.trim() }, { merge: true });
+        } catch (e: any) {
+          throw new Error(`A marca foi salva, mas não foi possível atualizar a foto do perfil: ${e?.message || e}`);
+        }
+      }
       await refresh(); // re-veste o app ao vivo
       setMsg('✅ Marca salva. O app já atualizou.');
     } catch (e: any) {

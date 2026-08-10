@@ -9,8 +9,10 @@
  * edita a própria marca (Minha Marca) pra o app re-vestir ao vivo.
  */
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
 import { Consultor } from '../types';
 import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId, nomeMentorDe, setMentorNome } from '../services/consultorService';
+import { auth, db } from '../lib/firebase';
 
 interface ConsultorContextValue {
   consultor: Consultor;
@@ -27,9 +29,26 @@ const ConsultorContext = createContext<ConsultorContextValue>({
 });
 
 export function ConsultorProvider({ children }: { children: React.ReactNode }) {
-  const consultorId = resolveConsultorId();
+  const consultorIdDoEndereco = resolveConsultorId();
+  const [consultorId, setConsultorId] = useState(consultorIdDoEndereco);
   const [consultor, setConsultor] = useState<Consultor>({ ...CONSULTOR_PADRAO, id: consultorId });
   const [loading, setLoading] = useState(true);
+
+  // Depois do login, a fonte de verdade é o consultorId do perfil. Assim um
+  // consultor que entrou por outro subdomínio nunca tenta editar a marca alheia.
+  useEffect(() => auth.onAuthStateChanged(async (usuario) => {
+    if (!usuario) {
+      setConsultorId(consultorIdDoEndereco);
+      return;
+    }
+    try {
+      const perfil = await getDoc(doc(db, 'users', usuario.uid));
+      const idDoPerfil = perfil.exists() ? perfil.data().consultorId : null;
+      setConsultorId(typeof idDoPerfil === 'string' && idDoPerfil.trim() ? idDoPerfil.trim() : consultorIdDoEndereco);
+    } catch {
+      setConsultorId(consultorIdDoEndereco);
+    }
+  }), [consultorIdDoEndereco]);
 
   const refresh = useCallback(async () => {
     const c = await getConsultor(consultorId);

@@ -112,16 +112,7 @@ service cloud.firestore {
         'fotoUrl',
         'siglaPpt',
         'creditoIA'
-      ]) &&
-      request.resource.data.tipoUsuario == resource.data.tipoUsuario &&
-      request.resource.data.plano == resource.data.plano &&
-      request.resource.data.consultorId == resource.data.consultorId &&
-      request.resource.data.empresaId == resource.data.empresaId &&
-      request.resource.data.empresaNome == resource.data.empresaNome &&
-      request.resource.data.maxAlunos == resource.data.maxAlunos &&
-      request.resource.data.formacoes == resource.data.formacoes &&
-      request.resource.data.cursosAcesso == resource.data.cursosAcesso &&
-      creditoIAOwnerValido();
+      ]) && creditoIAOwnerValido();
     }
 
     function creditoIAOwnerValido() {
