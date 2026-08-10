@@ -21,15 +21,15 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth, db } from '../lib/firebase';
-import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { resolveConsultorId, empresaIdDireto } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import UpgradeBanner from './UpgradeBanner';
 import {
-  ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
+  ouvirPosts, ouvirReplies, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
-  editarPost, editarReply, uploadAnexo, bloquearPost, bloquearReply,
+  editarPost, editarReply, uploadAnexo, bloquearPost, bloquearReply, autorAtual,
   ouvirNotificacoes, marcarNotificacoesLidas,
   CommunityPost, CommunityReply, PostTipo, Autor, CommunityNotification, Anexo,
   EscopoComunidade, EspacoComunidade,
@@ -376,7 +376,7 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesL
       {/* Faixa de fixado */}
       {post.pinned && (
         <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-50 border-b border-amber-200 text-[10px] font-black uppercase tracking-widest text-amber-700">
-          <Pin size={11} className="fill-amber-600 text-amber-600" /> Fixado pela LBW
+          <Pin size={11} className="fill-amber-600 text-amber-600" /> Fixado no topo
         </div>
       )}
       {/* Cabeçalho do post */}
@@ -751,7 +751,11 @@ function NotificationsBell() {
   );
 }
 
-function BoasVindasComunidade({ podeEditar }: { podeEditar: boolean }) {
+function idBoasVindasPost(consultorId: string, empresaId?: string | null): string {
+  return `boas_vindas_${consultorId}_${empresaId || 'geral'}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function BoasVindasComunidade({ podeEditar, espaco, jaPublicado }: { podeEditar: boolean; espaco: EspacoComunidade; jaPublicado: boolean }) {
   const { consultor, consultorId, refresh } = useConsultor();
   const [texto, setTexto] = useState(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
   const [salvando, setSalvando] = useState(false);
@@ -766,8 +770,29 @@ function BoasVindasComunidade({ podeEditar }: { podeEditar: boolean }) {
     setSalvando(true);
     setMsg('');
     try {
+      const postId = idBoasVindasPost(consultorId, espaco.empresaId);
+      const autor = await autorAtual();
+      const esc = espaco.escopo || 'time';
+      await setDoc(doc(db, 'community', postId), {
+        tipo: 'comentario',
+        titulo: 'Sejam bem-vindos!',
+        texto: texto.trim(),
+        autor,
+        ferramenta: null,
+        projetoNome: null,
+        resolvido: false,
+        replyCount: 0,
+        likes: [],
+        pinned: true,
+        anexos: [],
+        escopo: esc,
+        consultorId: esc === 'rede' ? 'lbw' : consultorId,
+        empresaId: esc === 'time' ? (espaco.empresaId || null) : null,
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       await setDoc(doc(db, 'consultores', consultorId), {
         comunidadeBoasVindas: texto.trim(),
+        comunidadeBoasVindasPostId: postId,
         'onboarding.comunidade': true,
       }, { merge: true });
       await refresh();
@@ -780,10 +805,7 @@ function BoasVindasComunidade({ podeEditar }: { podeEditar: boolean }) {
     }
   }
 
-  if (!podeEditar) {
-    const publicado = consultor.comunidadeBoasVindas?.trim();
-    return publicado ? <p className="mb-5 whitespace-pre-line text-sm text-gray-700">{publicado}</p> : null;
-  }
+  if (!podeEditar || jaPublicado) return null;
 
   return (
     <div className="mb-5 rounded-2xl border border-gray-200 bg-white p-4">
@@ -856,6 +878,8 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
 
   const empresaAtiva = escopo === 'time' ? (podeEscolherEmpresa ? empresaSel : (empresaId || '')) : null;
   const espaco: EspacoComunidade = { escopo, empresaId: empresaAtiva };
+  const boasVindasPostId = idBoasVindasPost(cid, empresaAtiva);
+  const boasVindasJaPublicado = posts.some(p => p.id === boasVindasPostId);
 
   useEffect(() => {
     if (escopo === 'time' && !empresaAtiva) { setPosts([]); setLoading(false); return; }
@@ -887,7 +911,11 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   }, [posts, tipoFiltro, busca]);
 
   // Posts fixados aparecem no topo, em qualquer modo. Os demais seguem o agrupamento.
-  const pinned = useMemo(() => postsFiltrados.filter(p => p.pinned), [postsFiltrados]);
+  const pinned = useMemo(() => postsFiltrados.filter(p => p.pinned).sort((a, b) => {
+    if (a.id === boasVindasPostId) return -1;
+    if (b.id === boasVindasPostId) return 1;
+    return 0;
+  }), [postsFiltrados, boasVindasPostId]);
   const naoPinned = useMemo(() => postsFiltrados.filter(p => !p.pinned), [postsFiltrados]);
 
   // Agrupamento conforme o modo de visualização (sobre os NÃO fixados)
@@ -964,7 +992,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         </div>
       )}
 
-      {escopo === 'time' && <BoasVindasComunidade podeEditar={isAdmin || isConsultor} />}
+      {escopo === 'time' && <BoasVindasComunidade podeEditar={isAdmin || isConsultor} espaco={espaco} jaPublicado={boasVindasJaPublicado} />}
 
       {/* Busca */}
       <div className="relative mb-4">
