@@ -1,6 +1,7 @@
 import pptxgen from 'pptxgenjs';
 import { toPng } from 'html-to-image';
 import { toast } from 'sonner';
+import { exportarFerramentaNoTemplate, temPptTemplateAtivo } from './pptTemplateExportService';
 
 import { Project } from '../types';
 
@@ -224,7 +225,11 @@ export async function routeExportPPT(params: RouteExportPPTParams): Promise<void
   if (handler) {
     try {
       const aiAnalysis = handler.useAiReport ? (aiReport?.text || '') : '';
-      await handler.exporter(project, localData, aiAnalysis, handler.exporterOptions);
+      if (temPptTemplateAtivo()) {
+        await exportarFerramentaNoTemplate({ toolId, project, localData, aiAnalysis, options: handler.exporterOptions });
+      } else {
+        await handler.exporter(project, localData, aiAnalysis, handler.exporterOptions);
+      }
       toast.success(handler.successMsg);
     } catch (e) {
       console.error(e);

@@ -5,6 +5,7 @@ import { TOOL_HANDLERS } from './exportPPTRouter';
 import { getAllProjectToolData } from './projectService';
 import { getInitiative, getInitiativeConfigs } from './configService';
 import { THEME, setPhaseLabelOverride } from './slideTemplate';
+import { exportarApresentacaoNoTemplate, temPptTemplateAtivo } from './pptTemplateExportService';
 
 const DEFAULT_PHASE_ORDER = ['Define', 'Measure', 'Analyze', 'Improve', 'Control'];
 
@@ -176,6 +177,25 @@ export async function generateFullProjectPresentation(
       toolIds: Array.from(new Set(toolIds)),
     };
   });
+
+  // Modelo próprio do consultor: o servidor repete o slide interno real para
+  // cada ferramenta e coloca os mesmos dados editáveis por cima dele.
+  if (temPptTemplateAtivo()) {
+    const jobs: any[] = [];
+    const toolsSkipped: string[] = [];
+    for (const phase of phasesWithTools) {
+      for (const toolId of phase.toolIds.filter(tid => resolveDataKey(projectData, tid, phaseList))) {
+        const handlerKey = resolveHandlerKey(toolId);
+        const data = getToolData(projectData, toolId, phaseList);
+        if (!handlerKey || !data) { toolsSkipped.push(toolId); continue; }
+        const handler = TOOL_HANDLERS[handlerKey];
+        jobs.push({ toolId: handlerKey, localData: data.localData,
+          aiAnalysis: handler.useAiReport ? getAiAnalysis(data.aiReport) : '', options: handler.exporterOptions || {} });
+      }
+    }
+    if (jobs.length) await exportarApresentacaoNoTemplate({ project, jobs });
+    return { toolsExported: jobs.length, toolsSkipped };
+  }
 
   const pres = new pptxgen();
   pres.layout = 'LAYOUT_WIDE';

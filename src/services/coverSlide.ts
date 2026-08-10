@@ -1,6 +1,6 @@
 import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
-import { THEME, getSlideBrand } from './slideTemplate';
+import { THEME, getSlideBrand, isPptTemplateMode } from './slideTemplate';
 
 const ACCENT  = '8AA0E5';
 const LIGHT_T = 'C7D2FF';
@@ -23,6 +23,16 @@ export function addCoverSlide(
   const dateStr = ptBrDateLong(new Date());
   const brandText = getSlideBrand();
   const slide = pres.addSlide();
+  if (isPptTemplateMode()) {
+    slide.addText(project.name || 'NOME DO PROJETO', {
+      x: 0.82, y: 3.06, w: 11.80, h: 1.06,
+      fontFace: 'Calibri', fontSize: 44, bold: true, color: '1E2D6E', shrinkText: true,
+    });
+    slide.addText(`${userName || ''}${userName ? '  ·  ' : ''}${dateStr}`, {
+      x: 0.82, y: 5.92, w: 8, h: 0.35, fontFace: 'Calibri', fontSize: 16, color: '2A2F3A', shrinkText: true,
+    });
+    return;
+  }
   slide.background = { color: THEME.NAVY };
 
   // Brand mark — topo-esquerda, tipografia pura (white-label)

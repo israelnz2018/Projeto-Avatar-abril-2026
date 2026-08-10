@@ -167,7 +167,7 @@ export default function MinhaMarca() {
         <div className="border border-gray-200 rounded-xl p-4">
           <span className="font-bold text-gray-800 text-sm">Seu template de PPT</span>
           <p className="text-xs text-gray-500 mt-1">
-            Envie seu modelo PowerPoint ou uma imagem de fundo (16:9): a <b>capa</b> e a <b>página interna</b> (usada em todos os slides de conteúdo).
+            Envie dois arquivos <b>PowerPoint .pptx</b>: a <b>capa</b> e a <b>página interna</b> (repetida em todos os slides de conteúdo).
           </p>
           <div className="mt-3 space-y-4">
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
@@ -193,7 +193,7 @@ export default function MinhaMarca() {
               />
             </div>
             <p className="text-xs text-gray-400">
-              Aceita PowerPoint (.ppt/.pptx) ou imagem (PNG/JPG). Se não enviar nada, fica o modelo padrão LBW.
+              O modelo próprio precisa estar em <b>.pptx</b> (PowerPoint moderno). Envie os dois arquivos para ativá-lo; se faltar um deles, fica o modelo padrão LBW.
             </p>
           </div>
         </div>
@@ -270,7 +270,7 @@ function UploadArquivoBtn({ titulo, carregando, onFile }: { titulo: string; carr
       <input
         ref={ref}
         type="file"
-        accept="image/*,.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
         className="hidden"
         onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
       />

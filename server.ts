@@ -3,13 +3,19 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import crypto from "crypto";
+import os from "os";
+import fs from "fs/promises";
 import { fileURLToPath } from "url";
+import Automizer from "pptx-automizer";
 import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
 import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } from "./src/lib/firebaseAdmin";
 import { campanhaCortesiaHtml, CAMPANHA_ASSUNTO } from "./src/services/campanhaCortesiaEmail";
 import { DEFAULT_QUIZZES } from "./src/services/quizSeed";
 import { empresaIdDireto } from "./src/services/consultorService";
+import { TOOL_HANDLERS } from "./src/services/exportPPTRouter";
+import { setPptTemplateMode } from "./src/services/slideTemplate";
+import { addCoverSlide } from "./src/services/coverSlide";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -421,6 +427,72 @@ async function startServer() {
       return res.status(401).json({ error: "Token inválido." });
     }
   }
+
+  // Gera um slide em cima do PPTX real do consultor. O arquivo do modelo nunca
+  // é devolvido nem escolhido pelo cliente: ele vem do tenant do usuário autenticado.
+  app.post(["/api/ppt/gerar-ferramenta", "/api/ppt/gerar-apresentacao"], requireUser, async (req: any, res: any) => {
+    const jobs = Array.isArray(req.body?.jobs) ? req.body.jobs : [{
+      toolId: req.body?.toolId, localData: req.body?.localData, aiAnalysis: req.body?.aiAnalysis, options: req.body?.options,
+    }];
+    if (!jobs.length || jobs.some((job: any) => !TOOL_HANDLERS[String(job?.toolId || "")])) {
+      return res.status(400).json({ error: "Uma das ferramentas não possui exportador PowerPoint." });
+    }
+    try {
+      const userSnap = await adminFirestore().collection("users").doc(req.userUid).get();
+      const consultorId = String(userSnap.data()?.consultorId || "israel");
+      const consultorSnap = await adminFirestore().collection("consultores").doc(consultorId).get();
+      const branding = (consultorSnap.data() as any)?.branding || {};
+      const capaUrl = String(branding.pptCapaUrl || "");
+      const internaUrl = String(branding.pptInternaUrl || "");
+      if (!/\.pptx(?:\?|$)/i.test(capaUrl) || !/\.pptx(?:\?|$)/i.test(internaUrl)) {
+        return res.status(409).json({ error: "Este consultor ainda não enviou os dois modelos PPTX." });
+      }
+
+      const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "lbw-ppt-"));
+      try {
+        const [capaResp, internaResp] = await Promise.all([fetch(capaUrl), fetch(internaUrl)]);
+        if (!capaResp.ok || !internaResp.ok) throw new Error("Não foi possível baixar o modelo PowerPoint.");
+        await Promise.all([
+          fs.writeFile(path.join(workDir, "capa.pptx"), Buffer.from(await capaResp.arrayBuffer())),
+          fs.writeFile(path.join(workDir, "interna.pptx"), Buffer.from(await internaResp.arrayBuffer())),
+        ]);
+
+        const automizer = new Automizer({
+          templateDir: workDir, outputDir: workDir, removeExistingSlides: true,
+          autoImportSlideMasters: true, cleanup: true, compression: 0, verbosity: 0,
+        });
+        const pres: any = automizer.loadRoot("capa.pptx").load("capa.pptx", "capa").load("interna.pptx", "interna");
+        const project = req.body?.project || {};
+        const userName = String(userSnap.data()?.nome || req.userEmail || "");
+        setPptTemplateMode(true);
+        pres.addSlide("capa", 1, (slide: any) => slide.generate((pptSlide: any) => {
+          addCoverSlide(({ addSlide: () => pptSlide } as any), project, userName);
+        }));
+        for (const job of jobs) {
+          const handler = TOOL_HANDLERS[String(job.toolId)];
+          pres.addSlide("interna", 1, (slide: any) => slide.generate((pptSlide: any) => {
+            const fakePresentation = { addSlide: () => pptSlide } as any;
+            // Os exporters são síncronos até o writeFile (que não ocorre ao passar pres).
+            void handler.exporter(project, job.localData || {}, String(job.aiAnalysis || ""), {
+              ...(job.options || {}), pres: fakePresentation,
+            });
+          }));
+        }
+        const name = `${jobs.length > 1 ? "Apresentacao_Final" : "Ferramenta"}_${Date.now()}.pptx`;
+        await pres.write(name);
+        const arquivo = await fs.readFile(path.join(workDir, name));
+        res.setHeader("content-type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        res.setHeader("content-disposition", `attachment; filename=\"${name}\"`);
+        return res.send(arquivo);
+      } finally {
+        setPptTemplateMode(false);
+        await fs.rm(workDir, { recursive: true, force: true });
+      }
+    } catch (err: any) {
+      console.error("[/api/ppt/gerar-ferramenta]", err);
+      return res.status(500).json({ error: err?.message || "Erro ao montar o PowerPoint." });
+    }
+  });
 
   function generateCertId(): string {
     const year = new Date().getFullYear();

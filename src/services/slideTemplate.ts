@@ -24,6 +24,11 @@ export const TOOL_AREA = {
 // DEFINE" hardcoded dentro de cada exportador). Uso avulso de uma ferramenta deixa
 // null e mantém o rótulo que o próprio exportador passa.
 let phaseLabelOverride: string | null = null;
+// Ativo apenas no processo Node que compõe o PPTX do consultor. Neste modo o
+// template original fornece cabeçalho/rodapé/fundo e os exporters desenham só dados.
+let pptTemplateMode = false;
+export function setPptTemplateMode(value: boolean): void { pptTemplateMode = value; }
+export function isPptTemplateMode(): boolean { return pptTemplateMode; }
 export function setPhaseLabelOverride(label: string | null): void {
   phaseLabelOverride = label;
 }
@@ -66,6 +71,11 @@ export function createSlide(
 ): pptxgen.Slide {
   // Se a apresentação completa definiu a fase da trilha, ela vence o hardcoded.
   if (phaseLabelOverride) toolPhase = phaseLabelOverride;
+  if (pptTemplateMode) {
+    // A área útil foi definida no guia do template: bordas ficam preservadas.
+    const slide = pres.addSlide();
+    return slide;
+  }
   const today = new Date().toLocaleDateString('pt-BR');
   const slide = pres.addSlide();
   slide.background = { color: 'FFFFFF' };

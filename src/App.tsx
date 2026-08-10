@@ -83,6 +83,7 @@ import { DefinirSenha } from './components/DefinirSenha';
 import MenuTour from './components/MenuTour';
 
 import { useProject } from './contexts/ProjectContext';
+import { setPptTemplateAtivo } from './services/pptTemplateExportService';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -142,6 +143,8 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     const usaTime = pptFonte === 'proprio';
     setSlideBrand(usaTime && siglaPpt ? siglaPpt : marcaConsultor);
     setSlideColors(usaTime && pptCores ? pptCores : consultor.branding.cores);
+    // Modelo próprio é exclusivamente do consultor. Sem os dois PPTX, mantém LBW.
+    setPptTemplateAtivo(consultor.branding.pptCapaUrl, consultor.branding.pptInternaUrl);
   }, [consultor, pptFonte, siglaPpt, pptCores]);
 
   const roleLabel = (siteConsultor && (isAdmin || isConsultor))
