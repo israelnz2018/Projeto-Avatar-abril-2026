@@ -193,7 +193,8 @@ export default function MinhaMarca() {
               />
             </div>
             <p className="text-xs text-gray-400">
-              O modelo próprio precisa estar em <b>.pptx</b> (PowerPoint moderno). Envie os dois arquivos para ativá-lo; se faltar um deles, fica o modelo padrão LBW.
+              <b>Formato permitido: .PPTX</b> (PowerPoint moderno). Arquivos <b>.PPT</b> antigos e imagens não são aceitos neste modelo, pois não permitem inserir os dados mantendo o design editável.
+              Se o seu arquivo estiver em .PPT, abra-o no PowerPoint e use <b>Arquivo → Salvar como → Apresentação do PowerPoint (.pptx)</b>. Envie os dois arquivos .pptx para ativar seu modelo; se faltar um deles, fica o modelo padrão LBW.
             </p>
           </div>
         </div>
@@ -246,9 +247,9 @@ function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url:
       <div className="aspect-video w-full rounded-lg border border-gray-200 bg-gray-50 overflow-hidden mb-2 grid place-items-center">
         {url ? (
           isPowerPoint
-            ? <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">PowerPoint enviado</span>
+            ? <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">Arquivo .PPTX enviado</span>
             : <img src={url} alt={rotulo} className="w-full h-full object-cover" />
-        ) : <span className="text-xs text-gray-300">16:9 ou PPT</span>}
+        ) : <span className="text-xs text-gray-300">Somente .PPTX</span>}
       </div>
       <UploadArquivoBtn titulo={url ? 'Trocar' : 'Enviar'} carregando={carregando} onFile={onFile} />
     </div>
