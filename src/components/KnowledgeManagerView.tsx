@@ -1226,14 +1226,13 @@ export default function KnowledgeManagerView() {
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
 
   // -------------------------------------------------------------------------
-  // HELPER DE RECONCILIAÇÃO DE CURSOS ÓRFÃOS
+  // HELPER DE RECONCILIAÇÃO DE NOMES ANTIGOS DE CURSO
   // -------------------------------------------------------------------------
-  // Detecta cursos cujo NOME está nos vídeos do Firestore mas não bate com
-  // nenhuma trilha atual do /config (provavelmente o admin renomeou a trilha
-  // depois que os vídeos já estavam cadastrados).
+  // Detecta nomes de curso gravados nos vídeos do Firestore que não batem com
+  // nenhuma trilha atual do /config (normalmente porque a trilha foi renomeada).
   //
-  // O usuário pode escolher uma trilha de destino para cada órfão e clicar
-  // "Reconciliar" — o sistema chama updateCourseName(antigo, novo) em batch,
+  // O usuário pode escolher uma trilha de destino e clicar em "Atualizar vínculo":
+  // o sistema chama updateCourseName(antigo, novo) em batch,
   // que atualiza o campo `course` em todos os vídeos vinculados.
   const orfaosComContagem = useMemo(() => {
     const nomesAtuais = new Set(initiativeNames);
@@ -1255,28 +1254,28 @@ export default function KnowledgeManagerView() {
       return;
     }
     if (destino === orfao) {
-      alert('A trilha de destino tem o mesmo nome do órfão. Nada a fazer.');
+      alert('A trilha de destino tem o mesmo nome atual. Nada a fazer.');
       return;
     }
     const qtd = items.filter(v => v.course === orfao).length;
     const ok = window.confirm(
-      `Vou atualizar o campo "course" de ${qtd} vídeo${qtd > 1 ? 's' : ''} no Firestore:\n\n` +
+      `Vou atualizar somente o vínculo de curso de ${qtd} vídeo${qtd > 1 ? 's' : ''} no Firestore:\n\n` +
       `DE: "${orfao}"\n` +
       `PARA: "${destino}"\n\n` +
-      `Operação irreversível. Continuar?`
+      `Isso NÃO deleta vídeos, cursos, projetos nem histórico. Continuar?`
     );
     if (!ok) return;
 
     setReconcilingOrfao(orfao);
     try {
       await updateCourseName(orfao, destino);
-      // Limpa o estado local desse órfão antes do refetch
+      // Limpa o estado local desse nome antigo antes do refetch
       setReconcileTarget(prev => {
         const { [orfao]: _removed, ...rest } = prev;
         return rest;
       });
       await fetchItems();
-      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's' : ''} reconciliado${qtd > 1 ? 's' : ''} para "${destino}".`);
+      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's' : ''} atualizado${qtd > 1 ? 's' : ''} para a trilha "${destino}".`);
     } catch (e) {
       console.error('[Reconcile] Falha:', e);
       alert('Falha ao reconciliar: ' + (e as Error).message);
@@ -1404,8 +1403,8 @@ export default function KnowledgeManagerView() {
       </header>
 
       {/* ───────────────────────────────────────────────────────────────────
-          BANNER DE RECONCILIAÇÃO DE CURSOS ÓRFÃOS
-          Aparece SÓ quando há vídeos vinculados a nomes de curso que não
+          BANNER DE RECONCILIAÇÃO DE NOMES ANTIGOS DE CURSO
+          Aparece quando há vídeos vinculados a nomes de curso que não
           existem mais como trilha no /config (geralmente após renomeação).
           ─────────────────────────────────────────────────────────────────── */}
       {orfaosComContagem.length > 0 && (
@@ -1414,11 +1413,11 @@ export default function KnowledgeManagerView() {
             <AlertTriangle className="text-yellow-600 mt-1 shrink-0" size={22} />
             <div className="flex-1 min-w-0">
               <h3 className="font-black text-yellow-900 text-base m-0">
-                {orfaosComContagem.length} curso{orfaosComContagem.length > 1 ? 's' : ''} órfão{orfaosComContagem.length > 1 ? 's' : ''} detectado{orfaosComContagem.length > 1 ? 's' : ''}
+                {orfaosComContagem.length} nome{orfaosComContagem.length > 1 ? 's' : ''} antigo{orfaosComContagem.length > 1 ? 's' : ''} de curso detectado{orfaosComContagem.length > 1 ? 's' : ''}
               </h3>
               <p className="text-xs text-yellow-800 mt-1 mb-4 m-0 leading-relaxed">
-                Estes cursos estão vinculados a vídeos no Firestore mas não batem com nenhuma trilha atual do <code className="bg-yellow-100 px-1 rounded">/config</code> (provavelmente foram renomeados).
-                Selecione a trilha de destino e clique em <strong>RECONCILIAR</strong> para atualizar os vídeos em batch.
+                Estes nomes aparecem nos vídeos do Firestore, mas não batem com nenhuma trilha atual do <code className="bg-yellow-100 px-1 rounded">/config</code>.
+                Isso não deleta curso nem projeto: escolha a trilha correta e clique em <strong>ATUALIZAR VÍNCULO</strong> para corrigir somente o campo de curso dos vídeos.
               </p>
               <div className="space-y-2">
                 {orfaosComContagem.map(({ nome, qtd }) => (
@@ -1435,7 +1434,7 @@ export default function KnowledgeManagerView() {
                           className="p-2 border border-gray-300 rounded text-sm bg-white min-w-[200px] focus:outline-none focus:border-blue-500"
                           disabled={reconcilingOrfao === nome}
                         >
-                          <option value="">Reconciliar para...</option>
+                          <option value="">Atualizar vínculo para...</option>
                           {initiativeNames.map(n => (
                             <option key={n} value={n}>{n}</option>
                           ))}
@@ -1446,8 +1445,8 @@ export default function KnowledgeManagerView() {
                           className="px-3 py-2 bg-yellow-600 text-white rounded text-xs font-black hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
                         >
                           {reconcilingOrfao === nome ? (
-                            <><Loader2 size={12} className="animate-spin" /> RECONCILIANDO…</>
-                          ) : 'RECONCILIAR'}
+                            <><Loader2 size={12} className="animate-spin" /> ATUALIZANDO…</>
+                          ) : 'ATUALIZAR VÍNCULO'}
                         </button>
                         <button
                           onClick={() => setIgnoredOrphans(prev => {
@@ -1457,7 +1456,7 @@ export default function KnowledgeManagerView() {
                           })}
                           disabled={reconcilingOrfao === nome}
                           className="px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer disabled:opacity-50"
-                          title="Esconder este órfão até recarregar a página (não muda o Firestore)"
+                          title="Esconder este aviso até recarregar a página (não muda o Firestore)"
                         >
                           Ignorar
                         </button>
@@ -1471,7 +1470,7 @@ export default function KnowledgeManagerView() {
                   onClick={() => setIgnoredOrphans(new Set())}
                   className="mt-3 text-xs text-yellow-700 hover:text-yellow-900 underline cursor-pointer border-none bg-transparent p-0"
                 >
-                  Mostrar {ignoredOrphans.size} órfão{ignoredOrphans.size > 1 ? 's' : ''} ignorado{ignoredOrphans.size > 1 ? 's' : ''} novamente
+                  Mostrar {ignoredOrphans.size} aviso{ignoredOrphans.size > 1 ? 's' : ''} ignorado{ignoredOrphans.size > 1 ? 's' : ''} novamente
                 </button>
               )}
             </div>
