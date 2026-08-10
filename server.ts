@@ -13,7 +13,7 @@ import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } fro
 import { campanhaCortesiaHtml, CAMPANHA_ASSUNTO } from "./src/services/campanhaCortesiaEmail";
 import { DEFAULT_QUIZZES } from "./src/services/quizSeed";
 import { empresaIdDireto } from "./src/services/consultorService";
-import { TOOL_HANDLERS } from "./src/services/exportPPTRouter";
+import { TOOL_HANDLERS } from "./src/services/pptToolHandlers";
 import { setPptTemplateMode } from "./src/services/slideTemplate";
 import { addCoverSlide } from "./src/services/coverSlide";
 

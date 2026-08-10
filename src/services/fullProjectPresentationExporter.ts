@@ -1,7 +1,7 @@
 import pptxgen from 'pptxgenjs';
 import { Project, Initiative, InitiativePhaseConfig } from '../types';
 import { addCoverSlide } from './coverSlide';
-import { TOOL_HANDLERS } from './exportPPTRouter';
+import { TOOL_HANDLERS } from './pptToolHandlers';
 import { getAllProjectToolData } from './projectService';
 import { getInitiative, getInitiativeConfigs } from './configService';
 import { THEME, setPhaseLabelOverride } from './slideTemplate';
