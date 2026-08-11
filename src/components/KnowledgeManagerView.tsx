@@ -18,7 +18,6 @@ import {
   ArrowRightLeft,
   Download,
   Loader2,
-  AlertTriangle
 } from 'lucide-react';
 import {
   DndContext,
@@ -54,7 +53,7 @@ import {
   movePlaylistToCourse,
   KNOWLEDGE_COLLECTION
 } from '../services/knowledgeService';
-import { createInitiative, getInitiatives, updateInitiative } from '../services/configService';
+import { getInitiatives, updateInitiative } from '../services/configService';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -620,10 +619,6 @@ export default function KnowledgeManagerView() {
 
   // Estados do helper de reconciliação de cursos órfãos
   // (cursos que estão nos vídeos mas não existem mais como trilhas no /config — provavelmente foram renomeados)
-  const [reconcileTarget, setReconcileTarget] = useState<Record<string, string>>({});
-  const [ignoredOrphans, setIgnoredOrphans] = useState<Set<string>>(new Set());
-  const [reconcilingOrfao, setReconcilingOrfao] = useState<string | null>(null);
-  const [keepingAsContentOnly, setKeepingAsContentOnly] = useState<string | null>(null);
 
   useEffect(() => {
     getInitiatives().then(list => {
@@ -1226,103 +1221,6 @@ export default function KnowledgeManagerView() {
 
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
 
-  // -------------------------------------------------------------------------
-  // HELPER DE RECONCILIAÇÃO DE NOMES ANTIGOS DE CURSO
-  // -------------------------------------------------------------------------
-  // Detecta nomes de curso gravados nos vídeos do Firestore que não batem com
-  // nenhuma trilha atual do /config (normalmente porque a trilha foi renomeada).
-  //
-  // O usuário pode escolher uma trilha de destino e clicar em "Atualizar vínculo":
-  // o sistema chama updateCourseName(antigo, novo) em batch,
-  // que atualiza o campo `course` em todos os vídeos vinculados.
-  const orfaosComContagem = useMemo(() => {
-    const nomesAtuais = new Set(initiativeNames);
-    const contagem: Record<string, number> = {};
-    items.forEach(v => {
-      if (v.course && !nomesAtuais.has(v.course) && !ignoredOrphans.has(v.course)) {
-        contagem[v.course] = (contagem[v.course] || 0) + 1;
-      }
-    });
-    return Object.entries(contagem)
-      .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd);
-  }, [items, initiativeNames, ignoredOrphans]);
-
-  const handleReconcile = async (orfao: string) => {
-    const destino = reconcileTarget[orfao];
-    if (!destino) {
-      alert('Selecione o curso de destino antes de reconciliar.');
-      return;
-    }
-    if (destino === orfao) {
-      alert('O curso de destino tem o mesmo nome atual. Nada a fazer.');
-      return;
-    }
-    const qtd = items.filter(v => v.course === orfao).length;
-    const ok = window.confirm(
-      `Vou atualizar somente o vínculo de curso de ${qtd} vídeo${qtd > 1 ? 's' : ''} no Firestore:\n\n` +
-      `DE: "${orfao}"\n` +
-      `PARA: "${destino}"\n\n` +
-      `Isso NÃO deleta vídeos, cursos, projetos nem histórico. Continuar?`
-    );
-    if (!ok) return;
-
-    setReconcilingOrfao(orfao);
-    try {
-      await updateCourseName(orfao, destino);
-      // Limpa o estado local desse nome antigo antes do refetch
-      setReconcileTarget(prev => {
-        const { [orfao]: _removed, ...rest } = prev;
-        return rest;
-      });
-      await fetchItems();
-      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's' : ''} atualizado${qtd > 1 ? 's' : ''} para o curso "${destino}".`);
-    } catch (e) {
-      console.error('[Reconcile] Falha:', e);
-      alert('Falha ao reconciliar: ' + (e as Error).message);
-    } finally {
-      setReconcilingOrfao(null);
-    }
-  };
-
-  const handleKeepAsContentOnly = async (orfao: string) => {
-    const qtd = items.filter(v => v.course === orfao).length;
-    const ok = window.confirm(
-      `Manter este curso na Base de Conhecimento, mas remover da aba Projetos?\n\n` +
-      `"${orfao}"\n\n` +
-      `${qtd} video${qtd > 1 ? 's continuarao' : ' continuara'} na base. A mudanca so marca o curso como "so conteudo", sem virar tipo de projeto.`
-    );
-    if (!ok) return;
-
-    setKeepingAsContentOnly(orfao);
-    try {
-      const existing = initiatives.find((i) => i.name === orfao);
-      if (existing) {
-        await updateInitiative(existing.id, { temProjeto: false });
-      } else {
-        const created = await createInitiative(orfao);
-        await updateInitiative(created.id, { temProjeto: false });
-      }
-      setIgnoredOrphans(prev => {
-        const next = new Set(prev);
-        next.delete(orfao);
-        return next;
-      });
-      setReconcileTarget(prev => {
-        const { [orfao]: _removed, ...rest } = prev;
-        return rest;
-      });
-      const refreshed = await getInitiatives();
-      setInitiativeNames(refreshed.map(i => i.name).filter(Boolean));
-      setInitiatives(refreshed);
-      alert(`Pronto. O curso "${orfao}" foi mantido com ${qtd} video${qtd > 1 ? 's' : ''}, mas nao aparecera como projeto.`);
-    } catch (e) {
-      console.error('[Keep content only] Falha:', e);
-      alert('Falha ao remover da aba Projetos: ' + (e as Error).message);
-    } finally {
-      setKeepingAsContentOnly(null);
-    }
-  };
   const playlistsForCourse = (course: string) => course && course !== 'NEW'
     ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
     : [];
@@ -1440,94 +1338,6 @@ export default function KnowledgeManagerView() {
           </button>
         </div>
       </header>
-
-      {/* ───────────────────────────────────────────────────────────────────
-          BANNER DE RECONCILIAÇÃO DE NOMES ANTIGOS DE CURSO
-          Aparece quando há vídeos vinculados a nomes de curso que não
-          existem mais como curso no /config (geralmente após renomeação).
-          ─────────────────────────────────────────────────────────────────── */}
-      {orfaosComContagem.length > 0 && (
-        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-5">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="text-yellow-600 mt-1 shrink-0" size={22} />
-            <div className="flex-1 min-w-0">
-              <h3 className="font-black text-yellow-900 text-base m-0">
-                {orfaosComContagem.length} nome{orfaosComContagem.length > 1 ? 's' : ''} antigo{orfaosComContagem.length > 1 ? 's' : ''} de curso detectado{orfaosComContagem.length > 1 ? 's' : ''}
-              </h3>
-              <p className="text-xs text-yellow-800 mt-1 mb-4 m-0 leading-relaxed">
-                Estes nomes aparecem nos vídeos do Firestore, mas não batem com nenhum curso atual do <code className="bg-yellow-100 px-1 rounded">/config</code>.
-                Se o curso foi renomeado, escolha o curso correto e clique em <strong>ATUALIZAR VÍNCULO</strong>. Se você só removeu o tipo de projeto, clique em <strong>MANTER CURSO SEM PROJETO</strong>.
-              </p>
-              <div className="space-y-2">
-                {orfaosComContagem.map(({ nome, qtd }) => (
-                  <div key={nome} className="bg-white border border-yellow-200 rounded-md p-3">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-sm text-gray-800 m-0 truncate" title={nome}>{nome}</p>
-                        <p className="text-[11px] text-gray-500 m-0 mt-0.5">{qtd} vídeo{qtd > 1 ? 's' : ''} vinculado{qtd > 1 ? 's' : ''}</p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap shrink-0">
-                        <select
-                          value={reconcileTarget[nome] || ''}
-                          onChange={e => setReconcileTarget(prev => ({ ...prev, [nome]: e.target.value }))}
-                          className="p-2 border border-gray-300 rounded text-sm bg-white min-w-[200px] focus:outline-none focus:border-blue-500"
-                          disabled={reconcilingOrfao === nome || keepingAsContentOnly === nome}
-                        >
-                          <option value="">Atualizar vínculo para...</option>
-                          {initiativeNames.map(n => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleReconcile(nome)}
-                          disabled={!reconcileTarget[nome] || reconcilingOrfao === nome || keepingAsContentOnly === nome}
-                          className="px-3 py-2 bg-yellow-600 text-white rounded text-xs font-black hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
-                        >
-                          {reconcilingOrfao === nome ? (
-                            <><Loader2 size={12} className="animate-spin" /> ATUALIZANDO…</>
-                          ) : 'ATUALIZAR VÍNCULO'}
-                        </button>
-                        <button
-                          onClick={() => handleKeepAsContentOnly(nome)}
-                          disabled={reconcilingOrfao === nome || keepingAsContentOnly === nome}
-                          className="px-3 py-2 bg-blue-600 text-white rounded text-xs font-black hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
-                          title="Manter os vídeos e impedir que este curso vire tipo de projeto"
-                        >
-                          {keepingAsContentOnly === nome ? (
-                            <><Loader2 size={12} className="animate-spin" /> SALVANDO...</>
-                          ) : (
-                            'MANTER CURSO SEM PROJETO'
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setIgnoredOrphans(prev => {
-                            const next = new Set(prev);
-                            next.add(nome);
-                            return next;
-                          })}
-                          disabled={reconcilingOrfao === nome || keepingAsContentOnly === nome}
-                          className="px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer disabled:opacity-50"
-                          title="Esconder este aviso até recarregar a página (não muda o Firestore)"
-                        >
-                          Ignorar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {ignoredOrphans.size > 0 && (
-                <button
-                  onClick={() => setIgnoredOrphans(new Set())}
-                  className="mt-3 text-xs text-yellow-700 hover:text-yellow-900 underline cursor-pointer border-none bg-transparent p-0"
-                >
-                  Mostrar {ignoredOrphans.size} aviso{ignoredOrphans.size > 1 ? 's' : ''} ignorado{ignoredOrphans.size > 1 ? 's' : ''} novamente
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center gap-4 bg-white p-4 border border-[#ccc] rounded-[4px]">
         <div className="relative flex-1">
