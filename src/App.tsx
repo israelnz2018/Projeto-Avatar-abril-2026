@@ -169,6 +169,8 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     // "COMECE POR AQUI" — sempre a primeiríssima aba do consultor, checklist de onboarding.
     ...(siteConsultor && (isAdmin || isConsultor) ? [
       { name: 'Consultor Comece por aqui', path: '/comece-por-aqui', icon: Rocket },
+      { name: 'Coordenador Comece por aqui', path: '/education?aba=coordenador', icon: Rocket },
+      { name: 'Aluno Comece por aqui', path: '/education?aba=aluno', icon: Rocket },
     ] : []),
     // Experiência de aluno/consultor (curso, projeto, comunidades do consultor/coordenador).
     // Escondida no hub do admin — o admin não tem curso nem projeto.
@@ -302,7 +304,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
               data-tour-id={`menu-${item.path}`}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                location.pathname === item.path ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
+                `${location.pathname}${location.search}` === item.path || location.pathname === item.path ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
               )}
             >
               <item.icon size={20} />

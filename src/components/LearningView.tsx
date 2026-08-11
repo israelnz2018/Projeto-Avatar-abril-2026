@@ -136,6 +136,20 @@ export default function LearningView() {
   }, []);
 
   useEffect(() => {
+    if (!items.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const aba = params.get('aba');
+    const target =
+      aba === 'aluno' ? INTRO_COURSE_ALUNO :
+      aba === 'coordenador' ? INTRO_COURSE_COORDENADOR :
+      '';
+    if (target && items.some(item => item.course === target)) {
+      setActiveCategory(target);
+      setActivePlaylist('Todas');
+    }
+  }, [items]);
+
+  useEffect(() => {
     setSeekTime(0);
     setSeekNonce(0);
   }, [selectedVideo?.id]);
