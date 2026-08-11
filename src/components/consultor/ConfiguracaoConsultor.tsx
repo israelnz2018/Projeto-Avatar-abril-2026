@@ -1,12 +1,10 @@
 /**
- * ConfiguracaoConsultor — agrupa TODAS as abas de gestão do consultor numa página
- * só, com abas HORIZONTAIS no topo. A sidebar fica enxuta (só o dia a dia do
- * aluno/coordenador) + esta única aba "Configuração". Ver PLANO-WHITELABEL.md.
+ * ConfiguracaoConsultor — agrupa as telas de gestão do consultor numa página só.
+ * A navegação principal dessas telas agora fica no menu lateral, via ?aba=...
  */
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Users, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp } from 'lucide-react';
-import { cn } from '../../lib/utils';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
 const SuperRelatorio = lazy(() => import('./SuperRelatorio'));
@@ -44,32 +42,13 @@ export default function ConfiguracaoConsultor() {
   const [searchParams] = useSearchParams();
   const abaUrl = searchParams.get('aba');
   const [ativa, setAtiva] = useState(abaUrl && ABAS.some((a) => a.id === abaUrl) ? abaUrl : 'cursos');
+  useEffect(() => {
+    if (abaUrl && ABAS.some((a) => a.id === abaUrl)) setAtiva(abaUrl);
+  }, [abaUrl]);
   const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || MeusCursos;
 
   return (
     <div>
-      {/* Abas horizontais no topo */}
-      <div className="flex flex-wrap gap-1 border-b border-gray-200 mb-6 -mt-2 sticky top-0 bg-[#f0f2f5] z-10 pt-1">
-        {abas.map((a) => {
-          const on = a.id === ativa;
-          return (
-            <button
-              key={a.id}
-              onClick={() => setAtiva(a.id)}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold rounded-t-lg border-b-2 transition-colors',
-                on
-                  ? 'text-blue-700 border-blue-600 bg-white'
-                  : 'text-gray-500 border-transparent hover:text-gray-800 hover:bg-white/60'
-              )}
-            >
-              <a.icon size={15} />
-              {a.nome}
-            </button>
-          );
-        })}
-      </div>
-
       <Suspense
         fallback={
           <div className="flex items-center justify-center min-h-[40vh]">

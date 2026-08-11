@@ -87,6 +87,11 @@ import { setPptTemplateAtivo } from './services/pptTemplateExportService';
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [openMenuSections, setOpenMenuSections] = useState<Record<string, boolean>>({
+    consultor: true,
+    coordenador: false,
+    aluno: false,
+  });
   const [avisoBloqueio, setAvisoBloqueio] = useState<{ titulo?: string; mensagem?: string; consultorNome?: string; expiraEm?: string } | null>(null);
   const { projetoAtivo } = useProject();
   const { tipoUsuario, plano, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
@@ -165,54 +170,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   // Hub do admin (app.…): o super-admin LBW logado FORA de um site de consultor.
   // Aqui o menu é PURO de gestão de plataforma — sem curso/projeto (isso é do consultor).
   const ehAdminHub = isAdmin && !siteConsultor;
-  const menuItems = [
-    // "COMECE POR AQUI" — sempre a primeiríssima aba do consultor, checklist de onboarding.
-    ...(siteConsultor && (isAdmin || isConsultor) ? [
-      { name: 'Consultor Comece por aqui', path: '/comece-por-aqui', icon: Rocket },
-      { name: 'Coordenador Comece por aqui', path: '/education?aba=coordenador', icon: Rocket },
-      { name: 'Aluno Comece por aqui', path: '/education?aba=aluno', icon: Rocket },
-    ] : []),
-    // Experiência de aluno/consultor (curso, projeto, comunidades do consultor/coordenador).
-    // Escondida no hub do admin — o admin não tem curso nem projeto.
-    ...(ehAdminHub ? [
-      // Projetos, Data & Analysis e Educação ficam visíveis TAMBÉM no hub do admin:
-      // o Israel usa essas abas direto por aqui, como consultor #0.
-      { name: 'Projetos', path: '/projects', icon: ClipboardList },
-      { name: 'Data & Analysis', path: '/analysis', icon: Database },
-      { name: 'Educação', path: '/education', icon: GraduationCap },
-    ] : [
-      { name: 'Projetos', path: '/projects', icon: ClipboardList },
-      { name: 'Data & Analysis', path: '/analysis', icon: Database },
-      { name: 'Educação', path: '/education', icon: GraduationCap },
-      { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
-      { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
-    ]),
-    // AI Assistant — EXCEÇÃO ÚNICA: só o Israel como CONSULTOR (no israel.…) usa.
-    // Não aparece no hub do admin nem pra outros consultores/coordenadores/alunos.
-    ...(siteConsultor && isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
-    // Comunidade LBW (rede entre consultores): só no site do consultor, nunca no hub
-    // puro do admin — apenas consultores (o admin só vê quando também está de site
-    // consultor, ex.: israel.…).
-    // Comunidade por time — escondida no hub do admin. Um único tipo de comunidade,
-    // sempre isolada por time (coordenador OU "alunos diretos"); nunca um feed geral
-    // misturando públicos diferentes — nem pro Israel como consultor.
-    ...(ehAdminHub ? [] : [
-      ...(isAdmin || isConsultor ? [{ name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield }] : []),
-      ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users }] : []),
-    ]),
-    // Papel CONSULTOR — UMA aba "Configuração" que agrupa a gestão dele (abas horizontais dentro).
-    ...(siteConsultor && (isAdmin || isConsultor) ? [
-      { name: 'Configuração', path: '/configuracao', icon: Settings },
-    ] : []),
-    ...(isCoordenador ? [
-      { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
-      { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
-      { name: 'Marca do Time', path: '/marca-time', icon: Palette },
-    ] : []),
-    // Papel ADMIN (super-admin LBW) — só no hub (app.…). Gestão de plataforma pura.
-    // Ferramentas: nível plataforma (o admin cria/melhora as ferramentas-base que os
-    // consultores usam). Fases/projetos são do consultor — simplificação da tela vem depois.
-    ...(ehAdminHub ? [
+  const adminHubItems = ehAdminHub ? [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Consultores', path: '/admin-consultores', icon: Store },
       { name: 'Repasses', path: '/repasses', icon: Wallet },
@@ -221,8 +179,76 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
       { name: 'Ferramentas', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
-    ] : []),
+  ] : [];
+
+  const canSeeConsultorArea = siteConsultor && (isAdmin || isConsultor);
+  const canSeeCoordenadorArea = !ehAdminHub && (canSeeConsultorArea || isCoordenador);
+  const canSeeAlunoArea = !ehAdminHub;
+  const menuSections = [
+    ...(canSeeConsultorArea ? [{
+      id: 'consultor',
+      title: 'Área do Consultor',
+      icon: Shield,
+      items: [
+        { name: 'Consultor Comece por aqui', path: '/comece-por-aqui', icon: Rocket },
+        { name: 'Meus Cursos', path: '/configuracao?aba=cursos', icon: BookOpen },
+        { name: 'Projetos, Fases e Ferramentas', path: '/configuracao?aba=fases', icon: Settings },
+        { name: 'Prova', path: '/configuracao?aba=prova', icon: ClipboardList },
+        { name: 'Certificados', path: '/configuracao?aba=certificados', icon: Award },
+        { name: 'Minha Marca', path: '/configuracao?aba=marca', icon: Palette },
+        { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
+        { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores', icon: Users },
+        { name: 'Alunos na Plataforma', path: '/configuracao?aba=alunos', icon: Users },
+        { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
+        { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
+        ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
+      ],
+    }] : []),
+    ...(canSeeCoordenadorArea ? [{
+      id: 'coordenador',
+      title: 'Área do Coordenador',
+      icon: Users,
+      items: [
+        { name: 'Coordenador Comece por aqui', path: '/education?aba=coordenador', icon: Rocket },
+        ...(isCoordenador ? [
+          { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
+          { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
+          { name: 'Marca do Time', path: '/marca-time', icon: Palette },
+        ] : [
+          { name: 'Gestão de Usuários', path: '/configuracao?aba=coordenadores', icon: Users },
+          { name: 'Relatórios dos Times', path: '/configuracao?aba=relatorio', icon: TrendingUp },
+        ]),
+        { name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users },
+      ],
+    }] : []),
+    ...(canSeeAlunoArea ? [{
+      id: 'aluno',
+      title: 'Área do Aluno',
+      icon: GraduationCap,
+      items: [
+        { name: 'Aluno Comece por aqui', path: '/education?aba=aluno', icon: Rocket },
+        { name: 'Educação / Meus Cursos', path: '/education', icon: GraduationCap },
+        { name: 'Projetos', path: '/projects', icon: ClipboardList },
+        { name: 'Data & Analysis', path: '/analysis', icon: Database },
+        { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
+        { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
+        ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users }] : []),
+      ],
+    }] : []),
   ];
+
+  const isItemActive = (path: string) => path.includes('?')
+    ? `${location.pathname}${location.search}` === path
+    : location.pathname === path;
+
+  useEffect(() => {
+    if (ehAdminHub) return;
+    setOpenMenuSections({
+      consultor: canSeeConsultorArea,
+      coordenador: !canSeeConsultorArea && isCoordenador,
+      aluno: !canSeeConsultorArea && !isCoordenador,
+    });
+  }, [ehAdminHub, canSeeConsultorArea, isCoordenador]);
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] flex">
@@ -296,28 +322,69 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           </div>
         )}
 
-        <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              data-tour-id={`menu-${item.path}`}
-              className={cn(
-                "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                `${location.pathname}${location.search}` === item.path || location.pathname === item.path ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
-              )}
-            >
-              <item.icon size={20} />
-              {isSidebarOpen && (
-                <span className="flex items-center gap-1.5">
-                  {item.name}
-                  {(item as any).beta && (
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-amber-900 bg-amber-300 rounded px-1.5 py-0.5">beta</span>
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {ehAdminHub ? (
+            adminHubItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-tour-id={`menu-${item.path}`}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                  isItemActive(item.path) ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
+                )}
+              >
+                <item.icon size={20} />
+                {isSidebarOpen && <span>{item.name}</span>}
+              </Link>
+            ))
+          ) : (
+            menuSections.map((section) => {
+              const open = !isSidebarOpen || openMenuSections[section.id];
+              const sectionActive = section.items.some((item) => isItemActive(item.path));
+              return (
+                <div key={section.id} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setOpenMenuSections(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-lg transition-colors border-none cursor-pointer text-left",
+                      sectionActive ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700"
+                    )}
+                    title={section.title}
+                  >
+                    <section.icon size={20} className="shrink-0" />
+                    {isSidebarOpen && (
+                      <>
+                        <span className="flex-1 font-black text-xs uppercase tracking-wider">{section.title}</span>
+                        <ChevronDown size={16} className={cn("transition-transform", open ? "rotate-180" : "")} />
+                      </>
+                    )}
+                  </button>
+
+                  {open && (
+                    <div className={cn("space-y-1", isSidebarOpen && "pl-3")}>
+                      {section.items.map((item) => (
+                        <Link
+                          key={`${section.id}-${item.path}-${item.name}`}
+                          to={item.path}
+                          data-tour-id={`menu-${item.path}`}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg transition-colors",
+                            isSidebarOpen ? "p-2.5 text-sm" : "p-3",
+                            isItemActive(item.path) ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
+                          )}
+                        >
+                          <item.icon size={18} className="shrink-0" />
+                          {isSidebarOpen && <span className="leading-tight">{item.name}</span>}
+                        </Link>
+                      ))}
+                    </div>
                   )}
-                </span>
-              )}
-            </Link>
-          ))}
+                </div>
+              );
+            })
+          )}
         </nav>
 
         {/* Rodapé: CTA de compra — só para aluno gratuito */}
