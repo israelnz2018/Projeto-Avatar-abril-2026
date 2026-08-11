@@ -54,7 +54,7 @@ import {
   movePlaylistToCourse,
   KNOWLEDGE_COLLECTION
 } from '../services/knowledgeService';
-import { getInitiatives, updateInitiative } from '../services/configService';
+import { createInitiative, getInitiatives, updateInitiative } from '../services/configService';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -623,7 +623,7 @@ export default function KnowledgeManagerView() {
   const [reconcileTarget, setReconcileTarget] = useState<Record<string, string>>({});
   const [ignoredOrphans, setIgnoredOrphans] = useState<Set<string>>(new Set());
   const [reconcilingOrfao, setReconcilingOrfao] = useState<string | null>(null);
-  const [deletingOrfao, setDeletingOrfao] = useState<string | null>(null);
+  const [keepingAsContentOnly, setKeepingAsContentOnly] = useState<string | null>(null);
 
   useEffect(() => {
     getInitiatives().then(list => {
@@ -1285,18 +1285,24 @@ export default function KnowledgeManagerView() {
     }
   };
 
-  const handleDeleteOrphanVideos = async (orfao: string) => {
+  const handleKeepAsContentOnly = async (orfao: string) => {
     const qtd = items.filter(v => v.course === orfao).length;
     const ok = window.confirm(
-      `Excluir ${qtd} vídeo${qtd > 1 ? 's' : ''} vinculado${qtd > 1 ? 's' : ''} ao curso antigo abaixo?\n\n` +
+      `Manter este curso na Base de Conhecimento, mas remover da aba Projetos?\n\n` +
       `"${orfao}"\n\n` +
-      `Use esta opção somente quando o consultor deletou esse projeto/curso antigo e estes vídeos não devem mais existir na base. Esta ação remove os vídeos da Base de Conhecimento e não pode ser desfeita pela tela.`
+      `${qtd} video${qtd > 1 ? 's continuarao' : ' continuara'} na base. A mudanca so marca o curso como "so conteudo", sem virar tipo de projeto.`
     );
     if (!ok) return;
 
-    setDeletingOrfao(orfao);
+    setKeepingAsContentOnly(orfao);
     try {
-      await deleteCourse(orfao);
+      const existing = initiatives.find((i) => i.name === orfao);
+      if (existing) {
+        await updateInitiative(existing.id, { temProjeto: false });
+      } else {
+        const created = await createInitiative(orfao);
+        await updateInitiative(created.id, { temProjeto: false });
+      }
       setIgnoredOrphans(prev => {
         const next = new Set(prev);
         next.delete(orfao);
@@ -1306,16 +1312,17 @@ export default function KnowledgeManagerView() {
         const { [orfao]: _removed, ...rest } = prev;
         return rest;
       });
-      await fetchItems();
-      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's foram removidos' : ' foi removido'} da Base de Conhecimento.`);
+      const refreshed = await getInitiatives();
+      setInitiativeNames(refreshed.map(i => i.name).filter(Boolean));
+      setInitiatives(refreshed);
+      alert(`Pronto. O curso "${orfao}" foi mantido com ${qtd} video${qtd > 1 ? 's' : ''}, mas nao aparecera como projeto.`);
     } catch (e) {
-      console.error('[Delete orphan videos] Falha:', e);
-      alert('Falha ao excluir vídeos: ' + (e as Error).message);
+      console.error('[Keep content only] Falha:', e);
+      alert('Falha ao remover da aba Projetos: ' + (e as Error).message);
     } finally {
-      setDeletingOrfao(null);
+      setKeepingAsContentOnly(null);
     }
   };
-
   const playlistsForCourse = (course: string) => course && course !== 'NEW'
     ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
     : [];
@@ -1449,7 +1456,7 @@ export default function KnowledgeManagerView() {
               </h3>
               <p className="text-xs text-yellow-800 mt-1 mb-4 m-0 leading-relaxed">
                 Estes nomes aparecem nos vídeos do Firestore, mas não batem com nenhum curso atual do <code className="bg-yellow-100 px-1 rounded">/config</code>.
-                Se o curso foi apenas renomeado, escolha o curso correto e clique em <strong>ATUALIZAR VÍNCULO</strong>. Se o consultor deletou esse projeto/curso antigo de verdade, use <strong>EXCLUIR VÍDEOS</strong>.
+                Se o curso foi renomeado, escolha o curso correto e clique em <strong>ATUALIZAR VÍNCULO</strong>. Se você só removeu o tipo de projeto, clique em <strong>MANTER CURSO SEM PROJETO</strong>.
               </p>
               <div className="space-y-2">
                 {orfaosComContagem.map(({ nome, qtd }) => (
@@ -1464,7 +1471,7 @@ export default function KnowledgeManagerView() {
                           value={reconcileTarget[nome] || ''}
                           onChange={e => setReconcileTarget(prev => ({ ...prev, [nome]: e.target.value }))}
                           className="p-2 border border-gray-300 rounded text-sm bg-white min-w-[200px] focus:outline-none focus:border-blue-500"
-                          disabled={reconcilingOrfao === nome || deletingOrfao === nome}
+                          disabled={reconcilingOrfao === nome || keepingAsContentOnly === nome}
                         >
                           <option value="">Atualizar vínculo para...</option>
                           {initiativeNames.map(n => (
@@ -1473,7 +1480,7 @@ export default function KnowledgeManagerView() {
                         </select>
                         <button
                           onClick={() => handleReconcile(nome)}
-                          disabled={!reconcileTarget[nome] || reconcilingOrfao === nome || deletingOrfao === nome}
+                          disabled={!reconcileTarget[nome] || reconcilingOrfao === nome || keepingAsContentOnly === nome}
                           className="px-3 py-2 bg-yellow-600 text-white rounded text-xs font-black hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
                         >
                           {reconcilingOrfao === nome ? (
@@ -1481,15 +1488,15 @@ export default function KnowledgeManagerView() {
                           ) : 'ATUALIZAR VÍNCULO'}
                         </button>
                         <button
-                          onClick={() => handleDeleteOrphanVideos(nome)}
-                          disabled={reconcilingOrfao === nome || deletingOrfao === nome}
-                          className="px-3 py-2 bg-red-600 text-white rounded text-xs font-black hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
-                          title="Excluir todos os vídeos vinculados a este nome antigo de curso"
+                          onClick={() => handleKeepAsContentOnly(nome)}
+                          disabled={reconcilingOrfao === nome || keepingAsContentOnly === nome}
+                          className="px-3 py-2 bg-blue-600 text-white rounded text-xs font-black hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
+                          title="Manter os vídeos e impedir que este curso vire tipo de projeto"
                         >
-                          {deletingOrfao === nome ? (
-                            <><Loader2 size={12} className="animate-spin" /> EXCLUINDO...</>
+                          {keepingAsContentOnly === nome ? (
+                            <><Loader2 size={12} className="animate-spin" /> SALVANDO...</>
                           ) : (
-                            <><Trash2 size={12} /> EXCLUIR VÍDEOS</>
+                            'MANTER CURSO SEM PROJETO'
                           )}
                         </button>
                         <button
@@ -1498,7 +1505,7 @@ export default function KnowledgeManagerView() {
                             next.add(nome);
                             return next;
                           })}
-                          disabled={reconcilingOrfao === nome || deletingOrfao === nome}
+                          disabled={reconcilingOrfao === nome || keepingAsContentOnly === nome}
                           className="px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer disabled:opacity-50"
                           title="Esconder este aviso até recarregar a página (não muda o Firestore)"
                         >
