@@ -136,18 +136,17 @@ export default function LearningView() {
   }, []);
 
   useEffect(() => {
-    if (!items.length) return;
     const params = new URLSearchParams(window.location.search);
     const aba = params.get('aba');
     const target =
       aba === 'aluno' ? INTRO_COURSE_ALUNO :
       aba === 'coordenador' ? INTRO_COURSE_COORDENADOR :
       '';
-    if (target && items.some(item => item.course === target)) {
+    if (target) {
       setActiveCategory(target);
       setActivePlaylist('Todas');
     }
-  }, [items]);
+  }, []);
 
   useEffect(() => {
     setSeekTime(0);
@@ -293,7 +292,14 @@ export default function LearningView() {
   }, [items]);
 
   // Ordena cursos pelo prefixo numÃ©rico ("1- ...", "2- ...", "9- ..."), "Todos" fica primeiro.
-  const sortedCourses = Array.from(new Set(items.map(item => item.course)))
+  const params = new URLSearchParams(window.location.search);
+  const requestedIntroCourse =
+    params.get('aba') === 'aluno' ? INTRO_COURSE_ALUNO :
+    params.get('aba') === 'coordenador' ? INTRO_COURSE_COORDENADOR :
+    '';
+  const courseSet = new Set(items.map(item => item.course));
+  if (requestedIntroCourse) courseSet.add(requestedIntroCourse);
+  const sortedCourses = Array.from(courseSet)
     .sort((a, b) => {
       const specialOrder = (course: string) => {
         if (course === INTRO_COURSE_ALUNO) return 0;
@@ -607,8 +613,18 @@ export default function LearningView() {
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-20 bg-white border border-[#ccc] rounded-[4px]">
           <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500 font-bold">Nenhum curso disponÃ­vel.</p>
-          <p className="text-gray-400 text-sm">Adicione vÃ­deos na Base de Conhecimento para vÃª-los aqui.</p>
+          <p className="text-gray-500 font-bold">
+            {activeCategory === INTRO_COURSE_ALUNO || activeCategory === INTRO_COURSE_COORDENADOR
+              ? 'Ainda não tem vídeo nesta aba.'
+              : 'Nenhum curso disponível.'}
+          </p>
+          <p className="text-gray-400 text-sm">
+            {activeCategory === INTRO_COURSE_ALUNO
+              ? 'Quando o consultor associar vídeos em “Aluno Comece por aqui”, eles aparecerão aqui.'
+              : activeCategory === INTRO_COURSE_COORDENADOR
+                ? 'Quando o consultor associar vídeos em “Coordenador Comece por aqui”, eles aparecerão aqui.'
+                : 'Adicione vídeos na Base de Conhecimento para vê-los aqui.'}
+          </p>
         </div>
       ) : (
         <div className={cn(
