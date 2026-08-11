@@ -39,6 +39,8 @@ export interface QuizQuestion {
 export interface QuizConfig {
   /** Número da trilha (1..8). */
   trilha: number;
+  /** ID estável do curso. Evita depender de números escritos no nome. */
+  initiativeId?: string;
   /** Título formal exibido (bate com o certificado). */
   titulo: string;
   /** % de acerto para aprovar (0..1). */
@@ -64,6 +66,7 @@ const scopedId = (consultorId: string, trilha: number) => `${consultorId}__${tri
 export async function getQuiz(trilha: number, consultorId: string = 'israel'): Promise<QuizConfig> {
   const build = (data: Partial<QuizConfig>): QuizConfig => ({
     trilha,
+    initiativeId: data.initiativeId,
     titulo: data.titulo || `Trilha ${trilha}`,
     passPct: typeof data.passPct === 'number' ? data.passPct : DEFAULT_PASS_PCT,
     watchGatePct: typeof data.watchGatePct === 'number' ? data.watchGatePct : DEFAULT_WATCH_GATE_PCT,

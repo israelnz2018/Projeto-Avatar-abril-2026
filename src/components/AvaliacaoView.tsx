@@ -96,7 +96,8 @@ export default function AvaliacaoView() {
     const paidOrAdmin = isAdmin || plano === 'completo';
     return quizzes.map((quiz) => {
       // Casa a trilha (nº) com a initiative do Firestore de mesmo número, pra pegar os vídeos.
-      const initiative = initiatives.find((i) => trilhaNumFromName(i.name) === quiz.trilha);
+      const initiative = initiatives.find((i) => i.id === quiz.initiativeId)
+        || initiatives.find((i) => trilhaNumFromName(i.name) === quiz.trilha);
       const tp = initiative && progress
         ? calculateTrilhaProgress(initiative, videos, progress.watchedUrls)
         : { total: 0, watched: 0, pct: 0 } as any;
@@ -134,7 +135,8 @@ export default function AvaliacaoView() {
   if (activeQuizTrilha !== null) {
     const quiz = quizzes.find((q) => q.trilha === activeQuizTrilha);
     if (quiz) {
-      const curso = initiatives.find((initiative) => trilhaNumFromName(initiative.name) === activeQuizTrilha);
+      const curso = initiatives.find((initiative) => initiative.id === quiz.initiativeId)
+        || initiatives.find((initiative) => trilhaNumFromName(initiative.name) === activeQuizTrilha);
       return (
         <QuizRunner
           quiz={{ ...quiz, titulo: curso?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo }}
@@ -261,7 +263,7 @@ function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
             <Lock size={16} /> Disponível no plano completo
           </button>
         ) : aprovado ? (
-          <CertificadoBlock cert={cert!} alunoNome={certAluno} showCongrats={showCongrats} />
+          <CertificadoBlock cert={cert!} alunoNome={certAluno} initiativeId={bloco.initiative?.id} showCongrats={showCongrats} />
         ) : quizAvailable ? (
           <button onClick={onStart}
             className="w-full py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"
@@ -281,8 +283,8 @@ function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
 // ===================================================================================
 // Bloco do certificado conquistado (parabéns + prévia + botões)
 // ===================================================================================
-function CertificadoBlock({ cert, alunoNome, showCongrats }: {
-  cert: CertificadoEmitido; alunoNome: string; showCongrats: boolean;
+function CertificadoBlock({ cert, alunoNome, initiativeId, showCongrats }: {
+  cert: CertificadoEmitido; alunoNome: string; initiativeId?: string; showCongrats: boolean;
 }) {
   const [open, setOpen] = useState(showCongrats);
   return (
@@ -305,6 +307,7 @@ function CertificadoBlock({ cert, alunoNome, showCongrats }: {
           <Certificate
             alunoNome={cert.alunoNomeAtIssue || alunoNome}
             initiativeName={cert.initiativeNameAtIssue}
+            initiativeId={initiativeId}
             issuedAt={cert.issuedAt}
             certId={cert.certId}
             mode="student"

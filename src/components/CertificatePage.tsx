@@ -78,6 +78,7 @@ export function CertificatePage() {
         <Certificate
           alunoNome={previewNome}
           initiativeName={previewInitiative.name}
+          initiativeId={previewInitiative.id}
           issuedAt={new Date().toISOString()}
           certId={`PREVIEW-${previewInitiative.id.slice(0, 6).toUpperCase()}`}
           mode="student"
@@ -93,6 +94,7 @@ export function CertificatePage() {
     <Certificate
       alunoNome={cert.alunoNomeAtIssue}
       initiativeName={cert.initiativeNameAtIssue}
+      initiativeId={initiativeId}
       issuedAt={cert.issuedAt}
       certId={cert.certId}
       mode="student"
@@ -165,6 +167,7 @@ export function VerificarPage() {
     <Certificate
       alunoNome={cert.alunoNome}
       initiativeName={cert.initiativeName}
+      initiativeId={cert.initiativeId}
       issuedAt={cert.issuedAt}
       certId={cert.certId}
       mode="public"

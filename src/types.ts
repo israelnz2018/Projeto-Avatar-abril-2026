@@ -68,6 +68,21 @@ export interface ConsultorCertificateConfig {
   emissorNome?: string;
   emissorCargo?: string;
   textoRodape?: string;
+  titulo?: string;
+  textoCertificamos?: string;
+  textoConclusao?: string;
+  corPrincipal?: string;
+  corDestaque?: string;
+  corTexto?: string;
+  fonte?: 'moderna' | 'classica' | 'serifada';
+  mostrarLogo?: boolean;
+  mostrarAssinatura?: boolean;
+  mostrarQrCode?: boolean;
+  /** Regras editáveis por curso. Os dados variáveis do aluno/emissão não ficam aqui. */
+  cursos?: Record<string, {
+    cargaHoraria?: number;
+    textoComplementar?: string;
+  }>;
   /** Incrementada a cada salvamento para identificar a arte usada na emissão. */
   versao?: number;
   atualizadoEm?: string;

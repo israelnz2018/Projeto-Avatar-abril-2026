@@ -309,6 +309,7 @@ export interface CertificadoPublico {
   certId: string;
   alunoNome: string;
   initiativeName: string;
+  initiativeId?: string;
   issuedAt: string;
   consultorId?: string;
 }

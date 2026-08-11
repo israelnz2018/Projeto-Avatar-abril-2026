@@ -23,6 +23,12 @@ function cursoNumero(nome: string) {
   return Number(String(nome || '').match(/\d+/)?.[0] || 0);
 }
 
+function cursoChave(curso: Initiative, index: number) {
+  if (typeof curso.ordem === 'number' && curso.ordem > 0) return curso.ordem;
+  const numeroNoNome = cursoNumero(curso.name);
+  return numeroNoNome > 0 ? numeroNoNome : index + 1;
+}
+
 function nomeVisualCurso(nome: string) {
   return String(nome || '').trim();
 }
@@ -41,27 +47,27 @@ export default function AvaliacaoAdminView() {
   const [salvandoDepoimento, setSalvandoDepoimento] = useState(false);
 
   const cursosOrdenados = [...cursos]
-    .filter((curso) => cursoNumero(curso.name) > 0)
     .sort((a, b) => {
-      const ordemA = typeof a.ordem === 'number' ? a.ordem : cursoNumero(a.name);
-      const ordemB = typeof b.ordem === 'number' ? b.ordem : cursoNumero(b.name);
+      const ordemA = typeof a.ordem === 'number' ? a.ordem : Number.MAX_SAFE_INTEGER;
+      const ordemB = typeof b.ordem === 'number' ? b.ordem : Number.MAX_SAFE_INTEGER;
+      if (ordemA === ordemB) return a.name.localeCompare(b.name, 'pt-BR');
       return ordemA - ordemB;
     });
 
-  const cursoSelecionado = cursosOrdenados.find((curso) => cursoNumero(curso.name) === trilha);
+  const cursoSelecionado = cursosOrdenados.find((curso, index) => cursoChave(curso, index) === trilha);
   const nomeCursoSelecionado = nomeVisualCurso(cursoSelecionado?.name || config?.titulo || `Curso ${trilha}`);
 
   useEffect(() => {
     getInitiatives()
       .then((lista) => {
         const ordenados = [...lista].sort((a, b) => {
-          const ordemA = typeof a.ordem === 'number' ? a.ordem : cursoNumero(a.name);
-          const ordemB = typeof b.ordem === 'number' ? b.ordem : cursoNumero(b.name);
+          const ordemA = typeof a.ordem === 'number' ? a.ordem : Number.MAX_SAFE_INTEGER;
+          const ordemB = typeof b.ordem === 'number' ? b.ordem : Number.MAX_SAFE_INTEGER;
+          if (ordemA === ordemB) return a.name.localeCompare(b.name, 'pt-BR');
           return ordemA - ordemB;
         });
         setCursos(ordenados);
-        const primeiro = ordenados.find((curso) => cursoNumero(curso.name) > 0);
-        if (primeiro) setTrilha(cursoNumero(primeiro.name));
+        if (ordenados[0]) setTrilha(cursoChave(ordenados[0], 0));
       })
       .catch(() => setCursos([]));
   }, []);
@@ -74,8 +80,8 @@ export default function AvaliacaoAdminView() {
     setLoading(true);
     getQuiz(trilha, consultorId)
       .then((quiz) => {
-        const curso = cursosOrdenados.find((c) => cursoNumero(c.name) === trilha);
-        setConfig({ ...quiz, titulo: nomeVisualCurso(curso?.name || quiz.titulo) });
+        const curso = cursosOrdenados.find((c, index) => cursoChave(c, index) === trilha);
+        setConfig({ ...quiz, initiativeId: curso?.id, titulo: nomeVisualCurso(curso?.name || quiz.titulo) });
       })
       .catch((e) => console.error('[AdminAvaliacao] getQuiz:', e))
       .finally(() => setLoading(false));
@@ -156,7 +162,7 @@ export default function AvaliacaoAdminView() {
     setSaving(true);
     setSavedMsg('');
     try {
-      await saveQuiz({ ...config, titulo: nomeCursoSelecionado }, consultorId);
+      await saveQuiz({ ...config, initiativeId: cursoSelecionado?.id, titulo: nomeCursoSelecionado }, consultorId);
       setSavedMsg('✓ Teste salvo com sucesso.');
       setTimeout(() => setSavedMsg(''), 3000);
     } catch (e) {
@@ -236,8 +242,8 @@ export default function AvaliacaoAdminView() {
         </div>
       ) : (
         <div className="space-y-4">
-          {cursosOrdenados.map((curso) => {
-            const numero = cursoNumero(curso.name);
+          {cursosOrdenados.map((curso, cursoIndex) => {
+            const numero = cursoChave(curso, cursoIndex);
             const aberto = trilha === numero;
             return (
               <div key={curso.id || curso.name} className={`rounded-3xl border overflow-hidden bg-white shadow-sm transition-all ${aberto ? 'border-blue-200 shadow-blue-100/60' : 'border-gray-200'}`}>

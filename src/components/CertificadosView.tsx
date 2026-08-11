@@ -1,64 +1,81 @@
-/** Configuração e prévia do certificado white-label do consultor. */
+/** Editor completo e prévia do certificado white-label do consultor. */
 import { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { Award, FileUp, Image as ImageIcon, Save, ShieldCheck } from 'lucide-react';
+import { Award, BookOpen, FileUp, Image as ImageIcon, LockKeyhole, Palette, RotateCcw, Save, ShieldCheck, Type } from 'lucide-react';
 import Certificate from './Certificate';
 import { getInitiatives } from '../services/configService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { db } from '../lib/firebase';
 import { uploadBrandingImage, type BrandingAsset } from '../services/brandingUploadService';
-import type { ConsultorCertificateConfig } from '../types';
-import { isSiteConsultor } from '../services/consultorService';
+import type { ConsultorCertificateConfig, Initiative } from '../types';
 
-const ALUNO_EXEMPLO = 'Francisco Cavalcanti de Souza';
+const ALUNO_EXEMPLO = 'Maria da Silva';
 const DATA_EXEMPLO = '2026-06-22T12:00:00.000Z';
-const semPrefixo = (n: string) => n.replace(/^\d+\s*[-—]?\s*/, '');
+const semPrefixo = (nome: string) => nome.replace(/^\d+\s*[-–—]?\s*/, '');
+
+function montarConfig(config: ConsultorCertificateConfig | undefined, nome: string, consultorId: string, cores: any): ConsultorCertificateConfig {
+  return {
+    modo: config?.modo || (consultorId === 'israel' ? 'padrao' : 'proprio'),
+    fundoUrl: config?.fundoUrl || '',
+    assinaturaUrl: config?.assinaturaUrl || '',
+    instituicao: config?.instituicao || nome,
+    emissorNome: config?.emissorNome || nome,
+    emissorCargo: config?.emissorCargo || 'Responsável pela formação',
+    textoRodape: config?.textoRodape || '',
+    titulo: config?.titulo || 'CERTIFICADO DE CONCLUSÃO',
+    textoCertificamos: config?.textoCertificamos || 'Certificamos que',
+    textoConclusao: config?.textoConclusao || 'concluiu com êxito o curso',
+    corPrincipal: config?.corPrincipal || cores?.navy || '#1E2D6E',
+    corDestaque: config?.corDestaque || cores?.blue || '#0033CC',
+    corTexto: config?.corTexto || cores?.ink || '#0F172A',
+    fonte: config?.fonte || 'moderna',
+    mostrarLogo: config?.mostrarLogo !== false,
+    mostrarAssinatura: config?.mostrarAssinatura !== false,
+    mostrarQrCode: config?.mostrarQrCode !== false,
+    cursos: config?.cursos || {},
+    versao: config?.versao || 0,
+  };
+}
 
 export default function CertificadosView() {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAccess } = useUserAccess();
-  const [cursos, setCursos] = useState<string[]>([]);
+  const [cursos, setCursos] = useState<Initiative[]>([]);
   const [ativa, setAtiva] = useState(0);
-  const [carregando, setCarregando] = useState(true);
   const [config, setConfig] = useState<ConsultorCertificateConfig>({ modo: 'padrao' });
   const [enviando, setEnviando] = useState<BrandingAsset | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
+  const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    setConfig({
-      // Consultor (não-Israel) só tem o próprio design — não existe "modelo padrão
-      // da LBW" pra ele escolher. O Israel mantém o certificado oficial à parte
-      // (IsraelCertificatePreview, somente leitura).
-      modo: consultor.certificado?.modo || (consultorId === 'israel' ? 'padrao' : 'proprio'),
-      fundoUrl: consultor.certificado?.fundoUrl || '',
-      assinaturaUrl: consultor.certificado?.assinaturaUrl || '',
-      instituicao: consultor.certificado?.instituicao || consultor.branding?.nome || consultor.nome,
-      emissorNome: consultor.certificado?.emissorNome || (consultorId === 'israel' ? 'Israel Cavalcanti de Souza' : consultor.nome),
-      emissorCargo: consultor.certificado?.emissorCargo || (consultorId === 'israel' ? 'CEO Learning by Working' : 'Responsável pela formação'),
-      textoRodape: consultor.certificado?.textoRodape || '',
-      versao: consultor.certificado?.versao || 0,
-    });
+    setConfig(montarConfig(consultor.certificado, consultor.branding?.nome || consultor.nome, consultorId, consultor.branding?.cores));
   }, [consultor, consultorId]);
 
   useEffect(() => {
     getInitiatives()
-      .then((inits) => setCursos(inits.map((i) => i.name).filter(Boolean)))
+      .then((lista) => setCursos(lista.filter((curso) => !!curso.name).sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999))))
       .catch(() => setCursos([]))
       .finally(() => setCarregando(false));
   }, []);
 
   const patch = <K extends keyof ConsultorCertificateConfig>(key: K, value: ConsultorCertificateConfig[K]) =>
-    setConfig((current) => ({ ...current, [key]: value }));
+    setConfig((atual) => ({ ...atual, [key]: value }));
+
+  const patchCurso = (cursoId: string, key: 'cargaHoraria' | 'textoComplementar', value: number | string) =>
+    setConfig((atual) => ({
+      ...atual,
+      cursos: { ...atual.cursos, [cursoId]: { ...atual.cursos?.[cursoId], [key]: value } },
+    }));
 
   async function enviar(file: File | undefined, tipo: BrandingAsset, key: 'fundoUrl' | 'assinaturaUrl') {
     if (!file) return;
     setEnviando(tipo);
     setMensagem('');
     try {
-      const url = await uploadBrandingImage(file, tipo);
-      patch(key, url);
+      patch(key, await uploadBrandingImage(file, tipo));
+      setMensagem('✅ Imagem enviada. Salve o certificado para confirmar.');
     } catch (error: any) {
       setMensagem(`❌ ${error?.message || 'Erro ao enviar imagem.'}`);
     } finally {
@@ -72,20 +89,18 @@ export default function CertificadosView() {
     try {
       const novaConfig: ConsultorCertificateConfig = {
         ...config,
-        // Consultor (não-Israel) só tem "próprio design" — força mesmo se algum dado
-        // antigo tivesse ficado salvo como 'padrao'.
-        modo: consultorId === 'israel' ? config.modo : 'proprio',
-        instituicao: config.instituicao?.trim(),
-        emissorNome: config.emissorNome?.trim(),
-        emissorCargo: config.emissorCargo?.trim(),
-        textoRodape: config.textoRodape?.trim(),
+        modo: config.fundoUrl ? 'proprio' : 'padrao',
+        instituicao: config.instituicao?.trim(), emissorNome: config.emissorNome?.trim(),
+        emissorCargo: config.emissorCargo?.trim(), textoRodape: config.textoRodape?.trim(),
+        titulo: config.titulo?.trim(), textoCertificamos: config.textoCertificamos?.trim(),
+        textoConclusao: config.textoConclusao?.trim(),
         versao: (consultor.certificado?.versao || 0) + 1,
         atualizadoEm: new Date().toISOString(),
       };
       await setDoc(doc(db, 'consultores', consultorId), { certificado: novaConfig }, { merge: true });
       setConfig(novaConfig);
       await refresh();
-      setMensagem('✅ Modelo de certificado salvo.');
+      setMensagem('✅ Certificado salvo com sucesso.');
     } catch (error: any) {
       setMensagem(`❌ Erro ao salvar: ${error?.message || error}`);
     } finally {
@@ -93,140 +108,109 @@ export default function CertificadosView() {
     }
   }
 
-  if (loadingAccess) return <div className="p-8 text-gray-500">Carregando…</div>;
-  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor edita o certificado.</div>;
-  // No subdomínio israel.* o certificado LBW é somente leitura. A edição dos
-  // dados oficiais da LBW existe exclusivamente no hub administrativo app.*.
-  if (consultorId === 'israel' && isSiteConsultor()) {
-    return <IsraelCertificatePreview cursos={cursos} ativa={ativa} setAtiva={setAtiva} carregando={carregando} />;
+  function restaurarPadrao() {
+    if (!window.confirm('Restaurar o modelo padrão? As alterações ainda não salvas serão descartadas.')) return;
+    setConfig(montarConfig(undefined, consultor.branding?.nome || consultor.nome, consultorId, consultor.branding?.cores));
+    setMensagem('Modelo padrão carregado. Clique em salvar para confirmar.');
   }
 
-  const isLbwAdmin = consultorId === 'israel';
+  if (loadingAccess) return <div className="p-8 text-gray-500">Carregando…</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 font-bold text-red-600">Só o consultor edita o certificado.</div>;
 
-  const campo = 'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500';
+  const cursoAtivo = cursos[ativa];
+  const campo = 'w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
   const label = 'mb-1 block text-xs font-black uppercase tracking-wide text-gray-500';
 
   return (
-    <div className="mx-auto max-w-[1200px] p-6">
-      <div className="mb-1 flex items-center gap-3">
-        <Award className="h-6 w-6 text-blue-700" />
-        <h1 className="text-2xl font-bold text-gray-900">Certificados</h1>
+    <div className="mx-auto max-w-[1440px] p-6 pb-24">
+      <div className="mb-1 flex items-center gap-3"><Award className="text-blue-700" /><h1 className="text-2xl font-black text-gray-900">Certificados</h1></div>
+      <p className="mb-5 text-sm text-gray-500">Toda a edição do certificado fica aqui e é exclusiva deste consultor.</p>
+
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+        <LockKeyhole className="mt-0.5 shrink-0" size={19} />
+        <div><b>Campos automáticos protegidos:</b> nome do aluno, nome do curso, data de emissão, número do certificado e QR Code. Eles aparecem na prévia, mas não podem ser escritos ou adulterados pelo consultor.</div>
       </div>
-      <p className="mb-6 text-sm text-gray-500">
-        {isLbwAdmin
-          ? 'Edite os dados institucionais do certificado oficial LBW. O modelo visual e os campos de validação permanecem protegidos.'
-          : 'Personalize a identidade do certificado. Nome do aluno, curso, carga horária, data, número e QR Code permanecem protegidos pela plataforma.'}
-      </p>
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-[380px_1fr]">
-        <div className="space-y-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div>
-            <h2 className="font-black text-gray-800">{isLbwAdmin ? 'Certificado oficial LBW' : '1. Seu certificado'}</h2>
-            <p className="mt-1 text-xs text-gray-500">A configuração vale para todos os seus cursos.</p>
-          </div>
+      <div className="grid items-start gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
+        <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
+          <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
 
-          {!isLbwAdmin && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-              Crie no PowerPoint ou Canva, exporte em PNG/JPG no formato A4 paisagem (retrato) e envie abaixo. Deixe o centro e o canto inferior esquerdo livres — a plataforma coloca os dados oficiais e o QR Code sobre a sua arte.
+          <section className="border-t border-gray-100 pt-5">
+            <EditorTitle icon={<Type size={17} />} title="2. Textos fixos" />
+            <div className="mt-4 space-y-3">
+              <Field label="Título" value={config.titulo || ''} onChange={(v) => patch('titulo', v)} campo={campo} />
+              <Field label="Texto antes do nome" value={config.textoCertificamos || ''} onChange={(v) => patch('textoCertificamos', v)} campo={campo} />
+              <Field label="Texto de conclusão" value={config.textoConclusao || ''} onChange={(v) => patch('textoConclusao', v)} campo={campo} />
+              <Field label="Instituição" value={config.instituicao || ''} onChange={(v) => patch('instituicao', v)} campo={campo} />
+              <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
+              <Field label="Cargo" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
+              <Field label="Texto complementar" value={config.textoRodape || ''} onChange={(v) => patch('textoRodape', v)} campo={campo} />
             </div>
-          )}
+          </section>
 
-          {!isLbwAdmin && <AssetUpload
-            titulo="Fundo do certificado"
-            descricao="PNG ou JPG em A4 paisagem (proporção aproximada 1,414:1)."
-            url={config.fundoUrl || ''}
-            loading={enviando === 'certificado-fundo'}
-            onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')}
-          />}
-
-          <div className="border-t border-gray-100 pt-5">
-            <h2 className="mb-4 font-black text-gray-800">{isLbwAdmin ? 'Dados institucionais e do emissor' : '2. Dados do emissor'}</h2>
-            <div className="space-y-3">
-              <div><label className={label}>Instituição</label><input className={campo} value={config.instituicao || ''} onChange={(e) => patch('instituicao', e.target.value)} /></div>
-              <div><label className={label}>Nome de quem assina</label><input className={campo} value={config.emissorNome || ''} onChange={(e) => patch('emissorNome', e.target.value)} /></div>
-              <div><label className={label}>Cargo</label><input className={campo} value={config.emissorCargo || ''} onChange={(e) => patch('emissorCargo', e.target.value)} /></div>
-              <div><label className={label}>Texto complementar</label><input className={campo} value={config.textoRodape || ''} onChange={(e) => patch('textoRodape', e.target.value)} placeholder="Ex.: Consultor Sênior em Melhoria de Processos" /></div>
+          <section className="border-t border-gray-100 pt-5">
+            <EditorTitle icon={<Palette size={17} />} title="3. Cores e fonte" />
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <ColorField label="Principal" value={config.corPrincipal || '#1E2D6E'} onChange={(v) => patch('corPrincipal', v)} />
+              <ColorField label="Destaque" value={config.corDestaque || '#0033CC'} onChange={(v) => patch('corDestaque', v)} />
+              <ColorField label="Texto" value={config.corTexto || '#0F172A'} onChange={(v) => patch('corTexto', v)} />
             </div>
+            <label className={`${label} mt-4`}>Fonte</label>
+            <select className={campo} value={config.fonte || 'moderna'} onChange={(e) => patch('fonte', e.target.value as any)}><option value="moderna">Moderna</option><option value="classica">Clássica</option><option value="serifada">Serifada</option></select>
+          </section>
+
+          <section className="border-t border-gray-100 pt-5">
+            <EditorTitle icon={<ShieldCheck size={17} />} title="4. Imagens e elementos" />
+            <div className="mt-4"><AssetUpload titulo="Assinatura" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} /></div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <Toggle label="Logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
+              <Toggle label="Assinatura" checked={config.mostrarAssinatura !== false} onChange={(v) => patch('mostrarAssinatura', v)} />
+              <Toggle label="QR Code" checked={config.mostrarQrCode !== false} onChange={(v) => patch('mostrarQrCode', v)} />
+            </div>
+          </section>
+
+          <section className="border-t border-gray-100 pt-5">
+            <EditorTitle icon={<BookOpen size={17} />} title="5. Regras por curso" />
+            <p className="mt-1 text-xs text-gray-500">O nome do curso é automático e não pode ser alterado aqui.</p>
+            <div className="mt-3 space-y-2">
+              {cursos.map((curso, index) => {
+                const aberto = ativa === index;
+                const regra = config.cursos?.[curso.id] || {};
+                return <div key={curso.id} className="overflow-hidden rounded-xl border border-gray-200">
+                  <button type="button" onClick={() => setAtiva(index)} className={`w-full border-0 px-3 py-3 text-left text-sm font-bold ${aberto ? 'bg-blue-50 text-blue-800' : 'bg-white text-gray-700'}`}>{curso.name}</button>
+                  {aberto && <div className="space-y-3 border-t border-gray-100 bg-gray-50 p-3">
+                    <div><label className={label}>Carga horária</label><input type="number" min="0" className={campo} value={regra.cargaHoraria ?? ''} placeholder="Ex.: 20" onChange={(e) => patchCurso(curso.id, 'cargaHoraria', Math.max(0, Number(e.target.value)))} /></div>
+                    <div><label className={label}>Texto complementar deste curso</label><input className={campo} value={regra.textoComplementar || ''} onChange={(e) => patchCurso(curso.id, 'textoComplementar', e.target.value)} /></div>
+                  </div>}
+                </div>;
+              })}
+            </div>
+          </section>
+
+          <div className="flex gap-2 border-t border-gray-100 pt-5">
+            <button type="button" onClick={restaurarPadrao} className="flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50"><RotateCcw size={16} /> Restaurar padrão</button>
+            <button type="button" onClick={salvar} disabled={salvando || !!enviando} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40"><Save size={16} /> {salvando ? 'Salvando…' : 'Salvar certificado'}</button>
           </div>
-
-          {!isLbwAdmin && <AssetUpload
-            titulo="Assinatura"
-            descricao="Prefira PNG com fundo transparente."
-            url={config.assinaturaUrl || ''}
-            loading={enviando === 'certificado-assinatura'}
-            onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')}
-          />}
-
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <div className="flex gap-2 text-xs text-emerald-800"><ShieldCheck size={16} className="shrink-0" /><span>Os campos oficiais não fazem parte da imagem enviada e não podem ser alterados pelo consultor.</span></div>
-          </div>
-
-          <button onClick={salvar} disabled={salvando || !!enviando} className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40">
-            <Save size={16} /> {salvando ? 'Salvando…' : 'Salvar modelo de certificado'}
-          </button>
-          {mensagem && <p className="text-sm text-gray-600">{mensagem}</p>}
+          {mensagem && <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">{mensagem}</p>}
         </div>
 
-        <div className="min-w-0">
-          <div className="mb-3 flex items-center gap-2"><ImageIcon size={17} className="text-blue-600" /><h2 className="font-black text-gray-800">Prévia com dados protegidos</h2></div>
-          {carregando ? <div className="text-gray-500">Carregando cursos…</div> : cursos.length === 0 ? (
-            <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">Crie um curso para visualizar o certificado.</div>
-          ) : (
-            <>
-              <div className="mb-4 flex flex-wrap gap-2">
-                {cursos.map((nome, index) => (
-                  <button key={nome} onClick={() => setAtiva(index)} className={`max-w-[220px] truncate rounded-lg border px-3 py-2 text-xs font-semibold ${ativa === index ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-600'}`}>{semPrefixo(nome)}</button>
-                ))}
-              </div>
-              <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 p-2">
-                <Certificate alunoNome={ALUNO_EXEMPLO} initiativeName={cursos[ativa] || ''} issuedAt={DATA_EXEMPLO} certId="EXEMPLO-PREVIEW" mode="public" consultorId={consultorId} configOverride={config} />
-              </div>
-            </>
-          )}
+        <div className="min-w-0 xl:sticky xl:top-4">
+          <div className="mb-3 flex items-center gap-2"><ImageIcon size={17} className="text-blue-600" /><h2 className="font-black text-gray-800">Prévia em tempo real</h2></div>
+          {carregando ? <div className="text-gray-500">Carregando cursos…</div> : !cursoAtivo ? <div className="rounded-2xl border bg-white p-8 text-center text-gray-500">Crie um curso para visualizar o certificado.</div> : <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 p-2"><Certificate alunoNome={ALUNO_EXEMPLO} initiativeName={cursoAtivo.name} initiativeId={cursoAtivo.id} issuedAt={DATA_EXEMPLO} certId="EXEMPLO-PREVIEW" mode="public" consultorId={consultorId} configOverride={config} /></div>}
         </div>
       </div>
     </div>
   );
 }
 
-function IsraelCertificatePreview({ cursos, ativa, setAtiva, carregando }: {
-  cursos: string[]; ativa: number; setAtiva: (index: number) => void; carregando: boolean;
-}) {
-  return (
-    <div className="mx-auto max-w-[1200px] p-6">
-      <div className="mb-1 flex items-center gap-3"><Award className="h-6 w-6 text-blue-700" /><h1 className="text-2xl font-bold text-gray-900">Certificados</h1></div>
-      <p className="mb-6 text-sm text-gray-500">Prévia do certificado oficial LBW. Este modelo permanece protegido e sem alterações.</p>
-      {carregando ? <div className="text-gray-500">Carregando cursos…</div> : cursos.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">Nenhum curso disponível.</div>
-      ) : (
-        <>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {cursos.map((nome, index) => (
-              <button key={nome} onClick={() => setAtiva(index)} className={`max-w-[220px] truncate rounded-lg border px-3 py-2 text-xs font-semibold ${ativa === index ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-600'}`}>{semPrefixo(nome)}</button>
-            ))}
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <Certificate alunoNome={ALUNO_EXEMPLO} initiativeName={cursos[ativa] || ''} issuedAt={DATA_EXEMPLO} certId="EXEMPLO-PREVIEW" mode="public" consultorId="israel" />
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+function EditorTitle({ icon, title }: { icon: React.ReactNode; title: string }) { return <div className="flex items-center gap-2 font-black text-gray-900">{icon}{title}</div>; }
+function Field({ label, value, onChange, campo }: { label: string; value: string; onChange: (value: string) => void; campo: string }) { return <div><label className="mb-1 block text-xs font-black uppercase tracking-wide text-gray-500">{label}</label><input className={campo} value={value} onChange={(e) => onChange(e.target.value)} /></div>; }
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="text-[11px] font-bold text-gray-500"><span className="mb-1 block">{label}</span><span className="flex items-center gap-2 rounded-xl border border-gray-200 p-2"><input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 cursor-pointer border-0 bg-transparent p-0" /><span>{value}</span></span></label>; }
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 p-2 text-xs font-bold text-gray-700"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{label}</label>; }
 
-function AssetUpload({ titulo, descricao, url, loading, disabled = false, onFile }: {
-  titulo: string; descricao: string; url: string; loading: boolean; disabled?: boolean; onFile: (file?: File) => void;
-}) {
+function AssetUpload({ titulo, descricao, url, loading, onFile }: { titulo: string; descricao: string; url: string; loading: boolean; onFile: (file?: File) => void }) {
   const input = useRef<HTMLInputElement>(null);
-  return (
-    <div className={disabled ? 'opacity-45' : ''}>
-      <div className="mb-1 text-xs font-black uppercase tracking-wide text-gray-500">{titulo}</div>
-      {url && <img src={url} alt={titulo} className="mb-2 max-h-28 max-w-full rounded-lg border border-gray-200 bg-gray-50 object-contain" />}
-      <button type="button" disabled={disabled || loading} onClick={() => input.current?.click()} className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed">
-        <FileUp size={14} /> {loading ? 'Enviando…' : url ? 'Trocar arquivo' : 'Enviar imagem'}
-      </button>
-      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
-      <p className="mt-1 text-[11px] text-gray-400">{descricao}</p>
-    </div>
-  );
+  return <div><div className="mb-1 text-xs font-black uppercase tracking-wide text-gray-500">{titulo}</div>{url && <img src={url} alt={titulo} className="mb-2 max-h-28 max-w-full rounded-lg border bg-gray-50 object-contain" />}<button type="button" disabled={loading} onClick={() => input.current?.click()} className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"><FileUp size={14} />{loading ? 'Enviando…' : url ? 'Trocar arquivo' : 'Enviar imagem'}</button><input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} /><p className="mt-1 text-[11px] text-gray-400">{descricao}</p></div>;
 }

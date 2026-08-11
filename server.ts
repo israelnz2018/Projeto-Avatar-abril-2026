@@ -615,6 +615,7 @@ async function startServer() {
   function publicQuizPayload(quiz: any) {
     return {
       trilha: Number(quiz.trilha) || 0,
+      initiativeId: quiz.initiativeId ? String(quiz.initiativeId) : undefined,
       titulo: String(quiz.titulo || `Trilha ${quiz.trilha || ""}`),
       passPct: typeof quiz.passPct === "number" ? quiz.passPct : 0.7,
       watchGatePct: typeof quiz.watchGatePct === "number" ? quiz.watchGatePct : 0.7,
