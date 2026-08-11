@@ -1,19 +1,13 @@
 /**
- * AvaliacaoAdminView — configuração das provas do consultor.
+ * AvaliacaoAdminView — configuração dos testes de avaliação do consultor.
  *
- * Permite ao Israel:
- *   - Escolher o curso (mantém a numeração 1..8 internamente).
- *   - Definir os critérios do topo: % de aprovação e % de vídeos para liberar a prova.
- *   - O título da prova é o nome do curso e não é editável aqui.
- *   - Para cada pergunta: editar o enunciado, as 4 alternativas e MARCAR a correta (radio).
- *   - Adicionar/remover perguntas e adicionar/remover alternativas.
- *   - Salvar no Firestore (passa a ter prioridade sobre o seed).
- *
- * Tudo o que o admin faz aqui reflete imediatamente na aba do aluno.
+ * A navegação é por curso, em sanfonas. O nome exibido é sempre o nome real
+ * cadastrado em Meus Cursos; o número só é usado internamente para manter
+ * compatibilidade com os quizzes existentes.
  */
 
 import { useEffect, useState } from 'react';
-import { Save, Plus, Trash2, Check, ChevronDown } from 'lucide-react';
+import { Save, Plus, Trash2, Check, ChevronDown, ClipboardCheck, Target, Video } from 'lucide-react';
 import { getQuiz, saveQuiz, type QuizConfig, type QuizQuestion } from '../services/quizService';
 import { getOpiniaoItens, saveOpiniaoItens } from '../services/opiniaoService';
 import { resolveConsultorId } from '../services/consultorService';
@@ -25,8 +19,16 @@ import type { Initiative } from '../types';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
+function cursoNumero(nome: string) {
+  return Number(String(nome || '').match(/\d+/)?.[0] || 0);
+}
+
+function nomeVisualCurso(nome: string) {
+  return String(nome || '').trim();
+}
+
 export default function AvaliacaoAdminView() {
-  const consultorId = resolveConsultorId(); // prova escopada pelo consultor do site
+  const consultorId = resolveConsultorId();
   const { consultor, refresh } = useConsultor();
   const [trilha, setTrilha] = useState(1);
   const [cursos, setCursos] = useState<Initiative[]>([]);
@@ -34,41 +36,61 @@ export default function AvaliacaoAdminView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
-  // Itens de opinião (depoimento pré-prova) — config global editável.
   const [opiniaoItens, setOpiniaoItens] = useState<string[]>([]);
   const [opiniaoMsg, setOpiniaoMsg] = useState('');
   const [salvandoDepoimento, setSalvandoDepoimento] = useState(false);
 
-  const cursoNumero = (nome: string) => Number(nome.match(/\d+/)?.[0] || 0);
   const cursosOrdenados = [...cursos]
     .filter((curso) => cursoNumero(curso.name) > 0)
-    .sort((a, b) => cursoNumero(a.name) - cursoNumero(b.name));
+    .sort((a, b) => {
+      const ordemA = typeof a.ordem === 'number' ? a.ordem : cursoNumero(a.name);
+      const ordemB = typeof b.ordem === 'number' ? b.ordem : cursoNumero(b.name);
+      return ordemA - ordemB;
+    });
+
   const cursoSelecionado = cursosOrdenados.find((curso) => cursoNumero(curso.name) === trilha);
-  const nomeCursoSelecionado = cursoSelecionado?.name || config?.titulo || `Curso ${trilha}`;
+  const nomeCursoSelecionado = nomeVisualCurso(cursoSelecionado?.name || config?.titulo || `Curso ${trilha}`);
 
   useEffect(() => {
-    getInitiatives().then(setCursos).catch(() => setCursos([]));
+    getInitiatives()
+      .then((lista) => {
+        const ordenados = [...lista].sort((a, b) => {
+          const ordemA = typeof a.ordem === 'number' ? a.ordem : cursoNumero(a.name);
+          const ordemB = typeof b.ordem === 'number' ? b.ordem : cursoNumero(b.name);
+          return ordemA - ordemB;
+        });
+        setCursos(ordenados);
+        const primeiro = ordenados.find((curso) => cursoNumero(curso.name) > 0);
+        if (primeiro) setTrilha(cursoNumero(primeiro.name));
+      })
+      .catch(() => setCursos([]));
   }, []);
 
   useEffect(() => {
     getOpiniaoItens().then(setOpiniaoItens).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    setLoading(true);
+    getQuiz(trilha, consultorId)
+      .then((quiz) => {
+        const curso = cursosOrdenados.find((c) => cursoNumero(c.name) === trilha);
+        setConfig({ ...quiz, titulo: nomeVisualCurso(curso?.name || quiz.titulo) });
+      })
+      .catch((e) => console.error('[AdminAvaliacao] getQuiz:', e))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trilha, consultorId, cursos.length]);
+
   const handleSaveItens = async () => {
     try {
       await saveOpiniaoItens(opiniaoItens);
       setOpiniaoMsg('✓ Itens salvos.');
       setTimeout(() => setOpiniaoMsg(''), 3000);
-    } catch { setOpiniaoMsg('✗ Erro ao salvar itens.'); }
+    } catch {
+      setOpiniaoMsg('✗ Erro ao salvar itens.');
+    }
   };
-
-  useEffect(() => {
-    setLoading(true);
-    getQuiz(trilha, consultorId)
-      .then((quiz) => setConfig({ ...quiz, titulo: cursoSelecionado?.name || quiz.titulo }))
-      .catch((e) => console.error('[AdminAvaliacao] getQuiz:', e))
-      .finally(() => setLoading(false));
-  }, [trilha, consultorId, cursoSelecionado?.name]);
 
   const handleToggleDepoimento = async (ativo: boolean) => {
     setSalvandoDepoimento(true);
@@ -100,7 +122,7 @@ export default function AvaliacaoAdminView() {
     setConfig((c) => c ? {
       ...c,
       questions: [...c.questions, {
-        id: `t${trilha}-new-${c.questions.length + 1}-${c.questions.length}`,
+        id: `t${trilha}-new-${Date.now()}`,
         text: 'Nova pergunta',
         options: ['Alternativa A', 'Alternativa B', 'Alternativa C', 'Alternativa D'],
         correctIndex: 0,
@@ -122,19 +144,20 @@ export default function AvaliacaoAdminView() {
       questions: c.questions.map((q) => {
         if (q.id !== qid) return q;
         const options = q.options.filter((_, i) => i !== idx);
-        let correctIndex = q.correctIndex;
-        if (idx === q.correctIndex) correctIndex = 0;
-        else if (idx < q.correctIndex) correctIndex -= 1;
+        let correctIndex = q.correctIndex || 0;
+        if (idx === correctIndex) correctIndex = 0;
+        else if (idx < correctIndex) correctIndex -= 1;
         return { ...q, options, correctIndex };
       }),
     } : c);
 
   const handleSave = async () => {
     if (!config) return;
-    setSaving(true); setSavedMsg('');
+    setSaving(true);
+    setSavedMsg('');
     try {
       await saveQuiz({ ...config, titulo: nomeCursoSelecionado }, consultorId);
-      setSavedMsg('✓ Prova salva com sucesso.');
+      setSavedMsg('✓ Teste salvo com sucesso.');
       setTimeout(() => setSavedMsg(''), 3000);
     } catch (e) {
       console.error('[AdminAvaliacao] salvar:', e);
@@ -145,37 +168,33 @@ export default function AvaliacaoAdminView() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto pb-24">
+    <div className="p-6 md:p-8 max-w-6xl mx-auto pb-24">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teste de Avaliação</h1>
-          <p className="text-gray-500 text-sm">Edite os critérios, perguntas, alternativas e o gabarito de cada curso.</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Teste de Avaliação</h1>
+          <p className="text-gray-500 text-sm">Configure critérios, perguntas, alternativas e gabarito de cada curso.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {savedMsg && <span className={`text-sm font-bold ${savedMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{savedMsg}</span>}
-          <button onClick={handleSave} disabled={saving}
-            className="px-4 py-2 rounded-lg text-white text-sm font-bold flex items-center gap-2 disabled:opacity-60"
-            style={{ background: LBW.blue }}>
-            <Save size={16} /> {saving ? 'Salvando…' : 'Salvar prova'}
-          </button>
-        </div>
+        {savedMsg && (
+          <span className={`text-sm font-bold rounded-full px-3 py-1 ${savedMsg.startsWith('✓') ? 'text-emerald-700 bg-emerald-50' : 'text-red-600 bg-red-50'}`}>
+            {savedMsg}
+          </span>
+        )}
       </div>
 
-      {/* Itens do depoimento (opinião pré-prova) — global, editável */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+      <div className="bg-white rounded-3xl border border-gray-200 p-5 mb-6 shadow-sm">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-            <h2 className="font-bold text-gray-800">Depoimento pré-prova — itens avaliados (nota 1-5)</h2>
-            <p className="text-xs text-gray-400">Escolha se os alunos devem preencher o depoimento antes das provas. A opção vale para todos os seus cursos.</p>
+            <h2 className="font-black text-gray-900">Depoimento pré-prova — itens avaliados (nota 1-5)</h2>
+            <p className="text-xs text-gray-400">Escolha se os alunos devem preencher o depoimento antes dos testes. A opção vale para todos os seus cursos.</p>
           </div>
           <div className="flex items-center gap-2">
             {opiniaoMsg && <span className={`text-sm font-bold ${opiniaoMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{opiniaoMsg}</span>}
-            <button onClick={handleSaveItens} className="px-3 py-2 rounded-lg text-white text-sm font-bold flex items-center gap-2" style={{ background: LBW.blue }}>
+            <button onClick={handleSaveItens} className="px-3 py-2 rounded-xl text-white text-sm font-black flex items-center gap-2 border-none cursor-pointer" style={{ background: LBW.blue }}>
               <Save size={15} /> Salvar itens
             </button>
           </div>
         </div>
-        <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+        <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
           <input
             type="checkbox"
             checked={consultor.depoimentoPreProvaAtivo !== false}
@@ -184,8 +203,8 @@ export default function AvaliacaoAdminView() {
             className="h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
           />
           <div>
-            <div className="text-sm font-bold text-gray-800">Solicitar depoimento antes da prova</div>
-            <div className="text-xs text-gray-500">Desmarque para abrir a avaliação diretamente.</div>
+            <div className="text-sm font-bold text-gray-800">Solicitar depoimento antes do teste</div>
+            <div className="text-xs text-gray-500">Desmarque para abrir o teste diretamente.</div>
           </div>
         </label>
         <div className="space-y-2">
@@ -194,100 +213,133 @@ export default function AvaliacaoAdminView() {
               <span className="text-xs font-bold text-gray-400 w-5">{i + 1}</span>
               <input value={item}
                 onChange={(e) => setOpiniaoItens((arr) => arr.map((x, j) => (j === i ? e.target.value : x)))}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm" />
               <button onClick={() => setOpiniaoItens((arr) => arr.filter((_, j) => j !== i))}
-                className="p-1.5 text-red-300 hover:text-red-500">
+                className="p-1.5 text-red-300 hover:text-red-500 border-none bg-transparent cursor-pointer">
                 <Trash2 size={14} />
               </button>
             </div>
           ))}
         </div>
         <button onClick={() => setOpiniaoItens((arr) => [...arr, 'Novo item'])}
-          className="text-xs font-bold text-blue-600 flex items-center gap-1 mt-3">
+          className="text-xs font-bold text-blue-600 flex items-center gap-1 mt-3 border-none bg-transparent cursor-pointer">
           <Plus size={13} /> Adicionar item
         </button>
       </div>
 
-      {/* Seletor de curso (a prova continua usando o número internamente). Sem curso
-          cadastrado ainda, não faz sentido mostrar 8 abas fictícias — avisa em vez disso. */}
       {cursosOrdenados.length === 0 ? (
-        <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center mb-6">
+        <div className="rounded-3xl bg-white border border-dashed border-gray-300 p-8 text-center">
           <p className="text-sm font-bold text-gray-700 mb-1">Você ainda não tem nenhum curso cadastrado.</p>
           <p className="text-xs text-gray-500">
-            Primeiro adicione um curso em <b>Configuração → Meus Cursos</b>, depois volte aqui pra configurar a prova dele.
+            Primeiro adicione um curso em <b>Área do Consultor → Meus Cursos</b>, depois volte aqui para configurar o teste dele.
           </p>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {cursosOrdenados.map((curso) => ({ numero: cursoNumero(curso.name), nome: curso.name })).map(({ numero, nome }) => (
-            <button key={numero} onClick={() => setTrilha(numero)}
-              className={`max-w-[260px] truncate px-4 py-2 rounded-lg text-sm font-bold ${trilha === numero ? 'text-white' : 'bg-gray-100 text-gray-600'}`}
-              style={trilha === numero ? { background: LBW.navy } : {}}
-              title={nome}>
-              {nome.replace(/^\d+\s*[-—]?\s*/, '')}
-            </button>
-          ))}
-        </div>
-      )}
+        <div className="space-y-4">
+          {cursosOrdenados.map((curso) => {
+            const numero = cursoNumero(curso.name);
+            const aberto = trilha === numero;
+            return (
+              <div key={curso.id || curso.name} className={`rounded-3xl border overflow-hidden bg-white shadow-sm transition-all ${aberto ? 'border-blue-200 shadow-blue-100/60' : 'border-gray-200'}`}>
+                <button
+                  type="button"
+                  onClick={() => setTrilha(numero)}
+                  className={`w-full border-none cursor-pointer text-left p-5 flex items-center gap-4 ${aberto ? 'bg-gradient-to-r from-blue-50 to-white' : 'bg-white hover:bg-gray-50'}`}
+                >
+                  <div className={`w-12 h-12 rounded-2xl grid place-items-center shrink-0 ${aberto ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                    <ClipboardCheck size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-gray-400 m-0">Curso {numero}</p>
+                    <h2 className="text-lg md:text-xl font-black text-gray-900 m-0 truncate" title={curso.name}>{nomeVisualCurso(curso.name)}</h2>
+                  </div>
+                  <div className="hidden md:flex items-center gap-2 text-xs font-bold text-gray-500">
+                    {aberto && config ? <span>{config.questions.length} perguntas</span> : <span>Clique para configurar</span>}
+                  </div>
+                  <ChevronDown size={22} className={`text-gray-400 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                </button>
 
-      {cursosOrdenados.length === 0 ? null : loading || !config ? (
-        <div className="text-gray-400 py-10 text-center">Carregando…</div>
-      ) : (
-        <>
-          {/* Critérios do topo */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
-            <h2 className="font-bold text-gray-800 mb-4">Critérios do curso: {nomeCursoSelecionado.replace(/^\d+\s*[-—]?\s*/, '')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="block">
-                <span className="text-xs font-bold text-gray-500 uppercase">Título da prova</span>
-                <div className="mt-1 min-h-[38px] w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700">
-                  {nomeCursoSelecionado.replace(/^\d+\s*[-—]?\s*/, '')}
-                </div>
-                <p className="mt-1 text-[10px] text-gray-400">Definido pelo nome do curso e não pode ser alterado aqui.</p>
+                {aberto && (
+                  <div className="border-t border-gray-100 p-5 md:p-6 bg-gray-50/60">
+                    {loading || !config ? (
+                      <div className="text-gray-400 py-10 text-center">Carregando…</div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                          <div className="rounded-2xl bg-white border border-gray-200 p-4">
+                            <div className="flex items-center gap-2 text-gray-500 mb-2">
+                              <ClipboardCheck size={16} />
+                              <span className="text-[11px] font-black uppercase tracking-wider">Título do teste</span>
+                            </div>
+                            <p className="font-black text-gray-900 m-0 leading-snug">{nomeCursoSelecionado}</p>
+                            <p className="text-[11px] text-gray-400 mt-2 m-0">Nome real cadastrado em Meus Cursos.</p>
+                          </div>
+
+                          <label className="rounded-2xl bg-white border border-gray-200 p-4">
+                            <div className="flex items-center gap-2 text-gray-500 mb-2">
+                              <Target size={16} />
+                              <span className="text-[11px] font-black uppercase tracking-wider">% para aprovar</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input type="number" min={0} max={100} value={Math.round(config.passPct * 100)}
+                                onChange={(e) => update({ passPct: Math.min(100, Math.max(0, Number(e.target.value))) / 100 })}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-lg font-black text-gray-900 focus:outline-none focus:border-blue-500" />
+                              <span className="text-gray-400 text-sm font-bold">%</span>
+                            </div>
+                          </label>
+
+                          <label className="rounded-2xl bg-white border border-gray-200 p-4">
+                            <div className="flex items-center gap-2 text-gray-500 mb-2">
+                              <Video size={16} />
+                              <span className="text-[11px] font-black uppercase tracking-wider">% vídeos para liberar</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input type="number" min={0} max={100} value={Math.round(config.watchGatePct * 100)}
+                                onChange={(e) => update({ watchGatePct: Math.min(100, Math.max(0, Number(e.target.value))) / 100 })}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-lg font-black text-gray-900 focus:outline-none focus:border-blue-500" />
+                              <span className="text-gray-400 text-sm font-bold">%</span>
+                            </div>
+                          </label>
+                        </div>
+
+                        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                          <div>
+                            <h3 className="font-black text-gray-900 m-0">{config.questions.length} perguntas</h3>
+                            <p className="text-xs text-gray-500 m-0">Abra cada pergunta para editar alternativas e marcar a resposta correta.</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={addQuestion} className="px-3 py-2 rounded-xl text-white text-sm font-black flex items-center gap-2 border-none cursor-pointer" style={{ background: '#10B981' }}>
+                              <Plus size={16} /> Adicionar pergunta
+                            </button>
+                            <button onClick={handleSave} disabled={saving}
+                              className="px-4 py-2 rounded-xl text-white text-sm font-black flex items-center gap-2 disabled:opacity-60 border-none cursor-pointer"
+                              style={{ background: LBW.blue }}>
+                              <Save size={16} /> {saving ? 'Salvando…' : 'Salvar este curso'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {config.questions.map((q, qi) => (
+                            <QuestionEditor
+                              key={q.id} q={q} index={qi}
+                              onText={(text) => updateQuestion(q.id, { text })}
+                              onOption={(idx, val) => updateOption(q.id, idx, val)}
+                              onCorrect={(idx) => updateQuestion(q.id, { correctIndex: idx })}
+                              onAddOption={() => addOption(q.id)}
+                              onRemoveOption={(idx) => removeOption(q.id, idx)}
+                              onRemove={() => removeQuestion(q.id)}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-              <label className="block">
-                <span className="text-xs font-bold text-gray-500 uppercase">% para aprovar</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <input type="number" min={0} max={100} value={Math.round(config.passPct * 100)}
-                    onChange={(e) => update({ passPct: Math.min(100, Math.max(0, Number(e.target.value))) / 100 })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-                  <span className="text-gray-400 text-sm">%</span>
-                </div>
-              </label>
-              <label className="block">
-                <span className="text-xs font-bold text-gray-500 uppercase">% vídeos p/ liberar</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <input type="number" min={0} max={100} value={Math.round(config.watchGatePct * 100)}
-                    onChange={(e) => update({ watchGatePct: Math.min(100, Math.max(0, Number(e.target.value))) / 100 })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
-                  <span className="text-gray-400 text-sm">%</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Perguntas */}
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-800">{config.questions.length} perguntas</h2>
-            <button onClick={addQuestion} className="px-3 py-2 rounded-lg text-white text-sm font-bold flex items-center gap-2" style={{ background: '#10B981' }}>
-              <Plus size={16} /> Adicionar pergunta
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {config.questions.map((q, qi) => (
-              <QuestionEditor
-                key={q.id} q={q} index={qi}
-                onText={(text) => updateQuestion(q.id, { text })}
-                onOption={(idx, val) => updateOption(q.id, idx, val)}
-                onCorrect={(idx) => updateQuestion(q.id, { correctIndex: idx })}
-                onAddOption={() => addOption(q.id)}
-                onRemoveOption={(idx) => removeOption(q.id, idx)}
-                onRemove={() => removeQuestion(q.id)}
-              />
-            ))}
-          </div>
-        </>
+            );
+          })}
+        </div>
       )}
     </div>
   );
@@ -304,11 +356,11 @@ function QuestionEditor({ q, index, onText, onOption, onCorrect, onAddOption, on
       <div className="flex items-start gap-3 p-4">
         <span className="w-7 h-7 rounded-full bg-gray-100 text-gray-500 text-sm font-bold flex items-center justify-center shrink-0 mt-1">{index + 1}</span>
         <textarea value={q.text} onChange={(e) => onText(e.target.value)} rows={open ? 2 : 1}
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none font-semibold text-gray-800" />
-        <button onClick={() => setOpen((v) => !v)} className="p-2 text-gray-400 hover:text-gray-600 shrink-0">
+          className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none font-semibold text-gray-800 focus:outline-none focus:border-blue-500" />
+        <button onClick={() => setOpen((v) => !v)} className="p-2 text-gray-400 hover:text-gray-600 shrink-0 border-none bg-transparent cursor-pointer">
           <ChevronDown size={18} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
-        <button onClick={onRemove} className="p-2 text-red-300 hover:text-red-500 shrink-0" title="Remover pergunta">
+        <button onClick={onRemove} className="p-2 text-red-300 hover:text-red-500 shrink-0 border-none bg-transparent cursor-pointer" title="Remover pergunta">
           <Trash2 size={16} />
         </button>
       </div>
@@ -321,15 +373,15 @@ function QuestionEditor({ q, index, onText, onOption, onCorrect, onAddOption, on
             return (
               <div key={idx} className="flex items-center gap-2">
                 <button onClick={() => onCorrect(idx)}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 ${correct ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-transparent'}`}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 cursor-pointer ${correct ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-transparent bg-white'}`}
                   title="Marcar como correta">
                   <Check size={14} />
                 </button>
                 <span className="text-xs font-bold text-gray-400 w-4">{String.fromCharCode(65 + idx)}</span>
                 <input value={opt} onChange={(e) => onOption(idx, e.target.value)}
-                  className={`flex-1 border rounded-lg px-3 py-1.5 text-sm ${correct ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200'}`} />
+                  className={`flex-1 border rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500 ${correct ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200'}`} />
                 {q.options.length > 2 && (
-                  <button onClick={() => onRemoveOption(idx)} className="p-1.5 text-red-300 hover:text-red-500 shrink-0">
+                  <button onClick={() => onRemoveOption(idx)} className="p-1.5 text-red-300 hover:text-red-500 shrink-0 border-none bg-transparent cursor-pointer">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -337,7 +389,7 @@ function QuestionEditor({ q, index, onText, onOption, onCorrect, onAddOption, on
             );
           })}
           {q.options.length < 6 && (
-            <button onClick={onAddOption} className="text-xs font-bold text-blue-600 flex items-center gap-1 mt-2">
+            <button onClick={onAddOption} className="text-xs font-bold text-blue-600 flex items-center gap-1 mt-2 border-none bg-transparent cursor-pointer">
               <Plus size={13} /> Adicionar alternativa
             </button>
           )}

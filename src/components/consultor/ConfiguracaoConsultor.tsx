@@ -22,7 +22,7 @@ const MateriaisApoio = lazy(() => import('./MateriaisApoio'));
 const ABAS = [
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
   { id: 'materiais', nome: 'Material de Apoio', icon: FolderUp, Comp: MateriaisApoio },
-  { id: 'prova', nome: 'Prova', icon: ClipboardCheck, Comp: ProvaCertificacao },
+  { id: 'prova', nome: 'Teste de Avaliação', icon: ClipboardCheck, Comp: ProvaCertificacao },
   { id: 'certificados', nome: 'Certificados', icon: Award, Comp: Certificados },
   { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
   { id: 'alunos', nome: 'Alunos na Plataforma', icon: Users, Comp: MeusAlunos },

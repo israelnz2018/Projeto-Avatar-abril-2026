@@ -200,7 +200,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Consultor Comece por aqui', path: '/comece-por-aqui', icon: Rocket },
         { name: 'Meus Cursos', path: '/configuracao?aba=cursos', icon: BookOpen },
         { name: 'Projetos, Fases e Ferramentas', path: '/configuracao?aba=fases', icon: Settings },
-        { name: 'Prova', path: '/configuracao?aba=prova', icon: ClipboardList },
+        { name: 'Teste de Avaliação', path: '/configuracao?aba=prova', icon: ClipboardList },
         { name: 'Certificados', path: '/configuracao?aba=certificados', icon: Award },
         { name: 'Minha Marca', path: '/configuracao?aba=marca', icon: Palette },
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
