@@ -623,6 +623,7 @@ export default function KnowledgeManagerView() {
   const [reconcileTarget, setReconcileTarget] = useState<Record<string, string>>({});
   const [ignoredOrphans, setIgnoredOrphans] = useState<Set<string>>(new Set());
   const [reconcilingOrfao, setReconcilingOrfao] = useState<string | null>(null);
+  const [deletingOrfao, setDeletingOrfao] = useState<string | null>(null);
 
   useEffect(() => {
     getInitiatives().then(list => {
@@ -1284,6 +1285,37 @@ export default function KnowledgeManagerView() {
     }
   };
 
+  const handleDeleteOrphanVideos = async (orfao: string) => {
+    const qtd = items.filter(v => v.course === orfao).length;
+    const ok = window.confirm(
+      `Excluir ${qtd} vídeo${qtd > 1 ? 's' : ''} vinculado${qtd > 1 ? 's' : ''} ao curso antigo abaixo?\n\n` +
+      `"${orfao}"\n\n` +
+      `Use esta opção somente quando o consultor deletou esse projeto/curso antigo e estes vídeos não devem mais existir na base. Esta ação remove os vídeos da Base de Conhecimento e não pode ser desfeita pela tela.`
+    );
+    if (!ok) return;
+
+    setDeletingOrfao(orfao);
+    try {
+      await deleteCourse(orfao);
+      setIgnoredOrphans(prev => {
+        const next = new Set(prev);
+        next.delete(orfao);
+        return next;
+      });
+      setReconcileTarget(prev => {
+        const { [orfao]: _removed, ...rest } = prev;
+        return rest;
+      });
+      await fetchItems();
+      alert(`Pronto. ${qtd} vídeo${qtd > 1 ? 's foram removidos' : ' foi removido'} da Base de Conhecimento.`);
+    } catch (e) {
+      console.error('[Delete orphan videos] Falha:', e);
+      alert('Falha ao excluir vídeos: ' + (e as Error).message);
+    } finally {
+      setDeletingOrfao(null);
+    }
+  };
+
   const playlistsForCourse = (course: string) => course && course !== 'NEW'
     ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
     : [];
@@ -1417,7 +1449,7 @@ export default function KnowledgeManagerView() {
               </h3>
               <p className="text-xs text-yellow-800 mt-1 mb-4 m-0 leading-relaxed">
                 Estes nomes aparecem nos vídeos do Firestore, mas não batem com nenhum curso atual do <code className="bg-yellow-100 px-1 rounded">/config</code>.
-                Isso não deleta curso nem projeto: escolha o curso correto e clique em <strong>ATUALIZAR VÍNCULO</strong> para corrigir somente o campo de curso dos vídeos.
+                Se o curso foi apenas renomeado, escolha o curso correto e clique em <strong>ATUALIZAR VÍNCULO</strong>. Se o consultor deletou esse projeto/curso antigo de verdade, use <strong>EXCLUIR VÍDEOS</strong>.
               </p>
               <div className="space-y-2">
                 {orfaosComContagem.map(({ nome, qtd }) => (
@@ -1432,7 +1464,7 @@ export default function KnowledgeManagerView() {
                           value={reconcileTarget[nome] || ''}
                           onChange={e => setReconcileTarget(prev => ({ ...prev, [nome]: e.target.value }))}
                           className="p-2 border border-gray-300 rounded text-sm bg-white min-w-[200px] focus:outline-none focus:border-blue-500"
-                          disabled={reconcilingOrfao === nome}
+                          disabled={reconcilingOrfao === nome || deletingOrfao === nome}
                         >
                           <option value="">Atualizar vínculo para...</option>
                           {initiativeNames.map(n => (
@@ -1441,7 +1473,7 @@ export default function KnowledgeManagerView() {
                         </select>
                         <button
                           onClick={() => handleReconcile(nome)}
-                          disabled={!reconcileTarget[nome] || reconcilingOrfao === nome}
+                          disabled={!reconcileTarget[nome] || reconcilingOrfao === nome || deletingOrfao === nome}
                           className="px-3 py-2 bg-yellow-600 text-white rounded text-xs font-black hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
                         >
                           {reconcilingOrfao === nome ? (
@@ -1449,12 +1481,24 @@ export default function KnowledgeManagerView() {
                           ) : 'ATUALIZAR VÍNCULO'}
                         </button>
                         <button
+                          onClick={() => handleDeleteOrphanVideos(nome)}
+                          disabled={reconcilingOrfao === nome || deletingOrfao === nome}
+                          className="px-3 py-2 bg-red-600 text-white rounded text-xs font-black hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer uppercase tracking-wider flex items-center gap-1.5"
+                          title="Excluir todos os vídeos vinculados a este nome antigo de curso"
+                        >
+                          {deletingOrfao === nome ? (
+                            <><Loader2 size={12} className="animate-spin" /> EXCLUINDO...</>
+                          ) : (
+                            <><Trash2 size={12} /> EXCLUIR VÍDEOS</>
+                          )}
+                        </button>
+                        <button
                           onClick={() => setIgnoredOrphans(prev => {
                             const next = new Set(prev);
                             next.add(nome);
                             return next;
                           })}
-                          disabled={reconcilingOrfao === nome}
+                          disabled={reconcilingOrfao === nome || deletingOrfao === nome}
                           className="px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer disabled:opacity-50"
                           title="Esconder este aviso até recarregar a página (não muda o Firestore)"
                         >
