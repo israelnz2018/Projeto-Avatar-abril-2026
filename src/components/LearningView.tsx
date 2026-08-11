@@ -26,7 +26,12 @@ import {
 } from 'lucide-react';
 import { cn, youtubeThumb } from '@/src/lib/utils';
 import UpgradeBanner from './UpgradeBanner';
-import { getAllKnowledge, KnowledgeEntry } from '../services/knowledgeService';
+import {
+  getAllKnowledge,
+  KnowledgeEntry,
+  INTRO_COURSE_ALUNO,
+  INTRO_COURSE_COORDENADOR
+} from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { getInitiatives } from '../services/configService';
@@ -115,6 +120,8 @@ export default function LearningView() {
   //  - Modo PLANO (alunos atuais sem pacote): completo vê tudo, starter vê os grátis —
   //    exatamente como funciona hoje (grupos preservados).
   const isCourseLocked = (course: string) => {
+    if (course === INTRO_COURSE_ALUNO) return false;
+    if (course === INTRO_COURSE_COORDENADOR) return !(isAdmin || isConsultor || isCoordenador);
     if (veTudo) return false;
     // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "curso grátis" no
     // sistema — só os cursos explicitamente liberados pelo consultor (isFree não faz bypass).
@@ -241,7 +248,13 @@ export default function LearningView() {
   const fetchItems = async () => {
     setLoading(true);
     const data = await getAllKnowledge(consultorAtual); // escopa o conteúdo pelo consultor do site
-    const somenteBunny = data.filter((item) => Boolean(item.bunnyVideoId && item.bunnyLibraryId));
+    const somenteBunny = data
+      .filter((item) => Boolean(item.bunnyVideoId && item.bunnyLibraryId))
+      .filter((item) => {
+        if (item.course === INTRO_COURSE_ALUNO) return true;
+        if (item.course === INTRO_COURSE_COORDENADOR) return isAdmin || isConsultor || isCoordenador;
+        return true;
+      });
     // Modelo unificado: TODOS os cursos aparecem; os não liberados ficam com CADEADO
     // (isCourseLocked), pra todos os consultores — igual à estratégia do Israel.
     setItems(somenteBunny);
@@ -268,6 +281,14 @@ export default function LearningView() {
   // Ordena cursos pelo prefixo numérico ("1- ...", "2- ...", "9- ..."), "Todos" fica primeiro.
   const sortedCourses = Array.from(new Set(items.map(item => item.course)))
     .sort((a, b) => {
+      const specialOrder = (course: string) => {
+        if (course === INTRO_COURSE_ALUNO) return 0;
+        if (course === INTRO_COURSE_COORDENADOR) return 1;
+        return 2;
+      };
+      const oa = specialOrder(a);
+      const ob = specialOrder(b);
+      if (oa !== ob) return oa - ob;
       const na = parseInt(a);
       const nb = parseInt(b);
       if (!isNaN(na) && !isNaN(nb)) return na - nb;

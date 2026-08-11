@@ -168,7 +168,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const menuItems = [
     // "COMECE POR AQUI" — sempre a primeiríssima aba do consultor, checklist de onboarding.
     ...(siteConsultor && (isAdmin || isConsultor) ? [
-      { name: 'COMECE POR AQUI', path: '/comece-por-aqui', icon: Rocket },
+      { name: 'Consultor Comece por aqui', path: '/comece-por-aqui', icon: Rocket },
     ] : []),
     // Experiência de aluno/consultor (curso, projeto, comunidades do consultor/coordenador).
     // Escondida no hub do admin — o admin não tem curso nem projeto.

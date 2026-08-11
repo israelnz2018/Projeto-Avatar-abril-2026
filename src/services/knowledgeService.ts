@@ -32,6 +32,16 @@ export interface KnowledgeEntry {
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';
 
+export const INTRO_COURSE_ALUNO = 'Aluno Comece por aqui';
+export const INTRO_COURSE_COORDENADOR = 'Coordenador Comece por aqui';
+export const INTRO_PLAYLIST = 'Comece por aqui';
+
+export const INTRO_COURSES = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR] as const;
+
+export function isIntroCourse(course: string): boolean {
+  return INTRO_COURSES.includes(course as typeof INTRO_COURSES[number]);
+}
+
 export async function saveKnowledge(entry: Omit<KnowledgeEntry, 'timestamp' | 'id'>, providedOrder?: number) {
   try {
     let order = providedOrder;

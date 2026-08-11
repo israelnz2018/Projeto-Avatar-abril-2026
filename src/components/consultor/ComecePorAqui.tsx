@@ -191,7 +191,7 @@ export default function ComecePorAqui() {
     <div className="max-w-3xl mx-auto pb-12">
       <div className="flex items-center gap-3 mb-1">
         <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 grid place-items-center"><Rocket size={20} /></div>
-        <h1 className="text-2xl font-black text-gray-800">Comece por Aqui</h1>
+        <h1 className="text-2xl font-black text-gray-800">Consultor Comece por aqui</h1>
       </div>
       <p className="text-gray-500 text-sm mb-6">
         Um passo a passo pra deixar <b>{consultor.branding.nome}</b> pronta. Marque o que já fez — nada aqui bloqueia o resto da plataforma, é só um guia.

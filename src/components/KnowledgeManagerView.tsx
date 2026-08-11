@@ -51,7 +51,11 @@ import {
   deletePlaylist,
   updatePlaylistName,
   movePlaylistToCourse,
-  KNOWLEDGE_COLLECTION
+  KNOWLEDGE_COLLECTION,
+  INTRO_COURSE_ALUNO,
+  INTRO_COURSE_COORDENADOR,
+  INTRO_PLAYLIST,
+  isIntroCourse
 } from '../services/knowledgeService';
 import { getInitiatives, updateInitiative } from '../services/configService';
 
@@ -516,7 +520,15 @@ export default function KnowledgeManagerView() {
   const updatePlacement = (idx: number, patch: Partial<{ course: string; playlist: string; newPlaylistName: string }>) => {
     setFormData(prev => ({
       ...prev,
-      placements: prev.placements.map((p, i) => i === idx ? { ...p, ...patch } : p)
+      placements: prev.placements.map((p, i) => {
+        if (i !== idx) return p;
+        const next = { ...p, ...patch };
+        if (patch.course && isIntroCourse(patch.course)) {
+          next.playlist = INTRO_PLAYLIST;
+          next.newPlaylistName = '';
+        }
+        return next;
+      })
     }));
   };
 
@@ -1151,7 +1163,10 @@ export default function KnowledgeManagerView() {
               transcript: currentItem.transcript || '',
               associatedTools: editVideoData.associatedTools,
               associatedAnalyses: editVideoData.associatedAnalyses,
-              consultorId
+              consultorId,
+              bunnyVideoId: currentItem.bunnyVideoId,
+              bunnyLibraryId: currentItem.bunnyLibraryId,
+              bunnyThumbnailUrl: currentItem.bunnyThumbnailUrl
             });
           }
         }
@@ -1221,7 +1236,15 @@ export default function KnowledgeManagerView() {
 
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
 
-  const playlistsForCourse = (course: string) => course && course !== 'NEW'
+  const courseOptions = [
+    INTRO_COURSE_ALUNO,
+    INTRO_COURSE_COORDENADOR,
+    ...initiativeNames.filter(c => !isIntroCourse(c))
+  ];
+
+  const playlistsForCourse = (course: string) => isIntroCourse(course)
+    ? [INTRO_PLAYLIST]
+    : course && course !== 'NEW'
     ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
     : [];
 
@@ -1408,7 +1431,7 @@ export default function KnowledgeManagerView() {
                       className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
                     >
                       <option value="" disabled>Selecione um curso...</option>
-                      {initiativeNames.map(c => (
+                      {courseOptions.map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
@@ -1418,12 +1441,13 @@ export default function KnowledgeManagerView() {
                         value={p.playlist}
                         onChange={(e) => updatePlacement(idx, { playlist: e.target.value })}
                         className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
+                        disabled={isIntroCourse(p.course)}
                       >
                         <option value="" disabled>Selecione uma playlist...</option>
                         {availPlaylists.map(pl => (
                           <option key={pl} value={pl}>{pl}</option>
                         ))}
-                        <option value="NEW">+ Cadastrar nova playlist</option>
+                        {!isIntroCourse(p.course) && <option value="NEW">+ Cadastrar nova playlist</option>}
                       </select>
                       {p.playlist === 'NEW' && (
                         <input
@@ -1779,21 +1803,28 @@ export default function KnowledgeManagerView() {
                             <div key={p.id || `new-${idx}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-start">
                               <select
                                 value={p.course}
-                                onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, course: e.target.value, playlist: '', newPlaylistName: '' } : pp))}
+                                onChange={(e) => {
+                                  const course = e.target.value;
+                                  setEditPlacements(prev => prev.map((pp, i) => i === idx
+                                    ? { ...pp, course, playlist: isIntroCourse(course) ? INTRO_PLAYLIST : '', newPlaylistName: '' }
+                                    : pp
+                                  ));
+                                }}
                                 className="p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
                               >
                                 <option value="" disabled>Selecione um curso...</option>
-                                {initiativeNames.map(c => <option key={c} value={c}>{c}</option>)}
+                                {courseOptions.map(c => <option key={c} value={c}>{c}</option>)}
                               </select>
                               <div className="space-y-1">
                                 <select
                                   value={p.playlist}
                                   onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, playlist: e.target.value } : pp))}
                                   className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
+                                  disabled={isIntroCourse(p.course)}
                                 >
                                   <option value="" disabled>Selecione uma playlist...</option>
                                   {availPlaylists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
-                                  <option value="NEW">+ Nova playlist</option>
+                                  {!isIntroCourse(p.course) && <option value="NEW">+ Nova playlist</option>}
                                 </select>
                                 {p.playlist === 'NEW' && (
                                   <input
