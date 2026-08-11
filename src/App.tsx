@@ -88,6 +88,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [openMenuSections, setOpenMenuSections] = useState<Record<string, boolean>>({
+    administrador: true,
     consultor: true,
     coordenador: false,
     aluno: false,
@@ -170,7 +171,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   // Hub do admin (app.…): o super-admin LBW logado FORA de um site de consultor.
   // Aqui o menu é PURO de gestão de plataforma — sem curso/projeto (isso é do consultor).
   const ehAdminHub = isAdmin && !siteConsultor;
-  const adminHubItems = ehAdminHub ? [
+  const adminHubItems = [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Consultores', path: '/admin-consultores', icon: Store },
       { name: 'Repasses', path: '/repasses', icon: Wallet },
@@ -179,12 +180,18 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
       { name: 'Ferramentas', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
-  ] : [];
+  ];
 
-  const canSeeConsultorArea = siteConsultor && (isAdmin || isConsultor);
-  const canSeeCoordenadorArea = !ehAdminHub && (canSeeConsultorArea || isCoordenador);
-  const canSeeAlunoArea = !ehAdminHub;
+  const canSeeConsultorArea = (siteConsultor || ehAdminHub) && (isAdmin || isConsultor);
+  const canSeeCoordenadorArea = canSeeConsultorArea || (!ehAdminHub && isCoordenador);
+  const canSeeAlunoArea = !ehAdminHub || isAdmin;
   const menuSections = [
+    ...(ehAdminHub ? [{
+      id: 'administrador',
+      title: 'Área do Administrador',
+      icon: LayoutDashboard,
+      items: adminHubItems,
+    }] : []),
     ...(canSeeConsultorArea ? [{
       id: 'consultor',
       title: 'Área do Consultor',
@@ -242,11 +249,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     : location.pathname === path;
 
   useEffect(() => {
-    if (ehAdminHub) return;
     setOpenMenuSections({
-      consultor: canSeeConsultorArea,
+      administrador: ehAdminHub,
+      consultor: !ehAdminHub && canSeeConsultorArea,
       coordenador: !canSeeConsultorArea && isCoordenador,
-      aluno: !canSeeConsultorArea && !isCoordenador,
+      aluno: !canSeeConsultorArea && !isCoordenador && !ehAdminHub,
     });
   }, [ehAdminHub, canSeeConsultorArea, isCoordenador]);
 
@@ -323,23 +330,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         )}
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {ehAdminHub ? (
-            adminHubItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                data-tour-id={`menu-${item.path}`}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg transition-colors",
-                  isItemActive(item.path) ? "bg-blue-600 text-white" : "hover:bg-gray-700 text-gray-300"
-                )}
-              >
-                <item.icon size={20} />
-                {isSidebarOpen && <span>{item.name}</span>}
-              </Link>
-            ))
-          ) : (
-            menuSections.map((section) => {
+          {menuSections.map((section) => {
               const open = !isSidebarOpen || openMenuSections[section.id];
               const sectionActive = section.items.some((item) => isItemActive(item.path));
               return (
@@ -383,8 +374,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                   )}
                 </div>
               );
-            })
-          )}
+            })}
         </nav>
 
         {/* Rodapé: CTA de compra — só para aluno gratuito */}
