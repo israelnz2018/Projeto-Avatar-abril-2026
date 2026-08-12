@@ -243,14 +243,12 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     }] : []),
   ];
 
-  const isItemActive = (path: string) => {
-    if (path.includes('?')) return `${location.pathname}${location.search}` === path;
-    if (path === '/education') {
-      const aba = new URLSearchParams(location.search).get('aba');
-      return location.pathname === path && aba !== 'aluno' && aba !== 'coordenador';
-    }
-    return location.pathname === path;
-  };
+  const currentPathWithSearch = `${location.pathname}${location.search}`;
+  const allMenuItems = menuSections.flatMap((section) => section.items);
+  const exactActivePath = allMenuItems.find((item) => item.path.includes('?') && item.path === currentPathWithSearch)?.path;
+  const baseActivePath = allMenuItems.find((item) => !item.path.includes('?') && item.path === location.pathname)?.path;
+  const activeMenuPath = exactActivePath || (location.search ? '' : baseActivePath) || '';
+  const isItemActive = (path: string) => path === activeMenuPath;
 
   useEffect(() => {
     setOpenMenuSections({
