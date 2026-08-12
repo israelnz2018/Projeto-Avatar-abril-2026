@@ -31,7 +31,7 @@ function montarConfig(config: ConsultorCertificateConfig | undefined, nome: stri
     corTexto: config?.corTexto || cores?.ink || '#0F172A',
     fonte: config?.fonte === 'classica' ? 'georgia' : config?.fonte === 'serifada' ? 'times' : (config?.fonte || 'moderna'),
     mostrarLogo: config?.mostrarLogo !== false,
-    mostrarAssinatura: config?.mostrarAssinatura !== false,
+    mostrarAssinatura: true,
     mostrarQrCode: config?.mostrarQrCode !== false,
     cursos: config?.cursos || {},
     versao: config?.versao || 0,
@@ -63,10 +63,15 @@ export default function CertificadosView() {
   const patch = <K extends keyof ConsultorCertificateConfig>(key: K, value: ConsultorCertificateConfig[K]) =>
     setConfig((atual) => ({ ...atual, [key]: value }));
 
-  const patchCurso = (cursoId: string, value: number) =>
+  const patchCurso = (curso: Initiative, value: number | '') =>
     setConfig((atual) => ({
       ...atual,
-      cursos: { ...atual.cursos, [cursoId]: { cargaHoraria: value } },
+      cursos: {
+        ...(atual.cursos || {}),
+        [curso.id]: value === ''
+          ? { ...((atual.cursos || {})[curso.id] || {}), cursoNome: curso.name }
+          : { ...((atual.cursos || {})[curso.id] || {}), cursoNome: curso.name, cargaHoraria: value },
+      },
     }));
 
   async function enviar(file: File | undefined, tipo: BrandingAsset, key: 'fundoUrl' | 'assinaturaUrl') {
@@ -87,9 +92,14 @@ export default function CertificadosView() {
     setSalvando(true);
     setMensagem('');
     try {
+      if (!config.assinaturaUrl) {
+        setMensagem('❌ Envie a assinatura antes de salvar o certificado.');
+        return;
+      }
       const novaConfig: ConsultorCertificateConfig = {
         ...config,
         modo: config.fundoUrl ? 'proprio' : 'padrao',
+        mostrarAssinatura: true,
         instituicao: config.instituicao?.trim(), emissorNome: config.emissorNome?.trim(),
         emissorCargo: config.emissorCargo?.trim(),
         titulo: config.titulo?.trim(), textoCertificamos: config.textoCertificamos?.trim(),
@@ -133,7 +143,7 @@ export default function CertificadosView() {
 
       <div className="grid items-start gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
         <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <EditorTitle icon={<ImageIcon size={17} />} title="1. Curso da previa" />
+          <EditorTitle icon={<ImageIcon size={17} />} title="1. Curso e modelo visual" />
           <div className="space-y-2">
             <label className={label}>Curso exibido no certificado</label>
             <select
@@ -147,18 +157,16 @@ export default function CertificadosView() {
             <p className="text-xs text-gray-500">Escolha o curso primeiro. A previa ao lado mostra exatamente como este curso vai sair no certificado.</p>
           </div>
 
-          <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<ImageIcon size={17} />} title="2. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
+          <AssetUpload titulo="Assinatura obrigatória" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
           <div className="grid grid-cols-2 gap-2">
             <Toggle label="Mostrar logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
             <Toggle label="Mostrar QR Code" checked={config.mostrarQrCode !== false} onChange={(v) => patch('mostrarQrCode', v)} />
           </div>
-          </section>
 
           <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<Type size={17} />} title="3. Dados do certificado" />
+            <EditorTitle icon={<Type size={17} />} title="2. Dados do certificado" />
             <div className="mt-4 space-y-3">
               <Field label="Instituição (topo)" value={config.instituicao || ''} onChange={(v) => patch('instituicao', v)} campo={campo} />
               <Field label="Título" value={config.titulo || ''} onChange={(v) => patch('titulo', v)} campo={campo} />
@@ -176,13 +184,16 @@ export default function CertificadosView() {
                   className={campo}
                   value={cursoAtivo ? (config.cursos?.[cursoAtivo.id]?.cargaHoraria ?? '') : ''}
                   placeholder="Ex.: 20 horas"
-                  onChange={(e) => cursoAtivo && patchCurso(cursoAtivo.id, Math.max(0, Number(e.target.value)))}
+                  onChange={(e) => {
+                    if (!cursoAtivo) return;
+                    const value = e.target.value;
+                    patchCurso(cursoAtivo, value === '' ? '' : Math.max(0, Number(value)));
+                  }}
                 />
               </div>
               <Field label="Texto de aprovação (depois da carga horária)" value={config.textoAprovacao || ''} onChange={(v) => patch('textoAprovacao', v)} campo={campo} />
               <ProtectedLine label="Data de emissão" value="22 de junho de 2026" />
-              <div className="pt-2"><AssetUpload titulo="Assinatura" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} /></div>
-              <Toggle label="Mostrar assinatura" checked={config.mostrarAssinatura !== false} onChange={(v) => patch('mostrarAssinatura', v)} />
+              <ProtectedLine label="Assinatura" value={config.assinaturaUrl ? 'Assinatura enviada' : 'Assinatura obrigatória pendente'} />
               <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
               <Field label="Cargo/profissão" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
               <ProtectedLine label="QR Code e número" value="Gerados automaticamente" />
@@ -190,7 +201,7 @@ export default function CertificadosView() {
           </section>
 
           <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<Type size={17} />} title="4. Fonte" />
+            <EditorTitle icon={<Type size={17} />} title="3. Fonte" />
             <label className={`${label} mt-4`}>Fonte do certificado</label>
             <select className={campo} value={config.fonte || 'moderna'} onChange={(e) => patch('fonte', e.target.value as ConsultorCertificateConfig['fonte'])}>
               <option value="moderna">Moderna</option>

@@ -81,6 +81,7 @@ export interface ConsultorCertificateConfig {
   mostrarQrCode?: boolean;
   /** Regras editáveis por curso. Os dados variáveis do aluno/emissão não ficam aqui. */
   cursos?: Record<string, {
+    cursoNome?: string;
     cargaHoraria?: number;
   }>;
   /** Incrementada a cada salvamento para identificar a arte usada na emissão. */
