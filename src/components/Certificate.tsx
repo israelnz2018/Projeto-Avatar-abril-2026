@@ -77,13 +77,6 @@ function formatDataPorExtenso(iso: string): string {
   return `${dia} de ${meses[mes]} de ${ano}`;
 }
 
-function quebrarLinkVerificacao(url: string): string[] {
-  const texto = url.replace(/^https?:\/\//, '');
-  const partes: string[] = [];
-  for (let inicio = 0; inicio < texto.length; inicio += 22) partes.push(texto.slice(inicio, inicio + 22));
-  return partes.slice(0, 4);
-}
-
 export default function Certificate({ alunoNome, initiativeName, initiativeId, issuedAt, certId, mode = 'student', consultorId, configOverride }: Props) {
   const { consultor: consultorAtual } = useConsultor();
   const [consultor, setConsultor] = useState<Consultor>(consultorAtual);
@@ -118,10 +111,19 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
   const instituicao = certificado?.instituicao || (isIsrael ? 'Educação pelo Trabalho' : (branding?.nome || consultor.nome));
   const emissorNome = certificado?.emissorNome || (isIsrael ? 'Israel Cavalcanti de Souza' : consultor.nome);
   const emissorCargo = certificado?.emissorCargo || (isIsrael ? 'CEO Learning by Working' : 'Responsável pela formação');
-  const fonte = certificado?.fonte === 'serifada' ? "'Instrument Serif','Georgia',serif" : certificado?.fonte === 'classica' ? "'Georgia',serif" : "'Geist',ui-sans-serif,system-ui,sans-serif";
+  const fontes: Record<string, string> = {
+    moderna: "'Geist',ui-sans-serif,system-ui,sans-serif",
+    arial: "Arial,Helvetica,sans-serif",
+    times: "'Times New Roman',Times,serif",
+    georgia: "Georgia,'Times New Roman',serif",
+    verdana: "Verdana,Geneva,sans-serif",
+    // Compatibilidade com configurações salvas antes das cinco opções atuais.
+    classica: "Georgia,'Times New Roman',serif",
+    serifada: "'Times New Roman',Times,serif",
+  };
+  const fonte = fontes[certificado?.fonte || 'moderna'] || fontes.moderna;
 
   const verifyUrl = `${window.location.origin}/verificar/${certId}`;
-  const verifyLines = quebrarLinkVerificacao(verifyUrl);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent(verifyUrl)}`;
 
   const handlePrint = () => window.print();
@@ -232,7 +234,7 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
           {/* Certificamos que + nome do aluno */}
           <div className="absolute w-full text-center px-[16%]" style={{ top: '28%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: corMuted }}>{certificado?.textoCertificamos || 'Certificamos que'}</p>
-            <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
+            <p className="m-0 mt-1" style={{ fontFamily: fonte, fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
               <span style={{ color: corBlue }}>{alunoNome}</span>
             </p>
           </div>
@@ -256,7 +258,6 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
             <div className="absolute w-full text-center" style={{ top: '70.5%' }}>
               <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
               <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
-              <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: corInk }}>{certificado?.textoRodape || 'Consultor Sênior em Melhoria de Processos e Negócios'}</p>
             </div>
           ) : (
             <div className="absolute w-full text-center flex flex-col items-center" style={{ top: '66%', left: '24%', width: '52%', height: '22%', overflow: 'hidden' }}>
@@ -265,19 +266,16 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
               )}
               <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
               <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
-              {certificado?.textoRodape && (
-                <p className="m-0" style={{ maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'clamp(6px,.86vw,9px)', fontWeight: 600, color: corInk }}>{certificado.textoRodape}</p>
-              )}
             </div>
           )}
 
-          {/* QR + verificação: área própria e link quebrado em até quatro linhas. */}
+          {/* QR + número: o endereço completo fica codificado no QR Code. */}
           {certificado?.mostrarQrCode !== false && <div className="absolute flex flex-col items-start" style={{ left: '7%', bottom: '6.5%', width: '24%' }}>
             <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
               <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(44px,5.8vw,70px)', height: 'clamp(44px,5.8vw,70px)', display: 'block' }} />
             </div>
-            <p className="m-0 mt-1" style={{ fontSize: 'clamp(5.5px,0.7vw,7.5px)', fontFamily: 'monospace', color: corMuted, lineHeight: 1.2, overflowWrap: 'anywhere' }}>
-              {verifyLines.map((line, index) => <span key={`${line}-${index}`}>{line}<br /></span>)}Nº {certId}
+            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: corMuted, lineHeight: 1.2, whiteSpace: 'nowrap' }}>
+              Nº {certId}
             </p>
           </div>}
         </div>

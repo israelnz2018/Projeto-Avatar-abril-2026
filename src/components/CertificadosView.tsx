@@ -1,7 +1,7 @@
 /** Editor completo e prévia do certificado white-label do consultor. */
 import { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { Award, BookOpen, FileUp, Image as ImageIcon, LockKeyhole, RotateCcw, Save, ShieldCheck, Type } from 'lucide-react';
+import { Award, FileUp, Image as ImageIcon, LockKeyhole, RotateCcw, Save, Type } from 'lucide-react';
 import Certificate from './Certificate';
 import { getInitiatives } from '../services/configService';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -22,7 +22,6 @@ function montarConfig(config: ConsultorCertificateConfig | undefined, nome: stri
     instituicao: config?.instituicao || nome,
     emissorNome: config?.emissorNome || nome,
     emissorCargo: config?.emissorCargo || 'Responsável pela formação',
-    textoRodape: config?.textoRodape || '',
     titulo: config?.titulo || 'CERTIFICADO DE CONCLUSÃO',
     textoCertificamos: config?.textoCertificamos || 'Certificamos que',
     textoConclusao: config?.textoConclusao || 'concluiu com êxito o curso',
@@ -30,7 +29,7 @@ function montarConfig(config: ConsultorCertificateConfig | undefined, nome: stri
     corPrincipal: config?.corPrincipal || cores?.navy || '#1E2D6E',
     corDestaque: config?.corDestaque || cores?.blue || '#0033CC',
     corTexto: config?.corTexto || cores?.ink || '#0F172A',
-    fonte: config?.fonte || 'moderna',
+    fonte: config?.fonte === 'classica' ? 'georgia' : config?.fonte === 'serifada' ? 'times' : (config?.fonte || 'moderna'),
     mostrarLogo: config?.mostrarLogo !== false,
     mostrarAssinatura: config?.mostrarAssinatura !== false,
     mostrarQrCode: config?.mostrarQrCode !== false,
@@ -92,7 +91,7 @@ export default function CertificadosView() {
         ...config,
         modo: config.fundoUrl ? 'proprio' : 'padrao',
         instituicao: config.instituicao?.trim(), emissorNome: config.emissorNome?.trim(),
-        emissorCargo: config.emissorCargo?.trim(), textoRodape: config.textoRodape?.trim(),
+        emissorCargo: config.emissorCargo?.trim(),
         titulo: config.titulo?.trim(), textoCertificamos: config.textoCertificamos?.trim(),
         textoConclusao: config.textoConclusao?.trim(), textoAprovacao: config.textoAprovacao?.trim(),
         versao: (consultor.certificado?.versao || 0) + 1,
@@ -137,6 +136,10 @@ export default function CertificadosView() {
           <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
+          <div className="grid grid-cols-2 gap-2">
+            <Toggle label="Mostrar logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
+            <Toggle label="Mostrar QR Code" checked={config.mostrarQrCode !== false} onChange={(v) => patch('mostrarQrCode', v)} />
+          </div>
 
           <section className="border-t border-gray-100 pt-5">
             <EditorTitle icon={<Type size={17} />} title="2. Textos fixos" />
@@ -145,44 +148,38 @@ export default function CertificadosView() {
               <Field label="Título" value={config.titulo || ''} onChange={(v) => patch('titulo', v)} campo={campo} />
               <Field label="Texto antes do nome" value={config.textoCertificamos || ''} onChange={(v) => patch('textoCertificamos', v)} campo={campo} />
               <Field label="Texto antes do nome do curso" value={config.textoConclusao || ''} onChange={(v) => patch('textoConclusao', v)} campo={campo} />
+              <div>
+                <label className={label}>Carga horária por curso</label>
+                <p className="mb-2 text-xs text-gray-500">Escolha o curso e informe somente sua carga horária.</p>
+                <div className="space-y-2">
+                  {cursos.map((curso, index) => {
+                    const aberto = ativa === index;
+                    const regra = config.cursos?.[curso.id] || {};
+                    return <div key={curso.id} className="overflow-hidden rounded-xl border border-gray-200">
+                      <button type="button" onClick={() => setAtiva(index)} className={`w-full border-0 px-3 py-3 text-left text-sm font-bold ${aberto ? 'bg-blue-50 text-blue-800' : 'bg-white text-gray-700'}`}>{curso.name}</button>
+                      {aberto && <div className="border-t border-gray-100 bg-gray-50 p-3"><input aria-label={`Carga horária de ${curso.name}`} type="number" min="0" className={campo} value={regra.cargaHoraria ?? ''} placeholder="Ex.: 20 horas" onChange={(e) => patchCurso(curso.id, Math.max(0, Number(e.target.value)))} /></div>}
+                    </div>;
+                  })}
+                </div>
+              </div>
               <Field label="Texto de aprovação (depois da carga horária)" value={config.textoAprovacao || ''} onChange={(v) => patch('textoAprovacao', v)} campo={campo} />
               <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
-              <Field label="Cargo abaixo do nome (ex.: CEO Learning by Working)" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
-              <Field label="Descrição profissional abaixo do cargo" value={config.textoRodape || ''} onChange={(v) => patch('textoRodape', v)} campo={campo} />
+              <Field label="Cargo/profissão" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
+              <div className="pt-2"><AssetUpload titulo="Assinatura" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} /></div>
+              <Toggle label="Mostrar assinatura" checked={config.mostrarAssinatura !== false} onChange={(v) => patch('mostrarAssinatura', v)} />
             </div>
           </section>
 
           <section className="border-t border-gray-100 pt-5">
             <EditorTitle icon={<Type size={17} />} title="3. Fonte" />
             <label className={`${label} mt-4`}>Fonte do certificado</label>
-            <select className={campo} value={config.fonte || 'moderna'} onChange={(e) => patch('fonte', e.target.value as any)}><option value="moderna">Moderna</option><option value="classica">Clássica</option><option value="serifada">Serifada</option></select>
-          </section>
-
-          <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<ShieldCheck size={17} />} title="4. Imagens e elementos" />
-            <div className="mt-4"><AssetUpload titulo="Assinatura" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} /></div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <Toggle label="Logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
-              <Toggle label="Assinatura" checked={config.mostrarAssinatura !== false} onChange={(v) => patch('mostrarAssinatura', v)} />
-              <Toggle label="QR Code" checked={config.mostrarQrCode !== false} onChange={(v) => patch('mostrarQrCode', v)} />
-            </div>
-          </section>
-
-          <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<BookOpen size={17} />} title="5. Carga horária por curso" />
-            <p className="mt-1 text-xs text-gray-500">O nome do curso é automático. Aqui o consultor informa somente a carga horária.</p>
-            <div className="mt-3 space-y-2">
-              {cursos.map((curso, index) => {
-                const aberto = ativa === index;
-                const regra = config.cursos?.[curso.id] || {};
-                return <div key={curso.id} className="overflow-hidden rounded-xl border border-gray-200">
-                  <button type="button" onClick={() => setAtiva(index)} className={`w-full border-0 px-3 py-3 text-left text-sm font-bold ${aberto ? 'bg-blue-50 text-blue-800' : 'bg-white text-gray-700'}`}>{curso.name}</button>
-                  {aberto && <div className="space-y-3 border-t border-gray-100 bg-gray-50 p-3">
-                    <div><label className={label}>Carga horária</label><input type="number" min="0" className={campo} value={regra.cargaHoraria ?? ''} placeholder="Ex.: 20" onChange={(e) => patchCurso(curso.id, Math.max(0, Number(e.target.value)))} /></div>
-                  </div>}
-                </div>;
-              })}
-            </div>
+            <select className={campo} value={config.fonte || 'moderna'} onChange={(e) => patch('fonte', e.target.value as ConsultorCertificateConfig['fonte'])}>
+              <option value="moderna">Moderna</option>
+              <option value="arial">Arial</option>
+              <option value="times">Times New Roman</option>
+              <option value="georgia">Georgia</option>
+              <option value="verdana">Verdana</option>
+            </select>
           </section>
 
           <div className="flex gap-2 border-t border-gray-100 pt-5">

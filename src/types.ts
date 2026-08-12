@@ -75,7 +75,7 @@ export interface ConsultorCertificateConfig {
   corPrincipal?: string;
   corDestaque?: string;
   corTexto?: string;
-  fonte?: 'moderna' | 'classica' | 'serifada';
+  fonte?: 'moderna' | 'arial' | 'times' | 'georgia' | 'verdana' | 'classica' | 'serifada';
   mostrarLogo?: boolean;
   mostrarAssinatura?: boolean;
   mostrarQrCode?: boolean;
