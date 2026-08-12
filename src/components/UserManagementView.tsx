@@ -34,13 +34,13 @@ import {
   getCoordenadores,
   listarConvites,
   listarConvitesPorEmpresa,
-  criarConvite,
   deletarConvite,
   deleteUserDoc,
   updateUserMaxAlunos,
   subscribeUsersChanges,
   subscribeInvitesChanges,
 } from '../services/userService';
+import { auth } from '../lib/firebase';
 import { adminDeleteUser, adminResetPassword, adminListAllUsers, adminCompleteProfile, ListedUser } from '../services/adminUserService';
 import AdminUserModal, { AdminUserModalMode } from './AdminUserModal';
 
@@ -866,15 +866,22 @@ function EquipeCard({ coord, membros, invitesPendentes, onChanged, onSendEmail }
     if (!novoEmail.includes('@') || !coord.empresaId) return;
     setAdicionando(true);
     try {
-      await criarConvite({
-        email: novoEmail.trim().toLowerCase(),
-        nome: novoNome.trim() || undefined,
-        formacoes: [],
-        tipoUsuario: 'aluno',
-        empresaId: coord.empresaId,
-        empresaNome: coord.empresaNome,
-        criadoPor: 'admin',
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Sessão expirada. Entre novamente.');
+      const cursosAcesso = Array.isArray((coord as any).cursosAcesso) ? (coord as any).cursosAcesso : [];
+      const resposta = await fetch('/api/aluno/convidar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          email: novoEmail.trim().toLowerCase(),
+          nome: novoNome.trim() || undefined,
+          empresaId: coord.empresaId,
+          cursosAcesso,
+          acessoCompletoSemCursos: cursosAcesso.length === 0,
+        }),
       });
+      const resultado = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(resultado?.error || 'Falha ao adicionar membro.');
       setNovoEmail('');
       setNovoNome('');
       await onChanged();

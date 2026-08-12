@@ -1482,6 +1482,38 @@ async function startServer() {
   // ===============================================================
   const REATIVACAO_ATE = "2026-12-31T23:59:59-03:00";
 
+  function payloadReativacaoIsrael(base: any) {
+    const consultorId = "israel";
+    const patchAcesso = {
+      plano: "completo",
+      acessoCompletoAte: REATIVACAO_ATE,
+      origemAcesso: "convite-reativacao",
+      formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
+    };
+    const vinculos = { ...(base.vinculos || {}) };
+    if (base.consultorId && !vinculos[base.consultorId]) {
+      vinculos[base.consultorId] = {
+        tipoUsuario: base.tipoUsuario || "aluno", consultorId: base.consultorId,
+        empresaId: base.empresaId || null, empresaNome: base.empresaNome || null,
+        plano: base.plano || "gratuito", formacoes: base.formacoes || [],
+        cursosAcesso: base.cursosAcesso || [], acessoCompletoAte: base.acessoCompletoAte || null,
+      };
+    }
+    const papelIsrael = vinculos[consultorId]?.tipoUsuario
+      || (String(base.consultorId || "") === consultorId ? base.tipoUsuario : "aluno");
+    vinculos[consultorId] = {
+      ...(vinculos[consultorId] || {}), ...patchAcesso,
+      tipoUsuario: papelIsrael === "consultor" || papelIsrael === "coordenador" ? papelIsrael : "aluno",
+      consultorId,
+    };
+    const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
+    const principalEhIsrael = !base.consultorId || String(base.consultorId) === consultorId;
+    return {
+      consultorIds, vinculos,
+      ...(principalEhIsrael ? { ...patchAcesso, consultorId } : {}),
+    };
+  }
+
   app.post("/api/reativacao/criar-contas", requireAdmin, async (_req: any, res) => {
     if (!process.env.HOSTINGER_API_TOKEN) return res.status(503).json({ error: "HOSTINGER_API_TOKEN não configurado (preciso ler os contatos do Reach)." });
     try {
@@ -1502,15 +1534,14 @@ async function startServer() {
       const unicos = Array.from(new Set(emails)).filter((e) => e.indexOf("@") > 0);
 
       // 2) cria/atualiza cada conta como completo + validade.
-      // Senha temporária ÚNICA (igual pra todos) -> permite um e-mail de convite em massa idêntico.
-      // senhaProvisoria:true força a troca obrigatória no 1º login (App.tsx + DefinirSenha.tsx).
+      // Cada conta nova recebe senha temporária própria. Contas existentes mantêm a senha atual.
       const credenciais: { email: string; senha: string; status: string }[] = [];
       let criados = 0, atualizados = 0, falhas = 0;
       for (const email of unicos) {
         const senha = gerarSenhaProvisoria();
         try {
           let uid: string, novo = false;
-          try { uid = (await adminAuth().getUserByEmail(email)).uid; await adminAuth().updateUser(uid, { password: senha }); }
+          try { uid = (await adminAuth().getUserByEmail(email)).uid; }
           catch { uid = (await adminAuth().createUser({ email, password: senha })).uid; novo = true; }
           const ref = adminFirestore().collection("users").doc(uid);
           const snap = await ref.get();
@@ -1518,16 +1549,13 @@ async function startServer() {
           await ref.set({
             uid, email,
             nome: base.nome || "",
-            tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" ? base.tipoUsuario : "aluno",
-            plano: "completo",
-            acessoCompletoAte: REATIVACAO_ATE,
-            origemAcesso: "convite-reativacao",
-            formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
+            tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
+            ...payloadReativacaoIsrael(base),
             creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
             criadoEm: base.criadoEm || new Date().toISOString(),
-            senhaProvisoria: true, // força troca obrigatória no 1º acesso (senha LBW2026 é compartilhada)
+            ...(novo ? { senhaProvisoria: true } : {}),
           }, { merge: true });
-          credenciais.push({ email, senha, status: novo ? "criado" : "atualizado" });
+          credenciais.push({ email, senha: novo ? senha : "", status: novo ? "criado" : "atualizado-sem-alterar-senha" });
           novo ? criados++ : atualizados++;
         } catch (e: any) {
           falhas++; credenciais.push({ email, senha: "", status: "falha: " + (e?.message || "") });
@@ -1542,8 +1570,8 @@ async function startServer() {
 
   // POST /api/reativacao/criar-um — concede acesso completo grátis (até 31/12/2026)
   // para UMA pessoa (nome + email). Cria no Firebase se não existir, ou atualiza
-  // se já existir. Senha padrão LBW2026 (troca obrigatória no 1º acesso) e envia
-  // o e-mail de acesso. Usado no painel de Marketing pra quem procura pelo LinkedIn.
+  // se já existir. Só conta nova recebe senha provisória e troca obrigatória.
+  // Usado no painel de Marketing pra quem procura pelo LinkedIn.
   app.post("/api/reativacao/criar-um", requireAdmin, async (req: any, res) => {
     const email = String(req.body?.email || "").toLowerCase().trim();
     const nome = String(req.body?.nome || "").trim();
@@ -1552,42 +1580,43 @@ async function startServer() {
     }
     const senhaProvisoria = gerarSenhaProvisoria();
     try {
-      // 1) Cria no Auth se não existir; se existir, redefine a senha padrão.
+      // 1) Cria no Auth se não existir; conta existente mantém a própria senha.
       let uid: string, novo = false;
       try {
         uid = (await adminAuth().getUserByEmail(email)).uid;
-        await adminAuth().updateUser(uid, { password: senhaProvisoria, ...(nome ? { displayName: nome } : {}) });
+        if (nome) await adminAuth().updateUser(uid, { displayName: nome });
       } catch {
         uid = (await adminAuth().createUser({ email, password: senhaProvisoria, ...(nome ? { displayName: nome } : {}) })).uid;
         novo = true;
       }
-      // 2) Cria/atualiza o doc Firestore: completo + validade até 31/12 + senha provisória.
+      // 2) Cria/atualiza o vínculo de Israel: completo + validade até 31/12.
       const ref = adminFirestore().collection("users").doc(uid);
       const snap = await ref.get();
       const base = snap.exists ? (snap.data() as any) : {};
       await ref.set({
         uid, email,
         nome: nome || base.nome || "",
-        tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" ? base.tipoUsuario : "aluno",
-        plano: "completo",
-        acessoCompletoAte: REATIVACAO_ATE,
-        origemAcesso: "convite-reativacao",
-        formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
+        tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
+        ...payloadReativacaoIsrael(base),
         creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || new Date().toISOString(),
-        senhaProvisoria: true,
+        ...(novo ? { senhaProvisoria: true } : {}),
       }, { merge: true });
       // 3) Envia o MESMO e-mail de cortesia usado na campanha (via Resend) —
       // "Seu acesso gratuito à plataforma LBW — meu presente para você 🎁".
       let emailEnviado = false;
       try {
-        const r = await resendSend({ to: email, subject: CAMPANHA_ASSUNTO, html: campanhaCortesiaHtml(email, senhaProvisoria) });
-        emailEnviado = r.ok;
+        if (novo) {
+          const r = await resendSend({ to: email, subject: CAMPANHA_ASSUNTO, html: campanhaCortesiaHtml(email, senhaProvisoria) });
+          emailEnviado = r.ok;
+        } else {
+          emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "completo", contexto: "existente" });
+        }
       } catch (e) {
         console.error("[reativacao/criar-um] falha no envio Resend:", e);
       }
       console.log(`[reativacao/criar-um] ${novo ? "CRIADO" : "ATUALIZADO"} ${email} email=${emailEnviado}`);
-      return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, senha: senhaProvisoria, emailEnviado, acessoAte: REATIVACAO_ATE });
+      return res.json({ ok: true, status: novo ? "criado" : "atualizado-sem-alterar-senha", email, senha: novo ? senhaProvisoria : "", emailEnviado, acessoAte: REATIVACAO_ATE });
     } catch (err: any) {
       console.error("[POST /api/reativacao/criar-um] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao conceder acesso." });
@@ -2201,6 +2230,7 @@ async function startServer() {
     const email = String(req.body?.email || "").toLowerCase().trim();
     const nome = String(req.body?.nome || "").trim();
     let cursosAcesso = Array.isArray(req.body?.cursosAcesso) ? req.body.cursosAcesso : [];
+    const acessoCompletoSemCursos = callerEhAdmin && req.body?.acessoCompletoSemCursos === true;
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const SENHA_CONVITE = gerarSenhaProvisoria();
@@ -2300,7 +2330,7 @@ async function startServer() {
         valor: typeof c?.valor === "number" ? c.valor : 0,
       }))
       .filter((c: any) => c.curso);
-    if (cursosAcesso.length === 0) {
+    if (cursosAcesso.length === 0 && !acessoCompletoSemCursos) {
       return res.status(400).json({ error: "Escolha ao menos um curso para o aluno." });
     }
     if (cursosAcesso.some((c: any) => !c.vencimento || Number.isNaN(new Date(c.vencimento).getTime()))) {
