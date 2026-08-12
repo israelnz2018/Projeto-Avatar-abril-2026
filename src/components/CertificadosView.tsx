@@ -48,6 +48,8 @@ export default function CertificadosView() {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState('');
   const [carregando, setCarregando] = useState(true);
+  const temAssinaturaPadrao = consultorId === 'israel' && !config.fundoUrl;
+  const temAssinatura = !!config.assinaturaUrl || temAssinaturaPadrao;
 
   useEffect(() => {
     setConfig(montarConfig(consultor.certificado, consultor.branding?.nome || consultor.nome, consultorId, consultor.branding?.cores));
@@ -92,7 +94,7 @@ export default function CertificadosView() {
     setSalvando(true);
     setMensagem('');
     try {
-      if (!config.assinaturaUrl) {
+      if (!temAssinatura) {
         setMensagem('❌ Envie a assinatura antes de salvar o certificado.');
         return;
       }
@@ -146,7 +148,7 @@ export default function CertificadosView() {
           <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
-          <AssetUpload titulo="Assinatura obrigatória" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
+          <AssetUpload titulo="Assinatura obrigatória" descricao={temAssinaturaPadrao ? 'O modelo padrão LBW já possui assinatura.' : 'PNG transparente recomendado.'} url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
           <div className="grid grid-cols-2 gap-2">
             <Toggle label="Mostrar logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
             <Toggle label="Mostrar QR Code" checked={config.mostrarQrCode !== false} onChange={(v) => patch('mostrarQrCode', v)} />
@@ -192,7 +194,7 @@ export default function CertificadosView() {
               </div>
               <Field label="Texto de aprovação (depois da carga horária)" value={config.textoAprovacao || ''} onChange={(v) => patch('textoAprovacao', v)} campo={campo} />
               <ProtectedLine label="Data de emissão" value="22 de junho de 2026" />
-              <ProtectedLine label="Assinatura" value={config.assinaturaUrl ? 'Assinatura enviada' : 'Assinatura obrigatória pendente'} />
+              <ProtectedLine label="Assinatura" value={temAssinatura ? 'Assinatura configurada' : 'Assinatura obrigatória pendente'} />
               <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
               <Field label="Cargo/profissão" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
               <ProtectedLine label="QR Code e número" value="Gerados automaticamente" />
