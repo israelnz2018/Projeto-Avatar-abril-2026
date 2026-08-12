@@ -143,20 +143,7 @@ export default function CertificadosView() {
 
       <div className="grid items-start gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
         <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <EditorTitle icon={<ImageIcon size={17} />} title="1. Curso e modelo visual" />
-          <div className="space-y-2">
-            <label className={label}>Curso exibido no certificado</label>
-            <select
-              className={campo}
-              value={cursoAtivo?.id || ''}
-              disabled={carregando || cursos.length === 0}
-              onChange={(e) => setAtiva(Math.max(0, cursos.findIndex((curso) => curso.id === e.target.value)))}
-            >
-              {cursos.map((curso) => <option key={curso.id} value={curso.id}>{curso.name}</option>)}
-            </select>
-            <p className="text-xs text-gray-500">Escolha o curso primeiro. A previa ao lado mostra exatamente como este curso vai sair no certificado.</p>
-          </div>
-
+          <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
           <AssetUpload titulo="Assinatura obrigatória" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
@@ -168,6 +155,18 @@ export default function CertificadosView() {
           <section className="border-t border-gray-100 pt-5">
             <EditorTitle icon={<Type size={17} />} title="2. Dados do certificado" />
             <div className="mt-4 space-y-3">
+              <div className="space-y-2">
+                <label className={label}>Curso exibido no certificado</label>
+                <select
+                  className={campo}
+                  value={cursoAtivo?.id || ''}
+                  disabled={carregando || cursos.length === 0}
+                  onChange={(e) => setAtiva(Math.max(0, cursos.findIndex((curso) => curso.id === e.target.value)))}
+                >
+                  {cursos.map((curso) => <option key={curso.id} value={curso.id}>{curso.name}</option>)}
+                </select>
+                <p className="text-xs text-gray-500">Escolha o curso primeiro. A previa ao lado mostra exatamente como este curso vai sair no certificado.</p>
+              </div>
               <Field label="Instituição (topo)" value={config.instituicao || ''} onChange={(v) => patch('instituicao', v)} campo={campo} />
               <Field label="Título" value={config.titulo || ''} onChange={(v) => patch('titulo', v)} campo={campo} />
               <Field label="Texto antes do nome" value={config.textoCertificamos || ''} onChange={(v) => patch('textoCertificamos', v)} campo={campo} />
