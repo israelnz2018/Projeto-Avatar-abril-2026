@@ -71,6 +71,7 @@ export interface ConsultorCertificateConfig {
   titulo?: string;
   textoCertificamos?: string;
   textoConclusao?: string;
+  textoAprovacao?: string;
   corPrincipal?: string;
   corDestaque?: string;
   corTexto?: string;
@@ -81,7 +82,6 @@ export interface ConsultorCertificateConfig {
   /** Regras editáveis por curso. Os dados variáveis do aluno/emissão não ficam aqui. */
   cursos?: Record<string, {
     cargaHoraria?: number;
-    textoComplementar?: string;
   }>;
   /** Incrementada a cada salvamento para identificar a arte usada na emissão. */
   versao?: number;

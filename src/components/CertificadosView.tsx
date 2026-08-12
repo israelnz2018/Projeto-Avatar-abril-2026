@@ -1,7 +1,7 @@
 /** Editor completo e prévia do certificado white-label do consultor. */
 import { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { Award, BookOpen, FileUp, Image as ImageIcon, LockKeyhole, Palette, RotateCcw, Save, ShieldCheck, Type } from 'lucide-react';
+import { Award, BookOpen, FileUp, Image as ImageIcon, LockKeyhole, RotateCcw, Save, ShieldCheck, Type } from 'lucide-react';
 import Certificate from './Certificate';
 import { getInitiatives } from '../services/configService';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -26,6 +26,7 @@ function montarConfig(config: ConsultorCertificateConfig | undefined, nome: stri
     titulo: config?.titulo || 'CERTIFICADO DE CONCLUSÃO',
     textoCertificamos: config?.textoCertificamos || 'Certificamos que',
     textoConclusao: config?.textoConclusao || 'concluiu com êxito o curso',
+    textoAprovacao: config?.textoAprovacao || 'tendo sido aprovado na avaliação final.',
     corPrincipal: config?.corPrincipal || cores?.navy || '#1E2D6E',
     corDestaque: config?.corDestaque || cores?.blue || '#0033CC',
     corTexto: config?.corTexto || cores?.ink || '#0F172A',
@@ -63,10 +64,10 @@ export default function CertificadosView() {
   const patch = <K extends keyof ConsultorCertificateConfig>(key: K, value: ConsultorCertificateConfig[K]) =>
     setConfig((atual) => ({ ...atual, [key]: value }));
 
-  const patchCurso = (cursoId: string, key: 'cargaHoraria' | 'textoComplementar', value: number | string) =>
+  const patchCurso = (cursoId: string, value: number) =>
     setConfig((atual) => ({
       ...atual,
-      cursos: { ...atual.cursos, [cursoId]: { ...atual.cursos?.[cursoId], [key]: value } },
+      cursos: { ...atual.cursos, [cursoId]: { cargaHoraria: value } },
     }));
 
   async function enviar(file: File | undefined, tipo: BrandingAsset, key: 'fundoUrl' | 'assinaturaUrl') {
@@ -93,7 +94,7 @@ export default function CertificadosView() {
         instituicao: config.instituicao?.trim(), emissorNome: config.emissorNome?.trim(),
         emissorCargo: config.emissorCargo?.trim(), textoRodape: config.textoRodape?.trim(),
         titulo: config.titulo?.trim(), textoCertificamos: config.textoCertificamos?.trim(),
-        textoConclusao: config.textoConclusao?.trim(),
+        textoConclusao: config.textoConclusao?.trim(), textoAprovacao: config.textoAprovacao?.trim(),
         versao: (consultor.certificado?.versao || 0) + 1,
         atualizadoEm: new Date().toISOString(),
       };
@@ -140,24 +141,20 @@ export default function CertificadosView() {
           <section className="border-t border-gray-100 pt-5">
             <EditorTitle icon={<Type size={17} />} title="2. Textos fixos" />
             <div className="mt-4 space-y-3">
+              <Field label="Instituição (topo)" value={config.instituicao || ''} onChange={(v) => patch('instituicao', v)} campo={campo} />
               <Field label="Título" value={config.titulo || ''} onChange={(v) => patch('titulo', v)} campo={campo} />
               <Field label="Texto antes do nome" value={config.textoCertificamos || ''} onChange={(v) => patch('textoCertificamos', v)} campo={campo} />
-              <Field label="Texto de conclusão" value={config.textoConclusao || ''} onChange={(v) => patch('textoConclusao', v)} campo={campo} />
-              <Field label="Instituição" value={config.instituicao || ''} onChange={(v) => patch('instituicao', v)} campo={campo} />
+              <Field label="Texto antes do nome do curso" value={config.textoConclusao || ''} onChange={(v) => patch('textoConclusao', v)} campo={campo} />
+              <Field label="Texto de aprovação (depois da carga horária)" value={config.textoAprovacao || ''} onChange={(v) => patch('textoAprovacao', v)} campo={campo} />
               <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
-              <Field label="Cargo" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
-              <Field label="Texto complementar" value={config.textoRodape || ''} onChange={(v) => patch('textoRodape', v)} campo={campo} />
+              <Field label="Cargo abaixo do nome (ex.: CEO Learning by Working)" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
+              <Field label="Descrição profissional abaixo do cargo" value={config.textoRodape || ''} onChange={(v) => patch('textoRodape', v)} campo={campo} />
             </div>
           </section>
 
           <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<Palette size={17} />} title="3. Cores e fonte" />
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <ColorField label="Principal" value={config.corPrincipal || '#1E2D6E'} onChange={(v) => patch('corPrincipal', v)} />
-              <ColorField label="Destaque" value={config.corDestaque || '#0033CC'} onChange={(v) => patch('corDestaque', v)} />
-              <ColorField label="Texto" value={config.corTexto || '#0F172A'} onChange={(v) => patch('corTexto', v)} />
-            </div>
-            <label className={`${label} mt-4`}>Fonte</label>
+            <EditorTitle icon={<Type size={17} />} title="3. Fonte" />
+            <label className={`${label} mt-4`}>Fonte do certificado</label>
             <select className={campo} value={config.fonte || 'moderna'} onChange={(e) => patch('fonte', e.target.value as any)}><option value="moderna">Moderna</option><option value="classica">Clássica</option><option value="serifada">Serifada</option></select>
           </section>
 
@@ -172,8 +169,8 @@ export default function CertificadosView() {
           </section>
 
           <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<BookOpen size={17} />} title="5. Regras por curso" />
-            <p className="mt-1 text-xs text-gray-500">O nome do curso é automático e não pode ser alterado aqui.</p>
+            <EditorTitle icon={<BookOpen size={17} />} title="5. Carga horária por curso" />
+            <p className="mt-1 text-xs text-gray-500">O nome do curso é automático. Aqui o consultor informa somente a carga horária.</p>
             <div className="mt-3 space-y-2">
               {cursos.map((curso, index) => {
                 const aberto = ativa === index;
@@ -181,8 +178,7 @@ export default function CertificadosView() {
                 return <div key={curso.id} className="overflow-hidden rounded-xl border border-gray-200">
                   <button type="button" onClick={() => setAtiva(index)} className={`w-full border-0 px-3 py-3 text-left text-sm font-bold ${aberto ? 'bg-blue-50 text-blue-800' : 'bg-white text-gray-700'}`}>{curso.name}</button>
                   {aberto && <div className="space-y-3 border-t border-gray-100 bg-gray-50 p-3">
-                    <div><label className={label}>Carga horária</label><input type="number" min="0" className={campo} value={regra.cargaHoraria ?? ''} placeholder="Ex.: 20" onChange={(e) => patchCurso(curso.id, 'cargaHoraria', Math.max(0, Number(e.target.value)))} /></div>
-                    <div><label className={label}>Texto complementar deste curso</label><input className={campo} value={regra.textoComplementar || ''} onChange={(e) => patchCurso(curso.id, 'textoComplementar', e.target.value)} /></div>
+                    <div><label className={label}>Carga horária</label><input type="number" min="0" className={campo} value={regra.cargaHoraria ?? ''} placeholder="Ex.: 20" onChange={(e) => patchCurso(curso.id, Math.max(0, Number(e.target.value)))} /></div>
                   </div>}
                 </div>;
               })}
@@ -207,7 +203,6 @@ export default function CertificadosView() {
 
 function EditorTitle({ icon, title }: { icon: React.ReactNode; title: string }) { return <div className="flex items-center gap-2 font-black text-gray-900">{icon}{title}</div>; }
 function Field({ label, value, onChange, campo }: { label: string; value: string; onChange: (value: string) => void; campo: string }) { return <div><label className="mb-1 block text-xs font-black uppercase tracking-wide text-gray-500">{label}</label><input className={campo} value={value} onChange={(e) => onChange(e.target.value)} /></div>; }
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="text-[11px] font-bold text-gray-500"><span className="mb-1 block">{label}</span><span className="flex items-center gap-2 rounded-xl border border-gray-200 p-2"><input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-8 cursor-pointer border-0 bg-transparent p-0" /><span>{value}</span></span></label>; }
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 p-2 text-xs font-bold text-gray-700"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{label}</label>; }
 
 function AssetUpload({ titulo, descricao, url, loading, onFile }: { titulo: string; descricao: string; url: string; loading: boolean; onFile: (file?: File) => void }) {

@@ -77,6 +77,13 @@ function formatDataPorExtenso(iso: string): string {
   return `${dia} de ${meses[mes]} de ${ano}`;
 }
 
+function quebrarLinkVerificacao(url: string): string[] {
+  const texto = url.replace(/^https?:\/\//, '');
+  const partes: string[] = [];
+  for (let inicio = 0; inicio < texto.length; inicio += 22) partes.push(texto.slice(inicio, inicio + 22));
+  return partes.slice(0, 4);
+}
+
 export default function Certificate({ alunoNome, initiativeName, initiativeId, issuedAt, certId, mode = 'student', consultorId, configOverride }: Props) {
   const { consultor: consultorAtual } = useConsultor();
   const [consultor, setConsultor] = useState<Consultor>(consultorAtual);
@@ -114,6 +121,7 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
   const fonte = certificado?.fonte === 'serifada' ? "'Instrument Serif','Georgia',serif" : certificado?.fonte === 'classica' ? "'Georgia',serif" : "'Geist',ui-sans-serif,system-ui,sans-serif";
 
   const verifyUrl = `${window.location.origin}/verificar/${certId}`;
+  const verifyLines = quebrarLinkVerificacao(verifyUrl);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${encodeURIComponent(verifyUrl)}`;
 
   const handlePrint = () => window.print();
@@ -233,8 +241,7 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
           <div className="absolute w-full text-center px-[17%]" style={{ top: '46%', height: '14%', overflow: 'hidden' }}>
             <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,14px)', color: corInk, lineHeight: 1.42 }}>
               {certificado?.textoConclusao || 'concluiu com êxito o curso'} <b style={{ color: corNavy, textTransform: 'uppercase' }}>{nomeTrilha}</b>
-              {carga ? <>, com carga horária de <b style={{ color: corNavy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
-              {regraCurso?.textoComplementar ? <> {regraCurso.textoComplementar}</> : null}
+              {carga ? <>, com carga horária de <b style={{ color: corNavy }}>{carga} horas</b></> : null}, {certificado?.textoAprovacao || 'tendo sido aprovado na avaliação final.'}
             </p>
           </div>
 
@@ -264,13 +271,13 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
             </div>
           )}
 
-          {/* QR + verificação: QR em cima, texto em 2 linhas logo abaixo */}
-          {certificado?.mostrarQrCode !== false && <div className="absolute flex flex-col items-start" style={{ left: '8%', bottom: '13%' }}>
+          {/* QR + verificação: área própria e link quebrado em até quatro linhas. */}
+          {certificado?.mostrarQrCode !== false && <div className="absolute flex flex-col items-start" style={{ left: '7%', bottom: '6.5%', width: '24%' }}>
             <div style={{ background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #E2E8F0' }}>
-              <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(38px,5vw,62px)', height: 'clamp(38px,5vw,62px)', display: 'block' }} />
+              <img src={qrUrl} alt={`Verificação ${certId}`} style={{ width: 'clamp(44px,5.8vw,70px)', height: 'clamp(44px,5.8vw,70px)', display: 'block' }} />
             </div>
-            <p className="m-0 mt-1" style={{ fontSize: 'clamp(6px,0.78vw,8.5px)', fontFamily: 'monospace', color: corMuted, whiteSpace: 'nowrap', lineHeight: 1.4 }}>
-              {verifyUrl.replace(/^https?:\/\//, '')}<br />Nº {certId}
+            <p className="m-0 mt-1" style={{ fontSize: 'clamp(5.5px,0.7vw,7.5px)', fontFamily: 'monospace', color: corMuted, lineHeight: 1.2, overflowWrap: 'anywhere' }}>
+              {verifyLines.map((line, index) => <span key={`${line}-${index}`}>{line}<br /></span>)}Nº {certId}
             </p>
           </div>}
         </div>
