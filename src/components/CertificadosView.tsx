@@ -14,6 +14,23 @@ const ALUNO_EXEMPLO = 'Maria da Silva';
 const DATA_EXEMPLO = '2026-06-22T12:00:00.000Z';
 const semPrefixo = (nome: string) => nome.replace(/^\d+\s*[-–—]?\s*/, '');
 
+function pendenciasCertificado(config: ConsultorCertificateConfig, consultorId: string, cursos: Initiative[]): string[] {
+  const temFundoPadrao = consultorId === 'israel' && !config.fundoUrl;
+  const faltando: string[] = [];
+  if (!config.fundoUrl && !temFundoPadrao) faltando.push('enviar o fundo do certificado');
+  if (!config.assinaturaUrl && !temFundoPadrao) faltando.push('enviar a assinatura');
+  if (!config.instituicao?.trim()) faltando.push('preencher a instituição');
+  if (!config.titulo?.trim()) faltando.push('preencher o título');
+  if (!config.textoCertificamos?.trim()) faltando.push('preencher o texto antes do nome');
+  if (!config.textoConclusao?.trim()) faltando.push('preencher o texto antes do nome do curso');
+  if (!config.textoAprovacao?.trim()) faltando.push('preencher o texto de aprovação');
+  if (!config.emissorNome?.trim()) faltando.push('preencher o nome de quem assina');
+  if (!config.emissorCargo?.trim()) faltando.push('preencher o cargo/profissão');
+  const semCarga = cursos.filter((curso) => !Number(config.cursos?.[curso.id]?.cargaHoraria)).map((curso) => semPrefixo(curso.name));
+  if (semCarga.length) faltando.push(`informar a carga horária de: ${semCarga.join(', ')}`);
+  return faltando;
+}
+
 function montarConfig(config: ConsultorCertificateConfig | undefined, nome: string, consultorId: string, cores: any): ConsultorCertificateConfig {
   return {
     modo: config?.modo || (consultorId === 'israel' ? 'padrao' : 'proprio'),
@@ -50,6 +67,7 @@ export default function CertificadosView() {
   const [carregando, setCarregando] = useState(true);
   const temAssinaturaPadrao = consultorId === 'israel' && !config.fundoUrl;
   const temAssinatura = !!config.assinaturaUrl || temAssinaturaPadrao;
+  const pendencias = pendenciasCertificado(config, consultorId, cursos);
 
   useEffect(() => {
     setConfig(montarConfig(consultor.certificado, consultor.branding?.nome || consultor.nome, consultorId, consultor.branding?.cores));
@@ -94,10 +112,6 @@ export default function CertificadosView() {
     setSalvando(true);
     setMensagem('');
     try {
-      if (!temAssinatura) {
-        setMensagem('❌ Envie a assinatura antes de salvar o certificado.');
-        return;
-      }
       const novaConfig: ConsultorCertificateConfig = {
         ...config,
         modo: config.fundoUrl ? 'proprio' : 'padrao',
@@ -112,7 +126,10 @@ export default function CertificadosView() {
       await setDoc(doc(db, 'consultores', consultorId), { certificado: novaConfig }, { merge: true });
       setConfig(novaConfig);
       await refresh();
-      setMensagem('✅ Certificado salvo com sucesso.');
+      const faltando = pendenciasCertificado(novaConfig, consultorId, cursos);
+      setMensagem(faltando.length
+        ? `⚠️ Alterações salvas como rascunho. O aluno ainda não poderá gerar o certificado. Falta: ${faltando.join('; ')}.`
+        : '✅ Certificado salvo e liberado para emissão pelos alunos.');
     } catch (error: any) {
       setMensagem(`❌ Erro ao salvar: ${error?.message || error}`);
     } finally {
@@ -147,6 +164,7 @@ export default function CertificadosView() {
         <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
+          {pendencias.length > 0 && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-800"><b>Certificado ainda não liberado para alunos.</b><br />Falta: {pendencias.join('; ')}.</div>}
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
           <AssetUpload titulo="Assinatura obrigatória" descricao={temAssinaturaPadrao ? 'O modelo padrão LBW já possui assinatura.' : 'PNG transparente recomendado.'} url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
           <div className="grid grid-cols-2 gap-2">

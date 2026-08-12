@@ -502,6 +502,22 @@ async function startServer() {
     return `LBW-${year}-${suffix}`;
   }
 
+  function certificateMissingItems(config: any, consultorId: string, initiativeId: string): string[] {
+    const temFundoPadrao = consultorId === "israel" && !config?.fundoUrl;
+    const faltando: string[] = [];
+    if (!config?.fundoUrl && !temFundoPadrao) faltando.push("fundo do certificado");
+    if (!config?.assinaturaUrl && !temFundoPadrao) faltando.push("assinatura");
+    if (!String(config?.instituicao || "").trim()) faltando.push("instituicao");
+    if (!String(config?.titulo || "").trim()) faltando.push("titulo");
+    if (!String(config?.textoCertificamos || "").trim()) faltando.push("texto antes do nome");
+    if (!String(config?.textoConclusao || "").trim()) faltando.push("texto antes do curso");
+    if (!String(config?.textoAprovacao || "").trim()) faltando.push("texto de aprovacao");
+    if (!String(config?.emissorNome || "").trim()) faltando.push("nome de quem assina");
+    if (!String(config?.emissorCargo || "").trim()) faltando.push("cargo/profissao");
+    if (!Number(config?.cursos?.[initiativeId]?.cargaHoraria)) faltando.push("carga horaria do curso");
+    return faltando;
+  }
+
   function normalizeSourceUrl(video: any): string {
     return String(video?.sourceUrl || video?.bunnyVideoId || video?.id || "");
   }
@@ -551,7 +567,12 @@ async function startServer() {
     const issuedAt = new Date().toISOString();
     const alunoNome = String(user.nome || user.displayName || user.email?.split("@")[0] || "Aluno LBW");
     const consultorSnap = await adminFirestore().collection("consultores").doc(consultorId).get();
-    const templateVersion = Number((consultorSnap.data() as any)?.certificado?.versao || 0) || undefined;
+    const certificadoConfig = (consultorSnap.data() as any)?.certificado || {};
+    const pendenciasCertificado = certificateMissingItems(certificadoConfig, consultorId, initiativeId);
+    if (pendenciasCertificado.length) {
+      throw new Error(`Certificado ainda nao liberado pelo consultor. Falta: ${pendenciasCertificado.join(", ")}.`);
+    }
+    const templateVersion = Number(certificadoConfig?.versao || 0) || undefined;
     const certificado = {
       issuedAt,
       pctAtIssue: pct,
