@@ -204,7 +204,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Certificados', path: '/configuracao?aba=certificados', icon: Award },
         { name: 'Minha Marca', path: '/configuracao?aba=marca', icon: Palette },
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
-        { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores', icon: Users },
+        { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
         { name: 'Alunos na Plataforma', path: '/configuracao?aba=alunos', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
@@ -221,7 +221,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
           { name: 'Marca do Time', path: '/marca-time', icon: Palette },
         ] : [
-          { name: 'Gestão de Usuários', path: '/configuracao?aba=coordenadores', icon: Users },
+          { name: 'Gestão de Usuários', path: '/configuracao?aba=coordenadores&area=coordenador', icon: Users },
           { name: 'Relatórios dos Times', path: '/configuracao?aba=relatorio', icon: TrendingUp },
         ]),
         { name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users },
@@ -243,9 +243,14 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     }] : []),
   ];
 
-  const isItemActive = (path: string) => path.includes('?')
-    ? `${location.pathname}${location.search}` === path
-    : location.pathname === path;
+  const isItemActive = (path: string) => {
+    if (path.includes('?')) return `${location.pathname}${location.search}` === path;
+    if (path === '/education') {
+      const aba = new URLSearchParams(location.search).get('aba');
+      return location.pathname === path && aba !== 'aluno' && aba !== 'coordenador';
+    }
+    return location.pathname === path;
+  };
 
   useEffect(() => {
     setOpenMenuSections({
