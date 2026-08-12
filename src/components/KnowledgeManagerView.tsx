@@ -1134,15 +1134,28 @@ export default function KnowledgeManagerView() {
         if (!currentItem) {
           throw new Error('Vídeo não encontrado.');
         }
-        const keptIds = new Set(editPlacements.filter(p => p.id).map(p => p.id!));
+        const placementsValidos = editPlacements
+          .map((p) => ({
+            ...p,
+            course: p.course.trim(),
+            playlist: isIntroCourse(p.course) ? INTRO_PLAYLIST : (p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist.trim()),
+          }))
+          .filter((p) => p.course && p.playlist);
+        if (placementsValidos.length === 0) {
+          throw new Error('Selecione ao menos um curso e uma playlist.');
+        }
+        const chaves = placementsValidos.map((p) => `${p.course}__${p.playlist}`.toLowerCase());
+        if (new Set(chaves).size !== chaves.length) {
+          throw new Error('O mesmo curso e playlist foi selecionado mais de uma vez para este video.');
+        }
+        const keptIds = new Set(placementsValidos.filter(p => p.id).map(p => p.id!));
         for (const oid of editOriginalIds) {
           if (!keptIds.has(oid)) {
             await deleteKnowledge(oid);
           }
         }
-        for (const p of editPlacements) {
-          const finalPlaylist = p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist;
-          if (!p.course || !finalPlaylist) continue;
+        for (const p of placementsValidos) {
+          const finalPlaylist = p.playlist;
           if (p.id) {
             await updateKnowledge(p.id, {
               title: editVideoData.title,
@@ -1152,7 +1165,7 @@ export default function KnowledgeManagerView() {
               associatedAnalyses: editVideoData.associatedAnalyses
             });
           } else {
-            await saveKnowledge({
+            const novoPlacement: Omit<KnowledgeEntry, 'timestamp' | 'id'> = {
               title: editVideoData.title,
               content: currentItem.content || '',
               sourceUrl: currentItem.sourceUrl,
@@ -1164,10 +1177,11 @@ export default function KnowledgeManagerView() {
               associatedTools: editVideoData.associatedTools,
               associatedAnalyses: editVideoData.associatedAnalyses,
               consultorId,
-              bunnyVideoId: currentItem.bunnyVideoId,
-              bunnyLibraryId: currentItem.bunnyLibraryId,
-              bunnyThumbnailUrl: currentItem.bunnyThumbnailUrl
-            });
+            };
+            if (currentItem.bunnyVideoId) novoPlacement.bunnyVideoId = currentItem.bunnyVideoId;
+            if (currentItem.bunnyLibraryId) novoPlacement.bunnyLibraryId = currentItem.bunnyLibraryId;
+            if (currentItem.bunnyThumbnailUrl) novoPlacement.bunnyThumbnailUrl = currentItem.bunnyThumbnailUrl;
+            await saveKnowledge(novoPlacement);
           }
         }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
