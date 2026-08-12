@@ -76,7 +76,11 @@ export interface UserData {
 /** Projeta o perfil global no vínculo do site atual, mantendo os dados globais. */
 export function userDataNoConsultor<T extends Record<string, any>>(data: T, consultorId = resolveConsultorId()): T {
   const vinculo = data?.vinculos?.[consultorId];
-  if (!vinculo || typeof vinculo !== 'object') return data;
+  if (!vinculo || typeof vinculo !== 'object') {
+    if (data?.tipoUsuario === 'admin' || !data?.consultorId || data.consultorId === consultorId) return data;
+    // Entrar em outro subdomínio não transporta privilégios do tenant principal.
+    return { ...data, tipoUsuario: 'aluno', consultorId, plano: 'gratuito', cursosAcesso: [], cursosLiberados: [], empresaId: null, empresaNome: null };
+  }
   return { ...data, ...vinculo, consultorId };
 }
 

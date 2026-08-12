@@ -4117,6 +4117,10 @@ async function startServer() {
     const planoRaw = String(body.plano || "").toLowerCase();
     const isCompraTrilha1 = planoRaw === "trilha1" || planoRaw === "trilha-1" || planoRaw === "trilha1-pago";
     const planoSolicitado: "completo" | "gratuito" = planoRaw === "completo" ? "completo" : "gratuito";
+    const consultorCompraId = "israel";
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1
+      ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
+      : undefined;
 
     if (!email || !email.includes("@")) {
       return res.status(400).json({ error: "E-mail ausente ou inválido no payload." });
@@ -4155,6 +4159,8 @@ async function startServer() {
           email,
           nome: nome || "",
           tipoUsuario: "aluno",
+          consultorId: consultorCompraId,
+          consultorIds: [consultorCompraId],
           plano: planoSolicitado,
           formacoes: FORMACOES[planoSolicitado],
           creditoIA: {
@@ -4169,9 +4175,15 @@ async function startServer() {
             : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing"),
           // Compra (completa OU Trilha 1) = 1 ano de acesso. Só exibição por enquanto;
           // o rebaixamento automático ao vencer ainda é pendência (cron, Camada B).
-          ...(planoSolicitado === "completo" || isCompraTrilha1
-            ? { acessoCompletoAte: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString() }
-            : {}),
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+          vinculos: {
+            [consultorCompraId]: {
+              tipoUsuario: "aluno", consultorId: consultorCompraId,
+              plano: planoSolicitado, formacoes: FORMACOES[planoSolicitado],
+              origem: planoSolicitado === "completo" ? "compra-hotmart" : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing"),
+              ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+            },
+          },
         });
         const emailEnviado = await sendAcessoEmail({
           para: email, nome, senhaProvisoria, plano: planoSolicitado, contexto: "novo",
@@ -4184,18 +4196,28 @@ async function startServer() {
       const uid = userRecord.uid;
       const docRef = usersCol.doc(uid);
       const snap = await docRef.get();
-      const planoAtual = snap.exists ? (snap.data() as any)?.plano : null;
 
       // Garante que o doc Firestore exista (se a conta só estava no Auth, regulariza)
       if (!snap.exists) {
         await docRef.set({
           uid, email, nome: nome || userRecord.displayName || "",
           tipoUsuario: "aluno",
+          consultorId: consultorCompraId,
+          consultorIds: [consultorCompraId],
           plano: planoSolicitado,
           formacoes: FORMACOES[planoSolicitado],
           creditoIA: { limite: planoSolicitado === "completo" ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
           criadoEm: new Date().toISOString(),
           origem: "regularizado",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+          vinculos: {
+            [consultorCompraId]: {
+              tipoUsuario: "aluno", consultorId: consultorCompraId,
+              plano: planoSolicitado, formacoes: FORMACOES[planoSolicitado],
+              origem: "regularizado",
+              ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+            },
+          },
         });
         // Nota: não marca senhaProvisoria aqui — conta já existia no Auth com senha própria.
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
@@ -4203,9 +4225,51 @@ async function startServer() {
         return res.json({ ok: true, status: "regularizado", uid, email, plano: planoSolicitado, emailEnviado });
       }
 
+      const base = snap.data() as any;
+      const vinculoIsraelAnterior = base.vinculos?.[consultorCompraId]
+        || (String(base.consultorId || "israel") === consultorCompraId ? base : null);
+      const planoAtual = vinculoIsraelAnterior?.plano || null;
+      const vinculosExistentes = { ...(base.vinculos || {}) };
+      // Converte o vínculo principal legado antes de acrescentar Israel.
+      if (base.consultorId && !vinculosExistentes[base.consultorId]) {
+        vinculosExistentes[base.consultorId] = {
+          tipoUsuario: base.tipoUsuario || "aluno", consultorId: base.consultorId,
+          empresaId: base.empresaId || null, empresaNome: base.empresaNome || null,
+          plano: base.plano || "gratuito", formacoes: base.formacoes || [],
+          cursosAcesso: base.cursosAcesso || [], acessoCompletoAte: base.acessoCompletoAte || null,
+        };
+      }
+      const salvarAcessoIsrael = async (patch: Record<string, any>) => {
+        const papelAtual = vinculoIsraelAnterior?.tipoUsuario;
+        const vinculoIsrael = {
+          ...(vinculoIsraelAnterior || {}),
+          ...patch,
+          tipoUsuario: papelAtual === "consultor" || papelAtual === "coordenador" ? papelAtual : "aluno",
+          consultorId: consultorCompraId,
+        };
+        const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorCompraId].filter(Boolean)));
+        const principalEhIsrael = !base.consultorId || String(base.consultorId) === consultorCompraId;
+        await docRef.set({
+          consultorIds,
+          vinculos: { ...vinculosExistentes, [consultorCompraId]: vinculoIsrael },
+          ...(principalEhIsrael ? patch : {}),
+        }, { merge: true });
+      };
+
+      // Conta existente de outro consultor: cria o novo papel de aluno de Israel,
+      // sem tocar na senha nem no papel principal.
+      if (!vinculoIsraelAnterior) {
+        const origem = planoSolicitado === "completo" ? "compra-hotmart" : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
+        await salvarAcessoIsrael({ plano: planoSolicitado, formacoes: FORMACOES[planoSolicitado], origem, ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}) });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
+        console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
+        const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
+        return res.json({ ok: true, status: statusCompat, vinculoCriado: true, uid, email, plano: planoSolicitado, emailEnviado });
+      }
+
       // Subindo de gratuito -> completo (ou comprou pago): atualiza plano
       if (planoSolicitado === "completo" && planoAtual !== "completo") {
-        await docRef.set({ plano: "completo", formacoes: FORMACOES.completo }, { merge: true });
+        await salvarAcessoIsrael({ plano: "completo", formacoes: FORMACOES.completo, origem: "compra-hotmart", ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}) });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "completo", contexto: "upgrade" });
         console.log(`[acesso/liberar] UPGRADE ${email}: ${planoAtual} -> completo`);
         return res.json({ ok: true, status: "atualizado-completo", uid, email, plano: "completo", emailEnviado });
@@ -4215,12 +4279,22 @@ async function startServer() {
       // acesso (já tem a Trilha 1), mas registra que agora é COMPRA: origem + validade.
       // Não rebaixa quem já é completo.
       if (isCompraTrilha1 && planoAtual !== "completo") {
-        await docRef.set({
+        await salvarAcessoIsrael({
           origem: "compra-trilha1",
-          acessoCompletoAte: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
-        }, { merge: true });
+          acessoCompletoAte: acessoAteCompra,
+        });
         console.log(`[acesso/liberar] COMPRA-TRILHA1 (ja existia) ${email}`);
         return res.json({ ok: true, status: "compra-trilha1-registrada", uid, email, plano: planoAtual });
+      }
+
+      // Materializa usuários legados no modelo de vínculos, mesmo sem mudança de plano.
+      if (!base.vinculos?.[consultorCompraId]) {
+        await salvarAcessoIsrael({
+          plano: planoAtual || planoSolicitado,
+          formacoes: vinculoIsraelAnterior?.formacoes || FORMACOES[planoSolicitado],
+          origem: vinculoIsraelAnterior?.origem || base.origem || "legado-israel",
+          ...(vinculoIsraelAnterior?.acessoCompletoAte ? { acessoCompletoAte: vinculoIsraelAnterior.acessoCompletoAte } : {}),
+        });
       }
 
       // Já tinha o plano pedido (ou já é completo): nada a fazer, não duplica nem reenvia senha
