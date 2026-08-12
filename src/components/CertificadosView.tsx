@@ -133,45 +133,64 @@ export default function CertificadosView() {
 
       <div className="grid items-start gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
         <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
+          <EditorTitle icon={<ImageIcon size={17} />} title="1. Curso da previa" />
+          <div className="space-y-2">
+            <label className={label}>Curso exibido no certificado</label>
+            <select
+              className={campo}
+              value={cursoAtivo?.id || ''}
+              disabled={carregando || cursos.length === 0}
+              onChange={(e) => setAtiva(Math.max(0, cursos.findIndex((curso) => curso.id === e.target.value)))}
+            >
+              {cursos.map((curso) => <option key={curso.id} value={curso.id}>{curso.name}</option>)}
+            </select>
+            <p className="text-xs text-gray-500">Escolha o curso primeiro. A previa ao lado mostra exatamente como este curso vai sair no certificado.</p>
+          </div>
+
+          <section className="border-t border-gray-100 pt-5">
+            <EditorTitle icon={<ImageIcon size={17} />} title="2. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
           <div className="grid grid-cols-2 gap-2">
             <Toggle label="Mostrar logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
             <Toggle label="Mostrar QR Code" checked={config.mostrarQrCode !== false} onChange={(v) => patch('mostrarQrCode', v)} />
           </div>
+          </section>
 
           <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<Type size={17} />} title="2. Textos fixos" />
+            <EditorTitle icon={<Type size={17} />} title="3. Dados do certificado" />
             <div className="mt-4 space-y-3">
               <Field label="Instituição (topo)" value={config.instituicao || ''} onChange={(v) => patch('instituicao', v)} campo={campo} />
               <Field label="Título" value={config.titulo || ''} onChange={(v) => patch('titulo', v)} campo={campo} />
               <Field label="Texto antes do nome" value={config.textoCertificamos || ''} onChange={(v) => patch('textoCertificamos', v)} campo={campo} />
+              <ProtectedLine label="Nome do aluno" value={ALUNO_EXEMPLO} />
               <Field label="Texto antes do nome do curso" value={config.textoConclusao || ''} onChange={(v) => patch('textoConclusao', v)} campo={campo} />
-              <div>
-                <label className={label}>Carga horária por curso</label>
-                <p className="mb-2 text-xs text-gray-500">Escolha o curso e informe somente sua carga horária.</p>
-                <div className="space-y-2">
-                  {cursos.map((curso, index) => {
-                    const aberto = ativa === index;
-                    const regra = config.cursos?.[curso.id] || {};
-                    return <div key={curso.id} className="overflow-hidden rounded-xl border border-gray-200">
-                      <button type="button" onClick={() => setAtiva(index)} className={`w-full border-0 px-3 py-3 text-left text-sm font-bold ${aberto ? 'bg-blue-50 text-blue-800' : 'bg-white text-gray-700'}`}>{curso.name}</button>
-                      {aberto && <div className="border-t border-gray-100 bg-gray-50 p-3"><input aria-label={`Carga horária de ${curso.name}`} type="number" min="0" className={campo} value={regra.cargaHoraria ?? ''} placeholder="Ex.: 20 horas" onChange={(e) => patchCurso(curso.id, Math.max(0, Number(e.target.value)))} /></div>}
-                    </div>;
-                  })}
-                </div>
+              <ProtectedLine label="Nome do curso" value={cursoAtivo?.name || 'Selecione um curso'} />
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <label className={label}>Carga horária deste curso</label>
+                <input
+                  aria-label={`Carga horária de ${cursoAtivo?.name || 'curso'}`}
+                  type="number"
+                  min="0"
+                  disabled={!cursoAtivo}
+                  className={campo}
+                  value={cursoAtivo ? (config.cursos?.[cursoAtivo.id]?.cargaHoraria ?? '') : ''}
+                  placeholder="Ex.: 20 horas"
+                  onChange={(e) => cursoAtivo && patchCurso(cursoAtivo.id, Math.max(0, Number(e.target.value)))}
+                />
               </div>
               <Field label="Texto de aprovação (depois da carga horária)" value={config.textoAprovacao || ''} onChange={(v) => patch('textoAprovacao', v)} campo={campo} />
-              <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
-              <Field label="Cargo/profissão" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
+              <ProtectedLine label="Data de emissão" value="22 de junho de 2026" />
               <div className="pt-2"><AssetUpload titulo="Assinatura" descricao="PNG transparente recomendado." url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} /></div>
               <Toggle label="Mostrar assinatura" checked={config.mostrarAssinatura !== false} onChange={(v) => patch('mostrarAssinatura', v)} />
+              <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />
+              <Field label="Cargo/profissão" value={config.emissorCargo || ''} onChange={(v) => patch('emissorCargo', v)} campo={campo} />
+              <ProtectedLine label="QR Code e número" value="Gerados automaticamente" />
             </div>
           </section>
 
           <section className="border-t border-gray-100 pt-5">
-            <EditorTitle icon={<Type size={17} />} title="3. Fonte" />
+            <EditorTitle icon={<Type size={17} />} title="4. Fonte" />
             <label className={`${label} mt-4`}>Fonte do certificado</label>
             <select className={campo} value={config.fonte || 'moderna'} onChange={(e) => patch('fonte', e.target.value as ConsultorCertificateConfig['fonte'])}>
               <option value="moderna">Moderna</option>
@@ -200,6 +219,7 @@ export default function CertificadosView() {
 
 function EditorTitle({ icon, title }: { icon: React.ReactNode; title: string }) { return <div className="flex items-center gap-2 font-black text-gray-900">{icon}{title}</div>; }
 function Field({ label, value, onChange, campo }: { label: string; value: string; onChange: (value: string) => void; campo: string }) { return <div><label className="mb-1 block text-xs font-black uppercase tracking-wide text-gray-500">{label}</label><input className={campo} value={value} onChange={(e) => onChange(e.target.value)} /></div>; }
+function ProtectedLine({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5"><div className="mb-1 text-xs font-black uppercase tracking-wide text-gray-500">{label}</div><div className="text-sm font-semibold text-gray-700">{value}</div><div className="mt-1 text-[11px] font-medium text-gray-400">Campo automático protegido.</div></div>; }
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 p-2 text-xs font-bold text-gray-700"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />{label}</label>; }
 
 function AssetUpload({ titulo, descricao, url, loading, onFile }: { titulo: string; descricao: string; url: string; loading: boolean; onFile: (file?: File) => void }) {
