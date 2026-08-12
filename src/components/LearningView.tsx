@@ -298,7 +298,6 @@ export default function LearningView() {
     params.get('aba') === 'coordenador' ? INTRO_COURSE_COORDENADOR :
     '';
   const courseSet = new Set(items.map(item => item.course).filter((course) => course !== INTRO_COURSE_ALUNO && course !== INTRO_COURSE_COORDENADOR));
-  if (requestedIntroCourse) courseSet.add(requestedIntroCourse);
   const sortedCourses = Array.from(courseSet)
     .sort((a, b) => {
       const specialOrder = (course: string) => {
@@ -316,7 +315,8 @@ export default function LearningView() {
       if (!isNaN(nb)) return 1;
       return a.localeCompare(b);
     });
-  const categories = ['Todos', ...sortedCourses];
+  const isIntroArea = Boolean(requestedIntroCourse);
+  const categories = isIntroArea && requestedIntroCourse ? [requestedIntroCourse] : ['Todos', ...sortedCourses];
 
   // Paleta de gradientes (1 por trilha, ciclada se passar de 10)
   const CARD_GRADIENTS = [
@@ -374,7 +374,7 @@ export default function LearningView() {
       <UpgradeBanner mensagem="Você vê os vídeos da trilha introdutória. Libere todos os cursos e vídeos." />
       {/* Título "Cursos de <consultor>" + toolbar (busca + grid/list) */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-black text-gray-800 m-0 truncate">Cursos de {nomeConsultor}</h1>
+        <h1 className="text-2xl font-black text-gray-800 m-0 truncate">{isIntroArea ? requestedIntroCourse : `Cursos de ${nomeConsultor}`}</h1>
         <div className="flex items-center gap-3 shrink-0">
         <div className="flex items-center bg-white p-1 rounded-lg border border-[#e5e7eb]">
           <button
@@ -412,6 +412,7 @@ export default function LearningView() {
       </div>
 
       {/* Grid de cards de trilhas — estilo Sua Jornada */}
+      {!isIntroArea && (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
         {categories.map((cat, idx) => {
           const isActive = activeCategory === cat;
@@ -489,6 +490,7 @@ export default function LearningView() {
         })}
       </div>
 
+      )}
       {/* Sub-filtro de playlists (só quando uma trilha está selecionada) */}
       {activeCategory !== 'Todos' && playlists.length > 1 && (
         <motion.div
@@ -515,7 +517,7 @@ export default function LearningView() {
 
       {/* Barra de progresso da trilha — só quando uma trilha específica está selecionada.
           Dedup por sourceUrl: se o mesmo vídeo aparece em N playlists, conta uma vez. */}
-      {activeCategory !== 'Todos' && (() => {
+      {activeCategory !== 'Todos' && activeCategory !== INTRO_COURSE_ALUNO && activeCategory !== INTRO_COURSE_COORDENADOR && (() => {
         const videosDaTrilha = items.filter(v => v.course === activeCategory);
         const urlsUnicas = Array.from(new Set(videosDaTrilha.map(v => v.sourceUrl).filter(Boolean)));
         const assistidos = urlsUnicas.filter(u => watchedUrls[u]).length;
@@ -536,7 +538,7 @@ export default function LearningView() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[12px] font-black uppercase tracking-wider text-[#1f2937] m-0">
-                  Seu progresso nesta trilha
+                  Seu progresso neste curso
                 </p>
                 <span className="text-[12px] font-bold text-[#374151]">
                   {assistidos} / {total} vídeos · {pctRound}%

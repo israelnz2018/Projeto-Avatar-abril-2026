@@ -9,6 +9,7 @@ import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firesto
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
+import { isIntroCourse } from '../../services/knowledgeService';
 import { ConsultorVitrine } from '../../types';
 
 interface CursoResumo { nome: string; videos: number; }
@@ -33,7 +34,8 @@ export default function MinhaVitrine() {
         const snap = await getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId)));
         const mapa: Record<string, number> = {};
         snap.docs.forEach((d) => {
-          const nome = ((d.data() as any).course || 'Sem curso').trim() || 'Sem curso';
+          const nome = ((d.data() as any).course || '').trim();
+          if (!nome || isIntroCourse(nome)) return;
           mapa[nome] = (mapa[nome] || 0) + 1;
         });
         const lista = Object.entries(mapa).map(([nome, videos]) => ({ nome, videos })).sort((a, b) => b.videos - a.videos);

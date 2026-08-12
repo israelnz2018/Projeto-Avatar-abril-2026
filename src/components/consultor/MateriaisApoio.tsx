@@ -3,6 +3,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { FileUp, Loader2, Trash2, ExternalLink, Pencil, X, Check } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
+import { isIntroCourse } from '../../services/knowledgeService';
 import {
   CategoriaMaterial,
   SupportMaterial,
@@ -87,7 +88,7 @@ export default function MateriaisApoio() {
       ]);
       setItems(materiais);
       setCursosDisponiveis(
-        Array.from(new Set(kbSnap.docs.map(d => ((d.data() as any).course || '').trim()).filter(Boolean))).sort()
+        Array.from(new Set(kbSnap.docs.map(d => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort()
       );
     } catch (error: any) { setMessage(`Erro: ${error?.message || error}`); }
     finally { setLoading(false); }

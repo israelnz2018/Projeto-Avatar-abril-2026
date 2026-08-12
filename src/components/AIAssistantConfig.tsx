@@ -4,7 +4,7 @@ import { db } from '@/src/lib/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Save, Edit2, X, Check, Loader2, Plus, Trash2, ChevronRight, ChevronDown, Video, FileText, Search, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { KNOWLEDGE_COLLECTION } from '@/src/services/knowledgeService';
+import { isIntroCourse, KNOWLEDGE_COLLECTION } from '@/src/services/knowledgeService';
 
 export interface CustomField { id: string; label: string; content: string; }
 export interface LinkedVideo {
@@ -197,7 +197,7 @@ function InlineVideoList({ selected, onToggle }: {
       .finally(() => setLoading(false));
   }, []);
 
-  const courses = ['Todos', ...Array.from(new Set(videos.map(v => v.course).filter(Boolean)))];
+  const courses = ['Todos', ...Array.from(new Set(videos.map(v => v.course).filter((course): course is string => Boolean(course && !isIntroCourse(course)))))];
   const playlists = activeCourse === 'Todos' ? ['Todas']
     : ['Todas', ...Array.from(new Set(
         videos.filter(v => v.course === activeCourse).map(v => v.playlist).filter(Boolean)

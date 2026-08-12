@@ -5,6 +5,7 @@ import { Users2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { empresaIdDireto } from '../../services/consultorService';
+import { isIntroCourse } from '../../services/knowledgeService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -120,7 +121,7 @@ export default function MeusCoordenadores() {
           vencimento: c.acessoCompletoAte ? String(c.acessoCompletoAte).slice(0, 10) : maiorVencimento(cursosAcesso),
         };
       }).sort((a, b) => a.nome.localeCompare(b.nome)));
-      setCursos(Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter(Boolean))).sort());
+      setCursos(Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort());
     } catch (e: any) {
       setErro(e?.message || 'Erro ao carregar coordenadores.');
     } finally {

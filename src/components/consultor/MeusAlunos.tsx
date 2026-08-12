@@ -15,6 +15,7 @@ import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
+import { isIntroCourse } from '../../services/knowledgeService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -156,7 +157,7 @@ export default function MeusAlunos() {
             coordenador: u.nome || u.email || 'Coordenador',
           });
         });
-      const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter(Boolean))).sort();
+      const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort();
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       setRows(lista);
       setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
