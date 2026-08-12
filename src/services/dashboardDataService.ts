@@ -20,7 +20,7 @@ import {
 import { db } from '../lib/firebase';
 import { getUserProgress } from './videoProgressService';
 import { getInitiatives, getInitiativeConfigs } from './configService';
-import { getUserData, getUsersByEmpresa, UserData } from './userService';
+import { getUserData, getUserDocsByConsultor, getUsersByEmpresa, UserData } from './userService';
 import { Initiative, Project } from '../types';
 import { KnowledgeEntry, KNOWLEDGE_COLLECTION } from './knowledgeService';
 
@@ -406,8 +406,8 @@ export interface PainelConsultor {
  */
 export async function getPainelConsultor(consultorId: string): Promise<PainelConsultor> {
   // Alunos do consultor (exclui o super-admin)
-  const usersSnap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId)));
-  const alunos = usersSnap.docs.map(d => ({ uid: d.id, ...(d.data() as any) })).filter(u => u.tipoUsuario !== 'admin');
+  const userDocs = await getUserDocsByConsultor(consultorId);
+  const alunos = userDocs.map(d => ({ uid: d.id, ...(d.data() as any) })).filter(u => u.tipoUsuario !== 'admin');
   const totalAlunos = alunos.length;
   const ativos = alunos.filter(u => u.primeiroAcessoEm).length;
 
@@ -473,8 +473,8 @@ export interface RelatorioConsultor {
  * Attribui cada projeto ao segmento do seu dono (ownerUid → empresaId).
  */
 export async function getRelatorioConsultor(consultorId: string): Promise<RelatorioConsultor> {
-  const usersSnap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId)));
-  const users = usersSnap.docs
+  const userDocs = await getUserDocsByConsultor(consultorId);
+  const users = userDocs
     .map(d => ({ uid: d.id, ...(d.data() as any) }))
     .filter(u => u.tipoUsuario !== 'admin');
 

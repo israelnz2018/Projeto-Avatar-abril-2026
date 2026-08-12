@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getInitiatives, getInitiativeConfigs } from '../services/configService';
-import type { TipoUsuario } from '../services/userService';
+import { userDataNoConsultor, type TipoUsuario } from '../services/userService';
+import { resolveConsultorId } from '../services/consultorService';
 
 type Plano = 'gratuito' | 'completo' | 'coordenador';
 type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
@@ -57,9 +58,10 @@ export function useUserAccess() {
         let cursosAcc: CursoAcesso[] = [];
         let porCurso = false;
         if (userSnap.exists()) {
-          const data = userSnap.data();
+          const dataGlobal = userSnap.data();
+          const data = userDataNoConsultor(dataGlobal, resolveConsultorId());
           // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
-          if (!data.primeiroAcessoEm) {
+          if (!dataGlobal.primeiroAcessoEm) {
             setDoc(userRef, { primeiroAcessoEm: new Date().toISOString() }, { merge: true }).catch(() => {});
           }
           // SÓ aceita tipoUsuario com valor válido. Não fazemos fallback pra `role`

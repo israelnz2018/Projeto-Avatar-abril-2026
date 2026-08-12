@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { Users2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { empresaIdDireto } from '../../services/consultorService';
+import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -94,11 +95,11 @@ export default function MeusCoordenadores() {
     setLoading(true);
     setErro('');
     try {
-      const [snap, kbSnap] = await Promise.all([
-        getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))),
+      const [userDocs, kbSnap] = await Promise.all([
+        getUserDocsByConsultor(consultorId),
         getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
       ]);
-      const users = snap.docs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
+      const users = userDocs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
       const coords = users.filter((u) => u.tipoUsuario === 'coordenador');
       const alunos = users.filter((u) => u.tipoUsuario !== 'coordenador' && u.tipoUsuario !== 'admin');
       const timeDireto = alunos.filter((a) => a.empresaId === empresaIdDireto(consultorId));
@@ -186,7 +187,7 @@ export default function MeusCoordenadores() {
       if (eCursos.some((curso) => (Number(eQtdCursos[curso]) || 0) <= 0)) { setEMsg('Informe a quantidade de acessos de cada curso.'); return; }
       if (eCursos.some((curso) => !eVencimentoCursos[curso])) { setEMsg('Informe a expiração de cada curso.'); return; }
       const { cursosAcesso, totalAcessos, totalValor, vencimentoGeral } = resumoEdit;
-      await setDoc(doc(db, 'users', uid), { maxAlunos: totalAcessos, valorPago: totalValor, acessoCompletoAte: vencimentoGeral, cursosAcesso }, { merge: true });
+      await updateUserNoConsultor(uid, consultorId, { maxAlunos: totalAcessos, valorPago: totalValor, acessoCompletoAte: vencimentoGeral, cursosAcesso });
       setRows((p) => p.map((r) => (r.uid === uid ? { ...r, limite: totalAcessos, valorPago: totalValor, vencimento: vencimentoGeral, cursosAcesso } : r)));
       setEMsg('✅ Salvo.');
     } catch (e: any) { setEMsg('❌ ' + (e?.message || e)); }

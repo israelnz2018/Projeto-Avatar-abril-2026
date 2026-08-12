@@ -57,6 +57,10 @@ export interface UserData {
   maxAlunos?: number;
   /** Multi-tenant: consultor a que este usuário pertence (default 'israel'). */
   consultorId?: string;
+  /** Todos os tenants aos quais esta identidade pertence. */
+  consultorIds?: string[];
+  /** Papel e acesso independentes em cada site de consultor. */
+  vinculos?: Record<string, Partial<UserData>>;
   avisoBloqueio?: {
     tipo: 'acesso_bloqueado';
     titulo: string;
@@ -67,6 +71,13 @@ export interface UserData {
     expiraEm?: string;
     lida?: boolean;
   };
+}
+
+/** Projeta o perfil global no vínculo do site atual, mantendo os dados globais. */
+export function userDataNoConsultor<T extends Record<string, any>>(data: T, consultorId = resolveConsultorId()): T {
+  const vinculo = data?.vinculos?.[consultorId];
+  if (!vinculo || typeof vinculo !== 'object') return data;
+  return { ...data, ...vinculo, consultorId };
 }
 
 export interface PendingInvite {
@@ -178,6 +189,36 @@ export async function getUserData(uid: string): Promise<UserData | null> {
 export async function getAllUsers(): Promise<UserData[]> {
   const snapshot = await getDocs(collection(db, USERS_COLLECTION));
   return snapshot.docs.map(d => d.data() as UserData);
+}
+
+/** Lista usuários de um tenant incluindo identidades cujo vínculo principal é outro. */
+export async function getUserDocsByConsultor(consultorId: string): Promise<any[]> {
+  const ref = collection(db, USERS_COLLECTION);
+  const [principais, multiplos] = await Promise.all([
+    getDocs(query(ref, where('consultorId', '==', consultorId))),
+    getDocs(query(ref, where('consultorIds', 'array-contains', consultorId))).catch(() => null),
+  ]);
+  const unicos = new Map<string, any>();
+  [...principais.docs, ...(multiplos?.docs || [])].forEach((item) => {
+    const projetado = userDataNoConsultor(item.data(), consultorId);
+    unicos.set(item.id, { id: item.id, data: () => projetado });
+  });
+  return [...unicos.values()];
+}
+
+/** Atualiza apenas o vínculo de um usuário dentro de um tenant. */
+export async function updateUserNoConsultor(uid: string, consultorId: string, patch: Record<string, any>): Promise<void> {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('Usuário não encontrado.');
+  const atual = snap.data() as any;
+  const vinculo = { ...(atual.vinculos?.[consultorId] || {}), ...patch, consultorId };
+  const payload: Record<string, any> = {
+    consultorIds: Array.from(new Set([...(Array.isArray(atual.consultorIds) ? atual.consultorIds : []), atual.consultorId, consultorId].filter(Boolean))),
+    vinculos: { ...(atual.vinculos || {}), [consultorId]: vinculo },
+  };
+  if (!atual.consultorId || atual.consultorId === consultorId) Object.assign(payload, patch, { consultorId });
+  await setDoc(ref, payload, { merge: true });
 }
 
 /**

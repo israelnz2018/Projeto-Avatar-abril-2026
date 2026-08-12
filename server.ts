@@ -520,9 +520,9 @@ async function startServer() {
     const user = userSnap.data() as any;
     const initiative = { id: initiativeSnap.id, ...(initiativeSnap.data() as any) };
     const consultorId = String(initiative.consultorId || user.consultorId || "israel");
-    if (user.consultorId && String(user.consultorId) !== consultorId) {
-      throw new Error("Esta trilha não pertence ao consultor do usuário.");
-    }
+    const temVinculoNoConsultor = String(user.consultorId || "") === consultorId || !!user.vinculos?.[consultorId];
+    if (!temVinculoNoConsultor) throw new Error("Esta trilha não pertence ao consultor do usuário.");
+    const userNoConsultor = { ...user, ...(user.vinculos?.[consultorId] || {}), consultorId };
 
     const progress = progressSnap.exists
       ? (progressSnap.data() as any)
@@ -540,8 +540,8 @@ async function startServer() {
     const pct = uniqueUrls.length === 0 ? 0 : watched.length / uniqueUrls.length;
     if (uniqueUrls.length === 0 || pct < 0.70) return { issued: false };
 
-    if (user.empresaId) {
-      const repasseSnap = await adminFirestore().collection("repasses").doc(String(user.empresaId)).get();
+    if (userNoConsultor.empresaId) {
+      const repasseSnap = await adminFirestore().collection("repasses").doc(String(userNoConsultor.empresaId)).get();
       if (repasseSnap.exists && (repasseSnap.data() as any).certificadoLiberado !== true) {
         return { issued: false };
       }
@@ -636,7 +636,9 @@ async function startServer() {
       const userSnap = await adminFirestore().collection("users").doc(req.userUid).get();
       const user = userSnap.exists ? (userSnap.data() as any) : {};
       const requested = String(req.query?.consultorId || user.consultorId || "israel");
-      const consultorId = user.consultorId && user.tipoUsuario !== "admin" ? String(user.consultorId) : requested;
+      const consultorId = user.tipoUsuario === "admin"
+        ? requested
+        : (user.vinculos?.[requested] ? requested : String(user.consultorId || requested));
       const quizzes = [];
       for (let trilha = 1; trilha <= 8; trilha++) {
         const quiz = await loadQuizForServer(trilha, consultorId);
@@ -655,7 +657,8 @@ async function startServer() {
       if (trilha < 1 || trilha > 8) return res.status(400).json({ error: "Trilha inválida." });
       const userSnap = await adminFirestore().collection("users").doc(req.userUid).get();
       const user = userSnap.exists ? (userSnap.data() as any) : {};
-      const consultorId = String(user.consultorId || req.body?.consultorId || "israel");
+      const requested = String(req.body?.consultorId || user.consultorId || "israel");
+      const consultorId = user.vinculos?.[requested] ? requested : String(user.consultorId || requested);
       const quiz = await loadQuizForServer(trilha, consultorId);
       if (!quiz) return res.status(404).json({ error: "Prova não encontrada." });
 
@@ -1927,11 +1930,29 @@ async function startServer() {
       const ref = adminFirestore().collection("users").doc(uid);
       const snap = await ref.get();
       const base = snap.exists ? (snap.data() as any) : {};
+      const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
+      const vinculoConsultor = {
+        tipoUsuario: "consultor",
+        consultorId,
+        plano: "completo",
+        criadoEm: base.vinculos?.[consultorId]?.criadoEm || new Date().toISOString(),
+      };
+      const vinculosExistentes = { ...(base.vinculos || {}) };
+      if (base.consultorId && !vinculosExistentes[base.consultorId]) {
+        vinculosExistentes[base.consultorId] = {
+          tipoUsuario: base.tipoUsuario || "aluno", consultorId: base.consultorId,
+          empresaId: base.empresaId || null, empresaNome: base.empresaNome || null,
+          plano: base.plano || "gratuito", cursosAcesso: base.cursosAcesso || [],
+          maxAlunos: base.maxAlunos || null, valorPago: base.valorPago || 0,
+        };
+      }
       await ref.set({
         uid, email,
         nome: nome || base.nome || "",
         tipoUsuario: base.tipoUsuario === "admin" ? "admin" : "consultor",
         consultorId,
+        consultorIds,
+        vinculos: { ...vinculosExistentes, [consultorId]: vinculoConsultor },
         plano: "completo",
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
@@ -2299,23 +2320,43 @@ async function startServer() {
       const base = snap.exists ? (snap.data() as any) : {};
       const agoraIso = new Date().toISOString();
       const mesmoTime = empresaId && base.empresaId && String(base.empresaId) === String(empresaId);
-      if (!callerEhAdmin && base.consultorId && String(base.consultorId) !== consultorId) {
-        return res.status(409).json({ error: "Este aluno já está vinculado a outro consultor." });
+      const vinculoAnterior = base.vinculos?.[consultorId] || {};
+      const consultorIdsAluno = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
+      const vinculoAluno = {
+        ...vinculoAnterior,
+        tipoUsuario: vinculoAnterior.tipoUsuario === "consultor" || vinculoAnterior.tipoUsuario === "coordenador" ? vinculoAnterior.tipoUsuario : "aluno",
+        consultorId,
+        ...(empresaId ? { empresaId } : {}),
+        ...(empresaNome ? { empresaNome } : {}),
+        plano: "completo",
+        cursosAcesso,
+        valorPago,
+        incluidoNoTimeEm: vinculoAnterior.incluidoNoTimeEm || agoraIso,
+      };
+      const vinculosExistentesAluno = { ...(base.vinculos || {}) };
+      if (base.consultorId && !vinculosExistentesAluno[base.consultorId]) {
+        vinculosExistentesAluno[base.consultorId] = {
+          tipoUsuario: base.tipoUsuario || "aluno", consultorId: base.consultorId,
+          empresaId: base.empresaId || null, empresaNome: base.empresaNome || null,
+          plano: base.plano || "gratuito", cursosAcesso: base.cursosAcesso || [],
+          maxAlunos: base.maxAlunos || null, valorPago: base.valorPago || 0,
+        };
       }
+      const preservarPrincipal = !!base.consultorId && String(base.consultorId) !== consultorId;
       await ref.set({
         uid, email,
         nome: nome || base.nome || "",
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
-        consultorId,
-        ...(empresaId ? { empresaId } : {}),
-        ...(empresaNome ? { empresaNome } : {}),
-        plano: "completo", // no mundo do consultor não há paywall; o acesso a conteúdo é por curso
-        cursosAcesso: cursosAcesso.length > 0 ? cursosAcesso : (Array.isArray(base.cursosAcesso) ? base.cursosAcesso : []), // [{ curso, vencimento }]
-        valorPago,
+        consultorId: preservarPrincipal ? base.consultorId : consultorId,
+        consultorIds: consultorIdsAluno,
+        vinculos: { ...vinculosExistentesAluno, [consultorId]: vinculoAluno },
+        ...(preservarPrincipal ? {} : (empresaId ? { empresaId } : {})),
+        ...(preservarPrincipal ? {} : (empresaNome ? { empresaNome } : {})),
+        ...(preservarPrincipal ? {} : { plano: "completo", cursosAcesso, valorPago }),
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agoraIso,
-        incluidoNoTimeEm: mesmoTime && base.incluidoNoTimeEm ? base.incluidoNoTimeEm : agoraIso,
+        ...(preservarPrincipal ? {} : { incluidoNoTimeEm: mesmoTime && base.incluidoNoTimeEm ? base.incluidoNoTimeEm : agoraIso }),
         ...(novo ? { senhaProvisoria: true } : {}),
       }, { merge: true });
 

@@ -55,7 +55,8 @@ service cloud.firestore {
 
     function userMesmoConsultorPorDados(d) {
       return isAuthenticated() &&
-        d.consultorId == meuConsultorId();
+        (d.consultorId == meuConsultorId() ||
+          (('consultorIds' in d) && d.consultorIds.hasAny([meuConsultorId()])));
     }
 
     function projectOwnerSameEmpresa(projectId) {
@@ -164,18 +165,21 @@ service cloud.firestore {
         isAdmin() ||
         isOwner(userId) ||
         (isCoordenador() && resourceMesmaEmpresa()) ||
-        (ehConsultor() && resource.data.consultorId == meuConsultorId())
+        (ehConsultor() && (
+          resource.data.consultorId == meuConsultorId() ||
+          (('consultorIds' in resource.data) && resource.data.consultorIds.hasAny([meuConsultorId()]))
+        ))
       );
       allow create: if isAuthenticated() && request.auth.uid == userId;
       // Consultor pode atualizar os usuários do mundo dele (ex.: liberar cursos por aluno).
       allow update: if isAuthenticated() && (
         isAdmin() ||
         (isOwner(userId) && ownerPodeAtualizarPerfil()) ||
-        (ehConsultor() && !isOwner(userId) && resource.data.consultorId == meuConsultorId() && userMesmoConsultorPorDados(request.resource.data)) ||
+        (ehConsultor() && !isOwner(userId) && userMesmoConsultorPorDados(resource.data) && userMesmoConsultorPorDados(request.resource.data)) ||
         (isCoordenador() && !isOwner(userId) && resourceMesmaEmpresa() && novoMesmaEmpresa())
       );
       allow delete: if isAdmin() ||
-        (ehConsultor() && !isOwner(userId) && resource.data.consultorId == meuConsultorId()) ||
+        (ehConsultor() && !isOwner(userId) && userMesmoConsultorPorDados(resource.data)) ||
         (isCoordenador() && !isOwner(userId) && resourceMesmaEmpresa());
     }
 

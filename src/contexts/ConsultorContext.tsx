@@ -11,7 +11,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { Consultor } from '../types';
-import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId, nomeMentorDe, setMentorNome } from '../services/consultorService';
+import { CONSULTOR_PADRAO, getConsultor, resolveConsultorId, isSiteConsultor, nomeMentorDe, setMentorNome } from '../services/consultorService';
 import { auth, db } from '../lib/firebase';
 
 interface ConsultorContextValue {
@@ -37,6 +37,13 @@ export function ConsultorProvider({ children }: { children: React.ReactNode }) {
   // Depois do login, a fonte de verdade é o consultorId do perfil. Assim um
   // consultor que entrou por outro subdomínio nunca tenta editar a marca alheia.
   useEffect(() => auth.onAuthStateChanged(async (usuario) => {
+    // Em um site branded, o endereço define o tenant. Assim a mesma conta pode
+    // ter papéis diferentes em israel.*, mariana.* etc. No hub app.*, o perfil
+    // principal continua sendo usado como antes.
+    if (isSiteConsultor()) {
+      setConsultorId(consultorIdDoEndereco);
+      return;
+    }
     if (!usuario) {
       setConsultorId(consultorIdDoEndereco);
       return;

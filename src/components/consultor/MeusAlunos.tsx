@@ -8,13 +8,14 @@
  * (Trilha 1, os cursos isFree); com cursosAcesso = pacote por-curso escolhido aqui.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
+import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -109,13 +110,13 @@ export default function MeusAlunos() {
   const carregar = async () => {
     setLoading(true);
     try {
-      const [usersSnap, blockedSnap, kbSnap, inits] = await Promise.all([
-        getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))),
+      const [userDocs, blockedSnap, kbSnap, inits] = await Promise.all([
+        getUserDocsByConsultor(consultorId),
         getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
         getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
         getInitiatives(),
       ]);
-      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       const lista: Aluno[] = allUsers
         .map((d) => {
           const u = d as any;
@@ -246,7 +247,7 @@ export default function MeusAlunos() {
     setEditSalvando(true); setEditMsg('');
     try {
       const valorPago = eCursos.reduce((s, c) => s + (c.valor || 0), 0);
-      await setDoc(doc(db, 'users', uid), { cursosAcesso: eCursos, valorPago }, { merge: true });
+      await updateUserNoConsultor(uid, consultorId, { cursosAcesso: eCursos, valorPago });
       setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos } : r)));
       setEditMsg('✅ Salvo.');
     } catch (e: any) { setEditMsg('❌ ' + (e?.message || e)); }
