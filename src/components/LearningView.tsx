@@ -86,7 +86,7 @@ export default function LearningView() {
     });
   }, []);
 
-  const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso } = useUserAccess();
+  const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso, loading: loadingAcesso } = useUserAccess();
   const { consultor } = useConsultor();
   const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
   // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
@@ -134,8 +134,9 @@ export default function LearningView() {
   };
 
   useEffect(() => {
+    if (loadingAcesso) return;
     fetchItems();
-  }, []);
+  }, [loadingAcesso, isAdmin, isConsultor, isCoordenador, consultorAtual]);
 
   const resolveIntroCourseFromLocation = () => {
     const params = new URLSearchParams(location.search);
