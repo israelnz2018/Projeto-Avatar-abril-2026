@@ -208,7 +208,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Alunos na Plataforma', path: '/configuracao?aba=alunos', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
-        ...(isAdmin ? [{ name: 'AI Assistant', path: '/chat', icon: MessageSquare }] : []),
       ],
     }] : []),
     ...(canSeeCoordenadorArea ? [{
