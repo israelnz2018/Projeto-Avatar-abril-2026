@@ -197,7 +197,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       title: 'Área do Consultor',
       icon: Shield,
       items: [
-        { name: 'Consultor Comece por aqui', path: '/comece-por-aqui', icon: Rocket },
+        { name: 'Consultor Comece por aqui', path: '/consultorcomeceporqui', icon: Rocket },
         { name: 'Meus Cursos', path: '/configuracao?aba=cursos', icon: BookOpen },
         { name: 'Projetos, Fases e Ferramentas', path: '/configuracao?aba=fases', icon: Settings },
         { name: 'Teste de Avaliação', path: '/configuracao?aba=prova', icon: ClipboardList },
@@ -215,7 +215,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       title: 'Área do Coordenador',
       icon: Users,
       items: [
-        { name: 'Coordenador Comece por aqui', path: '/education?aba=coordenador', icon: Rocket },
+        { name: 'Coordenador Comece por aqui', path: '/coordenadorcomeceporqui', icon: Rocket },
         ...(isCoordenador ? [
           { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
           { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
@@ -232,7 +232,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       title: 'Área do Aluno',
       icon: GraduationCap,
       items: [
-        { name: 'Aluno Comece por aqui', path: '/education?aba=aluno', icon: Rocket },
+        { name: 'Aluno Comece por aqui', path: '/alunocomeceporqui', icon: Rocket },
         { name: 'Educação / Meus Cursos', path: '/education', icon: GraduationCap },
         { name: 'Projetos', path: '/projects', icon: ClipboardList },
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
@@ -670,6 +670,8 @@ export default function App() {
               <Route path="/projects" element={<ProjectManagement />} />
               <Route path="/learning" element={<KnowledgeManagerView />} />
               <Route path="/education" element={<LearningView />} />
+              <Route path="/alunocomeceporqui" element={<LearningView />} />
+              <Route path="/coordenadorcomeceporqui" element={<LearningView />} />
               <Route path="/recursos" element={<RecursosView />} />
               <Route path="/comunidade" element={<Comunidade escopo="consultor" />} />
               <Route path="/comunidade-adm" element={<Comunidade escopo="rede" />} />
@@ -694,6 +696,7 @@ export default function App() {
               <Route path="/consultores" element={<VitrinePublica />} />
               <Route path="/meus-coordenadores" element={<MeusCoordenadores />} />
               <Route path="/configuracao" element={<ConfiguracaoConsultor />} />
+              <Route path="/consultorcomeceporqui" element={<ComecePorAqui />} />
               <Route path="/comece-por-aqui" element={<ComecePorAqui />} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

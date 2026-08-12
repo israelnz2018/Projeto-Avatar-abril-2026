@@ -137,17 +137,20 @@ export default function LearningView() {
     fetchItems();
   }, []);
 
-  useEffect(() => {
+  const resolveIntroCourseFromLocation = () => {
     const params = new URLSearchParams(location.search);
     const aba = params.get('aba');
-    const target =
-      aba === 'aluno' ? INTRO_COURSE_ALUNO :
-      aba === 'coordenador' ? INTRO_COURSE_COORDENADOR :
-      '';
+    if (location.pathname === '/alunocomeceporqui' || aba === 'aluno') return INTRO_COURSE_ALUNO;
+    if (location.pathname === '/coordenadorcomeceporqui' || aba === 'coordenador') return INTRO_COURSE_COORDENADOR;
+    return '';
+  };
+
+  useEffect(() => {
+    const target = resolveIntroCourseFromLocation();
     setActiveCategory(target || 'Todos');
     setActivePlaylist('Todas');
     setSelectedVideo(null);
-  }, [location.search]);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     setSeekTime(0);
@@ -293,11 +296,7 @@ export default function LearningView() {
   }, [items, location.search]);
 
   // Ordena cursos pelo prefixo numérico ("1- ...", "2- ...", "9- ..."), "Todos" fica primeiro.
-  const params = new URLSearchParams(location.search);
-  const requestedIntroCourse =
-    params.get('aba') === 'aluno' ? INTRO_COURSE_ALUNO :
-    params.get('aba') === 'coordenador' ? INTRO_COURSE_COORDENADOR :
-    '';
+  const requestedIntroCourse = resolveIntroCourseFromLocation();
   const courseSet = new Set(items.map(item => item.course).filter((course) => course !== INTRO_COURSE_ALUNO && course !== INTRO_COURSE_COORDENADOR));
   const sortedCourses = Array.from(courseSet)
     .sort((a, b) => {
