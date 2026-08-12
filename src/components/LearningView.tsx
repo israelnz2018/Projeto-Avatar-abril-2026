@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play,
@@ -69,6 +70,7 @@ export default function LearningView() {
   const [justCompletedCertId, setJustCompletedCertId] = useState<string | null>(null);
   const [alunoNome, setAlunoNome] = useState<string>('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const location = useLocation();
 
   // Carrega nome do aluno do Firestore (congela no certificado quando emitir).
   useEffect(() => {
@@ -136,17 +138,16 @@ export default function LearningView() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const aba = params.get('aba');
     const target =
       aba === 'aluno' ? INTRO_COURSE_ALUNO :
       aba === 'coordenador' ? INTRO_COURSE_COORDENADOR :
       '';
-    if (target) {
-      setActiveCategory(target);
-      setActivePlaylist('Todas');
-    }
-  }, []);
+    setActiveCategory(target || 'Todos');
+    setActivePlaylist('Todas');
+    setSelectedVideo(null);
+  }, [location.search]);
 
   useEffect(() => {
     setSeekTime(0);
@@ -278,7 +279,7 @@ export default function LearningView() {
   // Usado pelos links de vídeo colados nas respostas da Comunidade (só admin gera).
   useEffect(() => {
     if (!items.length) return;
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const vid = params.get('video');
     if (!vid) return;
     const alvo = items.find(it => it.id === vid);
@@ -289,10 +290,10 @@ export default function LearningView() {
         document.getElementById('lv-player')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 300);
     }
-  }, [items]);
+  }, [items, location.search]);
 
   // Ordena cursos pelo prefixo numérico ("1- ...", "2- ...", "9- ..."), "Todos" fica primeiro.
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(location.search);
   const requestedIntroCourse =
     params.get('aba') === 'aluno' ? INTRO_COURSE_ALUNO :
     params.get('aba') === 'coordenador' ? INTRO_COURSE_COORDENADOR :
