@@ -198,7 +198,7 @@ export default function CertificadosView() {
 
         <div className="min-w-0 xl:sticky xl:top-4">
           <div className="mb-3 flex items-center gap-2"><ImageIcon size={17} className="text-blue-600" /><h2 className="font-black text-gray-800">Prévia em tempo real</h2></div>
-          {carregando ? <div className="text-gray-500">Carregando cursos…</div> : !cursoAtivo ? <div className="rounded-2xl border bg-white p-8 text-center text-gray-500">Crie um curso para visualizar o certificado.</div> : <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 p-2"><Certificate alunoNome={ALUNO_EXEMPLO} initiativeName={cursoAtivo.name} initiativeId={cursoAtivo.id} issuedAt={DATA_EXEMPLO} certId="EXEMPLO-PREVIEW" mode="public" consultorId={consultorId} configOverride={config} /></div>}
+          {carregando ? <div className="text-gray-500">Carregando cursos…</div> : !cursoAtivo ? <div className="rounded-2xl border bg-white p-8 text-center text-gray-500">Crie um curso para visualizar o certificado.</div> : <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 p-2"><Certificate alunoNome={ALUNO_EXEMPLO} initiativeName={cursoAtivo.name} initiativeId={cursoAtivo.id} issuedAt={DATA_EXEMPLO} certId="EXEMPLO-PREVIEW" mode="student" consultorId={consultorId} configOverride={config} /></div>}
         </div>
       </div>
     </div>

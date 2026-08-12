@@ -207,22 +207,22 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
         <div className="absolute inset-0" style={{ color: corNavy }}>
 
           {/* Logomarca LBW (topo centro) */}
-          {certificado?.mostrarLogo !== false && <div className="absolute w-full flex flex-col items-center" style={{ top: '11%' }}>
-            <img src={isIsrael ? '/favicon.png' : (branding?.logoUrl || '/favicon.png')} alt={instituicao} style={{ height: 'clamp(20px,3vw,34px)', maxWidth: '24%', objectFit: 'contain' }} />
-            <span style={{ fontSize: 'clamp(7px,1vw,11px)', letterSpacing: '0.18em', fontWeight: 700, textTransform: 'uppercase', color: corMuted, marginTop: 4 }}>
+          {certificado?.mostrarLogo !== false && <div className="absolute w-full flex flex-col items-center" style={{ top: '8.5%', height: '10%' }}>
+            <img src={isIsrael ? '/favicon.png' : (branding?.logoUrl || '/favicon.png')} alt={instituicao} style={{ height: 'clamp(18px,2.6vw,29px)', maxWidth: '20%', objectFit: 'contain' }} />
+            <span title={instituicao} style={{ width: '46%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', fontSize: 'clamp(6px,.82vw,9px)', letterSpacing: '0.12em', fontWeight: 700, textTransform: 'uppercase', color: corMuted, marginTop: 3 }}>
               {instituicao}
             </span>
           </div>}
 
           {/* Eyebrow */}
-          <div className="absolute w-full text-center" style={{ top: '19.5%' }}>
-            <span style={{ fontSize: 'clamp(11px,1.7vw,18px)', letterSpacing: '0.3em', fontWeight: 800, color: corMuted }}>
+          <div className="absolute text-center" style={{ top: '20.5%', left: '14%', right: '14%' }}>
+            <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'clamp(10px,1.55vw,17px)', letterSpacing: '0.22em', fontWeight: 800, color: corMuted }}>
               {certificado?.titulo || 'CERTIFICADO DE CONCLUSÃO'}
             </span>
           </div>
 
           {/* Certificamos que + nome do aluno */}
-          <div className="absolute w-full text-center px-[14%]" style={{ top: '27%' }}>
+          <div className="absolute w-full text-center px-[16%]" style={{ top: '28%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,13px)', color: corMuted }}>{certificado?.textoCertificamos || 'Certificamos que'}</p>
             <p className="m-0 mt-1" style={{ fontFamily: "'Instrument Serif','Georgia',serif", fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(20px,3.1vw,36px)', color: LBW.blue }}>
               <span style={{ color: corBlue }}>{alunoNome}</span>
@@ -230,8 +230,8 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
           </div>
 
           {/* Frase de conclusão (trilha + carga + aprovação) */}
-          <div className="absolute w-full text-center px-[15%]" style={{ top: '46%' }}>
-            <p className="m-0" style={{ fontSize: 'clamp(10px,1.45vw,16px)', color: corInk, lineHeight: 1.5 }}>
+          <div className="absolute w-full text-center px-[17%]" style={{ top: '46%', height: '14%', overflow: 'hidden' }}>
+            <p className="m-0" style={{ fontSize: 'clamp(9px,1.3vw,14px)', color: corInk, lineHeight: 1.42 }}>
               {certificado?.textoConclusao || 'concluiu com êxito o curso'} <b style={{ color: corNavy, textTransform: 'uppercase' }}>{nomeTrilha}</b>
               {carga ? <>, com carga horária de <b style={{ color: corNavy }}>{carga} horas</b></> : null}, tendo sido aprovado na avaliação final.
               {regraCurso?.textoComplementar ? <> {regraCurso.textoComplementar}</> : null}
@@ -239,27 +239,27 @@ export default function Certificate({ alunoNome, initiativeName, initiativeId, i
           </div>
 
           {/* Data */}
-          <div className="absolute w-full text-center" style={{ top: '62%' }}>
+          <div className="absolute w-full text-center" style={{ top: '61.5%' }}>
             <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', color: corMuted }}>
               {formatDataPorExtenso(issuedAt)}
             </p>
           </div>
 
           {isIsrael && !certificado?.assinaturaUrl ? (
-            <div className="absolute w-full text-center" style={{ top: '69%' }}>
+            <div className="absolute w-full text-center" style={{ top: '70.5%' }}>
               <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
               <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
               <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 600, color: corInk }}>{certificado?.textoRodape || 'Consultor Sênior em Melhoria de Processos e Negócios'}</p>
             </div>
           ) : (
-            <div className="absolute w-full text-center flex flex-col items-center" style={{ top: '68%' }}>
+            <div className="absolute w-full text-center flex flex-col items-center" style={{ top: '66%', left: '24%', width: '52%', height: '22%', overflow: 'hidden' }}>
               {certificado?.mostrarAssinatura !== false && certificado?.assinaturaUrl && (
-                <img src={certificado.assinaturaUrl} alt="Assinatura" style={{ height: 'clamp(24px,4vw,48px)', maxWidth: '24%', objectFit: 'contain', marginBottom: 2 }} />
+                <img src={certificado.assinaturaUrl} alt="Assinatura" style={{ height: 'clamp(20px,3.3vw,38px)', width: '28%', objectFit: 'contain', marginBottom: 1 }} />
               )}
               <p className="m-0" style={{ fontSize: 'clamp(11px,1.6vw,17px)', fontWeight: 800, color: corNavy }}>{emissorNome}</p>
               <p className="m-0" style={{ fontSize: 'clamp(8px,1.1vw,12px)', fontWeight: 700, color: corNavy }}>{emissorCargo}</p>
               {certificado?.textoRodape && (
-                <p className="m-0" style={{ fontSize: 'clamp(7px,1vw,10px)', fontWeight: 600, color: corInk }}>{certificado.textoRodape}</p>
+                <p className="m-0" style={{ maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'clamp(6px,.86vw,9px)', fontWeight: 600, color: corInk }}>{certificado.textoRodape}</p>
               )}
             </div>
           )}
