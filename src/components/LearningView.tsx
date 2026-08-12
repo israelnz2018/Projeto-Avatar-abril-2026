@@ -297,7 +297,7 @@ export default function LearningView() {
     params.get('aba') === 'aluno' ? INTRO_COURSE_ALUNO :
     params.get('aba') === 'coordenador' ? INTRO_COURSE_COORDENADOR :
     '';
-  const courseSet = new Set(items.map(item => item.course));
+  const courseSet = new Set(items.map(item => item.course).filter((course) => course !== INTRO_COURSE_ALUNO && course !== INTRO_COURSE_COORDENADOR));
   if (requestedIntroCourse) courseSet.add(requestedIntroCourse);
   const sortedCourses = Array.from(courseSet)
     .sort((a, b) => {
