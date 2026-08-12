@@ -428,9 +428,10 @@ interface SortablePlaylistTabProps {
   onEdit: () => void;
   onDelete: () => void;
   onMove: () => void;
+  hideActions?: boolean;
 }
 
-function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, onMove }: SortablePlaylistTabProps) {
+function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, onMove, hideActions }: SortablePlaylistTabProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: playlist.name });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -461,7 +462,7 @@ function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, o
           {playlist.videos.length}
         </span>
       </button>
-      <div className="flex items-center ml-1">
+      {!hideActions && <div className="flex items-center ml-1">
         <button
           onClick={onMove}
           className="p-1 text-gray-400 hover:text-green-600 transition-colors border-none bg-transparent cursor-pointer"
@@ -483,7 +484,7 @@ function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, o
         >
           <Trash2 size={14} />
         </button>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -1250,11 +1251,8 @@ export default function KnowledgeManagerView() {
 
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
 
-  const courseOptions = [
-    INTRO_COURSE_ALUNO,
-    INTRO_COURSE_COORDENADOR,
-    ...initiativeNames.filter(c => !isIntroCourse(c))
-  ];
+  const introCourseOptions = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR];
+  const regularCourseOptions = initiativeNames.filter(c => !isIntroCourse(c));
 
   const playlistsForCourse = (course: string) => isIntroCourse(course)
     ? [INTRO_PLAYLIST]
@@ -1277,7 +1275,12 @@ export default function KnowledgeManagerView() {
   // Convert to sorted arrays — cursos ordenados por nome com numeric:true,
   // pra que prefixos numéricos do nome ("1-", "2-", "10-") sejam respeitados.
   const groupedItems = Object.entries(groupedItemsMap)
-    .sort(([a], [b]) => a.localeCompare(b, 'pt-BR', { numeric: true }))
+    .sort(([a], [b]) => {
+      const introA = isIntroCourse(a);
+      const introB = isIntroCourse(b);
+      if (introA !== introB) return introA ? -1 : 1;
+      return a.localeCompare(b, 'pt-BR', { numeric: true });
+    })
     .map(([courseName, playlistsMap]) => {
     const sortedPlaylists = Object.entries(playlistsMap)
       .map(([playlistName, videos]) => ({
@@ -1445,9 +1448,12 @@ export default function KnowledgeManagerView() {
                       className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
                     >
                       <option value="" disabled>Selecione um curso...</option>
-                      {courseOptions.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
+                      <optgroup label="Abas especiais">
+                        {introCourseOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
+                      <optgroup label="Cursos">
+                        {regularCourseOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
                     </select>
                     <div className="space-y-2">
                       <select
@@ -1617,6 +1623,7 @@ export default function KnowledgeManagerView() {
           </div>
         ) : (
           groupedItems.map((course) => {
+            const abaEspecial = isIntroCourse(course.name);
             const totalDoCurso = items.filter(i => i.course === course.name).length;
             const visibleNoCurso = course.playlists.reduce((sum, p) => sum + p.videos.length, 0);
             const filtroAtivo = !!searchTerm && visibleNoCurso < totalDoCurso;
@@ -1628,8 +1635,13 @@ export default function KnowledgeManagerView() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Folder className="text-blue-600" size={20} />
                   <h2 className="font-bold text-lg text-gray-800 m-0">{course.name}</h2>
+                  {abaEspecial && (
+                    <span className="bg-purple-50 text-purple-700 text-[11px] font-bold px-2 py-1 rounded-full border border-purple-200">
+                      Aba especial
+                    </span>
+                  )}
                   <span className="ml-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {totalDoCurso} vídeo{totalDoCurso !== 1 ? 's' : ''} no curso
+                    {totalDoCurso} vídeo{totalDoCurso !== 1 ? 's' : ''} {abaEspecial ? 'na aba' : 'no curso'}
                   </span>
                   {activePl && (
                     <span className="bg-gray-200 text-gray-700 text-[11px] font-bold px-2 py-1 rounded-full">
@@ -1642,7 +1654,7 @@ export default function KnowledgeManagerView() {
                     </span>
                   )}
                   {/* Toggle "tem projeto?" — decide se o curso vira tipo de projeto na aba Projetos */}
-                  {(() => {
+                  {!abaEspecial && (() => {
                     const ini = initiatives.find((i) => i.name === course.name);
                     if (!ini) return <span className="text-[11px] text-gray-400 italic ml-1" title="Curso sem projeto correspondente">sem projeto</span>;
                     const temProjeto = ini.temProjeto !== false;
@@ -1657,7 +1669,7 @@ export default function KnowledgeManagerView() {
                     );
                   })()}
                 </div>
-                <div className="flex items-center gap-2">
+                {!abaEspecial && <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setModalConfig({ isOpen: true, type: 'editCourse', targetCourse: course.name, inputValue: course.name })}
                     className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer" 
@@ -1672,7 +1684,7 @@ export default function KnowledgeManagerView() {
                   >
                     <Trash2 size={16} />
                   </button>
-                </div>
+                </div>}
               </div>
               
               {/* Playlists Tabs */}
@@ -1696,6 +1708,7 @@ export default function KnowledgeManagerView() {
                           onEdit={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
                           onDelete={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
                           onMove={() => setModalConfig({ isOpen: true, type: 'movePlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: '' })}
+                          hideActions={abaEspecial}
                         />
                       ))}
                     </SortableContext>
@@ -1827,7 +1840,12 @@ export default function KnowledgeManagerView() {
                                 className="p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
                               >
                                 <option value="" disabled>Selecione um curso...</option>
-                                {courseOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                                <optgroup label="Abas especiais">
+                                  {introCourseOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                                </optgroup>
+                                <optgroup label="Cursos">
+                                  {regularCourseOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                                </optgroup>
                               </select>
                               <div className="space-y-1">
                                 <select
