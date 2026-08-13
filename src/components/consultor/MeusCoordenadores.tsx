@@ -93,9 +93,12 @@ export default function MeusCoordenadores() {
       // Alunos antigos podem não ter empresaId; eles também pertencem ao grupo do consultor.
       const timeDireto = alunos.filter((a) => !a.empresaId || a.empresaId === direto);
 
+      const cursosAtuais = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course)))));
       const linhasCoord: CoordRow[] = coords.map((c) => {
         const time = alunos.filter((a) => a.empresaId && a.empresaId === c.empresaId);
-        const cursosAcesso = Array.isArray(c.cursosAcesso) ? c.cursosAcesso : [];
+        const cursosAcesso = Array.isArray(c.cursosAcesso)
+          ? c.cursosAcesso.filter((acesso: any) => cursosAtuais.includes(String(acesso?.curso || '').trim()))
+          : [];
         return {
           uid: c.uid,
           nome: c.nome || c.displayName || (c.email ? String(c.email).split('@')[0] : '—'),
@@ -127,9 +130,7 @@ export default function MeusCoordenadores() {
         euMesmo: true,
       }]);
 
-      setCursos(Array.from(new Set(kbSnap.docs
-        .map((d) => ((d.data() as any).course || '').trim())
-        .filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort());
+      setCursos(cursosAtuais.sort());
     } catch (e: any) {
       setErro(e?.message || 'Erro ao carregar coordenadores.');
     } finally {
