@@ -47,7 +47,7 @@ const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')
 // Sem separador de milhar (evita o ponto ser lido como decimal ao reparsear). Vírgula = decimal.
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
 
-export default function MeusAlunos() {
+export default function MeusAlunos({ embedded = false }: { embedded?: boolean }) {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const [rows, setRows] = useState<Aluno[]>([]);
@@ -459,10 +459,12 @@ export default function MeusAlunos() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos na Plataforma</h1>
-      <p className="text-gray-500 text-sm mb-5">
-        Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
-      </p>
+      {!embedded && <>
+        <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos na Plataforma</h1>
+        <p className="text-gray-500 text-sm mb-5">
+          Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
+        </p>
+      </>}
 
       <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-5'} />
 

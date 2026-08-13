@@ -38,10 +38,17 @@ export const getInitiatives = async (): Promise<Initiative[]> => {
  */
 export async function propagarRenomeacaoParaAcessos(oldName: string, newName: string, consultorId?: string): Promise<number> {
   const cid = consultorId || resolveConsultorId();
-  const snap = await getDocs(query(collection(db, 'users'), where('consultorId', '==', cid)));
+  // Vínculos antigos podem estar em consultorId ou no array consultorIds
+  // (contas com mais de um papel/tenant). Atualize os dois formatos.
+  const [principal, multi] = await Promise.all([
+    getDocs(query(collection(db, 'users'), where('consultorId', '==', cid))),
+    getDocs(query(collection(db, 'users'), where('consultorIds', 'array-contains', cid))),
+  ]);
+  const docs = new Map<string, typeof principal.docs[number]>();
+  [...principal.docs, ...multi.docs].forEach((d) => docs.set(d.id, d));
   const batch = writeBatch(db);
   let afetados = 0;
-  snap.docs.forEach((d) => {
+  docs.forEach((d) => {
     const data = d.data() as any;
     let mudou = false;
     const cursosAcesso = Array.isArray(data.cursosAcesso)

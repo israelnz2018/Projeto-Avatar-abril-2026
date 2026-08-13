@@ -7,6 +7,7 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 import { empresaIdDireto } from '../../services/consultorService';
 import { isIntroCourse } from '../../services/knowledgeService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
+import MeusAlunos from './MeusAlunos';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -399,6 +400,10 @@ export default function MeusCoordenadores() {
           </div>
           );
         })}
+      </div>
+      <div className="mt-10 pt-8 border-t border-gray-200">
+        <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Alunos</h2>
+        <MeusAlunos embedded />
       </div>
     </div>
   );
