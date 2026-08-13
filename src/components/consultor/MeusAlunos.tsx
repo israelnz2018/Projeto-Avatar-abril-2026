@@ -25,7 +25,7 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
   return fetch(url, { ...init, headers });
 }
 
-interface CursoAcesso { curso: string; vencimento: string | null; valor: number; }
+interface CursoAcesso { curso: string; vencimento: string | null; valor: number; quantidade: number; }
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
   cursosAcesso: CursoAcesso[]; completo: boolean;
@@ -83,9 +83,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
   const toAluno = (d: any): Aluno => {
     const u = d as any;
     let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
-      ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0 })).filter((c: CursoAcesso) => c.curso)
+      ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0, quantidade: Number(c?.quantidade) || 1 })).filter((c: CursoAcesso) => c.curso)
       : [];
-    if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0 }));
+    if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0, quantidade: 1 }));
     const completoValido = (() => {
       const ate = u.acessoCompletoAte;
       if (!ate) return true;
@@ -122,9 +122,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
         .map((d) => {
           const u = d as any;
           let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
-            ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0 })).filter((c: CursoAcesso) => c.curso)
+            ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0, quantidade: Number(c?.quantidade) || 1 })).filter((c: CursoAcesso) => c.curso)
             : [];
-          if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0 }));
+          if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0, quantidade: 1 }));
           // Acesso Completo (mundo Israel/legado): plano 'completo' válido OU formação avançada.
           const completoValido = (() => {
             const ate = u.acessoCompletoAte;
@@ -231,7 +231,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
   // ----- editar -----
   function abrirEdit(a: Aluno) {
     setEditUid(a.uid);
-    setECursos(a.cursosAcesso.map((c) => ({ ...c })));
+    setECursos(a.cursosAcesso.map((c) => ({ ...c, quantidade: 1 })));
     setEAddCurso('');
     setEditMsg('');
   }
@@ -240,7 +240,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
   const removerCurso = (curso: string) => setECursos((p) => p.filter((c) => c.curso !== curso));
   const addCursoEdit = () => {
     if (!eAddCurso || eCursos.some((c) => c.curso === eAddCurso)) return;
-    setECursos((p) => [...p, { curso: eAddCurso, vencimento: emUmAno(), valor: 0 }]);
+    setECursos((p) => [...p, { curso: eAddCurso, vencimento: emUmAno(), valor: 0, quantidade: 1 }]);
     setEAddCurso('');
   };
 
@@ -332,7 +332,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
           ) : a.cursosAcesso.length > 0 ? (
             a.cursosAcesso.map((c) => (
-              <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso}</span>
+              <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
             ))
           ) : freeCursos.length > 0 ? (
             freeCursos.map((c) => (
@@ -373,7 +373,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             {eCursos.length === 0 && <div className="text-xs text-gray-400">Nenhum curso liberado.</div>}
             {eCursos.map((c) => (
               <div key={c.curso} className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso}</span>
+                <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] text-gray-400">vence</span>
                   <input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} />
