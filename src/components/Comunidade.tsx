@@ -27,7 +27,7 @@ import { resolveConsultorId, empresaIdDireto } from '../services/consultorServic
 import { useConsultor } from '../contexts/ConsultorContext';
 import UpgradeBanner from './UpgradeBanner';
 import {
-  ouvirPosts, ouvirReplies, criarReply, marcarResolvido,
+  ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
   editarPost, editarReply, uploadAnexo, bloquearPost, bloquearReply, autorAtual,
   ouvirNotificacoes, marcarNotificacoesLidas,
@@ -843,6 +843,8 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const [tipoFiltro, setTipoFiltro] = useState<PostTipo | 'todos'>('todos');
   const [busca, setBusca] = useState('');
   const [repliesPorPost, setRepliesPorPost] = useState<Record<string, CommunityReply[]>>({});
+  const [criandoExemplos, setCriandoExemplos] = useState(false);
+  const [msgExemplos, setMsgExemplos] = useState('');
 
   const meUid = auth.currentUser?.uid || '';
   const ADMIN_EMAILS = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
@@ -880,6 +882,31 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const espaco: EspacoComunidade = { escopo, empresaId: empresaAtiva };
   const boasVindasPostId = idBoasVindasPost(cid, empresaAtiva);
   const boasVindasJaPublicado = posts.some(p => p.id === boasVindasPostId);
+
+  async function criarExemplosAluno() {
+    if (!isAdmin && !isConsultor) return;
+    if (posts.some(p => p.titulo === '[DEMO] Pergunta de aluno')) {
+      setMsgExemplos('Os exemplos já foram adicionados nesta comunidade.');
+      return;
+    }
+    setCriandoExemplos(true); setMsgExemplos('');
+    const exemplos = [
+      ['Como recebo meu certificado?', 'Concluí 70% do curso. Quando o certificado fica disponível?', 'O certificado é liberado após atingir o percentual exigido e ser aprovado no teste de avaliação.'],
+      ['Qual curso devo começar?', 'Sou novo na plataforma. Por onde começo?', 'Abra “Comece por aqui” e assista aos vídeos iniciais antes de entrar nos cursos.'],
+      ['Como interpretar a média?', 'Minha média estatística ficou baixa. O que devo observar?', 'Veja a média junto com a mediana e a variação. Um valor isolado pode distorcer a leitura.'],
+      ['Qual ferramenta da qualidade usar?', 'Qual ferramenta ajuda a encontrar a causa de um problema?', 'Use o Diagrama de Ishikawa para organizar as possíveis causas por categoria.'],
+      ['Posso gerar o PowerPoint?', 'A ferramenta cria uma apresentação automaticamente?', 'Sim. Depois de preencher os dados do projeto, clique em PowerPoint para gerar o arquivo.'],
+      ['Como mudar o design do PowerPoint?', 'Posso usar o modelo visual da minha empresa?', 'Sim. Envie a capa e o corpo do PPTX em “Minha Marca” e o modelo será usado na exportação.'],
+    ] as const;
+    try {
+      for (const [titulo, pergunta, resposta] of exemplos) {
+        const id = await criarPost({ tipo: 'duvida', titulo: '[DEMO] Pergunta de aluno', texto: pergunta, espaco });
+        await criarReply(id, resposta);
+      }
+      setMsgExemplos('✅ 6 perguntas e respostas de demonstração foram adicionadas.');
+    } catch (e: any) { setMsgExemplos(`❌ ${e?.message || 'Não foi possível criar os exemplos.'}`); }
+    finally { setCriandoExemplos(false); }
+  }
 
   useEffect(() => {
     if (escopo === 'time' && !empresaAtiva) { setPosts([]); setLoading(false); return; }
@@ -989,6 +1016,19 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
             {empresas.map(e => <option key={e.empresaId} value={e.empresaId}>{e.nome}</option>)}
           </select>
           <span className="text-xs text-amber-600">Cada empresa é uma bolha isolada.</span>
+        </div>
+      )}
+
+      {(isAdmin || isConsultor) && escopo === 'time' && empresaAtiva && (
+        <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-xs font-black text-violet-800">Teste rápido da comunidade</div>
+            <div className="text-xs text-violet-700">Crie 6 perguntas de alunos com respostas para visualizar o formato.</div>
+          </div>
+          <button type="button" onClick={criarExemplosAluno} disabled={criandoExemplos} className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-black text-white hover:bg-violet-700 disabled:opacity-50">
+            {criandoExemplos ? 'Criando...' : 'Adicionar exemplos'}
+          </button>
+          {msgExemplos && <span className="w-full text-xs text-violet-800">{msgExemplos}</span>}
         </div>
       )}
 
