@@ -47,7 +47,7 @@ const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')
 // Sem separador de milhar (evita o ponto ser lido como decimal ao reparsear). Vírgula = decimal.
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
 
-export default function MeusAlunos({ embedded = false, empresaIdFiltro, onDirectStats }: { embedded?: boolean; empresaIdFiltro?: string; onDirectStats?: (stats: { time: number; timeAtivo: number }) => void }) {
+export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embedded?: boolean; empresaIdFiltro?: string }) {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const [rows, setRows] = useState<Aluno[]>([]);
@@ -160,11 +160,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, onDirect
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort();
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       setRows(lista);
-      const direto = empresaIdDireto(consultorId);
-      onDirectStats?.({
-        time: lista.filter((a) => !a.empresaId || a.empresaId === direto).length,
-        timeAtivo: lista.filter((a) => (!a.empresaId || a.empresaId === direto) && a.acessou).length,
-      });
       setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
@@ -323,8 +318,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, onDirect
           <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
           <div className="text-xs text-gray-400 truncate">{a.email}</div>
         </div>
-        <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 ${a.inativo ? 'bg-gray-200 text-gray-600' : 'bg-emerald-100 text-emerald-700'}`}>
-          {a.inativo ? 'Inativo' : 'Ativo'}
+        {/* "Ativo" = já entrou na plataforma pelo menos uma vez (primeiroAcessoEm),
+            mesmo critério do contador de ativos na linha do coordenador. */}
+        <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 ${
+          a.inativo ? 'bg-gray-200 text-gray-600' : a.acessou ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+        }`}>
+          {a.inativo ? 'Removido' : a.acessou ? 'Ativo' : 'Inativo'}
         </span>
         <div className="flex flex-wrap gap-1">
           {a.inativo ? (
@@ -462,20 +461,48 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, onDirect
     setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
   };
 
+  // Corpo de um time: cabeçalho das colunas + alunos + "adicionar aluno".
+  // Usado solto (dentro da linha do coordenador) e dentro do acordeão da tela cheia.
+  const corpoGrupo = (empresaId: string) => {
+    const alunosDoTime = alunosPorEmpresa.get(empresaId) || [];
+    return (
+      <>
+        <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
+          <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
+        </div>
+        {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
+        {alunosDoTime.map(renderLinha)}
+        <div className="px-4 py-3 border-t border-gray-100">
+          <button onClick={() => abrirFormAdicionar(empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
+            <Plus size={14} /> {addAbertoEmpresaId === empresaId ? 'fechar' : 'adicionar aluno'}
+          </button>
+        </div>
+        {addAbertoEmpresaId === empresaId && renderFormAdicionar(empresaId)}
+      </>
+    );
+  };
+
+  // Embutido na linha do coordenador: o time já está identificado pela linha,
+  // então não repete busca nem acordeão — só a tabela do time.
+  if (embedded) {
+    const empresaId = empresaIdFiltro || empresaIdDireto(consultorId);
+    return loading
+      ? <div className="text-gray-500 text-sm">Carregando…</div>
+      : <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">{corpoGrupo(empresaId)}</div>;
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
-      {!embedded && <>
-        <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos na Plataforma</h1>
-        <p className="text-gray-500 text-sm mb-5">
-          Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
-        </p>
-      </>}
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos na Plataforma</h1>
+      <p className="text-gray-500 text-sm mb-5">
+        Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
+      </p>
 
       <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-5'} />
 
       {loading ? <div className="text-gray-500">Carregando…</div> : (
         <div className="space-y-4">
-          {equipes.filter((eq) => !empresaIdFiltro || eq.empresaId === empresaIdFiltro).map((eq) => {
+          {equipes.map((eq) => {
             const alunosDoTime = alunosPorEmpresa.get(eq.empresaId) || [];
             const aberto = buscando ? alunosDoTime.length > 0 : !!gruposAbertos[eq.empresaId];
             return (
@@ -492,23 +519,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, onDirect
                   </span>
                   <ChevronDown size={18} className={`text-gray-400 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`} />
                 </button>
-                {aberto && (
-                  <div className="border-t border-gray-100">
-                    <div className="px-4 py-2.5 bg-gray-50 flex items-center justify-between">
-                      <div className="grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 flex-1 text-[10px] font-black uppercase tracking-wide text-gray-400">
-                        <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
-                      </div>
-                    </div>
-                    {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
-                    {alunosDoTime.map(renderLinha)}
-                    <div className="px-4 py-3 border-t border-gray-100">
-                      <button onClick={() => abrirFormAdicionar(eq.empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
-                        <Plus size={14} /> {addAbertoEmpresaId === eq.empresaId ? 'fechar' : 'adicionar aluno'}
-                      </button>
-                    </div>
-                    {addAbertoEmpresaId === eq.empresaId && renderFormAdicionar(eq.empresaId)}
-                  </div>
-                )}
+                {aberto && <div className="border-t border-gray-100">{corpoGrupo(eq.empresaId)}</div>}
               </div>
             );
           })}
