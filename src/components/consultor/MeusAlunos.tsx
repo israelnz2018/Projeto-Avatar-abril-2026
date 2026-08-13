@@ -252,7 +252,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
       const valorPago = eCursos.reduce((s, c) => s + (c.valor || 0), 0);
       await updateUserNoConsultor(uid, consultorId, { cursosAcesso: eCursos, valorPago });
       if (cursosNovos.length > 0 && anterior?.email) {
-        await authedFetch('/api/aluno/convidar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: anterior.email, nome: anterior.nome, cursosAcesso: eCursos, valorPago }) });
+        await authedFetch('/api/acesso/novo-curso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: anterior.email, nome: anterior.nome, cursos: cursosNovos.map((c) => c.curso) }) });
       }
       setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos } : r)));
       setEditMsg(cursosNovos.length > 0 ? '✅ Salvo. Novo curso liberado e aviso enviado por e-mail.' : '✅ Salvo.');

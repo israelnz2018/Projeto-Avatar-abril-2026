@@ -188,6 +188,9 @@ export default function MeusCoordenadores() {
       setRows((p) => p.map((r) => (r.uid === uid
         ? { ...r, limite: totalAcessos, valorPago: totalValor, vencimento: vencimentoGeral, cursosAcesso }
         : r)));
+      const anterior = rows.find((r) => r.uid === uid);
+      const cursosNovos = cursosAcesso.filter((novo) => !anterior?.cursosAcesso.some((antigo) => antigo.curso === novo.curso));
+      if (cursosNovos.length && anterior?.email) await authedFetch('/api/acesso/novo-curso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: anterior.email, nome: anterior.nome, cursos: cursosNovos.map((c) => c.curso) }) });
       setEMsg('✅ Salvo.');
     } catch (e: any) { setEMsg('❌ ' + (e?.message || e)); }
     finally { setESalvando(false); }

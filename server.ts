@@ -2059,6 +2059,25 @@ async function startServer() {
     }
   });
 
+  app.post("/api/acesso/novo-curso", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/, '');
+    let caller: any;
+    try { caller = await adminAuth().verifyIdToken(token); } catch { return res.status(401).json({ error: "Autenticação obrigatória." }); }
+    const targetEmail = String(req.body?.email || '').trim();
+    const nome = String(req.body?.nome || '').trim();
+    const cursos = Array.isArray(req.body?.cursos) ? req.body.cursos.map((c: any) => String(c).trim()).filter(Boolean) : [];
+    if (!targetEmail || !cursos.length) return res.status(400).json({ error: "E-mail e cursos são obrigatórios." });
+    const callerSnap = await adminFirestore().collection('users').doc(caller.uid).get();
+    const callerData = callerSnap.data() || {};
+    if (callerData.tipoUsuario !== 'consultor' && callerData.tipoUsuario !== 'admin') return res.status(403).json({ error: "Sem permissão." });
+    const site = `https://${String(callerData.consultorId || 'israel')}.educacaopelotrabalho.com`;
+    const lista = cursos.map((c: string) => `<li>${c}</li>`).join('');
+    const html = `<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto"><div style="background:#1E2D6E;color:#fff;padding:24px"><h1 style="margin:0;font-size:22px">Novo curso liberado na plataforma LBW</h1></div><div style="padding:28px 24px;border:1px solid #ccc"><p>Olá, ${nome || 'tudo bem'}!</p><p>Um novo acesso foi liberado para você na plataforma LBW.</p><p><strong>Cursos adicionados:</strong></p><ul>${lista}</ul><p>Você já pode acessar esses cursos usando seu e-mail e sua senha habituais.</p><p>Acesse a plataforma: <a href="${site}">${site}</a></p><p>Atenciosamente,<br>Plataforma LBW</p></div></div>`;
+    const sent = await resendSend({ to: targetEmail, subject: 'Novo curso liberado na plataforma LBW', html });
+    return res.json({ ok: sent.ok });
+  });
+
   // POST /api/coordenador/convidar — o CONSULTOR (ou admin) convida/promove um COORDENADOR
   // dentro do PRÓPRIO tenant. Conta nova = LBW2026 + troca no 1º login; existente = mantém a
   // senha e só promove (não tira os cursos). Autoriza consultor OU admin (não é requireAdmin).
