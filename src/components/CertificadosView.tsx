@@ -14,7 +14,7 @@ const ALUNO_EXEMPLO = 'Maria da Silva';
 const DATA_EXEMPLO = '2026-06-22T12:00:00.000Z';
 const semPrefixo = (nome: string) => nome.replace(/^\d+\s*[-–—]?\s*/, '');
 
-function pendenciasCertificado(config: ConsultorCertificateConfig, consultorId: string, cursos: Initiative[]): string[] {
+function pendenciasCertificado(config: ConsultorCertificateConfig, consultorId: string, curso?: Initiative): string[] {
   const temFundoPadrao = consultorId === 'israel' && !config.fundoUrl;
   const faltando: string[] = [];
   if (!config.fundoUrl && !temFundoPadrao) faltando.push('enviar o fundo do certificado');
@@ -26,8 +26,7 @@ function pendenciasCertificado(config: ConsultorCertificateConfig, consultorId: 
   if (!config.textoAprovacao?.trim()) faltando.push('preencher o texto de aprovação');
   if (!config.emissorNome?.trim()) faltando.push('preencher o nome de quem assina');
   if (!config.emissorCargo?.trim()) faltando.push('preencher o cargo/profissão');
-  const semCarga = cursos.filter((curso) => !Number(config.cursos?.[curso.id]?.cargaHoraria)).map((curso) => semPrefixo(curso.name));
-  if (semCarga.length) faltando.push(`informar a carga horária de: ${semCarga.join(', ')}`);
+  if (curso && !Number(config.cursos?.[curso.id]?.cargaHoraria)) faltando.push(`informar a carga horária deste curso: ${semPrefixo(curso.name)}`);
   return faltando;
 }
 
@@ -67,7 +66,6 @@ export default function CertificadosView() {
   const [carregando, setCarregando] = useState(true);
   const temAssinaturaPadrao = consultorId === 'israel' && !config.fundoUrl;
   const temAssinatura = !!config.assinaturaUrl || temAssinaturaPadrao;
-  const pendencias = pendenciasCertificado(config, consultorId, cursos);
 
   useEffect(() => {
     setConfig(montarConfig(consultor.certificado, consultor.branding?.nome || consultor.nome, consultorId, consultor.branding?.cores));
@@ -126,10 +124,10 @@ export default function CertificadosView() {
       await setDoc(doc(db, 'consultores', consultorId), { certificado: novaConfig }, { merge: true });
       setConfig(novaConfig);
       await refresh();
-      const faltando = pendenciasCertificado(novaConfig, consultorId, cursos);
+      const faltando = pendenciasCertificado(novaConfig, consultorId, cursoAtivo);
       setMensagem(faltando.length
-        ? `⚠️ Alterações salvas como rascunho. O aluno ainda não poderá gerar o certificado. Falta: ${faltando.join('; ')}.`
-        : '✅ Certificado salvo e liberado para emissão pelos alunos.');
+        ? `⚠️ Alterações salvas como rascunho. O aluno ainda não poderá gerar o certificado deste curso. Falta: ${faltando.join('; ')}.`
+        : '✅ Certificado salvo e liberado para emissão dos alunos neste curso.');
     } catch (error: any) {
       setMensagem(`❌ Erro ao salvar: ${error?.message || error}`);
     } finally {
@@ -147,6 +145,11 @@ export default function CertificadosView() {
   if (!isAdmin && !isConsultor) return <div className="p-8 font-bold text-red-600">Só o consultor edita o certificado.</div>;
 
   const cursoAtivo = cursos[ativa];
+  const pendencias = pendenciasCertificado(config, consultorId, cursoAtivo);
+  const cargaCursoAtivo = cursoAtivo ? Number(config.cursos?.[cursoAtivo.id]?.cargaHoraria) || 0 : 0;
+  const fraseCursoAtivo = cursoAtivo
+    ? `${config.textoConclusao || 'concluiu com êxito o curso'} ${semPrefixo(cursoAtivo.name).toUpperCase()}${cargaCursoAtivo ? `, com carga horária de ${cargaCursoAtivo} horas` : ''}, ${config.textoAprovacao || 'tendo sido aprovado na avaliação final.'}`
+    : '';
   const campo = 'w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
   const label = 'mb-1 block text-xs font-black uppercase tracking-wide text-gray-500';
 
@@ -164,7 +167,7 @@ export default function CertificadosView() {
         <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
-          {pendencias.length > 0 && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-800"><b>Certificado ainda não liberado para alunos.</b><br />Falta: {pendencias.join('; ')}.</div>}
+          {pendencias.length > 0 && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-800"><b>Este curso ainda não está pronto para emitir certificado.</b><br />Falta: {pendencias.join('; ')}.</div>}
           <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
           <AssetUpload titulo="Assinatura obrigatória" descricao={temAssinaturaPadrao ? 'O modelo padrão LBW já possui assinatura.' : 'PNG transparente recomendado.'} url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
           <div className="grid grid-cols-2 gap-2">
@@ -211,6 +214,7 @@ export default function CertificadosView() {
                 />
               </div>
               <Field label="Texto de aprovação (depois da carga horária)" value={config.textoAprovacao || ''} onChange={(v) => patch('textoAprovacao', v)} campo={campo} />
+              {fraseCursoAtivo && <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900"><b>Frase que será usada neste curso:</b><br />{fraseCursoAtivo}</div>}
               <ProtectedLine label="Data de emissão" value="22 de junho de 2026" />
               <ProtectedLine label="Assinatura" value={temAssinatura ? 'Assinatura configurada' : 'Assinatura obrigatória pendente'} />
               <Field label="Nome de quem assina" value={config.emissorNome || ''} onChange={(v) => patch('emissorNome', v)} campo={campo} />

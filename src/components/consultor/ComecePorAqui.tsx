@@ -13,6 +13,7 @@ import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
+import { getQuiz } from '../../services/quizService';
 
 interface Item {
   id: string;
@@ -109,18 +110,21 @@ export default function ComecePorAqui() {
           u.tipoUsuario === 'coordenador' ||
           (u.tipoUsuario !== 'admin' && u.tipoUsuario !== 'consultor')
         ));
-        const cursoNumero = (nome: string) => Number(nome.match(/\d+/)?.[0] || 0);
-        const quizDocs = await Promise.all(
+        const cursoNumero = (nome: string) => Number(String(nome || '').match(/\d+/)?.[0] || 0);
+        const cursoChave = (curso: any, index: number) => {
+          if (typeof curso?.ordem === 'number' && curso.ordem > 0) return curso.ordem;
+          const numeroNoNome = cursoNumero(curso?.name || '');
+          return numeroNoNome > 0 ? numeroNoNome : index + 1;
+        };
+        const quizzes = await Promise.all(
           cursos
-            .map((curso: any) => cursoNumero(curso.name || ''))
+            .map((curso: any, index: number) => cursoChave(curso, index))
             .filter((trilha: number) => trilha > 0)
-            .map((trilha: number) => getDoc(doc(db, 'quizzes', `${consultorId}__${trilha}`)).catch(() => null))
+            .map((trilha: number) => getQuiz(trilha, consultorId).catch(() => null))
         );
-        const temProvaConfigurada = quizDocs.some((snap) => {
-          if (!snap?.exists()) return false;
-          const quiz = snap.data() as any;
-          return Array.isArray(quiz.questions) && quiz.questions.length > 0 && quiz.updatedAt;
-        });
+        const temProvaConfigurada = quizzes.some((quiz) =>
+          Array.isArray(quiz?.questions) && quiz.questions.length > 0 && !!quiz.updatedAt
+        );
         const depoimentoConfigurado = consultor.depoimentoPreProvaAtivo !== undefined || !!opiniaoSnap?.exists();
         const certificado = consultor.certificado;
         const certificadoConfigurado = !!(
