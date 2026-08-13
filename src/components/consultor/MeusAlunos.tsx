@@ -465,6 +465,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
     setAEmpresaId(empresaId);
     setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
   };
+  const abrirAdicionarNoTopo = () => {
+    const direto = empresaIdDireto(consultorId);
+    setGruposAbertos((p) => ({ ...p, [direto]: true }));
+    setAddAbertoEmpresaId(direto); setAEmpresaId(direto);
+    setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
+  };
 
   // Corpo de um time: cabeçalho das colunas + alunos + "adicionar aluno".
   // Usado solto (dentro da linha do coordenador) e dentro do acordeão da tela cheia.
@@ -503,6 +509,11 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
         Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
       </p>
 
+      <div className="flex justify-end mb-4">
+        <button type="button" onClick={abrirAdicionarNoTopo} className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">
+          <Plus size={16} /> adicionar aluno
+        </button>
+      </div>
       <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-5'} />
 
       {loading ? <div className="text-gray-500">Carregando…</div> : (
