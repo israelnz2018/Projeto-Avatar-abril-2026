@@ -247,10 +247,15 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
   async function salvarEdit(uid: string) {
     setEditSalvando(true); setEditMsg('');
     try {
+      const anterior = rows.find((r) => r.uid === uid);
+      const cursosNovos = eCursos.filter((novo) => !anterior?.cursosAcesso.some((antigo) => antigo.curso === novo.curso));
       const valorPago = eCursos.reduce((s, c) => s + (c.valor || 0), 0);
       await updateUserNoConsultor(uid, consultorId, { cursosAcesso: eCursos, valorPago });
+      if (cursosNovos.length > 0 && anterior?.email) {
+        await authedFetch('/api/aluno/convidar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: anterior.email, nome: anterior.nome, cursosAcesso: eCursos, valorPago }) });
+      }
       setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos } : r)));
-      setEditMsg('✅ Salvo.');
+      setEditMsg(cursosNovos.length > 0 ? '✅ Salvo. Novo curso liberado e aviso enviado por e-mail.' : '✅ Salvo.');
     } catch (e: any) { setEditMsg('❌ ' + (e?.message || e)); }
     finally { setEditSalvando(false); }
   }
