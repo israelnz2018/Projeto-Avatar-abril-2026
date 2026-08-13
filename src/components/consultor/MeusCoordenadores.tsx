@@ -104,7 +104,9 @@ export default function MeusCoordenadores() {
       const users = userDocs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
       const coords = users.filter((u) => u.tipoUsuario === 'coordenador');
       const alunos = users.filter((u) => u.tipoUsuario !== 'coordenador' && u.tipoUsuario !== 'admin');
-      const timeDireto = alunos.filter((a) => a.empresaId === empresaIdDireto(consultorId));
+      // Alunos antigos podem não ter empresaId; eles também pertencem ao grupo
+      // "Eu coordenando os meus alunos".
+      const timeDireto = alunos.filter((a) => !a.empresaId || a.empresaId === empresaIdDireto(consultorId));
       setDiretoStats({ time: timeDireto.length, timeAtivo: timeDireto.filter((a) => a.primeiroAcessoEm).length });
       setRows(coords.map((c) => {
         const time = alunos.filter((a) => a.empresaId && a.empresaId === c.empresaId);
@@ -402,7 +404,7 @@ export default function MeusCoordenadores() {
         })}
       </div>
       <div className="mt-10 pt-8 border-t border-gray-200">
-        <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Alunos</h2>
+        <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Alunos por coordenador</h2>
         <MeusAlunos embedded />
       </div>
     </div>
