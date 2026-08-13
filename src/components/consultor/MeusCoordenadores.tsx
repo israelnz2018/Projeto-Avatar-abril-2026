@@ -223,6 +223,48 @@ export default function MeusCoordenadores() {
       {loading && <div className="text-gray-500">Carregando...</div>}
       {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
 
+      {!loading && (
+        <div className="mb-4">
+          <button onClick={() => { setAddAberto(!addAberto); setMsg(''); }}
+            className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">
+            <Plus size={16} /> {addAberto ? 'fechar' : 'adicionar coordenador'}
+          </button>
+          {addAberto && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-3">
+              <div className="mb-4">
+                <label className={label}>E-mail</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="coordenador@email.com" className={campo} />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={label}>Nome</label>
+                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome" className={campo} />
+                </div>
+                <div>
+                  <label className={label}>Time / empresa</label>
+                  <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex.: Time Fábrica A" className={campo} />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className={label}>Cursos liberados para o coordenador e o time</label>
+                <CursosEditor catalogo={cursos} sel={selConvite} onChange={setSelConvite} comAcessos />
+                <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600">
+                  Total calculado: <b>{resumoConvite.totalAcessos}</b> acessos · <b>{formatMoney(resumoConvite.totalValor)}</b> · expiração geral <b>{dataBr(resumoConvite.vencimentoGeral)}</b>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mt-5">
+                <button onClick={convidar} disabled={enviando}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40">
+                  {enviando ? 'Enviando...' : 'Convidar coordenador'}
+                </button>
+                {msg && <span className="text-sm text-gray-600">{msg}</span>}
+              </div>
+            </div>
+          )}
+          {!addAberto && msg && <span className="block mt-2 text-sm text-gray-600">{msg}</span>}
+        </div>
+      )}
+
       <div className="grid gap-4">
         {rows.map((c) => {
           const aberto = abertoUid === c.uid;
@@ -294,48 +336,6 @@ export default function MeusCoordenadores() {
           );
         })}
       </div>
-
-      {!loading && (
-        <div className="mt-4">
-          <button onClick={() => { setAddAberto(!addAberto); setMsg(''); }}
-            className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">
-            <Plus size={16} /> {addAberto ? 'fechar' : 'adicionar coordenador'}
-          </button>
-          {addAberto && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-3">
-              <div className="mb-4">
-                <label className={label}>E-mail</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="coordenador@email.com" className={campo} />
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={label}>Nome</label>
-                  <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome" className={campo} />
-                </div>
-                <div>
-                  <label className={label}>Time / empresa</label>
-                  <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex.: Time Fábrica A" className={campo} />
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className={label}>Cursos liberados para o coordenador e o time</label>
-                <CursosEditor catalogo={cursos} sel={selConvite} onChange={setSelConvite} comAcessos />
-                <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-600">
-                  Total calculado: <b>{resumoConvite.totalAcessos}</b> acessos · <b>{formatMoney(resumoConvite.totalValor)}</b> · expiração geral <b>{dataBr(resumoConvite.vencimentoGeral)}</b>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 mt-5">
-                <button onClick={convidar} disabled={enviando}
-                  className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40">
-                  {enviando ? 'Enviando...' : 'Convidar coordenador'}
-                </button>
-                {msg && <span className="text-sm text-gray-600">{msg}</span>}
-              </div>
-            </div>
-          )}
-          {!addAberto && msg && <span className="block mt-2 text-sm text-gray-600">{msg}</span>}
-        </div>
-      )}
     </div>
   );
 }
