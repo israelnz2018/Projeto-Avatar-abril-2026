@@ -275,14 +275,14 @@ export default function MeusCoordenadores() {
           const cursosExibidos = aberto && !c.euMesmo ? resumoEdit.cursosAcesso : c.cursosAcesso;
           return (
             <div key={c.uid} className={`bg-white border rounded-2xl overflow-hidden ${c.euMesmo ? 'border-blue-100' : 'border-gray-200'}`}>
-              <button onClick={() => alternar(c)} className="w-full flex items-center gap-4 p-5 text-left bg-transparent">
-                <div className={`w-11 h-11 rounded-xl grid place-items-center shrink-0 ${c.euMesmo ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+              <button onClick={() => alternar(c)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left bg-transparent">
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 grid place-items-center shrink-0">
                   <Users2 size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-gray-800 truncate">{c.nome}</div>
                   <div className="text-xs text-gray-400 truncate">{c.euMesmo ? c.empresa : `${c.email} · ${c.empresa}`}</div>
-                  {!c.euMesmo && (
+                  {!c.euMesmo && aberto && (
                     <div className="space-y-1 mt-2">
                       {cursosExibidos.length === 0 ? (
                         <span className="text-[10px] font-bold rounded px-2 py-1 bg-red-50 text-red-600">Sem cursos liberados</span>
@@ -301,10 +301,7 @@ export default function MeusCoordenadores() {
                     {c.time}{(() => { const lim = aberto && !c.euMesmo ? resumoEdit.totalAcessos : c.limite; return lim != null ? ` / ${lim}` : ''; })()}
                   </div>
                   <div className="text-[11px] text-gray-400">{c.timeAtivo} ativos</div>
-                  {!c.euMesmo && <>
-                    <div className="text-xs font-bold text-emerald-600 mt-1">{formatMoney(aberto ? resumoEdit.totalValor : c.valorPago)}</div>
-                    <div className="text-[11px] text-gray-400">expira {dataBr(aberto ? resumoEdit.vencimentoGeral : c.vencimento)}</div>
-                  </>}
+                  {!c.euMesmo && <div className="text-[11px] text-gray-400">{c.cursosAcesso.length} cursos liberados</div>}
                 </div>
                 <ChevronDown size={18} className={`text-gray-400 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`} />
               </button>
