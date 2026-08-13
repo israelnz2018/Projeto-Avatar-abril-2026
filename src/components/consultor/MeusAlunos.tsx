@@ -47,7 +47,7 @@ const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')
 // Sem separador de milhar (evita o ponto ser lido como decimal ao reparsear). Vírgula = decimal.
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
 
-export default function MeusAlunos({ embedded = false }: { embedded?: boolean }) {
+export default function MeusAlunos({ embedded = false, empresaIdFiltro, onDirectStats }: { embedded?: boolean; empresaIdFiltro?: string; onDirectStats?: (stats: { time: number; timeAtivo: number }) => void }) {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const [rows, setRows] = useState<Aluno[]>([]);
@@ -160,6 +160,11 @@ export default function MeusAlunos({ embedded = false }: { embedded?: boolean })
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort();
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       setRows(lista);
+      const direto = empresaIdDireto(consultorId);
+      onDirectStats?.({
+        time: lista.filter((a) => !a.empresaId || a.empresaId === direto).length,
+        timeAtivo: lista.filter((a) => (!a.empresaId || a.empresaId === direto) && a.acessou).length,
+      });
       setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
@@ -470,7 +475,7 @@ export default function MeusAlunos({ embedded = false }: { embedded?: boolean })
 
       {loading ? <div className="text-gray-500">Carregando…</div> : (
         <div className="space-y-4">
-          {equipes.map((eq) => {
+          {equipes.filter((eq) => !empresaIdFiltro || eq.empresaId === empresaIdFiltro).map((eq) => {
             const alunosDoTime = alunosPorEmpresa.get(eq.empresaId) || [];
             const aberto = buscando ? alunosDoTime.length > 0 : !!gruposAbertos[eq.empresaId];
             return (

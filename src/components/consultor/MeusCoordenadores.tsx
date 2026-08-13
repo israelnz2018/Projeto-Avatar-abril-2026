@@ -28,6 +28,7 @@ interface CoordRow {
   nome: string;
   email: string;
   empresa: string;
+  empresaId: string;
   time: number;
   timeAtivo: number;
   limite: number | null;
@@ -116,6 +117,7 @@ export default function MeusCoordenadores() {
           nome: c.nome || c.displayName || (c.email ? String(c.email).split('@')[0] : '—'),
           email: c.email || '',
           empresa: c.empresaNome || c.empresaId || '—',
+          empresaId: c.empresaId || '',
           time: time.length,
           timeAtivo: time.filter((a) => a.primeiroAcessoEm).length,
           limite: typeof c.maxAlunos === 'number' ? c.maxAlunos : null,
@@ -334,6 +336,9 @@ export default function MeusCoordenadores() {
               <div className="text-[11px] text-gray-400">{diretoStats.timeAtivo} ativos</div>
             </div>
           </div>
+          <div className="mt-4 pt-4 border-t border-blue-100">
+            <MeusAlunos embedded empresaIdFiltro={empresaIdDireto(consultorId)} onDirectStats={setDiretoStats} />
+          </div>
         </div>
         {rows.map((c) => {
           const editandoEste = editUid === c.uid;
@@ -399,13 +404,12 @@ export default function MeusCoordenadores() {
                 </div>
               </div>
             )}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <MeusAlunos embedded empresaIdFiltro={c.empresaId} />
+            </div>
           </div>
           );
         })}
-      </div>
-      <div className="mt-10 pt-8 border-t border-gray-200">
-        <h2 className="text-sm font-black uppercase tracking-wide text-gray-400 mb-3">Alunos por coordenador</h2>
-        <MeusAlunos embedded />
       </div>
     </div>
   );
