@@ -204,7 +204,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Certificados', path: '/configuracao?aba=certificados', icon: Award },
         { name: 'Minha Marca', path: '/configuracao?aba=marca', icon: Palette },
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
-        { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
+        { name: 'Meus Coordenadores e Alunos', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
         { name: 'Alunos na Plataforma', path: '/configuracao?aba=alunos', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },

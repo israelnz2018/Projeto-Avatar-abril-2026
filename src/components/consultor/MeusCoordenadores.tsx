@@ -269,7 +269,7 @@ export default function MeusCoordenadores() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Clientes</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Coordenadores e Alunos</h1>
       <p className="text-gray-500 text-sm mb-6">
         Convide coordenadores para o seu mundo (<b>{consultor.branding.nome}</b>). Cada curso fica em uma linha, com acessos, valor e expiração próprios.
       </p>
@@ -332,7 +332,10 @@ export default function MeusCoordenadores() {
             </div>
           </div>
         </div>
-        {rows.map((c) => (
+        {rows.map((c) => {
+          const editandoEste = editUid === c.uid;
+          const cursosExibidos = editandoEste ? resumoEdit.cursosAcesso : c.cursosAcesso;
+          return (
           <div key={c.uid} className="bg-white border border-gray-200 rounded-2xl p-5">
             <div className="flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 grid place-items-center shrink-0"><Users2 size={20} /></div>
@@ -340,10 +343,10 @@ export default function MeusCoordenadores() {
                 <div className="font-bold text-gray-800 truncate">{c.nome}</div>
                 <div className="text-xs text-gray-400 truncate">{c.email} · {c.empresa}</div>
                 <div className="space-y-1 mt-2">
-                  {c.cursosAcesso.length === 0 ? (
+                  {cursosExibidos.length === 0 ? (
                     <span className="text-[10px] font-bold rounded px-2 py-1 bg-red-50 text-red-600">Sem cursos liberados</span>
                   ) : (
-                    c.cursosAcesso.map((curso) => (
+                    cursosExibidos.map((curso) => (
                       <div key={curso.curso} className="text-[11px] font-bold rounded px-2 py-1 bg-blue-50 text-blue-700">
                         {curso.curso} · {curso.quantidade || 0} acessos · {formatMoney(Number(curso.valor) || 0)} · expira {curso.vencimento ? new Date(curso.vencimento).toLocaleDateString('pt-BR') : '—'}
                       </div>
@@ -366,15 +369,15 @@ export default function MeusCoordenadores() {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
-                <button onClick={() => (editUid === c.uid ? setEditUid(null) : abrirEdit(c))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
-                  {editUid === c.uid ? 'fechar' : 'editar'}
+                <button onClick={() => (editandoEste ? setEditUid(null) : abrirEdit(c))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                  {editandoEste ? 'fechar' : 'editar'}
                 </button>
                 <button onClick={() => remover(c)} disabled={removendoUid === c.uid} className="text-xs font-bold text-red-600 hover:text-red-800 disabled:opacity-40">
                   {removendoUid === c.uid ? 'removendo...' : 'remover'}
                 </button>
               </div>
             </div>
-            {editUid === c.uid && (
+            {editandoEste && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <label className={label}>Cursos liberados para este coordenador e o time</label>
                 {cursos.length > 0 && (
@@ -394,7 +397,8 @@ export default function MeusCoordenadores() {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
