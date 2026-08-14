@@ -339,7 +339,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                     onClick={() => setOpenMenuSections(prev => ({ ...prev, [section.id]: !prev[section.id] }))}
                     className={cn(
                       "w-full flex items-center gap-3 p-3 rounded-lg transition-colors border-none cursor-pointer text-left",
-                      sectionActive ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700"
+                      // Três níveis: azul forte na área ativa, azul intermediário nos
+                      // demais agrupadores e cinza atual nos itens não selecionados.
+                      sectionActive ? "bg-blue-600 text-white" : "bg-slate-700 text-white hover:bg-slate-600"
                     )}
                     title={section.title}
                   >
