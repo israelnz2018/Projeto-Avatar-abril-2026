@@ -14,6 +14,7 @@ export interface Project {
   createdAt?: any;
   updatedAt?: string;
   completedTools?: string[];
+  completedPhases?: string[];
 }
 
 export interface Initiative {

@@ -176,7 +176,7 @@ function getPhaseIcon(name: string, id: string, index: number): any {
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { LockedToolPopup } from '../LockedToolPopup';
 import { useMemo } from 'react';
-import { saveProjectToolData, getProjectToolData, updateProjectPhase, markToolAsCompleted, deleteProjectToolData, getAllProjectToolData } from '../../services/projectService';
+import { saveProjectToolData, getProjectToolData, updateProjectPhase, setProjectPhaseCompleted, markToolAsCompleted, deleteProjectToolData, getAllProjectToolData } from '../../services/projectService';
 import { getInitiativeConfigs, getInitiative, saveInitiativeConfig } from '../../services/configService';
 import { Project, InitiativePhaseConfig, Initiative } from '@/src/types';
 
@@ -216,6 +216,8 @@ useEffect(() => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [toolVersion, setToolVersion] = useState(0);
   const [completedTools, setCompletedTools] = useState<string[]>(project.completedTools || []);
+  const [completedPhases, setCompletedPhases] = useState<string[]>(project.completedPhases || []);
+  const [savingPhaseCompletion, setSavingPhaseCompletion] = useState(false);
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
 
   // ===== Guard "sair sem salvar" =====
@@ -379,6 +381,31 @@ useEffect(() => {
       setCompletedTools(project.completedTools);
     }
   }, [project.completedTools]);
+
+  useEffect(() => {
+    setCompletedPhases(project.completedPhases || []);
+  }, [project.id, project.completedPhases]);
+
+  const toggleCurrentPhaseCompleted = async () => {
+    const phaseId = filteredPhases[currentPhaseIndex]?.id;
+    if (!phaseId || savingPhaseCompletion) return;
+    const willComplete = !completedPhases.includes(phaseId);
+    setSavingPhaseCompletion(true);
+    setCompletedPhases((current) => willComplete
+      ? Array.from(new Set([...current, phaseId]))
+      : current.filter((id) => id !== phaseId));
+    try {
+      await setProjectPhaseCompleted(projectId, phaseId, willComplete);
+      toast.success(willComplete ? 'Fase marcada como concluída.' : 'Conclusão da fase removida.');
+    } catch (error) {
+      setCompletedPhases((current) => willComplete
+        ? current.filter((id) => id !== phaseId)
+        : Array.from(new Set([...current, phaseId])));
+      toast.error('Não foi possível atualizar a conclusão da fase.');
+    } finally {
+      setSavingPhaseCompletion(false);
+    }
+  };
 
   const loadAllData = async () => {
     try {
@@ -936,6 +963,20 @@ useEffect(() => {
             <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
               Ferramentas Disponíveis
             </h3>
+            <label className="ml-3 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-800 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={completedPhases.includes(phase.id)}
+                onChange={toggleCurrentPhaseCompleted}
+                disabled={savingPhaseCompletion}
+                className="h-4 w-4 accent-emerald-600 cursor-pointer disabled:cursor-wait"
+              />
+              {savingPhaseCompletion
+                ? 'Salvando...'
+                : completedPhases.includes(phase.id)
+                  ? 'Fase concluída'
+                  : 'Marcar fase como concluída'}
+            </label>
           </div>
 
           {/* Report Generation Buttons - Visible if tool is charter and saved */}
@@ -1402,7 +1443,7 @@ useEffect(() => {
             {filteredPhases.map((phase, i) => {
               const Icon = phase.icon;
               const isActive = currentPhase === phase.id || currentPhase === phase.name;
-              const isCompleted = i < currentPhaseIndex;
+              const isCompleted = completedPhases.includes(phase.id);
               return (
                 <button
                   key={phase.id}
@@ -1410,16 +1451,18 @@ useEffect(() => {
                   title={phase.name}
                   className={cn(
                     "group flex flex-col items-center text-center gap-2 p-2 rounded-lg transition-all cursor-pointer border-0 bg-transparent",
-                    isActive ? "bg-[#F0F2FA]" : "hover:bg-[#f9fafb]"
+                    isActive
+                      ? isCompleted ? "bg-emerald-50" : "bg-[#F0F2FA]"
+                      : "hover:bg-[#f9fafb]"
                   )}
                 >
                   <div
                     className={cn(
                       "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
-                      isActive
-                        ? "bg-gradient-to-br from-[#0033CC] to-[#1E2D6E] text-white shadow-lg shadow-blue-200 scale-105"
-                        : isCompleted
-                          ? "bg-emerald-100 text-emerald-600"
+                      isCompleted
+                        ? "bg-emerald-100 text-emerald-600 shadow-md shadow-emerald-100 scale-105"
+                        : isActive
+                          ? "bg-gradient-to-br from-[#0033CC] to-[#1E2D6E] text-white shadow-lg shadow-blue-200 scale-105"
                           : "bg-[#eef0f7] text-[#8A93B0] group-hover:bg-[#e0e4f0] group-hover:text-[#1E2D6E]"
                     )}
                   >
@@ -1428,7 +1471,7 @@ useEffect(() => {
                   <span
                     className={cn(
                       "text-[11px] leading-tight font-bold tracking-tight line-clamp-2",
-                      isActive ? "text-[#1E2D6E]" : isCompleted ? "text-emerald-700" : "text-[#6B7280]"
+                      isCompleted ? "text-emerald-700" : isActive ? "text-[#1E2D6E]" : "text-[#6B7280]"
                     )}
                   >
                     {phase.name}

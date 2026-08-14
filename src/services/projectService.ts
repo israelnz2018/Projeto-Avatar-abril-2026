@@ -11,7 +11,8 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
-  arrayUnion
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Project } from '../types';
@@ -35,6 +36,7 @@ export const createProject = async (name: string, initiativeId?: string, current
     initiativeId: initiativeId || null,
     createdAt: serverTimestamp(),
     completedTools: [],
+    completedPhases: [],
   };
 
   const path = 'projects';
@@ -99,6 +101,20 @@ export const updateProjectPhase = async (projectId: string, phase: string) => {
     await updateDoc(projectRef, { currentPhase: phase });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
+export const setProjectPhaseCompleted = async (projectId: string, phaseId: string, completed: boolean) => {
+  const path = `projects/${projectId}`;
+  try {
+    const projectRef = doc(db, 'projects', projectId);
+    await updateDoc(projectRef, {
+      completedPhases: completed ? arrayUnion(phaseId) : arrayRemove(phaseId),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+    throw error;
   }
 };
 
