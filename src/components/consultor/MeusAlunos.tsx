@@ -470,6 +470,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
     setGruposAbertos((p) => ({ ...p, [direto]: true }));
     setAddAbertoEmpresaId(direto); setAEmpresaId(direto);
     setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
+    window.setTimeout(() => document.getElementById(`adicionar-aluno-${direto}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
   };
 
   // Corpo de um time: cabeçalho das colunas + alunos + "adicionar aluno".
@@ -488,7 +489,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             <Plus size={14} /> {addAbertoEmpresaId === empresaId ? 'fechar' : 'adicionar aluno'}
           </button>
         </div>
-        {addAbertoEmpresaId === empresaId && renderFormAdicionar(empresaId)}
+        {addAbertoEmpresaId === empresaId && <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>}
       </>
     );
   };
