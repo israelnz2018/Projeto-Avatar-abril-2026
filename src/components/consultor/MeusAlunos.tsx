@@ -479,16 +479,16 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
     const alunosDoTime = alunosPorEmpresa.get(empresaId) || [];
     return (
       <>
+        <div className="px-4 py-3 border-b border-blue-100 bg-blue-50/30">
+          <button onClick={() => abrirFormAdicionar(empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
+            <Plus size={14} /> {addAbertoEmpresaId === empresaId ? 'fechar cadastro' : 'adicionar aluno'}
+          </button>
+        </div>
         <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
           <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
         </div>
         {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
         {alunosDoTime.map(renderLinha)}
-        <div className="px-4 py-3 border-t border-gray-100">
-          <button onClick={() => abrirFormAdicionar(empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
-            <Plus size={14} /> {addAbertoEmpresaId === empresaId ? 'fechar' : 'adicionar aluno'}
-          </button>
-        </div>
         {addAbertoEmpresaId === empresaId && <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>}
       </>
     );
