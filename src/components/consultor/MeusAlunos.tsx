@@ -379,7 +379,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
           <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
           <div className="space-y-2 mb-3">
             {eCursos.length === 0 && (
-              <div className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{cursoUnitario}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>
+              a.completo
+                ? <div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><span className="flex-1">Completo · todos os cursos</span></div>
+                : <div className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{cursoUnitario}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>
             )}
             {eCursos.map((c) => (
               <div key={c.curso} className="flex items-center gap-2 flex-wrap">
