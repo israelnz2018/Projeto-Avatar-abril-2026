@@ -248,21 +248,27 @@ function BlocoCard({ bloco, index, certAluno, onStart, onLocked, showCongrats }:
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4 }}
-      className="relative rounded-2xl border bg-white p-5 flex flex-col shadow-sm"
-      style={{ borderColor: aprovado ? '#10B981' : unlocked ? 'rgba(0,51,204,.25)' : '#E5E7EB' }}
+      className={`relative rounded-2xl border p-5 flex flex-col transition-all ${
+        aprovado
+          ? 'bg-emerald-50/40 border-emerald-400 shadow-md'
+          : unlocked
+            ? 'bg-white border-blue-300 shadow-md ring-1 ring-blue-100'
+            : 'bg-slate-200/80 border-slate-400 shadow-none'
+      }`}
     >
       {/* Identificação do curso */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full"
-          style={{ background: 'rgba(0,51,204,.1)', color: LBW.blue }}>
+        <span className={`text-[11px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full ${
+          unlocked ? 'bg-blue-100 text-blue-800' : 'bg-slate-300 text-slate-600'
+        }`}>
           Curso
         </span>
-        {!unlocked && <Lock size={18} className="text-gray-400" />}
+        {!unlocked && <Lock size={19} className="text-slate-600" />}
         {aprovado && <CheckCircle2 size={20} className="text-emerald-500" />}
       </div>
 
-      <h3 className="font-bold text-gray-900 leading-snug mb-1">{bloco.initiative?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo}</h3>
-      <p className="text-xs text-gray-400 mb-4">{quiz.questions.length} questões · aprovação {Math.round(quiz.passPct * 100)}%</p>
+      <h3 className={`font-bold leading-snug mb-1 ${unlocked ? 'text-gray-900' : 'text-slate-600'}`}>{bloco.initiative?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo}</h3>
+      <p className={`text-xs mb-4 ${unlocked ? 'text-gray-400' : 'text-slate-500'}`}>{quiz.questions.length} questões · aprovação {Math.round(quiz.passPct * 100)}%</p>
 
       {/* Progresso de vídeos */}
       {unlocked && (
@@ -282,8 +288,8 @@ function BlocoCard({ bloco, index, certAluno, onStart, onLocked, showCongrats }:
       {/* Ação */}
       <div className="mt-auto pt-2">
         {!unlocked ? (
-          <button onClick={onLocked} className="w-full py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200">
-            <Lock size={16} /> Curso não liberado para você
+          <button onClick={onLocked} className="w-full py-2.5 rounded-xl border border-slate-400 bg-slate-300 text-slate-700 font-black text-sm flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-400 hover:text-slate-800 transition-colors">
+            <Lock size={16} /> Curso não adquirido
           </button>
         ) : aprovado ? (
           <CertificadoBlock cert={cert!} alunoNome={certAluno} initiativeId={bloco.initiative?.id} showCongrats={showCongrats} />
