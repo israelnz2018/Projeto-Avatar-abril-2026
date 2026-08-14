@@ -168,9 +168,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ? 'Administrador'
     : isCoordenador
     ? 'Coordenador'
-    : plano === 'completo'
-    ? 'Aluno · Completo'
-    : 'Starter';
+    : '';
 
   // Avatar: foto do consultor (se houver) no lugar das iniciais.
   const avatarEl = consultor.branding.fotoUrl
@@ -297,9 +295,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                   {avatarEl}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
-                    <p className="text-[10px] font-bold text-blue-400 uppercase">
-                      {roleLabel}
-                    </p>
+                    {roleLabel && (
+                      <p className="text-[10px] font-bold text-blue-400 uppercase">{roleLabel}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

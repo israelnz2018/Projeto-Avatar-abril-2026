@@ -155,11 +155,6 @@ export default function AvaliacaoView() {
       </div>
       <p className="text-gray-500 mb-8">
         Complete os vídeos de cada curso, faça a avaliação e conquiste seu certificado.
-        {plano !== 'completo' && !isAdmin && (
-          <span className="block mt-1 text-amber-600 font-semibold">
-            No plano introdutório, apenas o curso introdutório está disponível.
-          </span>
-        )}
       </p>
 
       {blocos.length === 0 && (
