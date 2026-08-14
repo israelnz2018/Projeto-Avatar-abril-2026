@@ -286,7 +286,7 @@ export default function MeusCoordenadores() {
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-gray-800 truncate">{c.nome}</div>
                   <div className="text-xs text-gray-400 truncate">{c.euMesmo ? c.empresa : `${c.email} · ${c.empresa}`}</div>
-                  {!c.euMesmo && aberto && (
+                  {!c.euMesmo && aberto && !modoCoordenador && (
                     <div className="space-y-1 mt-2">
                       {cursosExibidos.length === 0 ? (
                         <span className="text-[10px] font-bold rounded px-2 py-1 bg-red-50 text-red-600">Sem cursos liberados</span>
