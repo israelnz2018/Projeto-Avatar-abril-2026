@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth, db } from '../lib/firebase';
-import { collection, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { resolveConsultorId, empresaIdDireto } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -44,18 +44,6 @@ const TIPO_CFG: Record<PostTipo, { label: string; icon: any; cls: string; dot: s
 };
 
 type ViewMode = 'timeline' | 'curtidos' | 'ferramenta' | 'tipo';
-
-const MODELO_BOAS_VINDAS = `Seja bem-vindo(a) à nossa comunidade! 🎉
-
-Aqui é o espaço para trocar experiências, tirar dúvidas e comemorar conquistas durante a sua jornada de melhoria contínua.
-
-Algumas boas práticas para a gente manter esse espaço produtivo:
-• Seja respeitoso(a) e educado(a) nas trocas
-• Antes de perguntar, veja se sua dúvida já foi respondida por aqui
-• Compartilhe seus aprendizados — o que ajudou você pode ajudar outra pessoa também
-• Erros fazem parte do processo: pergunte sem medo
-
-Bora construir isso juntos!`;
 
 // ===== Helpers =====
 function iniciais(nome: string): string {
@@ -755,86 +743,6 @@ function idBoasVindasPost(consultorId: string, empresaId?: string | null): strin
   return `boas_vindas_${consultorId}_${empresaId || 'geral'}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
-function BoasVindasComunidade({ podeEditar, espaco, jaPublicado }: { podeEditar: boolean; espaco: EspacoComunidade; jaPublicado: boolean }) {
-  const { consultor, consultorId, refresh } = useConsultor();
-  const [texto, setTexto] = useState(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
-  const [salvando, setSalvando] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    setTexto(consultor.comunidadeBoasVindas || MODELO_BOAS_VINDAS);
-  }, [consultor.comunidadeBoasVindas]);
-
-  async function confirmar() {
-    if (!texto.trim()) return;
-    setSalvando(true);
-    setMsg('');
-    try {
-      const postId = idBoasVindasPost(consultorId, espaco.empresaId);
-      const autor = await autorAtual();
-      const esc = espaco.escopo || 'time';
-      await setDoc(doc(db, 'community', postId), {
-        tipo: 'comentario',
-        titulo: 'Sejam bem-vindos!',
-        texto: texto.trim(),
-        autor,
-        ferramenta: null,
-        projetoNome: null,
-        resolvido: false,
-        replyCount: 0,
-        likes: [],
-        pinned: true,
-        anexos: [],
-        escopo: esc,
-        consultorId: esc === 'rede' ? 'lbw' : consultorId,
-        empresaId: esc === 'time' ? (espaco.empresaId || null) : null,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
-      await setDoc(doc(db, 'consultores', consultorId), {
-        comunidadeBoasVindas: texto.trim(),
-        comunidadeBoasVindasPostId: postId,
-        'onboarding.comunidade': true,
-      }, { merge: true });
-      await refresh();
-      setMsg('Texto confirmado.');
-      setTimeout(() => setMsg(''), 3000);
-    } catch (e: any) {
-      setMsg(e?.message || 'Erro ao confirmar.');
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  if (!podeEditar || jaPublicado) return null;
-
-  return (
-    <div className="mb-5 rounded-2xl border border-gray-200 bg-white p-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="m-0 text-sm font-black text-gray-900">Primeiro texto da comunidade</h2>
-          <p className="m-0 mt-0.5 text-xs text-gray-500">Edite o comentario inicial que seus alunos verao no topo.</p>
-        </div>
-        {msg && <span className="text-xs font-bold text-emerald-600">{msg}</span>}
-      </div>
-      <textarea
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        rows={9}
-        className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2.5 text-sm leading-relaxed text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      <div className="mt-3 flex justify-end">
-        <button
-          onClick={confirmar}
-          disabled={salvando || !texto.trim()}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
-        >
-          <Check size={14} /> {salvando ? 'Confirmando...' : 'Confirmar texto'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ===== Página =====
 export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoComunidade }) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -880,7 +788,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const empresaAtiva = escopo === 'time' ? (podeEscolherEmpresa ? empresaSel : (empresaId || '')) : null;
   const espaco: EspacoComunidade = { escopo, empresaId: empresaAtiva };
   const boasVindasPostId = idBoasVindasPost(cid, empresaAtiva);
-  const boasVindasJaPublicado = posts.some(p => p.id === boasVindasPostId);
 
   async function criarExemplosAluno() {
     if (!isAdmin && !isConsultor) return;
@@ -1020,7 +927,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         </div>
       )}
 
-      {escopo === 'time' && <BoasVindasComunidade podeEditar={isAdmin || isConsultor} espaco={espaco} jaPublicado={boasVindasJaPublicado} />}
 
       {/* Busca */}
       <div className="relative mb-4">
