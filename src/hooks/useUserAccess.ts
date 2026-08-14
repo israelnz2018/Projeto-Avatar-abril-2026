@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getInitiatives, getInitiativeConfigs } from '../services/configService';
 import { userDataNoConsultor, type TipoUsuario } from '../services/userService';
 import { resolveConsultorId } from '../services/consultorService';
+import { hasCourseAccess } from '../lib/courseAccess';
 
 type Plano = 'gratuito' | 'completo' | 'coordenador';
 type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
@@ -168,6 +169,10 @@ export function useUserAccess() {
           return;
         }
         const initiatives = await getInitiatives();
+        // Converte nomes legados (ex.: "6- Como Aplicar...") para o nome atual do
+        // curso. Assim todas as telas recebem a mesma lista canônica de acesso.
+        cursosLib = cursosLib.map((curso) => initiatives.find((initiative) => hasCourseAccess([curso], initiative.name))?.name || curso);
+        setCursosLiberados(cursosLib);
         const freeInitiatives = initiatives.filter(i => i.isFree === true);
         const toolIdsSet = new Set<string>();
         for (const initiative of freeInitiatives) {
@@ -181,9 +186,8 @@ export function useUserAccess() {
         setFreeToolIds(toolIdsSet);
         // Ferramentas do PACOTE liberado pra este aluno (trilhas cujo nome está nos cursos
         // liberados). Vínculo canônico curso↔trilha é por nome. Só usado no modo por-curso.
-        const liberadosSet = new Set(cursosLib);
         const grantedToolSet = new Set<string>();
-        for (const initiative of initiatives.filter(i => liberadosSet.has(i.name))) {
+        for (const initiative of initiatives.filter(i => hasCourseAccess(cursosLib, i.name))) {
           const configs = await getInitiativeConfigs(initiative.id);
           configs.forEach(config => {
             if (Array.isArray(config.toolIds)) config.toolIds.forEach(id => grantedToolSet.add(id));
@@ -216,8 +220,8 @@ export function useUserAccess() {
     const initiative = initiatives.find(i => i.id === initiativeId);
     if (!initiative) return false;
     // Modelo POR-CONSULTOR: idem — só o que foi explicitamente liberado, sem bypass de isFree.
-    if (isCoordenador && cursosLiberados.length > 0) return (cursosLiberados || []).includes(initiative.name);
-    if (acessoPorCurso) return (cursosLiberados || []).includes(initiative.name);
+    if (isCoordenador && cursosLiberados.length > 0) return hasCourseAccess(cursosLiberados, initiative.name);
+    if (acessoPorCurso) return hasCourseAccess(cursosLiberados, initiative.name);
     // Modelo de plano LEGADO: mantém as trilhas grátis do aluno solo (sem coordenador).
     if (plano === 'completo') return true;
     return initiative.isFree === true;

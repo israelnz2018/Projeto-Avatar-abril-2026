@@ -18,7 +18,7 @@ import { motion } from 'motion/react';
 import { Lock, PlayCircle, Award, CheckCircle2, GraduationCap } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { getInitiatives } from '../services/configService';
+import { getEducationCourses } from '../services/educationCourseService';
 import { getAllKnowledge, type KnowledgeEntry } from '../services/knowledgeService';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
@@ -32,13 +32,20 @@ import { useConsultor } from '../contexts/ConsultorContext';
 import QuizRunner from './QuizRunner';
 import Certificate from './Certificate';
 import OpiniaoModal from './OpiniaoModal';
+import { hasCourseAccess } from '../lib/courseAccess';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
-function trilhaNumFromName(name: string): number {
-  const m = name.match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : 0;
-}
+const CURSO_ISRAEL_POR_TESTE: Record<number, string> = {
+  1: 'Como Resolver Problemas no Trabalho - Kit 90 dias',
+  2: 'Como Recomendar Melhorias com Base em Análise de Dados',
+  3: 'Como Conduzir Mudanças com Menos Resistência',
+  4: 'Como Criar Apresentações que Convencem',
+  5: 'Como Antecipar Riscos Antes que Virem Problemas',
+  6: 'Como Aplicar a Cultura Lean',
+  7: 'Como Fazer Análises Estatísticas Aplicadas a Negócios',
+  8: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+};
 
 interface BlocoState {
   quiz: QuizConfig;
@@ -53,7 +60,15 @@ interface BlocoState {
 
 export default function AvaliacaoView() {
   const { consultor } = useConsultor();
-  const { loading: accessLoading, plano, isAdmin } = useUserAccess();
+  const {
+    loading: accessLoading,
+    plano,
+    isAdmin,
+    isConsultor,
+    isCoordenador,
+    cursosLiberados,
+    acessoPorCurso,
+  } = useUserAccess();
   const [loading, setLoading] = useState(true);
   const [quizzes, setQuizzes] = useState<QuizConfig[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
@@ -66,13 +81,19 @@ export default function AvaliacaoView() {
   const [opiniaoTrilha, setOpiniaoTrilha] = useState<number | null>(null);
 
   const uid = auth.currentUser?.uid;
+  const consultorId = resolveConsultorId();
+
+  const cursoDoTeste = (quiz: QuizConfig) => initiatives.find((initiative) => initiative.id === quiz.initiativeId)
+    || (consultorId === 'israel'
+      ? initiatives.find((initiative) => initiative.name === CURSO_ISRAEL_POR_TESTE[quiz.trilha])
+      : initiatives.find((initiative) => initiative.ordem === quiz.trilha));
 
   useEffect(() => {
     (async () => {
       try {
         const [qs, inits, vids, prog, udata] = await Promise.all([
-          getAllQuizzes(resolveConsultorId()),
-          getInitiatives(),
+          getAllQuizzes(consultorId),
+          getEducationCourses(consultorId),
           getAllKnowledge(),
           uid ? getUserProgress(uid) : Promise.resolve(null),
           uid ? getUserData(uid) : Promise.resolve(null),
@@ -93,15 +114,22 @@ export default function AvaliacaoView() {
   }, [uid]);
 
   const blocos: BlocoState[] = useMemo(() => {
-    const paidOrAdmin = isAdmin || plano === 'completo';
-    return quizzes.map((quiz) => {
-      // Casa a trilha (nº) com a initiative do Firestore de mesmo número, pra pegar os vídeos.
-      const initiative = initiatives.find((i) => i.id === quiz.initiativeId)
-        || initiatives.find((i) => trilhaNumFromName(i.name) === quiz.trilha);
+    const staff = isAdmin || isConsultor;
+    const acessoRestritoPorCurso = acessoPorCurso || (isCoordenador && cursosLiberados.length > 0);
+    return quizzes.flatMap((quiz) => {
+      // O ID salvo é prioritário. Para testes legados, a ordem do curso mantém a
+      // compatibilidade sem tentar extrair números do título comercial.
+      const initiative = cursoDoTeste(quiz);
+      if (!initiative) return [];
+      const unlocked = staff
+        || (acessoRestritoPorCurso
+          ? hasCourseAccess(cursosLiberados, initiative.name)
+          : plano === 'completo');
+      // A área do aluno mostra somente os cursos realmente liberados para ele.
+      if (!unlocked) return [];
       const tp = initiative && progress
         ? calculateTrilhaProgress(initiative, videos, progress.watchedUrls)
         : { total: 0, watched: 0, pct: 0 } as any;
-      const unlocked = paidOrAdmin || quiz.trilha === 1;
       const quizAvailable = unlocked && tp.total > 0 && tp.pct >= quiz.watchGatePct;
       const cert = progress?.certificadosEmitidos?.[initiative?.id || ''];
       return {
@@ -110,7 +138,7 @@ export default function AvaliacaoView() {
         unlocked, quizAvailable: quizAvailable || (unlocked && isAdmin), cert,
       };
     });
-  }, [quizzes, initiatives, videos, progress, plano, isAdmin]);
+  }, [quizzes, initiatives, videos, progress, plano, isAdmin, isConsultor, isCoordenador, cursosLiberados, acessoPorCurso]);
 
   // Ao terminar a prova aprovado: emite certificado e mostra parabéns.
   const handlePassed = async (trilha: number) => {
@@ -133,10 +161,10 @@ export default function AvaliacaoView() {
 
   // Modo prova em tela cheia
   if (activeQuizTrilha !== null) {
-    const quiz = quizzes.find((q) => q.trilha === activeQuizTrilha);
-    if (quiz) {
-      const curso = initiatives.find((initiative) => initiative.id === quiz.initiativeId)
-        || initiatives.find((initiative) => trilhaNumFromName(initiative.name) === activeQuizTrilha);
+    const bloco = blocos.find((item) => item.quiz.trilha === activeQuizTrilha);
+    const quiz = bloco?.quiz;
+    if (quiz && bloco?.initiative) {
+      const curso = bloco.initiative;
       return (
         <QuizRunner
           quiz={{ ...quiz, titulo: curso?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo }}
@@ -159,10 +187,8 @@ export default function AvaliacaoView() {
 
       {blocos.length === 0 && (
         <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center">
-          <p className="text-sm font-bold text-gray-700 mb-1">Ainda não há avaliações configuradas.</p>
-          <p className="text-xs text-gray-500">
-            Primeiro adicione os cursos e configure as avaliações em <b>Configuração → Prova</b>.
-          </p>
+          <p className="text-sm font-bold text-gray-700 mb-1">Nenhuma avaliação disponível para os seus cursos.</p>
+          {(isAdmin || isConsultor) && <p className="text-xs text-gray-500">Configure os testes em <b>Configuração → Teste de Avaliação</b>.</p>}
         </div>
       )}
 
@@ -193,8 +219,7 @@ export default function AvaliacaoView() {
             alunoEmail={auth.currentUser?.email || ''}
             trilha={opiniaoTrilha}
             trilhaTitulo={blocos.find((b) => b.quiz.trilha === opiniaoTrilha)?.initiative?.name || quiz.titulo}
-            /* Curso introdutório do aluno gratuito: depoimento obrigatório, sem opção de pular. */
-            obrigatorioSemSaida={opiniaoTrilha === 1 && plano !== 'completo' && !isAdmin}
+            obrigatorioSemSaida={false}
             onCancel={() => setOpiniaoTrilha(null)}
             onDone={() => { const t = opiniaoTrilha; setOpiniaoTrilha(null); setActiveQuizTrilha(t); }}
           />

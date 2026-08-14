@@ -19,10 +19,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { getUserProgress } from './videoProgressService';
-import { getInitiatives, getInitiativeConfigs } from './configService';
-import { getUserData, getUserDocsByConsultor, getUsersByEmpresa, UserData } from './userService';
+import { getInitiativeConfigs } from './configService';
+import { getEducationCourses } from './educationCourseService';
+import { getUserData, getUserDocsByConsultor, getUsersByEmpresa, userDataNoConsultor, UserData } from './userService';
 import { Initiative, Project } from '../types';
 import { KnowledgeEntry, KNOWLEDGE_COLLECTION } from './knowledgeService';
+import { resolveConsultorId } from './consultorService';
+import { hasCourseAccess } from '../lib/courseAccess';
 
 const PROJECTS_COLLECTION = 'projects';
 const SETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -87,14 +90,20 @@ function canAccessInitiative(
   user: UserData,
 ): boolean {
   if (user.tipoUsuario === 'admin') return true;
+  const agora = Date.now();
+  const cursosAtivos = (user.cursosAcesso || [])
+    .filter((item) => !item.vencimento || new Date(item.vencimento).getTime() >= agora)
+    .map((item) => item.curso);
+  if ((user.cursosAcesso || []).length > 0) return hasCourseAccess(cursosAtivos, initiative.name);
+  if ((user.cursosLiberados || []).length > 0) return hasCourseAccess(user.cursosLiberados, initiative.name);
   if (user.plano === 'completo') return true;
-  // Coordenador: tratado como completo na prática (vê tudo do time + suas trilhas)
+  // Coordenadores legados sem pacote explícito mantêm o comportamento anterior.
   if (user.tipoUsuario === 'coordenador') return true;
-  return initiative.isFree === true;
+  return false;
 }
 
 async function getAllInitiatives(): Promise<Initiative[]> {
-  return getInitiatives();
+  return getEducationCourses();
 }
 
 /** Lê todos os vídeos. Cacheável depois — por enquanto leitura direta. */
@@ -142,8 +151,8 @@ function diasParaReset(resetEmIso: string | undefined): number {
  * no Firestore amanhã, esta função reflete sozinha.
  */
 export async function getUserContentScope(uid: string): Promise<UserContentScope> {
-  const user = await getUserData(uid);
-  if (!user) {
+  const userGlobal = await getUserData(uid);
+  if (!userGlobal) {
     return {
       initiatives: [],
       toolIds: new Set(),
@@ -152,6 +161,7 @@ export async function getUserContentScope(uid: string): Promise<UserContentScope
       initiativesBloqueadas: 0,
     };
   }
+  const user = userDataNoConsultor(userGlobal, resolveConsultorId()) as UserData;
 
   const allInitiatives = await getAllInitiatives();
   const accessibleInitiatives = allInitiatives.filter(i => canAccessInitiative(i, user));
@@ -574,8 +584,9 @@ export interface ProgressoTrilha {
  * qualquer um dos seus projetos.
  */
 export async function getProgressoPorTrilha(uid: string): Promise<ProgressoTrilha[]> {
-  const user = await getUserData(uid);
-  if (!user) return [];
+  const userGlobal = await getUserData(uid);
+  if (!userGlobal) return [];
+  const user = userDataNoConsultor(userGlobal, resolveConsultorId()) as UserData;
 
   const allInitiatives = await getAllInitiatives();
   const allVideos = await getAllVideos();

@@ -16,8 +16,8 @@ import { motion } from 'motion/react';
 import { Wrench, Video, Sparkles, FolderKanban, Lock, ArrowRight } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserContentScope, useUserUsageStats } from '../../hooks/useDashboardData';
-import { useUserAccess } from '../../hooks/useUserAccess';
 import { HOTMART_CHECKOUT_URL } from '../../lib/constants';
+import { useUserAccess } from '../../hooks/useUserAccess';
 import {
   DashboardShell,
   DashboardLoading,
@@ -36,7 +36,7 @@ interface Props {
 
 export default function DashboardAlunoGratuito({ nome }: Props) {
   const uid = auth.currentUser?.uid || null;
-  const { plano } = useUserAccess();
+  const { acessoPorCurso } = useUserAccess();
   const scope = useUserContentScope(uid);
   const stats = useUserUsageStats(uid);
 
@@ -69,7 +69,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
         transition={{ duration: 0.5 }}
         className="mb-10"
       >
-        <SectionLabel live rightSlot={<>Plano · {plano === 'gratuito' ? 'introdutório' : plano}</>}>
+        <SectionLabel live>
           Seu Dashboard
         </SectionLabel>
 
@@ -111,7 +111,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
           <StatCard
             label="Ferramentas"
             value={`${ferramentasFeitas}/${ferramentasTotais}`}
-            sublabel={ferramentasFeitas === 0 ? 'comece sua primeira' : 'no seu plano'}
+            sublabel={ferramentasFeitas === 0 ? 'comece sua primeira' : 'nos seus cursos'}
             icon={<Wrench size={16} />}
             gradient="navy"
             delay={0.05}
@@ -119,7 +119,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
           <StatCard
             label="Vídeos disponíveis"
             value={videosTotais}
-            sublabel="no seu plano hoje"
+            sublabel="nos seus cursos hoje"
             icon={<Video size={16} />}
             gradient="violet"
             delay={0.1}
@@ -190,7 +190,7 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
       )}
 
       {/* ====== CTA DE UPGRADE ====== */}
-      {bloqueadas > 0 && (
+      {!acessoPorCurso && bloqueadas > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

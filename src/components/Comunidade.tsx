@@ -920,7 +920,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         </div>
       </div>
 
-      <UpgradeBanner variant="compact" className="mb-5" mensagem="Plano introdutório: participe da comunidade e libere todas as ferramentas." />
+      <UpgradeBanner variant="compact" className="mb-5" mensagem="Consulte as opções disponíveis para acessar outros cursos e ferramentas." />
 
       {/* Seletor de empresa — só admin/consultor no escopo do coordenador (cada empresa é isolada) */}
       {podeEscolherEmpresa && (

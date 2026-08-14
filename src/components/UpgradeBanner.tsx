@@ -25,12 +25,13 @@ interface UpgradeBannerProps {
 const NAVY_BLUE = 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 100%)';
 
 export default function UpgradeBanner({ mensagem, variant = 'banner', className }: UpgradeBannerProps) {
-  const { plano, isAdmin, isCoordenador, loading } = useUserAccess();
+  const { plano, isAdmin, isCoordenador, acessoPorCurso, loading } = useUserAccess();
 
   // Só para aluno gratuito.
-  if (loading || isAdmin || isCoordenador || plano === 'completo') return null;
+  if (loading || isAdmin || isCoordenador || acessoPorCurso || plano === 'completo') return null;
 
-  const texto = mensagem || 'Você está no plano introdutório. Libere TODOS os cursos, ferramentas e análises.';
+  const textoPadrao = 'Consulte as opções disponíveis para acessar outros cursos, ferramentas e análises.';
+  const texto = mensagem && !/introdut/i.test(mensagem) ? mensagem : textoPadrao;
 
   if (variant === 'compact') {
     return (

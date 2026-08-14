@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import { Award, FileUp, Image as ImageIcon, LockKeyhole, RotateCcw, Save, Type } from 'lucide-react';
 import Certificate from './Certificate';
-import { getInitiatives } from '../services/configService';
+import { getEducationCourses } from '../services/educationCourseService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { db } from '../lib/firebase';
@@ -72,7 +72,7 @@ export default function CertificadosView() {
   }, [consultor, consultorId]);
 
   useEffect(() => {
-    getInitiatives()
+    getEducationCourses(consultorId)
       .then((lista) => setCursos(lista.filter((curso) => !!curso.name).sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999))))
       .catch(() => setCursos([]))
       .finally(() => setCarregando(false));

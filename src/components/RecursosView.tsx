@@ -15,6 +15,9 @@ import { LockedToolPopup } from './LockedToolPopup';
 import ChecklistMapa90Dias from './recursos/ChecklistMapa90Dias';
 import { listSupportMaterials, SupportMaterial, CategoriaMaterial } from '../services/supportMaterialService';
 import { resolveConsultorId } from '../services/consultorService';
+import { hasCourseAccess } from '../lib/courseAccess';
+
+const CURSO_KIT_90 = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
 
 interface Recurso {
   id: string;
@@ -70,7 +73,7 @@ export default function RecursosView() {
       descricao: 'Seu checklist de progresso — 60 ações, uma por dia, do "cheguei perdido" ao "olha o que eu entreguei".',
       categoria: 'Checklist' as const,
       icone: FileCheck2,
-      cursos: [],
+      cursos: [CURSO_KIT_90],
       conteudo: ChecklistMapa90Dias,
     }] : []),
     ...materiais.map((m): Recurso => ({
@@ -94,8 +97,12 @@ export default function RecursosView() {
     // Legado (plano completo sem pacote por-curso, ex.: Hotmart antigo) — vê tudo, como já
     // acontece em Educação/Projetos pra esse mesmo perfil.
     if (plano === 'completo' && !acessoPorCurso) return true;
-    return cursos.some(c => (cursosLiberados || []).includes(c));
+    return cursos.some(c => hasCourseAccess(cursosLiberados, c));
   };
+
+  // O aluno vê somente materiais compatíveis com seus cursos. Staff continua vendo
+  // todo o catálogo para poder conferir e administrar os vínculos.
+  const recursosVisiveis = veTudo ? recursos : recursos.filter((recurso) => temAcesso(recurso.cursos));
 
   const abrir = (r: Recurso) => {
     if (!temAcesso(r.cursos)) { setLockedPopupOpen(true); return; }
@@ -155,7 +162,7 @@ export default function RecursosView() {
         <div className="py-10 text-center text-gray-500">Carregando materiais...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {recursos.map((r) => {
+          {recursosVisiveis.map((r) => {
             const liberado = temAcesso(r.cursos);
             const Icone = r.icone;
             return (

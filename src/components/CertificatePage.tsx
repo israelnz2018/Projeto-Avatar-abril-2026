@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { auth } from '../lib/firebase';
 import { getUserProgress, getCertificadoPublico, type CertificadoEmitido, type CertificadoPublico } from '../services/videoProgressService';
-import { getInitiatives } from '../services/configService';
+import { getEducationCourses } from '../services/educationCourseService';
 import { getUserData } from '../services/userService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import type { Initiative } from '../types';
@@ -48,7 +48,7 @@ export function CertificatePage() {
         }
         // Admin override: gera preview pra testar o visual de cada curso sem precisar concluir.
         if (isAdmin) {
-          const [inits, userData] = await Promise.all([getInitiatives(), getUserData(uid)]);
+          const [inits, userData] = await Promise.all([getEducationCourses(), getUserData(uid)]);
           const init = inits.find(i => i.id === initiativeId);
           if (!init) {
             setErro('Curso não encontrado.');

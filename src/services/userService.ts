@@ -55,6 +55,8 @@ export interface UserData {
   nome?: string;
   plano?: Plano | 'completo';
   maxAlunos?: number;
+  cursosAcesso?: Array<{ curso: string; vencimento?: string | null; valor?: number; quantidade?: number }>;
+  cursosLiberados?: string[];
   /** Multi-tenant: consultor a que este usuário pertence (default 'israel'). */
   consultorId?: string;
   /** Todos os tenants aos quais esta identidade pertence. */

@@ -11,7 +11,7 @@ import { Save, Plus, Trash2, Check, ChevronDown, ClipboardCheck, Target, Video }
 import { getQuiz, saveQuiz, type QuizConfig, type QuizQuestion } from '../services/quizService';
 import { getOpiniaoItens, saveOpiniaoItens } from '../services/opiniaoService';
 import { resolveConsultorId } from '../services/consultorService';
-import { getInitiatives } from '../services/configService';
+import { getEducationCourses } from '../services/educationCourseService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -19,11 +19,23 @@ import type { Initiative } from '../types';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
+const TESTE_ISRAEL_POR_CURSO: Record<string, number> = {
+  'Como Resolver Problemas no Trabalho - Kit 90 dias': 1,
+  'Como Recomendar Melhorias com Base em Análise de Dados': 2,
+  'Como Conduzir Mudanças com Menos Resistência': 3,
+  'Como Criar Apresentações que Convencem': 4,
+  'Como Antecipar Riscos Antes que Virem Problemas': 5,
+  'Como Aplicar a Cultura Lean': 6,
+  'Como Fazer Análises Estatísticas Aplicadas a Negócios': 7,
+  'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria': 8,
+};
+
 function cursoNumero(nome: string) {
   return Number(String(nome || '').match(/\d+/)?.[0] || 0);
 }
 
-function cursoChave(curso: Initiative, index: number) {
+function cursoChave(curso: Initiative, index: number, consultorId: string) {
+  if (consultorId === 'israel' && TESTE_ISRAEL_POR_CURSO[curso.name]) return TESTE_ISRAEL_POR_CURSO[curso.name];
   if (typeof curso.ordem === 'number' && curso.ordem > 0) return curso.ordem;
   const numeroNoNome = cursoNumero(curso.name);
   return numeroNoNome > 0 ? numeroNoNome : index + 1;
@@ -54,11 +66,11 @@ export default function AvaliacaoAdminView() {
       return ordemA - ordemB;
     });
 
-  const cursoSelecionado = cursosOrdenados.find((curso, index) => cursoChave(curso, index) === trilha);
+  const cursoSelecionado = cursosOrdenados.find((curso, index) => cursoChave(curso, index, consultorId) === trilha);
   const nomeCursoSelecionado = nomeVisualCurso(cursoSelecionado?.name || config?.titulo || `Curso ${trilha}`);
 
   useEffect(() => {
-    getInitiatives()
+    getEducationCourses(consultorId)
       .then((lista) => {
         const ordenados = [...lista].sort((a, b) => {
           const ordemA = typeof a.ordem === 'number' ? a.ordem : Number.MAX_SAFE_INTEGER;
@@ -67,7 +79,7 @@ export default function AvaliacaoAdminView() {
           return ordemA - ordemB;
         });
         setCursos(ordenados);
-        if (ordenados[0]) setTrilha(cursoChave(ordenados[0], 0));
+        if (ordenados[0]) setTrilha(cursoChave(ordenados[0], 0, consultorId));
       })
       .catch(() => setCursos([]));
   }, []);
@@ -80,7 +92,7 @@ export default function AvaliacaoAdminView() {
     setLoading(true);
     getQuiz(trilha, consultorId)
       .then((quiz) => {
-        const curso = cursosOrdenados.find((c, index) => cursoChave(c, index) === trilha);
+        const curso = cursosOrdenados.find((c, index) => cursoChave(c, index, consultorId) === trilha);
         setConfig({ ...quiz, initiativeId: curso?.id, titulo: nomeVisualCurso(curso?.name || quiz.titulo) });
       })
       .catch((e) => console.error('[AdminAvaliacao] getQuiz:', e))
@@ -243,7 +255,7 @@ export default function AvaliacaoAdminView() {
       ) : (
         <div className="space-y-4">
           {cursosOrdenados.map((curso, cursoIndex) => {
-            const numero = cursoChave(curso, cursoIndex);
+            const numero = cursoChave(curso, cursoIndex, consultorId);
             const aberto = trilha === numero;
             return (
               <div key={curso.id || curso.name} className={`rounded-3xl border overflow-hidden bg-white shadow-sm transition-all ${aberto ? 'border-blue-200 shadow-blue-100/60' : 'border-gray-200'}`}>
