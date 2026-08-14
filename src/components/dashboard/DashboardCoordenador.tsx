@@ -150,7 +150,9 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   }
 
   const nomeAmigavel = (nome || '').split(' ')[0] || 'coordenador';
-  const time = equipe.data;
+  // A gestão do coordenador mostra exclusivamente os alunos do time.
+  // O próprio coordenador e outros perfis administrativos nunca aparecem como alunos.
+  const time = equipe.data.filter((a) => a.user.uid !== uid && a.user.tipoUsuario === 'aluno');
   const alunosTotal = time.length;
   const alunosTravados = time.filter(a => a.travado).length;
   const alunosSemProjeto = time.filter(a => !a.projetoAtual).length;
