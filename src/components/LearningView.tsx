@@ -51,6 +51,7 @@ import {
 import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
+import { hasCourseAccess } from '../lib/courseAccess';
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
@@ -85,14 +86,14 @@ export default function LearningView() {
     });
   }, []);
 
-  const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso, loading: loadingAcesso } = useUserAccess();
+  const { isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso, loading: loadingAcesso } = useUserAccess();
   const { consultor } = useConsultor();
   const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
   // Na Area do Aluno, o consultor testa a experiencia de um aluno completo,
   // sem herdar atalhos exclusivos de staff.
   const modoAreaAluno = (isAdmin || isConsultor || isCoordenador) && (location.pathname === '/education' || location.pathname === '/alunocomeceporqui');
-  // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
-  const isStarter = !isAdmin && !isCoordenador && plano !== 'completo';
+  // Perfil sem lista explícita mantém somente os cursos gratuitos legados.
+  const isStarter = !isAdmin && !isCoordenador && !acessoPorCurso;
   const consultorAtual = resolveConsultorId();
 
   // Carrega initiatives (todas) — guardamos pra calcular progresso por trilha + free check.
@@ -129,11 +130,20 @@ export default function LearningView() {
     if (veTudo) return false;
     // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "curso grátis" no
     // sistema — só os cursos explicitamente liberados pelo consultor (isFree não faz bypass).
-    if (isCoordenador) return !(cursosLiberados || []).includes(course);
-    if (acessoPorCurso) return !(cursosLiberados || []).includes(course);
+    if (isCoordenador || acessoPorCurso) return !hasCourseAccess(cursosLiberados || [], course);
     // Modelo de plano LEGADO (aluno solo, sem coordenador/pacote): mantém os cursos grátis.
     return isStarter && !freeCourseNames.has(course);
   };
+
+  // Um mesmo vídeo pode possuir vários documentos/posicionamentos, um em cada curso.
+  // O vídeo é liberado quando PELO MENOS UM desses cursos está liberado ao aluno.
+  const videoIdentity = (item: KnowledgeEntry) =>
+    (item.bunnyVideoId && item.bunnyLibraryId ? `${item.bunnyLibraryId}:${item.bunnyVideoId}` : item.sourceUrl || item.id || '');
+  const accessiblePlacementFor = (item: KnowledgeEntry): KnowledgeEntry | null => {
+    const identity = videoIdentity(item);
+    return items.find(candidate => videoIdentity(candidate) === identity && !isCourseLocked(candidate.course)) || null;
+  };
+  const isVideoLocked = (item: KnowledgeEntry) => !accessiblePlacementFor(item);
 
   useEffect(() => {
     if (loadingAcesso) return;
@@ -174,9 +184,14 @@ export default function LearningView() {
     const uid = auth.currentUser?.uid;
     if (!uid || !selectedVideo) return;
     try {
-      const initiative = allInitiatives.find(i => i.name === selectedVideo.course);
+      // Se o aluno abriu o vídeo por uma página de curso bloqueado, atribui o
+      // progresso ao posicionamento equivalente de um curso que ele realmente possui.
+      const accessiblePlacement = accessiblePlacementFor(selectedVideo);
+      if (!accessiblePlacement) return;
+      const initiative = allInitiatives.find(i => hasCourseAccess([accessiblePlacement.course], i.name));
       await markVideoWatched(uid, selectedVideo.sourceUrl, pct, initiative?.id);
-      if (initiative) {
+      // Certificado só é verificado para o curso explicitamente liberado usado acima.
+      if (initiative && !isCourseLocked(initiative.name)) {
         const justIssued = await checkAndIssueCertificate(uid, initiative, items, alunoNome);
         if (justIssued) setJustCompletedCertId(initiative.id);
       }
@@ -289,8 +304,9 @@ export default function LearningView() {
     const vid = params.get('video');
     if (!vid) return;
     const alvo = items.find(it => it.id === vid);
-    if (alvo) {
-      setSelectedVideo(alvo);
+    const placementLiberado = alvo ? accessiblePlacementFor(alvo) : null;
+    if (placementLiberado) {
+      setSelectedVideo(placementLiberado);
       // rola até o player depois que renderiza
       setTimeout(() => {
         document.getElementById('lv-player')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -623,15 +639,15 @@ export default function LearningView() {
           <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500 font-bold">
             {activeCategory === INTRO_COURSE_ALUNO || activeCategory === INTRO_COURSE_COORDENADOR
-              ? 'Ainda n�o tem v�deo nesta aba.'
-              : 'Nenhum curso dispon�vel.'}
+              ? 'Ainda não tem vídeo nesta aba.'
+              : 'Nenhum curso disponível.'}
           </p>
           <p className="text-gray-400 text-sm">
             {activeCategory === INTRO_COURSE_ALUNO
-              ? 'Quando o consultor associar v�deos em �Aluno Comece por aqui�, eles aparecer�o aqui.'
+              ? 'Quando o consultor associar vídeos em “Aluno Comece por aqui”, eles aparecerão aqui.'
               : activeCategory === INTRO_COURSE_COORDENADOR
-                ? 'Quando o consultor associar v�deos em �Coordenador Comece por aqui�, eles aparecer�o aqui.'
-                : 'Adicione v�deos na Base de Conhecimento para v�-los aqui.'}
+                ? 'Quando o consultor associar vídeos em “Coordenador Comece por aqui”, eles aparecerão aqui.'
+                : 'Adicione vídeos na Base de Conhecimento para vê-los aqui.'}
           </p>
         </div>
       ) : (
@@ -645,7 +661,7 @@ export default function LearningView() {
               ? youtubeThumb(youtubeId, 'hqdefault')
               : item.bunnyThumbnailUrl || '';
             const isSelected = selectedVideo?.id === item.id;
-            const videoLocked = isCourseLocked(item.course);
+            const videoLocked = isVideoLocked(item);
             const isWatched = !!watchedUrls[item.sourceUrl];
 
             return (
