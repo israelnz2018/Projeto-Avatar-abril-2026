@@ -118,6 +118,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
         getInitiatives(),
       ]);
       const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       const lista: Aluno[] = allUsers
         .map((d) => {
           const u = d as any;
@@ -158,7 +159,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
           });
         });
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort();
-      const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
       setRows(lista);
       setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
@@ -339,7 +339,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             a.cursosAcesso.map((c) => (
               <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
             ))
-          ) : false ? (
+          ) : freeCursos.length > 0 ? (
             freeCursos.map((c) => (
               <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
             ))
@@ -375,7 +375,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
           )}
           <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
           <div className="space-y-2 mb-3">
-            {eCursos.length === 0 && <div className="text-xs text-gray-400">Nenhum curso liberado.</div>}
+            {eCursos.length === 0 && (freeCursos.length > 0
+              ? <div className="space-y-2">{freeCursos.map((curso) => <div key={curso} className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{curso}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>)}</div>
+              : null)}
             {eCursos.map((c) => (
               <div key={c.curso} className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
