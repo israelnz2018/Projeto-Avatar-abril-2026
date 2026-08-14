@@ -2329,9 +2329,14 @@ async function startServer() {
       if (maxAlunos > 0 && !jaContaNoTime && usados >= maxAlunos) {
         return res.status(400).json({ error: `Limite de vagas atingido (${usados}/${maxAlunos}).` });
       }
-      const cursosCoord = Array.isArray(coord.cursosAcesso) ? coord.cursosAcesso : [];
+      const timeTemCoordenador = !coordSnap.empty;
+      const cursosCoord = (Array.isArray(coord.cursosAcesso) ? coord.cursosAcesso : [])
+        .filter((c: any) => !c?.vencimento || new Date(c.vencimento).getTime() >= Date.now());
       const nomesCoord = new Set(cursosCoord.map((c: any) => String(c?.curso || "").trim()).filter(Boolean));
-      if (nomesCoord.size > 0) {
+      if (timeTemCoordenador && nomesCoord.size === 0) {
+        return res.status(400).json({ error: "Este coordenador nao possui cursos validos liberados." });
+      }
+      if (timeTemCoordenador) {
         if (cursosAcesso.length === 0) {
           cursosAcesso = cursosCoord;
         } else {

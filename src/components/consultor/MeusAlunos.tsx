@@ -39,6 +39,7 @@ interface Equipe {
   nome: string;
   coordenador: string;
   direto?: boolean;
+  cursosPermitidos?: string[];
 }
 
 const emUmAno = () => new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -163,10 +164,15 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
       allUsers
         .filter((u: any) => u.tipoUsuario === 'coordenador' && u.empresaId)
         .forEach((u: any) => {
+          const cursosPermitidos = (Array.isArray(u.cursosAcesso) ? u.cursosAcesso : [])
+            .filter((c: any) => !c?.vencimento || new Date(c.vencimento).getTime() >= Date.now())
+            .map((c: any) => String(c?.curso || '').trim())
+            .filter(Boolean);
           equipesMap.set(String(u.empresaId), {
             empresaId: String(u.empresaId),
             nome: u.empresaNome || u.nome || u.empresaId,
             coordenador: u.nome || u.email || 'Coordenador',
+            cursosPermitidos,
           });
         });
       const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort();
@@ -325,7 +331,13 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
   }
 
   const campo = 'border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
-  const cursosDisponiveis = cursos.filter((c) => !eCursos.some((x) => x.curso === c));
+  const cursosPermitidosNoTime = (empresaId?: string) => {
+    if (!empresaId || empresaId === empresaIdDireto(consultorId)) return cursos;
+    const equipe = equipes.find((item) => item.empresaId === empresaId);
+    const permitidos = new Set(equipe?.cursosPermitidos || []);
+    return cursos.filter((curso) => permitidos.has(curso));
+  };
+  const cursosDisponiveis = (empresaId?: string) => cursosPermitidosNoTime(empresaId).filter((c) => !eCursos.some((x) => x.curso === c));
 
   const renderLinha = (a: Aluno) => (
     <div key={a.uid} className="border-b border-gray-50 last:border-0">
@@ -398,11 +410,11 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
               </div>
             ))}
           </div>
-          {cursosDisponiveis.length > 0 && (
+          {cursosDisponiveis(a.empresaId).length > 0 && (
             <div className="flex items-center gap-2 mb-3">
               <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
                 <option value="">+ adicionar curso…</option>
-                {cursosDisponiveis.map((c) => <option key={c} value={c}>{c}</option>)}
+                {cursosDisponiveis(a.empresaId).map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button>
             </div>
@@ -427,8 +439,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
       <div>
         <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
         <div className="flex flex-wrap gap-2">
-          {cursos.length === 0 && <span className="text-xs text-gray-400">Nenhum curso ainda.</span>}
-          {cursos.map((c) => {
+          {cursosPermitidosNoTime(empresaId).length === 0 && <span className="text-xs text-gray-400">Este coordenador não possui cursos válidos liberados.</span>}
+          {cursosPermitidosNoTime(empresaId).map((c) => {
             const on = aItens.some((i) => i.curso === c);
             return (
               <button key={c} onClick={() => toggleCursoAdd(c)}
