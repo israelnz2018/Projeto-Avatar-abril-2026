@@ -118,6 +118,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const [novoNome, setNovoNome] = useState('');
   const [novoEmail, setNovoEmail] = useState('');
   const [cursosConvite, setCursosConvite] = useState<CursoConvite[]>([]);
+  const [cadastroAberto, setCadastroAberto] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -361,9 +362,15 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
       {/* ====== CONVIDAR / GERENCIAR MEMBROS ====== */}
       {!isReport && <div className="mb-10">
         <SectionLabel rightSlot={`${totalRestanteCursos} / ${totalAcessosCursos} acessos restantes`}>
-          Convidar membros
+          Alunos deste time
         </SectionLabel>
-        <div className="rounded-2xl p-4 md:p-5 bg-gray-50 border border-gray-200 shadow-sm">
+        <div className="rounded-2xl overflow-hidden bg-gray-50 border border-gray-200 shadow-sm">
+          <div className="px-5 py-3 border-b border-blue-100 bg-white">
+            <button type="button" onClick={() => { setCadastroAberto((aberto) => !aberto); setErrMsg(null); setOkMsg(null); }} className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">
+              <UserPlus size={15} /> {cadastroAberto ? 'fechar cadastro' : 'adicionar aluno'}
+            </button>
+          </div>
+          {cadastroAberto && <div className="p-4 md:p-5 bg-blue-50/40">
           <p className="text-xs font-bold text-gray-600 mb-2 mt-0">Dados do aluno convidado</p>
           <div className="grid md:grid-cols-2 gap-2 mb-4">
             <input
@@ -385,28 +392,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
             {cursosLiberados.length === 0 ? (
               <p className="text-red-600 text-xs mt-0 mb-0">O consultor ainda nao liberou cursos para este coordenador e o time dele.</p>
             ) : (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCursosConvite(cursosLiberados.map((curso) => {
-                      const base = cursosAcesso.find((c) => c.curso === curso);
-                      const limiteCurso = Number((base as any)?.quantidade) || 0;
-                      const usadoCurso = usoPorCurso.get(curso) || 0;
-                      return limiteCurso <= 0 || usadoCurso >= limiteCurso ? null : { curso, vencimento: base?.vencimento || null, valor: base?.valor || 0 };
-                    }).filter(Boolean) as CursoConvite[])}
-                    className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1"
-                  >
-                    Selecionar todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCursosConvite([])}
-                    className="text-xs font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1"
-                  >
-                    Limpar seleção
-                  </button>
-                </div>
+              <div className="flex flex-wrap gap-2">
                 {cursosLiberados.map((curso) => {
                   const item = cursosConvite.find((c) => c.curso === curso);
                   const cursoBase = cursosAcesso.find((c) => c.curso === curso);
@@ -418,18 +404,10 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                   const semConfiguracao = limiteCurso <= 0;
                   const semSaldo = (semConfiguracao || restante <= 0) && !selecionado;
                   return (
-                    <div key={curso} className={`rounded-xl border px-3 py-2 ${semSaldo ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-gray-200'}`}>
-                      <label className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                        <input type="checkbox" checked={selecionado} disabled={semSaldo} onChange={() => toggleCursoConvite(curso)} className="h-4 w-4" />
-                        <span className="flex-1">{curso}</span>
-                        <span className="text-[11px] font-black text-blue-700 bg-blue-50 rounded px-2 py-1">
-                          {semConfiguracao ? 'sem acessos configurados' : `${restante}/${limiteCurso} restantes`}
-                        </span>
-                        <span className="text-[11px] font-bold text-gray-500">
-                          Expira em {vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : 'sem data'}
-                        </span>
-                      </label>
-                    </div>
+                    <button key={curso} type="button" disabled={semSaldo} onClick={() => toggleCursoConvite(curso)} title={`Expira em ${vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : 'sem data'}`}
+                      className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${selecionado ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300'} disabled:cursor-not-allowed disabled:opacity-50`}>
+                      {curso}{!semConfiguracao && <span className="ml-1 font-normal">· {restante} restantes</span>}
+                    </button>
                   );
                 })}
               </div>
@@ -439,11 +417,11 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
             </button>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-start">
             <button onClick={adicionarMembro} disabled={addingMember || !cadastroConviteValido}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors bg-blue-600 border-blue-600 hover:bg-blue-700 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black border transition-colors bg-emerald-600 border-emerald-600 hover:bg-emerald-700 disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed"
               style={{ color: (addingMember || !cadastroConviteValido) ? '#9ca3af' : '#ffffff' }}>
-              <UserPlus size={14} /> {addingMember ? 'Convidando…' : 'Convidar'}
+              <UserPlus size={16} /> {addingMember ? 'Adicionando…' : 'Adicionar aluno'}
             </button>
           </div>
           {okMsg && <p className="text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-sm font-bold mt-3 mb-0">{okMsg}</p>}
@@ -464,7 +442,8 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
               ))}
             </div>
           )}
-          <p className="text-white/35 text-[11px] mt-3 mb-0">O convidado entra no seu time ao criar a conta com esse e-mail.</p>
+          <p className="text-gray-500 text-[11px] mt-3 mb-0">O convidado entra no seu time ao criar a conta com esse e-mail.</p>
+          </div>}
         </div>
       </div>}
 
