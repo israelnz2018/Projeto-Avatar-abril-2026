@@ -265,6 +265,11 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const setValorCurso = (curso: string, v: string) => setECursos((p) => p.map((c) => (c.curso === curso ? { ...c, valor: parseValor(v.replace(/[^\d.,]/g, '')) } : c)));
   const removerCurso = (curso: string) => setECursos((p) => p.filter((c) => c.curso !== curso));
   const addCursoEdit = () => {
+    const alunoEditado = rows.find((aluno) => aluno.uid === editUid);
+    if (alunoEditado?.completo) {
+      setEditMsg('Este aluno já tem acesso Completo e, portanto, já possui todos os cursos.');
+      return;
+    }
     if (!eAddCurso || eCursos.some((c) => c.curso === eAddCurso)) return;
     setECursos((p) => [...p, { curso: eAddCurso, vencimento: emUmAno(), valor: 0, quantidade: 1 }]);
     setEAddCurso('');
@@ -395,7 +400,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         <div className="px-4 pb-4 bg-gray-50/60">
           {a.completo && (
             <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-              Este aluno tem <b>acesso Completo</b> (todos os cursos). Você só precisa mexer aqui embaixo se quiser trocá-lo para <b>acesso por curso</b>.
+              Este aluno tem <b>acesso Completo</b> e já possui todos os cursos. Não é necessário adicionar outro curso.
             </div>
           )}
           <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
@@ -420,7 +425,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
               </div>
             ))}
           </div>
-          {cursosDisponiveis(a.empresaId).length > 0 && (
+          {!a.completo && cursosDisponiveis(a.empresaId).length > 0 && (
             <div className="flex items-center gap-2 mb-3">
               <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
                 <option value="">+ adicionar curso…</option>
