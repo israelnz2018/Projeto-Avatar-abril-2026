@@ -339,11 +339,11 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             a.cursosAcesso.map((c) => (
               <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
             ))
-          ) : freeCursos.length > 0 ? (
+          ) : false ? (
             freeCursos.map((c) => (
               <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
             ))
-          ) : cursos.length > 0 ? (
+          ) : false ? (
             // Sem cursosAcesso, sem completo, sem curso gratuito configurado — cai no
             // primeiro curso de Meus Cursos em vez de ficar em branco.
             <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursos[0]}</span>
