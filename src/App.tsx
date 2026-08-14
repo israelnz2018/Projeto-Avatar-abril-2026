@@ -223,7 +223,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           { name: 'Gestão de Usuários', path: '/meus-coordenadores?modo=coordenador', icon: Users },
           { name: 'Relatórios dos Times', path: '/configuracao?aba=relatorio&area=coordenador', icon: TrendingUp },
         ]),
-        { name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users },
+        { name: 'Comunidade do Meu Time', path: '/comunidade-coordenador', icon: Users },
       ],
     }] : []),
     ...(canSeeAlunoArea ? [{
@@ -232,12 +232,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       icon: GraduationCap,
       items: [
         { name: 'Aluno Comece por aqui', path: '/alunocomeceporqui', icon: Rocket },
-        { name: 'Educação / Meus Cursos', path: '/education', icon: GraduationCap },
+        { name: 'Educação', path: '/education', icon: GraduationCap },
         { name: 'Projetos', path: '/projects', icon: ClipboardList },
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
-        ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-aluno', icon: Users }] : []),
       ],
     }] : []),
   ];
