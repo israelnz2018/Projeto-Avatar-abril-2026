@@ -20,6 +20,7 @@ import {
   CheckCircle2, Clock, Mail, ArrowRight, TrendingUp, Award, PlayCircle, UserPlus, X,
 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
+import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { deletarConvite, listarConvitesPorEmpresa, PendingInvite, updateUserSiglaPpt } from '../../services/userService';
 import { getProjetosComDetalhes, ProjetoComDetalhes } from '../../services/dashboardDataService';
@@ -105,6 +106,7 @@ function CoordenadorShell({ children, light = false }: { children: React.ReactNo
 export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
+  const { consultor } = useConsultor();
   const { empresaId, empresaNome, siglaPpt, cursosLiberados, cursosAcesso } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
@@ -212,6 +214,16 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const totalAcessosCursos = cursosAcesso.reduce((s, c) => s + (Number((c as any).quantidade) || 0), 0);
   const totalUsadoCursos = cursosAcesso.reduce((s, c) => s + (usoPorCurso.get(c.curso) || 0), 0);
   const totalRestanteCursos = Math.max(0, totalAcessosCursos - totalUsadoCursos);
+
+  const solicitarMaisAcessos = () => {
+    if (!consultor.email) {
+      window.alert('O e-mail do consultor ainda não está configurado. Entre em contato diretamente com ele.');
+      return;
+    }
+    const assunto = 'Solicitação de mais cursos ou acessos';
+    const corpo = `Olá, ${consultor.nome || consultor.branding.nome}.\n\nO coordenador ${nome || auth.currentUser?.displayName || auth.currentUser?.email || ''}, do time ${empresaNome || ''}, gostaria de solicitar mais cursos ou mais acessos para sua equipe.\n\nObrigado.`;
+    window.location.href = `mailto:${consultor.email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+  };
 
   const toggleCursoConvite = (curso: string) => {
     const cursoBase = cursosAcesso.find((c) => c.curso === curso);
@@ -422,6 +434,9 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                 })}
               </div>
             )}
+            <button type="button" onClick={solicitarMaisAcessos} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+              <Mail size={16} /> Solicitar ao consultor mais cursos ou acessos
+            </button>
           </div>
 
           <div className="flex justify-end">

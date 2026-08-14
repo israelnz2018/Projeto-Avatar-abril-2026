@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
-import { ChevronDown, Plus, Users2 } from 'lucide-react';
+import { ChevronDown, Mail, Plus, Users2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { empresaIdDireto } from '../../services/consultorService';
@@ -216,15 +216,26 @@ export default function MeusCoordenadores() {
     }
   }
 
+  function solicitarMaisAcessos(c: CoordRow) {
+    if (!consultor.email) {
+      window.alert('O e-mail do consultor ainda não está configurado. Entre em contato diretamente com ele.');
+      return;
+    }
+    const assunto = 'Solicitação de mais cursos ou acessos';
+    const corpo = `Olá, ${consultor.nome || consultor.branding.nome}.\n\nO coordenador ${c.nome}, do time ${c.empresa}, gostaria de solicitar mais cursos ou mais acessos para sua equipe.\n\nObrigado.`;
+    window.location.href = `mailto:${consultor.email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+  }
+
   const campo = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const label = 'block text-xs font-black uppercase tracking-wide text-gray-500 mb-1';
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão dos Times dos Coordenadores' : 'Meus Coordenadores e Alunos'}</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão de Usuários do Coordenador' : 'Meus Coordenadores e Alunos'}</h1>
       <p className="text-gray-500 text-sm mb-6">
-        Cada linha é um coordenador do seu mundo (<b>{consultor.branding.nome}</b>). Abra a linha para liberar
-        cursos e gerenciar o time dele. A última linha é você, coordenando os seus próprios alunos.
+        {modoCoordenador
+          ? 'Abra o seu time para consultar os cursos e acessos liberados e gerenciar os alunos.'
+          : <>Cada linha é um coordenador do seu mundo (<b>{consultor.branding.nome}</b>). Abra a linha para liberar cursos e gerenciar o time dele. A última linha é você, coordenando os seus próprios alunos.</>}
       </p>
 
       {loading && <div className="text-gray-500">Carregando...</div>}
@@ -312,7 +323,7 @@ export default function MeusCoordenadores() {
               {aberto && (
                 <div className="border-t border-gray-100 p-5 space-y-5">
                   {/* Eu sou dono de todos os cursos — não tenho cota nem valor pago. */}
-                  {!c.euMesmo && (
+                  {!c.euMesmo && !modoCoordenador && (
                     <div>
                       <label className={label}>Cursos liberados para este coordenador e o time</label>
                       <CursosEditor catalogo={cursos} sel={editSel} onChange={setEditSel} comAcessos />
@@ -328,6 +339,22 @@ export default function MeusCoordenadores() {
                           {removendoUid === c.uid ? 'removendo...' : 'remover coordenador'}
                         </button>
                       </div>
+                    </div>
+                  )}
+                  {!c.euMesmo && modoCoordenador && (
+                    <div>
+                      <label className={label}>Cursos e acessos liberados para este time</label>
+                      <div className="space-y-2">
+                        {c.cursosAcesso.map((curso) => (
+                          <div key={curso.curso} className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm">
+                            <span className="font-bold text-gray-800">{curso.curso}</span>
+                            <span className="shrink-0 text-xs font-bold text-blue-700">{curso.quantidade || 0} acessos · expira {dataBr(String(curso.vencimento || ''))}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => solicitarMaisAcessos(c)} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                        <Mail size={16} /> Solicitar ao consultor mais cursos ou acessos
+                      </button>
                     </div>
                   )}
                   <div>
