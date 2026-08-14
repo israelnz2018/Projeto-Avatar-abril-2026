@@ -115,7 +115,7 @@ export default function AvaliacaoView() {
 
   const blocos: BlocoState[] = useMemo(() => {
     const staff = isAdmin || isConsultor;
-    const acessoRestritoPorCurso = acessoPorCurso || (isCoordenador && cursosLiberados.length > 0);
+    const acessoRestritoPorCurso = acessoPorCurso || isCoordenador;
     return quizzes.flatMap((quiz) => {
       // O ID salvo é prioritário. Para testes legados, a ordem do curso mantém a
       // compatibilidade sem tentar extrair números do título comercial.
@@ -125,8 +125,6 @@ export default function AvaliacaoView() {
         || (acessoRestritoPorCurso
           ? hasCourseAccess(cursosLiberados, initiative.name)
           : plano === 'completo');
-      // A área do aluno mostra somente os cursos realmente liberados para ele.
-      if (!unlocked) return [];
       const tp = initiative && progress
         ? calculateTrilhaProgress(initiative, videos, progress.watchedUrls)
         : { total: 0, watched: 0, pct: 0 } as any;
@@ -280,7 +278,7 @@ function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
       <div className="mt-auto pt-2">
         {!unlocked ? (
           <button disabled className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-400 font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
-            <Lock size={16} /> Disponível no plano completo
+            <Lock size={16} /> Curso não liberado para você
           </button>
         ) : aprovado ? (
           <CertificadoBlock cert={cert!} alunoNome={certAluno} initiativeId={bloco.initiative?.id} showCongrats={showCongrats} />

@@ -33,6 +33,7 @@ import UpgradeBanner from './UpgradeBanner';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
+import { hasCourseAccess } from '../lib/courseAccess';
 import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
@@ -303,6 +304,13 @@ const GRAFICOS_LIST = [
   "Tendência", "Bolhas - 3D", "Superfície - 3D", "Dispersão 3D", "Intervalo"
 ];
 
+const CURSO_GRAFICOS = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
+const CURSOS_DATA_ANALYSIS_COMPLETO = [
+  'Como Recomendar Melhorias com Base em Análise de Dados',
+  'Como Fazer Análises Estatísticas Aplicadas a Negócios',
+  'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+];
+
 const mapaCampos: Record<string, string> = {
   "Y": "coluna_y",
   "X": "coluna_x",
@@ -358,7 +366,14 @@ function seekBunnyVideo(iframe: HTMLIFrameElement | null, seconds: number) {
 
 export default function DataAnalysis() {
   const { projetoAtivo } = useProject();
-  const { plano, isAdmin } = useUserAccess();
+  const {
+    plano,
+    isAdmin,
+    isConsultor,
+    isCoordenador,
+    cursosLiberados,
+    acessoPorCurso,
+  } = useUserAccess();
   const [lockedAnalisePopupOpen, setLockedAnalisePopupOpen] = useState(false);
   const [planilhaProjeto, setPlanilhaProjeto] = useState<PlanilhaInfo | null>(null);
   const [salvandoTudo, setSalvandoTudo] = useState(false);
@@ -428,6 +443,24 @@ export default function DataAnalysis() {
   const supportVideoIframeRef = useRef<HTMLIFrameElement>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
   const [showEduVideos, setShowEduVideos] = useState(false);
+
+  // A permissão desta área vem dos cursos efetivamente liberados ao usuário:
+  // Kit 90 dias libera somente gráficos; os três cursos avançados abaixo liberam tudo.
+  // Os demais cursos mantêm o menu visível, mas todas as opções ficam bloqueadas.
+  const dataAnalysisAccess: 'none' | 'charts' | 'full' = (() => {
+    if (isAdmin || isConsultor) return 'full';
+    if (CURSOS_DATA_ANALYSIS_COMPLETO.some((curso) => hasCourseAccess(cursosLiberados, curso))) return 'full';
+    if (hasCourseAccess(cursosLiberados, CURSO_GRAFICOS)) return 'charts';
+
+    const acessoExplicitamentePorCurso = acessoPorCurso || isCoordenador;
+    // Compatibilidade apenas para alunos antigos que ainda usam o plano global.
+    if (!acessoExplicitamentePorCurso && plano === 'completo') return 'full';
+    return 'none';
+  })();
+
+  const isAnalysisLocked = (analysisName: string) =>
+    dataAnalysisAccess === 'none'
+    || (dataAnalysisAccess === 'charts' && !GRAFICOS_LIST.includes(analysisName));
 
   // Vídeos educacionais FIXOS sobre como usar variáveis X e Y na aba Data Analysis.
   // Aparecem sempre, independente da análise selecionada. Click → toca no player inline.
@@ -662,7 +695,7 @@ export default function DataAnalysis() {
   };
 
   const handleRunAnalysis = async () => {
-    if (!isAdmin && plano === 'gratuito' && !GRAFICOS_LIST.includes(ferramentaAtual)) {
+    if (isAnalysisLocked(ferramentaAtual)) {
       setLockedAnalisePopupOpen(true);
       return;
     }
@@ -1344,7 +1377,11 @@ export default function DataAnalysis() {
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] text-[#000] font-sans" style={{ fontFamily: '"Segoe UI", Tahoma, sans-serif', fontSize: '13px' }}>
-      <LockedToolPopup isOpen={lockedAnalisePopupOpen} onClose={() => setLockedAnalisePopupOpen(false)} />
+      <LockedToolPopup
+        isOpen={lockedAnalisePopupOpen}
+        onClose={() => setLockedAnalisePopupOpen(false)}
+        variant={acessoPorCurso || isCoordenador ? 'consultor' : 'upgrade'}
+      />
       {/* Header & Navigation Combined (Internal Workspace Header) */}
       <header className="bg-[#1f2937] text-white px-[20px] py-[10px] flex justify-between items-center border-b border-[#ccc] -mx-8 -mt-8 mb-8">
         <div className="flex items-center gap-[20px]">
@@ -1384,7 +1421,7 @@ export default function DataAnalysis() {
                               activeNestedMenu === item.nome ? "block" : "hidden"
                             )}>
                               {item.subitens.map((sub: string) => {
-                                const subLocked = !isAdmin && plano === 'gratuito' && !GRAFICOS_LIST.includes(sub);
+                                const subLocked = isAnalysisLocked(sub);
                                 return (
                                   <li key={sub}>
                                     <button
@@ -1408,7 +1445,7 @@ export default function DataAnalysis() {
                             </ul>
                           </>
                         ) : (() => {
-                          const itemLocked = !isAdmin && plano === 'gratuito' && !GRAFICOS_LIST.includes(item.nome);
+                          const itemLocked = isAnalysisLocked(item.nome);
                           return (
                             <button
                               onClick={() => {
