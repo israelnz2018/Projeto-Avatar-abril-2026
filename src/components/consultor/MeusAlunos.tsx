@@ -46,6 +46,7 @@ const venceu = (v: string | null) => !!v && new Date(v).getTime() < Date.now();
 const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')); return isNaN(n) ? 0 : n; };
 // Sem separador de milhar (evita o ponto ser lido como decimal ao reparsear). Vírgula = decimal.
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
+const CURSO_UNITARIO_LEGADO = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
 
 export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embedded?: boolean; empresaIdFiltro?: string }) {
   const { consultor, consultorId } = useConsultor();
@@ -79,6 +80,16 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
   const [removingUid, setRemovingUid] = useState<string | null>(null);
   const [bloqueados, setBloqueados] = useState<Aluno[]>([]);
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
+
+  // Os alunos antigos de acesso unitário compraram o Kit 90 Dias. Esse vínculo não
+  // pode depender da ordenação alfabética do catálogo, pois `cursos[0]` pode mudar.
+  const cursoUnitario = useMemo(() => {
+    const todos = [...freeCursos, ...cursos];
+    return todos.find((curso) => {
+      const nome = curso.toLocaleLowerCase('pt-BR');
+      return nome.includes('resolver problemas no trabalho') && nome.includes('90');
+    }) || todos.find((curso) => curso.toLocaleLowerCase('pt-BR').includes('resolver problemas no trabalho')) || CURSO_UNITARIO_LEGADO;
+  }, [cursos, freeCursos]);
 
   const toAluno = (d: any): Aluno => {
     const u = d as any;
@@ -339,16 +350,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             a.cursosAcesso.map((c) => (
               <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
             ))
-          ) : freeCursos.length > 0 ? (
-            freeCursos.map((c) => (
-              <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
-            ))
-          ) : cursos.length > 0 ? (
-            // Sem cursosAcesso, sem completo, sem curso gratuito configurado — cai no
-            // primeiro curso de Meus Cursos em vez de ficar em branco.
-            <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursos[0]}</span>
           ) : (
-            <span className="text-xs text-gray-400 italic">—</span>
+            <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursoUnitario}</span>
           )}
         </div>
         <div className="flex items-center justify-end gap-2">
@@ -375,11 +378,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
           )}
           <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
           <div className="space-y-2 mb-3">
-            {eCursos.length === 0 && (freeCursos.length > 0
-              ? <div className="space-y-2">{freeCursos.map((curso) => <div key={curso} className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{curso}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>)}</div>
-              : cursos.length > 0
-                ? <div className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{cursos[0]}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>
-                : null)}
+            {eCursos.length === 0 && (
+              <div className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{cursoUnitario}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>
+            )}
             {eCursos.map((c) => (
               <div key={c.curso} className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
