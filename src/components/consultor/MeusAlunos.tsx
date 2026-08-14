@@ -29,6 +29,7 @@ interface CursoAcesso { curso: string; vencimento: string | null; valor: number;
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
   cursosAcesso: CursoAcesso[]; completo: boolean;
+  unitarioLegado?: boolean;
   empresaId?: string;
   desvinculadoEm?: string;
   avisoBloqueio?: { expiraEm?: string };
@@ -48,6 +49,10 @@ const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')
 // Sem separador de milhar (evita o ponto ser lido como decimal ao reparsear). Vírgula = decimal.
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
 const CURSO_UNITARIO_LEGADO = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
+const resolverCursoUnitario = (catalogo: string[]) => catalogo.find((curso) => {
+  const nome = curso.toLocaleLowerCase('pt-BR');
+  return nome.includes('resolver problemas no trabalho') && nome.includes('90');
+}) || catalogo.find((curso) => curso.toLocaleLowerCase('pt-BR').includes('resolver problemas no trabalho')) || CURSO_UNITARIO_LEGADO;
 
 export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteLeitura = false }: { embedded?: boolean; empresaIdFiltro?: string; somenteLeitura?: boolean }) {
   const { consultor, consultorId } = useConsultor();
@@ -85,12 +90,14 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   // Os alunos antigos de acesso unitário compraram o Kit 90 Dias. Esse vínculo não
   // pode depender da ordenação alfabética do catálogo, pois `cursos[0]` pode mudar.
   const cursoUnitario = useMemo(() => {
-    const todos = [...freeCursos, ...cursos];
-    return todos.find((curso) => {
-      const nome = curso.toLocaleLowerCase('pt-BR');
-      return nome.includes('resolver problemas no trabalho') && nome.includes('90');
-    }) || todos.find((curso) => curso.toLocaleLowerCase('pt-BR').includes('resolver problemas no trabalho')) || CURSO_UNITARIO_LEGADO;
+    return resolverCursoUnitario([...freeCursos, ...cursos]);
   }, [cursos, freeCursos]);
+
+  const cursosEfetivos = (aluno: Aluno): CursoAcesso[] => {
+    const atuais = aluno.cursosAcesso.map((curso) => ({ ...curso, quantidade: 1 }));
+    if (!aluno.unitarioLegado || atuais.some((curso) => curso.curso === cursoUnitario)) return atuais;
+    return [{ curso: cursoUnitario, vencimento: null, valor: 0, quantidade: 1 }, ...atuais];
+  };
 
   const toAluno = (d: any): Aluno => {
     const u = d as any;
@@ -114,6 +121,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       acessou: !!u.primeiroAcessoEm,
       cursosAcesso: ca,
       completo,
+      unitarioLegado: !completo && u.plano !== 'completo',
       desvinculadoEm: u.desvinculadoEm,
       avisoBloqueio: u.avisoBloqueio,
       inativo: true,
@@ -155,6 +163,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             acessou: !!u.primeiroAcessoEm,
             cursosAcesso: ca,
             completo,
+            unitarioLegado: !completo && u.plano !== 'completo',
             empresaId: u.empresaId ? String(u.empresaId) : undefined,
           };
         })
@@ -248,7 +257,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   // ----- editar -----
   function abrirEdit(a: Aluno) {
     setEditUid(a.uid);
-    setECursos(a.cursosAcesso.map((c) => ({ ...c, quantidade: 1 })));
+    setECursos(cursosEfetivos(a));
     setEAddCurso('');
     setEditMsg('');
   }
@@ -265,7 +274,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     setEditSalvando(true); setEditMsg('');
     try {
       const anterior = rows.find((r) => r.uid === uid);
-      const cursosNovos = eCursos.filter((novo) => !anterior?.cursosAcesso.some((antigo) => antigo.curso === novo.curso));
+      const cursosAnteriores = anterior ? cursosEfetivos(anterior) : [];
+      const cursosNovos = eCursos.filter((novo) => !cursosAnteriores.some((antigo) => antigo.curso === novo.curso));
       const valorPago = eCursos.reduce((s, c) => s + (c.valor || 0), 0);
       await updateUserNoConsultor(uid, consultorId, { cursosAcesso: eCursos, valorPago });
       if (cursosNovos.length > 0 && anterior?.email) {
@@ -359,7 +369,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           ) : a.completo ? (
             <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
           ) : a.cursosAcesso.length > 0 ? (
-            a.cursosAcesso.map((c) => (
+            cursosEfetivos(a).map((c) => (
               <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
             ))
           ) : (
