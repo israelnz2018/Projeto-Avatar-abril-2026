@@ -216,7 +216,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       items: [
         { name: 'Coordenador Comece por aqui', path: '/coordenadorcomeceporqui', icon: Rocket },
         ...(isCoordenador ? [
-          { name: 'Minha Equipe', path: '/equipe', icon: LayoutDashboard },
+          { name: 'GestÃ£o de UsuÃ¡rios', path: '/equipe', icon: LayoutDashboard },
           { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
           { name: 'Marca do Time', path: '/marca-time', icon: Palette },
         ] : [
@@ -237,7 +237,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
-        ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users }] : []),
+        ...(isAdmin || isConsultor || isCoordenador || !!empresaId ? [{ name: 'Comunidade dos Meus Clientes', path: '/comunidade-aluno', icon: Users }] : []),
       ],
     }] : []),
   ];
@@ -675,6 +675,7 @@ export default function App() {
               <Route path="/comunidade" element={<Comunidade escopo="consultor" />} />
               <Route path="/comunidade-adm" element={<Comunidade escopo="rede" />} />
               <Route path="/comunidade-coordenador" element={<Comunidade escopo="time" />} />
+              <Route path="/comunidade-aluno" element={<Comunidade escopo="time" />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />
