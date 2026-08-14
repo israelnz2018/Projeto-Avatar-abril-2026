@@ -84,6 +84,15 @@ import MenuTour from './components/MenuTour';
 
 import { useProject } from './contexts/ProjectContext';
 import { setPptTemplateAtivo } from './services/pptTemplateExportService';
+
+function AreaGate({ area, children }: { area: 'consultor' | 'coordenador'; children: React.ReactNode }) {
+  const { isAdmin, isConsultor, isCoordenador, loading } = useUserAccess();
+  if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
+  const permitido = area === 'consultor' ? (isAdmin || isConsultor) : (isAdmin || isCoordenador);
+  if (!permitido) return <div className="p-8 text-red-600 font-bold">Esta tela não pertence à sua área de acesso.</div>;
+  return <>{children}</>;
+}
+
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -221,6 +230,8 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           { name: 'Marca do Time', path: '/marca-time', icon: Palette },
         ] : [
           { name: 'Gestão de Usuários', path: '/meus-coordenadores?modo=coordenador', icon: Users },
+          { name: 'Relatório do Meu Time', path: '/configuracao?aba=relatorio&area=coordenador', icon: TrendingUp },
+          { name: 'Marca do Time', path: '/marca-time?modo=coordenador', icon: Palette },
         ]),
         { name: 'Comunidade do Meu Time', path: '/comunidade-coordenador', icon: Users },
       ],
@@ -661,13 +672,13 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/education" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/equipe" element={<CoordenadorEquipe />} />
-              <Route path="/report-time" element={<CoordenadorReport />} />
+              <Route path="/equipe" element={<AreaGate area="coordenador"><CoordenadorEquipe /></AreaGate>} />
+              <Route path="/report-time" element={<AreaGate area="coordenador"><CoordenadorReport /></AreaGate>} />
               <Route path="/marca-time" element={<MarcaDoTime />} />
               <Route path="/chat" element={<ChatAssistant />} />
               <Route path="/analysis" element={<DataAnalysis />} />
               <Route path="/projects" element={<ProjectManagement />} />
-              <Route path="/learning" element={<KnowledgeManagerView />} />
+              <Route path="/learning" element={<AreaGate area="consultor"><KnowledgeManagerView /></AreaGate>} />
               <Route path="/education" element={<LearningView />} />
               <Route path="/alunocomeceporqui" element={<LearningView />} />
               <Route path="/coordenadorcomeceporqui" element={<LearningView />} />
@@ -679,25 +690,25 @@ export default function App() {
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />
-              <Route path="/certificados" element={<CertificadosView />} />
+              <Route path="/certificados" element={<AreaGate area="consultor"><CertificadosView /></AreaGate>} />
               <Route path="/avaliacao" element={<AvaliacaoView />} />
-              <Route path="/avaliacao-admin" element={<AvaliacaoAdminView />} />
+              <Route path="/avaliacao-admin" element={<AreaGate area="consultor"><AvaliacaoAdminView /></AreaGate>} />
               <Route path="/opinioes" element={<OpinioesAdminView />} />
-              <Route path="/config" element={<ProjectToolsConfig />} />
+              <Route path="/config" element={<AreaGate area="consultor"><ProjectToolsConfig /></AreaGate>} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
-              <Route path="/marca" element={<MinhaMarca />} />
-              <Route path="/meus-cursos" element={<KnowledgeManagerView />} />
-              <Route path="/minhas-fases" element={<ProjectToolsConfig />} />
-              <Route path="/meus-alunos" element={<MeusAlunos />} />
-              <Route path="/super-relatorio" element={<SuperRelatorio />} />
-              <Route path="/minha-vitrine" element={<MinhaVitrine />} />
+              <Route path="/marca" element={<AreaGate area="consultor"><MinhaMarca /></AreaGate>} />
+              <Route path="/meus-cursos" element={<AreaGate area="consultor"><KnowledgeManagerView /></AreaGate>} />
+              <Route path="/minhas-fases" element={<AreaGate area="consultor"><ProjectToolsConfig /></AreaGate>} />
+              <Route path="/meus-alunos" element={<AreaGate area="consultor"><MeusAlunos /></AreaGate>} />
+              <Route path="/super-relatorio" element={<AreaGate area="consultor"><SuperRelatorio /></AreaGate>} />
+              <Route path="/minha-vitrine" element={<AreaGate area="consultor"><MinhaVitrine /></AreaGate>} />
               <Route path="/consultores" element={<VitrinePublica />} />
-              <Route path="/meus-coordenadores" element={<MeusCoordenadores />} />
-              <Route path="/configuracao" element={<ConfiguracaoConsultor />} />
-              <Route path="/consultorcomeceporqui" element={<ComecePorAqui />} />
-              <Route path="/comece-por-aqui" element={<ComecePorAqui />} />
+              <Route path="/meus-coordenadores" element={<AreaGate area="consultor"><MeusCoordenadores /></AreaGate>} />
+              <Route path="/configuracao" element={<AreaGate area="consultor"><ConfiguracaoConsultor /></AreaGate>} />
+              <Route path="/consultorcomeceporqui" element={<AreaGate area="consultor"><ComecePorAqui /></AreaGate>} />
+              <Route path="/comece-por-aqui" element={<AreaGate area="consultor"><ComecePorAqui /></AreaGate>} />
               <Route path="/certificado/:initiativeId" element={<CertificatePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

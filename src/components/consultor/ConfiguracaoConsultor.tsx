@@ -31,7 +31,7 @@ const ABAS = [
 ];
 
 export default function ConfiguracaoConsultor() {
-  const { isAdmin, isConsultor } = useUserAccess();
+  const { isAdmin, isConsultor, loading } = useUserAccess();
   // Modelo B2B: o consultor coloca EMPRESAS (coordenadores), não alunos diretos.
   // Só o admin (Israel, base legada B2C) mantém "Meus Alunos".
   const abas = ABAS;
@@ -44,6 +44,9 @@ export default function ConfiguracaoConsultor() {
     if (abaUrl && ABAS.some((a) => a.id === abaUrl)) setAtiva(abaUrl);
   }, [abaUrl]);
   const AtivaComp = abas.find((a) => a.id === ativa)?.Comp || MeusCursos;
+
+  if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
+  if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Esta área é exclusiva do consultor.</div>;
 
   return (
     <div>

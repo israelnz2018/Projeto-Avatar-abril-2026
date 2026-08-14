@@ -1,6 +1,7 @@
 /** MarcaDoTime — escolha entre os dois fundos do consultor ou dois fundos próprios. */
 import React, { useEffect, useRef, useState } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { useSearchParams } from 'react-router-dom';
 import { Building2, Download, FileImage, Upload, X } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
@@ -8,8 +9,12 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 import { uploadBrandingImage, type BrandingAsset } from '../../services/brandingUploadService';
 
 export default function MarcaDoTime() {
+  const [searchParams] = useSearchParams();
   const { consultor, consultorId } = useConsultor();
-  const { isCoordenador, loading, empresaId, pptFonte, pptCapaUrl: capaSalva, pptInternaUrl: internaSalva } = useUserAccess();
+  const { isAdmin, isConsultor, isCoordenador, loading, empresaId, pptFonte, pptCapaUrl: capaSalva, pptInternaUrl: internaSalva } = useUserAccess();
+  const modoPreview = searchParams.get('modo') === 'coordenador' && (isAdmin || isConsultor);
+  const [times, setTimes] = useState<{ empresaId: string; nome: string }[]>([]);
+  const [empresaPreview, setEmpresaPreview] = useState('');
   const [fonte, setFonte] = useState<'consultor' | 'proprio'>('consultor');
   const [nomeEmpresa, setNomeEmpresa] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -18,25 +23,43 @@ export default function MarcaDoTime() {
   const [enviando, setEnviando] = useState<BrandingAsset | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
+  const empresaEfetiva = modoPreview ? empresaPreview : empresaId;
 
   useEffect(() => {
+    if (modoPreview) return;
     setFonte(pptFonte === 'proprio' ? 'proprio' : 'consultor');
     setPptCapaUrl(capaSalva || '');
     setPptInternaUrl(internaSalva || '');
-  }, [pptFonte, capaSalva, internaSalva]);
+  }, [pptFonte, capaSalva, internaSalva, modoPreview]);
 
   useEffect(() => {
-    if (!empresaId) return;
-    getDoc(doc(db, 'team_branding', empresaId)).then((snap) => {
-      if (!snap.exists()) return;
+    if (!modoPreview) return;
+    getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId), where('tipoUsuario', '==', 'coordenador')))
+      .then((snap) => {
+        const lista = snap.docs.map((item) => item.data() as any).filter((item) => item.empresaId).map((item) => ({ empresaId: String(item.empresaId), nome: String(item.empresaNome || item.nome || item.empresaId) }));
+        setTimes(lista);
+        setEmpresaPreview((atual) => atual || lista[0]?.empresaId || '');
+      }).catch(() => setTimes([]));
+  }, [modoPreview, consultorId]);
+
+  useEffect(() => {
+    if (!empresaEfetiva) return;
+    getDoc(doc(db, 'team_branding', empresaEfetiva)).then((snap) => {
+      if (!snap.exists()) {
+        setNomeEmpresa(''); setLogoUrl(''); setFonte('consultor'); setPptCapaUrl(''); setPptInternaUrl('');
+        return;
+      }
       const data = snap.data() as any;
       setNomeEmpresa(typeof data.nomeEmpresa === 'string' ? data.nomeEmpresa : '');
       setLogoUrl(typeof data.logoUrl === 'string' ? data.logoUrl : '');
+      setFonte(data.pptFonte === 'proprio' ? 'proprio' : 'consultor');
+      setPptCapaUrl(typeof data.pptCapaUrl === 'string' ? data.pptCapaUrl : '');
+      setPptInternaUrl(typeof data.pptInternaUrl === 'string' ? data.pptInternaUrl : '');
     }).catch(() => {});
-  }, [empresaId]);
+  }, [empresaEfetiva]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
-  if (!isCoordenador) return <div className="p-8 text-red-600 font-bold">Só o coordenador edita a marca do time.</div>;
+  if (!isCoordenador && !modoPreview) return <div className="p-8 text-red-600 font-bold">Só o coordenador edita a marca do time.</div>;
 
   async function enviar(file: File | undefined, tipo: BrandingAsset, aplicar: (url: string) => void) {
     if (!file) return;
@@ -55,9 +78,9 @@ export default function MarcaDoTime() {
     setSalvando(true);
     try {
       if (!auth.currentUser?.uid) throw new Error('Sessão expirada.');
-      if (!empresaId) throw new Error('Sua conta ainda não está vinculada a uma empresa/time.');
-      await setDoc(doc(db, 'team_branding', empresaId), {
-        empresaId,
+      if (!empresaEfetiva) throw new Error('Selecione uma empresa/time.');
+      await setDoc(doc(db, 'team_branding', empresaEfetiva), {
+        empresaId: empresaEfetiva,
         consultorId,
         nomeEmpresa: nomeEmpresa.trim(),
         logoUrl: logoUrl || null,
@@ -78,6 +101,16 @@ export default function MarcaDoTime() {
     <div className="max-w-4xl mx-auto pb-12">
       <h1 className="text-2xl font-black text-gray-800 mb-1">Marca do time (PPT)</h1>
       <p className="text-gray-500 text-sm mb-6">Escolha o modelo usado nos PowerPoints exportados pela sua turma.</p>
+
+      {modoPreview && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <label className="mb-1 block text-xs font-black uppercase tracking-wide text-amber-700">Visualizar como coordenador do time</label>
+          <select value={empresaPreview} onChange={(e) => setEmpresaPreview(e.target.value)} className="w-full max-w-md rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm">
+            {times.length === 0 && <option value="">Nenhum coordenador cadastrado</option>}
+            {times.map((time) => <option key={time.empresaId} value={time.empresaId}>{time.nome}</option>)}
+          </select>
+        </div>
+      )}
 
       <div className="space-y-5">
         <section className="bg-white border border-gray-200 rounded-2xl p-6">

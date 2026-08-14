@@ -49,7 +49,7 @@ const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
 const CURSO_UNITARIO_LEGADO = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
 
-export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embedded?: boolean; empresaIdFiltro?: string }) {
+export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteLeitura = false }: { embedded?: boolean; empresaIdFiltro?: string; somenteLeitura?: boolean }) {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const [rows, setRows] = useState<Aluno[]>([]);
@@ -366,7 +366,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursoUnitario}</span>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2">
+        {!somenteLeitura && <div className="flex items-center justify-end gap-2">
           {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
             {editUid === a.uid ? 'fechar' : 'editar'}
           </button>}
@@ -379,9 +379,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
               excluir
             </button>
           )}
-        </div>
+        </div>}
       </div>
-      {!a.inativo && editUid === a.uid && (
+      {!somenteLeitura && !a.inativo && editUid === a.uid && (
         <div className="px-4 pb-4 bg-gray-50/60">
           {a.completo && (
             <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
@@ -498,17 +498,17 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
     const alunosDoTime = alunosPorEmpresa.get(empresaId) || [];
     return (
       <>
-        <div className="px-4 py-3 border-b border-blue-100 bg-blue-50/30">
+        {!somenteLeitura && <div className="px-4 py-3 border-b border-blue-100 bg-blue-50/30">
           <button onClick={() => abrirFormAdicionar(empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
             <Plus size={14} /> {addAbertoEmpresaId === empresaId ? 'fechar cadastro' : 'adicionar aluno'}
           </button>
-        </div>
+        </div>}
         <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
           <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
         </div>
         {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
         {alunosDoTime.map(renderLinha)}
-        {addAbertoEmpresaId === empresaId && <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>}
+        {!somenteLeitura && addAbertoEmpresaId === empresaId && <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>}
       </>
     );
   };
@@ -529,11 +529,11 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
         Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
       </p>
 
-      <div className="flex justify-end mb-4">
+      {!somenteLeitura && <div className="flex justify-end mb-4">
         <button type="button" onClick={abrirAdicionarNoTopo} className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">
           <Plus size={16} /> adicionar aluno
         </button>
-      </div>
+      </div>}
       <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-5'} />
 
       {loading ? <div className="text-gray-500">Carregando…</div> : (

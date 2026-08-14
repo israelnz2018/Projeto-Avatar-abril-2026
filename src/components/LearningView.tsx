@@ -89,6 +89,9 @@ export default function LearningView() {
   const { plano, isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso, loading: loadingAcesso } = useUserAccess();
   const { consultor } = useConsultor();
   const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
+  // Na Area do Aluno, o consultor testa a experiencia de um aluno completo,
+  // sem herdar atalhos exclusivos de staff.
+  const modoAreaAluno = (isAdmin || isConsultor || isCoordenador) && (location.pathname === '/education' || location.pathname === '/alunocomeceporqui');
   // Starter = qualquer aluno gratuito (sem completo, sem admin, sem coordenador)
   const isStarter = !isAdmin && !isCoordenador && plano !== 'completo';
   const consultorAtual = resolveConsultorId();
@@ -115,7 +118,7 @@ export default function LearningView() {
   }, []);
 
   // Papéis que veem tudo do tenant (staff do consultor).
-  const veTudo = isAdmin || isConsultor;
+  const veTudo = (isAdmin || isConsultor) && !modoAreaAluno;
   // Modelo UNIFICADO (todos os consultores, incl. Israel = consultor referência):
   //  - Modo POR-CURSO (aluno com pacote de cursos): vê os cursos do pacote + os grátis;
   //    o resto fica com CADEADO. O plano:completo NÃO libera tudo aqui.
@@ -123,7 +126,7 @@ export default function LearningView() {
   //    exatamente como funciona hoje (grupos preservados).
   const isCourseLocked = (course: string) => {
     if (course === INTRO_COURSE_ALUNO) return false;
-    if (course === INTRO_COURSE_COORDENADOR) return !(isAdmin || isConsultor || isCoordenador);
+    if (course === INTRO_COURSE_COORDENADOR) return modoAreaAluno || !(isAdmin || isConsultor || isCoordenador);
     if (veTudo) return false;
     // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "curso grátis" no
     // sistema — só os cursos explicitamente liberados pelo consultor (isFree não faz bypass).
@@ -136,7 +139,7 @@ export default function LearningView() {
   useEffect(() => {
     if (loadingAcesso) return;
     fetchItems();
-  }, [loadingAcesso, isAdmin, isConsultor, isCoordenador, consultorAtual]);
+  }, [loadingAcesso, isAdmin, isConsultor, isCoordenador, consultorAtual, modoAreaAluno]);
 
   const resolveIntroCourseFromLocation = () => {
     const params = new URLSearchParams(location.search);
@@ -270,7 +273,7 @@ export default function LearningView() {
       .filter((item) => Boolean(item.bunnyVideoId && item.bunnyLibraryId))
       .filter((item) => {
         if (item.course === INTRO_COURSE_ALUNO) return true;
-        if (item.course === INTRO_COURSE_COORDENADOR) return isAdmin || isConsultor || isCoordenador;
+        if (item.course === INTRO_COURSE_COORDENADOR) return !modoAreaAluno && (isAdmin || isConsultor || isCoordenador);
         return true;
       });
     // Modelo unificado: TODOS os cursos aparecem; os não liberados ficam com CADEADO
@@ -369,6 +372,10 @@ export default function LearningView() {
                        item.content.toLowerCase().includes(searchTerm.toLowerCase());
     return categoryMatch && playlistMatch && searchMatch;
   });
+
+  if (requestedIntroCourse === INTRO_COURSE_COORDENADOR && !isAdmin && !isConsultor && !isCoordenador) {
+    return <div className="p-8 text-red-600 font-bold">Esta area e exclusiva do coordenador.</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -216,16 +216,6 @@ export default function MeusCoordenadores() {
     }
   }
 
-  function solicitarMaisAcessos(c: CoordRow) {
-    if (!consultor.email) {
-      window.alert('O e-mail do consultor ainda não está configurado. Entre em contato diretamente com ele.');
-      return;
-    }
-    const assunto = 'Solicitação de mais cursos ou acessos';
-    const corpo = `Olá, ${consultor.nome || consultor.branding.nome}.\n\nO coordenador ${c.nome}, do time ${c.empresa}, gostaria de solicitar mais cursos ou mais acessos para sua equipe.\n\nObrigado.`;
-    window.location.href = `mailto:${consultor.email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
-  }
-
   const campo = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const label = 'block text-xs font-black uppercase tracking-wide text-gray-500 mb-1';
 
@@ -352,14 +342,14 @@ export default function MeusCoordenadores() {
                           </div>
                         ))}
                       </div>
-                      <button type="button" onClick={() => solicitarMaisAcessos(c)} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                      <button type="button" disabled title="Este botão funciona quando o coordenador entra com a própria conta." className="mt-3 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 cursor-default">
                         <Mail size={16} /> Solicitar ao consultor mais cursos ou acessos
                       </button>
                     </div>
                   )}
                   <div>
                     <label className={label}>Alunos deste time</label>
-                    <MeusAlunos embedded empresaIdFiltro={c.empresaId} />
+                    <MeusAlunos embedded empresaIdFiltro={c.empresaId} somenteLeitura={modoCoordenador} />
                   </div>
                 </div>
               )}

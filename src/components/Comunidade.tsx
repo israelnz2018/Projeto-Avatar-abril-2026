@@ -758,7 +758,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const meIsAdmin = ADMIN_EMAILS.includes((auth.currentUser?.email || '').toLowerCase());
 
   // Escopo do time: admin/consultor escolhem a empresa; coordenador/aluno usam a própria.
-  const { isAdmin, isConsultor, empresaId } = useUserAccess();
+  const { isAdmin, isConsultor, isCoordenador, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
   const mePhotoUrl = consultor.branding?.fotoUrl || auth.currentUser?.photoURL || '';
   const cid = resolveConsultorId();
@@ -892,6 +892,13 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
     { v: 'ferramenta', label: 'Por ferramenta / vídeo', icon: Wrench },
     { v: 'tipo', label: 'Por tipo', icon: ListFilter },
   ];
+
+  if ((escopo === 'rede' || escopo === 'consultor') && !isAdmin && !isConsultor) {
+    return <div className="p-8 text-red-600 font-bold">Esta comunidade é exclusiva dos consultores.</div>;
+  }
+  if (escopo === 'time' && !isAdmin && !isConsultor && !isCoordenador) {
+    return <div className="p-8 text-red-600 font-bold">Esta comunidade pertence à Área do Coordenador.</div>;
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6">

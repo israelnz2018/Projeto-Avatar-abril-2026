@@ -5,6 +5,7 @@
  * Read-only, scoped por consultorId. Ver PLANO-WHITELABEL.md.
  */
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Users, UserCheck, FolderKanban, TrendingUp, Video, Award, Building2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { getRelatorioConsultor, RelatorioConsultor, SegmentoRelatorio } from '../../services/dashboardDataService';
@@ -38,6 +39,8 @@ function Cards({ s }: { s: SegmentoRelatorio }) {
 }
 
 export default function SuperRelatorio() {
+  const [searchParams] = useSearchParams();
+  const modoCoordenador = searchParams.get('area') === 'coordenador';
   const { consultor, consultorId } = useConsultor();
   const [r, setR] = useState<RelatorioConsultor | null>(null);
   const [empresaSelecionada, setEmpresaSelecionada] = useState('');
@@ -57,8 +60,8 @@ export default function SuperRelatorio() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Relatórios</h1>
-      <p className="text-gray-500 text-sm mb-6">O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</p>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Relatório do Meu Time' : 'Relatórios'}</h1>
+      <p className="text-gray-500 text-sm mb-6">{modoCoordenador ? 'Selecione um coordenador para visualizar exatamente o relatório do time dele.' : <>O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</>}</p>
 
       {loading && <div className="text-gray-500">Calculando o painel…</div>}
       {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
