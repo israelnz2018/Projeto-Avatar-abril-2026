@@ -5,6 +5,7 @@
  * os próprios alunos — sem bloco de cursos, porque é dono de todos.
  */
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { ChevronDown, Plus, Users2 } from 'lucide-react';
@@ -50,6 +51,8 @@ const maiorVencimento = (lista: { vencimento: string | null }[]) => {
 const dataBr = (v: string) => (v ? new Date(v).toLocaleDateString('pt-BR') : '—');
 
 export default function MeusCoordenadores() {
+  const [searchParams] = useSearchParams();
+  const modoCoordenador = searchParams.get('modo') === 'coordenador';
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, isConsultor, loading: loadingAcesso } = useUserAccess();
   const [rows, setRows] = useState<CoordRow[]>([]);
@@ -115,7 +118,7 @@ export default function MeusCoordenadores() {
       }).sort((a, b) => a.nome.localeCompare(b.nome));
 
       // Coordenadores primeiro; eu por último, como mais uma linha da mesma lista.
-      setRows([...linhasCoord, {
+      setRows(modoCoordenador ? linhasCoord : [...linhasCoord, {
         uid: 'eu',
         nome: 'Eu — meus próprios alunos',
         email: consultor.branding.nome || '',
@@ -138,7 +141,7 @@ export default function MeusCoordenadores() {
     }
   };
 
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [consultorId]);
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [consultorId, modoCoordenador]);
 
   if (loadingAcesso) return <div className="p-8 text-gray-500">Carregando...</div>;
   if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor gerencia coordenadores.</div>;
@@ -218,7 +221,7 @@ export default function MeusCoordenadores() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Meus Coordenadores e Alunos</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão dos Times dos Coordenadores' : 'Meus Coordenadores e Alunos'}</h1>
       <p className="text-gray-500 text-sm mb-6">
         Cada linha é um coordenador do seu mundo (<b>{consultor.branding.nome}</b>). Abra a linha para liberar
         cursos e gerenciar o time dele. A última linha é você, coordenando os seus próprios alunos.
@@ -227,7 +230,7 @@ export default function MeusCoordenadores() {
       {loading && <div className="text-gray-500">Carregando...</div>}
       {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
 
-      {!loading && (
+      {!loading && !modoCoordenador && (
         <div className="mb-4">
           <button onClick={() => { setAddAberto(!addAberto); setMsg(''); }}
             className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">

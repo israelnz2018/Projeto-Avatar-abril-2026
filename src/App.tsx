@@ -220,7 +220,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
           { name: 'Marca do Time', path: '/marca-time', icon: Palette },
         ] : [
-          { name: 'Gestão de Usuários', path: '/configuracao?aba=coordenadores&area=coordenador', icon: Users },
+          { name: 'Gestão de Usuários', path: '/meus-coordenadores?modo=coordenador', icon: Users },
           { name: 'Relatórios dos Times', path: '/configuracao?aba=relatorio&area=coordenador', icon: TrendingUp },
         ]),
         { name: 'Comunidade dos Meus Clientes', path: '/comunidade-coordenador', icon: Users },
