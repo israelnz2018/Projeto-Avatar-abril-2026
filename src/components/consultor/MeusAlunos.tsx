@@ -10,13 +10,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
-import { isIntroCourse } from '../../services/knowledgeService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
+import { hasCourseAccess } from '../../lib/courseAccess';
+import { getEducationCourses } from '../../services/educationCourseService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -99,20 +100,18 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     return [{ curso: cursoUnitario, vencimento: null, valor: 0, quantidade: 1 }, ...atuais];
   };
 
-  const toAluno = (d: any): Aluno => {
+  const possuiTodosCursos = (acessos: CursoAcesso[], catalogo: string[] = cursos) => {
+    const nomesLiberados = acessos.map((acesso) => acesso.curso);
+    return catalogo.length > 0 && catalogo.every((curso) => hasCourseAccess(nomesLiberados, curso));
+  };
+
+  const toAluno = (d: any, catalogo: string[] = cursos): Aluno => {
     const u = d as any;
     let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
       ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0, quantidade: Number(c?.quantidade) || 1 })).filter((c: CursoAcesso) => c.curso)
       : [];
     if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0, quantidade: 1 }));
-    const completoValido = (() => {
-      const ate = u.acessoCompletoAte;
-      if (!ate) return true;
-      const dt = new Date(ate);
-      return isNaN(dt.getTime()) ? true : dt.getTime() > Date.now();
-    })();
-    const completo = (u.plano === 'completo' && completoValido)
-      || (Array.isArray(u.formacoes) && u.formacoes.some((f: string) => !String(f).includes('introdutoria') && !String(f).includes('gratuito')));
+    const completo = possuiTodosCursos(ca, catalogo);
     return {
       uid: d.id,
       nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '-'),
@@ -131,14 +130,15 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const carregar = async () => {
     setLoading(true);
     try {
-      const [userDocs, blockedSnap, kbSnap, inits] = await Promise.all([
+      const [userDocs, blockedSnap, inits, catalogoEducacional] = await Promise.all([
         getUserDocsByConsultor(consultorId),
         getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
-        getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
         getInitiatives(),
+        getEducationCourses(consultorId),
       ]);
       const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
+      const nomesCursos = catalogoEducacional.map((curso) => curso.name);
       const lista: Aluno[] = allUsers
         .map((d) => {
           const u = d as any;
@@ -146,15 +146,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0, quantidade: Number(c?.quantidade) || 1 })).filter((c: CursoAcesso) => c.curso)
             : [];
           if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0, quantidade: 1 }));
-          // Acesso Completo (mundo Israel/legado): plano 'completo' válido OU formação avançada.
-          const completoValido = (() => {
-            const ate = u.acessoCompletoAte;
-            if (!ate) return true;
-            const dt = new Date(ate);
-            return isNaN(dt.getTime()) ? true : dt.getTime() > Date.now();
-          })();
-          const completo = (u.plano === 'completo' && completoValido)
-            || (Array.isArray(u.formacoes) && u.formacoes.some((f: string) => !String(f).includes('introdutoria') && !String(f).includes('gratuito')));
+          // "Completo" significa literalmente possuir todos os cursos do catálogo.
+          // O campo legado `plano: completo` não pode transformar um único curso em acesso total.
+          const completo = possuiTodosCursos(ca, nomesCursos);
           return {
             uid: d.id,
             nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '—'),
@@ -184,9 +178,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             cursosPermitidos,
           });
         });
-      const nomesCursos = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course))))).sort();
       setRows(lista);
-      setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
+      setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) }, nomesCursos)).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
       // "Alunos diretos" sempre disponível no topo — um único grupo fixo, sem coordenador,
@@ -217,6 +210,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     return mapa;
   }, [rows, busca, consultorId]);
   const buscando = busca.trim().length > 0;
+  const empresaDiretaId = empresaIdDireto(consultorId);
 
   if (loadingAcesso) return <div className="p-8 text-gray-500">Carregando…</div>;
   if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Apenas consultores e admins gerenciam alunos dos times.</div>;
@@ -286,7 +280,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       if (cursosNovos.length > 0 && anterior?.email) {
         await authedFetch('/api/acesso/novo-curso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: anterior.email, nome: anterior.nome, cursos: cursosNovos.map((c) => c.curso) }) });
       }
-      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos } : r)));
+      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos, completo: possuiTodosCursos(eCursos) } : r)));
       setEditMsg(cursosNovos.length > 0 ? '✅ Salvo. Novo curso liberado e aviso enviado por e-mail.' : '✅ Salvo.');
     } catch (e: any) { setEditMsg('❌ ' + (e?.message || e)); }
     finally { setEditSalvando(false); }
@@ -382,8 +376,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           )}
         </div>
         {!somenteLeitura && <div className="flex items-center justify-end gap-2">
-          {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
-            {editUid === a.uid ? 'fechar' : 'editar'}
+          {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">
+            <Pencil size={13} /> {editUid === a.uid ? 'Fechar edição' : 'Editar'}
           </button>}
           {!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
             className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
@@ -500,30 +494,34 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
   };
   const abrirAdicionarNoTopo = () => {
-    const direto = empresaIdDireto(consultorId);
-    setGruposAbertos((p) => ({ ...p, [direto]: true }));
-    setAddAbertoEmpresaId(direto); setAEmpresaId(direto);
+    if (addAbertoEmpresaId === empresaDiretaId) {
+      setAddAbertoEmpresaId(null);
+      return;
+    }
+    setAddAbertoEmpresaId(empresaDiretaId); setAEmpresaId(empresaDiretaId);
     setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
-    window.setTimeout(() => document.getElementById(`adicionar-aluno-${direto}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
   };
 
   // Corpo de um time: cabeçalho das colunas + alunos + "adicionar aluno".
   // Usado solto (dentro da linha do coordenador) e dentro do acordeão da tela cheia.
   const corpoGrupo = (empresaId: string) => {
     const alunosDoTime = alunosPorEmpresa.get(empresaId) || [];
+    const cadastroDentroDoGrupo = embedded || empresaId !== empresaDiretaId;
     return (
       <>
-        {!somenteLeitura && <div className="px-4 py-3 border-b border-blue-100 bg-blue-50/30">
+        {!somenteLeitura && cadastroDentroDoGrupo && <div className="px-4 py-3 border-b border-blue-100 bg-blue-50/30">
           <button onClick={() => abrirFormAdicionar(empresaId)} className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-800">
             <Plus size={14} /> {addAbertoEmpresaId === empresaId ? 'fechar cadastro' : 'adicionar aluno'}
           </button>
         </div>}
+        {!somenteLeitura && cadastroDentroDoGrupo && addAbertoEmpresaId === empresaId && (
+          <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>
+        )}
         <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
           <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
         </div>
         {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
         {alunosDoTime.map(renderLinha)}
-        {!somenteLeitura && addAbertoEmpresaId === empresaId && <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>}
       </>
     );
   };
@@ -544,11 +542,16 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
       </p>
 
-      {!somenteLeitura && <div className="flex justify-end mb-4">
+      {!somenteLeitura && <div className="flex justify-end mb-3">
         <button type="button" onClick={abrirAdicionarNoTopo} className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800">
-          <Plus size={16} /> adicionar aluno
+          <Plus size={16} /> {addAbertoEmpresaId === empresaDiretaId ? 'fechar cadastro' : 'adicionar aluno'}
         </button>
       </div>}
+      {!somenteLeitura && addAbertoEmpresaId === empresaDiretaId && (
+        <div id="adicionar-aluno-topo" className="mb-5 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
+          {renderFormAdicionar(empresaDiretaId)}
+        </div>
+      )}
       <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou e-mail…" className={campo + ' w-full max-w-sm mb-5'} />
 
       {loading ? <div className="text-gray-500">Carregando…</div> : (
