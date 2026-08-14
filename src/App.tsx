@@ -217,11 +217,10 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Coordenador Comece por aqui', path: '/coordenadorcomeceporqui', icon: Rocket },
         ...(isCoordenador ? [
           { name: 'GestÃ£o de UsuÃ¡rios', path: '/equipe', icon: LayoutDashboard },
-          { name: 'Report do Time', path: '/report-time', icon: TrendingUp },
+          { name: 'Relatório do Meu Time', path: '/report-time', icon: TrendingUp },
           { name: 'Marca do Time', path: '/marca-time', icon: Palette },
         ] : [
           { name: 'Gestão de Usuários', path: '/meus-coordenadores?modo=coordenador', icon: Users },
-          { name: 'Relatórios dos Times', path: '/configuracao?aba=relatorio&area=coordenador', icon: TrendingUp },
         ]),
         { name: 'Comunidade do Meu Time', path: '/comunidade-coordenador', icon: Users },
       ],
