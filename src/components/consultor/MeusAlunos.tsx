@@ -343,7 +343,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
             freeCursos.map((c) => (
               <span key={c} className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{c}</span>
             ))
-          ) : false ? (
+          ) : cursos.length > 0 ? (
             // Sem cursosAcesso, sem completo, sem curso gratuito configurado — cai no
             // primeiro curso de Meus Cursos em vez de ficar em branco.
             <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursos[0]}</span>
@@ -377,7 +377,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro }: { embe
           <div className="space-y-2 mb-3">
             {eCursos.length === 0 && (freeCursos.length > 0
               ? <div className="space-y-2">{freeCursos.map((curso) => <div key={curso} className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{curso}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>)}</div>
-              : null)}
+              : cursos.length > 0
+                ? <div className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{cursos[0]}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>
+                : null)}
             {eCursos.map((c) => (
               <div key={c.curso} className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
