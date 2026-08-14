@@ -26,7 +26,6 @@ import {
   Award,
 } from 'lucide-react';
 import { cn, youtubeThumb } from '@/src/lib/utils';
-import UpgradeBanner from './UpgradeBanner';
 import {
   getAllKnowledge,
   KnowledgeEntry,
@@ -379,7 +378,6 @@ export default function LearningView() {
 
   return (
     <div className="space-y-6">
-      <UpgradeBanner mensagem="Você vê os vídeos da trilha introdutória. Libere todos os cursos e vídeos." />
       {/* Título "Cursos de <consultor>" + toolbar (busca + grid/list) */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-black text-gray-800 m-0 truncate">{isIntroArea ? requestedIntroCourse : `Cursos de ${nomeConsultor}`}</h1>
@@ -707,9 +705,9 @@ export default function LearningView() {
                             <Lock size={22} className="text-white" />
                           </div>
                         </div>
-                        {/* Faixa "PACOTE COMPLETO" no canto */}
+                        {/* Faixa de conteudo bloqueado */}
                         <div className="absolute top-2 right-2 bg-[#0033CC] text-white text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-full shadow-lg">
-                          Pacote Completo
+                          {'N\u00e3o liberado'}
                         </div>
                       </>
                     ) : (
@@ -819,7 +817,6 @@ export default function LearningView() {
       <LockedToolPopup
         isOpen={lockedPopupOpen}
         onClose={() => setLockedPopupOpen(false)}
-        variant={(isCoordenador || acessoPorCurso) ? 'consultor' : 'upgrade'}
         consultorNome={nomeConsultor}
       />
     </div>

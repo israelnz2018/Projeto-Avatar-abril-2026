@@ -33,6 +33,7 @@ import QuizRunner from './QuizRunner';
 import Certificate from './Certificate';
 import OpiniaoModal from './OpiniaoModal';
 import { hasCourseAccess } from '../lib/courseAccess';
+import { LockedToolPopup } from './LockedToolPopup';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
@@ -79,6 +80,7 @@ export default function AvaliacaoView() {
   const [justPassedTrilha, setJustPassedTrilha] = useState<number | null>(null);
   // Trilha cujo depoimento (obrigatório) está sendo pedido, antes de abrir a prova.
   const [opiniaoTrilha, setOpiniaoTrilha] = useState<number | null>(null);
+  const [cursoBloqueado, setCursoBloqueado] = useState<string | null>(null);
 
   const uid = auth.currentUser?.uid;
   const consultorId = resolveConsultorId();
@@ -201,6 +203,7 @@ export default function AvaliacaoView() {
               if (consultor.depoimentoPreProvaAtivo === false) setActiveQuizTrilha(b.quiz.trilha);
               else setOpiniaoTrilha(b.quiz.trilha);
             }}
+            onLocked={() => setCursoBloqueado(b.initiative?.name || b.quiz.titulo)}
             showCongrats={justPassedTrilha === b.quiz.trilha}
           />
         ))}
@@ -223,6 +226,11 @@ export default function AvaliacaoView() {
           />
         );
       })()}
+      <LockedToolPopup
+        isOpen={cursoBloqueado !== null}
+        onClose={() => setCursoBloqueado(null)}
+        recursoNome={cursoBloqueado ? `o curso ${cursoBloqueado}` : undefined}
+      />
     </div>
   );
 }
@@ -230,8 +238,8 @@ export default function AvaliacaoView() {
 // ===================================================================================
 // Card de cada curso
 // ===================================================================================
-function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
-  bloco: BlocoState; index: number; certAluno: string; onStart: () => void; showCongrats: boolean;
+function BlocoCard({ bloco, index, certAluno, onStart, onLocked, showCongrats }: {
+  bloco: BlocoState; index: number; certAluno: string; onStart: () => void; onLocked: () => void; showCongrats: boolean;
 }) {
   const { quiz, unlocked, quizAvailable, videosTotal, videosWatched, watchPct, cert } = bloco;
   const pctInt = Math.round(watchPct * 100);
@@ -277,7 +285,7 @@ function BlocoCard({ bloco, index, certAluno, onStart, showCongrats }: {
       {/* Ação */}
       <div className="mt-auto pt-2">
         {!unlocked ? (
-          <button disabled className="w-full py-2.5 rounded-xl bg-gray-100 text-gray-400 font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
+          <button onClick={onLocked} className="w-full py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-200">
             <Lock size={16} /> Curso não liberado para você
           </button>
         ) : aprovado ? (

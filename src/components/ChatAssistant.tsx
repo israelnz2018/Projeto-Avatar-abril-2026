@@ -302,7 +302,7 @@ function NineCard({ card, i, onClick, compact = false, locked = false }: {
         height: compact ? 76 : 96,
         opacity: locked ? 0.6 : 1,
       }}
-      title={locked ? 'Disponível no plano completo' : undefined}
+      title={locked ? 'Conteúdo não liberado' : undefined}
     >
       {/* Glow decorativo (mais sutil agora) */}
       <div aria-hidden className="absolute -top-10 -right-10 w-28 h-28 rounded-full pointer-events-none"

@@ -428,6 +428,88 @@ async function startServer() {
     }
   }
 
+  // Solicitação enviada a partir de qualquer cadeado da plataforma.
+  // Registra no Firestore para auditoria e envia a mensagem por e-mail ao consultor do tenant.
+  app.post('/api/solicitacoes/acesso', requireUser, async (req: any, res) => {
+    const consultorId = String(req.body?.consultorId || '').trim();
+    const mensagem = String(req.body?.mensagem || '').trim();
+    const recurso = String(req.body?.recurso || '').trim().slice(0, 200);
+    const pagina = String(req.body?.pagina || '').trim().slice(0, 300);
+    if (!consultorId || mensagem.length < 5 || mensagem.length > 1000) {
+      return res.status(400).json({ error: 'Escreva uma mensagem entre 5 e 1000 caracteres.' });
+    }
+
+    const escaparHtml = (valor: unknown) => String(valor || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+    try {
+      const [usuarioSnap, consultorSnap] = await Promise.all([
+        adminFirestore().collection('users').doc(req.userUid).get(),
+        adminFirestore().collection('consultores').doc(consultorId).get(),
+      ]);
+      if (!consultorSnap.exists) return res.status(404).json({ error: 'Consultor não encontrado.' });
+
+      const usuario = usuarioSnap.data() || {};
+      const consultor = consultorSnap.data() || {};
+      const emailConsultor = String(consultor.email || '').trim();
+      if (!emailConsultor) return res.status(409).json({ error: 'O e-mail do consultor ainda não está configurado.' });
+
+      const nomeUsuario = String(usuario.nome || usuario.displayName || req.userEmail || 'Usuário');
+      const nomeConsultor = String(consultor.nome || consultor.branding?.nome || 'Consultor');
+      const criadoEm = new Date().toISOString();
+      const solicitacaoRef = await adminFirestore().collection('solicitacoes_acesso').add({
+        consultorId,
+        consultorEmail: emailConsultor,
+        solicitanteUid: req.userUid,
+        solicitanteNome: nomeUsuario,
+        solicitanteEmail: req.userEmail || '',
+        mensagem,
+        recurso,
+        pagina,
+        status: 'pendente_envio',
+        criadoEm,
+      });
+
+      const host = process.env.SMTP_HOST;
+      const port = parseInt(process.env.SMTP_PORT || '465', 10);
+      const user = process.env.SMTP_USER;
+      const pass = process.env.SMTP_PASS;
+      const fromEmail = process.env.SMTP_FROM || user;
+      if (!host || !user || !pass || !fromEmail) {
+        await solicitacaoRef.update({ status: 'erro_email', erro: 'SMTP não configurado' });
+        return res.status(503).json({ error: 'O envio de mensagens ainda não está configurado.' });
+      }
+
+      const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:24px;color:#1f2937">
+          <h2 style="color:#1E2D6E;margin-bottom:8px">Nova solicitação de acesso</h2>
+          <p>Olá, <strong>${escaparHtml(nomeConsultor)}</strong>.</p>
+          <p><strong>${escaparHtml(nomeUsuario)}</strong> (${escaparHtml(req.userEmail)}) enviou uma solicitação pela plataforma.</p>
+          ${recurso ? `<p><strong>Conteúdo solicitado:</strong> ${escaparHtml(recurso)}</p>` : ''}
+          <div style="margin:20px 0;padding:16px;border-left:4px solid #0033CC;background:#f3f6ff;white-space:pre-wrap">${escaparHtml(mensagem)}</div>
+          ${pagina ? `<p style="font-size:12px;color:#6b7280"><strong>Tela:</strong> ${escaparHtml(pagina)}</p>` : ''}
+          <p style="font-size:12px;color:#9ca3af">Solicitação registrada em ${escaparHtml(criadoEm)}.</p>
+        </div>`;
+      await transporter.sendMail({
+        from: `LBW - Educação pelo Trabalho <${fromEmail}>`,
+        to: emailConsultor,
+        replyTo: req.userEmail || undefined,
+        subject: `Solicitação de acesso de ${nomeUsuario}`,
+        html,
+      });
+      await solicitacaoRef.update({ status: 'enviado', enviadoEm: new Date().toISOString() });
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('[/api/solicitacoes/acesso]', error?.message || error);
+      return res.status(500).json({ error: 'Não foi possível enviar a solicitação agora.' });
+    }
+  });
+
   // Gera um slide em cima do PPTX real do consultor. O arquivo do modelo nunca
   // é devolvido nem escolhido pelo cliente: ele vem do tenant do usuário autenticado.
   app.post(["/api/ppt/gerar-ferramenta", "/api/ppt/gerar-apresentacao"], requireUser, async (req: any, res: any) => {

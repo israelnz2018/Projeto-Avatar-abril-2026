@@ -29,7 +29,6 @@ import {
 import { getAllKnowledge, getInstitutionalKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
-import UpgradeBanner from './UpgradeBanner';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
@@ -1380,7 +1379,6 @@ export default function DataAnalysis() {
       <LockedToolPopup
         isOpen={lockedAnalisePopupOpen}
         onClose={() => setLockedAnalisePopupOpen(false)}
-        variant={acessoPorCurso || isCoordenador ? 'consultor' : 'upgrade'}
       />
       {/* Header & Navigation Combined (Internal Workspace Header) */}
       <header className="bg-[#1f2937] text-white px-[20px] py-[10px] flex justify-between items-center border-b border-[#ccc] -mx-8 -mt-8 mb-8">
@@ -1486,7 +1484,6 @@ export default function DataAnalysis() {
       </header>
 
       <div className="p-[20px] space-y-6">
-        <UpgradeBanner mensagem="As análises de dados fazem parte do Plano Completo. Libere tudo agora." />
         {/* File Upload & Sheet Selection */}
         <div className="flex flex-col md:flex-row gap-[40px] items-end mb-6">
           <div className="flex-1" data-tour-id="upload">

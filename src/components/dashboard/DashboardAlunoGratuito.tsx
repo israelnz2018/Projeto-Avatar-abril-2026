@@ -4,7 +4,6 @@
  * Mostra:
  *   - Saudação + barra de progresso na trilha atual do usuário
  *   - Stats: ferramentas usadas, vídeos do escopo, crédito IA, projetos
- *   - CTA de upgrade ("X trilhas bloqueadas")
  *
  * 100% resiliente: tudo lido dos hooks da Fase 0 (useUserContentScope /
  * useUserUsageStats). Se você mudar as trilhas, vídeos ou ferramentas amanhã,
@@ -13,11 +12,9 @@
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { Wrench, Video, Sparkles, FolderKanban, Lock, ArrowRight } from 'lucide-react';
+import { Wrench, Video, Sparkles, FolderKanban, ArrowRight } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useUserContentScope, useUserUsageStats } from '../../hooks/useDashboardData';
-import { HOTMART_CHECKOUT_URL } from '../../lib/constants';
-import { useUserAccess } from '../../hooks/useUserAccess';
 import {
   DashboardShell,
   DashboardLoading,
@@ -36,7 +33,6 @@ interface Props {
 
 export default function DashboardAlunoGratuito({ nome }: Props) {
   const uid = auth.currentUser?.uid || null;
-  const { acessoPorCurso } = useUserAccess();
   const scope = useUserContentScope(uid);
   const stats = useUserUsageStats(uid);
 
@@ -47,8 +43,6 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
 
   const trilhaAtual = scope.data.initiatives[0]; // primeira trilha acessível = trilha principal
   const totalAcessiveis = scope.data.initiatives.length;
-  const totalGeral = scope.data.totalInitiatives;
-  const bloqueadas = scope.data.initiativesBloqueadas;
 
   const ferramentasFeitas = stats.data.ferramentas.completadas;
   const ferramentasTotais = stats.data.ferramentas.disponiveis;
@@ -182,55 +176,6 @@ export default function DashboardAlunoGratuito({ nome }: Props) {
                 style={{ cursor: 'pointer' }}
               >
                 Ver na Jornada
-                <ArrowRight size={14} />
-              </a>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ====== CTA DE UPGRADE ====== */}
-      {!acessoPorCurso && bloqueadas > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          className="mb-6"
-        >
-          <SectionLabel>Quer mais?</SectionLabel>
-          <div
-            className="relative rounded-2xl overflow-hidden p-6 md:p-8"
-            style={{
-              background: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 100%)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              boxShadow: '0 12px 32px -8px rgba(0,51,204,0.4)',
-            }}
-          >
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
-                  <Lock size={20} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black tracking-[0.3em] uppercase text-white/80 m-0 mb-1">
-                    Plano Completo
-                  </p>
-                  <h3 className="text-white font-black text-[1.2rem] md:text-[1.4rem] m-0 leading-tight">
-                    Desbloqueie {bloqueadas} {bloqueadas === 1 ? 'curso' : 'cursos'} a mais
-                  </h3>
-                  <p className="text-white/70 text-sm mt-1.5 m-0">
-                    Você está em {totalAcessiveis} de {totalGeral} cursos. A próxima camada técnica espera.
-                  </p>
-                </div>
-              </div>
-              <a
-                href={HOTMART_CHECKOUT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-[#0033CC] text-[12px] font-black uppercase tracking-widest hover:bg-white/90 transition-all whitespace-nowrap"
-                style={{ cursor: 'pointer' }}
-              >
-                Quero liberar tudo
                 <ArrowRight size={14} />
               </a>
             </div>

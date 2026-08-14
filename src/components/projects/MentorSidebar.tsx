@@ -576,10 +576,10 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
             <button
               onClick={() => setLockedPopupOpen(true)}
               className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 rounded-[8px] px-4 py-2.5 text-[13px] text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
-              title="Disponível no plano completo"
+              title="Conteúdo não liberado"
             >
               <Lock size={14} className="text-gray-500" />
-              Converse com o {mentorPrimeiro} sobre {activeToolLabel || 'esta ferramenta'} no plano completo
+              Solicite ao consultor acesso para conversar sobre {activeToolLabel || 'esta ferramenta'}
             </button>
           ) : (
             <div className="relative">

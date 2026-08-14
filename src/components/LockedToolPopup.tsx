@@ -1,123 +1,141 @@
-import React from 'react';
-import { Lock, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, Loader2, Lock, Send, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HOTMART_CHECKOUT_URL } from '../lib/constants';
+import { auth } from '../lib/firebase';
+import { useConsultor } from '../contexts/ConsultorContext';
 
 interface LockedToolPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  /** 'upgrade' (padrão, B2C legado): oferece upgrade via Hotmart.
-   *  'consultor' (modelo por-consultor: coordenador/aluno com pacote): não existe upgrade
-   *  self-service — o conteúdo só é liberado pelo consultor, então orienta a falar com ele. */
-  variant?: 'upgrade' | 'consultor';
-  /** Nome do consultor, usado só no variant='consultor'. */
   consultorNome?: string;
+  recursoNome?: string;
 }
 
-export const LockedToolPopup: React.FC<LockedToolPopupProps> = ({ isOpen, onClose, variant = 'upgrade', consultorNome }) => {
-  const handleUpgrade = () => {
-    window.open(HOTMART_CHECKOUT_URL, '_blank');
-    onClose();
-  };
+export const LockedToolPopup: React.FC<LockedToolPopupProps> = ({
+  isOpen,
+  onClose,
+  consultorNome,
+  recursoNome,
+}) => {
+  const { consultor, consultorId } = useConsultor();
+  const [mensagem, setMensagem] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+  const [enviado, setEnviado] = useState(false);
+  const nome = consultorNome || consultor.nome || consultor.branding.nome || 'seu consultor';
 
-  if (variant === 'consultor') {
-    return (
-      <AnimatePresence>
-        {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onClose}
-              className="absolute inset-0 bg-black/50"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-8 overflow-hidden"
-            >
-              <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
-                <X size={24} />
-              </button>
-              <div className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                  <Lock size={48} className="text-blue-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Ainda não liberado</h2>
-                <p className="text-gray-700 font-medium mb-1">Este conteúdo ainda não foi liberado para você.</p>
-                <p className="text-sm text-gray-500 mb-8">
-                  Fale com {consultorNome ? <b>{consultorNome}</b> : 'seu consultor'} para solicitar acesso.
-                </p>
-                <button onClick={onClose} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg transition-colors">
-                  Entendi
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    );
-  }
+  useEffect(() => {
+    if (!isOpen) return;
+    setMensagem(recursoNome
+      ? `Olá! Gostaria de solicitar acesso a ${recursoNome}.`
+      : 'Olá! Gostaria de solicitar acesso a este conteúdo.');
+    setErro('');
+    setEnviado(false);
+  }, [isOpen, recursoNome]);
+
+  const enviar = async () => {
+    const texto = mensagem.trim();
+    if (texto.length < 5 || enviando) return;
+    setEnviando(true);
+    setErro('');
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Faça login novamente para enviar a solicitação.');
+      const response = await fetch('/api/solicitacoes/acesso', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          consultorId,
+          mensagem: texto,
+          recurso: recursoNome || '',
+          pagina: `${window.location.pathname}${window.location.search}`,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Não foi possível enviar a solicitação.');
+      setEnviado(true);
+    } catch (e: any) {
+      setErro(e?.message || 'Não foi possível enviar a solicitação.');
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-black/50"
           />
-          
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-8 overflow-hidden"
+            initial={{ opacity: 0, scale: 0.94, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 10 }}
+            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-gray-100 bg-white p-7 shadow-2xl"
           >
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X size={24} />
+            <button onClick={onClose} aria-label="Fechar" className="absolute right-4 top-4 border-none bg-transparent text-gray-400 hover:text-gray-700">
+              <X size={22} />
             </button>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                <Lock size={48} className="text-blue-600" />
-              </div>
-
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
-                Ferramenta bloqueada
-              </h2>
-              
-              <p className="text-gray-700 font-medium mb-1">
-                Esta ferramenta está disponível no Pacote Completo.
-              </p>
-              
-              <p className="text-sm text-gray-500 mb-8">
-                Desbloqueie todas as ferramentas e formações avançadas.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 w-full">
-                <button
-                  onClick={handleUpgrade}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-                >
-                  Quero fazer upgrade
-                </button>
-                <button
-                  onClick={onClose}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 px-6 rounded-lg transition-colors"
-                >
+            {enviado ? (
+              <div className="flex flex-col items-center py-4 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 size={36} />
+                </div>
+                <h2 className="mb-2 text-xl font-black text-gray-900">Solicitação enviada</h2>
+                <p className="mb-6 text-sm text-gray-600">Sua mensagem foi enviada para {nome}.</p>
+                <button onClick={onClose} className="w-full rounded-xl border-none bg-[#0033CC] px-5 py-3 font-bold text-white hover:bg-[#1E2D6E]">
                   Fechar
                 </button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="mb-5 flex items-start gap-4 pr-7">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                    <Lock size={25} />
+                  </div>
+                  <div>
+                    <h2 className="m-0 text-xl font-black text-gray-900">Conteúdo não liberado</h2>
+                    <p className="mb-0 mt-1 text-sm text-gray-600">Quer solicitar acesso a {nome}?</p>
+                  </div>
+                </div>
+
+                <label htmlFor="mensagem-solicitacao-acesso" className="mb-2 block text-xs font-black uppercase tracking-wide text-gray-600">
+                  Mensagem para o consultor
+                </label>
+                <textarea
+                  id="mensagem-solicitacao-acesso"
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value.slice(0, 1000))}
+                  rows={5}
+                  autoFocus
+                  className="w-full resize-none rounded-xl border border-gray-300 p-3 text-sm text-gray-800 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                  placeholder="Explique qual curso, ferramenta ou conteúdo você gostaria de acessar."
+                />
+                <div className="mt-1 text-right text-[11px] text-gray-400">{mensagem.length}/1000</div>
+                {erro && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{erro}</p>}
+
+                <div className="mt-5 flex gap-3">
+                  <button onClick={onClose} className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-gray-700 hover:bg-gray-50">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={enviar}
+                    disabled={mensagem.trim().length < 5 || enviando}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border-none bg-[#0033CC] px-4 py-3 font-bold text-white hover:bg-[#1E2D6E] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {enviando ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
+                    {enviando ? 'Enviando...' : 'Enviar ao consultor'}
+                  </button>
+                </div>
+              </>
+            )}
           </motion.div>
         </div>
       )}

@@ -16,7 +16,6 @@ import {
   Settings,
   Users,
   Key,
-  Unlock,
   Megaphone,
   Award,
   FolderCheck,
@@ -78,7 +77,6 @@ const ComecePorAqui = lazy(() => import('./components/consultor/ComecePorAqui'))
 const AdminConsultores = lazy(() => import('./components/AdminConsultores'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
-import { HOTMART_CHECKOUT_URL } from './lib/constants';
 import { DefinirSenha } from './components/DefinirSenha';
 import MenuTour from './components/MenuTour';
 
@@ -104,7 +102,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   });
   const [avisoBloqueio, setAvisoBloqueio] = useState<{ titulo?: string; mensagem?: string; consultorNome?: string; expiraEm?: string } | null>(null);
   const { projetoAtivo } = useProject();
-  const { tipoUsuario, plano, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
+  const { tipoUsuario, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
   // Em site de consultor (israel.…), o dono só vê o papel de CONSULTOR — nunca o admin.
   // O admin (super-admin LBW) vive no hub (app.…). Ver PLANO-WHITELABEL.md.
@@ -387,25 +385,6 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
             })}
         </nav>
 
-        {/* Rodapé: CTA de compra — só para aluno gratuito */}
-        {!isAdmin && !isCoordenador && plano !== 'completo' && (
-          <div className="p-3 border-t border-gray-700">
-            <a
-              href={HOTMART_CHECKOUT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Liberar tudo — Plano Completo"
-              className={cn(
-                "w-full inline-flex items-center justify-center gap-2 rounded-lg text-white text-[11px] font-black uppercase tracking-widest transition-all hover:brightness-110 no-underline",
-                isSidebarOpen ? "px-4 py-2.5" : "p-2.5"
-              )}
-              style={{ background: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 100%)' }}
-            >
-              <Unlock size={15} className="shrink-0" />
-              {isSidebarOpen && <span>Liberar tudo</span>}
-            </a>
-          </div>
-        )}
       </aside>
 
       {/* Main Content */}

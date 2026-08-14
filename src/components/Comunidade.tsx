@@ -25,7 +25,6 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { resolveConsultorId, empresaIdDireto } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
-import UpgradeBanner from './UpgradeBanner';
 import {
   ouvirPosts, ouvirReplies, criarPost, criarReply, marcarResolvido,
   deletarPost, deletarReply, extrairMencionaveis, curtirPost, fixarPost,
@@ -919,8 +918,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
           <NotificationsBell />
         </div>
       </div>
-
-      <UpgradeBanner variant="compact" className="mb-5" mensagem="Consulte as opções disponíveis para acessar outros cursos e ferramentas." />
 
       {/* Seletor de empresa — só admin/consultor no escopo do coordenador (cada empresa é isolada) */}
       {podeEscolherEmpresa && (

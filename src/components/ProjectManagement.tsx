@@ -19,7 +19,6 @@ import { Toaster, toast } from 'sonner';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
-import UpgradeBanner from './UpgradeBanner';
 import { Lock } from 'lucide-react';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
@@ -496,7 +495,6 @@ export default function ProjectManagement() {
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4" data-tour-id="proj-coluna">
-        <UpgradeBanner variant="compact" className="shrink-0" mensagem="Consulte as opções disponíveis para acessar outras ferramentas." />
         {/* Top Section: Meus Projetos Ativos (DROPDOWN) */}
         <div className="shrink-0" data-tour-id="proj-ativos">
           {loading ? (
@@ -1085,7 +1083,6 @@ export default function ProjectManagement() {
       <LockedToolPopup
         isOpen={lockedPopupOpen}
         onClose={() => setLockedPopupOpen(false)}
-        variant={porConsultor ? 'consultor' : 'upgrade'}
         consultorNome={nomeConsultorPopup}
       />
     </div>

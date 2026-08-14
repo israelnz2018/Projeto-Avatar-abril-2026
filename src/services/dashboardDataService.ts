@@ -41,7 +41,7 @@ export interface UserContentScope {
   videoIds: Set<string>;
   /** Total de trilhas que existem no sistema hoje (acessíveis + bloqueadas) */
   totalInitiatives: number;
-  /** Total de trilhas que ele NÃO tem acesso (pra CTA de upgrade) */
+  /** Total de cursos que o usuário ainda não pode acessar. */
   initiativesBloqueadas: number;
 }
 

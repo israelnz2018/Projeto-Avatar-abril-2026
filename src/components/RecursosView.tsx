@@ -252,7 +252,6 @@ export default function RecursosView() {
       <LockedToolPopup
         isOpen={lockedPopupOpen}
         onClose={() => setLockedPopupOpen(false)}
-        variant={acessoPorCurso || isCoordenador ? 'consultor' : 'upgrade'}
         consultorNome={nomeConsultor}
       />
     </div>

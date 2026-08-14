@@ -33,7 +33,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Quote, ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
-import UpgradeBanner from './UpgradeBanner';
 import RodapeInstitucional from './RodapeInstitucional';
 import {
   TRILHAS,
@@ -246,11 +245,6 @@ export default function JornadaPrincipal() {
               );
             })}
           </div>
-        </div>
-
-        {/* CTA de compra — só para aluno gratuito */}
-        <div className="px-6 md:px-16 lg:px-24 mb-8">
-          <UpgradeBanner mensagem="Consulte as opções disponíveis para acessar outros cursos, ferramentas e análises." />
         </div>
 
         {/* BANNER DO MENTOR */}
