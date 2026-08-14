@@ -382,7 +382,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           )}
         </div>
         {!somenteLeitura && <div className="flex items-center justify-end gap-2">
-          {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+          {!a.inativo && !a.completo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="text-xs font-bold text-blue-600 hover:text-blue-800">
             {editUid === a.uid ? 'fechar' : 'editar'}
           </button>}
           {!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
@@ -396,7 +396,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           )}
         </div>}
       </div>
-      {!somenteLeitura && !a.inativo && editUid === a.uid && (
+      {!somenteLeitura && !a.inativo && !a.completo && editUid === a.uid && (
         <div className="px-4 pb-4 bg-gray-50/60">
           {a.completo && (
             <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
