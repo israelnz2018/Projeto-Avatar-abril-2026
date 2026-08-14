@@ -89,16 +89,13 @@ function canAccessInitiative(
   initiative: Initiative,
   user: UserData,
 ): boolean {
-  if (user.tipoUsuario === 'admin') return true;
+  if (user.tipoUsuario === 'admin' || user.tipoUsuario === 'consultor') return true;
   const agora = Date.now();
   const cursosAtivos = (user.cursosAcesso || [])
     .filter((item) => !item.vencimento || new Date(item.vencimento).getTime() >= agora)
     .map((item) => item.curso);
-  if ((user.cursosAcesso || []).length > 0) return hasCourseAccess(cursosAtivos, initiative.name);
+  if (Array.isArray(user.cursosAcesso)) return hasCourseAccess(cursosAtivos, initiative.name);
   if ((user.cursosLiberados || []).length > 0) return hasCourseAccess(user.cursosLiberados, initiative.name);
-  if (user.plano === 'completo') return true;
-  // Coordenadores legados sem pacote explícito mantêm o comportamento anterior.
-  if (user.tipoUsuario === 'coordenador') return true;
   return false;
 }
 

@@ -22,7 +22,7 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 export interface AdminCreateUserInput {
   email: string;
   nome?: string;
-  plano?: "gratuito" | "completo" | "coordenador";
+  plano?: "gratuito" | "completo" | "coordenador" | "por_curso";
   formacoes?: string[];
   empresaId?: string;
   empresaNome?: string;
@@ -70,7 +70,7 @@ export interface ListedUser {
   email: string;
   nome?: string;
   tipoUsuario: 'admin' | 'coordenador' | 'aluno';
-  plano?: 'gratuito' | 'completo' | 'coordenador';
+  plano?: 'gratuito' | 'completo' | 'coordenador' | 'por_curso';
   formacoes: string[];
   creditoIA: { limite: number; usado: number; resetEm: string; solicitouMais?: boolean; solicitadoEm?: string };
   empresaId?: string;

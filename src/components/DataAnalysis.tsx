@@ -451,9 +451,6 @@ export default function DataAnalysis() {
     if (CURSOS_DATA_ANALYSIS_COMPLETO.some((curso) => hasCourseAccess(cursosLiberados, curso))) return 'full';
     if (hasCourseAccess(cursosLiberados, CURSO_GRAFICOS)) return 'charts';
 
-    const acessoExplicitamentePorCurso = acessoPorCurso || isCoordenador;
-    // Compatibilidade apenas para alunos antigos que ainda usam o plano global.
-    if (!acessoExplicitamentePorCurso && plano === 'completo') return 'full';
     return 'none';
   })();
 

@@ -123,10 +123,7 @@ export default function AvaliacaoView() {
       // compatibilidade sem tentar extrair números do título comercial.
       const initiative = cursoDoTeste(quiz);
       if (!initiative) return [];
-      const unlocked = staff
-        || (acessoRestritoPorCurso
-          ? hasCourseAccess(cursosLiberados, initiative.name)
-          : plano === 'completo');
+      const unlocked = staff || (acessoRestritoPorCurso && hasCourseAccess(cursosLiberados, initiative.name));
       const tp = initiative && progress
         ? calculateTrilhaProgress(initiative, videos, progress.watchedUrls)
         : { total: 0, watched: 0, pct: 0 } as any;

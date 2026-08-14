@@ -27,7 +27,7 @@ const LIMITE_PAGANTE = 1000;        // completo pago (Hotmart)
 
 /** admin/coordenador não sofrem bloqueio de crédito. */
 function isPlanoIlimitado(tipoUsuario?: string): boolean {
-  return tipoUsuario === 'admin' || tipoUsuario === 'coordenador';
+  return tipoUsuario === 'admin' || tipoUsuario === 'consultor' || tipoUsuario === 'coordenador';
 }
 
 /** Marcas que indicam acesso completo concedido como CORTESIA (não pagante). */
@@ -38,8 +38,10 @@ function isCortesia(data: any): boolean {
 
 /** Limite mensal (tokens LBW) conforme o tipo de acesso do usuário. */
 function limitePorAcesso(data: any): number {
-  const plano = data?.plano;
-  if (plano === 'completo') return isCortesia(data) ? LIMITE_CORTESIA : LIMITE_PAGANTE;
+  const acessoPago = data?.planoComercialLegado === 'completo'
+    || data?.origem === 'compra-hotmart'
+    || data?.plano === 'completo';
+  if (acessoPago) return isCortesia(data) ? LIMITE_CORTESIA : LIMITE_PAGANTE;
   return LIMITE_GRATIS; // gratuito (ou ausente)
 }
 

@@ -94,9 +94,6 @@ export default function RecursosView() {
   const temAcesso = (cursos: string[]): boolean => {
     if (veTudo) return true; // staff vê tudo
     if (cursos.length === 0) return true; // todos os cursos
-    // Legado (plano completo sem pacote por-curso, ex.: Hotmart antigo) — vê tudo, como já
-    // acontece em Educação/Projetos pra esse mesmo perfil.
-    if (plano === 'completo' && !acessoPorCurso) return true;
     return cursos.some(c => hasCourseAccess(cursosLiberados, c));
   };
 

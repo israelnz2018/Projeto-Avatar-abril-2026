@@ -20,7 +20,7 @@ const INVITES_COLLECTION = 'invites';
 const ADMIN_EMAILS = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
 
 export type TipoUsuario = 'aluno' | 'coordenador' | 'admin' | 'consultor';
-export type Plano = 'gratuito' | 'completo' | 'coordenador';
+export type Plano = 'gratuito' | 'completo' | 'coordenador' | 'por_curso';
 
 export interface UserData {
   uid: string;
@@ -54,6 +54,7 @@ export interface UserData {
   empresaNome?: string;
   nome?: string;
   plano?: Plano | 'completo';
+  modeloAcesso?: 'por_curso';
   maxAlunos?: number;
   cursosAcesso?: Array<{ curso: string; vencimento?: string | null; valor?: number; quantidade?: number }>;
   cursosLiberados?: string[];

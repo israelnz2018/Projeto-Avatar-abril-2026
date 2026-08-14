@@ -476,12 +476,11 @@ export default function ChatAssistant() {
 
   // Bloqueio por plano: o aluno gratuito só usa a trilha free; as outras 7 ficam
   // com cadeado e abrem o paywall ao clicar (igual ao resto do app).
-  const { plano, isAdmin, canUseInitiative } = useUserAccess();
+  const { canUseInitiative } = useUserAccess();
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   // Um card é bloqueado se: não é admin, plano não é completo, e a iniciativa
   // correspondente (casada pelo número no nome) NÃO é free no Firestore.
   const isCardLocked = (card: TrilhaHeroCard): boolean => {
-    if (isAdmin || plano === 'completo') return false;
     const num = parseInt(card.num, 10);
     const init = allInitiatives.find(i => i.ordem === num);
     if (!init) return card.id !== 'ferramentas-dia-a-dia'; // fallback: só a trilha 1 livre

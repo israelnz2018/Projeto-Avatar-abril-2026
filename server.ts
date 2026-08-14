@@ -172,8 +172,8 @@ async function startServer() {
 
   // E-mail de acesso — 3 textos distintos (aprovados pelo Israel):
   //   1) novo + gratuito   → boas-vindas Trilha 1 + lista das outras 7
-  //   2) novo + completo   → boas-vindas com as 8 trilhas já liberadas
-  //   3) upgrade           → "você desbloqueou tudo" (sem senha, já tem login)
+  //   2) novo + completo   → produto legado convertido no curso especialista
+  //   3) upgrade           → novo curso especialista (sem trocar a senha)
   // Usa o mesmo SMTP Hostinger.
   async function sendAcessoEmail(params: {
     para: string;
@@ -204,7 +204,6 @@ async function startServer() {
     const linha = (n: string, txt: string) =>
       `<p style="margin:0 0 12px 0;font-size:14px;"><strong>${n}</strong> ${txt}</p>`;
 
-    const trilha1 = "<strong>Chegar em uma área nova e entregar rápido</strong> — entenda como qualquer área funciona (SIPOC, RACI, organograma, indicadores) e mostre valor já nas primeiras semanas.";
     const trilha2 = "<strong>Recomendar melhorias com dados</strong> — faça a pergunta certa antes do gráfico e use análises gráficas e estatísticas pra transformar números em recomendação que o chefe aprova.";
     const trilha3 = "<strong>Conduzir mudanças com menos resistência</strong> — leve sua ideia adiante sem virar inimigo do time (mapa de stakeholders, jornada ADKAR).";
     const trilha4 = "<strong>Apresentações que convencem</strong> — estruture sua recomendação no frame executivo e seja ouvido pela diretoria.";
@@ -263,38 +262,38 @@ async function startServer() {
         <p style="margin:0 0 12px 0;font-size:14px;">O Kit 90 Dias é a porta de entrada. Quando quiser ir além, a formação completa te leva do básico ao nível de quem senta na mesa de decisão — com mais 7 trilhas:</p>
         ${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}`;
     } else if (tipo === "pago") {
-      titulo = "Bem-vindo à Formação completa LBW 🚀 seu acesso está liberado";
-      planoLabel = "Plano Completo (8 trilhas)";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Que bom ter você aqui. Seu acesso ao <strong>Plano Completo da LBW</strong> está liberado — você tem <strong>todas as 8 trilhas</strong> e a plataforma inteira na mão, da primeira semana numa área nova até conduzir projetos complexos de ponta a ponta.`;
+      titulo = "Seu curso de Especialista está liberado 🚀";
+      planoLabel = "Especialista em Gestão de Projetos de Melhoria";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Que bom ter você aqui. Seu acesso ao curso <strong>Como Se Tornar um Especialista em Gestão de Projetos de Melhoria</strong> está liberado.`;
       credenciaisHtml = credComSenha;
       botaoLabel = "ACESSAR MINHA FORMAÇÃO";
       corpoHtml = `
-        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">SUA JORNADA COMPLETA — AS 8 TRILHAS:</p>
-        ${linha("1.", trilha1)}${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">CURSO LIBERADO:</p>
+        ${linha("", trilha8)}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
         <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">E AINDA:</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado em cada trilha</strong> — ao concluir uma trilha (respeitando o tempo mínimo), você recebe o certificado. São 8 certificados ao longo da jornada.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado do curso</strong> — ao concluir o curso e cumprir os critérios, você poderá emitir seu certificado.</p>
         ${dashboardBloco}
         ${mentorBloco}
         ${comunidadeBloco}
-        <p style="margin:18px 0 0 0;font-size:14px;">Comece pela Trilha 1 e siga no seu ritmo. Está tudo liberado.</p>`;
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else {
       // upgrade
-      titulo = "Você desbloqueou tudo 🚀 acesso completo liberado — LBW";
-      planoLabel = "Plano Completo (8 trilhas)";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Parabéns pela decisão — e obrigado pela confiança. Seu acesso acaba de ser <strong>atualizado para o Plano Completo</strong>: as <strong>8 trilhas</strong> e a plataforma inteira agora estão liberadas pra você.`;
+      titulo = "Novo curso liberado na plataforma LBW 🚀";
+      planoLabel = "Especialista em Gestão de Projetos de Melhoria";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Como Se Tornar um Especialista em Gestão de Projetos de Melhoria</strong> acaba de ser liberado.`;
       credenciaisHtml = credSemSenha;
       botaoLabel = "ENTRAR NA MINHA FORMAÇÃO";
       corpoHtml = `
-        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">AGORA É TUDO SEU — AS 8 TRILHAS:</p>
-        ${linha("1.", trilha1)}${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">NOVO CURSO DISPONÍVEL:</p>
+        ${linha("", trilha8)}
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
         <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">E AINDA:</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado em cada trilha</strong> — ao concluir uma trilha (respeitando o tempo mínimo), você recebe o certificado. São 8 certificados ao longo da jornada.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado do curso</strong> — ao concluir o curso e cumprir os critérios, você poderá emitir seu certificado.</p>
         ${dashboardBloco}
         ${mentorBloco}
         ${comunidadeBloco}
-        <p style="margin:18px 0 0 0;font-size:14px;">Você já conhece a Trilha 1. Agora é seguir em frente — está tudo liberado.</p>`;
+        <p style="margin:18px 0 0 0;font-size:14px;">Entre com sua senha habitual e acesse o novo curso.</p>`;
     }
 
     const html = `
@@ -2201,7 +2200,6 @@ async function startServer() {
     if (cursosAcesso.some((c: any) => !c.vencimento || Number.isNaN(new Date(c.vencimento).getTime()))) return res.status(400).json({ error: "Informe a expiração de cada curso liberado." });
     const maxAlunos = cursosAcesso.reduce((s: number, c: any) => s + (Number(c.quantidade) || 0), 0);
     const valorPago = cursosAcesso.reduce((s: number, c: any) => s + (Number(c.valor) || 0), 0);
-    const acessoCompletoAte = cursosAcesso.map((c: any) => String(c.vencimento)).sort().pop() || "";
     const empresaId = gerarEmpresaId(consultorId, empresaNome || email);
     const SENHA_CONVITE = gerarSenhaProvisoria();
 
@@ -2257,9 +2255,10 @@ async function startServer() {
         empresaNome: base.empresaNome || empresaNome,
         maxAlunos,
         valorPago, // valor pago pela empresa (repasse)
-        plano: "completo",
-        acessoCompletoAte,
+        plano: "por_curso",
+        modeloAcesso: "por_curso",
         cursosAcesso,
+        cursosLiberados: cursosAcesso.map((c: any) => c.curso),
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || new Date().toISOString(),
@@ -2352,7 +2351,6 @@ async function startServer() {
     const email = String(req.body?.email || "").toLowerCase().trim();
     const nome = String(req.body?.nome || "").trim();
     let cursosAcesso = Array.isArray(req.body?.cursosAcesso) ? req.body.cursosAcesso : [];
-    const acessoCompletoSemCursos = callerEhAdmin && req.body?.acessoCompletoSemCursos === true;
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const SENHA_CONVITE = gerarSenhaProvisoria();
@@ -2457,7 +2455,7 @@ async function startServer() {
         valor: typeof c?.valor === "number" ? c.valor : 0,
       }))
       .filter((c: any) => c.curso);
-    if (cursosAcesso.length === 0 && !acessoCompletoSemCursos) {
+    if (cursosAcesso.length === 0) {
       return res.status(400).json({ error: "Escolha ao menos um curso para o aluno." });
     }
     if (cursosAcesso.some((c: any) => !c.vencimento || Number.isNaN(new Date(c.vencimento).getTime()))) {
@@ -2485,8 +2483,10 @@ async function startServer() {
         consultorId,
         ...(empresaId ? { empresaId } : {}),
         ...(empresaNome ? { empresaNome } : {}),
-        plano: "completo",
+        plano: "por_curso",
+        modeloAcesso: "por_curso",
         cursosAcesso,
+        cursosLiberados: cursosAcesso.map((c: any) => c.curso),
         valorPago,
         incluidoNoTimeEm: vinculoAnterior.incluidoNoTimeEm || agoraIso,
       };
@@ -2509,7 +2509,7 @@ async function startServer() {
         vinculos: { ...vinculosExistentesAluno, [consultorId]: vinculoAluno },
         ...(preservarPrincipal ? {} : (empresaId ? { empresaId } : {})),
         ...(preservarPrincipal ? {} : (empresaNome ? { empresaNome } : {})),
-        ...(preservarPrincipal ? {} : { plano: "completo", cursosAcesso, valorPago }),
+        ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((c: any) => c.curso), valorPago }),
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agoraIso,
@@ -4267,7 +4267,7 @@ async function startServer() {
     const email = String(body.email || hotmartBuyer.email || "").toLowerCase().trim();
     const nome = String(body.nome || body.name || hotmartBuyer.name || hotmartBuyer.first_name || "").trim();
     // plano recebido do n8n:
-    //   'completo'  -> 8 trilhas
+    //   'completo'  -> curso especialista (nome comercial legado da Hotmart)
     //   'trilha1'   -> COMPRA da Trilha 1 (R$67). Acesso = mesma Trilha 1 do grátis,
     //                  mas conta como venda (origem + validade 1 ano).
     //   'gratuito'  -> Trilha 1 grátis (fluxo antigo). Default.
@@ -4283,9 +4283,19 @@ async function startServer() {
       return res.status(400).json({ error: "E-mail ausente ou inválido no payload." });
     }
 
-    const FORMACOES = {
-      gratuito: ["projetos-melhoria-introdutoria"],
-      completo: ["projetos-melhoria-completo"], // libera tudo (o app trata 'completo' como acesso total)
+    const CURSO_KIT_90 = "Como Resolver Problemas no Trabalho - Kit 90 dias";
+    const CURSO_ESPECIALISTA = "Como Se Tornar um Especialista em Gestão de Projetos de Melhoria";
+    const cursoComprado = planoSolicitado === "completo" ? CURSO_ESPECIALISTA : CURSO_KIT_90;
+    const cursoAcessoComprado = {
+      curso: cursoComprado,
+      vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null,
+      valor: 0,
+      quantidade: 1,
+    };
+    const mesclarCursoComprado = (lista: any) => {
+      const existentes = Array.isArray(lista) ? lista.filter((c: any) => c?.curso) : [];
+      const semDuplicar = existentes.filter((c: any) => String(c.curso).trim() !== cursoComprado);
+      return [...semDuplicar, cursoAcessoComprado];
     };
 
     try {
@@ -4318,8 +4328,11 @@ async function startServer() {
           tipoUsuario: "aluno",
           consultorId: consultorCompraId,
           consultorIds: [consultorCompraId],
-          plano: planoSolicitado,
-          formacoes: FORMACOES[planoSolicitado],
+          plano: "por_curso",
+          planoComercialLegado: planoSolicitado,
+          modeloAcesso: "por_curso",
+          cursosAcesso: [cursoAcessoComprado],
+          cursosLiberados: [cursoComprado],
           creditoIA: {
             limite: planoSolicitado === "completo" ? 1000 : 100,
             usado: 0,
@@ -4336,7 +4349,8 @@ async function startServer() {
           vinculos: {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
-              plano: planoSolicitado, formacoes: FORMACOES[planoSolicitado],
+              plano: "por_curso", planoComercialLegado: planoSolicitado, modeloAcesso: "por_curso",
+              cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado],
               origem: planoSolicitado === "completo" ? "compra-hotmart" : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing"),
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
             },
@@ -4361,8 +4375,11 @@ async function startServer() {
           tipoUsuario: "aluno",
           consultorId: consultorCompraId,
           consultorIds: [consultorCompraId],
-          plano: planoSolicitado,
-          formacoes: FORMACOES[planoSolicitado],
+          plano: "por_curso",
+          planoComercialLegado: planoSolicitado,
+          modeloAcesso: "por_curso",
+          cursosAcesso: [cursoAcessoComprado],
+          cursosLiberados: [cursoComprado],
           creditoIA: { limite: planoSolicitado === "completo" ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
           criadoEm: new Date().toISOString(),
           origem: "regularizado",
@@ -4370,7 +4387,8 @@ async function startServer() {
           vinculos: {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
-              plano: planoSolicitado, formacoes: FORMACOES[planoSolicitado],
+              plano: "por_curso", planoComercialLegado: planoSolicitado, modeloAcesso: "por_curso",
+              cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado],
               origem: "regularizado",
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
             },
@@ -4417,16 +4435,18 @@ async function startServer() {
       // sem tocar na senha nem no papel principal.
       if (!vinculoIsraelAnterior) {
         const origem = planoSolicitado === "completo" ? "compra-hotmart" : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
-        await salvarAcessoIsrael({ plano: planoSolicitado, formacoes: FORMACOES[planoSolicitado], origem, ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}) });
+        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: planoSolicitado, modeloAcesso: "por_curso", cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado], origem });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
         const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
         return res.json({ ok: true, status: statusCompat, vinculoCriado: true, uid, email, plano: planoSolicitado, emailEnviado });
       }
 
-      // Subindo de gratuito -> completo (ou comprou pago): atualiza plano
-      if (planoSolicitado === "completo" && planoAtual !== "completo") {
-        await salvarAcessoIsrael({ plano: "completo", formacoes: FORMACOES.completo, origem: "compra-hotmart", ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}) });
+      // O produto historicamente chamado "completo" agora libera literalmente
+      // somente o curso especialista, preservando qualquer curso anterior.
+      if (planoSolicitado === "completo" && !(Array.isArray(vinculoIsraelAnterior?.cursosAcesso) && vinculoIsraelAnterior.cursosAcesso.some((c: any) => String(c?.curso || "").trim() === cursoComprado))) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: "completo", modeloAcesso: "por_curso", cursosAcesso: cursosMesclados, cursosLiberados: cursosMesclados.map((c: any) => c.curso), origem: "compra-hotmart" });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "completo", contexto: "upgrade" });
         console.log(`[acesso/liberar] UPGRADE ${email}: ${planoAtual} -> completo`);
         return res.json({ ok: true, status: "atualizado-completo", uid, email, plano: "completo", emailEnviado });
@@ -4435,10 +4455,15 @@ async function startServer() {
       // COMPRA da Trilha 1 por quem já existia (lead/cortesia/gratuito). Não muda o
       // acesso (já tem a Trilha 1), mas registra que agora é COMPRA: origem + validade.
       // Não rebaixa quem já é completo.
-      if (isCompraTrilha1 && planoAtual !== "completo") {
+      if (isCompraTrilha1) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
         await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: "gratuito",
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
           origem: "compra-trilha1",
-          acessoCompletoAte: acessoAteCompra,
         });
         console.log(`[acesso/liberar] COMPRA-TRILHA1 (ja existia) ${email}`);
         return res.json({ ok: true, status: "compra-trilha1-registrada", uid, email, plano: planoAtual });
@@ -4446,11 +4471,14 @@ async function startServer() {
 
       // Materializa usuários legados no modelo de vínculos, mesmo sem mudança de plano.
       if (!base.vinculos?.[consultorCompraId]) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
         await salvarAcessoIsrael({
-          plano: planoAtual || planoSolicitado,
-          formacoes: vinculoIsraelAnterior?.formacoes || FORMACOES[planoSolicitado],
+          plano: "por_curso",
+          planoComercialLegado: planoSolicitado,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
           origem: vinculoIsraelAnterior?.origem || base.origem || "legado-israel",
-          ...(vinculoIsraelAnterior?.acessoCompletoAte ? { acessoCompletoAte: vinculoIsraelAnterior.acessoCompletoAte } : {}),
         });
       }
 

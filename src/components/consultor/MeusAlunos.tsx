@@ -4,8 +4,7 @@
  * add/remove) + adicionar aluno (nome, email, e por curso: vencimento default 1 ano
  * e valor pago). Tudo no Firebase. Ver PLANO-WHITELABEL.md.
  *
- * Acesso: 'completo' = todos os cursos; sem cursosAcesso e não-completo = grupo grátis
- * (Trilha 1, os cursos isFree); com cursosAcesso = pacote por-curso escolhido aqui.
+ * A lista literal `cursosAcesso` é a fonte de verdade das permissões.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -16,7 +15,6 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
-import { hasCourseAccess } from '../../lib/courseAccess';
 import { getEducationCourses } from '../../services/educationCourseService';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -29,7 +27,7 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 interface CursoAcesso { curso: string; vencimento: string | null; valor: number; quantidade: number; }
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
-  cursosAcesso: CursoAcesso[]; completo: boolean;
+  cursosAcesso: CursoAcesso[];
   unitarioLegado?: boolean;
   empresaId?: string;
   desvinculadoEm?: string;
@@ -100,18 +98,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     return [{ curso: cursoUnitario, vencimento: null, valor: 0, quantidade: 1 }, ...atuais];
   };
 
-  const possuiTodosCursos = (acessos: CursoAcesso[], catalogo: string[] = cursos) => {
-    const nomesLiberados = acessos.map((acesso) => acesso.curso);
-    return catalogo.length > 0 && catalogo.every((curso) => hasCourseAccess(nomesLiberados, curso));
-  };
-
-  const toAluno = (d: any, catalogo: string[] = cursos): Aluno => {
+  const toAluno = (d: any): Aluno => {
     const u = d as any;
     let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
       ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0, quantidade: Number(c?.quantidade) || 1 })).filter((c: CursoAcesso) => c.curso)
       : [];
     if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0, quantidade: 1 }));
-    const completo = possuiTodosCursos(ca, catalogo);
     return {
       uid: d.id,
       nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '-'),
@@ -119,8 +111,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       tipo: u.tipoUsuario || 'aluno',
       acessou: !!u.primeiroAcessoEm,
       cursosAcesso: ca,
-      completo,
-      unitarioLegado: !completo && u.plano !== 'completo',
+      unitarioLegado: ca.length === 0 && u.plano !== 'completo',
       desvinculadoEm: u.desvinculadoEm,
       avisoBloqueio: u.avisoBloqueio,
       inativo: true,
@@ -146,9 +137,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             ? u.cursosAcesso.map((c: any) => ({ curso: c?.curso, vencimento: c?.vencimento ?? null, valor: typeof c?.valor === 'number' ? c.valor : 0, quantidade: Number(c?.quantidade) || 1 })).filter((c: CursoAcesso) => c.curso)
             : [];
           if (ca.length === 0 && Array.isArray(u.cursosLiberados)) ca = u.cursosLiberados.map((c: string) => ({ curso: c, vencimento: null, valor: 0, quantidade: 1 }));
-          // "Completo" significa literalmente possuir todos os cursos do catálogo.
-          // O campo legado `plano: completo` não pode transformar um único curso em acesso total.
-          const completo = possuiTodosCursos(ca, nomesCursos);
           return {
             uid: d.id,
             nome: u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : '—'),
@@ -156,8 +144,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             tipo: u.tipoUsuario || 'aluno',
             acessou: !!u.primeiroAcessoEm,
             cursosAcesso: ca,
-            completo,
-            unitarioLegado: !completo && u.plano !== 'completo',
+            unitarioLegado: ca.length === 0 && u.plano !== 'completo',
             empresaId: u.empresaId ? String(u.empresaId) : undefined,
           };
         })
@@ -179,7 +166,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           });
         });
       setRows(lista);
-      setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) }, nomesCursos)).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
+      setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
       // "Alunos diretos" sempre disponível no topo — um único grupo fixo, sem coordenador,
@@ -259,11 +246,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const setValorCurso = (curso: string, v: string) => setECursos((p) => p.map((c) => (c.curso === curso ? { ...c, valor: parseValor(v.replace(/[^\d.,]/g, '')) } : c)));
   const removerCurso = (curso: string) => setECursos((p) => p.filter((c) => c.curso !== curso));
   const addCursoEdit = () => {
-    const alunoEditado = rows.find((aluno) => aluno.uid === editUid);
-    if (alunoEditado?.completo) {
-      setEditMsg('Este aluno já tem acesso Completo e, portanto, já possui todos os cursos.');
-      return;
-    }
     if (!eAddCurso || eCursos.some((c) => c.curso === eAddCurso)) return;
     setECursos((p) => [...p, { curso: eAddCurso, vencimento: emUmAno(), valor: 0, quantidade: 1 }]);
     setEAddCurso('');
@@ -276,11 +258,17 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       const cursosAnteriores = anterior ? cursosEfetivos(anterior) : [];
       const cursosNovos = eCursos.filter((novo) => !cursosAnteriores.some((antigo) => antigo.curso === novo.curso));
       const valorPago = eCursos.reduce((s, c) => s + (c.valor || 0), 0);
-      await updateUserNoConsultor(uid, consultorId, { cursosAcesso: eCursos, valorPago });
+      await updateUserNoConsultor(uid, consultorId, {
+        plano: 'por_curso',
+        modeloAcesso: 'por_curso',
+        cursosAcesso: eCursos,
+        cursosLiberados: eCursos.map((curso) => curso.curso),
+        valorPago,
+      });
       if (cursosNovos.length > 0 && anterior?.email) {
         await authedFetch('/api/acesso/novo-curso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: anterior.email, nome: anterior.nome, cursos: cursosNovos.map((c) => c.curso) }) });
       }
-      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos, completo: possuiTodosCursos(eCursos) } : r)));
+      setRows((p) => p.map((r) => (r.uid === uid ? { ...r, cursosAcesso: eCursos, unitarioLegado: false } : r)));
       setEditMsg(cursosNovos.length > 0 ? '✅ Salvo. Novo curso liberado e aviso enviado por e-mail.' : '✅ Salvo.');
     } catch (e: any) { setEditMsg('❌ ' + (e?.message || e)); }
     finally { setEditSalvando(false); }
@@ -365,8 +353,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         <div className="flex flex-wrap gap-1">
           {a.inativo ? (
             <span className="text-xs text-gray-400 italic">Acesso removido</span>
-          ) : a.completo ? (
-            <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-emerald-50 text-emerald-700">✓ Completo · todos os cursos</span>
           ) : a.cursosAcesso.length > 0 ? (
             cursosEfetivos(a).map((c) => (
               <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
@@ -392,18 +378,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       </div>
       {!somenteLeitura && !a.inativo && editUid === a.uid && (
         <div className="px-4 pb-4 bg-gray-50/60">
-          {a.completo && (
-            <div className="mt-3 mb-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-              Este aluno tem <b>acesso Completo</b> e já possui todos os cursos. Não é necessário adicionar outro curso.
-            </div>
-          )}
           <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
           <div className="space-y-2 mb-3">
-            {eCursos.length === 0 && (
-              a.completo
-                ? <div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><span className="flex-1">Completo · todos os cursos</span></div>
-                : <div className="flex items-center gap-2 text-sm text-gray-800"><span className="flex-1 truncate">{cursoUnitario}</span><span className="text-[11px] text-gray-400">1 acesso</span></div>
-            )}
+            {eCursos.length === 0 && <div className="text-sm text-gray-500">Nenhum curso liberado.</div>}
             {eCursos.map((c) => (
               <div key={c.curso} className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
@@ -419,7 +396,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
               </div>
             ))}
           </div>
-          {!a.completo && cursosDisponiveis(a.empresaId).length > 0 && (
+          {cursosDisponiveis(a.empresaId).length > 0 && (
             <div className="flex items-center gap-2 mb-3">
               <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
                 <option value="">+ adicionar curso…</option>

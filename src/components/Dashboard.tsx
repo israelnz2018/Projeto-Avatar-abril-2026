@@ -4,7 +4,7 @@
  * Decide qual dashboard renderizar usando os 4 sinais do useUserAccess:
  *   - isAdmin       → DashboardAdmin
  *   - isCoordenador → DashboardCoordenador
- *   - plano = completo → DashboardAlunoPago
+ *   - possui cursos liberados → DashboardAlunoPago
  *   - default       → DashboardAlunoGratuito
  *
  * Cada perfil é um arquivo separado em ./dashboard/. Aqui só decide e injeta o nome.
@@ -21,7 +21,7 @@ import DashboardCoordenador from './dashboard/DashboardCoordenador';
 import DashboardAdmin from './dashboard/DashboardAdmin';
 
 export default function Dashboard() {
-  const { loading, isAdmin, isCoordenador, plano } = useUserAccess();
+  const { loading, isAdmin, isCoordenador, cursosLiberados } = useUserAccess();
   const [nome, setNome] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,6 +42,6 @@ export default function Dashboard() {
 
   if (isAdmin) return <DashboardAdmin nome={nome} />;
   if (isCoordenador) return <DashboardCoordenador nome={nome} />;
-  if (plano === 'completo') return <DashboardAlunoPago nome={nome} />;
+  if (cursosLiberados.length > 0) return <DashboardAlunoPago nome={nome} />;
   return <DashboardAlunoGratuito nome={nome} />;
 }

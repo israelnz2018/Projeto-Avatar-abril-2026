@@ -6,7 +6,7 @@ import { userDataNoConsultor, type TipoUsuario } from '../services/userService';
 import { resolveConsultorId } from '../services/consultorService';
 import { hasCourseAccess } from '../lib/courseAccess';
 
-type Plano = 'gratuito' | 'completo' | 'coordenador';
+type Plano = 'gratuito' | 'completo' | 'coordenador' | 'por_curso';
 type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
 
 export function useUserAccess() {
@@ -122,32 +122,13 @@ export function useUserAccess() {
           } else {
             cursosLib = Array.isArray(data.cursosLiberados) ? data.cursosLiberados : [];
           }
-          // Modo por-curso: só quando o aluno TEM cursosAcesso não-vazio (pacote definido
-          // pelo consultor). Vazio/ausente = modelo de plano (preserva os grupos atuais).
-          porCurso = Array.isArray(data.cursosAcesso) && data.cursosAcesso.length > 0;
-          // Acesso completo pode ter validade (acessoCompletoAte). Se a data já
-          // passou, o "completo" expira e o usuário volta a gratuito.
-          // Sem o campo = completo sem validade (admin, casos antigos): não quebra.
-          const completoValido = (() => {
-            const ate = data.acessoCompletoAte;
-            if (!ate) return true; // sem validade definida
-            const dt = new Date(ate);
-            if (isNaN(dt.getTime())) return true; // data inválida: não bloqueia
-            return dt.getTime() > Date.now();
-          })();
-          if (data.plano === 'completo' && completoValido) {
-            userPlano = 'completo';
-          } else if (data.plano === 'completo' && !completoValido) {
-            userPlano = 'gratuito'; // acesso expirou
-          } else if (Array.isArray(data.formacoes) && data.formacoes.length > 0) {
-            const temAvancada = data.formacoes.some(
-              (f: string) => !f.includes('introdutoria') && !f.includes('gratuito')
-            );
-            userPlano = temAvancada ? 'completo' : 'gratuito';
-          }
+          // A lista literal é a única fonte de permissão. Lista vazia também é
+          // explícita e significa que nenhum curso foi liberado.
+          porCurso = Array.isArray(data.cursosAcesso) || data.modeloAcesso === 'por_curso' || data.plano === 'por_curso';
+          if (data.plano === 'por_curso') userPlano = 'por_curso';
         }
-        // Consultor e coordenador têm acesso total às ferramentas (como o completo).
-        // Não depende de plano/validade — o papel garante. Preserva os cursos que já tinham.
+        // O consultor administra o catálogo inteiro. Coordenadores e alunos usam
+        // exclusivamente a lista literal de cursos do seu vínculo.
         if (cons) userPlano = 'completo';
         setPlano(userPlano);
         setIsAdmin(admin);
@@ -204,26 +185,22 @@ export function useUserAccess() {
   }, []);
 
   const canUseTool = (toolId: string) => {
-    if (isAdmin) return true;
+    if (isAdmin || isConsultor) return true;
     // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "grátis" no
     // sistema — o acesso é SÓ o que o consultor liberou explicitamente. Se o consultor
     // quiser dar de graça, ele escolhe o curso com valor=0 (ainda assim precisa liberar).
-    if (isCoordenador && cursosLiberados.length > 0) return grantedToolIds.has(toolId);
-    if (acessoPorCurso) return grantedToolIds.has(toolId);
+    if (isCoordenador || acessoPorCurso) return grantedToolIds.has(toolId);
     // Modelo de plano LEGADO (aluno solo, sem coordenador/pacote): mantém as ferramentas grátis.
-    if (plano === 'completo') return true;
     return freeToolIds.has(toolId);
   };
 
   const canUseInitiative = (initiativeId: string, initiatives: any[]) => {
-    if (isAdmin) return true;
+    if (isAdmin || isConsultor) return true;
     const initiative = initiatives.find(i => i.id === initiativeId);
     if (!initiative) return false;
     // Modelo POR-CONSULTOR: idem — só o que foi explicitamente liberado, sem bypass de isFree.
-    if (isCoordenador && cursosLiberados.length > 0) return hasCourseAccess(cursosLiberados, initiative.name);
-    if (acessoPorCurso) return hasCourseAccess(cursosLiberados, initiative.name);
+    if (isCoordenador || acessoPorCurso) return hasCourseAccess(cursosLiberados, initiative.name);
     // Modelo de plano LEGADO: mantém as trilhas grátis do aluno solo (sem coordenador).
-    if (plano === 'completo') return true;
     return initiative.isFree === true;
   };
 

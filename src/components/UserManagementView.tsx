@@ -62,12 +62,14 @@ const PLANO_LABEL: Record<Plano, string> = {
   gratuito: 'Introdutório',
   completo: 'Completo',
   coordenador: 'Coordenador',
+  por_curso: 'Por curso',
 };
 
 const PLANO_COR: Record<Plano, string> = {
   gratuito: 'bg-green-100 text-green-700 border-green-300',
   completo: 'bg-amber-100 text-amber-700 border-amber-300',
   coordenador: 'bg-blue-100 text-blue-700 border-blue-300',
+  por_curso: 'bg-sky-100 text-sky-700 border-sky-300',
 };
 
 /** Chip de status de engajamento: colorido quando aconteceu, cinza apagado quando não. */
