@@ -2206,7 +2206,13 @@ async function startServer() {
         "israel",
       ].filter(Boolean)));
       await userRef.set({ consultorIds, vinculos }, { merge: true });
-      return res.json({ ok: true, destino: "https://israel.educacaopelotrabalho.com/education" });
+      const email = String(base.email || "").trim().toLowerCase();
+      if (email) {
+        const primeiroNome = String(base.nome || "").trim().split(/\s+/)[0] || "";
+        const html = `<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto"><div style="background:#1E2D6E;color:#fff;padding:24px"><h1 style="margin:0;font-size:22px">LBW — Educação pelo Trabalho</h1></div><div style="padding:28px 24px;border:1px solid #ccc"><p>Olá, ${primeiroNome}!</p><p>Seu acesso gratuito ao curso <strong>Como Resolver Problemas no Trabalho — Kit 90 Dias</strong> foi liberado.</p><p>Use o mesmo e-mail e senha da sua conta de consultor para acessar a experiência como aluno.</p><p style="text-align:center"><a href="https://israel.educacaopelotrabalho.com" style="background:#0033CC;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">ACESSAR COMO ALUNO</a></p></div></div>`;
+        await resendSend({ to: email, subject: "Seu acesso gratuito ao curso LBW foi liberado", html });
+      }
+      return res.json({ ok: true });
     } catch (err: any) {
       console.error("[POST /api/consultor/curso-demonstrativo] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao liberar curso demonstrativo." });
