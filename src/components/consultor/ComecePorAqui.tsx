@@ -280,7 +280,7 @@ export default function ComecePorAqui() {
   })();
 
   return (
-    <div className="max-w-3xl mx-auto pb-12">
+    <div className="w-full max-w-none pb-12">
       <div className="flex items-center gap-3 mb-1">
         <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 grid place-items-center"><Rocket size={20} /></div>
         <h1 className="text-2xl font-black text-gray-800">Consultor Comece por aqui</h1>
