@@ -313,7 +313,7 @@ export default function ComecePorAqui() {
               <div key={grupo.id} className="p-4">
                 <p className="font-bold text-gray-800">{grupo.nome}</p>
                 {grupo.videos.length === 0 ? (
-                  <div className="mt-3 grid aspect-video place-items-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/60 text-center">
+                  <div className="mt-3 grid aspect-video w-full max-w-sm place-items-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/60 text-center">
                     <div>
                       <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-white text-blue-500 shadow-sm"><Video size={20} /></span>
                       <p className="mt-2 text-sm font-bold text-blue-700">Seu vídeo aparecerá aqui</p>
