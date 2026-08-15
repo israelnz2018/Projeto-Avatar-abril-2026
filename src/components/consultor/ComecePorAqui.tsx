@@ -322,7 +322,7 @@ export default function ComecePorAqui() {
                     <div className="p-4"><h3 className="font-bold text-[14px] leading-tight text-gray-800">{video?.title || 'Vídeo ainda não cadastrado'}</h3><p className="mt-2 text-[11px] text-gray-500">{grupo.nome}</p></div>
                   </button>
                   {tarefa && <div className="border-t border-[#eee] bg-slate-50 p-4 text-sm text-gray-600">
-                    {grupo.id === 'experiencia-aluno' ? (consultorId !== 'israel' && <button type="button" disabled={liberandoCurso} onClick={conhecerComoAluno} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">{liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno'}</button>) : <><p>{tarefa.texto}</p>{tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}</>}
+                    {grupo.id === 'experiencia-aluno' ? <button type="button" disabled={liberandoCurso} onClick={consultorId === 'israel' ? () => navigate('/education') : conhecerComoAluno} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">{consultorId === 'israel' ? 'Acessar como aluno' : (liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno')}</button> : <><p>{tarefa.texto}</p>{tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}</>}
                   </div>}
                 </div>
               ));
