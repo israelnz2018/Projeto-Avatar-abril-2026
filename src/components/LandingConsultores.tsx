@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import RodapeConsultores from './RodapeConsultores';
 
-const AGENDAMENTO_URL = String(
-  import.meta.env.VITE_CONSULTOR_BOOKING_URL ||
-  'https://cal.com/educacaopelotrabalho/reuniao',
-).trim();
-
 const CSS = `
 .consultores-lp{--navy:#0a1330;--navy2:#14295d;--blue:#1456e8;--cyan:#38bdf8;--ink:#0f1526;--muted:#5b6b85;--line:#e3e9f5;--soft:#f4f7fd;--white:#fff;background:#fff;color:var(--ink);font-family:Inter,'Segoe UI',system-ui,sans-serif;line-height:1.65;overflow-x:hidden}
 .consultores-lp *{box-sizing:border-box}
@@ -110,7 +105,7 @@ const CSS = `
 .consultores-lp .form-section{background:linear-gradient(145deg,#eef4ff,#fff)}
 .consultores-lp .form-shell{display:grid;grid-template-columns:1fr 480px;gap:54px;align-items:center}
 .consultores-lp .form-copy h2{text-align:left}.consultores-lp .form-copy p{color:var(--muted);font-size:18px}.consultores-lp .form-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 24px 65px rgba(30,45,110,.14)}
-.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .leadform input,.consultores-lp .leadform select{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform input:focus,.consultores-lp .leadform select:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
+.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .leadform input,.consultores-lp .leadform select,.consultores-lp .leadform textarea{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform textarea{min-height:92px;resize:vertical}.consultores-lp .leadform input:focus,.consultores-lp .leadform select:focus,.consultores-lp .leadform textarea:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
 .consultores-lp .qualification{margin-top:5px;padding-top:18px;border-top:1px solid var(--line);display:grid;gap:15px}.consultores-lp .qualification-title{font-size:18px;margin:0;color:var(--navy2)}.consultores-lp .qualification-note{font-size:13px;color:var(--muted);margin:-8px 0 0}.consultores-lp .booking-pending,.consultores-lp .not-qualified{padding:18px;border-radius:14px;margin-top:18px;font-size:14px}.consultores-lp .booking-pending{background:#fff8e7;border:1px solid #f1d590;color:#704d00}.consultores-lp .not-qualified{background:#f4f7fd;border:1px solid var(--line);color:#42526d}
 .consultores-lp .leadform .cta{width:100%;margin-top:5px}.consultores-lp .micro{font-size:13px!important;text-align:center;color:#6b7890!important;margin:14px 0 0!important}.consultores-lp .error{color:#b42318;font-size:13px}.consultores-lp .success{text-align:center}.consultores-lp .success h3{font-size:28px}.consultores-lp .success p{color:var(--muted);margin-bottom:22px}
 .consultores-lp .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}.consultores-lp .reveal.visible{opacity:1;transform:none}
@@ -130,12 +125,16 @@ const LISTA_EMPRESA = ['Participantes', 'Treinamentos', 'Projetos', 'Ferramentas
 export default function LandingConsultores() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [funcao, setFuncao] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [atuaMelhoria, setAtuaMelhoria] = useState('');
   const [clientesEmpresariais, setClientesEmpresariais] = useState('');
   const [cursoOnline, setCursoOnline] = useState('');
+  const [cursoPretendido, setCursoPretendido] = useState('');
+  const [empresasAtuacao, setEmpresasAtuacao] = useState('');
+  const [prazoConfiguracao, setPrazoConfiguracao] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [qualificado, setQualificado] = useState(false);
@@ -163,7 +162,7 @@ export default function LandingConsultores() {
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     setErro('');
-    if (!nome.trim() || !empresa.trim() || !funcao.trim() || !whatsapp.trim() || !atuaMelhoria || !clientesEmpresariais || !cursoOnline) {
+    if (!nome.trim() || !email.trim() || !empresa.trim() || !funcao.trim() || !whatsapp.trim() || !atuaMelhoria || !clientesEmpresariais || !cursoOnline || !cursoPretendido.trim() || !empresasAtuacao.trim() || !prazoConfiguracao) {
       setErro('Preencha todos os campos.');
       return;
     }
@@ -172,7 +171,7 @@ export default function LandingConsultores() {
       const response = await fetch('/api/leads-consultor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, empresa, funcao, whatsapp, atuaMelhoria, clientesEmpresariais, cursoOnline, origem: 'landing-consultores' }),
+        body: JSON.stringify({ nome, email, empresa, funcao, whatsapp, atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, origem: 'landing-consultores' }),
       });
       if (!response.ok) throw new Error();
       const result = await response.json();
@@ -337,15 +336,14 @@ export default function LandingConsultores() {
       <section>
         <div className="container">
           <div className="accent-line" />
-          <h2 className="section-title">Veja a LBW funcionando antes de decidir qualquer coisa.</h2>
-          <p className="section-lead">A melhor maneira de entender a plataforma é vendo como ela funciona na prática.</p>
-          <p className="section-lead">Por isso, estou realizando conversas individuais com consultores interessados em conhecer a LBW.</p>
+          <h2 className="section-title">Conheça a LBW e solicite sua participação.</h2>
+          <p className="section-lead">As primeiras vagas do Programa de Consultores LBW — Educação pelo Trabalho serão avaliadas pessoalmente.</p>
           <div className="live-flow">
-            <div className="live-card"><h3>Cadastre-se</h3><p>Preencha seus dados no formulário desta página.</p></div>
-            <div className="live-card"><h3>Responda às perguntas de qualificação</h3><p>As perguntas confirmam se você já atua com excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, possui curso online pronto e atende ou está buscando empresas como clientes.</p></div>
-            <div className="live-card"><h3>Escolha seu horário</h3><p><strong>A conversa é individual, gratuita e dura 45 minutos.</strong></p><p>O calendário mostra os horários disponíveis automaticamente no seu fuso.</p><p>Durante a reunião, eu mostro a plataforma considerando a realidade da sua consultoria e respondo às suas dúvidas.</p></div>
+            <div className="live-card"><h3>Envie sua solicitação</h3><p>Preencha seus dados e conte brevemente sobre seu curso e sua atuação.</p></div>
+            <div className="live-card"><h3>Receba a aprovação</h3><p>As solicitações são avaliadas para garantir que as vagas iniciais sejam ocupadas por consultores com perfil e intenção de ativação.</p></div>
+            <div className="live-card"><h3>Configure sua plataforma</h3><p>Após a aprovação, você recebe o acesso, conhece a plataforma como aluno e começa a estruturar sua própria solução.</p></div>
           </div>
-          <div className="next-date">Depois da qualificação, escolha diretamente no calendário o melhor horário disponível para você.</div>
+          <div className="next-date">Não há mensalidade inicial. As regras de participação comercial são explicadas com transparência dentro da plataforma.</div>
         </div>
       </section>
 
@@ -360,8 +358,8 @@ export default function LandingConsultores() {
             <details><summary>Cada empresa fica separada das outras?</summary><div className="answer"><p>Sim. Cada empresa possui seu próprio ambiente, com seus participantes, treinamentos, projetos e informações.</p><p>Um cliente não acessa os dados de outro.</p></div></details>
             <details><summary>Posso atender várias empresas ao mesmo tempo?</summary><div className="answer"><p>Sim. Você pode criar ambientes para diferentes empresas e acompanhar seus clientes de forma centralizada.</p></div></details>
             <details><summary>Preciso saber programar?</summary><div className="answer"><p>Não.</p><p>A plataforma foi desenvolvida para que você consiga cadastrar conteúdos, empresas e participantes sem precisar desenvolver software.</p></div></details>
-            <details><summary>Como funciona a conversa individual?</summary><div className="answer"><p>A conversa é gratuita, dura 45 minutos e acontece por videoconferência.</p><p>Depois da qualificação, você escolhe no calendário um dos horários disponíveis no seu próprio fuso.</p></div></details>
-            <details><summary>Existe algum custo para participar da apresentação?</summary><div className="answer"><p>Não.</p><p>A apresentação da plataforma é gratuita e não existe compromisso de contratação.</p></div></details>
+            <details><summary>Como funciona a conversa individual?</summary><div className="answer"><p>A conversa individual é opcional e será liberada após você concluir a fase Consultor Comece por aqui, incluindo o cadastro de seu primeiro curso com vídeo.</p></div></details>
+            <details><summary>Existe mensalidade inicial?</summary><div className="answer"><p>Não existe mensalidade inicial para participar do programa.</p><p>Após a aprovação, você conhecerá as regras de participação comercial com transparência dentro da plataforma.</p></div></details>
           </div>
         </div>
       </section>
@@ -370,28 +368,31 @@ export default function LandingConsultores() {
         <div className="container form-shell">
           <div className="form-copy">
             <div className="accent-line" style={{ marginLeft: 0 }} />
-            <h2 className="section-title">Quer conseguir apresentar uma estrutura como essa para o seu próximo cliente?</h2>
-            <p>Veja a LBW funcionando ao vivo e entenda como ela poderia ser utilizada dentro da sua própria consultoria.</p>
-            <p><strong>Conversa individual, gratuita e ao vivo, com duração de 45 minutos.</strong></p>
-            <p><strong>Responda às perguntas abaixo e, se houver alinhamento, escolha seu horário diretamente no calendário.</strong></p>
+            <h2 className="section-title">Quer estruturar uma solução completa para seus próximos clientes?</h2>
+            <p>Envie sua solicitação para participar do Programa de Consultores LBW — Educação pelo Trabalho.</p>
+            <p>Se for aprovado, você receberá acesso à sua área de consultor e ao curso demonstrativo gratuito para conhecer a experiência do aluno.</p>
+            <p><strong>As vagas iniciais são analisadas pessoalmente.</strong></p>
           </div>
           <div className="form-card">
-            {enviado ? <div className="success">{qualificado ? <><h3>Seu perfil combina com esta conversa.</h3><p>Escolha agora o melhor horário disponível. O calendário fará a conversão automática para o seu fuso.</p>{AGENDAMENTO_URL ? <a className="cta" href={AGENDAMENTO_URL} target="_blank" rel="noopener noreferrer">Agendar minha conversa →</a> : <div className="booking-pending"><strong>A agenda está sendo conectada.</strong><br />Seu cadastro foi recebido e entrarei em contato para confirmar o horário.</div>}</> : <><h3>Obrigado pelo interesse.</h3><div className="not-qualified">Neste momento, as conversas individuais são exclusivas para quem já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, já possui curso online pronto e já atende ou está buscando empresas como clientes. Quando você atender aos três critérios, será um prazer conversar.</div></>}</div> : <form className="leadform" onSubmit={enviar}>
+            {enviado ? <div className="success">{qualificado ? <><h3>Sua solicitação foi recebida.</h3><p>Vou analisar suas respostas pessoalmente. Se sua participação for aprovada, você receberá por e-mail as instruções de acesso à plataforma.</p></> : <><h3>Obrigado pelo interesse.</h3><div className="not-qualified">Neste momento, o programa é voltado a quem já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, já possui curso online pronto e já atende ou está buscando empresas como clientes.</div></>}</div> : <form className="leadform" onSubmit={enviar}>
               <div><label>Nome</label><input value={nome} onChange={event => setNome(event.target.value)} placeholder="[Seu nome]" /></div>
+              <div><label>E-mail</label><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="voce@empresa.com" /></div>
               <div><label>Empresa / Consultoria</label><input value={empresa} onChange={event => setEmpresa(event.target.value)} placeholder="[Nome da sua empresa ou consultoria]" /></div>
               <div><label>Função</label><input value={funcao} onChange={event => setFuncao(event.target.value)} placeholder="[Sua função]" /></div>
               <div><label>WhatsApp</label><input value={whatsapp} onChange={event => setWhatsapp(event.target.value)} placeholder="[Seu WhatsApp]" /></div>
               <div className="qualification">
-                <h3 className="qualification-title">Antes de agendar</h3>
-                <p className="qualification-note">Estas respostas ajudam a confirmar se a conversa faz sentido para o seu momento profissional.</p>
-                <div><label>1. Você já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas?</label><select value={atuaMelhoria} onChange={event => setAtuaMelhoria(event.target.value)}><option value="">Selecione...</option><option value="ja_atuo">Sim, já atuo em uma dessas áreas</option><option value="nao">Não</option></select></div>
-                <div><label>2. Você já possui curso online próprio e pronto?</label><select value={cursoOnline} onChange={event => setCursoOnline(event.target.value)}><option value="">Selecione...</option><option value="ja_tenho">Sim, tenho curso online pronto</option><option value="desenvolvendo">Ainda estou desenvolvendo</option><option value="nao_tenho">Não tenho</option></select></div>
-                <div><label>3. Você já atende ou está buscando empresas como clientes?</label><select value={clientesEmpresariais} onChange={event => setClientesEmpresariais(event.target.value)}><option value="">Selecione...</option><option value="ja_atendo">Sim, já atendo empresas</option><option value="estou_buscando">Ainda não atendo, mas estou buscando empresas</option><option value="nao">Não</option></select></div>
+                <h3 className="qualification-title">Sua solicitação</h3>
+                <p className="qualification-note">As respostas ajudam a avaliar se o programa faz sentido para o seu momento profissional.</p>
+                <div><label>1. Você atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou área relacionada?</label><select value={atuaMelhoria} onChange={event => setAtuaMelhoria(event.target.value)}><option value="">Selecione...</option><option value="ja_atuo">Sim, atuo em uma dessas áreas</option><option value="nao">Não</option></select></div>
+                <div><label>2. Você já possui as videoaulas do seu curso gravadas e prontas para publicar?</label><select value={cursoOnline} onChange={event => setCursoOnline(event.target.value)}><option value="">Selecione...</option><option value="ja_tenho">Sim, estão prontas para publicar</option><option value="desenvolvendo">Ainda estou desenvolvendo</option><option value="nao_tenho">Não tenho</option></select></div>
+                <div><label>3. Qual é o nome do curso que você pretende cadastrar e qual é a carga horária aproximada?</label><input value={cursoPretendido} onChange={event => setCursoPretendido(event.target.value)} placeholder="Ex.: Gestão de processos — aproximadamente 12 horas" /></div>
+                <div><label>4. Você já atende empresas ou está buscando empresas clientes neste momento?</label><select value={clientesEmpresariais} onChange={event => setClientesEmpresariais(event.target.value)}><option value="">Selecione...</option><option value="ja_atendo">Já atendo empresas</option><option value="estou_buscando">Estou buscando empresas clientes</option><option value="nao">Não</option></select></div>
+                <div><label>5. Quais empresas você atende ou pretende atender e qual é a área de atuação delas?</label><textarea value={empresasAtuacao} onChange={event => setEmpresasAtuacao(event.target.value)} placeholder="Se houver confidencialidade, informe apenas os segmentos." /></div>
+                <div><label>6. Em quanto tempo você pretende concluir a configuração inicial: marca, curso com vídeos, certificado e, se necessário, teste de avaliação?</label><select value={prazoConfiguracao} onChange={event => setPrazoConfiguracao(event.target.value)}><option value="">Selecione...</option><option value="ate_7">Em até 7 dias</option><option value="8_15">De 8 a 15 dias</option><option value="16_30">De 16 a 30 dias</option><option value="mais_30">Mais de 30 dias</option></select></div>
               </div>
               {erro && <div className="error">{erro}</div>}
-              <button className="cta" type="submit" disabled={enviando}>{enviando ? 'Enviando...' : 'Verificar perfil e continuar →'}</button>
-              <p className="micro">Sem custo e sem compromisso.</p>
-              <p className="micro">Você conhece a plataforma primeiro e depois decide se ela faz sentido para a sua consultoria.</p>
+              <button className="cta" type="submit" disabled={enviando}>{enviando ? 'Enviando...' : 'Enviar solicitação →'}</button>
+              <p className="micro">Sem mensalidade inicial. As vagas iniciais são limitadas e analisadas pessoalmente.</p>
             </form>}
           </div>
         </div>

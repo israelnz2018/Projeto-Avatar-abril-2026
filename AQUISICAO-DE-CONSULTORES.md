@@ -214,14 +214,30 @@ Regra central:
 ### 1. Definições da oferta
 
 - [x] Nome oficial: Programa de Consultores LBW — Educação pelo Trabalho.
-- [ ] Número inicial de vagas.
-- [ ] Porcentagem da LBW.
-- [ ] Base de cálculo da porcentagem.
+- [x] Número inicial de vagas: 20.
+- [x] Porcentagem da LBW: 10%.
+- [x] Base de cálculo: valor declarado na nota fiscal emitida pelo consultor.
 - [ ] Momento de pagamento da porcentagem.
 - [ ] Regras para cancelamentos, reembolsos e inadimplência.
-- [ ] Momento em que o consultor pode cadastrar clientes.
-- [ ] Regra de acompanhamento da primeira implantação de cliente.
+- [x] O consultor pode cadastrar empresas e alunos sem conversa individual prévia.
+- [x] A conversa individual é opcional e só é liberada após 100% das atividades de Consultor Comece por aqui.
 
-### 2. Próxima atividade
+### 2. Regras de ativação
+
+- [x] Curso demonstrativo gratuito: Como Resolver Problemas no Trabalho — Kit 90 dias.
+- [x] O curso demonstrativo inclui Data & Analysis completo.
+- [x] Prazo de ativação: 30 dias.
+- [x] A ativação exige um curso com pelo menos um vídeo e 100% de Consultor Comece por aqui.
+- [x] Sem ativação em 30 dias, o acesso de consultor e o curso demonstrativo ficam inativos; os dados são preservados.
+
+### 3. Solicitação e aprovação inicial
+
+- [x] O interessado responde seis perguntas de perfil e intenção na landing page.
+- [x] O acesso não é criado automaticamente.
+- [x] Israel avalia e aprova manualmente cada solicitação inicial.
+- [x] A aprovação cria a plataforma, o subdomínio e envia o convite de acesso.
+- [ ] Criar termos e condições para aceite obrigatório no cadastro.
+
+### 4. Próxima atividade
 
 A execução será feita uma atividade por vez, com validação antes de avançar para a próxima etapa.

@@ -2303,24 +2303,28 @@ async function startServer() {
   // POST /api/aluno/convidar — o CONSULTOR (ou admin) adiciona/promove um ALUNO no tenant dele,
   // com cursos liberados (cada um com vencimento) e o valor pago. Conta nova = LBW2026 + troca no
   // 1º login; existente = mantém a senha e só ajusta. Autoriza consultor OU admin.
-  // POST /api/leads-consultor — formulário PÚBLICO (sem login) da landing /consultores.
-  // Captura quem quer conhecer a plataforma como consultor parceiro, salva as
-  // respostas obrigatórias e informa ao front se o perfil pode abrir a agenda.
+  // POST /api/leads-consultor — formulário público da landing /consultores.
+  // As primeiras vagas são aprovadas manualmente pelo administrador antes que o
+  // consultor receba a plataforma.
   app.post("/api/leads-consultor", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const nome = String(req.body?.nome || "").trim().slice(0, 120);
+    const email = String(req.body?.email || "").trim().toLowerCase().slice(0, 180);
     const empresa = String(req.body?.empresa || "").trim().slice(0, 120);
     const funcao = String(req.body?.funcao || "").trim().slice(0, 120);
     const whatsapp = String(req.body?.whatsapp || "").trim().slice(0, 40);
     const atuaMelhoria = String(req.body?.atuaMelhoria || "").trim().slice(0, 40);
     const clientesEmpresariais = String(req.body?.clientesEmpresariais || "").trim().slice(0, 40);
     const cursoOnline = String(req.body?.cursoOnline || "").trim().slice(0, 40);
+    const cursoPretendido = String(req.body?.cursoPretendido || "").trim().slice(0, 300);
+    const empresasAtuacao = String(req.body?.empresasAtuacao || "").trim().slice(0, 800);
+    const prazoConfiguracao = String(req.body?.prazoConfiguracao || "").trim().slice(0, 40);
     const origem = String(req.body?.origem || "landing-consultores").trim().slice(0, 60);
     const respostasValidas =
       ["ja_atuo", "nao"].includes(atuaMelhoria) &&
       ["ja_atendo", "estou_buscando", "nao"].includes(clientesEmpresariais) &&
       ["ja_tenho", "desenvolvendo", "nao_tenho"].includes(cursoOnline);
-    if (!nome || !empresa || !funcao || !whatsapp || !respostasValidas) {
+    if (!nome || !email.includes("@") || !empresa || !funcao || !whatsapp || !cursoPretendido || !empresasAtuacao || !["ate_7", "8_15", "16_30", "mais_30"].includes(prazoConfiguracao) || !respostasValidas) {
       return res.status(400).json({ error: "Preencha todos os campos." });
     }
     const qualificado =
@@ -2329,15 +2333,55 @@ async function startServer() {
       cursoOnline === "ja_tenho";
     try {
       await adminFirestore().collection("leads_consultores").add({
-        nome, empresa, funcao, whatsapp, origem,
-        atuaMelhoria, clientesEmpresariais, cursoOnline, qualificado,
-        status: qualificado ? "qualificado_para_agendamento" : "nao_qualificado",
+        nome, email, empresa, funcao, whatsapp, origem,
+        atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, qualificado,
+        status: qualificado ? "aguardando_aprovacao" : "nao_qualificado",
         criadoEm: new Date().toISOString(),
       });
       return res.json({ ok: true, qualificado });
     } catch (err: any) {
       console.error("[POST /api/leads-consultor] erro:", err);
       return res.status(500).json({ error: "Erro ao salvar. Tente novamente." });
+    }
+  });
+
+  // Lista e atualiza solicitações de consultores fundadores. Somente o hub admin
+  // enxerga os dados, pois o formulário contém informações comerciais dos candidatos.
+  app.get("/api/leads-consultor", requireAdmin, async (_req: any, res: any) => {
+    try {
+      const snap = await adminFirestore().collection("leads_consultores").get();
+      const leads = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a: any, b: any) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
+      return res.json({ leads });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao listar solicitações." });
+    }
+  });
+
+  app.patch("/api/leads-consultor/:id", requireAdmin, async (req: any, res: any) => {
+    const id = String(req.params?.id || "").trim();
+    const status = String(req.body?.status || "").trim();
+    if (!id || !["aprovado", "recusado"].includes(status)) {
+      return res.status(400).json({ error: "Status inválido." });
+    }
+    try {
+      const ref = adminFirestore().collection("leads_consultores").doc(id);
+      const snap = await ref.get();
+      if (!snap.exists) return res.status(404).json({ error: "Solicitação não encontrada." });
+      const agora = new Date().toISOString();
+      await ref.set({
+        status,
+        decisaoEm: agora,
+        decisaoPor: req.adminEmail || "admin",
+        ...(status === "aprovado" ? {
+          consultorId: String(req.body?.consultorId || "").trim(),
+          conviteEnviado: Boolean(req.body?.conviteEnviado),
+        } : {}),
+      }, { merge: true });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || "Erro ao atualizar solicitação." });
     }
   });
 

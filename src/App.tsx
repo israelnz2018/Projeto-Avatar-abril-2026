@@ -75,6 +75,7 @@ const MeusCoordenadores = lazy(() => import('./components/consultor/MeusCoordena
 const ConfiguracaoConsultor = lazy(() => import('./components/consultor/ConfiguracaoConsultor'));
 const ComecePorAqui = lazy(() => import('./components/consultor/ComecePorAqui'));
 const AdminConsultores = lazy(() => import('./components/AdminConsultores'));
+const SolicitacoesConsultores = lazy(() => import('./components/SolicitacoesConsultores'));
 import { ensureUserDocument, getUserData } from './services/userService';
 import { useUserAccess } from './hooks/useUserAccess';
 import { DefinirSenha } from './components/DefinirSenha';
@@ -179,6 +180,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const adminHubItems = [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { name: 'Consultores', path: '/admin-consultores', icon: Store },
+      { name: 'Solicitações de Consultores', path: '/solicitacoes-consultores', icon: ClipboardList },
       { name: 'Repasses', path: '/repasses', icon: Wallet },
       { name: 'Gestão de Usuários', path: '/users', icon: Users },
       { name: 'Marketing', path: '/marketing', icon: Megaphone },
@@ -674,6 +676,7 @@ export default function App() {
               <Route path="/config" element={<AreaGate area="consultor"><ProjectToolsConfig /></AreaGate>} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
+              <Route path="/solicitacoes-consultores" element={<SolicitacoesConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
               <Route path="/marca" element={<AreaGate area="consultor"><MinhaMarca /></AreaGate>} />
               <Route path="/meus-cursos" element={<AreaGate area="consultor"><KnowledgeManagerView /></AreaGate>} />
