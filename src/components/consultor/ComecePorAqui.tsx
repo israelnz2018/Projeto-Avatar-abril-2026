@@ -325,6 +325,23 @@ export default function ComecePorAqui() {
                     ))}
                   </div>
                 )}
+                {(() => {
+                  const tarefa = ITENS.find((item) => item.id === grupo.id);
+                  if (!tarefa) return null;
+                  if (grupo.id === 'experiencia-aluno') {
+                    return consultorId !== 'israel' ? (
+                      <button type="button" disabled={liberandoCurso} onClick={conhecerComoAluno} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60">
+                        {liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno'}
+                      </button>
+                    ) : null;
+                  }
+                  return (
+                    <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-gray-600">
+                      <p>{tarefa.texto}</p>
+                      {tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -339,7 +356,6 @@ export default function ComecePorAqui() {
                 <div className="min-w-0 flex-1">
                   <div className={`font-bold ${marcado(item.id) ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{nomesPlaylistChecklist[item.id] || CONSULTOR_ONBOARDING_STEPS.find((etapa) => etapa.id === item.id)?.playlist || item.titulo}</div>
                   <p className="text-sm text-gray-500 mt-1">{item.texto}</p>
-                  {item.id === 'experiencia-aluno' && consultorId !== 'israel' && <button type="button" disabled={liberandoCurso} onClick={conhecerComoAluno} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60">{liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno'}</button>}
                   {item.botao && item.path && (
                     <button onClick={() => navigate(item.path!)} className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800">
                       {item.botao} →
