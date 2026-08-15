@@ -313,11 +313,13 @@ export default function ComecePorAqui() {
               <div key={grupo.id} className="p-4">
                 <p className="font-bold text-gray-800">{grupo.nome}</p>
                 {grupo.videos.length === 0 ? (
-                  <div className="mt-3 grid aspect-video w-full max-w-sm place-items-center rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/60 text-center">
-                    <div>
-                      <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-white text-blue-500 shadow-sm"><Video size={20} /></span>
-                      <p className="mt-2 text-sm font-bold text-blue-700">Seu vídeo aparecerá aqui</p>
-                      <p className="mt-1 text-xs text-blue-500">Cadastre um vídeo nesta playlist na Base de Conhecimento.</p>
+                  <div className="mt-3 w-full max-w-sm overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
+                    <div className="relative aspect-video bg-slate-900">
+                      <div className="absolute inset-0 grid place-items-center"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/20 text-white backdrop-blur-sm"><PlayCircle size={27} /></span></div>
+                    </div>
+                    <div className="p-4">
+                      <p className="font-bold text-[14px] leading-tight text-gray-800">Vídeo ainda não cadastrado</p>
+                      <p className="mt-2 text-[11px] text-gray-500">Cadastre o vídeo desta playlist na Base de Conhecimento.</p>
                     </div>
                   </div>
                 ) : (
