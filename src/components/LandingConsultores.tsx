@@ -1,98 +1,110 @@
-/**
- * LandingConsultores — página de CAPTAÇÃO de consultores parceiros.
- * Servida em /consultores SEM exigir login (bypass no App.tsx).
- * Visual idêntico ao padrão das outras landings (k9): NAVY+BLUE, Space Grotesk,
- * reveal ao rolar. Captura WhatsApp/Nome/Empresa/Função e convida pra reunião
- * de terça/sexta. Ao enviar, mostra o link da Comunidade WhatsApp.
- */
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import RodapeConsultores from './RodapeConsultores';
 
 const WHATSAPP_COMUNIDADE_URL = 'https://chat.whatsapp.com/KpijG8eqP98CqKx2UD3enV';
 
 const CSS = `
-.k9{--ink:#0A0F24;--navy:#1E2D6E;--blue:#0033CC;--line:rgba(255,255,255,.10);--txt:rgba(255,255,255,.74);--txt2:rgba(255,255,255,.5);--card:rgba(255,255,255,.04)}
-.k9 *{margin:0;padding:0;box-sizing:border-box}
-.k9{background:var(--ink);color:#fff;font-family:'Segoe UI',Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh;line-height:1.55}
-.k9 h1,.k9 h2,.k9 h3{font-family:'Space Grotesk',Inter,sans-serif;letter-spacing:-.02em;line-height:1.12;text-wrap:balance}
-.k9 .wrap{max-width:760px;margin:0 auto;padding:0 20px}
-.k9 .grad{background:linear-gradient(95deg,#fff,#9FC0FF 55%,#3B82F6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.k9 .eyebrow{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#9FC0FF;background:rgba(0,51,204,.16);border:1px solid rgba(0,51,204,.4);padding:8px 15px;border-radius:999px}
-.k9 .cta{display:inline-block;background:linear-gradient(120deg,var(--blue),#2563EB);color:#fff;font-weight:800;font-size:17px;text-decoration:none;padding:17px 34px;border-radius:14px;box-shadow:0 12px 34px rgba(0,51,204,.4);transition:transform .15s;border:none;cursor:pointer}
-.k9 .cta:hover{transform:translateY(-2px)}
-.k9 .cta:disabled{opacity:.6;cursor:default;transform:none}
-/* HERO */
-.k9 .hero{position:relative;text-align:center;padding:56px 20px 44px;overflow:hidden;background:radial-gradient(120% 90% at 50% -10%,rgba(30,45,110,.55),transparent 60%)}
-.k9 .hero h1{font-size:clamp(28px,7vw,50px);margin:20px 0 16px}
-.k9 .hero p.sub{font-size:clamp(16px,2.4vw,20px);color:var(--txt);max-width:600px;margin:0 auto 26px}
-/* SECTION */
-.k9 section{padding:48px 20px}
-.k9 section h2{font-size:clamp(23px,4.5vw,34px);margin-bottom:10px;text-align:center}
-.k9 .lead{color:var(--txt);text-align:center;max-width:600px;margin:0 auto 30px;font-size:16px}
-.k9 .dor{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.k9 .dor ul{max-width:560px;margin:0 auto;list-style:none;display:grid;gap:12px}
-.k9 .dor li{padding-left:30px;position:relative;color:var(--txt);font-size:15px}
-.k9 .dor li::before{content:'—';position:absolute;left:0;color:#3B82F6;font-weight:800}
-/* KIT (o que recebe) */
-.k9 .kit{display:grid;gap:10px;max-width:560px;margin:0 auto}
-.k9 .kit .item{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:14.5px}
-.k9 .kit .item .ck{color:#3B82F6;font-weight:800;flex-shrink:0}
-/* AGENDA (reunioes) */
-.k9 .fases{display:grid;gap:16px;max-width:640px;margin:0 auto}
-.k9 .fase{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
-.k9 .fase .tag{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9FC0FF}
-.k9 .fase h3{font-size:19px;margin:6px 0 8px}
-.k9 .fase p{color:var(--txt);font-size:14px}
-/* PUBLICO */
-.k9 .publico{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:640px;margin:0 auto}
-.k9 .publico .col h3{font-size:16px;margin-bottom:12px}
-.k9 .publico .col.sim h3{color:#6ee7b7}
-.k9 .publico .col.nao h3{color:#fca5a5}
-.k9 .publico .col ul{list-style:none;display:grid;gap:8px}
-.k9 .publico .col li{font-size:13.5px;color:var(--txt);padding-left:20px;position:relative}
-.k9 .publico .col.sim li::before{content:'✓';position:absolute;left:0;color:#10B981}
-.k9 .publico .col.nao li::before{content:'✕';position:absolute;left:0;color:#ef4444}
-@media(max-width:560px){.k9 .publico{grid-template-columns:1fr;gap:22px}}
-/* SOBRE MIM */
-.k9 .fundador{display:grid;grid-template-columns:.8fr 1.2fr;gap:32px;align-items:center;max-width:820px;margin:0 auto}
-.k9 .fundador img{width:100%;border-radius:16px;object-fit:cover;aspect-ratio:3/4;border:1px solid var(--line)}
-.k9 .fundador h2{text-align:left;font-size:clamp(22px,3.6vw,30px);margin-bottom:16px}
-.k9 .fundador p{color:var(--txt);line-height:1.65;margin-bottom:14px;font-size:15px}
-.k9 .fundador b{color:#fff}
-.k9 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
-.k9 .stats .n{font-size:clamp(20px,3vw,26px);font-weight:800;font-family:'Space Grotesk',sans-serif;color:#9FC0FF}
-.k9 .stats .l{font-size:11px;color:var(--txt2);margin-top:3px;line-height:1.3}
-@media(max-width:640px){.k9 .fundador{grid-template-columns:1fr;gap:22px}.k9 .fundador img{max-width:260px;margin:0 auto}.k9 .fundador h2{text-align:center}.k9 .stats{grid-template-columns:repeat(2,1fr)}}
-/* FAQ */
-.k9 .faq{display:grid;gap:12px;max-width:640px;margin:0 auto}
-.k9 .faq details{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.k9 .faq summary{list-style:none;cursor:pointer;padding:18px 22px;font-weight:700;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:14px}
-.k9 .faq summary::-webkit-details-marker{display:none}
-.k9 .faq summary::after{content:'+';color:#3B82F6;font-size:22px;font-weight:800;flex-shrink:0;transition:transform .2s}
-.k9 .faq details[open] summary::after{transform:rotate(45deg)}
-.k9 .faq details[open] summary{color:#9FC0FF}
-.k9 .faq .ans{padding:0 22px 20px;color:var(--txt);font-size:14.5px}
-/* OFERTA / FORM */
-.k9 .oferta{text-align:center;background:radial-gradient(120% 100% at 50% 0%,rgba(30,45,110,.5),transparent 65%)}
-.k9 .oferta .box{background:linear-gradient(160deg,rgba(0,51,204,.15),rgba(30,45,110,.08));border:1px solid rgba(0,51,204,.35);border-radius:22px;padding:38px 26px;max-width:480px;margin:0 auto}
-.k9 form.leadform{display:grid;gap:12px;text-align:left;margin-top:20px}
-.k9 form.leadform label{font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em}
-.k9 form.leadform input{width:100%;margin-top:5px;padding:13px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#fff;font-size:15px}
-.k9 form.leadform input::placeholder{color:var(--txt2)}
-.k9 form.leadform input:focus{outline:none;border-color:#3B82F6}
-.k9 .erro{color:#fca5a5;font-size:13px;margin-top:4px}
-.k9 .sucesso{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.4);border-radius:16px;padding:26px 22px;text-align:center}
-.k9 .sucesso h3{font-size:20px;margin-bottom:8px}
-.k9 .sucesso p{color:var(--txt);font-size:14.5px;margin-bottom:18px}
-/* Reveal ao rolar */
-.k9 .reveal{opacity:0;transform:translateY(42px);transition:opacity .8s cubic-bezier(.22,.61,.36,1),transform .8s cubic-bezier(.22,.61,.36,1)}
-.k9 .reveal.is-visible{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){ .k9 .reveal{opacity:1;transform:none;transition:none} }
+.consultores-lp{--navy:#0b1736;--navy2:#14295d;--blue:#1456e8;--cyan:#38bdf8;--ink:#101828;--muted:#586780;--line:#dce4f2;--soft:#f3f7ff;--white:#fff;background:#fff;color:var(--ink);font-family:Inter,'Segoe UI',system-ui,sans-serif;line-height:1.65;overflow-x:hidden}
+.consultores-lp *{box-sizing:border-box}
+.consultores-lp h1,.consultores-lp h2,.consultores-lp h3,.consultores-lp p{margin-top:0}
+.consultores-lp h1,.consultores-lp h2,.consultores-lp h3{font-family:'Space Grotesk',Inter,sans-serif;letter-spacing:-.035em;line-height:1.08;text-wrap:balance}
+.consultores-lp .container{width:min(1120px,calc(100% - 40px));margin:0 auto}
+.consultores-lp .narrow{width:min(840px,100%);margin-inline:auto}
+.consultores-lp section{padding:96px 0;position:relative}
+.consultores-lp .soft{background:var(--soft);border-block:1px solid var(--line)}
+.consultores-lp .dark{background:var(--navy);color:#fff}
+.consultores-lp .section-title{font-size:clamp(32px,5vw,54px);margin-bottom:22px;text-align:center}
+.consultores-lp .section-lead{font-size:clamp(17px,2vw,21px);color:var(--muted);max-width:810px;margin:0 auto 42px;text-align:center}
+.consultores-lp .dark .section-lead{color:#c6d2eb}
+.consultores-lp .body-copy{font-size:17px;color:var(--muted)}
+.consultores-lp .body-copy p{margin-bottom:18px}
+.consultores-lp .accent-line{width:68px;height:5px;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--cyan));margin:0 auto 24px}
+.consultores-lp .cta{border:0;border-radius:14px;padding:17px 27px;background:linear-gradient(120deg,#1456e8,#2877ff);color:#fff;font-size:16px;font-weight:850;box-shadow:0 14px 32px rgba(20,86,232,.3);cursor:pointer;transition:.2s transform,.2s box-shadow;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.consultores-lp .cta:hover{transform:translateY(-2px);box-shadow:0 18px 38px rgba(20,86,232,.4)}
+.consultores-lp .cta:disabled{opacity:.6;cursor:wait;transform:none}
+.consultores-lp .hero{padding:72px 0 86px;background:radial-gradient(circle at 75% 15%,rgba(56,189,248,.2),transparent 28%),radial-gradient(circle at 10% 85%,rgba(20,86,232,.28),transparent 35%),linear-gradient(145deg,#071126,#10234f 62%,#0b1736);color:#fff;text-align:center}
+.consultores-lp .eyebrow{display:inline-flex;padding:8px 14px;border:1px solid rgba(147,197,253,.35);background:rgba(59,130,246,.12);color:#bfdbfe;border-radius:99px;font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+.consultores-lp .hero h1{font-size:clamp(40px,7vw,76px);max-width:1000px;margin:26px auto 24px}
+.consultores-lp .hero .sub{max-width:820px;margin:0 auto 36px;color:#d5def0;font-size:clamp(18px,2.2vw,23px)}
+.consultores-lp .proof{font-size:13px;letter-spacing:.035em;color:#aec0e2;margin:30px auto 0}
+.consultores-lp .media-placeholder{min-height:310px;border:1px solid rgba(147,197,253,.28);border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.025));display:grid;place-items:center;color:#c5d7f8;font-weight:800;letter-spacing:.08em;margin:38px auto 30px;box-shadow:inset 0 1px rgba(255,255,255,.08);position:relative;overflow:hidden}
+.consultores-lp .media-placeholder::before{content:'';width:76px;height:76px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);position:absolute}
+.consultores-lp .media-placeholder span{position:relative;top:70px}
+.consultores-lp .split{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch}
+.consultores-lp .panel{border:1px solid var(--line);border-radius:22px;background:#fff;padding:30px;box-shadow:0 16px 46px rgba(30,45,110,.07)}
+.consultores-lp .panel h3{font-size:14px;letter-spacing:.12em;color:var(--blue);margin-bottom:20px}
+.consultores-lp .clean-list{list-style:none;margin:0;padding:0;display:grid;gap:11px}
+.consultores-lp .clean-list li{padding:11px 14px;border-radius:10px;background:var(--soft);color:#33415c;font-weight:650}
+.consultores-lp .ecosystem{display:grid;grid-template-columns:230px 1fr;gap:42px;align-items:center;margin-top:45px}
+.consultores-lp .consultancy-node{border-radius:24px;padding:34px 24px;background:linear-gradient(150deg,var(--blue),var(--navy2));color:#fff;text-align:center;font-weight:900;box-shadow:0 20px 46px rgba(20,86,232,.25)}
+.consultores-lp .companies{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.consultores-lp .company{background:#fff;border:1px solid var(--line);border-radius:18px;padding:23px;box-shadow:0 12px 30px rgba(30,45,110,.07)}
+.consultores-lp .company strong{display:block;color:var(--blue);margin-bottom:13px;font-size:15px}
+.consultores-lp .company span{display:block;color:var(--muted);font-size:13px;padding:3px 0}
+.consultores-lp .arrow{font-size:28px;text-align:center;color:var(--blue);font-weight:900;margin:16px 0}
+.consultores-lp .note-stack{display:grid;gap:10px;margin:35px auto 0;max-width:840px;text-align:center;color:var(--muted);font-size:16px}
+.consultores-lp .screens{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:38px 0 28px}
+.consultores-lp .screen{aspect-ratio:16/10;border-radius:20px;border:1px solid var(--line);background:linear-gradient(145deg,#e8effc,#fff);display:grid;place-items:center;color:#6e7f9e;font-size:13px;font-weight:800;letter-spacing:.05em;box-shadow:0 18px 42px rgba(30,45,110,.08)}
+.consultores-lp .brand-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+.consultores-lp .brand-grid div{padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:center;font-weight:800;color:var(--navy2)}
+.consultores-lp .statement{font-size:clamp(24px,3vw,34px);text-align:center;margin:42px auto 0;max-width:820px;color:var(--navy2)}
+.consultores-lp .journey{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:48px 0}
+.consultores-lp .journey-step{border:1px solid rgba(147,197,253,.24);background:rgba(255,255,255,.06);border-radius:18px;padding:22px 16px;min-height:190px;position:relative}
+.consultores-lp .journey-step:not(:last-child)::after{content:'↓';position:absolute;right:-13px;top:50%;z-index:2;color:#7dd3fc;font-size:19px;font-weight:900}
+.consultores-lp .journey-step h3{font-size:14px;color:#7dd3fc;letter-spacing:.08em;margin-bottom:14px}
+.consultores-lp .journey-step p{font-size:13px;color:#cbd7ed;margin:0}
+.consultores-lp .triple-screens{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+.consultores-lp .triple-screens .screen{background:rgba(255,255,255,.06);border-color:rgba(147,197,253,.25);color:#bfdbfe}
+.consultores-lp .paragraph-stack{max-width:840px;margin:0 auto;text-align:center;color:var(--muted);font-size:17px}
+.consultores-lp .paragraph-stack p{margin-bottom:13px}
+.consultores-lp .compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:44px}
+.consultores-lp .compare .panel:first-child{background:#fff8f8;border-color:#f1d4d4}
+.consultores-lp .compare .panel:last-child{background:#f3fbf8;border-color:#c9eadf}
+.consultores-lp .compare .panel:first-child h3{color:#b42318}.consultores-lp .compare .panel:last-child h3{color:#08775a}
+.consultores-lp .proposal{display:grid;grid-template-columns:1fr auto 1fr;gap:22px;align-items:center;margin:42px 0}
+.consultores-lp .quote{height:100%;border-radius:20px;padding:30px;border:1px solid var(--line);background:#fff;color:#34415b;font-size:19px;display:flex;align-items:center;box-shadow:0 14px 36px rgba(30,45,110,.07)}
+.consultores-lp .quote:last-child{background:linear-gradient(145deg,#10234f,#173b85);color:#fff;border:0}
+.consultores-lp .proposal-arrow{font-size:30px;color:var(--blue)}
+.consultores-lp .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:15px;margin-top:44px}
+.consultores-lp .step{position:relative;border:1px solid var(--line);border-radius:18px;padding:24px 18px;background:#fff}
+.consultores-lp .step h3{font-size:17px;margin-bottom:11px;color:var(--blue)}.consultores-lp .step p{font-size:14px;color:var(--muted);margin:0}
+.consultores-lp .audience{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:42px}
+.consultores-lp .audience .panel:last-child{background:#f7f8fb}
+.consultores-lp .audience .panel:first-child h3{color:#08775a}.consultores-lp .audience .panel:last-child h3{color:#667085}
+.consultores-lp .founder{display:grid;grid-template-columns:360px 1fr;gap:54px;align-items:center}
+.consultores-lp .founder img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:28px;border:1px solid rgba(147,197,253,.25);box-shadow:0 24px 60px rgba(0,0,0,.25)}
+.consultores-lp .founder .kicker{font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:#7dd3fc;font-weight:850}
+.consultores-lp .founder h2{text-align:left;font-size:clamp(36px,5vw,58px);margin:8px 0 5px}
+.consultores-lp .founder h3{font-size:25px;color:#bfdbfe;margin:0 0 22px}
+.consultores-lp .founder p{color:#ccd7ea;margin-bottom:15px}
+.consultores-lp .founder .idea{font-size:24px;color:#fff;border-left:4px solid var(--cyan);padding-left:20px;margin:26px 0}
+.consultores-lp .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:30px}
+.consultores-lp .stat{border:1px solid rgba(147,197,253,.2);background:rgba(255,255,255,.05);border-radius:15px;padding:16px}
+.consultores-lp .stat strong{display:block;color:#7dd3fc;font-size:20px}.consultores-lp .stat span{color:#adbbd4;font-size:12px}
+.consultores-lp .live-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
+.consultores-lp .live-card{border:1px solid var(--line);border-radius:18px;background:#fff;padding:26px}
+.consultores-lp .live-card h3{font-size:18px;color:var(--blue);margin-bottom:12px}.consultores-lp .live-card p{color:var(--muted);font-size:15px;margin-bottom:11px}
+.consultores-lp .next-date{max-width:760px;margin:30px auto 0;padding:20px;border-radius:15px;background:#e8f0ff;border:1px solid #c9d9ff;text-align:center;font-weight:850;color:var(--navy2)}
+.consultores-lp .faq{display:grid;gap:12px;max-width:850px;margin:38px auto 0}
+.consultores-lp .faq details{border:1px solid rgba(147,197,253,.2);border-radius:16px;background:rgba(255,255,255,.05);overflow:hidden}
+.consultores-lp .faq summary{list-style:none;cursor:pointer;padding:21px 24px;font-weight:800;display:flex;justify-content:space-between;gap:15px}.consultores-lp .faq summary::-webkit-details-marker{display:none}.consultores-lp .faq summary::after{content:'+';font-size:22px;color:#7dd3fc}.consultores-lp .faq details[open] summary::after{content:'−'}
+.consultores-lp .faq .answer{padding:0 24px 22px;color:#c7d3e8}.consultores-lp .faq .answer p{margin:0 0 9px}
+.consultores-lp .form-section{background:linear-gradient(145deg,#eef4ff,#fff)}
+.consultores-lp .form-shell{display:grid;grid-template-columns:1fr 480px;gap:54px;align-items:center}
+.consultores-lp .form-copy h2{text-align:left}.consultores-lp .form-copy p{color:var(--muted);font-size:18px}.consultores-lp .form-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 24px 65px rgba(30,45,110,.14)}
+.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .leadform input{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform input:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
+.consultores-lp .leadform .cta{width:100%;margin-top:5px}.consultores-lp .micro{font-size:13px!important;text-align:center;color:#6b7890!important;margin:14px 0 0!important}.consultores-lp .error{color:#b42318;font-size:13px}.consultores-lp .success{text-align:center}.consultores-lp .success h3{font-size:28px}.consultores-lp .success p{color:var(--muted);margin-bottom:22px}
+.consultores-lp .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}.consultores-lp .reveal.visible{opacity:1;transform:none}
+@media(max-width:900px){.consultores-lp section{padding:72px 0}.consultores-lp .ecosystem,.consultores-lp .founder,.consultores-lp .form-shell{grid-template-columns:1fr}.consultores-lp .consultancy-node{max-width:320px;margin:auto}.consultores-lp .journey{grid-template-columns:repeat(3,1fr)}.consultores-lp .journey-step:nth-child(3)::after{display:none}.consultores-lp .steps{grid-template-columns:repeat(2,1fr)}.consultores-lp .founder img{max-width:360px;margin:auto}.consultores-lp .form-shell{gap:34px}.consultores-lp .form-card{width:min(100%,560px);margin:auto}}
+@media(max-width:680px){.consultores-lp .container{width:min(100% - 28px,1120px)}.consultores-lp .hero{padding:54px 0 64px}.consultores-lp .media-placeholder{min-height:220px}.consultores-lp .split,.consultores-lp .companies,.consultores-lp .screens,.consultores-lp .brand-grid,.consultores-lp .compare,.consultores-lp .proposal,.consultores-lp .audience,.consultores-lp .live-flow,.consultores-lp .triple-screens{grid-template-columns:1fr}.consultores-lp .proposal-arrow{transform:rotate(90deg);text-align:center}.consultores-lp .journey,.consultores-lp .steps{grid-template-columns:1fr}.consultores-lp .journey-step{min-height:0}.consultores-lp .journey-step:not(:last-child)::after{display:block;right:50%;top:auto;bottom:-21px;transform:translateX(50%)}.consultores-lp .stats{grid-template-columns:1fr 1fr}.consultores-lp .panel{padding:23px}.consultores-lp .form-card{padding:23px}}
+@media(prefers-reduced-motion:reduce){.consultores-lp .reveal{opacity:1;transform:none;transition:none}}
 `;
 
-function scrollToOferta() {
-  document.getElementById('oferta')?.scrollIntoView({ behavior: 'smooth' });
+function scrollToForm() {
+  document.getElementById('consultores-formulario')?.scrollIntoView({ behavior: 'smooth' });
 }
+
+const LISTA_EMPRESA = ['Participantes', 'Treinamentos', 'Projetos', 'Ferramentas', 'Dados', 'Comunidade'];
 
 export default function LandingConsultores() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -107,29 +119,20 @@ export default function LandingConsultores() {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const targets = Array.from(
-      root.querySelectorAll('section h2, section .lead, .dor li, .fase, .kit .item, .publico .col, .fundador img, .stats > div, .faq details, .oferta .box')
-    ) as HTMLElement[];
-    targets.forEach((el) => {
-      el.classList.add('reveal');
-      const sibs = Array.from(el.parentElement?.children || []).filter((c) => (c as HTMLElement).classList.contains('reveal'));
-      const idx = sibs.indexOf(el);
-      if (idx > 0) el.style.transitionDelay = Math.min(idx * 80, 400) + 'ms';
-    });
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
-        });
-      },
-      { threshold: 0.15, rootMargin: '0px 0px -12% 0px' }
-    );
-    targets.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    const elements = Array.from(root.querySelectorAll('section > .container, .hero .container')) as HTMLElement[];
+    elements.forEach(element => element.classList.add('reveal'));
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    }), { threshold: 0.08 });
+    elements.forEach(element => observer.observe(element));
+    return () => observer.disconnect();
   }, []);
 
-  const enviar = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const enviar = async (event: React.FormEvent) => {
+    event.preventDefault();
     setErro('');
     if (!nome.trim() || !empresa.trim() || !funcao.trim() || !whatsapp.trim()) {
       setErro('Preencha todos os campos.');
@@ -137,202 +140,215 @@ export default function LandingConsultores() {
     }
     setEnviando(true);
     try {
-      const r = await fetch('/api/leads-consultor', {
+      const response = await fetch('/api/leads-consultor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, empresa, funcao, whatsapp, origem: 'landing-consultores' }),
       });
-      if (!r.ok) throw new Error();
+      if (!response.ok) throw new Error();
       setEnviado(true);
     } catch {
-      setErro('Não deu pra enviar agora. Tenta de novo em instantes.');
+      setErro('Não deu para enviar agora. Tente novamente em instantes.');
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <div className="k9" ref={rootRef}>
+    <div className="consultores-lp" ref={rootRef}>
       <style>{CSS}</style>
 
-      {/* HERO */}
       <header className="hero">
-        <div className="wrap">
-          <span className="eyebrow">LBW - Educação pelo Trabalho</span>
-          <h1>Uma plataforma pronta pra você colocar<br /><span className="grad">os seus cursos e os seus clientes.</span></h1>
-          <p className="sub">Suba o conteúdo que você já ensina, adicione quantas empresas-cliente quiser — cada uma com o próprio ecossistema, independente das outras — e acompanhe tudo de um único lugar. Com a sua marca.</p>
-          <button className="cta" onClick={scrollToOferta}>Quero conhecer a plataforma →</button>
+        <div className="container">
+          <span className="eyebrow">LBW — Educação pelo Trabalho</span>
+          <h1>Imagine apresentar sua próxima proposta de consultoria assim.</h1>
+          <p className="sub">Em vez de entregar treinamentos, ferramentas e acompanhamento separados, ofereça ao cliente um ambiente completo, com a sua marca, que continua com a equipe depois que você sai.</p>
+          <div className="media-placeholder"><span>[ VÍDEO DE APRESENTAÇÃO ]</span></div>
+          <button className="cta" onClick={scrollToForm}>Quero conhecer a plataforma →</button>
+          <p className="proof">20+ anos de experiência · 1.500+ profissionais treinados · US$ 20MM+ em ganhos com projetos</p>
         </div>
       </header>
 
-      {/* DOR */}
-      <section className="dor">
-        <div className="wrap">
-          <h2>Enquanto você foca em atender clientes, o resto do trabalho consome seu tempo.</h2>
-          <p className="lead">E aí vêm as perguntas de sempre:</p>
-          <ul>
-            <li>Você ainda monta a apresentação de cada projeto do zero, pra cada cliente?</li>
-            <li>Controla quem já assistiu o quê numa planilha, cliente por cliente?</li>
-            <li>Não tem como emitir certificado automaticamente pros seus alunos?</li>
-            <li>Quando alguém pergunta "você tem uma plataforma?", você fica sem resposta?</li>
-          </ul>
-          <p className="lead" style={{ marginTop: 24, marginBottom: 0 }}>Você não precisa construir isso do zero. <b style={{ color: '#fff' }}>Já existe pronto — com a sua marca.</b></p>
-        </div>
-      </section>
-
-      {/* MODELO MULTI-CLIENTE */}
       <section>
-        <div className="wrap">
-          <h2>Seu ecossistema, multiplicado pra cada cliente</h2>
-          <p className="lead">Você sobe os seus cursos uma vez. Depois, adiciona quantas empresas-cliente quiser.</p>
-          <div className="kit">
-            <div className="item"><span className="ck">✓</span> Cada empresa é independente — turma própria, dados próprios, comunidade própria</div>
-            <div className="item"><span className="ck">✓</span> Nenhum cliente vê o conteúdo ou os alunos de outro</div>
-            <div className="item"><span className="ck">✓</span> Você acompanha tudo de um único painel — todos os clientes, um lugar só</div>
-            <div className="item"><span className="ck">✓</span> Tudo com a sua marca: logo, cores e certificado, não a da LBW</div>
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Você já tem o conhecimento. A estrutura já está pronta.</h2>
+          <p className="section-lead">Você traz a sua metodologia, os seus cursos e os seus clientes.</p>
+          <p className="section-lead">A LBW fornece a estrutura para transformar tudo isso em uma experiência completa de aprendizagem, aplicação e acompanhamento.</p>
+          <div className="split">
+            <div className="panel"><h3>VOCÊ TRAZ</h3><ul className="clean-list"><li>Sua metodologia</li><li>Seus cursos e conteúdos</li><li>Sua experiência</li><li>Seus clientes</li></ul></div>
+            <div className="panel"><h3>A LBW ENTREGA</h3><ul className="clean-list"><li>A plataforma</li><li>As ferramentas</li><li>A tecnologia</li><li>A estrutura para organizar a entrega</li></ul></div>
           </div>
         </div>
       </section>
 
-      {/* O QUE CADA CLIENTE RECEBE */}
-      <section className="dor">
-        <div className="wrap">
-          <h2>O que cada empresa-cliente recebe</h2>
-          <p className="lead">Dentro do ecossistema dela, os funcionários têm acesso a:</p>
-          <div className="kit">
-            <div className="item"><span className="ck">1</span> O(s) curso(s) que você publicar — o seu conteúdo, do seu jeito</div>
-            <div className="item"><span className="ck">2</span> Software estatístico LBW completo</div>
-            <div className="item"><span className="ck">3</span> Ferramentas da qualidade já prontas pra preencher — sem montar do zero</div>
-            <div className="item"><span className="ck">4</span> Gestão de projetos de melhoria com apoio de IA, e apresentações prontas pra eles usarem com os clientes deles</div>
-            <div className="item"><span className="ck">5</span> Gestão do programa — visão de alunos e visão financeira, tudo dentro da plataforma</div>
+      <section className="soft">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Um ambiente próprio para cada empresa que você atende</h2>
+          <p className="section-lead">Você configura sua estrutura uma vez e cria um ambiente independente para cada novo cliente.</p>
+          <div className="ecosystem">
+            <div><div className="consultancy-node">SUA CONSULTORIA</div><div className="arrow">↓</div></div>
+            <div className="companies">{['EMPRESA A', 'EMPRESA B', 'EMPRESA C'].map(company => <div className="company" key={company}><strong>{company}</strong>{LISTA_EMPRESA.map(item => <span key={item}>{item}</span>)}</div>)}</div>
           </div>
+          <div className="note-stack"><p>Cada empresa acessa apenas o próprio ambiente.</p><p>Os participantes, projetos e informações de um cliente ficam separados dos demais.</p><p>E você acompanha todos os seus clientes em um único lugar.</p></div>
         </div>
       </section>
 
-      {/* AGENDA */}
-      <section className="dor">
-        <div className="wrap">
-          <h2>Como funciona a partir de agora</h2>
-          <div className="fases">
-            <div className="fase"><div className="tag">Hoje</div><h3>Você entra na Comunidade</h3><p>Preenche o formulário abaixo e recebe o link da nossa Comunidade no WhatsApp — é lá que os avisos e a agenda ficam.</p></div>
-            <div className="fase"><div className="tag">Terças e sextas, 20h (Brasília)</div><h3>Reunião ao vivo pelo Zoom</h3><p>Eu mostro a plataforma funcionando de verdade, tiro suas dúvidas e apresento a condição de lançamento.</p></div>
-            <div className="fase"><div className="tag">Depois</div><h3>Sua plataforma com sua marca</h3><p>Cadastro, ativação e você já pode levar aos seus clientes com o seu nome na frente.</p></div>
-          </div>
-        </div>
-      </section>
-
-      {/* PRA QUEM É */}
       <section>
-        <div className="wrap">
-          <h2>Para quem é (e para quem não é)</h2>
-          <div className="publico">
-            <div className="col sim">
-              <h3>É para você que</h3>
-              <ul>
-                <li>Já treina ou consulta empresas em melhoria contínua</li>
-                <li>Quer parecer (e ser) mais profissional sem virar programador</li>
-                <li>Precisa de algo pronto pra usar essa semana, não em 6 meses</li>
-                <li>Quer escalar sem contratar uma equipe pra gerenciar conteúdo</li>
-              </ul>
-            </div>
-            <div className="col nao">
-              <h3>Não é para você que</h3>
-              <ul>
-                <li>Está satisfeito controlando tudo em planilha e PDF solto</li>
-                <li>Não pretende atender mais de um cliente por vez</li>
-                <li>Não quer investir tempo numa reunião de 30-40 minutos pra ver a plataforma</li>
-              </ul>
-            </div>
-          </div>
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">E quem aparece para o cliente é você.</h2>
+          <p className="section-lead">A LBW fornece a tecnologia para que você possa entregar a experiência com a identidade da sua própria consultoria.</p>
+          <div className="screens"><div className="screen">[ SCREENSHOT — CONSULTORIA A ]</div><div className="screen">[ SCREENSHOT — CONSULTORIA B ]</div></div>
+          <div className="brand-grid"><div>Sua logo</div><div>Suas cores</div><div>Seus certificados</div><div>Suas apresentações</div></div>
+          <h3 className="statement">A tecnologia é da LBW. A experiência do seu cliente é sua.</h3>
         </div>
       </section>
 
-      {/* SOBRE MIM */}
-      <section className="dor">
-        <div className="wrap" style={{ textAlign: 'center', marginBottom: 22 }}>
-          <span className="eyebrow">Quem está por trás da LBW?</span>
-        </div>
-        <div className="wrap">
-          <div className="fundador">
-            <div><img src="/israel-foto.png" alt="Israel Souza" loading="lazy" /></div>
-            <div>
-              <h2>Israel Souza</h2>
-              <p>Há mais de 20 anos trabalho com melhoria de processos em <b>empresas multinacionais e no setor público</b>. Já treinei mais de <b>1.500 profissionais</b> e participei de projetos que geraram mais de <b>US$ 20 milhões</b> em ganhos.</p>
-              <p>Construí a LBW porque cansei de ver bons consultores perdendo tempo com apresentação, planilha e controle manual — em vez de fazer o que sabem fazer de melhor: <b>ensinar e resolver problemas reais.</b></p>
-              <div className="stats">
-                <div><div className="n">20+</div><div className="l">anos de experiência</div></div>
-                <div><div className="n">4</div><div className="l">multinacionais</div></div>
-                <div><div className="n">+1.500</div><div className="l">profissionais treinados</div></div>
-                <div><div className="n">US$ 20MM</div><div className="l">em ganhos gerados</div></div>
-              </div>
-            </div>
+      <section className="dark">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">O treinamento é só o começo.</h2>
+          <p className="section-lead">Uma plataforma tradicional ajuda você a entregar conteúdo.</p>
+          <p className="section-lead">A LBW foi criada para ajudar a transformar esse conteúdo em aplicação prática dentro da empresa.</p>
+          <div className="journey">
+            <div className="journey-step"><h3>APRENDER</h3><p>Cursos e treinamentos organizados dentro da plataforma.</p></div>
+            <div className="journey-step"><h3>APLICAR</h3><p>Ferramentas de qualidade e melhoria prontas para serem utilizadas.</p></div>
+            <div className="journey-step"><h3>ANALISAR</h3><p>Software estatístico LBW para apoiar análises e decisões com dados.</p></div>
+            <div className="journey-step"><h3>DESENVOLVER</h3><p>Projetos de melhoria estruturados dentro da plataforma, com apoio de IA durante o desenvolvimento.</p></div>
+            <div className="journey-step"><h3>APRESENTAR</h3><p>Informações e resultados organizados para apoiar a apresentação dos projetos.</p></div>
+            <div className="journey-step"><h3>ACOMPANHAR</h3><p>Visão dos participantes, treinamentos e projetos em um único ambiente.</p></div>
           </div>
+          <div className="triple-screens"><div className="screen">[ SCREENSHOT — FERRAMENTA DE MELHORIA ]</div><div className="screen">[ SCREENSHOT — ANÁLISE ESTATÍSTICA ]</div><div className="screen">[ SCREENSHOT — PROJETO / APRESENTAÇÃO ]</div></div>
+          <h3 className="statement" style={{ color: '#fff' }}>O aprendizado não termina quando o aluno termina o vídeo.</h3>
+          <div style={{ textAlign: 'center', marginTop: 30 }}><button className="cta" onClick={scrollToForm}>Quero ver a LBW funcionando →</button></div>
         </div>
       </section>
 
-      {/* FAQ */}
       <section>
-        <div className="wrap">
-          <h2>Perguntas frequentes</h2>
-          <div className="faq" style={{ marginTop: 20 }}>
-            <details>
-              <summary>Preciso saber programar ou mexer com tecnologia?</summary>
-              <div className="ans">Não. A plataforma já vem pronta — você só personaliza sua marca e começa a usar.</div>
-            </details>
-            <details>
-              <summary>Consigo usar com a minha marca, não a da LBW?</summary>
-              <div className="ans">Sim. Logo, cores e certificado saem com a sua identidade — o aluno vê você, não a LBW.</div>
-            </details>
-            <details>
-              <summary>Preciso ir na reunião de terça E de sexta?</summary>
-              <div className="ans">Não, é a mesma apresentação nos dois dias — escolha o que couber na sua agenda.</div>
-            </details>
-            <details>
-              <summary>Tem custo pra participar da reunião?</summary>
-              <div className="ans">Não, é gratuita. A condição de lançamento só é apresentada durante a reunião.</div>
-            </details>
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Sua entrega não precisa depender apenas das horas que você está com o cliente.</h2>
+          <div className="paragraph-stack"><p>Hoje, parte importante do trabalho de uma consultoria ainda acontece de forma separada.</p><p>O treinamento fica em um lugar.</p><p>Os materiais em outro.</p><p>Os projetos em planilhas.</p><p>As ferramentas em arquivos diferentes.</p><p>E o acompanhamento muitas vezes depende diretamente do consultor.</p><p>Com a LBW, você passa a ter uma estrutura que continua disponível para o cliente entre uma interação e outra.</p></div>
+          <div className="compare">
+            <div className="panel"><h3>SEM UMA ESTRUTURA ÚNICA</h3><ul className="clean-list"><li>Treinamentos separados</li><li>Materiais enviados manualmente</li><li>Planilhas por cliente</li><li>Projetos espalhados</li><li>Controles paralelos</li><li>Acompanhamento descentralizado</li></ul></div>
+            <div className="panel"><h3>COM A LBW</h3><ul className="clean-list"><li>Conteúdo organizado</li><li>Ferramentas disponíveis</li><li>Projetos no mesmo ambiente</li><li>Participantes acompanhados</li><li>Informações centralizadas</li><li>Estrutura replicável para novos clientes</li></ul></div>
+          </div>
+          <p className="section-lead" style={{ marginTop: 38, marginBottom: 0 }}>E, na prática, isso também significa menos tempo gasto criando apresentações do zero, procurando arquivos, atualizando controles paralelos e organizando materiais para cada cliente.</p>
+        </div>
+      </section>
+
+      <section className="soft">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Uma entrega mais completa muda a conversa com o cliente.</h2>
+          <p className="section-lead">Hoje, uma proposta pode terminar assim:</p>
+          <div className="proposal"><div className="quote"><strong>“Vamos realizar o treinamento e depois eu envio os materiais para a equipe.”</strong></div><div className="proposal-arrow">→</div><div className="quote"><strong>“Além do treinamento, sua equipe terá um ambiente próprio para acessar os conteúdos, utilizar as ferramentas, desenvolver os projetos e acompanhar a aplicação.”</strong></div></div>
+          <div className="paragraph-stack"><p>Você não está apenas adicionando tecnologia à sua consultoria.</p><h3 className="statement">Está criando uma forma mais estruturada de entregar a sua metodologia.</h3><p>E essa estrutura continua disponível para o cliente mesmo quando você não está presente.</p></div>
+        </div>
+      </section>
+
+      <section>
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Como funciona na prática</h2>
+          <p className="section-lead">Você não precisa desenvolver software nem montar uma estrutura diferente para cada nova empresa.</p>
+          <div className="steps">
+            <div className="step"><h3>1. Configure sua consultoria</h3><p>Adicione sua identidade e prepare o ambiente com a sua marca.</p></div>
+            <div className="step"><h3>2. Adicione seus conteúdos</h3><p>Publique os treinamentos, materiais e conteúdos que fazem parte da sua metodologia.</p></div>
+            <div className="step"><h3>3. Crie o ambiente do seu cliente</h3><p>Cadastre uma nova empresa e escolha o que estará disponível para ela.</p></div>
+            <div className="step"><h3>4. Adicione os participantes</h3><p>A equipe do cliente recebe acesso ao próprio ambiente.</p></div>
+            <div className="step"><h3>5. Acompanhe tudo</h3><p>Treinamentos, participantes, ferramentas e projetos ficam organizados dentro da plataforma.</p></div>
+          </div>
+          <h3 className="statement">Você configura a estrutura. Depois, replica para cada novo cliente.</h3>
+        </div>
+      </section>
+
+      <section className="soft">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">A LBW faz sentido para você se...</h2>
+          <div className="audience">
+            <div className="panel"><ul className="clean-list"><li>Você presta consultoria ou treinamento para empresas.</li><li>Trabalha com melhoria contínua, qualidade, processos, projetos ou áreas relacionadas.</li><li>Já possui conhecimento, metodologia ou treinamentos próprios.</li><li>Quer estruturar melhor a experiência que entrega aos seus clientes.</li><li>Atende ou pretende atender diferentes empresas.</li><li>Quer oferecer algo além de treinamento, apresentações e arquivos separados.</li></ul></div>
+            <div className="panel"><h3>Talvez ainda não faça sentido para você se...</h3><ul className="clean-list"><li>Você procura apenas um lugar para hospedar vídeos.</li><li>Trabalha exclusivamente com cursos vendidos diretamente para pessoas físicas.</li><li>Não pretende utilizar a plataforma com empresas.</li><li>Procura apenas uma ferramenta isolada para uma atividade específica.</li></ul></div>
           </div>
         </div>
       </section>
 
-      {/* FORMULÁRIO */}
-      <section className="oferta" id="oferta">
-        <div className="wrap">
-          {enviado ? (
-            <div className="sucesso">
-              <h3>🎉 Recebemos seu contato!</h3>
-              <p>Agora é só entrar na nossa Comunidade no WhatsApp — os avisos da reunião de terça/sexta (20h, Brasília) ficam por lá.</p>
-              <a className="cta" href={WHATSAPP_COMUNIDADE_URL} target="_blank" rel="noopener noreferrer">Entrar na Comunidade →</a>
-            </div>
-          ) : (
-            <div className="box">
-              <span className="eyebrow">Vagas limitadas por turma</span>
-              <h3 style={{ fontSize: 20, margin: '16px 0 6px' }}>Quero conhecer a plataforma LBW</h3>
-              <p className="lead" style={{ margin: '0 0 4px' }}>Preencha e receba o link da Comunidade + a agenda das próximas reuniões.</p>
-              <form className="leadform" onSubmit={enviar}>
-                <div>
-                  <label>Nome</label>
-                  <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" />
-                </div>
-                <div>
-                  <label>Empresa / Consultoria</label>
-                  <input value={empresa} onChange={e => setEmpresa(e.target.value)} placeholder="Ex.: Consultoria própria, autônomo, nome da empresa" />
-                </div>
-                <div>
-                  <label>Função</label>
-                  <input value={funcao} onChange={e => setFuncao(e.target.value)} placeholder="Ex.: Consultor, Black Belt, Instrutor" />
-                </div>
-                <div>
-                  <label>WhatsApp</label>
-                  <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="(DDD) 9XXXX-XXXX" />
-                </div>
-                {erro && <div className="erro">{erro}</div>}
-                <button className="cta" type="submit" disabled={enviando} style={{ marginTop: 6 }}>
-                  {enviando ? 'Enviando...' : 'Quero participar →'}
-                </button>
-              </form>
-            </div>
-          )}
+      <section className="dark">
+        <div className="container founder">
+          <img src="/israel-foto.png" alt="Israel Souza" loading="lazy" />
+          <div>
+            <div className="kicker">Quem está por trás da LBW</div>
+            <h2>Israel Souza</h2>
+            <h3>Por que eu criei a LBW</h3>
+            <p>Depois de mais de 20 anos trabalhando com melhoria de processos, projetos e treinamentos, uma situação sempre me chamou atenção.</p>
+            <p>Profissionais muito bons no que fazem ainda dependem de uma combinação de apresentações, planilhas, arquivos, ferramentas separadas e controles manuais para conseguir entregar e acompanhar o trabalho com seus clientes.</p>
+            <p>E quanto mais clientes entram, mais difícil fica manter tudo organizado sem aumentar também o trabalho administrativo.</p>
+            <p>Foi a partir desse problema que comecei a construir a LBW.</p>
+            <p>A ideia era simples:</p>
+            <h3 className="idea">Criar a estrutura que eu gostaria de ter tido durante todos esses anos trabalhando com melhoria e desenvolvimento de projetos.</h3>
+            <p>Um lugar onde conhecimento, ferramentas, análise e projetos pudessem fazer parte da mesma experiência.</p>
+            <p>Hoje, essa mesma estrutura pode ser utilizada por outros consultores com os próprios clientes e com a própria marca.</p>
+            <div className="stats"><div className="stat"><strong>20+ ANOS</strong><span>de experiência profissional</span></div><div className="stat"><strong>1.500+</strong><span>profissionais treinados</span></div><div className="stat"><strong>US$ 20MM+</strong><span>em ganhos gerados por projetos</span></div><div className="stat"><strong>EXPERIÊNCIA PRÁTICA</strong><span>em multinacionais e no setor público</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Veja a LBW funcionando antes de decidir qualquer coisa.</h2>
+          <p className="section-lead">A melhor maneira de entender a plataforma é vendo como ela funciona na prática.</p>
+          <p className="section-lead">Por isso, estou realizando apresentações ao vivo para consultores interessados em conhecer a LBW.</p>
+          <div className="live-flow">
+            <div className="live-card"><h3>1. Cadastre-se</h3><p>Preencha seus dados no formulário desta página.</p></div>
+            <div className="live-card"><h3>2. Entre na Comunidade LBW</h3><p>Depois do cadastro, você recebe o acesso à nossa comunidade no WhatsApp.</p><p>É por lá que enviamos os links e avisos das próximas apresentações.</p></div>
+            <div className="live-card"><h3>3. Participe de uma apresentação ao vivo</h3><p><strong>Terças e sextas, às 20h — horário de Brasília</strong></p><p>Durante a reunião, eu mostro a plataforma funcionando, explico como você pode utilizá-la com seus próprios clientes e respondo às suas dúvidas.</p><p>Você também poderá conhecer as condições disponíveis durante o lançamento.</p></div>
+          </div>
+          <div className="next-date">Próxima apresentação: [DATA], às 20h — horário de Brasília</div>
+        </div>
+      </section>
+
+      <section className="dark">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Perguntas frequentes</h2>
+          <div className="faq">
+            <details><summary>Posso colocar meus próprios cursos e materiais?</summary><div className="answer"><p>Sim. Você pode cadastrar seus próprios treinamentos e conteúdos e disponibilizá-los para as empresas que atende.</p></div></details>
+            <details><summary>Posso usar a minha própria marca?</summary><div className="answer"><p>Sim. A proposta da LBW é permitir que você apresente a experiência com a identidade da sua consultoria.</p></div></details>
+            <details><summary>Meu cliente verá a marca LBW?</summary><div className="answer"><p>A LBW fica por trás da tecnologia. O objetivo é que a experiência entregue ao cliente seja apresentada com a identidade da sua consultoria.</p></div></details>
+            <details><summary>Cada empresa fica separada das outras?</summary><div className="answer"><p>Sim. Cada empresa possui seu próprio ambiente, com seus participantes, treinamentos, projetos e informações.</p><p>Um cliente não acessa os dados de outro.</p></div></details>
+            <details><summary>Posso atender várias empresas ao mesmo tempo?</summary><div className="answer"><p>Sim. Você pode criar ambientes para diferentes empresas e acompanhar seus clientes de forma centralizada.</p></div></details>
+            <details><summary>Preciso saber programar?</summary><div className="answer"><p>Não.</p><p>A plataforma foi desenvolvida para que você consiga cadastrar conteúdos, empresas e participantes sem precisar desenvolver software.</p></div></details>
+            <details><summary>Preciso participar das reuniões de terça e sexta?</summary><div className="answer"><p>Não.</p><p>Você escolhe apenas uma das apresentações disponíveis.</p></div></details>
+            <details><summary>Existe algum custo para participar da apresentação?</summary><div className="answer"><p>Não.</p><p>A apresentação da plataforma é gratuita e não existe compromisso de contratação.</p></div></details>
+          </div>
+        </div>
+      </section>
+
+      <section className="form-section" id="consultores-formulario">
+        <div className="container form-shell">
+          <div className="form-copy">
+            <div className="accent-line" style={{ marginLeft: 0 }} />
+            <h2 className="section-title">Quer conseguir apresentar uma estrutura como essa para o seu próximo cliente?</h2>
+            <p>Veja a LBW funcionando ao vivo e entenda como ela poderia ser utilizada dentro da sua própria consultoria.</p>
+            <p><strong>Reunião gratuita e ao vivo.</strong></p>
+            <p><strong>Próxima apresentação: [DATA], às 20h — horário de Brasília.</strong></p>
+          </div>
+          <div className="form-card">
+            {enviado ? <div className="success"><h3>Recebemos seu contato!</h3><p>Entre na Comunidade LBW para receber os links e avisos das próximas apresentações.</p><a className="cta" href={WHATSAPP_COMUNIDADE_URL} target="_blank" rel="noopener noreferrer">Entrar na Comunidade LBW</a></div> : <form className="leadform" onSubmit={enviar}>
+              <div><label>Nome</label><input value={nome} onChange={event => setNome(event.target.value)} placeholder="[Seu nome]" /></div>
+              <div><label>Empresa / Consultoria</label><input value={empresa} onChange={event => setEmpresa(event.target.value)} placeholder="[Nome da sua empresa ou consultoria]" /></div>
+              <div><label>Função</label><input value={funcao} onChange={event => setFuncao(event.target.value)} placeholder="[Sua função]" /></div>
+              <div><label>WhatsApp</label><input value={whatsapp} onChange={event => setWhatsapp(event.target.value)} placeholder="[Seu WhatsApp]" /></div>
+              {erro && <div className="error">{erro}</div>}
+              <button className="cta" type="submit" disabled={enviando}>{enviando ? 'Enviando...' : 'Quero conhecer a LBW →'}</button>
+              <p className="micro">Sem custo e sem compromisso.</p>
+              <p className="micro">Você conhece a plataforma primeiro e depois decide se ela faz sentido para a sua consultoria.</p>
+            </form>}
+          </div>
         </div>
       </section>
 
