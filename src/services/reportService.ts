@@ -2,10 +2,22 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, Ta
 import pptxgen from 'pptxgenjs';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import { Project } from '../types';
 
 const LBW_LOGO_URL = "https://i.postimg.cc/7PgJFtZK/logo-LBW.png";
+
+// Download no navegador sem importar file-saver no processo Node do Railway.
+// O pacote CommonJS não expõe `saveAs` como named export em ESM e derrubava o servidor.
+function saveAs(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 interface Tool {
   id: string;
