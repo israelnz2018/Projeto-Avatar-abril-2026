@@ -8,8 +8,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { CheckCircle2, Circle, Rocket } from 'lucide-react';
-import { db } from '../../lib/firebase';
+import { CheckCircle2, Circle, GraduationCap, Rocket } from 'lucide-react';
+import { auth, db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
@@ -80,6 +80,8 @@ export default function ComecePorAqui() {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading } = useUserAccess();
   const [autoChecks, setAutoChecks] = useState<Record<string, boolean>>({});
+  const [liberandoCurso, setLiberandoCurso] = useState(false);
+  const [erroCurso, setErroCurso] = useState('');
 
   useEffect(() => {
     let ativo = true;
@@ -185,6 +187,35 @@ export default function ComecePorAqui() {
     await refresh();
   }
 
+  async function conhecerComoAluno() {
+    const user = auth.currentUser;
+    if (!user) {
+      setErroCurso('Entre novamente na plataforma para liberar o curso.');
+      return;
+    }
+    setLiberandoCurso(true);
+    setErroCurso('');
+    try {
+      const resposta = await fetch('/api/consultor/curso-demonstrativo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
+        body: JSON.stringify({ consultorId }),
+      });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(dados.error || 'Não foi possível liberar o curso agora.');
+      // O usuário pode precisar entrar no domínio do Israel uma única vez, mas usa
+      // exatamente a mesma conta e senha — não criamos uma segunda conta.
+      window.location.assign(dados.destino || 'https://israel.educacaopelotrabalho.com/education');
+    } catch (error: any) {
+      setErroCurso(error?.message || 'Não foi possível liberar o curso agora.');
+    } finally {
+      setLiberandoCurso(false);
+    }
+  }
+
   const Checkbox = ({ id }: { id: string }) => (
     <button onClick={() => alternar(id)} className="shrink-0 mt-0.5">
       {marcado(id) ? <CheckCircle2 size={22} className="text-emerald-600" /> : <Circle size={22} className="text-gray-300" />}
@@ -202,6 +233,28 @@ export default function ComecePorAqui() {
       </p>
 
       <div className="space-y-3">
+        {consultorId !== 'israel' && (
+          <section className="bg-gradient-to-br from-blue-700 to-indigo-800 text-white rounded-2xl p-5 shadow-sm">
+            <div className="flex gap-3">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-white/15 grid place-items-center"><GraduationCap size={21} /></div>
+              <div>
+                <h2 className="font-black">Conheça a plataforma como aluno</h2>
+                <p className="text-sm text-blue-100 mt-1">
+                  Libere gratuitamente o curso Como Resolver Problemas no Trabalho — Kit 90 Dias. Assim você verá, na prática, a experiência que seus futuros alunos terão.
+                </p>
+                <button
+                  type="button"
+                  disabled={liberandoCurso}
+                  onClick={conhecerComoAluno}
+                  className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                >
+                  {liberandoCurso ? 'Liberando seu curso…' : 'Acessar o curso como aluno'}
+                </button>
+                {erroCurso && <p className="mt-2 text-xs font-medium text-red-100">{erroCurso}</p>}
+              </div>
+            </div>
+          </section>
+        )}
         {ITENS.map((item) => (
           <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
             <Checkbox id={item.id} />

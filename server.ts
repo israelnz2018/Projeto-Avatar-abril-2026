@@ -2159,6 +2159,60 @@ async function startServer() {
     return res.json({ ok: sent.ok });
   });
 
+  // Libera para um consultor já aprovado a experiência de aluno no site do Israel.
+  // Não cria outra conta: acrescenta somente o vínculo "israel" à identidade Firebase atual.
+  app.post("/api/consultor/curso-demonstrativo", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const token = String(req.headers.authorization || "").replace(/^Bearer\s+/, "");
+    let callerUid = "";
+    try { callerUid = (await adminAuth().verifyIdToken(token)).uid; }
+    catch { return res.status(401).json({ error: "Autenticação obrigatória." }); }
+
+    const consultorId = String(req.body?.consultorId || "").trim();
+    if (!consultorId || consultorId === "israel") return res.status(400).json({ error: "Este curso demonstrativo é destinado aos consultores parceiros." });
+
+    try {
+      const userRef = adminFirestore().collection("users").doc(callerUid);
+      const userSnap = await userRef.get();
+      if (!userSnap.exists) return res.status(403).json({ error: "Perfil de usuário não encontrado." });
+      const base = userSnap.data() as any;
+      const vinculoAtual = base.vinculos?.[consultorId] || {};
+      const ehConsultor = vinculoAtual.tipoUsuario === "consultor"
+        || (base.consultorId === consultorId && base.tipoUsuario === "consultor");
+      if (!ehConsultor) return res.status(403).json({ error: "Apenas o consultor desta plataforma pode liberar o curso demonstrativo." });
+
+      const curso = "Como Resolver Problemas no Trabalho - Kit 90 dias";
+      const vinculos = { ...(base.vinculos || {}) };
+      const vinculoIsrael = { ...(vinculos.israel || {}) };
+      const cursosAnteriores = Array.isArray(vinculoIsrael.cursosAcesso) ? vinculoIsrael.cursosAcesso : [];
+      const cursosAcesso = [
+        ...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso),
+        { curso, vencimento: null, valor: 0, quantidade: 1 },
+      ];
+      vinculos.israel = {
+        ...vinculoIsrael,
+        tipoUsuario: "aluno",
+        consultorId: "israel",
+        plano: "por_curso",
+        modeloAcesso: "por_curso",
+        cursosAcesso,
+        cursosLiberados: cursosAcesso.map((item: any) => item.curso),
+        origem: "cortesia-programa-consultores",
+      };
+      const consultorIds = Array.from(new Set([
+        ...(Array.isArray(base.consultorIds) ? base.consultorIds : []),
+        base.consultorId,
+        consultorId,
+        "israel",
+      ].filter(Boolean)));
+      await userRef.set({ consultorIds, vinculos }, { merge: true });
+      return res.json({ ok: true, destino: "https://israel.educacaopelotrabalho.com/education" });
+    } catch (err: any) {
+      console.error("[POST /api/consultor/curso-demonstrativo] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao liberar curso demonstrativo." });
+    }
+  });
+
   // POST /api/coordenador/convidar — o CONSULTOR (ou admin) convida/promove um COORDENADOR
   // dentro do PRÓPRIO tenant. Conta nova = LBW2026 + troca no 1º login; existente = mantém a
   // senha e só promove (não tira os cursos). Autoriza consultor OU admin (não é requireAdmin).

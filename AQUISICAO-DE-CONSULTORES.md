@@ -229,6 +229,7 @@ Regra central:
 - [x] Prazo de ativação: 30 dias.
 - [x] A ativação exige um curso com pelo menos um vídeo e 100% de Consultor Comece por aqui.
 - [x] Sem ativação em 30 dias, o acesso de consultor e o curso demonstrativo ficam inativos; os dados são preservados.
+- [x] O consultor aprovado pode liberar o Kit 90 Dias como aluno pelo próprio Consultor Comece por aqui, usando a mesma conta e senha.
 
 ### 3. Solicitação e aprovação inicial
 
