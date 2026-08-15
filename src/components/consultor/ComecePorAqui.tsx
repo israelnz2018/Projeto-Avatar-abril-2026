@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { CheckCircle2, Circle, Rocket, Video } from 'lucide-react';
+import { CheckCircle2, Circle, PlayCircle, Rocket, Video } from 'lucide-react';
 import { auth, db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -321,12 +321,14 @@ export default function ComecePorAqui() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     {grupo.videos.map((video) => (
-                      <button key={video.id} type="button" onClick={() => setVideoAberto(video)} className="flex w-full items-center gap-3 rounded-lg border border-gray-100 p-3 text-left hover:bg-blue-50">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><Video size={18} /></span>
-                        <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-gray-800">{video.title}</span></span>
-                        <span className="text-xs font-bold text-blue-600">Assistir →</span>
+                      <button key={video.id} type="button" onClick={() => setVideoAberto(video)} className="group overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:border-blue-400 hover:shadow-md">
+                        <div className="relative aspect-video overflow-hidden bg-slate-900">
+                          {video.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="grid h-full place-items-center"><PlayCircle className="text-white/70" size={42} /></div>}
+                          <div className="absolute inset-0 grid place-items-center bg-black/15 opacity-0 transition group-hover:opacity-100"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><PlayCircle size={27} /></span></div>
+                        </div>
+                        <div className="p-3"><p className="line-clamp-2 font-bold text-gray-800 transition group-hover:text-blue-600">{video.title}</p><span className="mt-2 block text-xs font-bold text-blue-600">Assistir vídeo →</span></div>
                       </button>
                     ))}
                   </div>
