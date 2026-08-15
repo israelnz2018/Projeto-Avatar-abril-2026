@@ -2304,24 +2304,37 @@ async function startServer() {
   // com cursos liberados (cada um com vencimento) e o valor pago. Conta nova = LBW2026 + troca no
   // 1º login; existente = mantém a senha e só ajusta. Autoriza consultor OU admin.
   // POST /api/leads-consultor — formulário PÚBLICO (sem login) da landing /consultores.
-  // Captura quem quer conhecer a plataforma como consultor parceiro. Salva o lead;
-  // o link da Comunidade WhatsApp é mostrado no front após o envio.
+  // Captura quem quer conhecer a plataforma como consultor parceiro, salva as
+  // respostas obrigatórias e informa ao front se o perfil pode abrir a agenda.
   app.post("/api/leads-consultor", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const nome = String(req.body?.nome || "").trim().slice(0, 120);
     const empresa = String(req.body?.empresa || "").trim().slice(0, 120);
     const funcao = String(req.body?.funcao || "").trim().slice(0, 120);
     const whatsapp = String(req.body?.whatsapp || "").trim().slice(0, 40);
+    const atuaMelhoria = String(req.body?.atuaMelhoria || "").trim().slice(0, 40);
+    const clientesEmpresariais = String(req.body?.clientesEmpresariais || "").trim().slice(0, 40);
+    const cursoOnline = String(req.body?.cursoOnline || "").trim().slice(0, 40);
     const origem = String(req.body?.origem || "landing-consultores").trim().slice(0, 60);
-    if (!nome || !empresa || !funcao || !whatsapp) {
+    const respostasValidas =
+      ["ja_atuo", "nao"].includes(atuaMelhoria) &&
+      ["ja_atendo", "estou_buscando", "nao"].includes(clientesEmpresariais) &&
+      ["ja_tenho", "desenvolvendo", "nao_tenho"].includes(cursoOnline);
+    if (!nome || !empresa || !funcao || !whatsapp || !respostasValidas) {
       return res.status(400).json({ error: "Preencha todos os campos." });
     }
+    const qualificado =
+      atuaMelhoria === "ja_atuo" &&
+      ["ja_atendo", "estou_buscando"].includes(clientesEmpresariais) &&
+      cursoOnline === "ja_tenho";
     try {
       await adminFirestore().collection("leads_consultores").add({
         nome, empresa, funcao, whatsapp, origem,
+        atuaMelhoria, clientesEmpresariais, cursoOnline, qualificado,
+        status: qualificado ? "qualificado_para_agendamento" : "nao_qualificado",
         criadoEm: new Date().toISOString(),
       });
-      return res.json({ ok: true });
+      return res.json({ ok: true, qualificado });
     } catch (err: any) {
       console.error("[POST /api/leads-consultor] erro:", err);
       return res.status(500).json({ error: "Erro ao salvar. Tente novamente." });

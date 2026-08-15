@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import RodapeConsultores from './RodapeConsultores';
 
-const WHATSAPP_COMUNIDADE_URL = 'https://chat.whatsapp.com/KpijG8eqP98CqKx2UD3enV';
+const AGENDAMENTO_URL = String(import.meta.env.VITE_CONSULTOR_BOOKING_URL || '').trim();
 
 const CSS = `
 .consultores-lp{--navy:#0a1330;--navy2:#14295d;--blue:#1456e8;--cyan:#38bdf8;--ink:#0f1526;--muted:#5b6b85;--line:#e3e9f5;--soft:#f4f7fd;--white:#fff;background:#fff;color:var(--ink);font-family:Inter,'Segoe UI',system-ui,sans-serif;line-height:1.65;overflow-x:hidden}
@@ -107,7 +107,8 @@ const CSS = `
 .consultores-lp .form-section{background:linear-gradient(145deg,#eef4ff,#fff)}
 .consultores-lp .form-shell{display:grid;grid-template-columns:1fr 480px;gap:54px;align-items:center}
 .consultores-lp .form-copy h2{text-align:left}.consultores-lp .form-copy p{color:var(--muted);font-size:18px}.consultores-lp .form-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 24px 65px rgba(30,45,110,.14)}
-.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .leadform input{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform input:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
+.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .leadform input,.consultores-lp .leadform select{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform input:focus,.consultores-lp .leadform select:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
+.consultores-lp .qualification{margin-top:5px;padding-top:18px;border-top:1px solid var(--line);display:grid;gap:15px}.consultores-lp .qualification-title{font-size:18px;margin:0;color:var(--navy2)}.consultores-lp .qualification-note{font-size:13px;color:var(--muted);margin:-8px 0 0}.consultores-lp .booking-pending,.consultores-lp .not-qualified{padding:18px;border-radius:14px;margin-top:18px;font-size:14px}.consultores-lp .booking-pending{background:#fff8e7;border:1px solid #f1d590;color:#704d00}.consultores-lp .not-qualified{background:#f4f7fd;border:1px solid var(--line);color:#42526d}
 .consultores-lp .leadform .cta{width:100%;margin-top:5px}.consultores-lp .micro{font-size:13px!important;text-align:center;color:#6b7890!important;margin:14px 0 0!important}.consultores-lp .error{color:#b42318;font-size:13px}.consultores-lp .success{text-align:center}.consultores-lp .success h3{font-size:28px}.consultores-lp .success p{color:var(--muted);margin-bottom:22px}
 .consultores-lp .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}.consultores-lp .reveal.visible{opacity:1;transform:none}
 @keyframes lpFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(-18px,22px)}}
@@ -129,8 +130,12 @@ export default function LandingConsultores() {
   const [empresa, setEmpresa] = useState('');
   const [funcao, setFuncao] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  const [atuaMelhoria, setAtuaMelhoria] = useState('');
+  const [clientesEmpresariais, setClientesEmpresariais] = useState('');
+  const [cursoOnline, setCursoOnline] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [qualificado, setQualificado] = useState(false);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
@@ -155,7 +160,7 @@ export default function LandingConsultores() {
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     setErro('');
-    if (!nome.trim() || !empresa.trim() || !funcao.trim() || !whatsapp.trim()) {
+    if (!nome.trim() || !empresa.trim() || !funcao.trim() || !whatsapp.trim() || !atuaMelhoria || !clientesEmpresariais || !cursoOnline) {
       setErro('Preencha todos os campos.');
       return;
     }
@@ -164,9 +169,11 @@ export default function LandingConsultores() {
       const response = await fetch('/api/leads-consultor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, empresa, funcao, whatsapp, origem: 'landing-consultores' }),
+        body: JSON.stringify({ nome, empresa, funcao, whatsapp, atuaMelhoria, clientesEmpresariais, cursoOnline, origem: 'landing-consultores' }),
       });
       if (!response.ok) throw new Error();
+      const result = await response.json();
+      setQualificado(Boolean(result.qualificado));
       setEnviado(true);
     } catch {
       setErro('Não deu para enviar agora. Tente novamente em instantes.');
@@ -329,13 +336,13 @@ export default function LandingConsultores() {
           <div className="accent-line" />
           <h2 className="section-title">Veja a LBW funcionando antes de decidir qualquer coisa.</h2>
           <p className="section-lead">A melhor maneira de entender a plataforma é vendo como ela funciona na prática.</p>
-          <p className="section-lead">Por isso, estou realizando apresentações ao vivo para consultores interessados em conhecer a LBW.</p>
+          <p className="section-lead">Por isso, estou realizando conversas individuais com consultores interessados em conhecer a LBW.</p>
           <div className="live-flow">
             <div className="live-card"><h3>Cadastre-se</h3><p>Preencha seus dados no formulário desta página.</p></div>
-            <div className="live-card"><h3>Entre na Comunidade LBW</h3><p>Depois do cadastro, você recebe o acesso à nossa comunidade no WhatsApp.</p><p>É por lá que enviamos os links e avisos das próximas apresentações.</p></div>
-            <div className="live-card"><h3>Participe de uma apresentação ao vivo</h3><p><strong>Terças e sextas, às 20h — horário de Brasília</strong></p><p>Durante a reunião, eu mostro a plataforma funcionando, explico como você pode utilizá-la com seus próprios clientes e respondo às suas dúvidas.</p><p>Você também poderá conhecer as condições disponíveis durante o lançamento.</p></div>
+            <div className="live-card"><h3>Responda às perguntas de qualificação</h3><p>As perguntas confirmam se você já atua com excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, possui curso online pronto e atende ou está buscando empresas como clientes.</p></div>
+            <div className="live-card"><h3>Escolha seu horário</h3><p><strong>A conversa é individual, gratuita e dura 45 minutos.</strong></p><p>O calendário mostra os horários disponíveis automaticamente no seu fuso.</p><p>Durante a reunião, eu mostro a plataforma considerando a realidade da sua consultoria e respondo às suas dúvidas.</p></div>
           </div>
-          <div className="next-date">Próxima apresentação: [DATA], às 20h — horário de Brasília</div>
+          <div className="next-date">Depois da qualificação, escolha diretamente no calendário o melhor horário disponível para você.</div>
         </div>
       </section>
 
@@ -350,7 +357,7 @@ export default function LandingConsultores() {
             <details><summary>Cada empresa fica separada das outras?</summary><div className="answer"><p>Sim. Cada empresa possui seu próprio ambiente, com seus participantes, treinamentos, projetos e informações.</p><p>Um cliente não acessa os dados de outro.</p></div></details>
             <details><summary>Posso atender várias empresas ao mesmo tempo?</summary><div className="answer"><p>Sim. Você pode criar ambientes para diferentes empresas e acompanhar seus clientes de forma centralizada.</p></div></details>
             <details><summary>Preciso saber programar?</summary><div className="answer"><p>Não.</p><p>A plataforma foi desenvolvida para que você consiga cadastrar conteúdos, empresas e participantes sem precisar desenvolver software.</p></div></details>
-            <details><summary>Preciso participar das reuniões de terça e sexta?</summary><div className="answer"><p>Não.</p><p>Você escolhe apenas uma das apresentações disponíveis.</p></div></details>
+            <details><summary>Como funciona a conversa individual?</summary><div className="answer"><p>A conversa é gratuita, dura 45 minutos e acontece por videoconferência.</p><p>Depois da qualificação, você escolhe no calendário um dos horários disponíveis no seu próprio fuso.</p></div></details>
             <details><summary>Existe algum custo para participar da apresentação?</summary><div className="answer"><p>Não.</p><p>A apresentação da plataforma é gratuita e não existe compromisso de contratação.</p></div></details>
           </div>
         </div>
@@ -362,17 +369,24 @@ export default function LandingConsultores() {
             <div className="accent-line" style={{ marginLeft: 0 }} />
             <h2 className="section-title">Quer conseguir apresentar uma estrutura como essa para o seu próximo cliente?</h2>
             <p>Veja a LBW funcionando ao vivo e entenda como ela poderia ser utilizada dentro da sua própria consultoria.</p>
-            <p><strong>Reunião gratuita e ao vivo.</strong></p>
-            <p><strong>Próxima apresentação: [DATA], às 20h — horário de Brasília.</strong></p>
+            <p><strong>Conversa individual, gratuita e ao vivo, com duração de 45 minutos.</strong></p>
+            <p><strong>Responda às perguntas abaixo e, se houver alinhamento, escolha seu horário diretamente no calendário.</strong></p>
           </div>
           <div className="form-card">
-            {enviado ? <div className="success"><h3>Recebemos seu contato!</h3><p>Entre na Comunidade LBW para receber os links e avisos das próximas apresentações.</p><a className="cta" href={WHATSAPP_COMUNIDADE_URL} target="_blank" rel="noopener noreferrer">Entrar na Comunidade LBW</a></div> : <form className="leadform" onSubmit={enviar}>
+            {enviado ? <div className="success">{qualificado ? <><h3>Seu perfil combina com esta conversa.</h3><p>Escolha agora o melhor horário disponível. O calendário fará a conversão automática para o seu fuso.</p>{AGENDAMENTO_URL ? <a className="cta" href={AGENDAMENTO_URL} target="_blank" rel="noopener noreferrer">Agendar minha conversa →</a> : <div className="booking-pending"><strong>A agenda está sendo conectada.</strong><br />Seu cadastro foi recebido e entrarei em contato para confirmar o horário.</div>}</> : <><h3>Obrigado pelo interesse.</h3><div className="not-qualified">Neste momento, as conversas individuais são exclusivas para quem já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, já possui curso online pronto e já atende ou está buscando empresas como clientes. Quando você atender aos três critérios, será um prazer conversar.</div></>}</div> : <form className="leadform" onSubmit={enviar}>
               <div><label>Nome</label><input value={nome} onChange={event => setNome(event.target.value)} placeholder="[Seu nome]" /></div>
               <div><label>Empresa / Consultoria</label><input value={empresa} onChange={event => setEmpresa(event.target.value)} placeholder="[Nome da sua empresa ou consultoria]" /></div>
               <div><label>Função</label><input value={funcao} onChange={event => setFuncao(event.target.value)} placeholder="[Sua função]" /></div>
               <div><label>WhatsApp</label><input value={whatsapp} onChange={event => setWhatsapp(event.target.value)} placeholder="[Seu WhatsApp]" /></div>
+              <div className="qualification">
+                <h3 className="qualification-title">Antes de agendar</h3>
+                <p className="qualification-note">Estas respostas ajudam a confirmar se a conversa faz sentido para o seu momento profissional.</p>
+                <div><label>1. Você já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas?</label><select value={atuaMelhoria} onChange={event => setAtuaMelhoria(event.target.value)}><option value="">Selecione...</option><option value="ja_atuo">Sim, já atuo em uma dessas áreas</option><option value="nao">Não</option></select></div>
+                <div><label>2. Você já possui curso online próprio e pronto?</label><select value={cursoOnline} onChange={event => setCursoOnline(event.target.value)}><option value="">Selecione...</option><option value="ja_tenho">Sim, tenho curso online pronto</option><option value="desenvolvendo">Ainda estou desenvolvendo</option><option value="nao_tenho">Não tenho</option></select></div>
+                <div><label>3. Você já atende ou está buscando empresas como clientes?</label><select value={clientesEmpresariais} onChange={event => setClientesEmpresariais(event.target.value)}><option value="">Selecione...</option><option value="ja_atendo">Sim, já atendo empresas</option><option value="estou_buscando">Ainda não atendo, mas estou buscando empresas</option><option value="nao">Não</option></select></div>
+              </div>
               {erro && <div className="error">{erro}</div>}
-              <button className="cta" type="submit" disabled={enviando}>{enviando ? 'Enviando...' : 'Quero conhecer a LBW →'}</button>
+              <button className="cta" type="submit" disabled={enviando}>{enviando ? 'Enviando...' : 'Verificar perfil e continuar →'}</button>
               <p className="micro">Sem custo e sem compromisso.</p>
               <p className="micro">Você conhece a plataforma primeiro e depois decide se ela faz sentido para a sua consultoria.</p>
             </form>}
