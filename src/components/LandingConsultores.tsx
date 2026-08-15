@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import RodapeConsultores from './RodapeConsultores';
 
-const AGENDAMENTO_URL = String(import.meta.env.VITE_CONSULTOR_BOOKING_URL || '').trim();
+const AGENDAMENTO_URL = String(
+  import.meta.env.VITE_CONSULTOR_BOOKING_URL ||
+  'https://cal.com/educacaopelotrabalho/reuniao',
+).trim();
 
 const CSS = `
 .consultores-lp{--navy:#0a1330;--navy2:#14295d;--blue:#1456e8;--cyan:#38bdf8;--ink:#0f1526;--muted:#5b6b85;--line:#e3e9f5;--soft:#f4f7fd;--white:#fff;background:#fff;color:var(--ink);font-family:Inter,'Segoe UI',system-ui,sans-serif;line-height:1.65;overflow-x:hidden}
