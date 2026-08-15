@@ -352,7 +352,9 @@ export default function ComecePorAqui() {
             ))}
           </div>
         </section>
-        <section className="pt-4">
+        {/* Checklist temporariamente oculto: será redesenhado após definirmos a
+            confirmação automática por vídeo e por tarefa concluída. */}
+        <section className="hidden pt-4">
           <h2 className="px-1 text-lg font-black text-gray-800">Checklist de implantação</h2>
           <p className="px-1 mt-1 mb-3 text-sm text-gray-500">Use as 11 etapas abaixo para acompanhar sua preparação. Você pode marcar ou desmarcar os itens manualmente.</p>
           <div className="space-y-3">
