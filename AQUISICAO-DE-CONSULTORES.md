@@ -6,7 +6,7 @@ Formar a primeira base de consultores da LBW com baixa barreira de entrada, acom
 
 ## Posicionamento inicial
 
-O lançamento será apresentado como **Programa de Consultores Fundadores LBW**, inicialmente limitado a 20 consultores.
+O lançamento será apresentado como **Programa de Consultores LBW — Educação pelo Trabalho**, inicialmente limitado a 20 consultores.
 
 O consultor não paga mensalidade antecipada. A LBW recebe uma porcentagem do valor cobrado pelo consultor ao cliente, conforme as regras comerciais que deverão ser apresentadas e aceitas antes da conclusão do cadastro.
 
@@ -37,10 +37,10 @@ A landing page deve explicar:
 - cursos, projetos, ferramentas, relatórios, avaliações e certificados;
 - funcionamento das áreas de consultor, coordenador e aluno;
 - modelo de remuneração por percentual;
-- benefícios do Programa de Consultores Fundadores;
+- benefícios do Programa de Consultores LBW — Educação pelo Trabalho;
 - prazo de 30 dias para cadastrar o primeiro curso.
 
-O principal botão deve ser **Quero participar do Programa de Consultores Fundadores**. O agendamento de uma conversa não será uma barreira para o cadastro.
+O principal botão deve ser **Quero participar do Programa de Consultores LBW — Educação pelo Trabalho**. O agendamento de uma conversa não será uma barreira para o cadastro.
 
 ### 3. Qualificação obrigatória
 
@@ -85,7 +85,7 @@ Na mesma conta, o participante poderá alternar entre a experiência de aluno e 
 
 A área deve conter vídeos curtos, preferencialmente entre dois e cinco minutos, com uma tarefa por vídeo:
 
-1. Bem-vindo ao Programa de Consultores Fundadores.
+1. Bem-vindo ao Programa de Consultores LBW — Educação pelo Trabalho.
 2. Como funciona a participação financeira.
 3. Conheça a plataforma como aluno.
 4. Preencha seu perfil.
@@ -128,7 +128,7 @@ Israel também deve receber uma notificação de que o consultor está pronto pa
 
 ### 9. Reunião semanal em grupo
 
-Todos os consultores cadastrados poderão participar do **Encontro Semanal dos Consultores Fundadores LBW**, mesmo antes de concluírem a configuração.
+Todos os consultores cadastrados poderão participar do **Encontro Semanal dos Consultores LBW**, mesmo antes de concluírem a configuração.
 
 Estrutura sugerida para 60 minutos:
 
@@ -144,7 +144,7 @@ A parte instrucional pode ser gravada. Questões envolvendo clientes ou informa�
 
 Regra comunicada ao consultor:
 
-> O Programa de Consultores Fundadores possui vagas limitadas. Para manter sua vaga ativa, você deverá cadastrar pelo menos um curso nos primeiros 30 dias. Caso isso não aconteça, seu acesso será inativado e a vaga poderá ser oferecida a outro consultor.
+> O Programa de Consultores LBW — Educação pelo Trabalho possui vagas limitadas. Para manter sua vaga ativa, você deverá cadastrar pelo menos um curso nos primeiros 30 dias. Caso isso não aconteça, seu acesso será inativado e a vaga poderá ser oferecida a outro consultor.
 
 O acesso será **inativado**, e não apagado. Os dados serão preservados para uma eventual reativação.
 
@@ -209,6 +209,19 @@ Regra central:
 
 > O acesso é imediato, mas a permanência depende do cadastro de pelo menos um curso em até 30 dias.
 
-## Próximas atividades
+## Checklist de execução
+
+### 1. Definições da oferta
+
+- [x] Nome oficial: Programa de Consultores LBW — Educação pelo Trabalho.
+- [ ] Número inicial de vagas.
+- [ ] Porcentagem da LBW.
+- [ ] Base de cálculo da porcentagem.
+- [ ] Momento de pagamento da porcentagem.
+- [ ] Regras para cancelamentos, reembolsos e inadimplência.
+- [ ] Momento em que o consultor pode cadastrar clientes.
+- [ ] Regra de acompanhamento da primeira implantação de cliente.
+
+### 2. Próxima atividade
 
 A execução será feita uma atividade por vez, com validação antes de avançar para a próxima etapa.
