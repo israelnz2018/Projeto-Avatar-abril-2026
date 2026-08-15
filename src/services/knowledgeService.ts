@@ -28,6 +28,8 @@ export interface KnowledgeEntry {
   bunnyLibraryId?: string;
   /** URL pública da thumbnail gerada pelo Bunny (preenchida no processamento automático). */
   bunnyThumbnailUrl?: string;
+  /** Identificador estável da etapa do Consultor Comece por aqui. */
+  onboardingStep?: string;
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';
@@ -39,6 +41,28 @@ export const INTRO_COURSE_CONSULTOR = 'Consultor Comece por aqui';
 export const INTRO_PLAYLIST = 'Comece por aqui';
 
 export const INTRO_COURSES = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR, INTRO_COURSE_CONSULTOR] as const;
+
+/** Playlists iniciais da aba especial. O consultor pode criar, renomear e
+ * reorganizar outras playlists depois, como em qualquer lista de vídeos. */
+export const CONSULTOR_ONBOARDING_STEPS = [
+  { id: 'boas-vindas', playlist: '1. Boas-vindas ao Programa de Consultores LBW' },
+  { id: 'experiencia-aluno', playlist: '2. Conheça a plataforma como aluno' },
+  { id: 'marca', playlist: '3. Como configurar sua marca' },
+  { id: 'cursos', playlist: '4. Como cadastrar os seus cursos' },
+  { id: 'projetos', playlist: '5. Como criar seus projetos por curso' },
+  { id: 'avaliacao-certificado', playlist: '6. Como configurar a avaliação dos alunos e o certificado' },
+  { id: 'clientes-alunos', playlist: '7. Como cadastrar clientes (empresas) e seus próprios alunos' },
+  { id: 'comunidade', playlist: '8. Como criar sua própria comunidade' },
+  { id: 'outros-consultores', playlist: '9. Como interagir com outros consultores' },
+  { id: 'melhorar-plataforma', playlist: '10. Como ajudar a melhorar a plataforma' },
+  { id: 'termos-gerais', playlist: '11. Termos de contrato e considerações gerais' },
+] as const;
+
+export const CONSULTOR_ONBOARDING_PLAYLISTS = CONSULTOR_ONBOARDING_STEPS.map((item) => item.playlist);
+
+export function consultorOnboardingStepId(playlist: string): string | undefined {
+  return CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === playlist)?.id;
+}
 
 export function isIntroCourse(course: string): boolean {
   return INTRO_COURSES.includes(course as typeof INTRO_COURSES[number]);

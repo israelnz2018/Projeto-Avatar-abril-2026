@@ -55,6 +55,8 @@ import {
   INTRO_COURSE_ALUNO,
   INTRO_COURSE_COORDENADOR,
   INTRO_COURSE_CONSULTOR,
+  CONSULTOR_ONBOARDING_PLAYLISTS,
+  consultorOnboardingStepId,
   INTRO_PLAYLIST,
   isIntroCourse,
   isFixedIntroCourse
@@ -1017,6 +1019,9 @@ export default function KnowledgeManagerView() {
           associatedAnalyses: formData.associatedAnalyses,
           consultorId,
           bunnyVideoId: upBunny.guid, bunnyLibraryId: upBunny.libraryId,
+          ...(p.course === INTRO_COURSE_CONSULTOR && consultorOnboardingStepId(p.playlist)
+            ? { onboardingStep: consultorOnboardingStepId(p.playlist) }
+            : {}),
         } as any)
       ));
 
@@ -1165,7 +1170,10 @@ export default function KnowledgeManagerView() {
               course: p.course,
               playlist: finalPlaylist,
               associatedTools: editVideoData.associatedTools,
-              associatedAnalyses: editVideoData.associatedAnalyses
+              associatedAnalyses: editVideoData.associatedAnalyses,
+              ...(p.course === INTRO_COURSE_CONSULTOR && consultorOnboardingStepId(finalPlaylist)
+                ? { onboardingStep: consultorOnboardingStepId(finalPlaylist) }
+                : {})
             });
           } else {
             const novoPlacement: Omit<KnowledgeEntry, 'timestamp' | 'id'> = {
@@ -1180,6 +1188,9 @@ export default function KnowledgeManagerView() {
               associatedTools: editVideoData.associatedTools,
               associatedAnalyses: editVideoData.associatedAnalyses,
               consultorId,
+              ...(p.course === INTRO_COURSE_CONSULTOR && consultorOnboardingStepId(finalPlaylist)
+                ? { onboardingStep: consultorOnboardingStepId(finalPlaylist) }
+                : {}),
             };
             if (currentItem.bunnyVideoId) novoPlacement.bunnyVideoId = currentItem.bunnyVideoId;
             if (currentItem.bunnyLibraryId) novoPlacement.bunnyLibraryId = currentItem.bunnyLibraryId;
@@ -1256,11 +1267,17 @@ export default function KnowledgeManagerView() {
   const introCourseOptions = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR, INTRO_COURSE_CONSULTOR];
   const regularCourseOptions = initiativeNames.filter(c => !isIntroCourse(c));
 
-  const playlistsForCourse = (course: string) => isFixedIntroCourse(course)
-    ? [INTRO_PLAYLIST]
-    : course && course !== 'NEW'
-    ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
-    : [];
+  const playlistsForCourse = (course: string) => {
+    if (isFixedIntroCourse(course)) return [INTRO_PLAYLIST];
+    const playlistsCriadas = course && course !== 'NEW'
+      ? items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)
+      : [];
+    // A lista inicial aparece mesmo antes do primeiro vídeo ser cadastrado.
+    return Array.from(new Set([
+      ...(course === INTRO_COURSE_CONSULTOR ? CONSULTOR_ONBOARDING_PLAYLISTS : []),
+      ...playlistsCriadas,
+    ]));
+  };
 
   // Group by Course -> Playlist -> Videos
   const groupedItemsMap = filteredItems.reduce((acc, item) => {

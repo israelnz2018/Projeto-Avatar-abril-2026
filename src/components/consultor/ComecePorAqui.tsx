@@ -7,24 +7,34 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { CheckCircle2, Circle, GraduationCap, Rocket, Video } from 'lucide-react';
 import { auth, db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { getQuiz } from '../../services/quizService';
-import { getAllKnowledge, INTRO_COURSE_CONSULTOR, type KnowledgeEntry } from '../../services/knowledgeService';
+import { CONSULTOR_ONBOARDING_STEPS, getAllKnowledge, INTRO_COURSE_CONSULTOR, type KnowledgeEntry } from '../../services/knowledgeService';
 
 interface Item {
   id: string;
   titulo: string;
   texto: string;
-  botao: string;
-  path: string;
+  botao?: string;
+  path?: string;
 }
 
 const ITENS: Item[] = [
+  {
+    id: 'boas-vindas',
+    titulo: 'Boas-vindas ao Programa de Consultores LBW',
+    texto: 'Assista ao vídeo de abertura para entender o programa, a sua jornada e as próximas etapas.',
+  },
+  {
+    id: 'experiencia-aluno',
+    titulo: 'Conheça a plataforma como aluno',
+    texto: 'Use o curso gratuito para conhecer, na prática, a experiência que seus futuros alunos terão.',
+  },
   {
     id: 'marca',
     titulo: 'Sua marca',
@@ -40,39 +50,51 @@ const ITENS: Item[] = [
     path: '/configuracao?aba=cursos',
   },
   {
-    id: 'fases',
-    titulo: 'Ferramentas de cada projeto',
-    texto: 'Escolha quais ferramentas de qualidade (as que a plataforma já aprovou) ficam disponíveis em cada fase do seu curso.',
-    botao: 'Configurar ferramentas',
+    id: 'projetos',
+    titulo: 'Crie seus projetos por curso',
+    texto: 'Defina as fases e as ferramentas que ficarão disponíveis em cada tipo de projeto.',
+    botao: 'Configurar projetos',
     path: '/configuracao?aba=fases',
   },
   {
-    id: 'prova',
-    titulo: 'Prova',
-    texto: 'Configure as perguntas, alternativas e o gabarito de cada curso.',
-    botao: 'Configurar a prova',
+    id: 'avaliacao-certificado',
+    titulo: 'Configure a avaliação dos alunos e o certificado',
+    texto: 'Crie as perguntas, alternativas e gabarito; depois configure o modelo de certificado que o aluno receberá.',
+    botao: 'Configurar avaliação e certificado',
     path: '/configuracao?aba=prova',
   },
   {
-    id: 'certificado',
-    titulo: 'Certificado',
-    texto: 'Envie o seu próprio modelo de certificado — é o que o aluno recebe ao concluir o curso.',
-    botao: 'Configurar certificado',
-    path: '/configuracao?aba=certificados',
-  },
-  {
-    id: 'depoimento',
-    titulo: 'Depoimento pré-prova',
-    texto: 'Decida se o aluno preenche um depoimento antes de fazer a prova, e revise os itens que ele avalia.',
-    botao: 'Configurar depoimento',
-    path: '/configuracao?aba=prova',
-  },
-  {
-    id: 'coordenadores',
-    titulo: 'Coordenadores e alunos',
+    id: 'clientes-alunos',
+    titulo: 'Cadastre clientes (empresas) e seus próprios alunos',
     texto: 'Adicione um coordenador, ou decida atender os alunos diretamente (sem coordenador) — depois adicione os alunos.',
-    botao: 'Ir para Meus Clientes',
+    botao: 'Gerenciar clientes e alunos',
     path: '/configuracao?aba=coordenadores',
+  },
+  {
+    id: 'comunidade',
+    titulo: 'Crie sua própria comunidade',
+    texto: 'Publique o texto de boas-vindas e prepare o espaço de conversa dos seus clientes.',
+    botao: 'Ir para Comunidade',
+    path: '/comunidade',
+  },
+  {
+    id: 'outros-consultores',
+    titulo: 'Interaja com outros consultores',
+    texto: 'Participe da comunidade de consultores para trocar experiências, dúvidas e boas práticas.',
+    botao: 'Abrir comunidade de consultores',
+    path: '/comunidade-adm',
+  },
+  {
+    id: 'melhorar-plataforma',
+    titulo: 'Ajude a melhorar a plataforma',
+    texto: 'Registre sugestões e pontos de melhoria a partir do uso real da sua plataforma.',
+    botao: 'Enviar uma sugestão',
+    path: '/comunidade-adm',
+  },
+  {
+    id: 'termos-gerais',
+    titulo: 'Termos de contrato e considerações gerais',
+    texto: 'Leia os termos do Programa de Consultores LBW e confirme que entendeu as condições gerais.',
   },
 ];
 
@@ -82,6 +104,7 @@ export default function ComecePorAqui() {
   const { isAdmin, isConsultor, loading } = useUserAccess();
   const [autoChecks, setAutoChecks] = useState<Record<string, boolean>>({});
   const [videosOrientacao, setVideosOrientacao] = useState<KnowledgeEntry[]>([]);
+  const [nomesPlaylistChecklist, setNomesPlaylistChecklist] = useState<Record<string, string>>({});
   const [videoAberto, setVideoAberto] = useState<KnowledgeEntry | null>(null);
   const [liberandoCurso, setLiberandoCurso] = useState(false);
   const [erroCurso, setErroCurso] = useState('');
@@ -91,10 +114,9 @@ export default function ComecePorAqui() {
 
     async function carregarChecksAutomaticos() {
       try {
-        const [cursos, usersSnap, opiniaoSnap] = await Promise.all([
+        const [cursos, usersSnap] = await Promise.all([
           getInitiatives().catch(() => []),
           getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))).catch(() => null),
-          getDoc(doc(db, 'config', consultorId === 'israel' ? 'opiniaoItens' : `opiniaoItens_${consultorId}`)).catch(() => null),
         ]);
 
         const cursosComProjeto = cursos.filter((curso: any) => curso.temProjeto !== false);
@@ -130,7 +152,6 @@ export default function ComecePorAqui() {
         const temProvaConfigurada = quizzes.some((quiz) =>
           Array.isArray(quiz?.questions) && quiz.questions.length > 0 && !!quiz.updatedAt
         );
-        const depoimentoConfigurado = consultor.depoimentoPreProvaAtivo !== undefined || !!opiniaoSnap?.exists();
         const certificado = consultor.certificado;
         const certificadoConfigurado = !!(
           certificado?.atualizadoEm ||
@@ -146,11 +167,9 @@ export default function ComecePorAqui() {
         if (!ativo) return;
         setAutoChecks({
           cursos: cursos.length > 0,
-          fases: temFaseConfigurada,
-          prova: temProvaConfigurada,
-          certificado: certificadoConfigurado,
-          depoimento: depoimentoConfigurado,
-          coordenadores: temClienteOuAluno,
+          projetos: temFaseConfigurada,
+          'avaliacao-certificado': temProvaConfigurada && certificadoConfigurado,
+          'clientes-alunos': temClienteOuAluno,
           comunidade: !!consultor.comunidadeBoasVindas?.trim(),
         });
       } catch {
@@ -169,8 +188,14 @@ export default function ComecePorAqui() {
           .filter((video) => video.course === INTRO_COURSE_CONSULTOR && video.bunnyVideoId && video.bunnyLibraryId)
           .sort((a, b) => (a.playlistOrder ?? 0) - (b.playlistOrder ?? 0) || (a.order ?? 0) - (b.order ?? 0));
         setVideosOrientacao(onboarding);
+        const nomes: Record<string, string> = {};
+        onboarding.forEach((video) => {
+          const etapa = video.onboardingStep || CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === video.playlist)?.id;
+          if (etapa && !nomes[etapa]) nomes[etapa] = video.playlist;
+        });
+        setNomesPlaylistChecklist(nomes);
       })
-      .catch(() => setVideosOrientacao([]));
+      .catch(() => { setVideosOrientacao([]); setNomesPlaylistChecklist({}); });
   }, [consultorId]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
@@ -236,6 +261,23 @@ export default function ComecePorAqui() {
     </button>
   );
 
+  // A página e o checklist usam a mesma fonte: as playlists do vídeo. Quando
+  // uma playlist é renomeada na Base de Conhecimento, o novo nome chega aqui.
+  const gruposOrientacao = (() => {
+    const etapaDoVideo = (video: KnowledgeEntry) => video.onboardingStep
+      || CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === video.playlist)?.id;
+    const padrao = CONSULTOR_ONBOARDING_STEPS.map((etapa) => ({
+      id: etapa.id,
+      nome: nomesPlaylistChecklist[etapa.id] || etapa.playlist,
+      videos: videosOrientacao.filter((video) => etapaDoVideo(video) === etapa.id),
+    }));
+    const extras = Array.from(new Set(videosOrientacao
+      .filter((video) => !etapaDoVideo(video))
+      .map((video) => video.playlist)))
+      .map((nome) => ({ id: `extra-${nome}`, nome, videos: videosOrientacao.filter((video) => video.playlist === nome) }));
+    return [...padrao, ...extras];
+  })();
+
   return (
     <div className="max-w-3xl mx-auto pb-12">
       <div className="flex items-center gap-3 mb-1">
@@ -288,52 +330,47 @@ export default function ComecePorAqui() {
               </div>
             </div>
           )}
-          {videosOrientacao.length === 0 ? (
-            <p className="p-5 text-sm text-gray-400">Ainda não há vídeos aqui. Para criar a lista, vá em Base de Conhecimento → Adicionar vídeo → Consultor Comece por aqui → criar playlist.</p>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {videosOrientacao.map((video) => (
-                <button key={video.id} type="button" onClick={() => setVideoAberto(video)} className="flex w-full items-center gap-3 p-4 text-left hover:bg-blue-50">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><Video size={18} /></span>
-                  <span className="min-w-0 flex-1"><span className="block text-xs font-bold text-blue-600">{video.playlist}</span><span className="block truncate font-bold text-gray-800">{video.title}</span></span>
-                  <span className="text-xs font-bold text-blue-600">Assistir →</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="divide-y divide-gray-100">
+            {gruposOrientacao.map((grupo, index) => (
+              <div key={grupo.id} className="p-4">
+                <p className="font-bold text-gray-800">{index + 1}. {grupo.nome}</p>
+                {grupo.videos.length === 0 ? (
+                  <p className="mt-2 text-sm text-gray-400">Nenhum vídeo cadastrado nesta playlist ainda.</p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {grupo.videos.map((video) => (
+                      <button key={video.id} type="button" onClick={() => setVideoAberto(video)} className="flex w-full items-center gap-3 rounded-lg border border-gray-100 p-3 text-left hover:bg-blue-50">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><Video size={18} /></span>
+                        <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-gray-800">{video.title}</span></span>
+                        <span className="text-xs font-bold text-blue-600">Assistir →</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </section>
-        {ITENS.map((item) => (
-          <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
-            <Checkbox id={item.id} />
-            <div className="min-w-0 flex-1">
-              <div className={`font-bold ${marcado(item.id) ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.titulo}</div>
-              <p className="text-sm text-gray-500 mt-1">{item.texto}</p>
-              <button
-                onClick={() => navigate(item.path)}
-                className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800"
-              >
-                {item.botao} →
-              </button>
-            </div>
+        <section className="pt-4">
+          <h2 className="px-1 text-lg font-black text-gray-800">Checklist de implantação</h2>
+          <p className="px-1 mt-1 mb-3 text-sm text-gray-500">Use as 11 etapas abaixo para acompanhar sua preparação. Você pode marcar ou desmarcar os itens manualmente.</p>
+          <div className="space-y-3">
+            {ITENS.map((item, index) => (
+              <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
+                <Checkbox id={item.id} />
+                <div className="min-w-0 flex-1">
+                  <div className={`font-bold ${marcado(item.id) ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{index + 1}. {nomesPlaylistChecklist[item.id] || item.titulo}</div>
+                  <p className="text-sm text-gray-500 mt-1">{item.texto}</p>
+                  {item.botao && item.path && (
+                    <button onClick={() => navigate(item.path!)} className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800">
+                      {item.botao} →
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-
-        {/* Comunidade */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
-          <Checkbox id="comunidade" />
-          <div className="min-w-0 flex-1">
-            <div className={`font-bold ${marcado('comunidade') ? 'text-gray-400 line-through' : 'text-gray-800'}`}>Comunidade</div>
-            <p className="text-sm text-gray-500 mt-1">
-              Edite e confirme o primeiro texto diretamente na página da Comunidade dos Meus Clientes.
-            </p>
-            <button
-              onClick={() => navigate('/comunidade-coordenador')}
-              className="mt-3 text-xs font-bold text-blue-600 hover:text-blue-800"
-            >
-              Ir para Comunidade →
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
     </div>
   );
