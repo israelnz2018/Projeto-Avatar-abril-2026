@@ -2127,7 +2127,7 @@ async function startServer() {
     <p style="font-size:13px;color:#666">Use o nosso ecossistema pra transformar o seu conhecimento em cursos, ferramentas e resultados prontos pros seus clientes.</p>
   </div>
 </div>`;
-        const r = await resendSend({ to: email, subject: "Seu acesso de Consultor na LBW", html });
+        const r = await resendSend({ to: email, subject: "Seu acesso ao Programa de Consultores LBW foi aprovado", html });
         emailEnviado = r.ok;
       } catch (e) {
         console.error("[consultor/convidar] falha no envio do e-mail:", e);
@@ -2309,6 +2309,7 @@ async function startServer() {
   app.post("/api/leads-consultor", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const nome = String(req.body?.nome || "").trim().slice(0, 120);
+    const cidadeEstado = String(req.body?.cidadeEstado || "").trim().slice(0, 120);
     const email = String(req.body?.email || "").trim().toLowerCase().slice(0, 180);
     const empresa = String(req.body?.empresa || "").trim().slice(0, 120);
     const funcao = String(req.body?.funcao || "").trim().slice(0, 120);
@@ -2324,7 +2325,12 @@ async function startServer() {
       ["ja_atuo", "nao"].includes(atuaMelhoria) &&
       ["ja_atendo", "estou_buscando", "nao"].includes(clientesEmpresariais) &&
       ["ja_tenho", "desenvolvendo", "nao_tenho"].includes(cursoOnline);
-    if (!nome || !email.includes("@") || !empresa || !funcao || !whatsapp || !cursoPretendido || !empresasAtuacao || !["ate_7", "8_15", "16_30", "mais_30"].includes(prazoConfiguracao) || !respostasValidas) {
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const whatsappValido = /^\+\d{1,4}\s+/.test(whatsapp) && (() => {
+      const digitos = whatsapp.replace(/\D/g, "").length;
+      return digitos >= 8 && digitos <= 15;
+    })();
+    if (!nome || !cidadeEstado || !emailValido || !empresa || !funcao || !whatsappValido || !cursoPretendido || !empresasAtuacao || !["ate_7", "8_15", "16_30", "mais_30"].includes(prazoConfiguracao) || !respostasValidas) {
       return res.status(400).json({ error: "Preencha todos os campos." });
     }
     const qualificado =
@@ -2333,7 +2339,7 @@ async function startServer() {
       cursoOnline === "ja_tenho";
     try {
       await adminFirestore().collection("leads_consultores").add({
-        nome, email, empresa, funcao, whatsapp, origem,
+        nome, cidadeEstado, email, empresa, funcao, whatsapp, origem,
         atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, qualificado,
         status: qualificado ? "aguardando_aprovacao" : "nao_qualificado",
         criadoEm: new Date().toISOString(),
@@ -2370,6 +2376,43 @@ async function startServer() {
       const snap = await ref.get();
       if (!snap.exists) return res.status(404).json({ error: "Solicitação não encontrada." });
       const agora = new Date().toISOString();
+      const lead = snap.data() as any;
+      let cursoDemonstrativoEmailEnviado = false;
+      if (status === "recusado" && lead?.email) {
+        const email = String(lead.email).trim().toLowerCase();
+        const nome = String(lead.nome || "").trim();
+        const curso = "Como Resolver Problemas no Trabalho - Kit 90 dias";
+        let uid = "";
+        let novo = false;
+        let senhaProvisoria = "";
+        try {
+          uid = (await adminAuth().getUserByEmail(email)).uid;
+        } catch (error: any) {
+          if (error?.code !== "auth/user-not-found") throw error;
+          senhaProvisoria = gerarSenhaProvisoria();
+          uid = (await adminAuth().createUser({ email, password: senhaProvisoria, ...(nome ? { displayName: nome } : {}) })).uid;
+          novo = true;
+        }
+        const userRef = adminFirestore().collection("users").doc(uid);
+        const userSnap = await userRef.get();
+        const base = userSnap.exists ? (userSnap.data() as any) : {};
+        const vinculos = { ...(base.vinculos || {}) };
+        const vinculoIsrael = { ...(vinculos.israel || {}) };
+        const cursosAnteriores = Array.isArray(vinculoIsrael.cursosAcesso) ? vinculoIsrael.cursosAcesso : [];
+        const cursosAcesso = [...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso), { curso, vencimento: null, valor: 0, quantidade: 1 }];
+        vinculos.israel = { ...vinculoIsrael, tipoUsuario: "aluno", consultorId: "israel", plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), origem: "cortesia-consultores" };
+        const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, "israel"].filter(Boolean)));
+        await userRef.set(novo ? {
+          uid, email, nome, tipoUsuario: "aluno", consultorId: "israel", consultorIds, plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), vinculos, senhaProvisoria: true, criadoEm: agora, origem: "cortesia-consultores",
+        } : { uid, email, nome: base.nome || nome, consultorIds, vinculos }, { merge: true });
+        const primeiroNome = (nome.split(/\s+/)[0] || "").replace(/[<>&]/g, "");
+        const acesso = novo
+          ? `<p><strong>E-mail:</strong> ${email}<br><strong>Senha provisória:</strong> <code>${senhaProvisoria}</code></p><p>No primeiro acesso, crie uma nova senha.</p>`
+          : `<p>Entre usando o e-mail <strong>${email}</strong> e a senha que você já utiliza na plataforma.</p>`;
+        const html = `<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto"><div style="background:#1E2D6E;color:#fff;padding:24px"><h1 style="margin:0;font-size:22px">LBW — Educação pelo Trabalho</h1></div><div style="padding:28px 24px;border:1px solid #ccc"><p>Olá, ${primeiroNome || ""}!</p><p>Agradecemos seu interesse no <strong>Programa de Consultores LBW — Educação pelo Trabalho</strong>.</p><p>Neste momento, você não foi aprovado para participar desta turma. Em breve abriremos novas turmas, e seu perfil poderá ser considerado novamente.</p><p>Enquanto isso, liberamos gratuitamente para você o curso <strong>Como Resolver Problemas no Trabalho — Kit 90 Dias</strong>. Ao fazer este curso, você conhecerá todos os recursos da plataforma pela perspectiva do aluno e entenderá, na prática, a experiência que seus futuros clientes terão.</p>${acesso}<p>Ao entrar, abra o curso em <strong>Educação / Meus Cursos</strong>.</p><p style="text-align:center"><a href="https://israel.educacaopelotrabalho.com" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">ACESSAR MEU CURSO GRATUITO</a></p><p>Atenciosamente,<br><strong>Israel Cavalcanti de Souza</strong><br>LBW — Educação pelo Trabalho</p></div></div>`;
+        const mail = await resendSend({ to: email, subject: "Atualização sobre sua solicitação ao Programa de Consultores LBW", html });
+        cursoDemonstrativoEmailEnviado = mail.ok;
+      }
       await ref.set({
         status,
         decisaoEm: agora,
@@ -2377,7 +2420,7 @@ async function startServer() {
         ...(status === "aprovado" ? {
           consultorId: String(req.body?.consultorId || "").trim(),
           conviteEnviado: Boolean(req.body?.conviteEnviado),
-        } : {}),
+        } : { cursoDemonstrativoLiberado: true, cursoDemonstrativoEmailEnviado }),
       }, { merge: true });
       return res.json({ ok: true });
     } catch (err: any) {

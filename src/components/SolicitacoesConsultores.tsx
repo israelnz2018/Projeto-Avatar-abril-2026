@@ -6,6 +6,7 @@ import { useUserAccess } from '../hooks/useUserAccess';
 type Lead = {
   id: string;
   nome: string;
+  cidadeEstado: string;
   email: string;
   empresa: string;
   funcao: string;
@@ -97,7 +98,7 @@ export default function SolicitacoesConsultores() {
   const pendentes = leads.filter((lead) => lead.status === 'aguardando_aprovacao');
   const historico = leads.filter((lead) => lead.status !== 'aguardando_aprovacao');
   const Card = ({ lead }: { lead: Lead }) => <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
-    <div className="flex flex-wrap items-start gap-3 justify-between"><div><h2 className="font-black text-gray-900 m-0">{lead.nome}</h2><p className="text-sm text-gray-500 m-0">{lead.email} · {lead.whatsapp}</p><p className="text-sm text-gray-500 m-0">{lead.empresa} · {lead.funcao}</p></div><span className="text-xs font-black uppercase rounded-full px-3 py-1 bg-amber-50 text-amber-700">{lead.status.replaceAll('_', ' ')}</span></div>
+    <div className="flex flex-wrap items-start gap-3 justify-between"><div><h2 className="font-black text-gray-900 m-0">{lead.nome}</h2><p className="text-sm text-gray-500 m-0">{lead.cidadeEstado} · {lead.email} · {lead.whatsapp}</p><p className="text-sm text-gray-500 m-0">{lead.empresa} · {lead.funcao}</p></div><span className="text-xs font-black uppercase rounded-full px-3 py-1 bg-amber-50 text-amber-700">{lead.status.replaceAll('_', ' ')}</span></div>
     <div className="grid md:grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-slate-50 p-3"><b>Curso pretendido</b><br />{lead.cursoPretendido}</div><div className="rounded-xl bg-slate-50 p-3"><b>Prazo de configuração</b><br />{prazoLabel[lead.prazoConfiguracao] || lead.prazoConfiguracao}</div><div className="rounded-xl bg-slate-50 p-3 md:col-span-2"><b>Empresas e áreas</b><br />{lead.empresasAtuacao}</div></div>
     {lead.status === 'aguardando_aprovacao' && <>{abrindo === lead.id ? <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><label className="block text-xs font-black uppercase text-blue-800 mb-1">Subdomínio da plataforma</label><div className="flex flex-wrap items-center gap-2"><input value={slug} onChange={(e) => setSlug(e.target.value)} className="border border-blue-300 rounded-lg px-3 py-2 text-sm" placeholder="nome-do-consultor" /><span className="text-sm text-blue-800">.educacaopelotrabalho.com</span><button onClick={() => aprovarECriar(lead)} disabled={processando === lead.id} className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold text-sm disabled:opacity-50">{processando === lead.id ? 'Criando…' : 'Aprovar e criar acesso'}</button><button onClick={() => setAbrindo(null)} className="px-3 py-2 text-sm font-bold text-gray-600">Cancelar</button></div></div> : <div className="flex flex-wrap gap-3"><button onClick={() => { setAbrindo(lead.id); setSlug(slugify(lead.empresa || lead.nome)); }} disabled={processando === lead.id} className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold text-sm disabled:opacity-50">Aprovar</button><button onClick={() => recusar(lead)} disabled={processando === lead.id} className="px-4 py-2 rounded-lg border border-red-200 text-red-600 font-bold text-sm disabled:opacity-50">Recusar</button></div>}</>}
   </div>;

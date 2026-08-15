@@ -105,7 +105,7 @@ const CSS = `
 .consultores-lp .form-section{background:linear-gradient(145deg,#eef4ff,#fff)}
 .consultores-lp .form-shell{display:grid;grid-template-columns:1fr 480px;gap:54px;align-items:center}
 .consultores-lp .form-copy h2{text-align:left}.consultores-lp .form-copy p{color:var(--muted);font-size:18px}.consultores-lp .form-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 24px 65px rgba(30,45,110,.14)}
-.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .leadform input,.consultores-lp .leadform select,.consultores-lp .leadform textarea{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform textarea{min-height:92px;resize:vertical}.consultores-lp .leadform input:focus,.consultores-lp .leadform select:focus,.consultores-lp .leadform textarea:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
+.consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .field-ok{color:#07865e;margin-left:6px}.consultores-lp .leadform input,.consultores-lp .leadform select,.consultores-lp .leadform textarea{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform textarea{min-height:92px;resize:vertical}.consultores-lp .leadform input:focus,.consultores-lp .leadform select:focus,.consultores-lp .leadform textarea:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
 .consultores-lp .qualification{margin-top:5px;padding-top:18px;border-top:1px solid var(--line);display:grid;gap:15px}.consultores-lp .qualification-title{font-size:18px;margin:0;color:var(--navy2)}.consultores-lp .qualification-note{font-size:13px;color:var(--muted);margin:-8px 0 0}.consultores-lp .booking-pending,.consultores-lp .not-qualified{padding:18px;border-radius:14px;margin-top:18px;font-size:14px}.consultores-lp .booking-pending{background:#fff8e7;border:1px solid #f1d590;color:#704d00}.consultores-lp .not-qualified{background:#f4f7fd;border:1px solid var(--line);color:#42526d}
 .consultores-lp .leadform .cta{width:100%;margin-top:5px}.consultores-lp .micro{font-size:13px!important;text-align:center;color:#6b7890!important;margin:14px 0 0!important}.consultores-lp .error{color:#b42318;font-size:13px}.consultores-lp .success{text-align:center}.consultores-lp .success h3{font-size:28px}.consultores-lp .success p{color:var(--muted);margin-bottom:22px}
 .consultores-lp .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}.consultores-lp .reveal.visible{opacity:1;transform:none}
@@ -125,10 +125,13 @@ const LISTA_EMPRESA = ['Participantes', 'Treinamentos', 'Projetos', 'Ferramentas
 export default function LandingConsultores() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [nome, setNome] = useState('');
+  const [cidadeEstado, setCidadeEstado] = useState('');
   const [email, setEmail] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [funcao, setFuncao] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  const [paisWhatsapp, setPaisWhatsapp] = useState('brasil');
+  const [ddiWhatsapp, setDdiWhatsapp] = useState('+55');
   const [atuaMelhoria, setAtuaMelhoria] = useState('');
   const [clientesEmpresariais, setClientesEmpresariais] = useState('');
   const [cursoOnline, setCursoOnline] = useState('');
@@ -139,6 +142,16 @@ export default function LandingConsultores() {
   const [enviado, setEnviado] = useState(false);
   const [qualificado, setQualificado] = useState(false);
   const [erro, setErro] = useState('');
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const whatsappCompleto = `${ddiWhatsapp.trim()} ${whatsapp.trim()}`.trim();
+  const whatsappValido = /^\+\d{1,4}$/.test(ddiWhatsapp.trim()) && (() => {
+    const digitos = whatsappCompleto.replace(/\D/g, '').length;
+    return digitos >= 8 && digitos <= 15;
+  })();
+  const formularioCompleto = Boolean(
+    nome.trim() && cidadeEstado.trim() && emailValido && empresa.trim() && funcao.trim() && whatsappValido
+    && atuaMelhoria && cursoOnline && cursoPretendido.trim() && clientesEmpresariais && empresasAtuacao.trim() && prazoConfiguracao,
+  );
 
   useEffect(() => {
     const root = rootRef.current;
@@ -162,7 +175,7 @@ export default function LandingConsultores() {
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     setErro('');
-    if (!nome.trim() || !email.trim() || !empresa.trim() || !funcao.trim() || !whatsapp.trim() || !atuaMelhoria || !clientesEmpresariais || !cursoOnline || !cursoPretendido.trim() || !empresasAtuacao.trim() || !prazoConfiguracao) {
+    if (!formularioCompleto) {
       setErro('Preencha todos os campos.');
       return;
     }
@@ -171,7 +184,7 @@ export default function LandingConsultores() {
       const response = await fetch('/api/leads-consultor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, email, empresa, funcao, whatsapp, atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, origem: 'landing-consultores' }),
+        body: JSON.stringify({ nome, cidadeEstado, email, empresa, funcao, whatsapp: whatsappCompleto, atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, origem: 'landing-consultores' }),
       });
       if (!response.ok) throw new Error();
       const result = await response.json();
@@ -374,12 +387,13 @@ export default function LandingConsultores() {
             <p><strong>As vagas iniciais são analisadas pessoalmente.</strong></p>
           </div>
           <div className="form-card">
-            {enviado ? <div className="success">{qualificado ? <><h3>Sua solicitação foi recebida.</h3><p>Vou analisar suas respostas pessoalmente. Se sua participação for aprovada, você receberá por e-mail as instruções de acesso à plataforma.</p></> : <><h3>Obrigado pelo interesse.</h3><div className="not-qualified">Neste momento, o programa é voltado a quem já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, já possui curso online pronto e já atende ou está buscando empresas como clientes.</div></>}</div> : <form className="leadform" onSubmit={enviar}>
-              <div><label>Nome</label><input value={nome} onChange={event => setNome(event.target.value)} placeholder="[Seu nome]" /></div>
-              <div><label>E-mail</label><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="voce@empresa.com" /></div>
+            {enviado ? <div className="success">{qualificado ? <><h3>Sua solicitação foi recebida.</h3><p>Vou analisar suas respostas pessoalmente e você receberá um retorno por e-mail em até 48 horas.</p></> : <><h3>Obrigado pelo interesse.</h3><div className="not-qualified">Neste momento, o programa é voltado a quem já atua como consultor de excelência operacional, melhoria contínua, melhoria de processos ou áreas relacionadas, já possui curso online pronto e já atende ou está buscando empresas como clientes.</div></>}</div> : <form className="leadform" onSubmit={enviar}>
+              <div><label>Nome completo</label><input value={nome} onChange={event => setNome(event.target.value)} placeholder="[Seu nome completo]" /></div>
+              <div><label>Cidade / Estado</label><input value={cidadeEstado} onChange={event => setCidadeEstado(event.target.value)} placeholder="Ex.: São Paulo, SP" /></div>
+              <div><label>E-mail{emailValido && <span className="field-ok">✓ válido</span>}</label><input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="voce@empresa.com" /></div>
               <div><label>Empresa / Consultoria</label><input value={empresa} onChange={event => setEmpresa(event.target.value)} placeholder="[Nome da sua empresa ou consultoria]" /></div>
               <div><label>Função</label><input value={funcao} onChange={event => setFuncao(event.target.value)} placeholder="[Sua função]" /></div>
-              <div><label>WhatsApp</label><input value={whatsapp} onChange={event => setWhatsapp(event.target.value)} placeholder="[Seu WhatsApp]" /></div>
+              <div><label>WhatsApp{whatsappValido && <span className="field-ok">✓ válido</span>}</label><div className="grid grid-cols-[150px_1fr] gap-2"><select value={paisWhatsapp} onChange={event => { const valor = event.target.value; setPaisWhatsapp(valor); setDdiWhatsapp(valor === 'brasil' ? '+55' : valor === 'nova_zelandia' ? '+64' : '+351'); }}><option value="brasil">Brasil (+55)</option><option value="nova_zelandia">Nova Zelândia (+64)</option><option value="portugal">Portugal (+351)</option></select><input inputMode="tel" value={whatsapp} onChange={event => setWhatsapp(event.target.value)} placeholder="Número do WhatsApp" /></div></div>
               <div className="qualification">
                 <h3 className="qualification-title">Sua solicitação</h3>
                 <p className="qualification-note">As respostas ajudam a avaliar se o programa faz sentido para o seu momento profissional.</p>
@@ -391,7 +405,7 @@ export default function LandingConsultores() {
                 <div><label>6. Em quanto tempo você pretende concluir a configuração inicial: marca, curso com vídeos, certificado e, se necessário, teste de avaliação?</label><select value={prazoConfiguracao} onChange={event => setPrazoConfiguracao(event.target.value)}><option value="">Selecione...</option><option value="ate_7">Em até 7 dias</option><option value="8_15">De 8 a 15 dias</option><option value="16_30">De 16 a 30 dias</option><option value="mais_30">Mais de 30 dias</option></select></div>
               </div>
               {erro && <div className="error">{erro}</div>}
-              <button className="cta" type="submit" disabled={enviando}>{enviando ? 'Enviando...' : 'Enviar solicitação →'}</button>
+              <button className="cta" type="submit" disabled={enviando || !formularioCompleto}>{enviando ? 'Enviando...' : 'Enviar solicitação →'}</button>
               <p className="micro">Sem mensalidade inicial. As vagas iniciais são limitadas e analisadas pessoalmente.</p>
             </form>}
           </div>
