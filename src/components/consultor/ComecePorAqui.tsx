@@ -308,52 +308,25 @@ export default function ComecePorAqui() {
               </div>
             </div>
           )}
-          <div className="divide-y divide-gray-100">
-            {gruposOrientacao.map((grupo) => (
-              <div key={grupo.id} className="p-4">
-                <p className="font-bold text-gray-800">{grupo.nome}</p>
-                {grupo.videos.length === 0 ? (
-                  <div className="mt-3 w-full max-w-sm overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
-                    <div className="relative aspect-video bg-slate-900">
-                      <div className="absolute inset-0 grid place-items-center"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/20 text-white backdrop-blur-sm"><PlayCircle size={27} /></span></div>
+          <div className="grid gap-6 p-5 md:grid-cols-2 xl:grid-cols-3">
+            {gruposOrientacao.map((grupo) => {
+              const tarefa = ITENS.find((item) => item.id === grupo.id);
+              const videos = grupo.videos.length ? grupo.videos : [null];
+              return videos.map((video, indice) => (
+                <div key={video?.id || `${grupo.id}-${indice}`} className="overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
+                  <button type="button" disabled={!video} onClick={() => video && setVideoAberto(video)} className="group w-full text-left disabled:cursor-default">
+                    <div className="relative aspect-video overflow-hidden bg-slate-900">
+                      {video?.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="grid h-full place-items-center"><PlayCircle className="text-white/70" size={44} /></div>}
+                      {video && <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-0 transition group-hover:opacity-100"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><PlayCircle size={27} /></span></div>}
                     </div>
-                    <div className="p-4">
-                      <p className="font-bold text-[14px] leading-tight text-gray-800">Vídeo ainda não cadastrado</p>
-                      <p className="mt-2 text-[11px] text-gray-500">Cadastre o vídeo desta playlist na Base de Conhecimento.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                    {grupo.videos.map((video) => (
-                      <button key={video.id} type="button" onClick={() => setVideoAberto(video)} className="group overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:border-blue-400 hover:shadow-md">
-                        <div className="relative aspect-video overflow-hidden bg-slate-900">
-                          {video.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="grid h-full place-items-center"><PlayCircle className="text-white/70" size={42} /></div>}
-                          <div className="absolute inset-0 grid place-items-center bg-black/15 opacity-0 transition group-hover:opacity-100"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><PlayCircle size={27} /></span></div>
-                        </div>
-                        <div className="p-3"><p className="line-clamp-2 font-bold text-gray-800 transition group-hover:text-blue-600">{video.title}</p><span className="mt-2 block text-xs font-bold text-blue-600">Assistir vídeo →</span></div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {(() => {
-                  const tarefa = ITENS.find((item) => item.id === grupo.id);
-                  if (!tarefa) return null;
-                  if (grupo.id === 'experiencia-aluno') {
-                    return consultorId !== 'israel' ? (
-                      <button type="button" disabled={liberandoCurso} onClick={conhecerComoAluno} className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60">
-                        {liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno'}
-                      </button>
-                    ) : null;
-                  }
-                  return (
-                    <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-gray-600">
-                      <p>{tarefa.texto}</p>
-                      {tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}
-                    </div>
-                  );
-                })()}
-              </div>
-            ))}
+                    <div className="p-4"><h3 className="font-bold text-[14px] leading-tight text-gray-800">{video?.title || 'Vídeo ainda não cadastrado'}</h3><p className="mt-2 text-[11px] text-gray-500">{grupo.nome}</p></div>
+                  </button>
+                  {tarefa && <div className="border-t border-[#eee] bg-slate-50 p-4 text-sm text-gray-600">
+                    {grupo.id === 'experiencia-aluno' ? (consultorId !== 'israel' && <button type="button" disabled={liberandoCurso} onClick={conhecerComoAluno} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">{liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno'}</button>) : <><p>{tarefa.texto}</p>{tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}</>}
+                  </div>}
+                </div>
+              ));
+            })}
           </div>
         </section>
         {/* Checklist temporariamente oculto: será redesenhado após definirmos a
