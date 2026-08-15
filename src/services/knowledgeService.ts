@@ -34,12 +34,20 @@ export const KNOWLEDGE_COLLECTION = 'knowledge_base';
 
 export const INTRO_COURSE_ALUNO = 'Aluno Comece por aqui';
 export const INTRO_COURSE_COORDENADOR = 'Coordenador Comece por aqui';
+/** Área de orientação do próprio consultor; não é curso nem aparece ao aluno. */
+export const INTRO_COURSE_CONSULTOR = 'Consultor Comece por aqui';
 export const INTRO_PLAYLIST = 'Comece por aqui';
 
-export const INTRO_COURSES = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR] as const;
+export const INTRO_COURSES = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR, INTRO_COURSE_CONSULTOR] as const;
 
 export function isIntroCourse(course: string): boolean {
   return INTRO_COURSES.includes(course as typeof INTRO_COURSES[number]);
+}
+
+/** Aluno e coordenador usam uma única playlist fixa. A área do consultor pode
+ * ter quantas playlists o consultor quiser criar e reorganizar. */
+export function isFixedIntroCourse(course: string): boolean {
+  return course === INTRO_COURSE_ALUNO || course === INTRO_COURSE_COORDENADOR;
 }
 
 export async function saveKnowledge(entry: Omit<KnowledgeEntry, 'timestamp' | 'id'>, providedOrder?: number) {

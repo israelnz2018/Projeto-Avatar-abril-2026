@@ -30,7 +30,8 @@ import {
   getAllKnowledge,
   KnowledgeEntry,
   INTRO_COURSE_ALUNO,
-  INTRO_COURSE_COORDENADOR
+  INTRO_COURSE_COORDENADOR,
+  INTRO_COURSE_CONSULTOR
 } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -286,6 +287,8 @@ export default function LearningView() {
     const somenteBunny = data
       .filter((item) => Boolean(item.bunnyVideoId && item.bunnyLibraryId))
       .filter((item) => {
+        // Conteúdo interno de implantação: não entra na área Educação nem vira curso.
+        if (item.course === INTRO_COURSE_CONSULTOR) return false;
         if (item.course === INTRO_COURSE_ALUNO) return true;
         if (item.course === INTRO_COURSE_COORDENADOR) return !modoAreaAluno && (isAdmin || isConsultor || isCoordenador);
         return true;

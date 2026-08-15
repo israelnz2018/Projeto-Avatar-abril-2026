@@ -8,12 +8,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { CheckCircle2, Circle, GraduationCap, Rocket } from 'lucide-react';
+import { CheckCircle2, Circle, GraduationCap, Rocket, Video } from 'lucide-react';
 import { auth, db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { getQuiz } from '../../services/quizService';
+import { getAllKnowledge, INTRO_COURSE_CONSULTOR, type KnowledgeEntry } from '../../services/knowledgeService';
 
 interface Item {
   id: string;
@@ -80,6 +81,8 @@ export default function ComecePorAqui() {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading } = useUserAccess();
   const [autoChecks, setAutoChecks] = useState<Record<string, boolean>>({});
+  const [videosOrientacao, setVideosOrientacao] = useState<KnowledgeEntry[]>([]);
+  const [videoAberto, setVideoAberto] = useState<KnowledgeEntry | null>(null);
   const [liberandoCurso, setLiberandoCurso] = useState(false);
   const [erroCurso, setErroCurso] = useState('');
 
@@ -158,6 +161,17 @@ export default function ComecePorAqui() {
     carregarChecksAutomaticos();
     return () => { ativo = false; };
   }, [consultorId, consultor.certificado, consultor.comunidadeBoasVindas, consultor.depoimentoPreProvaAtivo]);
+
+  useEffect(() => {
+    getAllKnowledge(consultorId)
+      .then((videos) => {
+        const onboarding = videos
+          .filter((video) => video.course === INTRO_COURSE_CONSULTOR && video.bunnyVideoId && video.bunnyLibraryId)
+          .sort((a, b) => (a.playlistOrder ?? 0) - (b.playlistOrder ?? 0) || (a.order ?? 0) - (b.order ?? 0));
+        setVideosOrientacao(onboarding);
+      })
+      .catch(() => setVideosOrientacao([]));
+  }, [consultorId]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
   if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor vê essa página.</div>;
@@ -255,6 +269,39 @@ export default function ComecePorAqui() {
             </div>
           </section>
         )}
+        <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <div className="p-5 border-b border-gray-100">
+            <h2 className="font-black text-gray-800">Vídeos de orientação</h2>
+            <p className="text-sm text-gray-500 mt-1">Os vídeos cadastrados em “Consultor Comece por aqui” aparecem aqui. Você organiza a lista por playlists na Base de Conhecimento.</p>
+          </div>
+          {videoAberto && (
+            <div className="p-5 border-b border-gray-100 bg-slate-50">
+              <p className="mb-3 font-bold text-gray-800">{videoAberto.title}</p>
+              <div className="aspect-video overflow-hidden rounded-xl bg-slate-900">
+                <iframe
+                  title={videoAberto.title}
+                  src={`https://iframe.mediadelivery.net/embed/${videoAberto.bunnyLibraryId}/${videoAberto.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
+                  className="h-full w-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
+          {videosOrientacao.length === 0 ? (
+            <p className="p-5 text-sm text-gray-400">Ainda não há vídeos aqui. Para criar a lista, vá em Base de Conhecimento → Adicionar vídeo → Consultor Comece por aqui → criar playlist.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {videosOrientacao.map((video) => (
+                <button key={video.id} type="button" onClick={() => setVideoAberto(video)} className="flex w-full items-center gap-3 p-4 text-left hover:bg-blue-50">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-blue-50 text-blue-700"><Video size={18} /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-xs font-bold text-blue-600">{video.playlist}</span><span className="block truncate font-bold text-gray-800">{video.title}</span></span>
+                  <span className="text-xs font-bold text-blue-600">Assistir →</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
         {ITENS.map((item) => (
           <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex gap-3">
             <Checkbox id={item.id} />

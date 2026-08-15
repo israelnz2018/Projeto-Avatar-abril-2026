@@ -54,8 +54,10 @@ import {
   KNOWLEDGE_COLLECTION,
   INTRO_COURSE_ALUNO,
   INTRO_COURSE_COORDENADOR,
+  INTRO_COURSE_CONSULTOR,
   INTRO_PLAYLIST,
-  isIntroCourse
+  isIntroCourse,
+  isFixedIntroCourse
 } from '../services/knowledgeService';
 import { getInitiatives, updateInitiative } from '../services/configService';
 
@@ -524,7 +526,7 @@ export default function KnowledgeManagerView() {
       placements: prev.placements.map((p, i) => {
         if (i !== idx) return p;
         const next = { ...p, ...patch };
-        if (patch.course && isIntroCourse(patch.course)) {
+        if (patch.course && isFixedIntroCourse(patch.course)) {
           next.playlist = INTRO_PLAYLIST;
           next.newPlaylistName = '';
         }
@@ -1139,7 +1141,7 @@ export default function KnowledgeManagerView() {
           .map((p) => ({
             ...p,
             course: p.course.trim(),
-            playlist: isIntroCourse(p.course) ? INTRO_PLAYLIST : (p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist.trim()),
+            playlist: isFixedIntroCourse(p.course) ? INTRO_PLAYLIST : (p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist.trim()),
           }))
           .filter((p) => p.course && p.playlist);
         if (placementsValidos.length === 0) {
@@ -1251,10 +1253,10 @@ export default function KnowledgeManagerView() {
 
   const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
 
-  const introCourseOptions = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR];
+  const introCourseOptions = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR, INTRO_COURSE_CONSULTOR];
   const regularCourseOptions = initiativeNames.filter(c => !isIntroCourse(c));
 
-  const playlistsForCourse = (course: string) => isIntroCourse(course)
+  const playlistsForCourse = (course: string) => isFixedIntroCourse(course)
     ? [INTRO_PLAYLIST]
     : course && course !== 'NEW'
     ? Array.from(new Set(items.filter(i => i.course === course).map(i => i.playlist).filter(Boolean)))
@@ -1461,13 +1463,13 @@ export default function KnowledgeManagerView() {
                         value={p.playlist}
                         onChange={(e) => updatePlacement(idx, { playlist: e.target.value })}
                         className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
-                        disabled={isIntroCourse(p.course)}
+                        disabled={isFixedIntroCourse(p.course)}
                       >
                         <option value="" disabled>Selecione uma playlist...</option>
                         {availPlaylists.map(pl => (
                           <option key={pl} value={pl}>{pl}</option>
                         ))}
-                        {!isIntroCourse(p.course) && <option value="NEW">+ Cadastrar nova playlist</option>}
+                        {!isFixedIntroCourse(p.course) && <option value="NEW">+ Cadastrar nova playlist</option>}
                       </select>
                       {p.playlist === 'NEW' && (
                         <input
@@ -1708,7 +1710,9 @@ export default function KnowledgeManagerView() {
                           onEdit={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
                           onDelete={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
                           onMove={() => setModalConfig({ isOpen: true, type: 'movePlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: '' })}
-                          hideActions={abaEspecial}
+                          // As playlists de aluno/coordenador são fixas. Já o
+                          // Consultor Comece por aqui é editável pelo consultor.
+                          hideActions={isFixedIntroCourse(course.name)}
                         />
                       ))}
                     </SortableContext>
@@ -1833,7 +1837,7 @@ export default function KnowledgeManagerView() {
                                 onChange={(e) => {
                                   const course = e.target.value;
                                   setEditPlacements(prev => prev.map((pp, i) => i === idx
-                                    ? { ...pp, course, playlist: isIntroCourse(course) ? INTRO_PLAYLIST : '', newPlaylistName: '' }
+                                    ? { ...pp, course, playlist: isFixedIntroCourse(course) ? INTRO_PLAYLIST : '', newPlaylistName: '' }
                                     : pp
                                   ));
                                 }}
@@ -1852,11 +1856,11 @@ export default function KnowledgeManagerView() {
                                   value={p.playlist}
                                   onChange={(e) => setEditPlacements(prev => prev.map((pp, i) => i === idx ? { ...pp, playlist: e.target.value } : pp))}
                                   className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white text-sm"
-                                  disabled={isIntroCourse(p.course)}
+                                  disabled={isFixedIntroCourse(p.course)}
                                 >
                                   <option value="" disabled>Selecione uma playlist...</option>
                                   {availPlaylists.map(pl => <option key={pl} value={pl}>{pl}</option>)}
-                                  {!isIntroCourse(p.course) && <option value="NEW">+ Nova playlist</option>}
+                                  {!isFixedIntroCourse(p.course) && <option value="NEW">+ Nova playlist</option>}
                                 </select>
                                 {p.playlist === 'NEW' && (
                                   <input
