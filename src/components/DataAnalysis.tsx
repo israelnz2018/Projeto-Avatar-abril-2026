@@ -32,7 +32,6 @@ import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
-import { hasCourseAccess } from '../lib/courseAccess';
 import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
@@ -303,13 +302,6 @@ const GRAFICOS_LIST = [
   "Tendência", "Bolhas - 3D", "Superfície - 3D", "Dispersão 3D", "Intervalo"
 ];
 
-const CURSOS_DATA_ANALYSIS_COMPLETO = [
-  'Como Resolver Problemas no Trabalho - Kit 90 dias',
-  'Como Recomendar Melhorias com Base em Análise de Dados',
-  'Como Fazer Análises Estatísticas Aplicadas a Negócios',
-  'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
-];
-
 const mapaCampos: Record<string, string> = {
   "Y": "coluna_y",
   "X": "coluna_x",
@@ -443,16 +435,13 @@ export default function DataAnalysis() {
   const [showAllVideos, setShowAllVideos] = useState(false);
   const [showEduVideos, setShowEduVideos] = useState(false);
 
-  // A permissão desta área vem dos cursos efetivamente liberados ao usuário.
-  // O Kit 90 Dias (primeiro curso gratuito dos consultores fundadores) e os três
-  // cursos avançados liberam o Software LBW completo. Nos demais cursos, o menu
-  // continua visível, mas as análises permanecem bloqueadas.
-  const dataAnalysisAccess: 'none' | 'full' = (() => {
-    if (isAdmin || isConsultor) return 'full';
-    if (CURSOS_DATA_ANALYSIS_COMPLETO.some((curso) => hasCourseAccess(cursosLiberados, curso))) return 'full';
-
-    return 'none';
-  })();
+  // FIX TEMPORÁRIO (pedido do Israel, 2026-08-17): liberado geral pra qualquer
+  // aluno, de qualquer consultor/coordenador — o gate antigo comparava contra
+  // CURSOS_DATA_ANALYSIS_COMPLETO, uma lista de 4 nomes de curso do Israel, então
+  // nenhum aluno de outro consultor nunca batia e ficava com tudo bloqueado.
+  // Isso volta a ser configurável por consultor no sistema de "análises visíveis"
+  // (ver memória plano-videos-analises-por-consultor.md) — até lá, fica aberto.
+  const dataAnalysisAccess: 'none' | 'full' = 'full' as 'none' | 'full';
 
   const isAnalysisLocked = (_analysisName: string) => dataAnalysisAccess === 'none';
 
