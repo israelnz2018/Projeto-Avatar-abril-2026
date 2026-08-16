@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
+import JSZip from 'jszip';
 import { Upload, Palette, AlertTriangle, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
@@ -252,6 +253,34 @@ function UploadBtn({ titulo, carregando, onFile }: { titulo: string; carregando:
 
 function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url: string; carregando: boolean; onFile: (f?: File) => void }) {
   const isPowerPoint = /\.pptx?(\?|$)/i.test(url);
+  const [miniatura, setMiniatura] = useState('');
+
+  useEffect(() => {
+    let objectUrl = '';
+    let ativo = true;
+    setMiniatura('');
+    if (!url || !isPowerPoint) return;
+
+    void (async () => {
+      try {
+        const resposta = await fetch(url);
+        if (!resposta.ok) return;
+        const zip = await JSZip.loadAsync(await resposta.arrayBuffer());
+        const arquivo = Object.values(zip.files).find((item) => /(^|\/)thumbnail\.(jpe?g|png)$/i.test(item.name));
+        if (!arquivo) return;
+        objectUrl = URL.createObjectURL(await arquivo.async('blob'));
+        if (ativo) setMiniatura(objectUrl);
+      } catch {
+        // Alguns PowerPoints não incluem miniatura; o arquivo continua disponível.
+      }
+    })();
+
+    return () => {
+      ativo = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url, isPowerPoint]);
+
   return (
     <div>
       <div className="text-xs font-black uppercase tracking-wide text-gray-500 mb-1">{rotulo}</div>
@@ -260,10 +289,11 @@ function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url:
           isPowerPoint
             ? (
               <div className="relative w-full h-full bg-slate-100">
+                {miniatura && <img src={miniatura} alt={`Prévia: ${rotulo}`} className="w-full h-full object-cover" />}
                 <iframe
                   title={`Prévia do PowerPoint: ${rotulo}`}
-                  src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`}
-                  className="w-full h-full border-0 pointer-events-none"
+                  src="about:blank"
+                  className="hidden"
                   loading="lazy"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-center text-[10px] font-bold text-white">
