@@ -106,6 +106,7 @@ const CSS = `
 .consultores-lp .form-shell{display:grid;grid-template-columns:1fr 480px;gap:54px;align-items:center}
 .consultores-lp .form-copy h2{text-align:left}.consultores-lp .form-copy p{color:var(--muted);font-size:18px}.consultores-lp .form-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 24px 65px rgba(30,45,110,.14)}
 .consultores-lp .leadform{display:grid;gap:15px}.consultores-lp .leadform label{display:block;font-size:13px;font-weight:850;color:#34415b;margin-bottom:6px}.consultores-lp .field-ok{color:#07865e;margin-left:6px}.consultores-lp .leadform input,.consultores-lp .leadform select,.consultores-lp .leadform textarea{width:100%;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:13px 14px;font:inherit;color:var(--ink)}.consultores-lp .leadform textarea{min-height:92px;resize:vertical}.consultores-lp .leadform input:focus,.consultores-lp .leadform select:focus,.consultores-lp .leadform textarea:focus{outline:3px solid rgba(20,86,232,.12);border-color:var(--blue)}
+.consultores-lp .domain-field{display:flex;align-items:stretch}.consultores-lp .domain-field input{border-radius:11px 0 0 11px;min-width:0}.consultores-lp .domain-suffix{display:flex;align-items:center;padding:0 12px;background:#e8f0ff;border:1px solid #cbd5e1;border-left:0;border-radius:0 11px 11px 0;color:#244682;font-size:12px;font-weight:800;white-space:nowrap}
 .consultores-lp .qualification{margin-top:5px;padding-top:18px;border-top:1px solid var(--line);display:grid;gap:15px}.consultores-lp .qualification-title{font-size:18px;margin:0;color:var(--navy2)}.consultores-lp .qualification-note{font-size:13px;color:var(--muted);margin:-8px 0 0}.consultores-lp .booking-pending,.consultores-lp .not-qualified{padding:18px;border-radius:14px;margin-top:18px;font-size:14px}.consultores-lp .booking-pending{background:#fff8e7;border:1px solid #f1d590;color:#704d00}.consultores-lp .not-qualified{background:#f4f7fd;border:1px solid var(--line);color:#42526d}
 .consultores-lp .leadform .cta{width:100%;margin-top:5px}.consultores-lp .micro{font-size:13px!important;text-align:center;color:#6b7890!important;margin:14px 0 0!important}.consultores-lp .error{color:#b42318;font-size:13px}.consultores-lp .success{text-align:center}.consultores-lp .success h3{font-size:28px}.consultores-lp .success p{color:var(--muted);margin-bottom:22px}
 .consultores-lp .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}.consultores-lp .reveal.visible{opacity:1;transform:none}
@@ -138,6 +139,7 @@ export default function LandingConsultores() {
   const [cursoPretendido, setCursoPretendido] = useState('');
   const [empresasAtuacao, setEmpresasAtuacao] = useState('');
   const [prazoConfiguracao, setPrazoConfiguracao] = useState('');
+  const [subdominioPretendido, setSubdominioPretendido] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [qualificado, setQualificado] = useState(false);
@@ -150,7 +152,8 @@ export default function LandingConsultores() {
   })();
   const formularioCompleto = Boolean(
     nome.trim() && cidadeEstado.trim() && emailValido && empresa.trim() && funcao.trim() && whatsappValido
-    && atuaMelhoria && cursoOnline && cursoPretendido.trim() && clientesEmpresariais && empresasAtuacao.trim() && prazoConfiguracao,
+    && atuaMelhoria && cursoOnline && cursoPretendido.trim() && clientesEmpresariais && empresasAtuacao.trim() && prazoConfiguracao
+    && /^[a-z0-9][a-z0-9-]{2,30}$/.test(subdominioPretendido),
   );
 
   useEffect(() => {
@@ -184,7 +187,7 @@ export default function LandingConsultores() {
       const response = await fetch('/api/leads-consultor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, cidadeEstado, email, empresa, funcao, whatsapp: whatsappCompleto, atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, origem: 'landing-consultores' }),
+        body: JSON.stringify({ nome, cidadeEstado, email, empresa, funcao, whatsapp: whatsappCompleto, atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, subdominioPretendido, origem: 'landing-consultores' }),
       });
       if (!response.ok) throw new Error();
       const result = await response.json();
@@ -403,6 +406,20 @@ export default function LandingConsultores() {
                 <div><label>4. Você já atende empresas ou está buscando empresas clientes neste momento?</label><select value={clientesEmpresariais} onChange={event => setClientesEmpresariais(event.target.value)}><option value="">Selecione...</option><option value="ja_atendo">Já atendo empresas</option><option value="estou_buscando">Estou buscando empresas clientes</option><option value="nao">Não</option></select></div>
                 <div><label>5. Quais empresas você atende ou pretende atender e qual é a área de atuação delas?</label><textarea value={empresasAtuacao} onChange={event => setEmpresasAtuacao(event.target.value)} placeholder="Se houver confidencialidade, informe apenas os segmentos." /></div>
                 <div><label>6. Em quanto tempo você pretende concluir a configuração inicial: marca, curso com vídeos, certificado e, se necessário, teste de avaliação?</label><select value={prazoConfiguracao} onChange={event => setPrazoConfiguracao(event.target.value)}><option value="">Selecione...</option><option value="ate_7">Em até 7 dias</option><option value="8_15">De 8 a 15 dias</option><option value="16_30">De 16 a 30 dias</option><option value="mais_30">Mais de 30 dias</option></select></div>
+                <div>
+                  <label>7. Se você for selecionado para ter sua própria plataforma, que nome gostaria de colocar no endereço?</label>
+                  <p className="qualification-note">Por exemplo: Israel escolheu <b>israel.educacaopelotrabalho.com</b>. Você pode usar seu nome ou o nome da sua empresa.</p>
+                  <div className="domain-field">
+                    <input
+                      value={subdominioPretendido}
+                      onChange={event => setSubdominioPretendido(event.target.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/g, '').slice(0, 31))}
+                      placeholder="seu-nome-ou-empresa"
+                      aria-label="Nome desejado para o endereço da plataforma"
+                    />
+                    <span className="domain-suffix">.educacaopelotrabalho.com</span>
+                  </div>
+                  {subdominioPretendido && !/^[a-z0-9][a-z0-9-]{2,30}$/.test(subdominioPretendido) && <p className="qualification-note">Use de 3 a 31 letras, números ou hífen.</p>}
+                </div>
               </div>
               {erro && <div className="error">{erro}</div>}
               <button className="cta" type="submit" disabled={enviando || !formularioCompleto}>{enviando ? 'Enviando...' : 'Enviar solicitação →'}</button>

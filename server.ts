@@ -2452,6 +2452,7 @@ async function startServer() {
     const cursoPretendido = String(req.body?.cursoPretendido || "").trim().slice(0, 300);
     const empresasAtuacao = String(req.body?.empresasAtuacao || "").trim().slice(0, 800);
     const prazoConfiguracao = String(req.body?.prazoConfiguracao || "").trim().slice(0, 40);
+    const subdominioPretendido = String(req.body?.subdominioPretendido || "").trim().toLowerCase().slice(0, 31);
     const origem = String(req.body?.origem || "landing-consultores").trim().slice(0, 60);
     const respostasValidas =
       ["ja_atuo", "nao"].includes(atuaMelhoria) &&
@@ -2462,7 +2463,7 @@ async function startServer() {
       const digitos = whatsapp.replace(/\D/g, "").length;
       return digitos >= 8 && digitos <= 15;
     })();
-    if (!nome || !cidadeEstado || !emailValido || !empresa || !funcao || !whatsappValido || !cursoPretendido || !empresasAtuacao || !["ate_7", "8_15", "16_30", "mais_30"].includes(prazoConfiguracao) || !respostasValidas) {
+    if (!nome || !cidadeEstado || !emailValido || !empresa || !funcao || !whatsappValido || !cursoPretendido || !empresasAtuacao || !/^[a-z0-9][a-z0-9-]{2,30}$/.test(subdominioPretendido) || !["ate_7", "8_15", "16_30", "mais_30"].includes(prazoConfiguracao) || !respostasValidas) {
       return res.status(400).json({ error: "Preencha todos os campos." });
     }
     const qualificado =
@@ -2472,7 +2473,7 @@ async function startServer() {
     try {
       await adminFirestore().collection("leads_consultores").add({
         nome, cidadeEstado, email, empresa, funcao, whatsapp, origem,
-        atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, qualificado,
+        atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, subdominioPretendido, qualificado,
         status: qualificado ? "aguardando_aprovacao" : "nao_qualificado",
         criadoEm: new Date().toISOString(),
       });
