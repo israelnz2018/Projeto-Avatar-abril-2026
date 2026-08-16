@@ -258,7 +258,19 @@ function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url:
       <div className="aspect-video w-full rounded-lg border border-gray-200 bg-gray-50 overflow-hidden mb-2 grid place-items-center">
         {url ? (
           isPowerPoint
-            ? <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">Arquivo .PPTX enviado</span>
+            ? (
+              <div className="relative w-full h-full bg-slate-100">
+                <iframe
+                  title={`Prévia do PowerPoint: ${rotulo}`}
+                  src={`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(url)}`}
+                  className="w-full h-full border-0 pointer-events-none"
+                  loading="lazy"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-center text-[10px] font-bold text-white">
+                  Prévia do PowerPoint
+                </div>
+              </div>
+            )
             : <img src={url} alt={rotulo} className="w-full h-full object-cover" />
         ) : <span className="text-xs text-gray-300">Somente .PPTX</span>}
       </div>
