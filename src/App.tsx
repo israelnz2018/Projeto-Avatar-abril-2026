@@ -28,7 +28,8 @@ import {
   Rocket
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from './lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from './lib/firebase';
 import { Login } from './components/Login';
 import { cn } from './lib/utils';
 
@@ -102,6 +103,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     aluno: false,
   });
   const [avisoBloqueio, setAvisoBloqueio] = useState<{ titulo?: string; mensagem?: string; consultorNome?: string; expiraEm?: string } | null>(null);
+  const [perfilMenu, setPerfilMenu] = useState<{ nome?: string; fotoUrl?: string }>({});
   const { projetoAtivo } = useProject();
   const { tipoUsuario, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
   const { consultor } = useConsultor();
@@ -129,6 +131,17 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
   const isCoordenador = tipoUsuario === 'coordenador';
   const isConsultor = tipoUsuario === 'consultor';
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setPerfilMenu({});
+      return;
+    }
+    return onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+      const dados = snapshot.data() || {};
+      setPerfilMenu({ nome: String(dados.nome || ''), fotoUrl: String(dados.fotoUrl || '') });
+    }, () => setPerfilMenu({}));
+  }, [user?.uid]);
 
   useEffect(() => {
     let ativo = true;
@@ -169,9 +182,11 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     ? 'Coordenador'
     : '';
 
-  // Avatar: foto do consultor (se houver) no lugar das iniciais.
-  const avatarEl = consultor.branding.fotoUrl
-    ? <img src={consultor.branding.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+  // O menu mostra o perfil da pessoa logada. A foto da marca só é fallback para o próprio consultor.
+  const fotoMenu = perfilMenu.fotoUrl || user?.photoURL || (isConsultor ? consultor.branding.fotoUrl : '');
+  const nomeMenu = perfilMenu.nome || user?.displayName || user?.email?.split('@')[0] || '';
+  const avatarEl = fotoMenu
+    ? <img src={fotoMenu} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
     : <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shrink-0">{user?.email?.[0].toUpperCase()}</div>;
 
   // Hub do admin (app.…): o super-admin LBW logado FORA de um site de consultor.
@@ -294,7 +309,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {avatarEl}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white truncate">{user?.displayName || user?.email?.split('@')[0]}</p>
+                    <p className="text-sm font-bold text-white truncate">{nomeMenu}</p>
                     {roleLabel && (
                       <p className="text-[10px] font-bold text-blue-400 uppercase">{roleLabel}</p>
                     )}

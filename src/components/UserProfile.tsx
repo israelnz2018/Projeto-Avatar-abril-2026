@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Building2, Briefcase, Camera, CheckCircle2, X } from 'lucide-react';
-import { auth } from '../lib/firebase';
+import { updateProfile } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+import { uploadBrandingImage } from '../services/brandingUploadService';
 
 interface UserProfileData {
   name: string;
@@ -16,6 +19,7 @@ interface UserProfileData {
 }
 
 const PROFILE_KEY = 'lbw_user_profile';
+const PROFILE_CLOUD_KEY = 'lbw_user_profile_cloud_synced';
 
 export const getUserProfile = (): UserProfileData => {
   try {
@@ -44,15 +48,37 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
   const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
   const [saved, setSaved] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string>(profile.photoUrl || '');
+  const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const current = getUserProfile();
-    if (!current.email && auth.currentUser?.email) {
-      current.email = auth.currentUser.email;
-      current.name = current.name || auth.currentUser.displayName || auth.currentUser.email.split('@')[0];
-      setProfile(current);
-    }
+    let ativo = true;
+    void (async () => {
+      const current = getUserProfile();
+      const usuario = auth.currentUser;
+      if (!usuario) return;
+      try {
+        const snapshot = await getDoc(doc(db, 'users', usuario.uid));
+        const dados = snapshot.data() || {};
+        const perfilJaSincronizado = localStorage.getItem(PROFILE_CLOUD_KEY) === '1';
+        const atualizado: UserProfileData = {
+          ...current,
+          name: String((perfilJaSincronizado ? dados.nome : current.name) || dados.nome || usuario.displayName || usuario.email?.split('@')[0] || ''),
+          email: usuario.email || current.email,
+          company: String((perfilJaSincronizado ? dados.empresaPerfil : current.company) || dados.empresaPerfil || ''),
+          role: String((perfilJaSincronizado ? dados.cargo : current.role) || dados.cargo || ''),
+          photoUrl: String((perfilJaSincronizado ? dados.fotoUrl : current.photoUrl) || dados.fotoUrl || usuario.photoURL || ''),
+        };
+        if (ativo) {
+          setProfile(atualizado);
+          setPhotoPreview(atualizado.photoUrl);
+        }
+      } catch {
+        if (ativo) setProfile({ ...current, email: usuario.email || current.email });
+      }
+    })();
+    return () => { ativo = false; };
   }, []);
 
   const handleChange = (field: keyof UserProfileData, value: string) => {
@@ -60,31 +86,62 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
     setSaved(false);
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
       alert('Foto muito grande. Máximo 2MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setPhotoPreview(base64);
-      setProfile(prev => ({ ...prev, photoUrl: base64 }));
+    setUploadingPhoto(true);
+    try {
+      const url = await uploadBrandingImage(file, 'foto');
+      setPhotoPreview(url);
+      setProfile(prev => ({ ...prev, photoUrl: url }));
       setSaved(false);
-    };
-    reader.readAsDataURL(file);
+    } catch (erro: any) {
+      alert(erro?.message || 'Não foi possível enviar a foto.');
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!profile.name.trim()) {
       alert('Nome é obrigatório.');
       return;
     }
-    saveUserProfile(profile);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    const usuario = auth.currentUser;
+    if (!usuario) return;
+    setSaving(true);
+    try {
+      let fotoUrl = profile.photoUrl;
+      // Migra fotos antigas que ainda estavam guardadas somente no navegador.
+      if (fotoUrl.startsWith('data:')) {
+        const blob = await (await fetch(fotoUrl)).blob();
+        const arquivo = new File([blob], 'foto-perfil.jpg', { type: blob.type || 'image/jpeg' });
+        fotoUrl = await uploadBrandingImage(arquivo, 'foto');
+      }
+      const atualizado = { ...profile, photoUrl: fotoUrl };
+      await setDoc(doc(db, 'users', usuario.uid), {
+        nome: atualizado.name.trim(),
+        empresaPerfil: atualizado.company.trim(),
+        cargo: atualizado.role.trim(),
+        fotoUrl,
+      }, { merge: true });
+      await updateProfile(usuario, { displayName: atualizado.name.trim(), photoURL: fotoUrl || null });
+      saveUserProfile(atualizado);
+      localStorage.setItem(PROFILE_CLOUD_KEY, '1');
+      setProfile(atualizado);
+      setPhotoPreview(fotoUrl);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (erro: any) {
+      alert(erro?.message || 'Não foi possível salvar o perfil.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -122,6 +179,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingPhoto}
             className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors border-2 border-white cursor-pointer"
           >
             <Camera size={13} />
@@ -141,10 +199,11 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingPhoto}
             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white hover:bg-blue-700"
           >
             <Camera size={14} />
-            {photoPreview ? 'Trocar foto do perfil' : 'Fazer upload da foto'}
+            {uploadingPhoto ? 'Enviando foto...' : photoPreview ? 'Trocar foto do perfil' : 'Fazer upload da foto'}
           </button>
           <p className="text-xs text-blue-500 mt-2">Máximo 2MB — JPG ou PNG</p>
         </div>
@@ -225,6 +284,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
         </p>
         <button
           onClick={handleSave}
+          disabled={saving || uploadingPhoto}
           className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none cursor-pointer shadow-lg ${
             saved
               ? 'bg-green-500 text-white shadow-green-100'
@@ -232,7 +292,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           }`}
         >
           <CheckCircle2 size={16} />
-          {saved ? 'Salvo!' : 'Salvar Perfil'}
+          {saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar Perfil'}
         </button>
       </div>
     </div>
