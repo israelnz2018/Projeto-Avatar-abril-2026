@@ -174,7 +174,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
         isSorted={isSorted}
       />
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white shadow-sm">
         <table className="w-full border-collapse tool-table" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>
@@ -190,7 +190,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                     position: 'relative',
                     borderLeft: dragOverCol === col.id ? '2px solid #3b82f6' : undefined,
                   }}
-                  className={`px-3 py-3 bg-gray-50 border-b-2 border-gray-200 select-none whitespace-normal break-words group ${col.id === 'resultado' ? 'text-center' : 'text-left'}`}
+                  className={`px-3 py-3 bg-slate-100 border border-slate-300 select-none whitespace-normal break-words group ${col.id === 'resultado' ? 'text-center' : 'text-left'}`}
                 >
                   <div className={`flex items-center gap-1 group ${col.id === 'resultado' ? 'justify-center' : ''}`}>
                     {col.id !== 'description' && (
@@ -268,7 +268,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                 <tr
                   key={row.id || index}
                   style={{ minHeight: '52px', position: 'relative' }}
-                  className={`border-b border-gray-100 transition-colors ${
+                  className={`border-b border-slate-200 transition-colors ${
                     isWinner ? 'bg-green-50 border-l-4 border-l-green-400' : 'hover:bg-gray-50'
                   }`}
                 >
@@ -276,7 +276,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                     <td
                       key={col.id}
                       style={{ width: columnWidths[col.id] || 150 }}
-                      className={`px-3 py-2 whitespace-normal break-words align-top ${colIndex === 0 ? 'relative' : ''}`}
+                      className={`px-3 py-2 border border-slate-200 bg-white whitespace-normal break-words align-top ${colIndex === 0 ? 'relative' : ''}`}
                     >
                       {col.id === 'description' ? (
                         <textarea
@@ -294,7 +294,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                             e.target.style.height = e.target.scrollHeight + 'px';
                           }}
                           rows={1}
-                          className="w-full resize-none bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded-lg px-1 py-1 transition-all"
+                          className="w-full resize-none bg-white border border-slate-300 shadow-sm outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-500 rounded-lg px-2 py-1.5 transition-all"
                           style={{ 
                             minHeight: '36px',
                             lineHeight: '1.5',
@@ -317,7 +317,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                               r.id === row.id ? { ...r, [col.id]: val } : r
                             ));
                           }}
-                          className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full min-h-[38px] bg-white text-sm border-2 border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value={1}>1 pt (Baixo)</option>
                           <option value={3}>3 pts (Médio)</option>
@@ -345,7 +345,7 @@ export default function GUTTool({ onSave, initialData, onGenerateAI, isGeneratin
                       )}
                     </td>
                   ))}
-                  <td className="px-3 py-2 align-middle text-center">
+                  <td className="px-3 py-2 border border-slate-200 bg-white align-middle text-center">
                     <button
                       onClick={() => setRows(prev => prev.filter(r => r.id !== row.id))}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer inline-flex items-center justify-center"
