@@ -194,12 +194,16 @@ export default function MinhaMarca() {
               <FundoUpload
                 rotulo="Capa"
                 url={pptCapaUrl}
+                consultorId={consultorId}
+                arquivoModelo="capa.pptx"
                 carregando={enviando === 'ppt-capa'}
                 onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl)}
               />
               <FundoUpload
                 rotulo="Página interna"
                 url={pptInternaUrl}
+                consultorId={consultorId}
+                arquivoModelo="pagina-interna.pptx"
                 carregando={enviando === 'ppt-interna'}
                 onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl)}
               />
@@ -251,9 +255,43 @@ function UploadBtn({ titulo, carregando, onFile }: { titulo: string; carregando:
   );
 }
 
-function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url: string; carregando: boolean; onFile: (f?: File) => void }) {
+function FundoUpload({ rotulo, url, consultorId, arquivoModelo, carregando, onFile }: {
+  rotulo: string; url: string; consultorId: string; arquivoModelo: string; carregando: boolean; onFile: (f?: File) => void;
+}) {
   const isPowerPoint = /\.pptx?(\?|$)/i.test(url);
   const [miniatura, setMiniatura] = useState('');
+  const [urlVisualizacao, setUrlVisualizacao] = useState('');
+  const urlOffice = urlVisualizacao
+    ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(urlVisualizacao)}`
+    : '';
+  const urlOfficeEmbed = urlVisualizacao
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(urlVisualizacao)}`
+    : '';
+
+  useEffect(() => {
+    let ativo = true;
+    setUrlVisualizacao('');
+    if (!url || !isPowerPoint) return;
+
+    void (async () => {
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) return;
+        const resposta = await fetch('/api/ppt/modelo-url', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ consultorId, arquivo: arquivoModelo }),
+        });
+        if (!resposta.ok) return;
+        const dados = await resposta.json();
+        if (ativo && dados.caminho) setUrlVisualizacao(new URL(dados.caminho, window.location.origin).href);
+      } catch {
+        // O botão permanece indisponível se não for possível criar o acesso temporário.
+      }
+    })();
+
+    return () => { ativo = false; };
+  }, [url, isPowerPoint, consultorId, arquivoModelo]);
 
   useEffect(() => {
     let objectUrl = '';
@@ -290,12 +328,12 @@ function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url:
             ? (
               <div className="relative w-full h-full bg-slate-100">
                 {miniatura && <img src={miniatura} alt={`Prévia: ${rotulo}`} className="w-full h-full object-cover" />}
-                <iframe
+                {urlOfficeEmbed ? <iframe
                   title={`Prévia do PowerPoint: ${rotulo}`}
-                  src="about:blank"
-                  className="hidden"
+                  src={urlOfficeEmbed}
+                  className={miniatura ? 'hidden' : 'w-full h-full border-0 pointer-events-none'}
                   loading="lazy"
-                />
+                /> : <div className="w-full h-full grid place-items-center text-xs font-bold text-gray-400">Preparando prévia...</div>}
                 <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-center text-[10px] font-bold text-white">
                   Prévia do PowerPoint
                 </div>
@@ -306,9 +344,9 @@ function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url:
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <UploadArquivoBtn titulo={url ? 'Trocar' : 'Enviar'} carregando={carregando} onFile={onFile} />
-        {url && isPowerPoint && (
+        {url && isPowerPoint && urlOffice && (
           <a
-            href={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`}
+            href={urlOffice}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-blue-200 text-sm font-bold text-blue-700 hover:bg-blue-50"

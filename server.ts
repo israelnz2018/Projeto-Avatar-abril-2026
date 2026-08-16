@@ -429,6 +429,78 @@ async function startServer() {
 
   // Solicitação enviada a partir de qualquer cadeado da plataforma.
   // Registra no Firestore para auditoria e envia a mensagem por e-mail ao consultor do tenant.
+  // Gera, somente para o consultor autenticado, um endereço aleatório válido por
+  // 30 minutos. O Office Viewer usa esse acesso temporário sem receber a URL do Storage.
+  app.post("/api/ppt/modelo-url", requireUser, async (req: any, res: any) => {
+    const consultorId = String(req.body?.consultorId || "").trim();
+    const arquivo = String(req.body?.arquivo || "");
+    const campo = arquivo === "capa.pptx"
+      ? "pptCapaUrl"
+      : arquivo === "pagina-interna.pptx"
+        ? "pptInternaUrl"
+        : "";
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/i.test(consultorId) || !campo) {
+      return res.status(400).json({ error: "Modelo inválido." });
+    }
+
+    try {
+      const [usuarioSnap, consultorSnap] = await Promise.all([
+        adminFirestore().collection("users").doc(req.userUid).get(),
+        adminFirestore().collection("consultores").doc(consultorId).get(),
+      ]);
+      const usuario = usuarioSnap.data() || {};
+      const ADMIN_EMAILS = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+      const ids = new Set([
+        String((usuario as any).consultorId || ""),
+        ...(((usuario as any).consultorIds || []) as unknown[]).map(String),
+      ]);
+      const autorizado = ADMIN_EMAILS.includes(String(req.userEmail || "")) || ids.has(consultorId);
+      if (!autorizado || !consultorSnap.exists) return res.status(403).json({ error: "Acesso negado." });
+
+      const origem = String((consultorSnap.data() as any)?.branding?.[campo] || "");
+      if (!/\.pptx(?:\?|$)/i.test(origem)) return res.status(404).json({ error: "PowerPoint não encontrado." });
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenId = crypto.createHash("sha256").update(token).digest("hex");
+      const expiraEm = Date.now() + 30 * 60 * 1000;
+      await adminFirestore().collection("pptPreviewTokens").doc(tokenId).set({
+        consultorId, arquivo, origem, expiraEm, criadoPor: req.userUid,
+      });
+      return res.json({ caminho: `/api/ppt/modelo/${token}/${arquivo}`, expiraEm });
+    } catch (erro: any) {
+      console.error("[/api/ppt/modelo-url]", erro?.message || erro);
+      return res.status(500).json({ error: "Não foi possível preparar a visualização." });
+    }
+  });
+
+  app.get("/api/ppt/modelo/:token/:arquivo", async (req: any, res: any) => {
+    const token = String(req.params.token || "");
+    const arquivo = String(req.params.arquivo || "");
+    if (!/^[a-f0-9]{64}$/.test(token) || !["capa.pptx", "pagina-interna.pptx"].includes(arquivo) || !isAdminReady()) {
+      return res.status(404).end();
+    }
+
+    try {
+      const tokenId = crypto.createHash("sha256").update(token).digest("hex");
+      const tokenSnap = await adminFirestore().collection("pptPreviewTokens").doc(tokenId).get();
+      const dados = tokenSnap.data() || {};
+      if (!tokenSnap.exists || dados.arquivo !== arquivo || Number(dados.expiraEm || 0) < Date.now()) {
+        return res.status(404).end();
+      }
+      const resposta = await fetch(String(dados.origem || ""), { signal: AbortSignal.timeout(30_000) });
+      if (!resposta.ok) return res.status(404).end();
+      const arquivoPpt = Buffer.from(await resposta.arrayBuffer());
+      res.setHeader("content-type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      res.setHeader("content-disposition", `inline; filename="${arquivo}"`);
+      res.setHeader("content-length", String(arquivoPpt.length));
+      res.setHeader("cache-control", "private, no-store");
+      return res.send(arquivoPpt);
+    } catch (erro: any) {
+      console.error("[/api/ppt/modelo]", erro?.message || erro);
+      return res.status(404).end();
+    }
+  });
+
   app.post('/api/solicitacoes/acesso', requireUser, async (req: any, res) => {
     const consultorId = String(req.body?.consultorId || '').trim();
     const mensagem = String(req.body?.mensagem || '').trim();
