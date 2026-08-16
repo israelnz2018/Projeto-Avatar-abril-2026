@@ -131,7 +131,14 @@ function computeTooltipPosition(
   rect: DOMRect | null,
   position: 'top' | 'bottom' | 'left' | 'right',
 ): { top: number; left: number } {
-  if (!rect) return { top: 100, left: 100 };
+  // Alguns trechos, como os vídeos de apoio, só existem depois que uma
+  // análise é escolhida. O tour nunca pode perder os controles nesses casos.
+  if (!rect) {
+    return {
+      top: Math.max(24, Math.round(window.innerHeight / 2 - 100)),
+      left: Math.max(24, Math.round(window.innerWidth / 2 - 160)),
+    };
+  }
   const TOOLTIP_WIDTH = 320;
   const TOOLTIP_HEIGHT = 180;
   const PAD = 16;
@@ -278,8 +285,7 @@ export default function DataAnalysisTour({ isOpen, onClose }: Props) {
         </svg>
 
         {/* Tooltip */}
-        {rect && (
-          <motion.div
+        <motion.div
             key={stepIdx}
             initial={{ opacity: 0, y: 8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -340,7 +346,6 @@ export default function DataAnalysisTour({ isOpen, onClose }: Props) {
               </div>
             </div>
           </motion.div>
-        )}
       </motion.div>
     </AnimatePresence>
   );
