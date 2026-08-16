@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { Upload, Palette, AlertTriangle, User, Image as ImageIcon } from 'lucide-react';
+import { Upload, Palette, AlertTriangle, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -262,7 +262,19 @@ function FundoUpload({ rotulo, url, carregando, onFile }: { rotulo: string; url:
             : <img src={url} alt={rotulo} className="w-full h-full object-cover" />
         ) : <span className="text-xs text-gray-300">Somente .PPTX</span>}
       </div>
-      <UploadArquivoBtn titulo={url ? 'Trocar' : 'Enviar'} carregando={carregando} onFile={onFile} />
+      <div className="flex flex-wrap items-center gap-2">
+        <UploadArquivoBtn titulo={url ? 'Trocar' : 'Enviar'} carregando={carregando} onFile={onFile} />
+        {url && isPowerPoint && (
+          <a
+            href={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-blue-200 text-sm font-bold text-blue-700 hover:bg-blue-50"
+          >
+            <ExternalLink size={15} /> Ver PowerPoint
+          </a>
+        )}
+      </div>
     </div>
   );
 }
