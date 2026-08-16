@@ -58,6 +58,10 @@ export interface ConsultorBranding {
   pptModo?: 'padrao' | 'proprio';
   pptCapaUrl?: string;    // imagem de fundo da capa (modo 'proprio')
   pptInternaUrl?: string; // imagem de fundo das páginas internas (modo 'proprio')
+  // Prévia PNG do 1º slide, gerada no navegador na hora do upload do .pptx.
+  // Existe só pra mostrar na tela Minha Marca — não entra na exportação.
+  pptCapaPreviaUrl?: string;
+  pptInternaPreviaUrl?: string;
 }
 
 export interface ConsultorCertificateConfig {

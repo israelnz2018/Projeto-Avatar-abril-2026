@@ -12,6 +12,7 @@
  */
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../lib/firebase';
+import { gerarPreviaPptx } from './pptPreviewService';
 
 export type BrandingAsset = 'foto' | 'logo' | 'ppt-capa' | 'ppt-interna' | 'certificado-fundo' | 'certificado-assinatura';
 
@@ -53,6 +54,29 @@ function redimensionar(file: File, max: number, mime: string, q: number): Promis
     reader.onerror = () => reject(new Error('Falha ao ler o arquivo'));
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Gera a prévia do 1º slide de um .pptx e sobe como PNG. Devolve a URL, ou ''
+ * quando não deu pra gerar (arquivo atípico) — a prévia é um extra e nunca
+ * bloqueia o upload do template em si.
+ *
+ * A prévia é feita a partir do File local (sem CORS, sem serviço externo) —
+ * ver pptPreviewService.
+ */
+export async function uploadPptPrevia(file: File, tipo: 'ppt-capa' | 'ppt-interna'): Promise<string> {
+  const u = auth.currentUser;
+  if (!u) return '';
+  try {
+    const blob = await gerarPreviaPptx(file);
+    if (!blob) return '';
+    const caminho = `community_uploads/${u.uid}/branding-${tipo}-previa.png`;
+    const sref = storageRef(storage, caminho);
+    await uploadBytes(sref, blob, { contentType: 'image/png' });
+    return await getDownloadURL(sref);
+  } catch {
+    return '';
+  }
 }
 
 /**

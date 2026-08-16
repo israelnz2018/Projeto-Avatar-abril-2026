@@ -6,12 +6,12 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import JSZip from 'jszip';
 import { Upload, Palette, AlertTriangle, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { uploadBrandingImage, BrandingAsset } from '../../services/brandingUploadService';
+import { uploadBrandingImage, uploadPptPrevia, BrandingAsset } from '../../services/brandingUploadService';
+import { gerarPreviaPptx } from '../../services/pptPreviewService';
 
 export default function MinhaMarca() {
   const { consultor, consultorId, refresh } = useConsultor();
@@ -24,6 +24,8 @@ export default function MinhaMarca() {
   const [logoUrl, setLogoUrl] = useState('');
   const [pptCapaUrl, setPptCapaUrl] = useState('');
   const [pptInternaUrl, setPptInternaUrl] = useState('');
+  const [pptCapaPreviaUrl, setPptCapaPreviaUrl] = useState('');
+  const [pptInternaPreviaUrl, setPptInternaPreviaUrl] = useState('');
 
   const [enviando, setEnviando] = useState<BrandingAsset | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -39,18 +41,30 @@ export default function MinhaMarca() {
     setLogoUrl(b.logoUrl || '');
     setPptCapaUrl(b.pptCapaUrl || '');
     setPptInternaUrl(b.pptInternaUrl || '');
+    setPptCapaPreviaUrl(b.pptCapaPreviaUrl || '');
+    setPptInternaPreviaUrl(b.pptInternaPreviaUrl || '');
   }, [consultor]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
   if (!isAdmin && !isConsultor) return <div className="p-8 text-red-600 font-bold">Só o consultor edita a marca.</div>;
 
-  async function enviarImagem(file: File | undefined, tipo: BrandingAsset, aplicar: (url: string) => void) {
+  async function enviarImagem(
+    file: File | undefined,
+    tipo: BrandingAsset,
+    aplicar: (url: string) => void,
+    aplicarPrevia?: (url: string) => void,
+  ) {
     if (!file) return;
     setEnviando(tipo);
     setMsg('');
     try {
       const url = await uploadBrandingImage(file, tipo);
       aplicar(url);
+      // Prévia do .pptx: gerada aqui, do arquivo em memória, logo depois do upload.
+      // Se falhar não atrapalha — o template já subiu, só fica sem miniatura.
+      if (aplicarPrevia && (tipo === 'ppt-capa' || tipo === 'ppt-interna')) {
+        aplicarPrevia(await uploadPptPrevia(file, tipo));
+      }
     } catch (e: any) {
       setMsg('❌ ' + (e?.message || e));
     } finally {
@@ -76,6 +90,8 @@ export default function MinhaMarca() {
               pptModo: 'proprio',
               pptCapaUrl: pptCapaUrl.trim(),
               pptInternaUrl: pptInternaUrl.trim(),
+              pptCapaPreviaUrl: pptCapaPreviaUrl.trim(),
+              pptInternaPreviaUrl: pptInternaPreviaUrl.trim(),
             },
             'onboarding.marca': true,
           },
@@ -194,18 +210,20 @@ export default function MinhaMarca() {
               <FundoUpload
                 rotulo="Capa"
                 url={pptCapaUrl}
+                previaUrl={pptCapaPreviaUrl}
                 consultorId={consultorId}
                 arquivoModelo="capa.pptx"
                 carregando={enviando === 'ppt-capa'}
-                onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl)}
+                onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl, setPptCapaPreviaUrl)}
               />
               <FundoUpload
                 rotulo="Página interna"
                 url={pptInternaUrl}
+                previaUrl={pptInternaPreviaUrl}
                 consultorId={consultorId}
                 arquivoModelo="pagina-interna.pptx"
                 carregando={enviando === 'ppt-interna'}
-                onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl)}
+                onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl, setPptInternaPreviaUrl)}
               />
             </div>
             <p className="text-xs text-gray-400">
@@ -255,8 +273,8 @@ function UploadBtn({ titulo, carregando, onFile }: { titulo: string; carregando:
   );
 }
 
-function FundoUpload({ rotulo, url, consultorId, arquivoModelo, carregando, onFile }: {
-  rotulo: string; url: string; consultorId: string; arquivoModelo: string; carregando: boolean; onFile: (f?: File) => void;
+function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carregando, onFile }: {
+  rotulo: string; url: string; previaUrl: string; consultorId: string; arquivoModelo: string; carregando: boolean; onFile: (f?: File) => void;
 }) {
   const isPowerPoint = /\.pptx?(\?|$)/i.test(url);
   const [miniatura, setMiniatura] = useState('');
@@ -297,16 +315,19 @@ function FundoUpload({ rotulo, url, consultorId, arquivoModelo, carregando, onFi
     let objectUrl = '';
     let ativo = true;
     setMiniatura('');
-    if (!url || !isPowerPoint) return;
+    // Com a prévia já gerada no upload não precisa reler o arquivo do Storage
+    // (leitura que, além de desnecessária, costuma esbarrar em CORS).
+    if (!url || !isPowerPoint || previaUrl) return;
 
     void (async () => {
       try {
+        // Template enviado ANTES da prévia existir: tenta reler do Storage e gerar
+        // agora. Pode falhar por CORS — nesse caso o card orienta a reenviar.
         const resposta = await fetch(url);
         if (!resposta.ok) return;
-        const zip = await JSZip.loadAsync(await resposta.arrayBuffer());
-        const arquivo = Object.values(zip.files).find((item) => /(^|\/)thumbnail\.(jpe?g|png)$/i.test(item.name));
-        if (!arquivo) return;
-        objectUrl = URL.createObjectURL(await arquivo.async('blob'));
+        const blob = await gerarPreviaPptx(await resposta.blob());
+        if (!blob) return;
+        objectUrl = URL.createObjectURL(blob);
         if (ativo) setMiniatura(objectUrl);
       } catch {
         // Alguns PowerPoints não incluem miniatura; o arquivo continua disponível.
@@ -317,7 +338,7 @@ function FundoUpload({ rotulo, url, consultorId, arquivoModelo, carregando, onFi
       ativo = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, isPowerPoint]);
+  }, [url, isPowerPoint, previaUrl]);
 
   return (
     <div>
@@ -327,13 +348,23 @@ function FundoUpload({ rotulo, url, consultorId, arquivoModelo, carregando, onFi
           isPowerPoint
             ? (
               <div className="relative w-full h-full bg-slate-100">
-                {miniatura && <img src={miniatura} alt={`Prévia: ${rotulo}`} className="w-full h-full object-cover" />}
-                {urlOfficeEmbed ? <iframe
-                  title={`Prévia do PowerPoint: ${rotulo}`}
-                  src={urlOfficeEmbed}
-                  className={miniatura ? 'hidden' : 'w-full h-full border-0 pointer-events-none'}
-                  loading="lazy"
-                /> : <div className="w-full h-full grid place-items-center text-xs font-bold text-gray-400">Preparando prévia...</div>}
+                {/* Ordem: prévia gerada no upload (sempre funciona) → miniatura lida do
+                    arquivo → visualizador do Office. As duas últimas são fallback pra
+                    templates enviados antes da prévia existir. */}
+                {previaUrl || miniatura ? (
+                  <img src={previaUrl || miniatura} alt={`Prévia: ${rotulo}`} className="w-full h-full object-contain bg-white" />
+                ) : urlOfficeEmbed ? (
+                  <iframe
+                    title={`Prévia do PowerPoint: ${rotulo}`}
+                    src={urlOfficeEmbed}
+                    className="w-full h-full border-0 pointer-events-none"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full grid place-items-center px-3 text-center text-[11px] font-bold text-gray-400">
+                    Envie o arquivo de novo pra gerar a prévia
+                  </div>
+                )}
                 <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-center text-[10px] font-bold text-white">
                   Prévia do PowerPoint
                 </div>
