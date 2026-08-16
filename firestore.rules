@@ -111,6 +111,8 @@ service cloud.firestore {
         'senhaProvisoria',
         'nome',
         'fotoUrl',
+        'empresaPerfil',
+        'cargo',
         'siglaPpt',
         'creditoIA'
       ]) && creditoIAOwnerValido();
