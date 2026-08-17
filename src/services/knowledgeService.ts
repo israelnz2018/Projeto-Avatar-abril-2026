@@ -44,24 +44,50 @@ export const INTRO_COURSES = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR, INTR
 
 /** Playlists iniciais da aba especial. O consultor pode criar, renomear e
  * reorganizar outras playlists depois, como em qualquer lista de vídeos. */
-export const CONSULTOR_ONBOARDING_STEPS = [
+const LEGACY_CONSULTOR_ONBOARDING_STEPS = [
   { id: 'boas-vindas', playlist: '1. Boas-vindas ao Programa de Consultores LBW' },
   { id: 'experiencia-aluno', playlist: '2. Conheça a plataforma como aluno' },
-  { id: 'marca', playlist: '3. Como configurar sua marca' },
-  { id: 'cursos', playlist: '4. Como cadastrar os seus cursos' },
-  { id: 'projetos', playlist: '5. Como criar seus projetos por curso' },
+  { id: 'marca', playlist: '8. Como configurar sua marca' },
+  { id: 'cursos', playlist: '3. Como cadastrar os seus cursos' },
+  { id: 'projetos', playlist: '4. Como criar seus projetos por curso' },
   { id: 'avaliacao-certificado', playlist: '6. Como configurar a avaliação dos alunos e o certificado' },
   { id: 'clientes-alunos', playlist: '7. Como cadastrar clientes (empresas) e seus próprios alunos' },
   { id: 'comunidade', playlist: '8. Como criar sua própria comunidade' },
   { id: 'outros-consultores', playlist: '9. Como interagir com outros consultores' },
-  { id: 'melhorar-plataforma', playlist: '10. Como ajudar a melhorar a plataforma' },
+  { id: 'melhorar-plataforma', playlist: '9. Como ajudar a melhorar a plataforma' },
   { id: 'termos-gerais', playlist: '11. Termos de contrato e considerações gerais' },
+] as const;
+
+export const CONSULTOR_ONBOARDING_STEPS = [
+  { id: 'boas-vindas', playlist: '1. Boas-vindas ao Programa de Consultores LBW' },
+  { id: 'experiencia-aluno', playlist: '2. Conhe\u00e7a a plataforma como aluno' },
+  { id: 'cursos', playlist: '3. Como cadastrar os seus cursos' },
+  { id: 'projetos', playlist: '4. Como criar seus projetos por curso' },
+  { id: 'avaliacao-certificado', playlist: '5. Como configurar a avalia\u00e7\u00e3o dos alunos e o certificado' },
+  { id: 'clientes-alunos', playlist: '6. Como cadastrar clientes (empresas) e seus pr\u00f3prios alunos' },
+  { id: 'comunicacao', playlist: '7. Como se comunicar com seus clientes e com outros consultores' },
+  { id: 'marca', playlist: '8. Como configurar sua marca' },
+  { id: 'melhorar-plataforma', playlist: '9. Como ajudar a melhorar a plataforma' },
+  { id: 'termos-gerais', playlist: '10. Termos de contrato e considera\u00e7\u00f5es gerais' },
 ] as const;
 
 export const CONSULTOR_ONBOARDING_PLAYLISTS = CONSULTOR_ONBOARDING_STEPS.map((item) => item.playlist);
 
 export function consultorOnboardingStepId(playlist: string): string | undefined {
-  return CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === playlist)?.id;
+  const current = CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === playlist)?.id;
+  if (current) return current;
+
+  // Mantém vídeos cadastrados antes da reorganização visíveis na nova etapa.
+  if (playlist.startsWith('3. Como configurar sua marca')) return 'marca';
+  if (playlist.startsWith('4. Como cadastrar os seus cursos')) return 'cursos';
+  if (playlist.startsWith('5. Como criar seus projetos por curso')) return 'projetos';
+  if (playlist.startsWith('6. Como configurar') && playlist.includes('certificado')) return 'avaliacao-certificado';
+  if (playlist.startsWith('7. Como cadastrar clientes')) return 'clientes-alunos';
+  if (playlist.startsWith('8. Como criar sua')) return 'comunicacao';
+  if (playlist.startsWith('9. Como interagir')) return 'comunicacao';
+  if (playlist.startsWith('10. Como ajudar')) return 'melhorar-plataforma';
+  if (playlist.startsWith('11. Termos de contrato')) return 'termos-gerais';
+  return LEGACY_CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === playlist)?.id;
 }
 
 export function isIntroCourse(course: string): boolean {

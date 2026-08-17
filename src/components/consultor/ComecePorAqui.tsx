@@ -14,7 +14,7 @@ import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { getInitiatives } from '../../services/configService';
 import { getQuiz } from '../../services/quizService';
-import { CONSULTOR_ONBOARDING_STEPS, getAllKnowledge, INTRO_COURSE_CONSULTOR, type KnowledgeEntry } from '../../services/knowledgeService';
+import { CONSULTOR_ONBOARDING_STEPS, consultorOnboardingStepId, getAllKnowledge, INTRO_COURSE_CONSULTOR, type KnowledgeEntry } from '../../services/knowledgeService';
 
 interface Item {
   id: string;
@@ -24,7 +24,7 @@ interface Item {
   path?: string;
 }
 
-const ITENS: Item[] = [
+const LEGACY_ITENS: Item[] = [
   {
     id: 'boas-vindas',
     titulo: 'Boas-vindas ao Programa de Consultores LBW',
@@ -96,6 +96,19 @@ const ITENS: Item[] = [
     titulo: 'Termos de contrato e considerações gerais',
     texto: 'Leia os termos do Programa de Consultores LBW e confirme que entendeu as condições gerais.',
   },
+];
+
+const ITENS: Item[] = [
+  { id: 'boas-vindas', titulo: 'Boas-vindas ao Programa de Consultores LBW', texto: 'Assista ao v\u00eddeo de abertura para entender o programa, a sua jornada e as pr\u00f3ximas etapas.' },
+  { id: 'experiencia-aluno', titulo: 'Conhe\u00e7a a plataforma como aluno', texto: 'Use o curso gratuito para conhecer, na pr\u00e1tica, a experi\u00eancia que seus futuros alunos ter\u00e3o.' },
+  { id: 'cursos', titulo: 'Cadastre os seus cursos', texto: 'Cadastre pelo menos um curso. Sem curso, n\u00e3o d\u00e1 para criar projeto nem liberar acesso para ningu\u00e9m.', botao: 'Ir para Meus Cursos', path: '/configuracao?aba=cursos' },
+  { id: 'projetos', titulo: 'Crie seus projetos por curso', texto: 'Defina as fases e as ferramentas que ficar\u00e3o dispon\u00edveis em cada tipo de projeto.', botao: 'Configurar projetos', path: '/configuracao?aba=fases' },
+  { id: 'avaliacao-certificado', titulo: 'Configure a avalia\u00e7\u00e3o e o certificado', texto: 'Crie as perguntas, alternativas e gabarito; depois configure o modelo de certificado que o aluno receber\u00e1.', botao: 'Configurar avalia\u00e7\u00e3o e certificado', path: '/configuracao?aba=prova' },
+  { id: 'clientes-alunos', titulo: 'Cadastre clientes e seus pr\u00f3prios alunos', texto: 'Adicione empresas, coordenadores e alunos para organizar o atendimento.', botao: 'Gerenciar clientes e alunos', path: '/configuracao?aba=coordenadores' },
+  { id: 'comunicacao', titulo: 'Comunique-se com seus clientes e com outros consultores', texto: 'Configure sua comunidade para se comunicar com os clientes e participe do espa\u00e7o de troca com outros consultores.', botao: 'Abrir comunidade', path: '/comunidade' },
+  { id: 'marca', titulo: 'Configure sua marca', texto: 'Coloque o nome, o texto da marca, a logo e os modelos de PPT da sua plataforma.', botao: 'Configurar minha marca', path: '/configuracao?aba=marca' },
+  { id: 'melhorar-plataforma', titulo: 'Ajude a melhorar a plataforma', texto: 'Registre sugest\u00f5es e pontos de melhoria a partir do uso real da sua plataforma.', botao: 'Enviar uma sugest\u00e3o', path: '/comunidade-adm' },
+  { id: 'termos-gerais', titulo: 'Termos de contrato e considera\u00e7\u00f5es gerais', texto: 'Leia os termos do Programa de Consultores LBW e confirme que entendeu as condi\u00e7\u00f5es gerais.' },
 ];
 
 export default function ComecePorAqui() {
@@ -265,11 +278,17 @@ export default function ComecePorAqui() {
   // A página e o checklist usam a mesma fonte: as playlists do vídeo. Quando
   // uma playlist é renomeada na Base de Conhecimento, o novo nome chega aqui.
   const gruposOrientacao = (() => {
-    const etapaDoVideo = (video: KnowledgeEntry) => video.onboardingStep
-      || CONSULTOR_ONBOARDING_STEPS.find((item) => item.playlist === video.playlist)?.id;
+    const etapaDoVideo = (video: KnowledgeEntry) => {
+      const etapaAtual = consultorOnboardingStepId(video.playlist);
+      if (etapaAtual) return etapaAtual;
+      if (video.onboardingStep === 'comunidade' || video.onboardingStep === 'outros-consultores') return 'comunicacao';
+      return video.onboardingStep;
+    };
     const padrao = CONSULTOR_ONBOARDING_STEPS.map((etapa) => ({
       id: etapa.id,
-      nome: nomesPlaylistChecklist[etapa.id] || etapa.playlist,
+      // Os dez passos têm títulos canônicos; playlists antigas continuam
+      // agrupadas aqui sem reaparecerem com a numeração anterior.
+      nome: etapa.playlist,
       videos: videosOrientacao.filter((video) => etapaDoVideo(video) === etapa.id),
     }));
     const extras = Array.from(new Set(videosOrientacao
