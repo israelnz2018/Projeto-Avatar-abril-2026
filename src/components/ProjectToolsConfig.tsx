@@ -548,15 +548,15 @@ export default function ProjectToolsConfig() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[86vh] overflow-y-auto"
             >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-lg font-black text-gray-800">Editar Tipo de Projeto</h2>
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-base font-black text-gray-800">Editar Tipo de Projeto</h2>
                 <button onClick={() => setIsEditingInitiative(false)} className="text-gray-400 hover:text-gray-600">
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 space-y-3">
                 <div>
                   <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">
                     Nome do Tipo de Projeto
@@ -611,7 +611,7 @@ export default function ProjectToolsConfig() {
                   />
                 </div>
               </div>
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
                   onClick={() => {
                     if (confirm("Remover este tipo da aba Projetos?\n\nO curso e os vídeos continuam existindo em Meus Cursos. Esta ação só faz este curso parar de aparecer como tipo de projeto.")) {
@@ -1279,7 +1279,7 @@ function IconColorPicker({
                   title={label}
                   onClick={() => onChangeIcon(id)}
                   className={cn(
-                    'w-9 h-9 rounded-lg flex items-center justify-center border transition-colors',
+                    'w-8 h-8 rounded-lg flex items-center justify-center border transition-colors',
                     iconId === id ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-blue-300'
                   )}
                 >
@@ -1298,7 +1298,7 @@ function IconColorPicker({
                   title={label}
                   onClick={() => onChangeCor(id)}
                   className={cn(
-                    `w-7 h-7 rounded-full bg-gradient-to-br ${gradient} transition-transform`,
+                    `w-6 h-6 rounded-full bg-gradient-to-br ${gradient} transition-transform`,
                     corId === id ? 'ring-2 ring-offset-2 ring-blue-600 scale-110' : 'hover:scale-105'
                   )}
                 />
