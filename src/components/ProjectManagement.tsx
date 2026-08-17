@@ -217,6 +217,51 @@ function SubInitiativeCard({ child, index, onClick, locked }: { child: Initiativ
  * Visual único por trilha (ícone + gradiente + borda), pelo número de exibição
  * (initiative.ordem) — NUNCA pelo nome. Renomear o curso não pode mudar a cor.
  */
+
+/** Ícone de faixa (belt) — usado quando o nome do projeto/curso cita uma cor de faixa. */
+function BeltIcon({ size = 22, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M3 9c3-2 15-2 18 0" />
+      <path d="M3 9c1 3 1 5 0 8" />
+      <path d="M21 9c-1 3-1 5 0 8" />
+      <rect x="9" y="8.5" width="6" height="4" rx="1" />
+      <path d="M10 12.5l-2 5" />
+      <path d="M14 12.5l2 5" />
+    </svg>
+  );
+}
+
+const CORES_FAIXA: Record<string, { gradient: string; borderColor: string }> = {
+  amarela:  { gradient: 'from-yellow-400 to-yellow-600', borderColor: '#CA8A04' },
+  yellow:   { gradient: 'from-yellow-400 to-yellow-600', borderColor: '#CA8A04' },
+  verde:    { gradient: 'from-green-500 to-green-700',   borderColor: '#15803D' },
+  green:    { gradient: 'from-green-500 to-green-700',   borderColor: '#15803D' },
+  preta:    { gradient: 'from-gray-700 to-gray-900',     borderColor: '#111827' },
+  black:    { gradient: 'from-gray-700 to-gray-900',     borderColor: '#111827' },
+  branca:   { gradient: 'from-gray-200 to-gray-400',     borderColor: '#9CA3AF' },
+  white:    { gradient: 'from-gray-200 to-gray-400',     borderColor: '#9CA3AF' },
+  laranja:  { gradient: 'from-orange-500 to-orange-700', borderColor: '#C2410C' },
+  orange:   { gradient: 'from-orange-500 to-orange-700', borderColor: '#C2410C' },
+  azul:     { gradient: 'from-blue-500 to-blue-700',     borderColor: '#1D4ED8' },
+  blue:     { gradient: 'from-blue-500 to-blue-700',     borderColor: '#1D4ED8' },
+};
+
+/** Se o nome citar uma cor de faixa (ex.: "... Yellow Belt", "Faixa Amarela ..."),
+ * usa o ícone/cor de faixa em vez do visual numerado — não depende de `ordem`. */
+function getFaixaVisual(nome: string): { Icon: React.ComponentType<{ size?: number; className?: string }>; gradient: string; borderColor: string } | null {
+  const m = nome.match(/\b(amarela|verde|preta|branca|laranja|azul|yellow|green|black|white|orange|blue)\b\s*belt\b|\bfaixa\s*\b(amarela|verde|preta|branca|laranja|azul)\b/i);
+  if (!m) return null;
+  const cor = (m[1] || m[2] || '').toLowerCase();
+  const paleta = CORES_FAIXA[cor];
+  if (!paleta) return null;
+  return { Icon: BeltIcon, ...paleta };
+}
+
 function getTrilhaVisual(numero: number | undefined): {
   Icon: React.ComponentType<{ size?: number; className?: string }>;
   gradient: string;
@@ -738,7 +783,7 @@ export default function ProjectManagement() {
                       })
                       .map((initiative, index) => {
                         const numeroVisual = initiative.ordem ?? (index + 1);
-                        const visual = getTrilhaVisual(numeroVisual);
+                        const visual = getFaixaVisual(initiative.name) || getTrilhaVisual(numeroVisual);
                         const titleClean = initiative.name;
                         const VisualIcon = visual.Icon;
                         const locked = !canUseInitiative(initiative.id, initiatives);
