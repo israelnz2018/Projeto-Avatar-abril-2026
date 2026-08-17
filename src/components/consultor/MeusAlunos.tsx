@@ -12,7 +12,7 @@ import { db, auth } from '../../lib/firebase';
 import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { getInitiatives } from '../../services/configService';
+import { getCourses } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 import { getEducationCourses } from '../../services/educationCourseService';
@@ -124,7 +124,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       const [userDocs, blockedSnap, inits, catalogoEducacional] = await Promise.all([
         getUserDocsByConsultor(consultorId),
         getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
-        getInitiatives(),
+        getCourses(),
         getEducationCourses(consultorId),
       ]);
       const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));

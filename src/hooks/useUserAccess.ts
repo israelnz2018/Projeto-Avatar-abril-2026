@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { getInitiatives, getInitiativeConfigs } from '../services/configService';
+import { getCourses, getInitiatives, getInitiativeConfigs } from '../services/configService';
 import { userDataNoConsultor, type TipoUsuario } from '../services/userService';
 import { resolveConsultorId } from '../services/consultorService';
 import { hasCourseAccess } from '../lib/courseAccess';
@@ -149,7 +149,7 @@ export function useUserAccess() {
           setGrantedToolIds(new Set());
           return;
         }
-        const initiatives = await getInitiatives();
+        const [initiatives, allInitiatives] = await Promise.all([getCourses(), getInitiatives()]);
         // Converte nomes legados (ex.: "6- Como Aplicar...") para o nome atual do
         // curso. Assim todas as telas recebem a mesma lista canônica de acesso.
         cursosLib = cursosLib.map((curso) => initiatives.find((initiative) => hasCourseAccess([curso], initiative.name))?.name || curso);
@@ -168,7 +168,15 @@ export function useUserAccess() {
         // Ferramentas do PACOTE liberado pra este aluno (trilhas cujo nome está nos cursos
         // liberados). Vínculo canônico curso↔trilha é por nome. Só usado no modo por-curso.
         const grantedToolSet = new Set<string>();
-        for (const initiative of initiatives.filter(i => hasCourseAccess(cursosLib, i.name))) {
+        // Inclui também tipos de projeto que não são cursos. O vínculo explícito
+        // cursoAssociadoId é o que decide se seus recursos ficam disponíveis.
+        const liberadas = allInitiatives.filter((initiative) => {
+          const curso = initiative.cursoAssociadoId
+            ? allInitiatives.find((item) => item.id === initiative.cursoAssociadoId)
+            : initiative;
+          return curso && hasCourseAccess(cursosLib, curso.name);
+        });
+        for (const initiative of liberadas) {
           const configs = await getInitiativeConfigs(initiative.id);
           configs.forEach(config => {
             if (Array.isArray(config.toolIds)) config.toolIds.forEach(id => grantedToolSet.add(id));

@@ -28,7 +28,7 @@ import {
   CERTIFICATE_THRESHOLD_PCT,
   type UserProgress,
 } from '../../services/videoProgressService';
-import { getInitiatives } from '../../services/configService';
+import { getEducationCourses } from '../../services/educationCourseService';
 import { getAllKnowledge, type KnowledgeEntry } from '../../services/knowledgeService';
 import { getAllUsers, type UserData } from '../../services/userService';
 import type { Initiative } from '../../types';
@@ -503,7 +503,7 @@ function AbaProgresso() {
       setLoading(true);
       try {
         const [inits, vids, usrs, progs] = await Promise.all([
-          getInitiatives(),
+          getEducationCourses(),
           getAllKnowledge(),
           getAllUsers(),
           getAllUsersProgress(),

@@ -260,7 +260,7 @@ export default function ProjectToolsConfig() {
     setLoading(true);
     try {
       const data = await getInitiatives();
-      setAllCourses(data);
+      setAllCourses(data.filter(i => !i.somenteProjeto));
       const projectTypes = data.filter(i => i.temProjeto !== false);
       if (data.length === 0) {
         // Auto-seed if empty
@@ -271,7 +271,7 @@ export default function ProjectToolsConfig() {
           // Don't fail the whole fetch if seeding fails, just show empty
         }
         const seededData = await getInitiatives();
-        setAllCourses(seededData);
+        setAllCourses(seededData.filter(i => !i.somenteProjeto));
         const seededProjectTypes = seededData.filter(i => i.temProjeto !== false);
         setInitiatives(seededProjectTypes);
         if (seededProjectTypes.length > 0) handleSelectInitiative(seededProjectTypes[0]);
@@ -448,7 +448,6 @@ export default function ProjectToolsConfig() {
       initiative.corId = newInitiativeCorId;
       initiative.cursoAssociadoId = newInitiativeCourseId;
       setInitiatives(prev => [...prev, initiative]);
-      setAllCourses(prev => [...prev, initiative]);
       setNewInitiativeName('');
       setNewInitiativeCourseId('');
       setNewInitiativeParentId('');

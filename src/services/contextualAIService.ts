@@ -1,6 +1,6 @@
 import { callAI, callAIJSON } from './aiRouter';
 import { getAllKnowledge, KnowledgeEntry } from './knowledgeService';
-import { getInitiatives, getInitiativeConfigs } from './configService';
+import { getCourses, getInitiativeConfigs } from './configService';
 import { getMentorNome } from './consultorService';
 
 // Toolid da ferramenta "Mapa dos 90 Dias" — caso especial: o mentor dela varre
@@ -11,7 +11,7 @@ const MAPA90_TOOL_ID = 'mapa90dias';
 // se a associação de ferramentas da Trilha 1 mudar no Firestore, isto acompanha.
 async function toolIdsDaTrilha1(): Promise<string[]> {
   try {
-    const inits = await getInitiatives();
+    const inits = await getCourses();
     const trilha1 = inits.find((i) => i.isFree === true);
     if (!trilha1?.id) return [];
     const configs = await getInitiativeConfigs(trilha1.id);

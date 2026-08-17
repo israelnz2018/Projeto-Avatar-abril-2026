@@ -643,9 +643,10 @@ export default function KnowledgeManagerView() {
       // cursos selecionáveis aqui. Após a migração pra trilhas individuais (todas
       // viraram Principal), o filtro `!!i.parentId` retornava [] e o dropdown ficava
       // vazio. Agora pegamos TODAS as iniciativas como opções de curso.
-      const names = list.map(i => i.name).filter(Boolean);
+      const cursos = list.filter((i: any) => !i.somenteProjeto);
+      const names = cursos.map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
-      setInitiatives(list);
+      setInitiatives(cursos);
     }).catch(console.error);
     fetchItems();
   }, []);

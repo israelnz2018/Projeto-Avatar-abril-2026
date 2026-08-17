@@ -10,7 +10,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/src/lib/firebase';
 import { AIConfig, DEFAULT_CONFIG, AI_CONFIG_DOC, TreeNode, NavCategory, LinkedVideo, LeafAction } from './AIAssistantConfig';
-import { getInitiatives } from '../services/configService';
+import { getCourses } from '../services/configService';
 import type { Initiative } from '../types';
 import { getGlobalKnowledge, getTrilhaKnowledge, getAllKnowledge } from '../knowledge/loader';
 import { KNOWLEDGE_COLLECTION } from '../services/knowledgeService';
@@ -491,7 +491,7 @@ export default function ChatAssistant() {
   // recarregar a página pra IA enxergar.
   const [allInitiatives, setAllInitiatives] = useState<Initiative[]>([]);
   useEffect(() => {
-    getInitiatives().then(setAllInitiatives).catch(err => console.error('[ChatAssistant] erro ao carregar trilhas:', err));
+    getCourses().then(setAllInitiatives).catch(err => console.error('[ChatAssistant] erro ao carregar cursos:', err));
   }, []);
 
   useEffect(() => {

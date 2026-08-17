@@ -30,6 +30,8 @@ export interface Initiative {
   temProjeto?: boolean;
   /** Curso que libera este tipo de projeto para o aluno. Tipos antigos usam o próprio id. */
   cursoAssociadoId?: string;
+  /** Registro usado apenas como tipo de projeto; não aparece como curso em Educação. */
+  somenteProjeto?: boolean;
   createdAt: string;
   consultorId?: string; // Multi-tenant: dono do conteúdo (default 'israel' na Fase 0)
   /** Número de exibição (ordem + cor/ícone da trilha) — INDEPENDENTE do nome.

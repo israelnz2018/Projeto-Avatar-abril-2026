@@ -35,7 +35,7 @@ import {
 } from '../services/knowledgeService';
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { getInitiatives } from '../services/configService';
+import { getCourses } from '../services/configService';
 import { resolveConsultorId } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
@@ -100,7 +100,7 @@ export default function LearningView() {
   // Carrega initiatives (todas) — guardamos pra calcular progresso por trilha + free check.
   // Vínculo com knowledge_base é via `course` que deve bater com `initiative.name`.
   useEffect(() => {
-    getInitiatives()
+    getCourses()
       .then(inits => {
         setAllInitiatives(inits);
         const nomes = new Set(inits.filter(i => i.isFree === true).map(i => i.name));

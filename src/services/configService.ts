@@ -28,6 +28,18 @@ export const getInitiatives = async (): Promise<Initiative[]> => {
     .filter(i => ((i as any).consultorId || 'israel') === cid);
 };
 
+/** Catálogo de cursos: tipos marcados somente como projeto ficam fora. */
+export const getCourses = async (): Promise<Initiative[]> => {
+  const initiatives = await getInitiatives();
+  return initiatives.filter((initiative) => !initiative.somenteProjeto);
+};
+
+/** Catálogo de tipos de projeto, incluindo tipos que não são cursos. */
+export const getProjectTypes = async (): Promise<Initiative[]> => {
+  const initiatives = await getInitiatives();
+  return initiatives.filter((initiative) => initiative.temProjeto !== false);
+};
+
 /**
  * Renomear uma trilha quebra o vínculo de quem já tem esse curso liberado —
  * users/{uid}.cursosAcesso[].curso (e o legado cursosLiberados[]) guardam o

@@ -30,7 +30,7 @@ function stableEducationId(consultorId: string, name: string): string {
  */
 export async function getEducationCourses(consultorId = resolveConsultorId()): Promise<Initiative[]> {
   const [projectTypes, videos] = await Promise.all([
-    getInitiatives(),
+    getInitiatives().then((items) => items.filter((item) => !item.somenteProjeto)),
     getAllKnowledge(consultorId),
   ]);
 
