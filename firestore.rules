@@ -418,7 +418,10 @@ service cloud.firestore {
     match /mentor_conversations/{conversationId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      // O aluno apaga a PRÓPRIA conversa (botão "Apagar minhas conversas desta
+      // ferramenta" em MentorSidebar.tsx) — antes só o admin podia, e o Firestore
+      // recusava o delete em silêncio: a conversa "voltava" porque nunca saía de lá.
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
     match /pending_questions/{questionId} {

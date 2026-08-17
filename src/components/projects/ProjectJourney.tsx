@@ -627,14 +627,32 @@ useEffect(() => {
 
   const handleSaveTool = async (storageKey: string, data: any, toolId: string, options?: { silent?: boolean }) => {
     try {
+      // "Limpar dados da IA" (dentro de cada ferramenta) chama onSave(null) pra
+      // apagar o conteúdo — isso vale pra QUALQUER ferramenta, não só uma. Sem essa
+      // checagem, o código abaixo marcava a ferramenta como concluída mesmo tendo
+      // acabado de ficar vazia (o "box" ficava verde depois de limpar/excluir).
+      // Trata como exclusão: mesma limpeza que o botão de excluir já faz certo.
+      if (!hasContent(data)) {
+        await deleteProjectToolData(projectId, storageKey, toolId);
+        setProjectData(prev => {
+          const updated = { ...prev };
+          delete updated[storageKey];
+          delete updated[toolId];
+          return updated;
+        });
+        setCompletedTools(prev => prev.filter(id => id !== toolId));
+        if (onPhaseChange) onPhaseChange(currentPhase);
+        return;
+      }
+
       let updatedProjectData = { ...projectData, [storageKey]: data };
       setProjectData(updatedProjectData);
       await saveProjectToolData(projectId, storageKey, data);
-      
+
       // Mark original tool ID as completed regardless of storage key
       await markToolAsCompleted(projectId, toolId);
       setCompletedTools(prev => prev.includes(toolId) ? prev : [...prev, toolId]);
-      
+
       if (!options?.silent) {
         toast.success("Alterações salvas com sucesso!", {
           description: "Seu progresso foi registrado no banco de dados.",
