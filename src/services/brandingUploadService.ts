@@ -114,3 +114,22 @@ export async function uploadBrandingImage(file: File, tipo: BrandingAsset): Prom
   await uploadBytes(sref, blob, { contentType: cfg.mime });
   return getDownloadURL(sref);
 }
+
+/**
+ * Ícone próprio de um tipo de projeto (initiative.iconUrl) — PNG pequeno,
+ * preserva transparência. Um arquivo por initiative (o novo upload sobrescreve).
+ */
+export async function uploadInitiativeIcon(file: File, initiativeId: string): Promise<string> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Você precisa estar logado.');
+  if (!(file.type || '').startsWith('image/')) {
+    throw new Error('Envie um arquivo de imagem (PNG, JPG...).');
+  }
+  if (file.size > MAX_ORIGEM_BYTES) throw new Error('Imagem muito grande (máx. 6 MB). Reduza e tente de novo.');
+
+  const blob = await redimensionar(file, 200, 'image/png', 0.92);
+  const caminho = `community_uploads/${u.uid}/initiative-icon-${initiativeId}.png`;
+  const sref = storageRef(storage, caminho);
+  await uploadBytes(sref, blob, { contentType: 'image/png' });
+  return getDownloadURL(sref);
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, Footprints, ShieldAlert, Users, LineChart, Recycle, Trophy, Mic, HelpCircle, MessageSquare } from 'lucide-react';
+import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, HelpCircle, MessageSquare } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { generateFullProjectPresentation } from '../services/fullProjectPresentationExporter';
 import { getUserProfile } from './UserProfile';
@@ -20,6 +20,7 @@ import { useUserAccess } from '../hooks/useUserAccess';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
 import { Lock } from 'lucide-react';
+import { resolveInitiativeVisual } from '../services/initiativeVisual';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
@@ -213,73 +214,9 @@ function SubInitiativeCard({ child, index, onClick, locked }: { child: Initiativ
   );
 }
 
-/**
- * Visual único por trilha (ícone + gradiente + borda), pelo número de exibição
- * (initiative.ordem) — NUNCA pelo nome. Renomear o curso não pode mudar a cor.
- */
-
-/** Ícone de faixa (belt) — usado quando o nome do projeto/curso cita uma cor de faixa. */
-function BeltIcon({ size = 22, className }: { size?: number; className?: string }) {
-  return (
-    <svg
-      width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M3 9c3-2 15-2 18 0" />
-      <path d="M3 9c1 3 1 5 0 8" />
-      <path d="M21 9c-1 3-1 5 0 8" />
-      <rect x="9" y="8.5" width="6" height="4" rx="1" />
-      <path d="M10 12.5l-2 5" />
-      <path d="M14 12.5l2 5" />
-    </svg>
-  );
-}
-
-const CORES_FAIXA: Record<string, { gradient: string; borderColor: string }> = {
-  amarela:  { gradient: 'from-yellow-400 to-yellow-600', borderColor: '#CA8A04' },
-  yellow:   { gradient: 'from-yellow-400 to-yellow-600', borderColor: '#CA8A04' },
-  verde:    { gradient: 'from-green-500 to-green-700',   borderColor: '#15803D' },
-  green:    { gradient: 'from-green-500 to-green-700',   borderColor: '#15803D' },
-  preta:    { gradient: 'from-gray-700 to-gray-900',     borderColor: '#111827' },
-  black:    { gradient: 'from-gray-700 to-gray-900',     borderColor: '#111827' },
-  branca:   { gradient: 'from-gray-200 to-gray-400',     borderColor: '#9CA3AF' },
-  white:    { gradient: 'from-gray-200 to-gray-400',     borderColor: '#9CA3AF' },
-  laranja:  { gradient: 'from-orange-500 to-orange-700', borderColor: '#C2410C' },
-  orange:   { gradient: 'from-orange-500 to-orange-700', borderColor: '#C2410C' },
-  azul:     { gradient: 'from-blue-500 to-blue-700',     borderColor: '#1D4ED8' },
-  blue:     { gradient: 'from-blue-500 to-blue-700',     borderColor: '#1D4ED8' },
-};
-
-/** Se o nome citar uma cor de faixa (ex.: "... Yellow Belt", "Faixa Amarela ..."),
- * usa o ícone/cor de faixa em vez do visual numerado — não depende de `ordem`. */
-function getFaixaVisual(nome: string): { Icon: React.ComponentType<{ size?: number; className?: string }>; gradient: string; borderColor: string } | null {
-  const m = nome.match(/\b(amarela|verde|preta|branca|laranja|azul|yellow|green|black|white|orange|blue)\b\s*belt\b|\bfaixa\s*\b(amarela|verde|preta|branca|laranja|azul)\b/i);
-  if (!m) return null;
-  const cor = (m[1] || m[2] || '').toLowerCase();
-  const paleta = CORES_FAIXA[cor];
-  if (!paleta) return null;
-  return { Icon: BeltIcon, ...paleta };
-}
-
-function getTrilhaVisual(numero: number | undefined): {
-  Icon: React.ComponentType<{ size?: number; className?: string }>;
-  gradient: string;
-  borderColor: string;
-} {
-  switch (numero) {
-    case 1: return { Icon: Footprints,    gradient: 'from-sky-500 to-indigo-700',         borderColor: '#0EA5E9' };
-    case 2: return { Icon: Target,        gradient: 'from-emerald-500 to-teal-700',       borderColor: '#10B981' };
-    case 3: return { Icon: BarChart3,     gradient: 'from-cyan-500 to-blue-700',          borderColor: '#06B6D4' };
-    case 4: return { Icon: ShieldAlert,   gradient: 'from-rose-500 to-red-700',           borderColor: '#F43F5E' };
-    case 5: return { Icon: Users,         gradient: 'from-amber-500 to-orange-700',       borderColor: '#F59E0B' };
-    case 6: return { Icon: LineChart,     gradient: 'from-violet-500 to-purple-700',      borderColor: '#8B5CF6' };
-    case 7: return { Icon: Mic,           gradient: 'from-orange-500 to-rose-700',        borderColor: '#F97316' };
-    case 8: return { Icon: Recycle,       gradient: 'from-emerald-400 to-teal-800',       borderColor: '#10B981' };
-    case 9: return { Icon: Trophy,        gradient: 'from-[#1E2D6E] to-[#0033CC]',        borderColor: '#0033CC' };
-    default: return { Icon: Folder,       gradient: 'from-slate-500 to-slate-700',        borderColor: '#64748B' };
-  }
-}
+// Visual (ícone + cor) de cada card de trilha/projeto — catálogo compartilhado
+// com o picker em ProjectToolsConfig.tsx. Ver services/initiativeVisual.tsx pra
+// a ordem de prioridade (upload próprio > escolha no catálogo > nome de faixa > número).
 
 const getInitiativeIcon = (name: string) => {
   const n = name.toLowerCase();
@@ -783,7 +720,7 @@ export default function ProjectManagement() {
                       })
                       .map((initiative, index) => {
                         const numeroVisual = initiative.ordem ?? (index + 1);
-                        const visual = getFaixaVisual(initiative.name) || getTrilhaVisual(numeroVisual);
+                        const visual = resolveInitiativeVisual(initiative, numeroVisual);
                         const titleClean = initiative.name;
                         const VisualIcon = visual.Icon;
                         const locked = !canUseInitiative(initiative.id, initiatives);

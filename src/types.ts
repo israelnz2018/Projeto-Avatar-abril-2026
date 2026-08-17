@@ -34,6 +34,13 @@ export interface Initiative {
    * Renomear o curso nunca deve afetar ordem/visual; por isso isso não vem mais
    * de parsear o começo de `name`. */
   ordem?: number;
+  /** Ícone escolhido pelo consultor (id do catálogo em services/initiativeVisual.tsx).
+   * Ausente = cai no visual automático (ordem/nome). */
+  iconId?: string;
+  /** Cor escolhida pelo consultor (id do catálogo). Só usada junto de iconId. */
+  corId?: string;
+  /** Ícone próprio, enviado pelo consultor (PNG/SVG) — tem prioridade sobre iconId. */
+  iconUrl?: string;
 }
 
 // ===== Multi-tenant (white-label) =====

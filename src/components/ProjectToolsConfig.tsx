@@ -45,6 +45,8 @@ import { isSiteConsultor } from '../services/consultorService';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
+import { ICON_CATALOG, COLOR_CATALOG, resolveInitiativeVisual } from '../services/initiativeVisual';
+import { uploadInitiativeIcon } from '../services/brandingUploadService';
 
 const DEFAULT_PHASES = [
   { id: 'Define', name: 'Definir' },
@@ -229,6 +231,8 @@ export default function ProjectToolsConfig() {
   const [isCreating, setIsCreating] = useState(false);
   const [newInitiativeName, setNewInitiativeName] = useState('');
   const [newInitiativeParentId, setNewInitiativeParentId] = useState('');
+  const [newInitiativeIconId, setNewInitiativeIconId] = useState(ICON_CATALOG[0].id);
+  const [newInitiativeCorId, setNewInitiativeCorId] = useState(COLOR_CATALOG[0].id);
   const [saving, setSaving] = useState(false);
   const [editedPhases, setEditedPhases] = useState<{id: string, name: string}[]>([]);
   const [activeConfigPhaseId, setActiveConfigPhaseId] = useState<string | null>(null);
@@ -314,13 +318,33 @@ export default function ProjectToolsConfig() {
   const [editingInitiativeName, setEditingInitiativeName] = useState('');
   const [editingInitiativeParentId, setEditingInitiativeParentId] = useState<string>('');
   const [editIsFree, setEditIsFree] = useState<boolean>(false);
+  const [editIconId, setEditIconId] = useState(ICON_CATALOG[0].id);
+  const [editCorId, setEditCorId] = useState(COLOR_CATALOG[0].id);
+  const [editIconUrl, setEditIconUrl] = useState('');
+  const [uploadingEditIcon, setUploadingEditIcon] = useState(false);
 
   const handleOpenEditInitiative = () => {
     if (!selectedInitiative) return;
     setEditingInitiativeName(selectedInitiative.name);
     setEditingInitiativeParentId(selectedInitiative.parentId || '');
     setEditIsFree(selectedInitiative.isFree || false);
+    setEditIconId(selectedInitiative.iconId || ICON_CATALOG[0].id);
+    setEditCorId(selectedInitiative.corId || COLOR_CATALOG[0].id);
+    setEditIconUrl(selectedInitiative.iconUrl || '');
     setIsEditingInitiative(true);
+  };
+
+  const handleUploadEditIcon = async (file: File) => {
+    if (!selectedInitiative) return;
+    setUploadingEditIcon(true);
+    try {
+      const url = await uploadInitiativeIcon(file, selectedInitiative.id);
+      setEditIconUrl(url);
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao enviar o ícone.');
+    } finally {
+      setUploadingEditIcon(false);
+    }
   };
 
   const handleSaveInitiativeEdit = async () => {
@@ -351,6 +375,9 @@ export default function ProjectToolsConfig() {
       const updates: any = {
         name: nomeNovo,
         isFree: editIsFree,
+        iconId: editIconUrl ? null : editIconId,
+        corId: editIconUrl ? null : editCorId,
+        iconUrl: editIconUrl || null,
       };
       if (editingInitiativeParentId) {
         updates.parentId = editingInitiativeParentId;
@@ -401,9 +428,14 @@ export default function ProjectToolsConfig() {
 
     try {
       const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined);
+      await updateInitiative(initiative.id, { iconId: newInitiativeIconId, corId: newInitiativeCorId });
+      initiative.iconId = newInitiativeIconId;
+      initiative.corId = newInitiativeCorId;
       setInitiatives(prev => [...prev, initiative]);
       setNewInitiativeName('');
       setNewInitiativeParentId('');
+      setNewInitiativeIconId(ICON_CATALOG[0].id);
+      setNewInitiativeCorId(COLOR_CATALOG[0].id);
       setIsCreating(false);
       
       // Select the new initiative and clear configs (it's new)
@@ -527,8 +559,23 @@ export default function ProjectToolsConfig() {
                     B2C do Israel. O valor de isFree já salvo continua preservado (outras
                     telas ainda leem esse campo), só não dá mais pra editar por aqui. */}
 
-                {/* "Ordem" (número/cor do card em Projetos) fica interna — o consultor não
-                    precisa ver/editar isso, é gerenciado por trás. Ver initiative.ordem. */}
+                {/* "Ordem" (posição na lista) continua interna — mas o ícone/cor do card
+                    o consultor já escolhe aqui, sem precisar pedir pra gente mudar. */}
+                <div className="pt-2 border-t border-gray-100">
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">
+                    Desenho do card em Projetos
+                  </label>
+                  <IconColorPicker
+                    iconId={editIconId}
+                    corId={editCorId}
+                    iconUrl={editIconUrl}
+                    onChangeIcon={setEditIconId}
+                    onChangeCor={setEditCorId}
+                    onUploadIcon={handleUploadEditIcon}
+                    uploadingIcon={uploadingEditIcon}
+                    onRemoveIconUrl={() => setEditIconUrl('')}
+                  />
+                </div>
               </div>
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
                 <button
@@ -702,6 +749,8 @@ export default function ProjectToolsConfig() {
                         setIsCreating(false);
                         setNewInitiativeParentId('');
                         setNewInitiativeName('');
+                        setNewInitiativeIconId(ICON_CATALOG[0].id);
+                        setNewInitiativeCorId(COLOR_CATALOG[0].id);
                       }}
                       className="flex-1 md:flex-none bg-white text-gray-500 px-8 py-3 rounded-lg border border-gray-200 font-black text-xs hover:bg-gray-50 uppercase tracking-wider"
                     >
@@ -712,6 +761,15 @@ export default function ProjectToolsConfig() {
 
                 {/* Checkbox "curso introdutório/grátis" removido — coisa do passado,
                     o acesso já é decidido de outra forma hoje (por consultor/coordenador). */}
+
+                <div className="pt-2 border-t border-blue-100">
+                  <IconColorPicker
+                    iconId={newInitiativeIconId}
+                    corId={newInitiativeCorId}
+                    onChangeIcon={setNewInitiativeIconId}
+                    onChangeCor={setNewInitiativeCorId}
+                  />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1103,6 +1161,104 @@ export default function ProjectToolsConfig() {
         )}
       </div>
 
+    </div>
+  );
+}
+
+/**
+ * Escolha de ícone + cor do "desenho" do card em Projetos. Reaproveitada no
+ * form de criar e no modal de editar. `onUploadIcon` só existe quando a
+ * initiative já tem id (edição) — no form de criar, o consultor escolhe do
+ * catálogo; pra subir imagem própria, salva primeiro e edita depois.
+ */
+function IconColorPicker({
+  iconId, corId, iconUrl, onChangeIcon, onChangeCor,
+  onUploadIcon, uploadingIcon, onRemoveIconUrl,
+}: {
+  iconId: string;
+  corId: string;
+  iconUrl?: string;
+  onChangeIcon: (id: string) => void;
+  onChangeCor: (id: string) => void;
+  onUploadIcon?: (file: File) => void;
+  uploadingIcon?: boolean;
+  onRemoveIconUrl?: () => void;
+}) {
+  const cor = COLOR_CATALOG.find(c => c.id === corId) || COLOR_CATALOG[0];
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0 bg-gradient-to-br ${cor.gradient}`}>
+          {iconUrl
+            ? <img src={iconUrl} alt="" width={22} height={22} style={{ objectFit: 'contain' }} />
+            : (() => { const Icone = (ICON_CATALOG.find(i => i.id === iconId) || ICON_CATALOG[0]).Icon; return <Icone size={22} className="text-white" />; })()}
+        </div>
+        <span className="text-xs text-gray-500">É assim que fica o card em Projetos.</span>
+        {iconUrl && onRemoveIconUrl && (
+          <button type="button" onClick={onRemoveIconUrl} className="ml-auto text-xs font-bold text-red-600 hover:text-red-800">
+            usar ícone do catálogo
+          </button>
+        )}
+      </div>
+
+      {onUploadIcon && (
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">
+            Ou envie o seu próprio ícone
+          </label>
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer">
+            {uploadingIcon ? 'Enviando…' : (iconUrl ? 'Trocar imagem' : 'Enviar imagem')}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingIcon}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUploadIcon(f); e.target.value = ''; }}
+            />
+          </label>
+        </div>
+      )}
+
+      {!iconUrl && (
+        <>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Ícone</label>
+            <div className="flex flex-wrap gap-1.5">
+              {ICON_CATALOG.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  title={label}
+                  onClick={() => onChangeIcon(id)}
+                  className={cn(
+                    'w-9 h-9 rounded-lg flex items-center justify-center border transition-colors',
+                    iconId === id ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-blue-300'
+                  )}
+                >
+                  <Icon size={16} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Cor</label>
+            <div className="flex flex-wrap gap-1.5">
+              {COLOR_CATALOG.map(({ id, label, gradient }) => (
+                <button
+                  key={id}
+                  type="button"
+                  title={label}
+                  onClick={() => onChangeCor(id)}
+                  className={cn(
+                    `w-7 h-7 rounded-full bg-gradient-to-br ${gradient} transition-transform`,
+                    corId === id ? 'ring-2 ring-offset-2 ring-blue-600 scale-110' : 'hover:scale-105'
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
