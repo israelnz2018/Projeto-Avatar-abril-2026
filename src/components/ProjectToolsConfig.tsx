@@ -228,9 +228,11 @@ export default function ProjectToolsConfig() {
   const [selectedInitiative, setSelectedInitiative] = useState<Initiative | null>(null);
   const [configs, setConfigs] = useState<InitiativePhaseConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allCourses, setAllCourses] = useState<Initiative[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newInitiativeName, setNewInitiativeName] = useState('');
   const [newInitiativeParentId, setNewInitiativeParentId] = useState('');
+  const [newInitiativeCourseId, setNewInitiativeCourseId] = useState('');
   const [newInitiativeIconId, setNewInitiativeIconId] = useState(ICON_CATALOG[0].id);
   const [newInitiativeCorId, setNewInitiativeCorId] = useState(COLOR_CATALOG[0].id);
   const [saving, setSaving] = useState(false);
@@ -258,6 +260,7 @@ export default function ProjectToolsConfig() {
     setLoading(true);
     try {
       const data = await getInitiatives();
+      setAllCourses(data);
       const projectTypes = data.filter(i => i.temProjeto !== false);
       if (data.length === 0) {
         // Auto-seed if empty
@@ -268,6 +271,7 @@ export default function ProjectToolsConfig() {
           // Don't fail the whole fetch if seeding fails, just show empty
         }
         const seededData = await getInitiatives();
+        setAllCourses(seededData);
         const seededProjectTypes = seededData.filter(i => i.temProjeto !== false);
         setInitiatives(seededProjectTypes);
         if (seededProjectTypes.length > 0) handleSelectInitiative(seededProjectTypes[0]);
@@ -317,6 +321,7 @@ export default function ProjectToolsConfig() {
   const [isEditingInitiative, setIsEditingInitiative] = useState(false);
   const [editingInitiativeName, setEditingInitiativeName] = useState('');
   const [editingInitiativeParentId, setEditingInitiativeParentId] = useState<string>('');
+  const [editingCourseId, setEditingCourseId] = useState<string>('');
   const [editIsFree, setEditIsFree] = useState<boolean>(false);
   const [editIconId, setEditIconId] = useState(ICON_CATALOG[0].id);
   const [editCorId, setEditCorId] = useState(COLOR_CATALOG[0].id);
@@ -327,6 +332,7 @@ export default function ProjectToolsConfig() {
     if (!selectedInitiative) return;
     setEditingInitiativeName(selectedInitiative.name);
     setEditingInitiativeParentId(selectedInitiative.parentId || '');
+    setEditingCourseId(selectedInitiative.cursoAssociadoId || selectedInitiative.id);
     setEditIsFree(selectedInitiative.isFree || false);
     setEditIconId(selectedInitiative.iconId || ICON_CATALOG[0].id);
     setEditCorId(selectedInitiative.corId || COLOR_CATALOG[0].id);
@@ -374,6 +380,7 @@ export default function ProjectToolsConfig() {
 
       const updates: any = {
         name: nomeNovo,
+        cursoAssociadoId: editingCourseId || selectedInitiative.id,
         isFree: editIsFree,
         iconId: editIconUrl ? null : editIconId,
         corId: editIconUrl ? null : editCorId,
@@ -419,6 +426,10 @@ export default function ProjectToolsConfig() {
 
   const handleCreateInitiative = async () => {
     if (!newInitiativeName.trim()) return;
+    if (!newInitiativeCourseId) {
+      toast.error("Selecione o curso que libera este tipo de projeto.");
+      return;
+    }
     
     // Check for duplicate names
     if (initiatives.some(i => i.name.toLowerCase() === newInitiativeName.toLowerCase())) {
@@ -428,11 +439,18 @@ export default function ProjectToolsConfig() {
 
     try {
       const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined);
-      await updateInitiative(initiative.id, { iconId: newInitiativeIconId, corId: newInitiativeCorId });
+      await updateInitiative(initiative.id, {
+        iconId: newInitiativeIconId,
+        corId: newInitiativeCorId,
+        cursoAssociadoId: newInitiativeCourseId,
+      });
       initiative.iconId = newInitiativeIconId;
       initiative.corId = newInitiativeCorId;
+      initiative.cursoAssociadoId = newInitiativeCourseId;
       setInitiatives(prev => [...prev, initiative]);
+      setAllCourses(prev => [...prev, initiative]);
       setNewInitiativeName('');
+      setNewInitiativeCourseId('');
       setNewInitiativeParentId('');
       setNewInitiativeIconId(ICON_CATALOG[0].id);
       setNewInitiativeCorId(COLOR_CATALOG[0].id);
@@ -550,6 +568,22 @@ export default function ProjectToolsConfig() {
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Nome do Tipo de Projeto"
                   />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block">
+                    Curso associado (libera este projeto)
+                  </label>
+                  <select
+                    value={editingCourseId}
+                    onChange={(e) => setEditingCourseId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="">Selecione o curso...</option>
+                    {(allCourses.length > 0 ? allCourses : initiatives).map((curso) => (
+                      <option key={curso.id} value={curso.id}>{curso.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-gray-500">O aluno só poderá usar este projeto se tiver acesso a esse curso.</p>
                 </div>
                 {/* Campo "Tipo de Projeto Pai" removido — modelo agora é de trilhas individuais.
                     O estado editingInitiativeParentId e o save no Firestore continuam intactos,
@@ -733,6 +767,19 @@ export default function ProjectToolsConfig() {
                       onKeyDown={(e) => e.key === 'Enter' && handleCreateInitiative()}
                     />
                   </div>
+                  <div className="flex-1 w-full">
+                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Curso associado</label>
+                    <select
+                      value={newInitiativeCourseId}
+                      onChange={(e) => setNewInitiativeCourseId(e.target.value)}
+                      className="w-full p-3 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none shadow-sm font-bold bg-white"
+                    >
+                      <option value="">Selecione o curso que libera este projeto...</option>
+                      {(allCourses.length > 0 ? allCourses : initiatives).map((curso) => (
+                        <option key={curso.id} value={curso.id}>{curso.name}</option>
+                      ))}
+                    </select>
+                  </div>
                   {/* Campo "Tipo de Projeto Pai" removido — modelo agora é de trilhas individuais.
                       newInitiativeParentId continua no estado mas nunca recebe valor — createInitiative
                       é chamado com undefined no 3º arg, então o Firestore não recebe o campo. */}
@@ -748,6 +795,7 @@ export default function ProjectToolsConfig() {
                       onClick={() => {
                         setIsCreating(false);
                         setNewInitiativeParentId('');
+                        setNewInitiativeCourseId('');
                         setNewInitiativeName('');
                         setNewInitiativeIconId(ICON_CATALOG[0].id);
                         setNewInitiativeCorId(COLOR_CATALOG[0].id);

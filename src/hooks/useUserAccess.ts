@@ -199,7 +199,12 @@ export function useUserAccess() {
     const initiative = initiatives.find(i => i.id === initiativeId);
     if (!initiative) return false;
     // Modelo POR-CONSULTOR: idem — só o que foi explicitamente liberado, sem bypass de isFree.
-    if (isCoordenador || acessoPorCurso) return hasCourseAccess(cursosLiberados, initiative.name);
+    if (isCoordenador || acessoPorCurso) {
+      const cursoAssociado = initiative.cursoAssociadoId
+        ? initiatives.find(i => i.id === initiative.cursoAssociadoId)
+        : null;
+      return hasCourseAccess(cursosLiberados, cursoAssociado?.name || initiative.name);
+    }
     // Modelo de plano LEGADO: mantém as trilhas grátis do aluno solo (sem coordenador).
     return initiative.isFree === true;
   };

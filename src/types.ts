@@ -28,6 +28,8 @@ export interface Initiative {
   // mas NÃO aparece como tipo de projeto na aba Projetos. Ausente/true = tem projeto
   // (comportamento atual preservado). Editável em Meus Cursos.
   temProjeto?: boolean;
+  /** Curso que libera este tipo de projeto para o aluno. Tipos antigos usam o próprio id. */
+  cursoAssociadoId?: string;
   createdAt: string;
   consultorId?: string; // Multi-tenant: dono do conteúdo (default 'israel' na Fase 0)
   /** Número de exibição (ordem + cor/ícone da trilha) — INDEPENDENTE do nome.
