@@ -701,6 +701,20 @@ export default function ProjectToolsConfig() {
               </div>
             </div>
 
+            {selectedInitiative && (() => {
+              const cursoAssociado = (allCourses.length > 0 ? allCourses : initiatives)
+                .find((curso) => curso.id === (selectedInitiative.cursoAssociadoId || selectedInitiative.id));
+              return (
+                <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2">
+                  <span className="block text-[10px] font-black uppercase tracking-widest text-blue-500">Curso associado</span>
+                  <span className="block truncate text-sm font-bold text-gray-700" title={cursoAssociado?.name || selectedInitiative.name}>
+                    {cursoAssociado?.name || selectedInitiative.name}
+                  </span>
+                  <span className="block text-[11px] text-gray-500">Este curso libera o uso deste projeto para o aluno.</span>
+                </div>
+              );
+            })()}
+
             {isDeleting && (
               <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3 text-red-700">
