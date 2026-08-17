@@ -563,7 +563,7 @@ ATENCAO - PLANO DE ACAO 5W2H:
 CONTEXTO RECEBIDO:
 - brief: contexto do projeto (problema, indicador Y, meta)
 - fmea: analise de falhas com acoes recomendadas
-- effortImpact: matriz de priorizacao de acoes (esforco x impacto)
+- effortImpact: matriz de priorizacao de acoes (esforco x beneficio)
 - fiveWhys: analise de causa raiz
 - improveAdkar: acoes de gestao de mudanca para stakeholders na fase Melhorar
 
@@ -575,10 +575,10 @@ Se TODAS as ferramentas estiverem vazias, retorne lista vazia: actions: [].
 
 PRIORIZACAO DAS ACOES (apenas das ferramentas com dados):
 1. PRIMEIRO: Acoes do FMEA marcadas como "Acao Obrigatoria" (RPN alto)
-2. SEGUNDO: Acoes do effortImpact no quadrante "Quick Wins" (alto impacto + baixo esforco)
+2. SEGUNDO: Acoes do effortImpact no quadrante "Quick Wins" (alto beneficio + baixo esforco)
 3. TERCEIRO: Acoes do improveAdkar (gestao de mudanca dos stakeholders na fase Melhorar)
 4. QUARTO: Acoes para tratar causas raiz dos fiveWhys
-5. QUINTO: Acoes do effortImpact no quadrante "Estrategico" (alto impacto + alto esforco)
+5. QUINTO: Acoes do effortImpact no quadrante "Estrategico" (alto beneficio + alto esforco)
 
 REGRAS DE PREENCHIMENTO:
 - variable: identificar a origem (ex: "FMEA F-01", "EI X3", "ADKAR Melhorar - Joao", "5 Porques - Causa raiz")

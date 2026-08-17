@@ -302,7 +302,7 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
                 view === 'scatter' ? "bg-[#1f2937] text-white border-[#1f2937]" : "bg-white text-[#666] border-[#ccc]"
               )}
             >
-              <BarChart2 size={14} /> Esforço x Impacto
+              <BarChart2 size={14} /> Esforço x Benefício
             </button>
             <button 
               onClick={() => setView('pareto')}
@@ -557,13 +557,13 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
                   <ZAxis type="number" range={[100, 1000]} />
                   
                   {/* Quadrants with ReferenceArea */}
-                  {/* Q1: Low Effort / High Impact (Green) */}
+                  {/* Q1: Low Effort / High Benefit (Green) */}
                   <ReferenceArea x1={0} x2={avgEffort} y1={avgImpact} y2={maxImpact + 20} fill="#dcfce7" fillOpacity={0.5} />
-                  {/* Q2: High Effort / Low Impact (Red) */}
+                  {/* Q2: High Effort / Low Benefit (Red) */}
                   <ReferenceArea x1={avgEffort} x2={9} y1={0} y2={avgImpact} fill="#fee2e2" fillOpacity={0.5} />
-                  {/* Q3: Low Effort / Low Impact (Light Green) */}
+                  {/* Q3: Low Effort / Low Benefit (Light Green) */}
                   <ReferenceArea x1={0} x2={avgEffort} y1={0} y2={avgImpact} fill="#f0fdf4" fillOpacity={0.5} />
-                  {/* Q4: High Effort / High Impact (Light Red) */}
+                  {/* Q4: High Effort / High Benefit (Light Red) */}
                   <ReferenceArea x1={avgEffort} x2={9} y1={avgImpact} y2={maxImpact + 20} fill="#fef2f2" fillOpacity={0.5} />
 
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }) => {
@@ -594,19 +594,19 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-3 bg-[#dcfce7] border border-[#bbf7d0] rounded-[4px]">
                 <h4 className="text-[12px] font-bold text-[#15803d] uppercase mb-1">Quick Wins</h4>
-                <p className="text-[11px] text-[#166534]">Alto Impacto e Baixo Esforço. Prioridade 1: Implementar imediatamente.</p>
+                <p className="text-[11px] text-[#166534]">Alto Benefício e Baixo Esforço. Prioridade 1: Implementar imediatamente.</p>
               </div>
               <div className="p-3 bg-[#f0fdf4] border border-[#dcfce7] rounded-[4px]">
                 <h4 className="text-[12px] font-bold text-[#166534] uppercase mb-1">Baixa Prioridade</h4>
-                <p className="text-[11px] text-[#15803d]">Baixo Impacto e Baixo Esforço. Implementar se houver recursos sobrando.</p>
+                <p className="text-[11px] text-[#15803d]">Baixo Benefício e Baixo Esforço. Implementar se houver recursos sobrando.</p>
               </div>
               <div className="p-3 bg-[#fef2f2] border border-[#fee2e2] rounded-[4px]">
                 <h4 className="text-[12px] font-bold text-[#991b1b] uppercase mb-1">Projetos Estratégicos</h4>
-                <p className="text-[11px] text-[#b91c1c]">Alto Impacto e Alto Esforço. Requer planejamento e recursos significativos.</p>
+                <p className="text-[11px] text-[#b91c1c]">Alto Benefício e Alto Esforço. Requer planejamento e recursos significativos.</p>
               </div>
               <div className="p-3 bg-[#fee2e2] border border-[#fecaca] rounded-[4px]">
                 <h4 className="text-[12px] font-bold text-[#b91c1c] uppercase mb-1">Tarefas Ingratas</h4>
-                <p className="text-[11px] text-[#991b1b]">Baixo Impacto e Alto Esforço. Evitar ou delegar se possível.</p>
+                <p className="text-[11px] text-[#991b1b]">Baixo Benefício e Alto Esforço. Evitar ou delegar se possível.</p>
               </div>
             </div>
           </div>
@@ -703,7 +703,7 @@ export default function CauseEffectMatrix({ onSave, initialData, title = "Matriz
               </div>
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-[8px]">
                 <p className="text-[11px] text-yellow-800 leading-relaxed">
-                  <strong>Dica:</strong> Foque nos X's com maior impacto e menor esforço (barras verdes à esquerda). 
+                  <strong>Dica:</strong> Foque nos X's com maior benefício e menor esforço (barras verdes à esquerda).
                   Selecione os itens que serão levados para a etapa de <strong>Análise de Causa Raiz (5 Porquês, FTA, etc)</strong>.
                 </p>
               </div>

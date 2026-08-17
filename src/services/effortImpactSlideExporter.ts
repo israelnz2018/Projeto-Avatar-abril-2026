@@ -53,7 +53,7 @@ export async function exportEffortImpactSlide(
   const pres = options.pres || new pptxgen();
   if (!options.pres) pres.layout = 'LAYOUT_WIDE';
 
-  const slideTitle = options.title || 'Esforço × Impacto';
+  const slideTitle = options.title || 'Esforço × Benefício';
   const slidePhase = options.phase || 'Improve';
   const slide = createSlide(pres, project, slideTitle, slidePhase, aiAnalysis);
 
@@ -68,7 +68,7 @@ export async function exportEffortImpactSlide(
     x: TX, y: TY, w: TW, h: BANNER_H,
     fill: { color: THEME.NAVY }, line: { type: 'none' }, rectRadius: 0.04,
   });
-  slide.addText('PRIORIZAÇÃO DE AÇÕES PELO QUADRANTE ESFORÇO × IMPACTO', {
+  slide.addText('PRIORIZAÇÃO DE AÇÕES PELO QUADRANTE ESFORÇO × BENEFÍCIO', {
     x: TX + 0.18, y: TY, w: TW - 4.20, h: BANNER_H,
     fontFace: 'Calibri', fontSize: 8.5, bold: true, color: 'FFFFFF',
     charSpacing: 2, valign: 'middle',
@@ -183,7 +183,7 @@ export async function exportEffortImpactSlide(
     });
 
     // Legenda QW
-    slide.addText('QW = Quick Win (baixo esforço, alto impacto)', {
+    slide.addText('QW = Quick Win (baixo esforço, alto benefício)', {
       x: TX, y: MAIN_Y + MAIN_H - 0.16, w: LEFT_W, h: 0.14,
       fontFace: 'Calibri', fontSize: 6, color: THEME.MUTED, italic: true,
     });
@@ -297,6 +297,6 @@ export async function exportEffortImpactSlide(
     });
   }
 
-  const fileName = `Esforco_x_Impacto_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Esforco_x_Beneficio_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

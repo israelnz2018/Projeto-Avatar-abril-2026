@@ -112,7 +112,7 @@ const AVAILABLE_TOOLS = [
   { id: 'beforeAfter', name: 'Antes x Depois', phase: 'Measure' },
   { id: 'rab', name: 'Matriz RAB', phase: 'Measure' },
   { id: 'gut', name: 'Matriz GUT', phase: 'Measure' },
-  { id: 'effortImpact', name: 'Esforço x Impacto', phase: 'Measure' },
+  { id: 'effortImpact', name: 'Esforço x Benefício', phase: 'Measure' },
   { id: 'dataCollection', name: 'Plano de Coleta de Dados', phase: 'Measure' },
   { id: 'vsm', name: 'VSM (Value Stream Map)', phase: 'Analyze' },
   { id: 'directObservation', name: 'Observação Direta (Gemba)', phase: 'Analyze' },

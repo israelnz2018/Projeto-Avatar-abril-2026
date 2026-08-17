@@ -3220,7 +3220,7 @@ async function startServer() {
           "[titulo: Fase 4: escolha e implemente a melhor solução]\n\n" +
           "Oi {nome},\n\n" +
           "A Fase 4 da Trilha 1 é onde a melhoria acontece de verdade.\n\n" +
-          "Você usa o Esforço × Impacto pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois, a prova concreta de que a melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
+          "Você usa o Esforço × Benefício pra decidir o que fazer primeiro, monta um Plano de Ação que sai do papel, e registra o Antes × Depois, a prova concreta de que a melhoria funcionou. É isso que faz o chefe olhar e falar 'olha o que mudou'.\n\n" +
           "Com isso você sai do 'eu acho que melhorou' pro 'aqui está a prova, com número'. Muita gente boa trabalha duro e ninguém percebe, porque não sabe registrar e mostrar o que fez. Aqui você não só entrega o resultado: tem o Antes × Depois na mão pra mostrar numa avaliação, numa reunião ou numa proposta de aumento. É a diferença entre ser reconhecido e ser esquecido.\n\n" +
           "[botao: Abrir a Fase 4 | " + APP_URL + "]\n\n" +
           "Israel",

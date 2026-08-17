@@ -171,7 +171,7 @@ export const TRILHAS: Trilha[] = [
 
 A maioria foca SÓ na adaptação e perde a janela. Quem tenta entregar antes de entender a área queima carreira logo de cara. O caminho certo é uma sequência — e é exatamente isso que esta trilha te dá: **5 fases**, na ordem.
 
-**Fase 1 — Entenda como sua área funciona** (SIPOC, RACI, Organograma, Indicadores). **Fase 2 — Encontre os problemas que merecem atenção** (Ideia de Projeto, GUT, RAB, Entendendo o Problema). **Fase 3 — Descubra a causa antes de agir** (Mapa de Processo, Brainstorming, Espinha de Peixe, Análise Gráfica). **Fase 4 — Escolha e implemente a melhor solução** (Esforço × Impacto, Plano de Ação, Antes × Depois). **Fase 5 — Comunique-se com profissionalismo** (postura, vestimenta, telefone, Teams e Outlook).
+**Fase 1 — Entenda como sua área funciona** (SIPOC, RACI, Organograma, Indicadores). **Fase 2 — Encontre os problemas que merecem atenção** (Ideia de Projeto, GUT, RAB, Entendendo o Problema). **Fase 3 — Descubra a causa antes de agir** (Mapa de Processo, Brainstorming, Espinha de Peixe, Análise Gráfica). **Fase 4 — Escolha e implemente a melhor solução** (Esforço × Benefício, Plano de Ação, Antes × Depois). **Fase 5 — Comunique-se com profissionalismo** (postura, vestimenta, telefone, Teams e Outlook).
 
 Cada fase tem parte técnica (a ferramenta) e parte comportamental (a régua de decisão e a postura). Abra a fase que você está vivendo agora. Sem coach. É o que eu faria se fosse você chegando hoje.
 
@@ -180,7 +180,7 @@ Quando quiser ir mais fundo (FMEA, estatística aplicada, gestão de mudança), 
       'Fase 1 — Entender sua área em 2 dias: SIPOC, RACI, Organograma e Indicadores',
       'Fase 2 — Achar os problemas certos: Ideia de Projeto, Matriz GUT, Matriz RAB e Entendendo o Problema',
       'Fase 3 — Chegar na causa raiz real: Mapa de Processo, Brainstorming, Espinha de Peixe e Análise Gráfica',
-      'Fase 4 — Implementar a melhor solução: Esforço × Impacto, Plano de Ação e Antes × Depois',
+      'Fase 4 — Implementar a melhor solução: Esforço × Benefício, Plano de Ação e Antes × Depois',
       'Fase 5 — Comunicar com profissionalismo: postura, vestimenta, telefone, Teams e Outlook',
     ],
     episodios: [
@@ -265,21 +265,21 @@ Quando quiser ir mais fundo (FMEA, estatística aplicada, gestão de mudança), 
         titulo: 'Fase 4 — Escolha e Implemente a Melhor Solução',
         quandoDoi: 'Você sabe a causa. Tem ideias de solução. Mas não sabe qual priorizar, como executar sem virar bagunça, nem como provar que funcionou.',
         parteTecnica: [
-          'Esforço × Impacto — prioriza a solução do quadrante "alto impacto, baixo esforço" (não a mais ambiciosa)',
+          'Esforço × Benefício — prioriza a solução do quadrante "alto benefício, baixo esforço" (não a mais ambiciosa)',
           'Plano de Ação (5W2H) — concretiza a solução: O quê, Por quê, Quem, Quando, Onde, Como, Quanto',
           'Antes × Depois — mede o resultado real comparando a linha de base com o pós-implementação',
         ],
         parteComportamental: [
-          'Regra: comece pela ação de maior impacto e menor esforço — gera resultado rápido e cria momentum',
+          'Regra: comece pela ação de maior benefício e menor esforço — gera resultado rápido e cria momentum',
           'Toda solução precisa de dono e prazo. Sem 5W2H, "vamos melhorar" vira conversa que não acontece',
           'Antes de apresentar em grupo, valide 1:1 com 2-3 pessoas-chave — você chega na reunião com vozes já a favor',
         ],
-        artefato: 'Matriz Esforço × Impacto + Plano de Ação 5W2H + comparativo Antes × Depois',
+        artefato: 'Matriz Esforço × Benefício + Plano de Ação 5W2H + comparativo Antes × Depois',
         videoIsrael: {
           duracao: '7 min',
-          resumo: 'Em 2018 propus uma mudança que mexia com 40 pessoas. Priorizei com Esforço × Impacto, montei o 5W2H e provei com Antes × Depois. Aprovou na primeira reunião.',
+          resumo: 'Em 2018 propus uma mudança que mexia com 40 pessoas. Priorizei com Esforço × Benefício, montei o 5W2H e provei com Antes × Depois. Aprovou na primeira reunião.',
         },
-        promptMentor: 'Tenho essas soluções possíveis: [liste]. Me ajude a priorizar com Esforço × Impacto e montar o Plano de Ação 5W2H da escolhida.',
+        promptMentor: 'Tenho essas soluções possíveis: [liste]. Me ajude a priorizar com Esforço × Benefício e montar o Plano de Ação 5W2H da escolhida.',
         conexaoPaga: 'Trilha 5 — Conduzir Mudanças (ADKAR) / Trilha 7 — Apresentações que Convencem',
         icone: Crosshair,
       },
@@ -312,7 +312,7 @@ Quando quiser ir mais fundo (FMEA, estatística aplicada, gestão de mudança), 
       },
     ],
     ferramentas: [
-      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'As ferramentas das 5 fases: SIPOC, RACI, Organograma, Indicadores, Ideia de Projeto, GUT, RAB, Mapa de Processo, Brainstorming, Espinha de Peixe, Esforço × Impacto, Plano de Ação, Antes × Depois' },
+      { label: 'Abrir meu primeiro projeto', rota: '/projects', descricao: 'As ferramentas das 5 fases: SIPOC, RACI, Organograma, Indicadores, Ideia de Projeto, GUT, RAB, Mapa de Processo, Brainstorming, Espinha de Peixe, Esforço × Benefício, Plano de Ação, Antes × Depois' },
       { label: 'Perguntar ao Mentor IA', rota: '/chat', descricao: 'Tire dúvidas sobre qual fase começar' },
     ],
     ctaPrimario: { label: 'Começar a trilha', rota: '/projects' },
@@ -582,7 +582,7 @@ Te ensino o framework que uso em toda mudança que envolve mais de R$ 100k em ri
       { numero: 5, titulo: 'Adiar ou seguir? O critério', duracao: '14 min', resumo: 'Decisão que separa amador de sênior' },
     ],
     ferramentas: [
-      { label: 'Plano de ação + matriz Esforço x Impacto', rota: '/projects' },
+      { label: 'Plano de ação + matriz Esforço x Benefício', rota: '/projects' },
       { label: 'Validar seu plano com o Mentor', rota: '/chat' },
     ],
     ctaPrimario: { label: 'Avaliar minha próxima mudança', rota: '/projects' },

@@ -71,8 +71,8 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   },
   effortImpact: {
     exporter: exportEffortImpactSlide,
-    successMsg: 'Slide do Esforco x Impacto gerado!',
-    exporterOptions: { title: 'Esforco x Impacto', phase: 'Improve' },
+    successMsg: 'Slide do Esforco x Beneficio gerado!',
+    exporterOptions: { title: 'Esforco x Beneficio', phase: 'Improve' },
   },
   fmea: { exporter: exportFmeaSlide, successMsg: 'Slide do FMEA gerado!' },
   actionPlan5w2h: { exporter: exportActionPlan5w2hSlide, successMsg: 'Slide do Plano de Acao 5W2H gerado!' },

@@ -60,7 +60,7 @@ export async function exportCauseEffectMatrixSlide(
   const pres = options.pres || new pptxgen();
   if (!options.pres) pres.layout = 'LAYOUT_WIDE';
   const slide = createSlide(pres, project,
-    'Matriz de Causa e Efeito — Esforço e Impacto', 'Analyze', aiAnalysis);
+    'Matriz de Causa e Efeito — Esforço e Benefício', 'Analyze', aiAnalysis);
 
   const TX = TOOL_AREA.x;
   const TY = TOOL_AREA.y;
@@ -166,7 +166,7 @@ export async function exportCauseEffectMatrixSlide(
   const RIGHT_W = TW - LEFT_W - 0.20;
 
   // ─── SCATTER ───
-  slide.addText('ESFORÇO × IMPACTO', {
+  slide.addText('ESFORÇO × BENEFÍCIO', {
     x: RIGHT_X, y: TY, w: RIGHT_W, h: 0.20,
     fontFace: 'Calibri', fontSize: 8, bold: true, color: '6B7AAB',
     charSpacing: 2,

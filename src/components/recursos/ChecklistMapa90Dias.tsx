@@ -74,7 +74,7 @@ export const SEMANAS: Semana[] = [
   ]},
   { fase: 'f3', sw: 'Sem 10', titulo: 'Identificando as melhores soluções', dias: [
     { d: 'Dia 46', txt: 'Levantei possíveis soluções para cada causa raiz' },
-    { d: 'Dia 47', txt: 'Avaliei as soluções por esforço e impacto (ESFORÇO × IMPACTO)' },
+    { d: 'Dia 47', txt: 'Avaliei as soluções por esforço e benefício (ESFORÇO × BENEFÍCIO)' },
     { d: 'Dia 48', txt: 'Escolhi a solução que dá pra implementar no meu nível' },
     { d: 'Dia 49', txt: 'Validei a solução escolhida com as pessoas-chave' },
     { d: 'Dia 50', txt: 'Prevejo o resultado esperado da solução' },

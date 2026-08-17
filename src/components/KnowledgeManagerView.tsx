@@ -93,7 +93,7 @@ const AVAILABLE_TOOLS = [
   { id: 'beforeAfter', name: 'Antes x Depois' },
   { id: 'rab', name: 'Matriz RAB' },
   { id: 'gut', name: 'Matriz GUT' },
-  { id: 'effortImpact', name: 'Esforço x Impacto' },
+  { id: 'effortImpact', name: 'Esforço x Benefício' },
   { id: 'dataCollection', name: 'Plano de Coleta de Dados' },
   { id: 'vsm', name: 'VSM (Value Stream Map)' },
   { id: 'directObservation', name: 'Observação Direta (Gemba)' },

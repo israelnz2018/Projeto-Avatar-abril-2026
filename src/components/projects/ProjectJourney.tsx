@@ -111,7 +111,7 @@ const AVAILABLE_TOOLS = [
   { id: 'beforeAfter', name: 'Antes x Depois', component: BeforeAfterTool, defaultPhase: 'Measure' },
   { id: 'rab', name: 'Matriz RAB', component: RABTool, defaultPhase: 'Measure' },
   { id: 'gut', name: 'Matriz GUT', component: GUTTool, defaultPhase: 'Measure' },
-  { id: 'effortImpact', name: 'Esforço x Impacto', component: EffortImpactTool, defaultPhase: 'Measure' },
+  { id: 'effortImpact', name: 'Esforço x Benefício', component: EffortImpactTool, defaultPhase: 'Measure' },
   { id: 'dataCollection', name: 'Plano de Coleta de Dados', component: DataCollectionPlan, defaultPhase: 'Measure' },
   { id: 'vsm', name: 'VSM (Value Stream Map)', component: ValueStreamMapping, defaultPhase: 'Analyze' },
   { id: 'directObservation', name: 'Observação Direta (Gemba)', component: DirectObservationForm, defaultPhase: 'Analyze' },

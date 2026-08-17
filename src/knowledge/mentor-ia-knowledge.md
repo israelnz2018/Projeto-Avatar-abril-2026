@@ -58,7 +58,7 @@ Outras:
 Fase Definir: Project Charter, SIPOC, Mapa de Stakeholders
 Fase Medir: Plano de Coleta de Dados, Observação Direta, Matriz Causa-Efeito
 Fase Analisar: Ishikawa, 5 Porquês, Brainstorming, ADKAR
-Fase Melhorar: Plano de Ação (5W2H), Effort × Impact, Mapa de Processo
+Fase Melhorar: Plano de Ação (5W2H), Esforço × Benefício, Mapa de Processo
 Fase Controlar: Plano de Controle
 
 Apresentação: Botão PPT em cada ferramenta gera slide executivo
@@ -155,7 +155,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 
 ### Situação 4 — "Tenho ideia, mas não sei propor sem parecer arrogante"
 - **Quando dói:** 3-6 meses de empresa, vê melhoria possível, medo de soar novato presunçoso
-- **Técnica:** Frame em 4 blocos (Problema com dado → 3 Opções → Recomendação com critério → Pedido específico), 5W2H, Esforço × Impacto
+- **Técnica:** Frame em 4 blocos (Problema com dado → 3 Opções → Recomendação com critério → Pedido específico), 5W2H, Esforço × Benefício
 - **Comportamental:** pedido sempre específico ("quero seu OK pra piloto de 2 semanas") nunca "o que você acha?". Segunda manhã > sexta tarde. Email > Slack. 1:1 antes pra propostas grandes. Frame humilde-técnico: "vi um padrão, posso estar errado, mas posso testar?". CC do 1º email: só chefe direto
 - **Artefato:** 1-pager da proposta
 - **Caso real do Israel:** Fisher & Paykel, mudança de US$ 200k, frase exata "vi um padrão, posso estar errado, posso testar 2 semanas?"
@@ -209,7 +209,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 
 ### Situação 9 — "Vou propor uma solução, mas tenho medo do time virar a cara"
 - **Quando dói:** solução pronta, sabe que é boa, mas sente que vai bater em resistência ("sempre fizemos assim")
-- **Técnica:** Plano de Ação 5W2H (O quê, Por quê, Quem, Quando, Onde, Como, Quanto). Esforço × Impacto pra priorizar 1ª ação. Mapa de stakeholders em 3 colunas (Apoia / Resiste / Em cima do muro)
+- **Técnica:** Plano de Ação 5W2H (O quê, Por quê, Quem, Quando, Onde, Como, Quanto). Esforço × Benefício pra priorizar 1ª ação. Mapa de stakeholders em 3 colunas (Apoia / Resiste / Em cima do muro)
 - **Comportamental:** comece pelo APOIADOR, nunca pelo resistente. Nunca apresente em grupo grande primeiro — faça 2-3 conversas 1:1 com stakeholders-chave ANTES da reunião. Frame pra abrir o 1:1: "Quero validar uma ideia com você antes de levar pra reunião — pode me dar feedback honesto?". Chega na reunião com 3-4 vozes preparadas
 - **Artefato:** 5W2H da solução + mapa de stakeholders (3 colunas) + roteiro do 1:1 de validação
 - **Caso real do Israel:** 2018, propôs mudança de turno que mexia com 40 pessoas. Conversou 1:1 com 4 pessoas estratégicas antes. 4 vozes já defendiam na reunião. Aprovou de primeira
@@ -224,7 +224,7 @@ NUNCA entre em modo coach/psicólogo. Israel é técnico (Master Black Belt + PM
 - **Conexão paga:** Trilha 6 (Cultura Lean — kaizen contínuo) / Trilha 3 (Conduzir Mudanças — reinforcement do ADKAR)
 
 ## ✅ Ferramentas do app pra esta trilha
-SIPOC, Plano de Ação 5W2H, Brainstorming, Espinha de Peixe (Ishikawa), 5 Porquês, Project Charter (versão mini), Esforço × Impacto, Observação Direta (Gemba), Stakeholders/RACI simples, Plano de Controle, POP
+SIPOC, Plano de Ação 5W2H, Brainstorming, Espinha de Peixe (Ishikawa), 5 Porquês, Project Charter (versão mini), Esforço × Benefício, Observação Direta (Gemba), Stakeholders/RACI simples, Plano de Controle, POP
 
 ## ❓ Perguntas comuns + respostas ideais
 
@@ -319,7 +319,7 @@ ID: `analise-risco-mudanca` · Título oficial: **"Como Antecipar Riscos Antes q
 - Saber o momento exato de adiar ou seguir em frente
 
 ## ✅ Ferramentas do app pra esta trilha
-Plano de Ação 5W2H, Matriz Effort × Impact, Plano de Controle
+Plano de Ação 5W2H, Matriz Esforço × Benefício, Plano de Controle
 
 ## ❓ Perguntas comuns + respostas ideais 🖊️
 **[PREENCHA 3-5]**

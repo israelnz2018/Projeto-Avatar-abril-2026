@@ -32,7 +32,7 @@ interface ProjectAction {
 }
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
-// Cada ação tem esforço (X) e impacto (Y) de 1 a 5 — posicionada nos quadrantes.
+// Cada ação tem esforço (X) e benefício (Y) de 1 a 5 — posicionada nos quadrantes.
 const EI_EXEMPLOS: { id: string; rotulo: string; acoes: { label: string; description: string; effort: number; impact: number }[] }[] = [
   {
     id: 'escritorio',
@@ -154,7 +154,7 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
         <div className="flex items-center gap-3 border-b border-[#eee] pb-4">
         <TrendingUp className="text-orange-500" size={24} />
         <div className="flex-1">
-          <h2 className="text-[1.25rem] font-bold text-[#333]">Matriz Esforço x Impacto</h2>
+          <h2 className="text-[1.25rem] font-bold text-[#333]">Matriz Esforço x Benefício</h2>
           <p className="text-[12px] text-[#666]">Selecione os melhores projetos com base na facilidade e retorno</p>
         </div>
         <button
@@ -302,15 +302,15 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-3 bg-white rounded border border-green-100">
             <strong className="text-green-700 block uppercase text-[10px] mb-1">Ver e Agir:</strong>
-            Baixo esforço e alto impacto. Prioridade máxima!
+            Baixo esforço e alto benefício. Prioridade máxima!
           </div>
           <div className="p-3 bg-white rounded border border-blue-100">
             <strong className="text-blue-700 block uppercase text-[10px] mb-1">Estratégico:</strong>
-            Alto impacto, mas exige planejamento e recursos.
+            Alto benefício, mas exige planejamento e recursos.
           </div>
           <div className="p-3 bg-white rounded border border-gray-100">
             <strong className="text-gray-700 block uppercase text-[10px] mb-1">Rotina:</strong>
-            Baixo impacto e baixo esforço. Fazer se sobrar tempo.
+            Baixo benefício e baixo esforço. Fazer se sobrar tempo.
           </div>
           <div className="p-3 bg-white rounded border border-red-100">
             <strong className="text-red-700 block uppercase text-[10px] mb-1">Descartar:</strong>
@@ -336,7 +336,7 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
             <div className="flex items-center gap-3">
               <BookOpen size={20} className="text-orange-500" />
               <div>
-                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Matriz Esforço × Impacto</h3>
+                <h3 className="text-base font-black text-gray-800 m-0">Exemplo de Matriz Esforço × Benefício</h3>
                 <p className="text-xs text-gray-500 m-0">Onde cada ação cai nos quadrantes</p>
               </div>
             </div>
@@ -367,7 +367,7 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Quadrante visual 2x2 — eixo X = Esforço, eixo Y = Impacto */}
+            {/* Quadrante visual 2x2 — eixo X = Esforço, eixo Y = Benefício */}
             <div className="relative bg-gray-50 border border-gray-200 rounded-[8px] p-10">
               {/* rótulos de quadrante ao fundo */}
               <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 p-10 pointer-events-none opacity-20">
@@ -383,7 +383,7 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
                 <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-gray-300" />
                 <div className="absolute top-0 bottom-0 left-1/2 border-l border-dashed border-gray-300" />
                 {EI_EXEMPLOS[exemploIdx].acoes.map((a) => {
-                  // posiciona: esforço (1..5) no eixo X, impacto (1..5) no eixo Y invertido
+                  // posiciona: esforço (1..5) no eixo X, benefício (1..5) no eixo Y invertido
                   const leftPct = ((a.effort - 1) / 4) * 100;
                   const topPct = (1 - (a.impact - 1) / 4) * 100;
                   let color = '#64748b';
@@ -440,8 +440,8 @@ export default function EffortImpactTool({ onSave, initialData, onGenerateAI, is
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 items-start">
               <Info className="text-amber-600 shrink-0 mt-0.5" size={18} />
               <p className="text-xs text-amber-800 leading-relaxed m-0">
-                Cada bolinha é uma ação posicionada por esforço (eixo X) e impacto (eixo Y). O ideal é priorizar o quadrante
-                "Ver e Agir" (baixo esforço, alto impacto). Este exemplo é só pra consulta — não altera os seus dados.
+                Cada bolinha é uma ação posicionada por esforço (eixo X) e benefício (eixo Y). O ideal é priorizar o quadrante
+                "Ver e Agir" (baixo esforço, alto benefício). Este exemplo é só pra consulta — não altera os seus dados.
               </p>
             </div>
           </div>
