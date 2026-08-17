@@ -25,20 +25,19 @@ export interface VisualResult {
   borderColor: string;
 }
 
-/** Ícone de faixa (belt) — usado quando o nome do projeto/curso cita uma cor de faixa. */
+/** Ícone de faixa (belt) — silhueta cheia (faixa enrolada + nó + duas pontas caindo),
+ * parecido com a faixa de artes marciais dobrada. Usado quando o nome do projeto/
+ * curso cita uma cor de faixa. */
 export function BeltIcon({ size = 22, className }: { size?: number; className?: string }) {
   return (
-    <svg
-      width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M3 9c3-2 15-2 18 0" />
-      <path d="M3 9c1 3 1 5 0 8" />
-      <path d="M21 9c-1 3-1 5 0 8" />
-      <rect x="9" y="8.5" width="6" height="4" rx="1" />
-      <path d="M10 12.5l-2 5" />
-      <path d="M14 12.5l2 5" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      {/* faixa enrolada, passando por trás do nó */}
+      <rect x="1.5" y="8.25" width="21" height="4" rx="1.5" />
+      {/* nó central */}
+      <rect x="8.75" y="6.25" width="6.5" height="8" rx="1.4" />
+      {/* pontas caindo, um pouco abertas */}
+      <path d="M10.2 13.6 L8.1 14.1 L5.6 21.2 L9.4 19.6 Z" />
+      <path d="M13.8 13.6 L15.9 14.1 L18.4 21.2 L14.6 19.6 Z" />
     </svg>
   );
 }
@@ -111,10 +110,12 @@ const CORES_FAIXA: Record<string, ColorOption> = {
   branca: COLOR_CATALOG[10], white: COLOR_CATALOG[10],
   laranja: COLOR_CATALOG[6], orange: COLOR_CATALOG[6],
   azul: COLOR_CATALOG[0],    blue: COLOR_CATALOG[0],
+  vermelha: COLOR_CATALOG[3], red: COLOR_CATALOG[3],
+  roxa: COLOR_CATALOG[5],    purple: COLOR_CATALOG[5],
 };
 
 function getFaixaVisual(nome: string): VisualResult | null {
-  const m = nome.match(/\b(amarela|verde|preta|branca|laranja|azul|yellow|green|black|white|orange|blue)\b\s*belt\b|\bfaixa\s*\b(amarela|verde|preta|branca|laranja|azul)\b/i);
+  const m = nome.match(/\b(amarela|verde|preta|branca|laranja|azul|vermelha|roxa|yellow|green|black|white|orange|blue|red|purple)\b\s*belt\b|\bfaixa\s*\b(amarela|verde|preta|branca|laranja|azul|vermelha|roxa)\b/i);
   if (!m) return null;
   const cor = (m[1] || m[2] || '').toLowerCase();
   const paleta = CORES_FAIXA[cor];
