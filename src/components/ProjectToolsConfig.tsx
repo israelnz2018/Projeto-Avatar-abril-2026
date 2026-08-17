@@ -41,7 +41,7 @@ import {
 } from '../services/configService';
 import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
-import { isSiteConsultor, resolveConsultorId } from '../services/consultorService';
+import { isSiteConsultor } from '../services/consultorService';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
@@ -177,9 +177,6 @@ export default function ProjectToolsConfig() {
   // No SITE do consultor (israel.…) esconde rascunhos mesmo pro admin (visão do consultor).
   // O marcar rascunho + ver tudo fica no admin (app.…). ehAdminHub = pode marcar/ver tudo.
   const ehAdminHub = isAdmin && !isSiteConsultor();
-  // "Trilha" é vocabulário específico do curso do Israel — outros consultores usam
-  // "curso", termo genérico já usado no resto da plataforma (Meus Cursos etc.).
-  const ehIsrael = resolveConsultorId() === 'israel';
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
   const [editingToolName, setEditingToolName] = useState<string>('');
   const [mentorContexts, setMentorContexts] = useState<Record<string, MentorToolContext>>({});
@@ -232,7 +229,6 @@ export default function ProjectToolsConfig() {
   const [isCreating, setIsCreating] = useState(false);
   const [newInitiativeName, setNewInitiativeName] = useState('');
   const [newInitiativeParentId, setNewInitiativeParentId] = useState('');
-  const [newInitiativeIsFree, setNewInitiativeIsFree] = useState<boolean>(false);
   const [saving, setSaving] = useState(false);
   const [editedPhases, setEditedPhases] = useState<{id: string, name: string}[]>([]);
   const [activeConfigPhaseId, setActiveConfigPhaseId] = useState<string | null>(null);
@@ -404,11 +400,10 @@ export default function ProjectToolsConfig() {
     }
 
     try {
-      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined, newInitiativeIsFree);
+      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined);
       setInitiatives(prev => [...prev, initiative]);
       setNewInitiativeName('');
       setNewInitiativeParentId('');
-      setNewInitiativeIsFree(false);
       setIsCreating(false);
       
       // Select the new initiative and clear configs (it's new)
@@ -680,7 +675,7 @@ export default function ProjectToolsConfig() {
               >
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <div className="flex-1 w-full">
-                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Nome do Novo Curso</label>
+                    <label className="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-widest">Nome do Novo Tipo de Projeto</label>
                     <input
                       autoFocus
                       type="text"
@@ -707,7 +702,6 @@ export default function ProjectToolsConfig() {
                         setIsCreating(false);
                         setNewInitiativeParentId('');
                         setNewInitiativeName('');
-                        setNewInitiativeIsFree(false);
                       }}
                       className="flex-1 md:flex-none bg-white text-gray-500 px-8 py-3 rounded-lg border border-gray-200 font-black text-xs hover:bg-gray-50 uppercase tracking-wider"
                     >
@@ -716,19 +710,8 @@ export default function ProjectToolsConfig() {
                   </div>
                 </div>
 
-                {ehIsrael && <div className="w-full mt-4">
-                  <label className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={newInitiativeIsFree}
-                      onChange={(e) => setNewInitiativeIsFree(e.target.checked)}
-                      className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm font-bold text-blue-700">
-                      Curso introdutório (acessível para todos os alunos)
-                    </span>
-                  </label>
-                </div>}
+                {/* Checkbox "curso introdutório/grátis" removido — coisa do passado,
+                    o acesso já é decidido de outra forma hoje (por consultor/coordenador). */}
               </motion.div>
             )}
           </AnimatePresence>
