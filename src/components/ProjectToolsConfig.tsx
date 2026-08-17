@@ -458,6 +458,8 @@ export default function ProjectToolsConfig() {
       // Select the new initiative and clear configs (it's new)
       setSelectedInitiative(initiative);
       setConfigs([]);
+      setEditedPhases([]);
+      setActiveConfigPhaseId(null);
       
       toast.success("Iniciativa criada com sucesso!");
     } catch (error: any) {
