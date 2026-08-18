@@ -1593,7 +1593,7 @@ export default function DataAnalysis() {
                       <iframe
                         width="100%"
                         height="100%"
-                        src={`https://iframe.mediadelivery.net/embed/${selectedAnalysisVideo.bunnyLibraryId}/${selectedAnalysisVideo.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
+                        src={`https://iframe.mediadelivery.net/embed/${selectedAnalysisVideo.bunnyLibraryId}/${selectedAnalysisVideo.bunnyVideoId}?autoplay=true&preload=true`}
                         title={selectedAnalysisVideo.title}
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1968,7 +1968,7 @@ export default function DataAnalysis() {
                       ref={supportVideoIframeRef}
                       width="100%"
                       height="100%"
-                      src={`https://iframe.mediadelivery.net/embed/${selectedAnalysisVideo.bunnyLibraryId}/${selectedAnalysisVideo.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
+                      src={`https://iframe.mediadelivery.net/embed/${selectedAnalysisVideo.bunnyLibraryId}/${selectedAnalysisVideo.bunnyVideoId}?autoplay=true&preload=true`}
                       title={selectedAnalysisVideo.title}
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"

@@ -319,7 +319,7 @@ export default function ComecePorAqui() {
               <div className="aspect-video overflow-hidden rounded-xl bg-slate-900">
                 <iframe
                   title={videoAberto.title}
-                  src={`https://iframe.mediadelivery.net/embed/${videoAberto.bunnyLibraryId}/${videoAberto.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
+                  src={`https://iframe.mediadelivery.net/embed/${videoAberto.bunnyLibraryId}/${videoAberto.bunnyVideoId}?autoplay=true&preload=true`}
                   className="h-full w-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
                   allowFullScreen

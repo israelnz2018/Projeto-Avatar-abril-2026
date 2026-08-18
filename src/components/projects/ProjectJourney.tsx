@@ -854,7 +854,7 @@ useEffect(() => {
                     key={`${selectedVideo.id}-${seekTime}-${seekNonce}`}
                     width="100%"
                     height="100%"
-                    src={`https://iframe.mediadelivery.net/embed/${selectedVideo.bunnyLibraryId}/${selectedVideo.bunnyVideoId}?autoplay=true&preload=true&captions=pt&t=${seekTime}`}
+                    src={`https://iframe.mediadelivery.net/embed/${selectedVideo.bunnyLibraryId}/${selectedVideo.bunnyVideoId}?autoplay=true&preload=true&t=${seekTime}`}
                     title={selectedVideo.title}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

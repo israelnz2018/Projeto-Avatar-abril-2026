@@ -759,7 +759,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
                       key={`${selectedVideo.id}-${seekToSec}-${seekNonce}`}
                       width="100%"
                       height="100%"
-                      src={`https://iframe.mediadelivery.net/embed/${selectedVideo.bunnyLibraryId}/${selectedVideo.bunnyVideoId}?autoplay=true&preload=true&captions=pt&t=${seekToSec}`}
+                      src={`https://iframe.mediadelivery.net/embed/${selectedVideo.bunnyLibraryId}/${selectedVideo.bunnyVideoId}?autoplay=true&preload=true&t=${seekToSec}`}
                       title={selectedVideo.title}
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

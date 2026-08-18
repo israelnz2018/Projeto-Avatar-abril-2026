@@ -856,7 +856,7 @@ export default function LearningView() {
                             ref={iframeRef}
                             width="100%"
                             height="100%"
-                            src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true&captions=pt`}
+                            src={`https://iframe.mediadelivery.net/embed/${item.bunnyLibraryId}/${item.bunnyVideoId}?autoplay=true&preload=true`}
                             title={item.title}
                             frameBorder="0"
                             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"

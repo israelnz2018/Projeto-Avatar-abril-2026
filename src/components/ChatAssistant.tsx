@@ -1039,7 +1039,7 @@ export default function ChatAssistant() {
                         <div className="relative" style={{ paddingBottom: '56.25%' }}>
                           {activeVideo.bunnyVideoId && activeVideo.bunnyLibraryId ? (
                             <iframe
-                              src={`https://iframe.mediadelivery.net/embed/${activeVideo.bunnyLibraryId}/${activeVideo.bunnyVideoId}?autoplay=false&preload=true&captions=pt`}
+                              src={`https://iframe.mediadelivery.net/embed/${activeVideo.bunnyLibraryId}/${activeVideo.bunnyVideoId}?autoplay=false&preload=true`}
                               title={activeVideo.title}
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen className="absolute inset-0 w-full h-full" style={{ border: 'none' }}
