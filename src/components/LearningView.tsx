@@ -273,19 +273,22 @@ export default function LearningView() {
   // do Vídeo) precisa falar esse protocolo, não o postMessage antigo do YouTube.
   useEffect(() => {
     if (seekNonce === 0) return;
+    // Retorna false quando o iframe ainda não existe (clique durante a montagem).
     const seek = () => {
       const player = iframeRef.current?.contentWindow;
-      if (!player) return;
+      if (!player) return false;
       player.postMessage(
         JSON.stringify({ context: 'player.js', method: 'setCurrentTime', value: seekTime }),
         '*'
       );
       player.postMessage(JSON.stringify({ context: 'player.js', method: 'play' }), '*');
+      return true;
     };
-    seek();
-    // O iframe normalmente já está pronto, mas os retries cobrem cliques feitos
-    // durante a inicialização do player sem recriar o iframe nem perder o progresso.
-    const retry1 = window.setTimeout(seek, 250);
+    // Antes o seek era reenviado sempre em 250ms e 750ms: com o player já pronto,
+    // isso viravam 3 saltos seguidos pro mesmo ponto e o vídeo gaguejava no começo.
+    // Agora só reenvia se o primeiro envio não teve pra quem ir.
+    if (seek()) return;
+    const retry1 = window.setTimeout(() => { if (seek()) window.clearTimeout(retry2); }, 250);
     const retry2 = window.setTimeout(seek, 750);
     return () => {
       window.clearTimeout(retry1);
