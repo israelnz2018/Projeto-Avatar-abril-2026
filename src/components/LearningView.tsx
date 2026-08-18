@@ -185,9 +185,14 @@ export default function LearningView() {
     setSelectedVideo(null);
   }, [location.pathname, location.search]);
 
+  // true assim que o aluno clica no Sumário — impede o "retomar de onde parou"
+  // (agendado pra 1,5s depois de abrir o vídeo) de desfazer a escolha dele.
+  const buscaManualRef = useRef(false);
+
   useEffect(() => {
     setSeekTime(0);
     setSeekNonce(0);
+    buscaManualRef.current = false;
   }, [selectedVideo?.id]);
 
   // Throttle refs pra salvar posição no máximo a cada 10s (evita writes em rajada)
@@ -234,7 +239,6 @@ export default function LearningView() {
     iframeRef,
     bunnyGuid: selUsaBunny ? (selectedVideo?.bunnyVideoId || null) : null,
     threshold: WATCH_THRESHOLD_PCT,
-    resumeAt: (selUsaBunny && selectedVideo) ? (watchedUrls[selectedVideo.sourceUrl]?.lastPosition || 0) : 0,
     onThresholdReached: handleThresholdReached,
     onTick: handleTick,
   });
@@ -242,13 +246,21 @@ export default function LearningView() {
   // Quando troca de vídeo, se já tem lastPosition salvo (> 0), pula pro ponto onde parou.
   // A regra do service garante: se chegou a 95%+ do vídeo, lastPosition foi salvo como 0
   // (modo revisão — começa do início).
+  //
+  // Usa o MESMO caminho de seek do Sumário (seekTime + seekNonce) — dono único do
+  // comando. E desiste se o aluno já clicou no Sumário: antes, o retomar disparava
+  // 1,5s depois da abertura e desfazia o clique dele.
   useEffect(() => {
     if (!selectedVideo) return;
     const entry = watchedUrls[selectedVideo.sourceUrl];
     const resumeAt = entry?.lastPosition || 0;
     if (resumeAt > 0) {
       // Pequeno delay pra dar tempo do iframe carregar antes do seek
-      const t = setTimeout(() => setSeekTime(resumeAt), 1500);
+      const t = setTimeout(() => {
+        if (buscaManualRef.current) return; // aluno já escolheu onde quer estar
+        setSeekTime(resumeAt);
+        setSeekNonce(value => value + 1);
+      }, 1500);
       return () => clearTimeout(t);
     }
   // Intencionalmente NÃO depende de watchedUrls — não queremos re-seek quando o tracker
@@ -296,6 +308,7 @@ export default function LearningView() {
   };
 
   const handleSummarySeek = (timeStr: string) => {
+    buscaManualRef.current = true; // a partir daqui, o "retomar" não interfere mais
     setSeekTime(parseTimeToSeconds(timeStr));
     setSeekNonce(value => value + 1);
   };
