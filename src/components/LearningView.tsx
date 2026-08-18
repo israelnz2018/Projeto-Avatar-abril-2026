@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -111,10 +111,29 @@ export default function LearningView() {
 
   // Assina o progresso do aluno em tempo real. Atualização do doc Firestore reflete na UI
   // imediatamente (ex: quando o tracker marca um vídeo como assistido).
+  //
+  // IMPORTANTE: enquanto o vídeo toca, NÓS MESMOS gravamos a posição a cada ~10s
+  // (saveVideoPosition). Essa gravação volta por este onSnapshot e, se atualizarmos
+  // o state, a lista inteira (até ~500 cards animados) re-renderiza — trava a thread
+  // e o áudio do player gagueja/repete a última palavra. `lastPosition` não muda nada
+  // visível na lista, então ignoramos updates que só mexeram nele.
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
-    const unsub = subscribeUserProgress(uid, p => setWatchedUrls(p.watchedUrls));
+    const soMudouPosicao = (a: Record<string, WatchedEntry>, b: Record<string, WatchedEntry>) => {
+      const ka = Object.keys(a);
+      const kb = Object.keys(b);
+      if (ka.length !== kb.length) return false;
+      return ka.every((k) => {
+        const x = a[k];
+        const y = b[k];
+        // Compara só o que a lista mostra (assistido/percentual) — ignora lastPosition.
+        return !!y && x.watchedAt === y.watchedAt && x.pctWatched === y.pctWatched;
+      });
+    };
+    const unsub = subscribeUserProgress(uid, p =>
+      setWatchedUrls(prev => (soMudouPosicao(prev, p.watchedUrls) ? prev : p.watchedUrls)),
+    );
     return () => unsub();
   }, []);
 
@@ -383,13 +402,18 @@ export default function LearningView() {
         })
       ];
 
-  const filteredItems = items.filter(item => {
-    const categoryMatch = activeCategory === 'Todos' || item.course === activeCategory;
-    const playlistMatch = activePlaylist === 'Todas' || item.playlist === activePlaylist;
-    const searchMatch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                       item.content.toLowerCase().includes(searchTerm.toLowerCase());
-    return categoryMatch && playlistMatch && searchMatch;
-  });
+  // Memoizado: sem isso a lista (até ~500 itens) era refiltrada a cada render,
+  // inclusive nos renders de fundo enquanto o vídeo toca.
+  const filteredItems = useMemo(() => {
+    const termo = searchTerm.toLowerCase();
+    return items.filter(item => {
+      const categoryMatch = activeCategory === 'Todos' || item.course === activeCategory;
+      const playlistMatch = activePlaylist === 'Todas' || item.playlist === activePlaylist;
+      const searchMatch = item.title.toLowerCase().includes(termo) ||
+                         (item.content || '').toLowerCase().includes(termo);
+      return categoryMatch && playlistMatch && searchMatch;
+    });
+  }, [items, activeCategory, activePlaylist, searchTerm]);
 
   if (requestedIntroCourse === INTRO_COURSE_COORDENADOR && !isAdmin && !isConsultor && !isCoordenador) {
     return <div className="p-8 text-red-600 font-bold">Esta area e exclusiva do coordenador.</div>;
