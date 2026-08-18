@@ -32,6 +32,15 @@ export function useBunnyWatchTracker({ iframeRef, bunnyGuid, threshold, resumeAt
   useEffect(() => { cbRef.current = onThresholdReached; }, [onThresholdReached]);
   useEffect(() => { tickRef.current = onTick; }, [onTick]);
 
+  // resumeAt NÃO pode ser dependência do efeito abaixo. Quem nos usa deriva esse
+  // valor do progresso salvo, que é atualizado em tempo real (onSnapshot) a cada
+  // ~10s pelo próprio onTick. Como dependência, isso remontava o efeito em loop,
+  // zerava a trava `resumed` e reenviava setCurrentTime com uma posição de ~10s
+  // atrás — o vídeo voltava e repetia a última frase. Fica numa ref, lida só uma
+  // vez por vídeo (no 'ready'), sem disparar remontagem.
+  const resumeAtRef = useRef(resumeAt);
+  useEffect(() => { resumeAtRef.current = resumeAt; }, [resumeAt]);
+
   useEffect(() => {
     if (!bunnyGuid || !iframeRef.current) return;
     const iframe = iframeRef.current;
@@ -40,6 +49,7 @@ export function useBunnyWatchTracker({ iframeRef, bunnyGuid, threshold, resumeAt
     let lastPos = 0;
     let fired = false;
     let resumed = false;
+    let retomarTimer = 0;
 
     const send = (msg: any) => {
       try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*'); } catch { /* ignore */ }
@@ -54,10 +64,11 @@ export function useBunnyWatchTracker({ iframeRef, bunnyGuid, threshold, resumeAt
       if (d.event === 'ready') {
         addListener('timeupdate');
         addListener('ended');
-        if (resumeAt > 1 && !resumed) {
+        const alvo = resumeAtRef.current;
+        if (alvo > 1 && !resumed) {
           resumed = true;
           // pequeno atraso pra o player aceitar o seek
-          setTimeout(() => send({ context: PJS, method: 'setCurrentTime', value: resumeAt }), 800);
+          retomarTimer = window.setTimeout(() => send({ context: PJS, method: 'setCurrentTime', value: alvo }), 800);
         }
       } else if (d.event === 'timeupdate') {
         const v = d.value || {};
@@ -82,7 +93,12 @@ export function useBunnyWatchTracker({ iframeRef, bunnyGuid, threshold, resumeAt
     // Registra o ready (o player do Bunny emite ready; alguns já mandam antes de escutarmos).
     addListener('ready');
 
-    return () => window.removeEventListener('message', onMsg);
+    return () => {
+      window.removeEventListener('message', onMsg);
+      if (retomarTimer) window.clearTimeout(retomarTimer);
+    };
+    // resumeAt fica FORA de propósito (ver comentário acima): ele muda a cada
+    // gravação de progresso e remontaria o efeito em loop durante a reprodução.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bunnyGuid, threshold, resumeAt]);
+  }, [bunnyGuid, threshold]);
 }
