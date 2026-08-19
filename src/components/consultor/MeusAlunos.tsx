@@ -93,6 +93,17 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const [editUid, setEditUid] = useState<string | null>(null);
   const [eCursos, setECursos] = useState<CursoAcesso[]>([]);
   const [eAddCurso, setEAddCurso] = useState('');
+
+  // Edição dos acessos por área (Data Analysis / Projects) direto no painel de
+  // detalhes. Guarda o rascunho enquanto o consultor marca; só grava no Salvar.
+  const [editAcessosUid, setEditAcessosUid] = useState<string | null>(null);
+  const [rascunhoAnalytics, setRascunhoAnalytics] = useState<string[]>([]);
+  const [rascunhoProjetos, setRascunhoProjetos] = useState<string[]>([]);
+  const [salvandoAcessos, setSalvandoAcessos] = useState(false);
+  const [msgAcessos, setMsgAcessos] = useState('');
+  // Confirmação pós-salvar: pergunta se avisa o aluno por e-mail.
+  const [avisoPendente, setAvisoPendente] = useState<{ aluno: Aluno; mudancas: string[] } | null>(null);
+  const [enviandoAviso, setEnviandoAviso] = useState(false);
   const [editSalvando, setEditSalvando] = useState(false);
   const [editMsg, setEditMsg] = useState('');
   const [removingUid, setRemovingUid] = useState<string | null>(null);
@@ -334,6 +345,79 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     setEAddCurso('');
   };
 
+  // Abre a edição dos acessos por área já com o estado atual do aluno marcado.
+  // Aluno legado (sem permissão gravada) entra com TUDO marcado, refletindo o que
+  // ele enxerga hoje — assim salvar não tira acesso sem o consultor perceber.
+  function abrirEditAcessos(a: Aluno) {
+    if (editAcessosUid === a.uid) { setEditAcessosUid(null); return; }
+    setEditAcessosUid(a.uid);
+    setMsgAcessos('');
+    setRascunhoAnalytics(ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id));
+    setRascunhoProjetos(tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id));
+  }
+
+  const alternar = (lista: string[], id: string) =>
+    lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id];
+
+  async function salvarAcessos(a: Aluno) {
+    setSalvandoAcessos(true);
+    setMsgAcessos('');
+    try {
+      // Descreve em linguagem de gente o que mudou — vira o corpo do e-mail.
+      const antesA = ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id);
+      const antesP = tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id);
+      const nomeAnalytics = (id: string) => ANALYTICS_MODULOS.find((m) => m.id === id)?.nome || id;
+      const nomeProjeto = (id: string) => tiposProjeto.find((p) => p.id === id)?.name || id;
+      const mudancas = [
+        ...rascunhoAnalytics.filter((id) => !antesA.includes(id)).map((id) => `Liberado em Data Analysis: ${nomeAnalytics(id)}`),
+        ...antesA.filter((id) => !rascunhoAnalytics.includes(id)).map((id) => `Removido de Data Analysis: ${nomeAnalytics(id)}`),
+        ...rascunhoProjetos.filter((id) => !antesP.includes(id)).map((id) => `Liberado em Projetos: ${nomeProjeto(id)}`),
+        ...antesP.filter((id) => !rascunhoProjetos.includes(id)).map((id) => `Removido de Projetos: ${nomeProjeto(id)}`),
+      ];
+
+      await updateUserNoConsultor(a.uid, consultorId, {
+        acessoProdutos: { ...(a.acessoProdutos || {}), analytics: rascunhoAnalytics },
+        projetosAcesso: rascunhoProjetos,
+      });
+
+      setRows((p) => p.map((r) => (r.uid === a.uid
+        ? { ...r, acessoProdutos: { ...(r.acessoProdutos || {}), analytics: rascunhoAnalytics }, projetosAcesso: rascunhoProjetos }
+        : r)));
+      setEditAcessosUid(null);
+
+      if (mudancas.length === 0) {
+        setMsgAcessos('Nada mudou.');
+        return;
+      }
+      setMsgAcessos('✅ Acessos salvos.');
+      // Salvou primeiro; o aviso é opcional e o consultor decide agora.
+      if (a.email) setAvisoPendente({ aluno: a, mudancas });
+    } catch (e: any) {
+      setMsgAcessos('❌ ' + (e?.message || e));
+    } finally {
+      setSalvandoAcessos(false);
+    }
+  }
+
+  async function enviarAvisoAlteracao() {
+    if (!avisoPendente) return;
+    setEnviandoAviso(true);
+    try {
+      const r = await authedFetch('/api/acesso/alteracao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: avisoPendente.aluno.email, nome: avisoPendente.aluno.nome, mudancas: avisoPendente.mudancas }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      setMsgAcessos(r.ok && j.ok ? '✅ Acessos salvos e aviso enviado por e-mail.' : '✅ Acessos salvos. O e-mail de aviso falhou.');
+    } catch {
+      setMsgAcessos('✅ Acessos salvos. O e-mail de aviso falhou.');
+    } finally {
+      setEnviandoAviso(false);
+      setAvisoPendente(null);
+    }
+  }
+
   async function salvarEdit(uid: string) {
     setEditSalvando(true); setEditMsg('');
     try {
@@ -536,11 +620,17 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             <div className="text-xs text-gray-500">{a.email} · situação: <b>{situacaoAluno(a)}</b></div>
           </div>
           {!somenteLeitura && !a.inativo && (
-            <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
-              <Pencil size={13} /> {editUid === a.uid ? 'Fechar edição' : 'Editar Education'}
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
+                <Pencil size={13} /> {editUid === a.uid ? 'Fechar edição' : 'Editar Education'}
+              </button>
+              <button onClick={() => abrirEditAcessos(a)} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
+                <Pencil size={13} /> {editAcessosUid === a.uid ? 'Cancelar' : 'Editar Analysis e Projects'}
+              </button>
+            </div>
           )}
         </div>
+        {msgAcessos && editAcessosUid !== a.uid && <div className="text-xs font-bold text-gray-600">{msgAcessos}</div>}
 
         <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
@@ -561,10 +651,22 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
           </div>
           <div className="px-4">
-            {ANALYTICS_MODULOS.map((modulo) => {
-              const acesso = acessoAnalytics(a, modulo);
-              return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, acesso.legado ? 'permissão individual ainda não configurada' : undefined, acesso.legado)}</React.Fragment>;
-            })}
+            {editAcessosUid === a.uid
+              ? ANALYTICS_MODULOS.map((modulo) => (
+                  <label key={modulo.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={rascunhoAnalytics.includes(modulo.id)}
+                      onChange={() => setRascunhoAnalytics((p) => alternar(p, modulo.id))}
+                    />
+                    <span className="text-sm text-gray-800">{modulo.nome}</span>
+                  </label>
+                ))
+              : ANALYTICS_MODULOS.map((modulo) => {
+                  const acesso = acessoAnalytics(a, modulo);
+                  return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, acesso.legado ? 'permissão individual ainda não configurada' : undefined, acesso.legado)}</React.Fragment>;
+                })}
           </div>
         </section>
 
@@ -575,11 +677,32 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           </div>
           <div className="px-4">
             {tiposProjeto.length === 0 && <div className="py-3 text-sm text-gray-500">Nenhum tipo de projeto cadastrado.</div>}
-            {tiposProjeto.map((projeto) => {
-              const acesso = acessoProjeto(a, projeto);
-              const associado = projeto.cursoAssociadoId ? iniciativas.find((item) => item.id === projeto.cursoAssociadoId)?.name : undefined;
-              return <React.Fragment key={projeto.id}>{renderAcessoLinha(projeto.name, acesso.liberado, acesso.valor, acesso.vencimento, associado ? `Curso associado: ${associado}` : 'Projeto independente')}</React.Fragment>;
-            })}
+            {editAcessosUid === a.uid
+              ? tiposProjeto.map((projeto) => (
+                  <label key={projeto.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={rascunhoProjetos.includes(projeto.id)}
+                      onChange={() => setRascunhoProjetos((p) => alternar(p, projeto.id))}
+                    />
+                    <span className="text-sm text-gray-800">{projeto.name}</span>
+                  </label>
+                ))
+              : tiposProjeto.map((projeto) => {
+                  const acesso = acessoProjeto(a, projeto);
+                  const associado = projeto.cursoAssociadoId ? iniciativas.find((item) => item.id === projeto.cursoAssociadoId)?.name : undefined;
+                  return <React.Fragment key={projeto.id}>{renderAcessoLinha(projeto.name, acesso.liberado, acesso.valor, acesso.vencimento, associado ? `Curso associado: ${associado}` : 'Projeto independente')}</React.Fragment>;
+                })}
+            {editAcessosUid === a.uid && (
+              <div className="flex items-center gap-3 py-3 flex-wrap">
+                <button onClick={() => salvarAcessos(a)} disabled={salvandoAcessos} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+                  {salvandoAcessos ? 'Salvando…' : 'Salvar acessos'}
+                </button>
+                <button onClick={() => setEditAcessosUid(null)} className="text-xs font-bold text-gray-500 hover:text-gray-700">cancelar</button>
+                {msgAcessos && <span className="text-sm text-gray-600">{msgAcessos}</span>}
+              </div>
+            )}
           </div>
           <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">
             Ao liberar um projeto, o pacote inclui o projeto do aluno, a IA Digital do consultor, os vídeos associados e a geração de PDF. Isso não libera Analytics automaticamente.
@@ -805,6 +928,42 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pós-salvar: o acesso JÁ foi gravado. Aqui só se decide avisar o aluno. */}
+      {avisoPendente && (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <h4 className="font-black text-gray-800 mb-1">Avisar o aluno por e-mail?</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                O acesso de <b>{avisoPendente.aluno.nome}</b> já foi salvo. Quer mandar um e-mail
+                para <b>{avisoPendente.aluno.email}</b> contando o que mudou?
+              </p>
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-5 max-h-48 overflow-y-auto">
+                <ul className="text-xs text-gray-700 space-y-1 m-0 pl-4">
+                  {avisoPendente.mudancas.map((m, i) => <li key={i}>{m}</li>)}
+                </ul>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setAvisoPendente(null); setMsgAcessos('✅ Acessos salvos (sem aviso ao aluno).'); }}
+                  disabled={enviandoAviso}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  Não avisar
+                </button>
+                <button
+                  onClick={enviarAvisoAlteracao}
+                  disabled={enviandoAviso}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-40"
+                >
+                  {enviandoAviso ? 'Enviando…' : 'Enviar aviso'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

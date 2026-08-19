@@ -2231,6 +2231,43 @@ async function startServer() {
     return res.json({ ok: sent.ok });
   });
 
+  // Avisa o aluno que o acesso dele mudou (Data Analysis / Projects / Cursos).
+  // Só é chamado quando o consultor CONFIRMA o envio na tela — nunca automático.
+  app.post("/api/acesso/alteracao", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const token = String(req.headers.authorization || '').replace(/^Bearer\s+/, '');
+    let caller: any;
+    try { caller = await adminAuth().verifyIdToken(token); } catch { return res.status(401).json({ error: "Autenticação obrigatória." }); }
+    const targetEmail = String(req.body?.email || '').trim();
+    const nome = String(req.body?.nome || '').trim();
+    const mudancas = Array.isArray(req.body?.mudancas)
+      ? req.body.mudancas.map((m: any) => String(m).trim()).filter(Boolean).slice(0, 40)
+      : [];
+    if (!targetEmail || mudancas.length === 0) return res.status(400).json({ error: "E-mail e mudanças são obrigatórios." });
+
+    const callerSnap = await adminFirestore().collection('users').doc(caller.uid).get();
+    const callerData = callerSnap.data() || {};
+    if (callerData.tipoUsuario !== 'consultor' && callerData.tipoUsuario !== 'admin') {
+      return res.status(403).json({ error: "Sem permissão." });
+    }
+    // Só avisa aluno do próprio mundo do consultor (admin passa).
+    const consultorId = String(callerData.consultorId || 'israel');
+    if (callerData.tipoUsuario !== 'admin') {
+      const alvo = await adminFirestore().collection('users').where('email', '==', targetEmail).limit(1).get();
+      const alvoData = alvo.empty ? null : (alvo.docs[0].data() as any);
+      const pertence = alvoData && (alvoData.consultorId === consultorId
+        || (Array.isArray(alvoData.consultorIds) && alvoData.consultorIds.includes(consultorId)));
+      if (!pertence) return res.status(403).json({ error: "Este aluno não pertence ao seu ambiente." });
+    }
+
+    const site = `https://${consultorId}.educacaopelotrabalho.com`;
+    const escapar = (t: string) => t.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
+    const lista = mudancas.map((m: string) => `<li>${escapar(m)}</li>`).join('');
+    const html = `<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto"><div style="background:#1E2D6E;color:#fff;padding:24px"><h1 style="margin:0;font-size:22px">Seu acesso na plataforma foi atualizado</h1></div><div style="padding:28px 24px;border:1px solid #ccc"><p>Olá, ${escapar(nome) || 'tudo bem'}!</p><p>Houve uma atualização no que você pode acessar na plataforma:</p><ul>${lista}</ul><p>Entre com o seu e-mail e a senha de sempre para usar.</p><p>Acesse: <a href="${site}">${site}</a></p><p>Atenciosamente,<br>Plataforma LBW</p></div></div>`;
+    const sent = await resendSend({ to: targetEmail, subject: 'Seu acesso na plataforma foi atualizado', html });
+    return res.json({ ok: sent.ok });
+  });
+
   // Libera para um consultor já aprovado a experiência de aluno no site do Israel.
   // Não cria outra conta: acrescenta somente o vínculo "israel" à identidade Firebase atual.
   app.post("/api/consultor/curso-demonstrativo", async (req: any, res: any) => {
