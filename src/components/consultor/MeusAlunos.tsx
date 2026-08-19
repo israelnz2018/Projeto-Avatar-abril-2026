@@ -1017,13 +1017,53 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     );
   };
 
+  // O consultor tambem pode abrir esta tela embutida em Meus Coordenadores.
+  // O aviso precisa ser renderizado nos dois modos, depois que o acesso foi salvo.
+  const renderAvisoModal = () => avisoPendente && (
+    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="p-6">
+          <h4 className="font-black text-gray-800 mb-1">Avisar o aluno por e-mail?</h4>
+          <p className="text-sm text-gray-600 mb-4">
+            O acesso de <b>{avisoPendente.aluno.nome}</b> já foi salvo. Quer mandar um e-mail
+            para <b>{avisoPendente.aluno.email}</b> contando o que mudou?
+          </p>
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-5 max-h-48 overflow-y-auto">
+            <ul className="text-xs text-gray-700 space-y-1 m-0 pl-4">
+              {avisoPendente.mudancas.map((m, i) => <li key={i}>{m}</li>)}
+            </ul>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setAvisoPendente(null); setMsgAcessos('✅ Acessos salvos (sem aviso ao aluno).'); }}
+              disabled={enviandoAviso}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              Não avisar
+            </button>
+            <button
+              onClick={enviarAvisoAlteracao}
+              disabled={enviandoAviso}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-40"
+            >
+              {enviandoAviso ? 'Enviando…' : 'Enviar aviso'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Embutido na linha do coordenador: o time já está identificado pela linha,
   // então não repete busca nem acordeão — só a tabela do time.
   if (embedded) {
     const empresaId = empresaIdFiltro || empresaIdDireto(consultorId);
     return loading
       ? <div className="text-gray-500 text-sm">Carregando…</div>
-      : <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">{corpoGrupo(empresaId)}</div>;
+      : <>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">{corpoGrupo(empresaId)}</div>
+          {renderAvisoModal()}
+        </>;
   }
 
   return (
@@ -1107,41 +1147,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         </div>
       )}
 
-      {/* Pós-salvar: o acesso JÁ foi gravado. Aqui só se decide avisar o aluno. */}
-      {avisoPendente && (
-        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="p-6">
-              <h4 className="font-black text-gray-800 mb-1">Avisar o aluno por e-mail?</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                O acesso de <b>{avisoPendente.aluno.nome}</b> já foi salvo. Quer mandar um e-mail
-                para <b>{avisoPendente.aluno.email}</b> contando o que mudou?
-              </p>
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 mb-5 max-h-48 overflow-y-auto">
-                <ul className="text-xs text-gray-700 space-y-1 m-0 pl-4">
-                  {avisoPendente.mudancas.map((m, i) => <li key={i}>{m}</li>)}
-                </ul>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setAvisoPendente(null); setMsgAcessos('✅ Acessos salvos (sem aviso ao aluno).'); }}
-                  disabled={enviandoAviso}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-                >
-                  Não avisar
-                </button>
-                <button
-                  onClick={enviarAvisoAlteracao}
-                  disabled={enviandoAviso}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-40"
-                >
-                  {enviandoAviso ? 'Enviando…' : 'Enviar aviso'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Pós-salvar: o acesso já foi gravado. Aqui só se decide avisar o aluno. */}
+      {renderAvisoModal()}
     </div>
   );
 }
