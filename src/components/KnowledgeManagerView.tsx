@@ -61,7 +61,14 @@ import {
   isIntroCourse,
   isFixedIntroCourse
 } from '../services/knowledgeService';
-import { getInitiatives, updateInitiative } from '../services/configService';
+import {
+  getInitiatives,
+  updateInitiative,
+  createInitiative,
+  deleteInitiative,
+  propagarRenomeacaoParaAcessos,
+} from '../services/configService';
+import { ICON_CATALOG, COLOR_CATALOG } from '../services/initiativeVisual';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -651,6 +658,64 @@ export default function KnowledgeManagerView() {
     fetchItems();
   }, []);
 
+  // ===== Criar curso =====
+  // Um curso é uma Initiative do consultor atual (createInitiative já carimba o
+  // consultorId do subdomínio). Depois de criado ele entra no dropdown de "Adicionar
+  // Vídeo" e o resto do fluxo — vídeo, playlist, ferramentas, análises — é o mesmo.
+  const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [newCourseName, setNewCourseName] = useState('');
+  const [isSavingCourse, setIsSavingCourse] = useState(false);
+
+  const handleCreateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const nome = newCourseName.trim();
+    if (!nome) return;
+    if (isIntroCourse(nome)) {
+      alert('Esse nome é reservado para as abas especiais. Escolha outro nome.');
+      return;
+    }
+    if (initiatives.some((i) => i.name?.trim().toLowerCase() === nome.toLowerCase())) {
+      alert('Você já tem um curso com esse nome.');
+      return;
+    }
+    setIsSavingCourse(true);
+    try {
+      // Sem cursoAssociadoId de propósito: este registro É o curso.
+      const criado = await createInitiative(nome);
+      // Visual só pra o card do curso não nascer sem ícone/cor na aba Projetos.
+      // O consultor troca depois em "Projetos, Fases e Ferramentas".
+      const iconId = ICON_CATALOG.find((i) => i.id === 'book')?.id || ICON_CATALOG[0].id;
+      const corId = COLOR_CATALOG[initiatives.length % COLOR_CATALOG.length].id;
+      const ordem = initiatives.reduce((max, i) => Math.max(max, Number(i.ordem) || 0), 0) + 1;
+      await updateInitiative(criado.id, { iconId, corId, ordem });
+      const completo = { ...criado, iconId, corId, ordem };
+      setInitiatives((prev) => [...prev, completo]);
+      setInitiativeNames((prev) => [...prev, nome]);
+      setNewCourseName('');
+      setIsCreatingCourse(false);
+    } catch (error: any) {
+      console.error('[handleCreateCourse]', error);
+      alert(`Não foi possível criar o curso.\n\n${error?.message || 'Erro desconhecido'}`);
+    } finally {
+      setIsSavingCourse(false);
+    }
+  };
+
+  /** Curso ainda sem vídeo: não há o que apagar na Base de Conhecimento, some só a Initiative. */
+  const handleDeleteEmptyCourse = async (courseName: string) => {
+    const ini = initiatives.find((i) => i.name === courseName);
+    if (!ini) return;
+    if (!confirm(`Excluir o curso "${courseName}"?\n\nEle ainda não tem nenhum vídeo.`)) return;
+    try {
+      await deleteInitiative(ini.id);
+      setInitiatives((prev) => prev.filter((i) => i.id !== ini.id));
+      setInitiativeNames((prev) => prev.filter((n) => n !== courseName));
+    } catch (error) {
+      console.error('[handleDeleteEmptyCourse]', error);
+      alert('Não foi possível excluir o curso.');
+    }
+  };
+
   // Liga/desliga "este curso tem projeto?" — grava temProjeto na initiative de mesmo nome.
   // Default (ausente/true) = tem projeto (comportamento atual). false = curso só-conteúdo.
   const toggleTemProjeto = async (courseName: string) => {
@@ -1202,7 +1267,21 @@ export default function KnowledgeManagerView() {
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
         await deleteCourse(modalConfig.targetCourse);
       } else if (modalConfig.type === 'editCourse' && modalConfig.targetCourse && modalConfig.inputValue) {
-        await updateCourseName(modalConfig.targetCourse, modalConfig.inputValue);
+        const nomeAntigo = modalConfig.targetCourse;
+        const nomeNovo = modalConfig.inputValue.trim();
+        if (nomeNovo && nomeNovo !== nomeAntigo) {
+          // Mesma propagação do /config: o curso é referenciado por NOME nos vídeos
+          // e nos acessos (users.cursosAcesso / cursosLiberados). Renomear só um dos
+          // três desliga o aluno do curso. Ou propaga tudo, ou nada.
+          await updateCourseName(nomeAntigo, nomeNovo);
+          await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo);
+          const ini = initiatives.find((i) => i.name === nomeAntigo);
+          if (ini) {
+            await updateInitiative(ini.id, { name: nomeNovo });
+            setInitiatives((prev) => prev.map((i) => (i.id === ini.id ? { ...i, name: nomeNovo } : i)));
+            setInitiativeNames((prev) => prev.map((n) => (n === nomeAntigo ? nomeNovo : n)));
+          }
+        }
       } else if (modalConfig.type === 'deletePlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist) {
         await deletePlaylist(modalConfig.targetCourse, modalConfig.targetPlaylist);
       } else if (modalConfig.type === 'editPlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
@@ -1291,6 +1370,13 @@ export default function KnowledgeManagerView() {
     acc[course][playlist].push(item);
     return acc;
   }, {} as Record<string, Record<string, KnowledgeEntry[]>>);
+
+  // Cursos cadastrados que ainda não têm nenhum vídeo também aparecem — senão o
+  // curso recém-criado ficaria invisível e não haveria como perceber que existe.
+  regularCourseOptions
+    .filter((nome) => !groupedItemsMap[nome])
+    .filter((nome) => !searchTerm || nome.toLowerCase().includes(searchTerm.toLowerCase()))
+    .forEach((nome) => { groupedItemsMap[nome] = {}; });
 
   // Convert to sorted arrays — cursos ordenados por nome com numeric:true,
   // pra que prefixos numéricos do nome ("1-", "2-", "10-") sejam respeitados.
@@ -1391,6 +1477,13 @@ export default function KnowledgeManagerView() {
             );
           })()}
           <button
+            onClick={() => { setIsCreatingCourse(true); setIsAdding(false); }}
+            className="flex items-center gap-2 bg-white text-blue-700 border border-blue-600 px-4 py-2 rounded-[4px] font-bold hover:bg-blue-50 transition-all cursor-pointer"
+            title="Criar um curso novo. Depois é só adicionar vídeos nele normalmente."
+          >
+            <Folder size={18} /> Criar Curso
+          </button>
+          <button
             onClick={() => setIsAdding(true)}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-blue-700 transition-all border-none cursor-pointer"
           >
@@ -1412,8 +1505,61 @@ export default function KnowledgeManagerView() {
         </div>
       </div>
 
+      {isCreatingCourse && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-6 border border-[#ccc] rounded-[4px] shadow-lg"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2 m-0">
+              <Folder className="text-blue-600" size={22} />
+              Criar Novo Curso
+            </h2>
+            <button onClick={() => { setIsCreatingCourse(false); setNewCourseName(''); }} className="p-2 hover:bg-gray-100 rounded-full border-none bg-transparent cursor-pointer">
+              <X size={20} />
+            </button>
+          </div>
+          <form onSubmit={handleCreateCourse} className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome do curso</label>
+              <input
+                required
+                autoFocus
+                type="text"
+                value={newCourseName}
+                onChange={(e) => setNewCourseName(e.target.value)}
+                placeholder="Ex: Análise de Causa Raiz"
+                className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-2 m-0">
+                Depois de criar, o curso já aparece no campo <b>Curso</b> de "Adicionar Vídeo".
+                Vídeos, playlists, ferramentas da qualidade e análises estatísticas funcionam
+                exatamente como nos outros cursos.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 pt-3 border-t border-[#eee]">
+              <button
+                type="button"
+                onClick={() => { setIsCreatingCourse(false); setNewCourseName(''); }}
+                className="px-6 py-2 border border-[#ccc] rounded-[4px] font-bold text-gray-600 hover:bg-gray-50 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingCourse || !newCourseName.trim()}
+                className="flex items-center gap-2 bg-blue-600 text-white px-8 py-2 rounded-[4px] font-bold hover:bg-blue-700 transition-all border-none cursor-pointer disabled:opacity-50"
+              >
+                {isSavingCourse ? 'Criando...' : <><Save size={18} /> Criar Curso</>}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      )}
+
       {isAdding && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-6 border border-[#ccc] rounded-[4px] shadow-lg"
@@ -1635,7 +1781,7 @@ export default function KnowledgeManagerView() {
           <div className="text-center py-12 bg-white border border-[#ccc] rounded-[4px]">
             <p className="text-gray-500">Carregando recursos...</p>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : groupedItems.length === 0 ? (
           <div className="text-center py-12 bg-white border border-[#ccc] rounded-[4px]">
             <Video size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500 font-bold">Nenhum vídeo encontrado.</p>
@@ -1697,18 +1843,31 @@ export default function KnowledgeManagerView() {
                   >
                     <Edit2 size={16} />
                   </button>
-                  <button 
-                    onClick={() => setModalConfig({ isOpen: true, type: 'deleteCourse', targetCourse: course.name })}
-                    className="p-1.5 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer" 
-                    title="Excluir curso e todos os seus vídeos"
+                  <button
+                    onClick={() => totalDoCurso === 0
+                      ? handleDeleteEmptyCourse(course.name)
+                      : setModalConfig({ isOpen: true, type: 'deleteCourse', targetCourse: course.name })}
+                    className="p-1.5 text-gray-400 hover:text-red-600 transition-colors border-none bg-transparent cursor-pointer"
+                    title={totalDoCurso === 0 ? 'Excluir curso' : 'Excluir curso e todos os seus vídeos'}
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>}
               </div>
               
+              {/* Curso recém-criado, ainda sem nenhum vídeo */}
+              {course.playlists.length === 0 && (
+                <div className="px-4 py-8 text-center">
+                  <Video size={32} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-500 text-sm font-bold m-0">Este curso ainda não tem vídeos.</p>
+                  <p className="text-gray-400 text-xs mt-1 m-0">
+                    Clique em "Adicionar Vídeo" e escolha <b>{course.name}</b> no campo Curso.
+                  </p>
+                </div>
+              )}
+
               {/* Playlists Tabs */}
-              <div className="bg-white border-b border-[#eee] px-4 pt-4">
+              <div className={cn('bg-white border-b border-[#eee] px-4 pt-4', course.playlists.length === 0 && 'hidden')}>
                 <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-hide">
                   <DndContext
                     sensors={sensors}
