@@ -9,13 +9,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
-import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Pencil, Plus, Trash2, LockKeyhole, CheckCircle2, Clock3 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { getCourses } from '../../services/configService';
+import { getCourses, getInitiatives } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 import { getEducationCourses } from '../../services/educationCourseService';
+import { courseNamesMatch, hasCourseAccess } from '../../lib/courseAccess';
+import type { Initiative } from '../../types';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser;
@@ -28,12 +30,27 @@ interface CursoAcesso { curso: string; vencimento: string | null; valor: number;
 interface Aluno {
   uid: string; nome: string; email: string; tipo: string; acessou: boolean;
   cursosAcesso: CursoAcesso[];
+  plano?: string;
+  acessoCompletoAte?: string;
+  acessoProdutos?: { analytics?: 'nenhum' | 'basico' | 'avancado'; projetos?: string };
+  projetosAcesso?: Array<{ projeto: string; vencimento?: string | null; valor?: number }> | string[];
   unitarioLegado?: boolean;
   empresaId?: string;
   desvinculadoEm?: string;
   avisoBloqueio?: { expiraEm?: string };
   inativo?: boolean;
 }
+
+const ANALYTICS_MODULOS = [
+  { id: 'exploratoria', nome: 'Análise Exploratória', nivel: 'Básico' },
+  { id: 'inferencia', nome: 'Inferência Estatística', nivel: 'Avançado' },
+  { id: 'msa', nome: 'MSA', nivel: 'Avançado' },
+  { id: 'preditiva', nome: 'Análise Preditiva', nivel: 'Avançado' },
+  { id: 'cep', nome: 'CEP', nivel: 'Avançado' },
+  { id: 'capabilidade', nome: 'Capabilidade', nivel: 'Avançado' },
+  { id: 'doe', nome: 'DOE', nivel: 'Avançado' },
+  { id: 'outras', nome: 'Outras análises', nivel: 'Avançado' },
+] as const;
 interface Equipe {
   empresaId: string;
   nome: string;
@@ -59,9 +76,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const [rows, setRows] = useState<Aluno[]>([]);
   const [cursos, setCursos] = useState<string[]>([]);
   const [freeCursos, setFreeCursos] = useState<string[]>([]);
+  const [iniciativas, setIniciativas] = useState<Initiative[]>([]);
+  const [tiposProjeto, setTiposProjeto] = useState<Initiative[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
+  const [detalheUid, setDetalheUid] = useState<string | null>(null);
 
   // agrupamento por time — cada grupo (meus próprios alunos + cada coordenador) é um
   // acordeão independente; abre/fecha e tem seu próprio "adicionar aluno" já escopado.
@@ -98,6 +118,71 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     return [{ curso: cursoUnitario, vencimento: null, valor: 0, quantidade: 1 }, ...atuais];
   };
 
+  const acessoCurso = (aluno: Aluno, nomeCurso: string) => {
+    if (aluno.plano === 'completo') return true;
+    return cursosEfetivos(aluno).some((curso) => hasCourseAccess([curso.curso], nomeCurso) && !venceu(curso.vencimento));
+  };
+
+  const registroCurso = (aluno: Aluno, nomeCurso: string) =>
+    cursosEfetivos(aluno).find((curso) => courseNamesMatch(curso.curso, nomeCurso));
+
+  const acessoAnalytics = (aluno: Aluno, modulo: typeof ANALYTICS_MODULOS[number]) => {
+    const nivel = aluno.acessoProdutos?.analytics;
+    // Até a criação da permissão individual, Data Analysis continua refletindo
+    // o comportamento atual da plataforma: acesso global às análises.
+    if (!nivel) return { liberado: true, legado: true };
+    if (nivel === 'nenhum') return { liberado: false, legado: false };
+    if (nivel === 'basico') return { liberado: modulo.nivel === 'Básico', legado: false };
+    return { liberado: true, legado: false };
+  };
+
+  const acessoProjetoExplicito = (aluno: Aluno, projeto: Initiative) => {
+    if (!Array.isArray(aluno.projetosAcesso)) return undefined;
+    const encontrado = aluno.projetosAcesso.find((item: any) => {
+      const chave = typeof item === 'string' ? item : item?.projeto || item?.projetoId;
+      return chave === projeto.id || courseNamesMatch(chave, projeto.name);
+    }) as any;
+    return encontrado ? {
+      liberado: true,
+      valor: typeof encontrado === 'object' && typeof encontrado.valor === 'number' ? encontrado.valor : undefined,
+      vencimento: typeof encontrado === 'object' ? encontrado.vencimento || null : null,
+    } : { liberado: false, valor: undefined, vencimento: null };
+  };
+
+  const acessoProjeto = (aluno: Aluno, projeto: Initiative) => {
+    const explicito = acessoProjetoExplicito(aluno, projeto);
+    if (explicito) return explicito;
+    if (projeto.somenteProjeto) return { liberado: false, valor: undefined, vencimento: null };
+    const cursoAssociado = projeto.cursoAssociadoId
+      ? iniciativas.find((item) => item.id === projeto.cursoAssociadoId)
+      : projeto;
+    const registro = cursoAssociado ? registroCurso(aluno, cursoAssociado.name) : undefined;
+    return {
+      liberado: !!cursoAssociado && acessoCurso(aluno, cursoAssociado.name),
+      valor: registro?.valor,
+      vencimento: registro?.vencimento || (aluno.plano === 'completo' ? aluno.acessoCompletoAte || null : null),
+    };
+  };
+
+  const dataBr = (data?: string | null) => {
+    if (!data) return '—';
+    const parsed = new Date(data);
+    return isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString('pt-BR');
+  };
+
+  const situacaoAluno = (aluno: Aluno) => {
+    if (aluno.inativo) return 'Removido';
+    const totalCursos = cursos.length;
+    const cursosLiberados = cursos.filter((curso) => acessoCurso(aluno, curso)).length;
+    const analyticsLiberados = ANALYTICS_MODULOS.filter((modulo) => acessoAnalytics(aluno, modulo).liberado).length;
+    const projetosLiberados = tiposProjeto.filter((projeto) => acessoProjeto(aluno, projeto).liberado).length;
+    const total = totalCursos + ANALYTICS_MODULOS.length + tiposProjeto.length;
+    const liberados = cursosLiberados + analyticsLiberados + projetosLiberados;
+    if (liberados === 0) return 'Limitado';
+    if (total > 0 && liberados === total) return 'Completo';
+    return 'Parcial';
+  };
+
   const toAluno = (d: any): Aluno => {
     const u = d as any;
     let ca: CursoAcesso[] = Array.isArray(u.cursosAcesso)
@@ -114,6 +199,10 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       unitarioLegado: ca.length === 0 && u.plano !== 'completo',
       desvinculadoEm: u.desvinculadoEm,
       avisoBloqueio: u.avisoBloqueio,
+      plano: u.plano,
+      acessoCompletoAte: u.acessoCompletoAte,
+      acessoProdutos: u.acessoProdutos,
+      projetosAcesso: u.projetosAcesso,
       inativo: true,
     };
   };
@@ -121,11 +210,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const carregar = async () => {
     setLoading(true);
     try {
-      const [userDocs, blockedSnap, inits, catalogoEducacional] = await Promise.all([
+      const [userDocs, blockedSnap, inits, catalogoEducacional, todasIniciativas] = await Promise.all([
         getUserDocsByConsultor(consultorId),
         getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
         getCourses(),
         getEducationCourses(consultorId),
+        getInitiatives(),
       ]);
       const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
@@ -144,6 +234,10 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             tipo: u.tipoUsuario || 'aluno',
             acessou: !!u.primeiroAcessoEm,
             cursosAcesso: ca,
+            plano: u.plano,
+            acessoCompletoAte: u.acessoCompletoAte,
+            acessoProdutos: u.acessoProdutos,
+            projetosAcesso: u.projetosAcesso,
             unitarioLegado: ca.length === 0 && u.plano !== 'completo',
             empresaId: u.empresaId ? String(u.empresaId) : undefined,
           };
@@ -169,6 +263,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       setBloqueados(blockedSnap.docs.map((d) => toAluno({ id: d.id, ...(d.data() as any) })).filter((u) => u.tipo !== 'admin' && u.tipo !== 'coordenador' && u.tipo !== 'consultor').sort((a, b) => (b.desvinculadoEm || '').localeCompare(a.desvinculadoEm || '')));
       setCursos(nomesCursos);
       setFreeCursos(gratis);
+      setIniciativas(todasIniciativas);
+      setTiposProjeto(todasIniciativas.filter((initiative) => initiative.temProjeto !== false));
       // "Alunos diretos" sempre disponível no topo — um único grupo fixo, sem coordenador,
       // pro consultor atender aluno avulso sem precisar de uma conta de coordenador fake.
       const equipesReais = Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));
@@ -336,7 +432,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   };
   const cursosDisponiveis = (empresaId?: string) => cursosPermitidosNoTime(empresaId).filter((c) => !eCursos.some((x) => x.curso === c));
 
-  const renderLinha = (a: Aluno) => (
+  const renderLinhaLegacy = (a: Aluno) => (
     <div key={a.uid} className="border-b border-gray-50 last:border-0">
       <div className={`grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
         <div className="min-w-0">
@@ -416,6 +512,138 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     </div>
   );
 
+  const renderStatusAcesso = (liberado: boolean, legado = false) => (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase rounded-full px-2 py-1 whitespace-nowrap ${
+      liberado ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+    }`}>
+      {liberado ? <CheckCircle2 size={12} /> : <LockKeyhole size={12} />}
+      {liberado ? (legado ? 'Liberado · atual' : 'Liberado') : 'Sem acesso'}
+    </span>
+  );
+
+  const renderAcessoLinha = (nome: string, liberado: boolean, valor?: number, vencimento?: string | null, extra?: string, legado = false) => (
+    <div className="grid grid-cols-[minmax(180px,1.6fr)_auto_100px_120px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
+      <div className="min-w-0">
+        <div className="font-semibold text-gray-800 truncate">{nome}</div>
+        {extra && <div className="text-[11px] text-gray-400">{extra}</div>}
+      </div>
+      {renderStatusAcesso(liberado, legado)}
+      <span className="text-xs text-gray-600 whitespace-nowrap">{liberado && typeof valor === 'number' ? `R$ ${fmtValor(valor) || '0,00'}` : '—'}</span>
+      <span className={`text-xs whitespace-nowrap ${vencimento && venceu(vencimento) ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+        {vencimento && venceu(vencimento) ? <><Clock3 size={12} className="inline mr-1" />Expirado</> : dataBr(vencimento)}
+      </span>
+    </div>
+  );
+
+  const renderDetalheAcessos = (a: Aluno) => {
+    const cursosExibidos = cursos.length > 0 ? cursos : cursosEfetivos(a).map((curso) => curso.curso);
+    const cursosLiberados = cursosExibidos.filter((curso) => acessoCurso(a, curso)).length;
+    const analyticsLiberados = ANALYTICS_MODULOS.filter((modulo) => acessoAnalytics(a, modulo).liberado).length;
+    const projetosLiberados = tiposProjeto.filter((projeto) => acessoProjeto(a, projeto).liberado).length;
+
+    return (
+      <div className="border-t border-blue-100 bg-slate-50 px-4 py-4 space-y-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div className="text-sm font-black text-gray-800">Detalhes de acesso</div>
+            <div className="text-xs text-gray-500">{a.email} · situação: <b>{situacaoAluno(a)}</b></div>
+          </div>
+          {!somenteLeitura && !a.inativo && (
+            <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
+              <Pencil size={13} /> {editUid === a.uid ? 'Fechar edição' : 'Editar Education'}
+            </button>
+          )}
+        </div>
+
+        <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+            <div><h3 className="text-sm font-black text-gray-800 m-0">Education</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{cursosLiberados} de {cursosExibidos.length} cursos</p></div>
+            <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
+          </div>
+          <div className="px-4">
+            {cursosExibidos.map((curso) => {
+              const registro = registroCurso(a, curso);
+              return <React.Fragment key={curso}>{renderAcessoLinha(curso, acessoCurso(a, curso), registro?.valor, registro?.vencimento || (a.plano === 'completo' ? a.acessoCompletoAte : null))}</React.Fragment>;
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+            <div><h3 className="text-sm font-black text-gray-800 m-0">Data Analysis</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{analyticsLiberados} de {ANALYTICS_MODULOS.length} módulos</p></div>
+            <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
+          </div>
+          <div className="px-4">
+            {ANALYTICS_MODULOS.map((modulo) => {
+              const acesso = acessoAnalytics(a, modulo);
+              return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, `${modulo.nivel}${acesso.legado ? ' · permissão individual ainda não configurada' : ''}`, acesso.legado)}</React.Fragment>;
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+            <div><h3 className="text-sm font-black text-gray-800 m-0">Projects</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{projetosLiberados} de {tiposProjeto.length} projetos</p></div>
+            <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
+          </div>
+          <div className="px-4">
+            {tiposProjeto.length === 0 && <div className="py-3 text-sm text-gray-500">Nenhum tipo de projeto cadastrado.</div>}
+            {tiposProjeto.map((projeto) => {
+              const acesso = acessoProjeto(a, projeto);
+              const associado = projeto.cursoAssociadoId ? iniciativas.find((item) => item.id === projeto.cursoAssociadoId)?.name : undefined;
+              return <React.Fragment key={projeto.id}>{renderAcessoLinha(projeto.name, acesso.liberado, acesso.valor, acesso.vencimento, associado ? `Curso associado: ${associado}` : 'Projeto independente')}</React.Fragment>;
+            })}
+          </div>
+          <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">
+            Ao liberar um projeto, o pacote inclui o projeto do aluno, a IA Digital do consultor, os vídeos associados e a geração de PDF. Isso não libera Analytics automaticamente.
+          </div>
+        </section>
+
+        {!somenteLeitura && !a.inativo && editUid === a.uid && (
+          <div className="rounded-xl border border-blue-200 bg-white p-4">
+            <div className="text-xs font-black uppercase text-gray-500 mb-2">Editar cursos · vencimento e valor</div>
+            <div className="space-y-2 mb-3">
+              {eCursos.length === 0 && <div className="text-sm text-gray-500">Nenhum curso liberado.</div>}
+              {eCursos.map((c) => (
+                <div key={c.curso} className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
+                  <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">vence</span><input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} /></div>
+                  <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input value={fmtValor(c.valor)} onChange={(e) => setValorCurso(c.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} /></div>
+                  <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
+            {cursosDisponiveis(a.empresaId).length > 0 && (
+              <div className="flex items-center gap-2 mb-3"><select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}><option value="">+ adicionar curso…</option>{cursosDisponiveis(a.empresaId).map((c) => <option key={c} value={c}>{c}</option>)}</select><button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button></div>
+            )}
+            <div className="flex items-center gap-3 flex-wrap"><button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{editSalvando ? 'Salvando…' : 'Salvar'}</button>{editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderLinha = (a: Aluno) => {
+    const cursosLiberados = cursos.filter((curso) => acessoCurso(a, curso)).length;
+    const analyticsLiberados = ANALYTICS_MODULOS.filter((modulo) => acessoAnalytics(a, modulo).liberado).length;
+    const projetosLiberados = tiposProjeto.filter((projeto) => acessoProjeto(a, projeto).liberado).length;
+    const aberto = detalheUid === a.uid;
+    return (
+      <div key={a.uid} className="border-b border-gray-100 last:border-0">
+        <div className={`grid grid-cols-[minmax(170px,1.4fr)_minmax(105px,1fr)_minmax(125px,1fr)_minmax(105px,1fr)_auto_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
+          <div className="min-w-0"><div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div><div className="text-xs text-gray-400 truncate">{a.email}</div></div>
+          <span className="text-xs font-semibold text-gray-700">{cursosLiberados === 0 ? 'Sem acesso' : `${cursosLiberados} de ${cursos.length} cursos`}</span>
+          <span className="text-xs font-semibold text-gray-700">{analyticsLiberados === 0 ? 'Sem acesso' : `${analyticsLiberados} de ${ANALYTICS_MODULOS.length} módulos`}</span>
+          <span className="text-xs font-semibold text-gray-700">{projetosLiberados === 0 ? 'Sem acesso' : `${projetosLiberados} projeto${projetosLiberados === 1 ? '' : 's'}`}</span>
+          <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 whitespace-nowrap ${situacaoAluno(a) === 'Completo' ? 'bg-emerald-100 text-emerald-700' : situacaoAluno(a) === 'Limitado' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{situacaoAluno(a)}</span>
+          <button onClick={() => setDetalheUid(aberto ? null : a.uid)} className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100 whitespace-nowrap">{aberto ? 'Fechar' : 'Gerenciar'}</button>
+          {!somenteLeitura && <div className="flex justify-end">{!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente"><Trash2 size={15} /></button> : <button onClick={() => excluirDefinitivo(a)} disabled={!podeExcluirDefinitivo(a) || deletingUid === a.uid} className="text-xs font-bold text-red-600 disabled:text-gray-300" title={podeExcluirDefinitivo(a) ? 'Excluir definitivamente' : 'Disponível após 90 dias'}>excluir</button>}</div>}
+        </div>
+        {aberto && renderDetalheAcessos(a)}
+      </div>
+    );
+  };
+
   const renderFormAdicionar = (empresaId: string) => (
     <div className="px-4 pb-4 pt-3 bg-blue-50/40 border-t border-blue-100 space-y-4">
       <div className="grid sm:grid-cols-2 gap-3">
@@ -494,8 +722,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         {!somenteLeitura && cadastroDentroDoGrupo && addAbertoEmpresaId === empresaId && (
           <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>
         )}
-        <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
-          <div>Aluno</div><div>Status</div><div>Cursos com acesso</div><div />
+        <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[minmax(170px,1.4fr)_minmax(105px,1fr)_minmax(125px,1fr)_minmax(105px,1fr)_auto_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
+          <div>Aluno</div><div>Education</div><div>Data Analysis</div><div>Projects</div><div>Situação</div><div>Ação</div><div />
         </div>
         {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
         {alunosDoTime.map(renderLinha)}
