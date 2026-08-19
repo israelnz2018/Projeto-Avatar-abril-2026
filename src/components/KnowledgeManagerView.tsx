@@ -15,7 +15,8 @@ import {
   Sparkles,
   GripVertical,
   PlusCircle,
-  ArrowRightLeft,
+  ArrowLeft,
+  ArrowRight,
   Download,
   Loader2,
 } from 'lucide-react';
@@ -50,7 +51,6 @@ import {
   updateCourseName,
   deletePlaylist,
   updatePlaylistName,
-  movePlaylistToCourse,
   KNOWLEDGE_COLLECTION,
   INTRO_COURSE_ALUNO,
   INTRO_COURSE_COORDENADOR,
@@ -212,7 +212,7 @@ const ANALYSIS_NAME_BY_ID: Record<string, string> = Object.fromEntries(AVAILABLE
 
 type ModalConfig = {
   isOpen: boolean;
-  type: 'editCourse' | 'deleteCourse' | 'editPlaylist' | 'deletePlaylist' | 'movePlaylist' | 'editVideo' | 'deleteVideo' | 'importTranscript';
+  type: 'editCourse' | 'deleteCourse' | 'editPlaylist' | 'deletePlaylist' | 'editVideo' | 'deleteVideo' | 'importTranscript';
   targetId?: string;
   targetCourse?: string;
   targetPlaylist?: string;
@@ -438,11 +438,14 @@ interface SortablePlaylistTabProps {
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onMove: () => void;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
+  isFirst: boolean;
+  isLast: boolean;
   hideActions?: boolean;
 }
 
-function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, onMove, hideActions }: SortablePlaylistTabProps) {
+function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, onMoveLeft, onMoveRight, isFirst, isLast, hideActions }: SortablePlaylistTabProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: playlist.name });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -475,11 +478,20 @@ function SortablePlaylistTab({ playlist, isActive, onSelect, onEdit, onDelete, o
       </button>
       {!hideActions && <div className="flex items-center ml-1">
         <button
-          onClick={onMove}
-          className="p-1 text-gray-400 hover:text-green-600 transition-colors border-none bg-transparent cursor-pointer"
-          title="Mover playlist para outro curso"
+          onClick={(event) => { event.stopPropagation(); onMoveLeft(); }}
+          disabled={isFirst}
+          className="p-1 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
+          title="Mover fase para a esquerda"
         >
-          <ArrowRightLeft size={14} />
+          <ArrowLeft size={14} />
+        </button>
+        <button
+          onClick={(event) => { event.stopPropagation(); onMoveRight(); }}
+          disabled={isLast}
+          className="p-1 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
+          title="Mover fase para a direita"
+        >
+          <ArrowRight size={14} />
         </button>
         <button
           onClick={onEdit}
@@ -1019,13 +1031,78 @@ export default function KnowledgeManagerView() {
     );
   };
 
+  const nomeNormalizado = (texto: string) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const ePlaylistIntroducao = (nome: string) => nomeNormalizado(nome).startsWith('introducao');
+
+  // A ordem dos cards precisa ser a mesma ordem da jornada do aluno.
+  // Dados antigos podem não ter playlistOrder; nesse caso a primeira playlist
+  // de introdução fica no início e as demais preservam a ordem já existente.
+  const normalizarOrdemInicialPlaylists = async (data: KnowledgeEntry[]) => {
+    const porCurso = new Map<string, string[]>();
+    data.forEach((item) => {
+      const curso = item.course || 'Sem Curso';
+      const playlist = item.playlist || 'Sem Playlist';
+      const atuais = porCurso.get(curso) || [];
+      if (!atuais.includes(playlist)) atuais.push(playlist);
+      porCurso.set(curso, atuais);
+    });
+
+    const alteracoes: Array<{ id: string; playlistOrder: number }> = [];
+    const localOrder = new Map<string, number>();
+    porCurso.forEach((playlists, curso) => {
+      const primeiraOcorrencia = new Map(playlists.map((playlist, index) => [playlist, index]));
+      const ordemAtual = (playlist: string) => {
+        const item = data.find((entry) => entry.course === curso && entry.playlist === playlist);
+        return typeof item?.playlistOrder === 'number' ? item.playlistOrder : Number.MAX_SAFE_INTEGER;
+      };
+      const temOrdemCompleta = playlists.every((playlist) => ordemAtual(playlist) !== Number.MAX_SAFE_INTEGER)
+        && new Set(playlists.map(ordemAtual)).size === playlists.length
+        && playlists.map(ordemAtual).sort((a, b) => a - b).every((valor, index) => valor === index);
+      if (temOrdemCompleta) return;
+
+      const ordenadas = playlists.slice().sort((a, b) => {
+        const aIntro = ePlaylistIntroducao(a);
+        const bIntro = ePlaylistIntroducao(b);
+        if (aIntro !== bIntro) return aIntro ? -1 : 1;
+        const porOrdem = ordemAtual(a) - ordemAtual(b);
+        if (porOrdem !== 0 && Number.isFinite(porOrdem)) return porOrdem;
+        return (primeiraOcorrencia.get(a) || 0) - (primeiraOcorrencia.get(b) || 0);
+      });
+      ordenadas.forEach((playlist, index) => localOrder.set(`${curso}__${playlist}`, index));
+    });
+
+    const atualizados = data.map((item) => {
+      const novo = localOrder.get(`${item.course || 'Sem Curso'}__${item.playlist || 'Sem Playlist'}`);
+      if (novo === undefined || novo === item.playlistOrder) return item;
+      if (item.id) alteracoes.push({ id: item.id, playlistOrder: novo });
+      return { ...item, playlistOrder: novo };
+    });
+
+    if (alteracoes.length > 0) {
+      try {
+        // Firestore aceita no máximo 500 operações por batch.
+        for (let inicio = 0; inicio < alteracoes.length; inicio += 400) {
+          const batch = writeBatch(db);
+          alteracoes.slice(inicio, inicio + 400).forEach((alteracao) => {
+            batch.update(doc(db, KNOWLEDGE_COLLECTION, alteracao.id), { playlistOrder: alteracao.playlistOrder });
+          });
+          await batch.commit();
+        }
+      } catch (error) {
+        console.error('Erro ao normalizar a ordem inicial das playlists:', error);
+      }
+    }
+    return atualizados;
+  };
+
   const fetchItems = async () => {
     setLoading(true);
     const data = await getAllKnowledge(consultorId);
-    setItems(data);
+    const dataOrdenada = await normalizarOrdemInicialPlaylists(data);
+    setItems(dataOrdenada);
     
     // Set initial active playlists for each course
-    const grouped = data.reduce((acc, item) => {
+    const grouped = dataOrdenada.reduce((acc, item) => {
       const course = item.course || 'Sem Curso';
       const playlist = item.playlist || 'Sem Playlist';
       if (!acc[course]) acc[course] = new Set();
@@ -1037,7 +1114,11 @@ export default function KnowledgeManagerView() {
       const next = { ...prev };
       Object.entries(grouped).forEach(([course, playlists]) => {
         if (!next[course]) {
-          const firstPlaylist = Array.from(playlists)[0];
+          const firstPlaylist = Array.from(playlists).sort((a, b) => {
+            const ordemA = dataOrdenada.find((item) => item.course === course && item.playlist === a)?.playlistOrder ?? Number.MAX_SAFE_INTEGER;
+            const ordemB = dataOrdenada.find((item) => item.course === course && item.playlist === b)?.playlistOrder ?? Number.MAX_SAFE_INTEGER;
+            return ordemA - ordemB;
+          })[0];
           if (firstPlaylist) {
             next[course] = firstPlaylist;
           }
@@ -1196,14 +1277,7 @@ export default function KnowledgeManagerView() {
     }
   };
 
-  const makePlaylistDragEnd = (courseName: string, playlistNames: string[]) => async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIdx = playlistNames.indexOf(String(active.id));
-    const newIdx = playlistNames.indexOf(String(over.id));
-    if (oldIdx === -1 || newIdx === -1) return;
-    const reordered = arrayMove(playlistNames, oldIdx, newIdx);
-
+  const salvarOrdemPlaylists = async (courseName: string, reordered: string[]) => {
     setItems(prev => prev.map(item => {
       if (item.course !== courseName) return item;
       const newOrder = reordered.indexOf(item.playlist);
@@ -1223,6 +1297,22 @@ export default function KnowledgeManagerView() {
       console.error('Erro ao salvar ordem das playlists:', error);
       alert('Erro ao salvar a ordem das playlists. Recarregue a página.');
     }
+  };
+
+  const makePlaylistDragEnd = (courseName: string, playlistNames: string[]) => async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = playlistNames.indexOf(String(active.id));
+    const newIdx = playlistNames.indexOf(String(over.id));
+    if (oldIdx === -1 || newIdx === -1) return;
+    await salvarOrdemPlaylists(courseName, arrayMove(playlistNames, oldIdx, newIdx));
+  };
+
+  const moverPlaylist = async (courseName: string, playlistNames: string[], playlistName: string, delta: -1 | 1) => {
+    const index = playlistNames.indexOf(playlistName);
+    const destino = index + delta;
+    if (index < 0 || destino < 0 || destino >= playlistNames.length) return;
+    await salvarOrdemPlaylists(courseName, arrayMove(playlistNames, index, destino));
   };
 
   const handleModalConfirm = async () => {
@@ -1312,12 +1402,6 @@ export default function KnowledgeManagerView() {
         await deletePlaylist(modalConfig.targetCourse, modalConfig.targetPlaylist);
       } else if (modalConfig.type === 'editPlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
         await updatePlaylistName(modalConfig.targetCourse, modalConfig.targetPlaylist, modalConfig.inputValue);
-      } else if (modalConfig.type === 'movePlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
-        if (modalConfig.inputValue === modalConfig.targetCourse) {
-          alert('A playlist já está nesse curso.');
-          return;
-        }
-        await movePlaylistToCourse(modalConfig.targetCourse, modalConfig.targetPlaylist, modalConfig.inputValue);
       }
       
       setModalConfig({ isOpen: false, type: 'editCourse' });
@@ -1923,10 +2007,13 @@ export default function KnowledgeManagerView() {
                           key={playlist.name}
                           playlist={playlist}
                           isActive={activePlaylists[course.name] === playlist.name}
+                          isFirst={course.playlists[0]?.name === playlist.name}
+                          isLast={course.playlists[course.playlists.length - 1]?.name === playlist.name}
                           onSelect={() => setActivePlaylists(prev => ({ ...prev, [course.name]: playlist.name }))}
                           onEdit={() => setModalConfig({ isOpen: true, type: 'editPlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: playlist.name })}
                           onDelete={() => setModalConfig({ isOpen: true, type: 'deletePlaylist', targetCourse: course.name, targetPlaylist: playlist.name })}
-                          onMove={() => setModalConfig({ isOpen: true, type: 'movePlaylist', targetCourse: course.name, targetPlaylist: playlist.name, inputValue: '' })}
+                          onMoveLeft={() => moverPlaylist(course.name, course.playlists.map((item) => item.name), playlist.name, -1)}
+                          onMoveRight={() => moverPlaylist(course.name, course.playlists.map((item) => item.name), playlist.name, 1)}
                           // As playlists de aluno/coordenador são fixas. Já o
                           // Consultor Comece por aqui é editável pelo consultor.
                           hideActions={isFixedIntroCourse(course.name)}
@@ -2010,7 +2097,6 @@ export default function KnowledgeManagerView() {
                 {modalConfig.type === 'editCourse' && `Editar Nome do Curso`}
                 {modalConfig.type === 'deletePlaylist' && `Excluir Playlist`}
                 {modalConfig.type === 'editPlaylist' && `Editar Nome da Playlist`}
-                {modalConfig.type === 'movePlaylist' && `Mover Playlist`}
                 {modalConfig.type === 'deleteVideo' && `Excluir Vídeo`}
                 {modalConfig.type === 'editVideo' && `Editar Vídeo`}
                 {modalConfig.type === 'importTranscript' && `Importar Transcrição Completa`}
@@ -2206,31 +2292,6 @@ export default function KnowledgeManagerView() {
                         )}
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {modalConfig.type === 'movePlaylist' && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-gray-600">
-                      Mover a playlist <strong>{modalConfig.targetPlaylist}</strong> (atualmente em <em>{modalConfig.targetCourse}</em>) para qual curso?
-                    </p>
-                    <div>
-                      <label className="font-bold text-xs uppercase text-gray-500 block mb-1">Curso destino</label>
-                      <select
-                        value={modalConfig.inputValue || ''}
-                        onChange={(e) => setModalConfig({ ...modalConfig, inputValue: e.target.value })}
-                        className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 bg-white"
-                        autoFocus
-                      >
-                        <option value="" disabled>Selecione um curso...</option>
-                        {initiativeNames.filter(c => c !== modalConfig.targetCourse).map(c => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Todos os vídeos desta playlist serão movidos. O nome da playlist e a ordem dos vídeos são preservados.
-                    </p>
                   </div>
                 )}
 
