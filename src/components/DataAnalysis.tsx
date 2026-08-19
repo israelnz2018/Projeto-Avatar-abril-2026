@@ -32,6 +32,7 @@ import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
+import { ANALYTICS_MODULOS } from '../services/analyticsModules';
 import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
@@ -364,6 +365,7 @@ export default function DataAnalysis() {
     isCoordenador,
     cursosLiberados,
     acessoPorCurso,
+    acessoProdutos,
   } = useUserAccess();
   const [lockedAnalisePopupOpen, setLockedAnalisePopupOpen] = useState(false);
   const [planilhaProjeto, setPlanilhaProjeto] = useState<PlanilhaInfo | null>(null);
@@ -441,9 +443,33 @@ export default function DataAnalysis() {
   // nenhum aluno de outro consultor nunca batia e ficava com tudo bloqueado.
   // Isso volta a ser configurável por consultor no sistema de "análises visíveis"
   // (ver memória plano-videos-analises-por-consultor.md) — até lá, fica aberto.
-  const dataAnalysisAccess: 'none' | 'full' = 'full' as 'none' | 'full';
+  // Permissão POR MÓDULO (grupo do menu), definida pelo consultor em cada aluno
+  // (acessoProdutos.analytics). Ausente = aluno legado, de antes desse controle:
+  // continua com tudo liberado, pra não tirar acesso de ninguém em silêncio.
+  // Admin e consultor sempre veem tudo (administram o catálogo).
+  const modulosLiberados = acessoProdutos?.analytics;
+  const grupoLiberado = (grupo: string) => {
+    if (isAdmin || isConsultor) return true;
+    if (!Array.isArray(modulosLiberados)) return true; // legado
+    const modulo = ANALYTICS_MODULOS.find((m) => m.grupo === grupo);
+    // Grupo novo, ainda não classificado: trata como restrito pra não vazar sem querer.
+    if (!modulo) return false;
+    return modulosLiberados.includes(modulo.id);
+  };
 
-  const isAnalysisLocked = (_analysisName: string) => dataAnalysisAccess === 'none';
+  // Descobre a qual grupo do menu uma análise pertence (o menu tem o grupo em mãos,
+  // mas o "Executar" só conhece o nome da análise selecionada).
+  const grupoDaAnalise = (nomeAnalise: string) =>
+    Object.keys(configuracoesAnalises).find((grupo) =>
+      (configuracoesAnalises[grupo as keyof typeof configuracoesAnalises] as any[]).some(
+        (item) => item.nome === nomeAnalise || (item.subitens || []).includes(nomeAnalise),
+      ),
+    );
+
+  const isAnalysisLocked = (analysisName: string) => {
+    const grupo = grupoDaAnalise(analysisName);
+    return grupo ? !grupoLiberado(grupo) : false;
+  };
 
   // Vídeos educacionais FIXOS sobre como usar variáveis X e Y na aba Data Analysis.
   // Aparecem sempre, independente da análise selecionada. Click → toca no player inline.
@@ -1379,8 +1405,11 @@ export default function DataAnalysis() {
                     setActiveNestedMenu(null);
                   }}
                 >
-                  <button className="text-white bg-transparent border-none text-[0.85rem] cursor-pointer hover:text-blue-300 transition-colors flex items-center gap-1 font-sans font-bold">
-                    {grupo} <ChevronDown size={12} />
+                  <button className={cn(
+                    "bg-transparent border-none text-[0.85rem] cursor-pointer transition-colors flex items-center gap-1 font-sans font-bold",
+                    grupoLiberado(grupo) ? "text-white hover:text-blue-300" : "text-white/40"
+                  )}>
+                    {grupo} {!grupoLiberado(grupo) && <Lock size={10} />} <ChevronDown size={12} />
                   </button>
                   
                   <ul className={cn(

@@ -26,6 +26,9 @@ export function useUserAccess() {
   const [pptInternaUrl, setPptInternaUrl] = useState('');
   const [cursosLiberados, setCursosLiberados] = useState<string[]>([]);
   const [cursosAcesso, setCursosAcesso] = useState<CursoAcesso[]>([]);
+  // Acesso por produto (hoje: quais módulos do Data Analysis o aluno tem).
+  // Ausente = aluno legado, de antes desse controle — quem lê trata como liberado.
+  const [acessoProdutos, setAcessoProdutos] = useState<{ analytics?: string[] } | null>(null);
   // Aluno em modo POR-CURSO: tem cursosAcesso definido (pacote de cursos escolhido
   // pelo consultor). Nesse modo o acesso é pelos cursos liberados, NÃO pelo plano —
   // assim o `plano:completo` que o convite grava não faz o aluno "ver tudo".
@@ -103,6 +106,7 @@ export function useUserAccess() {
               }
             } catch { /* sem doc/permissão — mantém marca do consultor */ }
           }
+          setAcessoProdutos(data.acessoProdutos && typeof data.acessoProdutos === 'object' ? data.acessoProdutos : null);
           // Modelo novo: cursosAcesso [{curso, vencimento}] — ativos = não vencidos.
           // Fallback pro legado cursosLiberados (string[] sem vencimento).
           const ca = Array.isArray(data.cursosAcesso) ? data.cursosAcesso : null;
@@ -234,6 +238,7 @@ export function useUserAccess() {
     pptInternaUrl,
     cursosLiberados,
     cursosAcesso,
+    acessoProdutos,
     acessoPorCurso,
     freeToolIds,
     canUseTool,
