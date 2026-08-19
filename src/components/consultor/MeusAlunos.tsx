@@ -519,85 +519,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   };
   const cursosDisponiveis = (empresaId?: string) => cursosPermitidosNoTime(empresaId).filter((c) => !eCursos.some((x) => x.curso === c));
 
-  const renderLinhaLegacy = (a: Aluno) => (
-    <div key={a.uid} className="border-b border-gray-50 last:border-0">
-      <div className={`grid grid-cols-[1.2fr_auto_1.3fr_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
-        <div className="min-w-0">
-          <div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div>
-          <div className="text-xs text-gray-400 truncate">{a.email}</div>
-        </div>
-        {/* "Ativo" = já entrou na plataforma pelo menos uma vez (primeiroAcessoEm),
-            mesmo critério do contador de ativos na linha do coordenador. */}
-        <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 ${
-          a.inativo ? 'bg-gray-200 text-gray-600' : a.acessou ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-        }`}>
-          {a.inativo ? 'Removido' : a.acessou ? 'Ativo' : 'Inativo'}
-        </span>
-        <div className="flex flex-wrap gap-1">
-          {a.inativo ? (
-            <span className="text-xs text-gray-400 italic">Acesso removido</span>
-          ) : a.cursosAcesso.length > 0 ? (
-            cursosEfetivos(a).map((c) => (
-              <span key={c.curso} className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${venceu(c.vencimento) ? 'bg-red-50 text-red-600 line-through' : 'bg-blue-50 text-blue-700'}`}>{c.curso} · 1 acesso · R$ {fmtValor(c.valor) || '0,00'} · expira {c.vencimento ? new Date(c.vencimento).toLocaleDateString('pt-BR') : '—'}</span>
-            ))
-          ) : (
-            <span className="text-[10px] font-bold rounded px-1.5 py-0.5 bg-amber-50 text-amber-700">{cursoUnitario}</span>
-          )}
-        </div>
-        {!somenteLeitura && <div className="flex items-center justify-end gap-2">
-          {!a.inativo && <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100">
-            <Pencil size={13} /> {editUid === a.uid ? 'Fechar edição' : 'Editar'}
-          </button>}
-          {!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid}
-            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente">
-            <Trash2 size={15} />
-          </button> : (
-            <button onClick={() => excluirDefinitivo(a)} disabled={!podeExcluirDefinitivo(a) || deletingUid === a.uid}
-              className="text-xs font-bold text-red-600 disabled:text-gray-300" title={podeExcluirDefinitivo(a) ? 'Excluir definitivamente' : 'Disponível após 90 dias'}>
-              excluir
-            </button>
-          )}
-        </div>}
-      </div>
-      {!somenteLeitura && !a.inativo && editUid === a.uid && (
-        <div className="px-4 pb-4 bg-gray-50/60">
-          <div className="text-xs font-black uppercase text-gray-500 mb-2">Cursos · vencimento e valor</div>
-          <div className="space-y-2 mb-3">
-            {eCursos.length === 0 && <div className="text-sm text-gray-500">Nenhum curso liberado.</div>}
-            {eCursos.map((c) => (
-              <div key={c.curso} className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[11px] text-gray-400">vence</span>
-                  <input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[11px] text-gray-400">R$</span>
-                  <input value={fmtValor(c.valor)} onChange={(e) => setValorCurso(c.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} />
-                </div>
-                <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
-              </div>
-            ))}
-          </div>
-          {cursosDisponiveis(a.empresaId).length > 0 && (
-            <div className="flex items-center gap-2 mb-3">
-              <select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}>
-                <option value="">+ adicionar curso…</option>
-                {cursosDisponiveis(a.empresaId).map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button>
-            </div>
-          )}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
-              {editSalvando ? 'Salvando…' : 'Salvar'}
-            </button>
-            {editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   const renderStatusAcesso = (liberado: boolean, legado = false) => (
     <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase rounded-full px-2 py-1 whitespace-nowrap ${
@@ -621,6 +542,34 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       </span>
     </div>
   );
+
+  // Formulário de cursos — fica DENTRO da seção Education (logo abaixo da lista).
+  // Antes era desenhado no fim do painel, depois de Data Analysis e Projects: o
+  // consultor clicava em "Editar" no cabeçalho de Education e o formulário
+  // aparecia fora da tela, dando a impressão de que o botão não funcionava.
+  const renderFormCursos = (a: Aluno) => {
+    if (somenteLeitura || a.inativo || editUid !== a.uid) return null;
+    return (
+      <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4 my-3">
+        <div className="text-xs font-black uppercase text-gray-500 mb-2">Editar cursos · vencimento e valor</div>
+        <div className="space-y-2 mb-3">
+          {eCursos.length === 0 && <div className="text-sm text-gray-500">Nenhum curso liberado.</div>}
+          {eCursos.map((c) => (
+            <div key={c.curso} className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
+              <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">vence</span><input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} /></div>
+              <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input value={fmtValor(c.valor)} onChange={(e) => setValorCurso(c.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} /></div>
+              <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
+            </div>
+          ))}
+        </div>
+        {cursosDisponiveis(a.empresaId).length > 0 && (
+          <div className="flex items-center gap-2 mb-3"><select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}><option value="">+ adicionar curso…</option>{cursosDisponiveis(a.empresaId).map((c) => <option key={c} value={c}>{c}</option>)}</select><button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button></div>
+        )}
+        <div className="flex items-center gap-3 flex-wrap"><button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{editSalvando ? 'Salvando…' : 'Salvar'}</button><button onClick={() => setEditUid(null)} className="text-xs font-bold text-gray-500 hover:text-gray-700">cancelar</button>{editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}</div>
+      </div>
+    );
+  };
 
   const renderBarraSalvarAcessos = (a: Aluno, area: 'analytics' | 'projetos') => {
     if (!editandoArea(a, area)) return null;
@@ -661,6 +610,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             ) : <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>}
           </div>
           <div className="px-4">
+            {renderFormCursos(a)}
             {cursosExibidos.map((curso) => {
               const registro = registroCurso(a, curso);
               return <React.Fragment key={curso}>{renderAcessoLinha(curso, acessoCurso(a, curso), registro?.valor, registro?.vencimento || (a.plano === 'completo' ? a.acessoCompletoAte : null))}</React.Fragment>;
@@ -742,26 +692,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           </div>
         </section>
 
-        {!somenteLeitura && !a.inativo && editUid === a.uid && (
-          <div className="rounded-xl border border-blue-200 bg-white p-4">
-            <div className="text-xs font-black uppercase text-gray-500 mb-2">Editar cursos · vencimento e valor</div>
-            <div className="space-y-2 mb-3">
-              {eCursos.length === 0 && <div className="text-sm text-gray-500">Nenhum curso liberado.</div>}
-              {eCursos.map((c) => (
-                <div key={c.curso} className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{c.curso} · 1 acesso</span>
-                  <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">vence</span><input type="date" value={c.vencimento || ''} onChange={(e) => setVenc(c.curso, e.target.value)} className={campo} /></div>
-                  <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input value={fmtValor(c.valor)} onChange={(e) => setValorCurso(c.curso, e.target.value)} placeholder="0,00" className={campo + ' w-24'} /></div>
-                  <button onClick={() => removerCurso(c.curso)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Remover curso"><Trash2 size={15} /></button>
-                </div>
-              ))}
-            </div>
-            {cursosDisponiveis(a.empresaId).length > 0 && (
-              <div className="flex items-center gap-2 mb-3"><select value={eAddCurso} onChange={(e) => setEAddCurso(e.target.value)} className={campo}><option value="">+ adicionar curso…</option>{cursosDisponiveis(a.empresaId).map((c) => <option key={c} value={c}>{c}</option>)}</select><button onClick={addCursoEdit} disabled={!eAddCurso} className="text-xs font-bold text-blue-600 disabled:opacity-40">adicionar</button></div>
-            )}
-            <div className="flex items-center gap-3 flex-wrap"><button onClick={() => salvarEdit(a.uid)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">{editSalvando ? 'Salvando…' : 'Salvar'}</button>{editMsg && <span className="text-sm text-gray-600">{editMsg}</span>}</div>
-          </div>
-        )}
       </div>
     );
   };
