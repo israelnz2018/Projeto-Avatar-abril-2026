@@ -650,7 +650,12 @@ export default function KnowledgeManagerView() {
       // cursos selecionáveis aqui. Após a migração pra trilhas individuais (todas
       // viraram Principal), o filtro `!!i.parentId` retornava [] e o dropdown ficava
       // vazio. Agora pegamos TODAS as iniciativas como opções de curso.
-      const cursos = list.filter((i: any) => !i.somenteProjeto);
+      // Curso de verdade = iniciativa que NÃO aponta pra outra em cursoAssociadoId.
+      // Quando cursoAssociadoId aponta pra outra iniciativa, o registro é um TIPO DE
+      // PROJETO liberado por aquele curso (ex: "LEAN SIX SIGMA BLACK BELT" aponta pra
+      // "Como Se Tornar um Especialista..."), e não deve aparecer como curso aqui.
+      const cursos = list.filter((i: any) =>
+        !i.somenteProjeto && (!i.cursoAssociadoId || i.cursoAssociadoId === i.id));
       const names = cursos.map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
       setInitiatives(cursos);
@@ -662,6 +667,27 @@ export default function KnowledgeManagerView() {
   // Um curso é uma Initiative do consultor atual (createInitiative já carimba o
   // consultorId do subdomínio). Depois de criado ele entra no dropdown de "Adicionar
   // Vídeo" e o resto do fluxo — vídeo, playlist, ferramentas, análises — é o mesmo.
+  // Abre "Adicionar Vídeo" já com o curso preenchido — evita ter que subir a página,
+  // achar o curso num dropdown longo e lembrar em qual playlist ele ia.
+  const addFormRef = useRef<HTMLDivElement>(null);
+  const abrirAdicaoNoCurso = (course: string, playlist?: string) => {
+    const semPlaylist = playlistsForCourse(course).length === 0;
+    setIsCreatingCourse(false);
+    setFormData({
+      placements: [{
+        course,
+        // Curso novo ainda não tem playlist: já cai no campo de criar a primeira.
+        playlist: playlist || (semPlaylist ? 'NEW' : ''),
+        newPlaylistName: '',
+      }],
+      associatedTools: [],
+      associatedAnalyses: [],
+    });
+    setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
+    setIsAdding(true);
+    setTimeout(() => addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [newCourseName, setNewCourseName] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
@@ -1560,6 +1586,7 @@ export default function KnowledgeManagerView() {
 
       {isAdding && (
         <motion.div
+          ref={addFormRef}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-6 border border-[#ccc] rounded-[4px] shadow-lg"
@@ -1836,7 +1863,14 @@ export default function KnowledgeManagerView() {
                   })()}
                 </div>
                 {!abaEspecial && <div className="flex items-center gap-2">
-                  <button 
+                  <button
+                    onClick={() => abrirAdicaoNoCurso(course.name)}
+                    className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-[4px] hover:bg-blue-700 transition-colors border-none cursor-pointer whitespace-nowrap"
+                    title={`Adicionar um vídeo em ${course.name}`}
+                  >
+                    <Plus size={14} /> Adicionar vídeo
+                  </button>
+                  <button
                     onClick={() => setModalConfig({ isOpen: true, type: 'editCourse', targetCourse: course.name, inputValue: course.name })}
                     className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer" 
                     title="Editar nome do curso"
@@ -1860,9 +1894,15 @@ export default function KnowledgeManagerView() {
                 <div className="px-4 py-8 text-center">
                   <Video size={32} className="mx-auto text-gray-300 mb-2" />
                   <p className="text-gray-500 text-sm font-bold m-0">Este curso ainda não tem vídeos.</p>
-                  <p className="text-gray-400 text-xs mt-1 m-0">
-                    Clique em "Adicionar Vídeo" e escolha <b>{course.name}</b> no campo Curso.
+                  <p className="text-gray-400 text-xs mt-1 mb-3">
+                    Comece pelo primeiro vídeo — você dá o nome da primeira playlist na hora.
                   </p>
+                  <button
+                    onClick={() => abrirAdicaoNoCurso(course.name)}
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-[4px] font-bold text-sm hover:bg-blue-700 transition-colors border-none cursor-pointer"
+                  >
+                    <Plus size={16} /> Adicionar primeiro vídeo
+                  </button>
                 </div>
               )}
 
@@ -1894,6 +1934,15 @@ export default function KnowledgeManagerView() {
                       ))}
                     </SortableContext>
                   </DndContext>
+                  {!abaEspecial && activePlaylists[course.name] && (
+                    <button
+                      onClick={() => abrirAdicaoNoCurso(course.name, activePlaylists[course.name])}
+                      className="flex items-center gap-1.5 shrink-0 text-blue-700 bg-blue-50 border border-blue-200 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors cursor-pointer whitespace-nowrap"
+                      title={`Adicionar vídeo em ${activePlaylists[course.name]}`}
+                    >
+                      <Plus size={14} /> Vídeo nesta playlist
+                    </button>
+                  )}
                 </div>
               </div>
 
