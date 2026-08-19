@@ -96,7 +96,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
 
   // Edição dos acessos por área (Data Analysis / Projects) direto no painel de
   // detalhes. Guarda o rascunho enquanto o consultor marca; só grava no Salvar.
-  const [editAcessosUid, setEditAcessosUid] = useState<string | null>(null);
+  // Cada seção (Analysis / Projects) tem o próprio botão de editar, então o
+  // estado guarda QUAL aluno e QUAL área estão abertos — uma de cada vez.
+  const [editArea, setEditArea] = useState<{ uid: string; area: 'analytics' | 'projetos' } | null>(null);
   const [rascunhoAnalytics, setRascunhoAnalytics] = useState<string[]>([]);
   const [rascunhoProjetos, setRascunhoProjetos] = useState<string[]>([]);
   const [salvandoAcessos, setSalvandoAcessos] = useState(false);
@@ -348,42 +350,56 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   // Abre a edição dos acessos por área já com o estado atual do aluno marcado.
   // Aluno legado (sem permissão gravada) entra com TUDO marcado, refletindo o que
   // ele enxerga hoje — assim salvar não tira acesso sem o consultor perceber.
-  function abrirEditAcessos(a: Aluno) {
-    if (editAcessosUid === a.uid) { setEditAcessosUid(null); return; }
-    setEditAcessosUid(a.uid);
+  const editandoArea = (a: Aluno, area: 'analytics' | 'projetos') =>
+    editArea?.uid === a.uid && editArea.area === area;
+
+  function abrirEditAcessos(a: Aluno, area: 'analytics' | 'projetos') {
+    if (editandoArea(a, area)) { setEditArea(null); return; }
+    setEditArea({ uid: a.uid, area });
     setMsgAcessos('');
-    setRascunhoAnalytics(ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id));
-    setRascunhoProjetos(tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id));
+    if (area === 'analytics') {
+      setRascunhoAnalytics(ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id));
+    } else {
+      setRascunhoProjetos(tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id));
+    }
   }
 
   const alternar = (lista: string[], id: string) =>
     lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id];
 
-  async function salvarAcessos(a: Aluno) {
+  async function salvarAcessos(a: Aluno, area: 'analytics' | 'projetos') {
     setSalvandoAcessos(true);
     setMsgAcessos('');
     try {
       // Descreve em linguagem de gente o que mudou — vira o corpo do e-mail.
-      const antesA = ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id);
-      const antesP = tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id);
+      // Só compara a área editada; a outra não é tocada.
       const nomeAnalytics = (id: string) => ANALYTICS_MODULOS.find((m) => m.id === id)?.nome || id;
       const nomeProjeto = (id: string) => tiposProjeto.find((p) => p.id === id)?.name || id;
-      const mudancas = [
-        ...rascunhoAnalytics.filter((id) => !antesA.includes(id)).map((id) => `Liberado em Data Analysis: ${nomeAnalytics(id)}`),
-        ...antesA.filter((id) => !rascunhoAnalytics.includes(id)).map((id) => `Removido de Data Analysis: ${nomeAnalytics(id)}`),
-        ...rascunhoProjetos.filter((id) => !antesP.includes(id)).map((id) => `Liberado em Projetos: ${nomeProjeto(id)}`),
-        ...antesP.filter((id) => !rascunhoProjetos.includes(id)).map((id) => `Removido de Projetos: ${nomeProjeto(id)}`),
-      ];
+      let mudancas: string[];
+      let patch: Record<string, any>;
+      let novoLocal: Partial<Aluno>;
 
-      await updateUserNoConsultor(a.uid, consultorId, {
-        acessoProdutos: { ...(a.acessoProdutos || {}), analytics: rascunhoAnalytics },
-        projetosAcesso: rascunhoProjetos,
-      });
+      if (area === 'analytics') {
+        const antes = ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id);
+        mudancas = [
+          ...rascunhoAnalytics.filter((id) => !antes.includes(id)).map((id) => `Liberado em Data Analysis: ${nomeAnalytics(id)}`),
+          ...antes.filter((id) => !rascunhoAnalytics.includes(id)).map((id) => `Removido de Data Analysis: ${nomeAnalytics(id)}`),
+        ];
+        patch = { acessoProdutos: { ...(a.acessoProdutos || {}), analytics: rascunhoAnalytics } };
+        novoLocal = { acessoProdutos: { ...(a.acessoProdutos || {}), analytics: rascunhoAnalytics } };
+      } else {
+        const antes = tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id);
+        mudancas = [
+          ...rascunhoProjetos.filter((id) => !antes.includes(id)).map((id) => `Liberado em Projetos: ${nomeProjeto(id)}`),
+          ...antes.filter((id) => !rascunhoProjetos.includes(id)).map((id) => `Removido de Projetos: ${nomeProjeto(id)}`),
+        ];
+        patch = { projetosAcesso: rascunhoProjetos };
+        novoLocal = { projetosAcesso: rascunhoProjetos };
+      }
 
-      setRows((p) => p.map((r) => (r.uid === a.uid
-        ? { ...r, acessoProdutos: { ...(r.acessoProdutos || {}), analytics: rascunhoAnalytics }, projetosAcesso: rascunhoProjetos }
-        : r)));
-      setEditAcessosUid(null);
+      await updateUserNoConsultor(a.uid, consultorId, patch);
+      setRows((p) => p.map((r) => (r.uid === a.uid ? { ...r, ...novoLocal } : r)));
+      setEditArea(null);
 
       if (mudancas.length === 0) {
         setMsgAcessos('Nada mudou.');
@@ -606,6 +622,19 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     </div>
   );
 
+  const renderBarraSalvarAcessos = (a: Aluno, area: 'analytics' | 'projetos') => {
+    if (!editandoArea(a, area)) return null;
+    return (
+      <div className="flex items-center gap-3 py-3 flex-wrap">
+        <button onClick={() => salvarAcessos(a, area)} disabled={salvandoAcessos} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+          {salvandoAcessos ? 'Salvando…' : 'Salvar'}
+        </button>
+        <button onClick={() => setEditArea(null)} className="text-xs font-bold text-gray-500 hover:text-gray-700">cancelar</button>
+        {msgAcessos && <span className="text-sm text-gray-600">{msgAcessos}</span>}
+      </div>
+    );
+  };
+
   const renderDetalheAcessos = (a: Aluno) => {
     const cursosExibidos = cursos.length > 0 ? cursos : cursosEfetivos(a).map((curso) => curso.curso);
     const cursosLiberados = cursosExibidos.filter((curso) => acessoCurso(a, curso)).length;
@@ -619,23 +648,17 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             <div className="text-sm font-black text-gray-800">Detalhes de acesso</div>
             <div className="text-xs text-gray-500">{a.email} · situação: <b>{situacaoAluno(a)}</b></div>
           </div>
-          {!somenteLeitura && !a.inativo && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
-                <Pencil size={13} /> {editUid === a.uid ? 'Fechar edição' : 'Editar Education'}
-              </button>
-              <button onClick={() => abrirEditAcessos(a)} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50">
-                <Pencil size={13} /> {editAcessosUid === a.uid ? 'Cancelar' : 'Editar Analysis e Projects'}
-              </button>
-            </div>
-          )}
         </div>
-        {msgAcessos && editAcessosUid !== a.uid && <div className="text-xs font-bold text-gray-600">{msgAcessos}</div>}
+        {msgAcessos && !editArea && <div className="text-xs font-bold text-gray-600">{msgAcessos}</div>}
 
         <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
             <div><h3 className="text-sm font-black text-gray-800 m-0">Education</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{cursosLiberados} de {cursosExibidos.length} cursos</p></div>
-            <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
+            {!somenteLeitura && !a.inativo ? (
+              <button onClick={() => (editUid === a.uid ? setEditUid(null) : abrirEdit(a))} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 shrink-0">
+                <Pencil size={13} /> {editUid === a.uid ? 'Cancelar' : 'Editar'}
+              </button>
+            ) : <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>}
           </div>
           <div className="px-4">
             {cursosExibidos.map((curso) => {
@@ -648,10 +671,14 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
             <div><h3 className="text-sm font-black text-gray-800 m-0">Data Analysis</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{analyticsLiberados} de {ANALYTICS_MODULOS.length} módulos</p></div>
-            <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
+            {!somenteLeitura && !a.inativo && (
+              <button onClick={() => abrirEditAcessos(a, 'analytics')} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 shrink-0">
+                <Pencil size={13} /> {editandoArea(a, 'analytics') ? 'Cancelar' : 'Editar'}
+              </button>
+            )}
           </div>
           <div className="px-4">
-            {editAcessosUid === a.uid
+            {editandoArea(a, 'analytics')
               ? ANALYTICS_MODULOS.map((modulo) => (
                   <label key={modulo.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer">
                     <input
@@ -667,17 +694,22 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
                   const acesso = acessoAnalytics(a, modulo);
                   return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, acesso.legado ? 'permissão individual ainda não configurada' : undefined, acesso.legado)}</React.Fragment>;
                 })}
+            {renderBarraSalvarAcessos(a, 'analytics')}
           </div>
         </section>
 
         <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
             <div><h3 className="text-sm font-black text-gray-800 m-0">Projects</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{projetosLiberados} de {tiposProjeto.length} projetos</p></div>
-            <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
+            {!somenteLeitura && !a.inativo && (
+              <button onClick={() => abrirEditAcessos(a, 'projetos')} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50 shrink-0">
+                <Pencil size={13} /> {editandoArea(a, 'projetos') ? 'Cancelar' : 'Editar'}
+              </button>
+            )}
           </div>
           <div className="px-4">
             {tiposProjeto.length === 0 && <div className="py-3 text-sm text-gray-500">Nenhum tipo de projeto cadastrado.</div>}
-            {editAcessosUid === a.uid
+            {editandoArea(a, 'projetos')
               ? tiposProjeto.map((projeto) => (
                   <label key={projeto.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer">
                     <input
@@ -691,18 +723,19 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
                 ))
               : tiposProjeto.map((projeto) => {
                   const acesso = acessoProjeto(a, projeto);
-                  const associado = projeto.cursoAssociadoId ? iniciativas.find((item) => item.id === projeto.cursoAssociadoId)?.name : undefined;
-                  return <React.Fragment key={projeto.id}>{renderAcessoLinha(projeto.name, acesso.liberado, acesso.valor, acesso.vencimento, associado ? `Curso associado: ${associado}` : 'Projeto independente')}</React.Fragment>;
+                  // cursoAssociadoId vazio NÃO quer dizer "independente": quer dizer que
+                  // este registro é o próprio curso (mesmo nome serve de curso e de tipo
+                  // de projeto). Só é independente de verdade quando somenteProjeto=true
+                  // e não aponta pra curso nenhum. Mesma resolução que acessoProjeto usa.
+                  const cursoDoProjeto = projeto.cursoAssociadoId
+                    ? iniciativas.find((item) => item.id === projeto.cursoAssociadoId)
+                    : projeto;
+                  const legenda = cursoDoProjeto
+                    ? (cursoDoProjeto.id === projeto.id ? 'Curso: este mesmo' : `Curso: ${cursoDoProjeto.name}`)
+                    : 'Sem curso associado';
+                  return <React.Fragment key={projeto.id}>{renderAcessoLinha(projeto.name, acesso.liberado, acesso.valor, acesso.vencimento, legenda)}</React.Fragment>;
                 })}
-            {editAcessosUid === a.uid && (
-              <div className="flex items-center gap-3 py-3 flex-wrap">
-                <button onClick={() => salvarAcessos(a)} disabled={salvandoAcessos} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
-                  {salvandoAcessos ? 'Salvando…' : 'Salvar acessos'}
-                </button>
-                <button onClick={() => setEditAcessosUid(null)} className="text-xs font-bold text-gray-500 hover:text-gray-700">cancelar</button>
-                {msgAcessos && <span className="text-sm text-gray-600">{msgAcessos}</span>}
-              </div>
-            )}
+            {renderBarraSalvarAcessos(a, 'projetos')}
           </div>
           <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">
             Ao liberar um projeto, o pacote inclui o projeto do aluno, a IA Digital do consultor, os vídeos associados e a geração de PDF. Isso não libera Analytics automaticamente.
