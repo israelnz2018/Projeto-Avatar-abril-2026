@@ -87,11 +87,14 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
   const [addAbertoEmpresaId, setAddAbertoEmpresaId] = useState<string | null>(null);
 
-  // adicionar — cada curso do pacote com vencimento + valor próprios
+  // adicionar — qualquer combinação de cursos, análises e projetos,
+  // cada item com vencimento + valor próprios.
   const [aNome, setANome] = useState('');
   const [aEmail, setAEmail] = useState('');
   const [aEmpresaId, setAEmpresaId] = useState('');
   const [aItens, setAItens] = useState<{ curso: string; vencimento: string; valor: string }[]>([]);
+  const [aAnalytics, setAAnalytics] = useState<ItemAcessoDraft[]>([]);
+  const [aProjetos, setAProjetos] = useState<ItemAcessoDraft[]>([]);
   const [addEnviando, setAddEnviando] = useState(false);
   const [addMsg, setAddMsg] = useState('');
 
@@ -329,20 +332,29 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     const mail = aEmail.trim().toLowerCase();
     if (!mail || mail.indexOf('@') < 0) { setAddMsg('Informe um e-mail válido.'); return; }
     if (!aEmpresaId) { setAddMsg('Escolha o time/coordenador do aluno.'); return; }
-    if (aItens.length === 0) { setAddMsg('Escolha ao menos um curso.'); return; }
-    if (aItens.some((i) => !i.vencimento)) { setAddMsg('Informe a data de expiração de todos os cursos.'); return; }
+    if (aItens.length === 0 && aAnalytics.length === 0 && aProjetos.length === 0) { setAddMsg('Escolha ao menos um curso, análise ou projeto.'); return; }
+    if (aItens.some((i) => !i.vencimento) || aAnalytics.some((i) => !i.vencimento) || aProjetos.some((i) => !i.vencimento)) {
+      setAddMsg('Informe a data de expiração de todos os itens liberados.');
+      return;
+    }
     setAddEnviando(true); setAddMsg('');
     try {
       const cursosAcesso = aItens.map((i) => ({ curso: i.curso, vencimento: i.vencimento || null, valor: parseValor(i.valor) }));
-      const valorPago = cursosAcesso.reduce((s, c) => s + c.valor, 0);
+      const acessoProdutos = {
+        analytics: aAnalytics.map((item) => ({ modulo: item.id, nome: ANALYTICS_MODULOS.find((m) => m.id === item.id)?.nome || item.id, vencimento: item.vencimento || null, valor: parseValor(item.valor) })),
+      };
+      const projetosAcesso = aProjetos.map((item) => ({ projeto: item.id, nome: tiposProjeto.find((p) => p.id === item.id)?.name || item.id, vencimento: item.vencimento || null, valor: parseValor(item.valor) }));
+      const valorPago = cursosAcesso.reduce((s, c) => s + c.valor, 0)
+        + aAnalytics.reduce((s, item) => s + parseValor(item.valor), 0)
+        + aProjetos.reduce((s, item) => s + parseValor(item.valor), 0);
       const r = await authedFetch('/api/aluno/convidar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: mail, nome: aNome.trim(), empresaId: aEmpresaId || undefined, cursosAcesso, valorPago }),
+        body: JSON.stringify({ email: mail, nome: aNome.trim(), empresaId: aEmpresaId || undefined, cursosAcesso, acessoProdutos, projetosAcesso, valorPago }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (r.ok) {
         setAddMsg(`✅ Aluno ${j.status}${j.emailEnviado ? '' : ' (e-mail falhou)'}`);
-        setANome(''); setAEmail(''); setAItens([]);
+         setANome(''); setAEmail(''); setAItens([]); setAAnalytics([]); setAProjetos([]);
         setAddAbertoEmpresaId(null);
         carregar();
       } else setAddMsg('❌ ' + (j.error || 'erro'));
@@ -937,9 +949,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         <input value={aEmail} onChange={(e) => setAEmail(e.target.value)} placeholder="E-mail" className={campo} />
       </div>
       <div>
-        <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar</div>
+        <div className="text-xs font-bold text-gray-500 mb-1">Cursos que ele vai acessar (opcional)</div>
         <div className="flex flex-wrap gap-2">
-          {cursosPermitidosNoTime(empresaId).length === 0 && <span className="text-xs text-gray-400">Este coordenador não possui cursos válidos liberados.</span>}
+          {cursosPermitidosNoTime(empresaId).length === 0 && <span className="text-xs text-gray-400">Nenhum curso disponível neste time.</span>}
           {cursosPermitidosNoTime(empresaId).map((c) => {
             const on = aItens.some((i) => i.curso === c);
             return (
@@ -969,6 +981,46 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           ))}
         </div>
       )}
+      <div>
+        <div className="text-xs font-bold text-gray-500 mb-1">Data Analysis (opcional)</div>
+        <div className="flex flex-wrap gap-2">
+          {ANALYTICS_MODULOS.map((modulo) => {
+            const on = aAnalytics.some((item) => item.id === modulo.id);
+            return <button key={modulo.id} type="button" onClick={() => setAAnalytics((p) => alternarItemAcesso(p, modulo.id))}
+              className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+              {modulo.nome}
+            </button>;
+          })}
+        </div>
+      </div>
+      {aAnalytics.length > 0 && <div className="space-y-2">
+        <div className="text-xs font-black uppercase tracking-wide text-gray-400">Vencimento e valor de cada análise</div>
+        {aAnalytics.map((item) => <div key={item.id} className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{ANALYTICS_MODULOS.find((m) => m.id === item.id)?.nome || item.id}</span>
+          <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">vence</span><input type="date" value={item.vencimento} onChange={(e) => setAAnalytics((p) => atualizarItemAcesso(p, item.id, 'vencimento', e.target.value))} className={campo} /></div>
+          <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input value={item.valor} onChange={(e) => setAAnalytics((p) => atualizarItemAcesso(p, item.id, 'valor', e.target.value))} placeholder="0,00" className={campo + ' w-24'} /></div>
+        </div>)}
+      </div>}
+      <div>
+        <div className="text-xs font-bold text-gray-500 mb-1">Projects (opcional)</div>
+        <div className="flex flex-wrap gap-2">
+          {tiposProjeto.map((projeto) => {
+            const on = aProjetos.some((item) => item.id === projeto.id);
+            return <button key={projeto.id} type="button" onClick={() => setAProjetos((p) => alternarItemAcesso(p, projeto.id))}
+              className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${on ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+              {projeto.name}
+            </button>;
+          })}
+        </div>
+      </div>
+      {aProjetos.length > 0 && <div className="space-y-2">
+        <div className="text-xs font-black uppercase tracking-wide text-gray-400">Vencimento e valor de cada projeto</div>
+        {aProjetos.map((item) => <div key={item.id} className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-800 flex-1 min-w-[140px] truncate">{tiposProjeto.find((p) => p.id === item.id)?.name || item.id}</span>
+          <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">vence</span><input type="date" value={item.vencimento} onChange={(e) => setAProjetos((p) => atualizarItemAcesso(p, item.id, 'vencimento', e.target.value))} className={campo} /></div>
+          <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input value={item.valor} onChange={(e) => setAProjetos((p) => atualizarItemAcesso(p, item.id, 'valor', e.target.value))} placeholder="0,00" className={campo + ' w-24'} /></div>
+        </div>)}
+      </div>}
       <div className="flex items-center gap-3">
         <button onClick={adicionar} disabled={addEnviando || aEmpresaId !== empresaId} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
           {addEnviando ? 'Adicionando…' : 'Adicionar aluno'}
@@ -982,7 +1034,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     if (addAbertoEmpresaId === empresaId) { setAddAbertoEmpresaId(null); return; }
     setAddAbertoEmpresaId(empresaId);
     setAEmpresaId(empresaId);
-    setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
+     setANome(''); setAEmail(''); setAItens([]); setAAnalytics([]); setAProjetos([]); setAddMsg('');
   };
   const abrirAdicionarNoTopo = () => {
     if (addAbertoEmpresaId === empresaDiretaId) {
@@ -990,7 +1042,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       return;
     }
     setAddAbertoEmpresaId(empresaDiretaId); setAEmpresaId(empresaDiretaId);
-    setANome(''); setAEmail(''); setAItens([]); setAddMsg('');
+    setANome(''); setAEmail(''); setAItens([]); setAAnalytics([]); setAProjetos([]); setAddMsg('');
   };
 
   // Corpo de um time: cabeçalho das colunas + alunos + "adicionar aluno".

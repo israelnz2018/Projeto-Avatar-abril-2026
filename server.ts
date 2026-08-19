@@ -2621,6 +2621,10 @@ async function startServer() {
     const email = String(req.body?.email || "").toLowerCase().trim();
     const nome = String(req.body?.nome || "").trim();
     let cursosAcesso = Array.isArray(req.body?.cursosAcesso) ? req.body.cursosAcesso : [];
+    const analyticsInformado = Object.prototype.hasOwnProperty.call(req.body?.acessoProdutos || {}, "analytics");
+    const projetosInformado = Object.prototype.hasOwnProperty.call(req.body || {}, "projetosAcesso");
+    const analyticsAcessoSolicitado = Array.isArray(req.body?.acessoProdutos?.analytics) ? req.body.acessoProdutos.analytics : [];
+    const projetosAcessoSolicitado = Array.isArray(req.body?.projetosAcesso) ? req.body.projetosAcesso : [];
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const SENHA_CONVITE = gerarSenhaProvisoria();
@@ -2683,12 +2687,15 @@ async function startServer() {
       const cursosCoord = (Array.isArray(coord.cursosAcesso) ? coord.cursosAcesso : [])
         .filter((c: any) => !c?.vencimento || new Date(c.vencimento).getTime() >= Date.now());
       const nomesCoord = new Set(cursosCoord.map((c: any) => String(c?.curso || "").trim()).filter(Boolean));
-      if (timeTemCoordenador && nomesCoord.size === 0) {
+      const temAcessoSemCurso = analyticsAcessoSolicitado.length > 0 || projetosAcessoSolicitado.length > 0;
+      if (timeTemCoordenador && nomesCoord.size === 0 && !temAcessoSemCurso) {
         return res.status(400).json({ error: "Este coordenador nao possui cursos validos liberados." });
       }
       if (timeTemCoordenador) {
         if (cursosAcesso.length === 0) {
-          cursosAcesso = cursosCoord;
+          // Um consultor pode liberar somente Analytics/Projects para um aluno,
+          // mesmo quando o aluno está dentro de um time que também possui cursos.
+          if (!temAcessoSemCurso) cursosAcesso = cursosCoord;
         } else {
           const foraDoPacote = cursosAcesso
             .map((c: any) => String(c?.curso || "").trim())
@@ -2725,11 +2732,30 @@ async function startServer() {
         valor: typeof c?.valor === "number" ? c.valor : 0,
       }))
       .filter((c: any) => c.curso);
-    if (cursosAcesso.length === 0) {
-      return res.status(400).json({ error: "Escolha ao menos um curso para o aluno." });
+    const analyticsAcesso = analyticsAcessoSolicitado
+      .map((item: any) => ({
+        modulo: String(item?.modulo || item?.id || "").trim(),
+        nome: String(item?.nome || item?.modulo || item?.id || "").trim(),
+        vencimento: item?.vencimento ? String(item.vencimento) : null,
+        valor: typeof item?.valor === "number" ? item.valor : Number(item?.valor) || 0,
+      }))
+      .filter((item: any) => item.modulo);
+    const projetosAcessoNormalizados = projetosAcessoSolicitado
+      .map((item: any) => ({
+        projeto: String(item?.projeto || item?.id || "").trim(),
+        nome: String(item?.nome || item?.projeto || item?.id || "").trim(),
+        vencimento: item?.vencimento ? String(item.vencimento) : null,
+        valor: typeof item?.valor === "number" ? item.valor : Number(item?.valor) || 0,
+      }))
+      .filter((item: any) => item.projeto);
+    if (cursosAcesso.length === 0 && analyticsAcesso.length === 0 && projetosAcessoNormalizados.length === 0) {
+      return res.status(400).json({ error: "Escolha ao menos um curso, análise ou projeto para o aluno." });
     }
     if (cursosAcesso.some((c: any) => !c.vencimento || Number.isNaN(new Date(c.vencimento).getTime()))) {
       return res.status(400).json({ error: "Informe uma data de expiração válida para todos os cursos." });
+    }
+    if ([...analyticsAcesso, ...projetosAcessoNormalizados].some((item: any) => !item.vencimento || Number.isNaN(new Date(item.vencimento).getTime()))) {
+      return res.status(400).json({ error: "Informe uma data de expiração válida para todos os itens liberados." });
     }
     try {
       let uid: string, novo = false;
@@ -2746,6 +2772,13 @@ async function startServer() {
       const agoraIso = new Date().toISOString();
       const mesmoTime = empresaId && base.empresaId && String(base.empresaId) === String(empresaId);
       const vinculoAnterior = base.vinculos?.[consultorId] || {};
+      const acessoProdutosAnterior = vinculoAnterior.acessoProdutos || {};
+      const acessoProdutosAluno = analyticsInformado
+        ? { ...acessoProdutosAnterior, analytics: analyticsAcesso }
+        : acessoProdutosAnterior;
+      const projetosAcessoAluno = projetosInformado
+        ? projetosAcessoNormalizados
+        : (Array.isArray(vinculoAnterior.projetosAcesso) ? vinculoAnterior.projetosAcesso : []);
       const consultorIdsAluno = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
       const vinculoAluno = {
         ...vinculoAnterior,
@@ -2757,6 +2790,8 @@ async function startServer() {
         modeloAcesso: "por_curso",
         cursosAcesso,
         cursosLiberados: cursosAcesso.map((c: any) => c.curso),
+        acessoProdutos: acessoProdutosAluno,
+        projetosAcesso: projetosAcessoAluno,
         valorPago,
         incluidoNoTimeEm: vinculoAnterior.incluidoNoTimeEm || agoraIso,
       };
@@ -2779,7 +2814,7 @@ async function startServer() {
         vinculos: { ...vinculosExistentesAluno, [consultorId]: vinculoAluno },
         ...(preservarPrincipal ? {} : (empresaId ? { empresaId } : {})),
         ...(preservarPrincipal ? {} : (empresaNome ? { empresaNome } : {})),
-        ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((c: any) => c.curso), valorPago }),
+        ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((c: any) => c.curso), acessoProdutos: acessoProdutosAluno, projetosAcesso: projetosAcessoAluno, valorPago }),
         formacoes: Array.isArray(base.formacoes) && base.formacoes.length > 0 ? base.formacoes : ["projetos-melhoria-introdutoria"],
         creditoIA: base.creditoIA || { limite: 200, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agoraIso,
@@ -2793,10 +2828,16 @@ async function startServer() {
         const saud = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
         const nomeQuemConvidou = String(caller.nome || caller.displayName || caller.email || "O coordenador da empresa").trim();
         const empresaConviteNome = String(empresaNome || caller.empresaNome || "sua empresa").trim();
-        const cursosEmail = cursosAcesso.map((c: any) => String(c?.curso || "").trim()).filter(Boolean);
-        const listaCursosHtml = cursosEmail.length
-          ? `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;margin:16px 0"><p style="margin:0 0 8px;font-size:14px"><strong>${nomeQuemConvidou}, coordenador da empresa ${empresaConviteNome}, te convidou para acessar a plataforma LBW com os seguintes cursos:</strong></p><ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.6">${cursosEmail.map((curso: string) => `<li>${curso}</li>`).join("")}</ul></div>`
-          : "";
+        const escaparHtml = (texto: string) => texto.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c] as string));
+        const dataEmail = (data: any) => data ? String(data).slice(0, 10).split('-').reverse().join('/') : '';
+        const valorEmail = (valor: any) => Number(valor) > 0 ? ` · R$ ${Number(valor).toFixed(2).replace('.', ',')}` : '';
+        const validadeEmail = (item: any) => item?.vencimento ? ` · válido até ${dataEmail(item.vencimento)}` : '';
+        const itensEmail = [
+          ...cursosAcesso.map((item: any) => ({ grupo: 'Education', nome: item.curso, vencimento: item.vencimento, valor: item.valor })),
+          ...((acessoProdutosAluno?.analytics || []).map((item: any) => ({ grupo: 'Data Analysis', nome: item.nome || item.modulo, vencimento: item.vencimento, valor: item.valor }))),
+          ...projetosAcessoAluno.map((item: any) => ({ grupo: 'Projects', nome: item.nome || item.projeto, vencimento: item.vencimento, valor: item.valor })),
+        ].filter((item: any) => item.nome);
+        const listaItensHtml = `<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:14px 16px;margin:16px 0"><p style="margin:0 0 8px;font-size:14px"><strong>${nomeQuemConvidou}, ${callerEhCoordenador ? `coordenador da empresa ${empresaConviteNome}, te convidou` : 'seu consultor liberou seu acesso'} à plataforma LBW com:</strong></p><ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.6">${itensEmail.map((item: any) => `<li><strong>${escaparHtml(item.grupo)}:</strong> ${escaparHtml(String(item.nome))}${validadeEmail(item)}${valorEmail(item.valor)}</li>`).join('')}</ul></div>`;
         const blocoAcesso = novo
           ? `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px"><strong>Seu acesso:</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:2px 6px;border:1px solid #ccc;border-radius:4px">${SENHA_CONVITE}</code></p><p style="font-size:14px">No primeiro acesso o sistema vai pedir pra você criar uma senha nova.</p>`
           : `<p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px">Entre com o seu <strong>e-mail (${email})</strong> e a <strong>senha que você já usa</strong>.<br><br>Caso não lembre da senha, clique em <strong>Esqueci minha senha</strong> na tela de login.</p>`;
@@ -2805,8 +2846,8 @@ async function startServer() {
   <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:22px">Seu acesso à plataforma LBW foi liberado</h1></div>
   <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px">
     <p style="font-size:15px">${saud}</p>
-    <p>${nomeQuemConvidou}, coordenador da empresa ${empresaConviteNome}, te convidou para acessar a plataforma LBW.</p>
-    ${listaCursosHtml}
+    <p>${callerEhCoordenador ? `${nomeQuemConvidou}, coordenador da empresa ${empresaConviteNome}, te convidou` : 'Seu consultor liberou'} seu acesso à plataforma LBW.</p>
+    ${listaItensHtml}
     ${blocoAcesso}
     <p style="font-size:14px;margin-top:18px">Acesse pelo site:<br><a href="${site}" style="color:#0033CC;font-weight:bold">${site}</a></p>
     <p style="text-align:center;margin:24px 0"><a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar plataforma</a></p>
