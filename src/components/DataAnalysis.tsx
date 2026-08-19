@@ -1405,11 +1405,10 @@ export default function DataAnalysis() {
                     setActiveNestedMenu(null);
                   }}
                 >
-                  <button className={cn(
-                    "bg-transparent border-none text-[0.85rem] cursor-pointer transition-colors flex items-center gap-1 font-sans font-bold",
-                    grupoLiberado(grupo) ? "text-white hover:text-blue-300" : "text-white/40"
-                  )}>
-                    {grupo} {!grupoLiberado(grupo) && <Lock size={10} />} <ChevronDown size={12} />
+                  {/* Grupo NUNCA fica bloqueado: o aluno abre e vê o que existe.
+                      O cadeado aparece só no último nível (a análise em si). */}
+                  <button className="text-white bg-transparent border-none text-[0.85rem] cursor-pointer hover:text-blue-300 transition-colors flex items-center gap-1 font-sans font-bold">
+                    {grupo} <ChevronDown size={12} />
                   </button>
                   
                   <ul className={cn(
