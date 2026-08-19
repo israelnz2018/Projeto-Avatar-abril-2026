@@ -64,10 +64,10 @@ const parseValor = (s: string) => { const n = Number(String(s).replace(',', '.')
 // Sem separador de milhar (evita o ponto ser lido como decimal ao reparsear). Vírgula = decimal.
 const fmtValor = (v: number) => (v ? String(v).replace('.', ',') : '');
 const CURSO_UNITARIO_LEGADO = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
-const resolverCursoUnitario = (catalogo: string[]) => catalogo.find((curso) => {
+  const resolverCursoUnitario = (catalogo: string[]) => catalogo.find((curso) => {
   const nome = curso.toLocaleLowerCase('pt-BR');
   return nome.includes('resolver problemas no trabalho') && nome.includes('90');
-}) || catalogo.find((curso) => curso.toLocaleLowerCase('pt-BR').includes('resolver problemas no trabalho')) || CURSO_UNITARIO_LEGADO;
+  }) || catalogo.find((curso) => curso.toLocaleLowerCase('pt-BR').includes('resolver problemas no trabalho')) || CURSO_UNITARIO_LEGADO;
 
 export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteLeitura = false }: { embedded?: boolean; empresaIdFiltro?: string; somenteLeitura?: boolean }) {
   const { consultor, consultorId } = useConsultor();
@@ -133,6 +133,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     const atuais = aluno.cursosAcesso.map((curso) => ({ ...curso, quantidade: 1 }));
     if (!aluno.unitarioLegado || atuais.some((curso) => curso.curso === cursoUnitario)) return atuais;
     return [{ curso: cursoUnitario, vencimento: null, valor: 0, quantidade: 1 }, ...atuais];
+  };
+
+  const vencimentoPadraoAluno = (aluno: Aluno) => {
+    const datas = cursosEfetivos(aluno).map((curso) => curso.vencimento).filter(Boolean) as string[];
+    const maisDistante = datas.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+    return maisDistante || (aluno.acessoCompletoAte ? String(aluno.acessoCompletoAte).slice(0, 10) : emUmAno());
   };
 
   const acessoCurso = (aluno: Aluno, nomeCurso: string) => {
@@ -378,7 +384,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     }
     setEditGeralUid(a.uid);
     setEditUid(a.uid);
-    setECursos(cursosEfetivos(a));
+    const vencimentoPadrao = vencimentoPadraoAluno(a);
+    setECursos(cursosEfetivos(a).map((curso) => ({ ...curso, vencimento: curso.vencimento || vencimentoPadrao })));
     setEAddCurso('');
     setEditMsg('');
     setEditArea(null);
@@ -388,13 +395,13 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       .filter((m) => acessoAnalytics(a, m).liberado)
       .map((m) => {
         const acesso = acessoAnalytics(a, m);
-        return { id: m.id, vencimento: acesso.vencimento || '', valor: fmtValor(acesso.valor || 0) };
+        return { id: m.id, vencimento: acesso.vencimento || vencimentoPadrao, valor: fmtValor(acesso.valor || 0) };
       }));
     setRascunhoProjetosDetalhes(tiposProjeto
       .filter((p) => acessoProjeto(a, p).liberado)
       .map((p) => {
         const acesso = acessoProjeto(a, p);
-        return { id: p.id, vencimento: acesso.vencimento || '', valor: fmtValor(acesso.valor || 0) };
+        return { id: p.id, vencimento: acesso.vencimento || vencimentoPadrao, valor: fmtValor(acesso.valor || 0) };
       }));
     setMsgAcessos('');
   }
