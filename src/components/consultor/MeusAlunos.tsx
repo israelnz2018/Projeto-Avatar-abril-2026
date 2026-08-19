@@ -585,7 +585,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       });
 
       if (eCursos.some((item) => !item.vencimento) || analyticsSelecionados.some((item) => !item.vencimento) || projetosSelecionados.some((item) => !item.vencimento)) {
-        setEditMsg('Informe a data de expiração de todos os cursos, projetos e análises liberados.');
+        setMsgAcessos('⚠️ Informe a data de expiração de todos os cursos, projetos e análises liberados.');
         return;
       }
 
@@ -617,7 +617,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       // O e-mail só é perguntado depois que as três áreas foram gravadas.
       if (a.email) setAvisoPendente({ aluno: a, mudancas });
     } catch (e: any) {
-      setEditMsg('❌ ' + (e?.message || e));
+      console.error('[MeusAlunos] erro ao salvar todos os acessos:', e);
+      setMsgAcessos('❌ Não foi possível salvar: ' + (e?.message || e));
     } finally {
       setEditSalvando(false);
     }
@@ -816,7 +817,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             <div className="text-xs text-gray-500">{a.email} · situação: <b>{situacaoAluno(a)}</b></div>
           </div>
           {!somenteLeitura && !a.inativo && editGeralUid === a.uid && (
-            <button onClick={() => salvarTudo(a)} disabled={editSalvando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-40">
+            <button type="button" onClick={() => salvarTudo(a)} disabled={editSalvando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-40">
               {editSalvando ? 'Salvando tudo…' : 'Salvar todas as alterações'}
             </button>
           )}
@@ -888,16 +889,6 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             Ao liberar um projeto, o pacote inclui o projeto do aluno, a IA Digital do consultor, os vídeos associados e a geração de PDF. Isso não libera Analytics automaticamente.
           </div>
         </section>
-
-        {editGeralUid === a.uid && (
-          <div className="flex items-center justify-end gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 flex-wrap">
-            <span className="text-xs text-blue-800 mr-auto">As três abas serão salvas juntas.</span>
-            <button onClick={cancelarEdicaoGeral} disabled={editSalvando} className="px-4 py-2 rounded-xl text-sm font-bold text-gray-600 hover:bg-white disabled:opacity-40">Cancelar</button>
-            <button onClick={() => salvarTudo(a)} disabled={editSalvando} className="px-5 py-2 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
-              {editSalvando ? 'Salvando tudo…' : 'Salvar todas as alterações'}
-            </button>
-          </div>
-        )}
 
       </div>
     );
