@@ -17,6 +17,7 @@ import { empresaIdDireto } from '../../services/consultorService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 import { getEducationCourses } from '../../services/educationCourseService';
 import { courseNamesMatch, hasCourseAccess } from '../../lib/courseAccess';
+import { ANALYTICS_MODULOS, acessoAnalyticsDoAluno, type AnalyticsModulo } from '../../services/analyticsModules';
 import type { Initiative } from '../../types';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -32,7 +33,9 @@ interface Aluno {
   cursosAcesso: CursoAcesso[];
   plano?: string;
   acessoCompletoAte?: string;
-  acessoProdutos?: { analytics?: 'nenhum' | 'basico' | 'avancado'; projetos?: string };
+  // analytics = ids dos módulos liberados (ver services/analyticsModules).
+  // Ausente = aluno legado, ainda sem permissão individual gravada.
+  acessoProdutos?: { analytics?: string[]; projetos?: string };
   projetosAcesso?: Array<{ projeto: string; vencimento?: string | null; valor?: number }> | string[];
   unitarioLegado?: boolean;
   empresaId?: string;
@@ -41,16 +44,6 @@ interface Aluno {
   inativo?: boolean;
 }
 
-const ANALYTICS_MODULOS = [
-  { id: 'exploratoria', nome: 'Análise Exploratória', nivel: 'Básico' },
-  { id: 'inferencia', nome: 'Inferência Estatística', nivel: 'Avançado' },
-  { id: 'msa', nome: 'MSA', nivel: 'Avançado' },
-  { id: 'preditiva', nome: 'Análise Preditiva', nivel: 'Avançado' },
-  { id: 'cep', nome: 'CEP', nivel: 'Avançado' },
-  { id: 'capabilidade', nome: 'Capabilidade', nivel: 'Avançado' },
-  { id: 'doe', nome: 'DOE', nivel: 'Avançado' },
-  { id: 'outras', nome: 'Outras análises', nivel: 'Avançado' },
-] as const;
 interface Equipe {
   empresaId: string;
   nome: string;
@@ -126,15 +119,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const registroCurso = (aluno: Aluno, nomeCurso: string) =>
     cursosEfetivos(aluno).find((curso) => courseNamesMatch(curso.curso, nomeCurso));
 
-  const acessoAnalytics = (aluno: Aluno, modulo: typeof ANALYTICS_MODULOS[number]) => {
-    const nivel = aluno.acessoProdutos?.analytics;
-    // Até a criação da permissão individual, Data Analysis continua refletindo
-    // o comportamento atual da plataforma: acesso global às análises.
-    if (!nivel) return { liberado: true, legado: true };
-    if (nivel === 'nenhum') return { liberado: false, legado: false };
-    if (nivel === 'basico') return { liberado: modulo.nivel === 'Básico', legado: false };
-    return { liberado: true, legado: false };
-  };
+  // Regra vem do serviço (fonte única) — não reimplementar aqui.
+  const acessoAnalytics = (aluno: Aluno, modulo: AnalyticsModulo) =>
+    acessoAnalyticsDoAluno(aluno.acessoProdutos?.analytics, modulo);
 
   const acessoProjetoExplicito = (aluno: Aluno, projeto: Initiative) => {
     if (!Array.isArray(aluno.projetosAcesso)) return undefined;
@@ -576,7 +563,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           <div className="px-4">
             {ANALYTICS_MODULOS.map((modulo) => {
               const acesso = acessoAnalytics(a, modulo);
-              return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, `${modulo.nivel}${acesso.legado ? ' · permissão individual ainda não configurada' : ''}`, acesso.legado)}</React.Fragment>;
+              return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, acesso.legado ? 'permissão individual ainda não configurada' : undefined, acesso.legado)}</React.Fragment>;
             })}
           </div>
         </section>
