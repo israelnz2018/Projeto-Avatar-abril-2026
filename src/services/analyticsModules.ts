@@ -35,7 +35,14 @@ export const ANALYTICS_MODULOS: AnalyticsModulo[] = [
 ];
 
 /** Ids liberados pro aluno. Ausente = legado (ver acessoAnalyticsDoAluno). */
-export type AcessoAnalytics = string[] | undefined;
+export interface AcessoAnalyticsItem {
+  modulo: string;
+  vencimento?: string | null;
+  valor?: number;
+}
+
+/** Formato novo = objeto com preço/expiração; formato antigo = string[]. */
+export type AcessoAnalytics = string[] | AcessoAnalyticsItem[] | undefined;
 
 /**
  * O aluno tem acesso a este módulo?
@@ -50,7 +57,18 @@ export type AcessoAnalytics = string[] | undefined;
 export function acessoAnalyticsDoAluno(
   modulosLiberados: AcessoAnalytics,
   modulo: AnalyticsModulo,
-): { liberado: boolean; legado: boolean } {
+): { liberado: boolean; legado: boolean; valor?: number; vencimento?: string | null } {
   if (!Array.isArray(modulosLiberados)) return { liberado: true, legado: true };
-  return { liberado: modulosLiberados.includes(modulo.id), legado: false };
+  const item = modulosLiberados.find((acesso) =>
+    typeof acesso === 'string' ? acesso === modulo.id : acesso?.modulo === modulo.id,
+  );
+  if (!item) return { liberado: false, legado: false, vencimento: null };
+  if (typeof item === 'string') return { liberado: true, legado: false, vencimento: null };
+  const expirado = !!item.vencimento && new Date(item.vencimento).getTime() < Date.now();
+  return {
+    liberado: !expirado,
+    legado: false,
+    valor: typeof item.valor === 'number' ? item.valor : 0,
+    vencimento: item.vencimento || null,
+  };
 }

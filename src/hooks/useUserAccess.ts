@@ -5,6 +5,7 @@ import { getCourses, getInitiatives, getInitiativeConfigs } from '../services/co
 import { userDataNoConsultor, type TipoUsuario } from '../services/userService';
 import { resolveConsultorId } from '../services/consultorService';
 import { hasCourseAccess } from '../lib/courseAccess';
+import type { AcessoAnalytics } from '../services/analyticsModules';
 
 type Plano = 'gratuito' | 'completo' | 'coordenador' | 'por_curso';
 type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
@@ -28,7 +29,7 @@ export function useUserAccess() {
   const [cursosAcesso, setCursosAcesso] = useState<CursoAcesso[]>([]);
   // Acesso por produto (hoje: quais módulos do Data Analysis o aluno tem).
   // Ausente = aluno legado, de antes desse controle — quem lê trata como liberado.
-  const [acessoProdutos, setAcessoProdutos] = useState<{ analytics?: string[] } | null>(null);
+  const [acessoProdutos, setAcessoProdutos] = useState<{ analytics?: AcessoAnalytics } | null>(null);
   // Aluno em modo POR-CURSO: tem cursosAcesso definido (pacote de cursos escolhido
   // pelo consultor). Nesse modo o acesso é pelos cursos liberados, NÃO pelo plano —
   // assim o `plano:completo` que o convite grava não faz o aluno "ver tudo".

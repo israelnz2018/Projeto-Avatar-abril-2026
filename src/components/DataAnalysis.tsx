@@ -32,7 +32,7 @@ import { LockedToolPopup } from './LockedToolPopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
-import { ANALYTICS_MODULOS } from '../services/analyticsModules';
+import { ANALYTICS_MODULOS, acessoAnalyticsDoAluno } from '../services/analyticsModules';
 import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 
@@ -454,7 +454,7 @@ export default function DataAnalysis() {
     const modulo = ANALYTICS_MODULOS.find((m) => m.grupo === grupo);
     // Grupo novo, ainda não classificado: trata como restrito pra não vazar sem querer.
     if (!modulo) return false;
-    return modulosLiberados.includes(modulo.id);
+    return acessoAnalyticsDoAluno(modulosLiberados, modulo).liberado;
   };
 
   // Descobre a qual grupo do menu uma análise pertence (o menu tem o grupo em mãos,
@@ -2755,4 +2755,3 @@ export default function DataAnalysis() {
     </div>
   );
 }
-

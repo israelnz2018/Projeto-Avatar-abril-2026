@@ -17,7 +17,7 @@ import { empresaIdDireto } from '../../services/consultorService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 import { getEducationCourses } from '../../services/educationCourseService';
 import { courseNamesMatch, hasCourseAccess } from '../../lib/courseAccess';
-import { ANALYTICS_MODULOS, acessoAnalyticsDoAluno, type AnalyticsModulo } from '../../services/analyticsModules';
+import { ANALYTICS_MODULOS, acessoAnalyticsDoAluno, type AnalyticsModulo, type AcessoAnalytics } from '../../services/analyticsModules';
 import type { Initiative } from '../../types';
 
 async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -35,13 +35,19 @@ interface Aluno {
   acessoCompletoAte?: string;
   // analytics = ids dos módulos liberados (ver services/analyticsModules).
   // Ausente = aluno legado, ainda sem permissão individual gravada.
-  acessoProdutos?: { analytics?: string[]; projetos?: string };
+  acessoProdutos?: { analytics?: AcessoAnalytics; projetos?: string };
   projetosAcesso?: Array<{ projeto: string; vencimento?: string | null; valor?: number }> | string[];
   unitarioLegado?: boolean;
   empresaId?: string;
   desvinculadoEm?: string;
   avisoBloqueio?: { expiraEm?: string };
   inativo?: boolean;
+}
+
+interface ItemAcessoDraft {
+  id: string;
+  vencimento: string;
+  valor: string;
 }
 
 interface Equipe {
@@ -104,6 +110,8 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const [editGeralUid, setEditGeralUid] = useState<string | null>(null);
   const [rascunhoAnalytics, setRascunhoAnalytics] = useState<string[]>([]);
   const [rascunhoProjetos, setRascunhoProjetos] = useState<string[]>([]);
+  const [rascunhoAnalyticsDetalhes, setRascunhoAnalyticsDetalhes] = useState<ItemAcessoDraft[]>([]);
+  const [rascunhoProjetosDetalhes, setRascunhoProjetosDetalhes] = useState<ItemAcessoDraft[]>([]);
   const [salvandoAcessos, setSalvandoAcessos] = useState(false);
   const [msgAcessos, setMsgAcessos] = useState('');
   // Confirmação pós-salvar: pergunta se avisa o aluno por e-mail.
@@ -145,11 +153,13 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       const chave = typeof item === 'string' ? item : item?.projeto || item?.projetoId;
       return chave === projeto.id || courseNamesMatch(chave, projeto.name);
     }) as any;
-    return encontrado ? {
-      liberado: true,
+    if (!encontrado) return { liberado: false, valor: undefined, vencimento: null };
+    const vencimento = typeof encontrado === 'object' ? encontrado.vencimento || null : null;
+    return {
+      liberado: !venceu(vencimento),
       valor: typeof encontrado === 'object' && typeof encontrado.valor === 'number' ? encontrado.valor : undefined,
-      vencimento: typeof encontrado === 'object' ? encontrado.vencimento || null : null,
-    } : { liberado: false, valor: undefined, vencimento: null };
+      vencimento,
+    };
   };
 
   const acessoProjeto = (aluno: Aluno, projeto: Initiative) => {
@@ -341,13 +351,22 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     setEAddCurso('');
     setEditMsg('');
   }
-  const setVenc = (curso: string, v: string) => setECursos((p) => p.map((c) => (c.curso === curso ? { ...c, vencimento: v || null } : c)));
-  const setValorCurso = (curso: string, v: string) => setECursos((p) => p.map((c) => (c.curso === curso ? { ...c, valor: parseValor(v.replace(/[^\d.,]/g, '')) } : c)));
-  const removerCurso = (curso: string) => setECursos((p) => p.filter((c) => c.curso !== curso));
+  const setVenc = (curso: string, v: string) => setECursos((p) => p.map((c) => (courseNamesMatch(c.curso, curso) ? { ...c, vencimento: v || null } : c)));
+  const setValorCurso = (curso: string, v: string) => setECursos((p) => p.map((c) => (courseNamesMatch(c.curso, curso) ? { ...c, valor: parseValor(v.replace(/[^\d.,]/g, '')) } : c)));
+  const removerCurso = (curso: string) => setECursos((p) => p.filter((c) => !courseNamesMatch(c.curso, curso)));
   const addCursoEdit = () => {
     if (!eAddCurso || eCursos.some((c) => c.curso === eAddCurso)) return;
     setECursos((p) => [...p, { curso: eAddCurso, vencimento: emUmAno(), valor: 0, quantidade: 1 }]);
     setEAddCurso('');
+  };
+
+  const alternarCursoEdit = (curso: string, liberado: boolean) => {
+    setECursos((p) => {
+      const existente = p.some((item) => courseNamesMatch(item.curso, curso));
+      if (!liberado) return p.filter((item) => !courseNamesMatch(item.curso, curso));
+      if (existente) return p;
+      return [...p, { curso, vencimento: emUmAno(), valor: 0, quantidade: 1 }];
+    });
   };
 
   function abrirEdicaoGeral(a: Aluno) {
@@ -365,6 +384,18 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     setEditArea(null);
     setRascunhoAnalytics(ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id));
     setRascunhoProjetos(tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id));
+    setRascunhoAnalyticsDetalhes(ANALYTICS_MODULOS
+      .filter((m) => acessoAnalytics(a, m).liberado)
+      .map((m) => {
+        const acesso = acessoAnalytics(a, m);
+        return { id: m.id, vencimento: acesso.vencimento || '', valor: fmtValor(acesso.valor || 0) };
+      }));
+    setRascunhoProjetosDetalhes(tiposProjeto
+      .filter((p) => acessoProjeto(a, p).liberado)
+      .map((p) => {
+        const acesso = acessoProjeto(a, p);
+        return { id: p.id, vencimento: acesso.vencimento || '', valor: fmtValor(acesso.valor || 0) };
+      }));
     setMsgAcessos('');
   }
 
@@ -395,6 +426,18 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
 
   const alternar = (lista: string[], id: string) =>
     lista.includes(id) ? lista.filter((x) => x !== id) : [...lista, id];
+
+  const alternarItemAcesso = (lista: ItemAcessoDraft[], id: string) =>
+    lista.some((item) => item.id === id)
+      ? lista.filter((item) => item.id !== id)
+      : [...lista, { id, vencimento: emUmAno(), valor: '0' }];
+
+  const atualizarItemAcesso = (
+    lista: ItemAcessoDraft[],
+    id: string,
+    campo: 'vencimento' | 'valor',
+    valor: string,
+  ) => lista.map((item) => item.id === id ? { ...item, [campo]: campo === 'valor' ? valor.replace(/[^\d.,]/g, '') : valor } : item);
 
   async function salvarAcessos(a: Aluno, area: 'analytics' | 'projetos') {
     setSalvandoAcessos(true);
@@ -495,6 +538,16 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       const cursosAnteriores = cursosEfetivos(a);
       const analyticsAnteriores = ANALYTICS_MODULOS.filter((m) => acessoAnalytics(a, m).liberado).map((m) => m.id);
       const projetosAnteriores = tiposProjeto.filter((p) => acessoProjeto(a, p).liberado).map((p) => p.id);
+      const analyticsSelecionados = rascunhoAnalyticsDetalhes.map((item) => ({
+        modulo: item.id,
+        vencimento: item.vencimento || null,
+        valor: parseValor(item.valor),
+      }));
+      const projetosSelecionados = rascunhoProjetosDetalhes.map((item) => ({
+        projeto: item.id,
+        vencimento: item.vencimento || null,
+        valor: parseValor(item.valor),
+      }));
       const nomeAnalytics = (id: string) => ANALYTICS_MODULOS.find((m) => m.id === id)?.nome || id;
       const nomeProjeto = (id: string) => tiposProjeto.find((p) => p.id === id)?.name || id;
       const mudancas: string[] = [];
@@ -508,15 +561,33 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         && (String(antigo.vencimento || '') !== String(novo.vencimento || '') || Number(antigo.valor || 0) !== Number(novo.valor || 0))
       )).forEach((curso) => mudancas.push(`Atualizado em Education: ${curso.curso}`));
 
-      rascunhoAnalytics.filter((id) => !analyticsAnteriores.includes(id))
-        .forEach((id) => mudancas.push(`Liberado em Data Analysis: ${nomeAnalytics(id)}`));
-      analyticsAnteriores.filter((id) => !rascunhoAnalytics.includes(id))
+      analyticsSelecionados.filter((item) => !analyticsAnteriores.includes(item.modulo))
+        .forEach((item) => mudancas.push(`Liberado em Data Analysis: ${nomeAnalytics(item.modulo)} · R$ ${fmtValor(item.valor) || '0,00'} · expira ${dataBr(item.vencimento)}`));
+      analyticsAnteriores.filter((id) => !analyticsSelecionados.some((item) => item.modulo === id))
         .forEach((id) => mudancas.push(`Removido de Data Analysis: ${nomeAnalytics(id)}`));
+      analyticsSelecionados.filter((item) => analyticsAnteriores.includes(item.modulo)).forEach((item) => {
+        const antes = acessoAnalytics(a, ANALYTICS_MODULOS.find((m) => m.id === item.modulo)!);
+        if (String(antes.vencimento || '') !== String(item.vencimento || '') || Number(antes.valor || 0) !== item.valor) {
+          mudancas.push(`Atualizado em Data Analysis: ${nomeAnalytics(item.modulo)} · R$ ${fmtValor(item.valor) || '0,00'} · expira ${dataBr(item.vencimento)}`);
+        }
+      });
 
-      rascunhoProjetos.filter((id) => !projetosAnteriores.includes(id))
-        .forEach((id) => mudancas.push(`Liberado em Projects: ${nomeProjeto(id)}`));
-      projetosAnteriores.filter((id) => !rascunhoProjetos.includes(id))
+      projetosSelecionados.filter((item) => !projetosAnteriores.includes(item.projeto))
+        .forEach((item) => mudancas.push(`Liberado em Projects: ${nomeProjeto(item.projeto)} · R$ ${fmtValor(item.valor) || '0,00'} · expira ${dataBr(item.vencimento)}`));
+      projetosAnteriores.filter((id) => !projetosSelecionados.some((item) => item.projeto === id))
         .forEach((id) => mudancas.push(`Removido de Projects: ${nomeProjeto(id)}`));
+      projetosSelecionados.filter((item) => projetosAnteriores.includes(item.projeto)).forEach((item) => {
+        const projeto = tiposProjeto.find((p) => p.id === item.projeto);
+        const antes = projeto ? acessoProjeto(a, projeto) : undefined;
+        if (antes && (String(antes.vencimento || '') !== String(item.vencimento || '') || Number(antes.valor || 0) !== item.valor)) {
+          mudancas.push(`Atualizado em Projects: ${nomeProjeto(item.projeto)} · R$ ${fmtValor(item.valor) || '0,00'} · expira ${dataBr(item.vencimento)}`);
+        }
+      });
+
+      if (eCursos.some((item) => !item.vencimento) || analyticsSelecionados.some((item) => !item.vencimento) || projetosSelecionados.some((item) => !item.vencimento)) {
+        setEditMsg('Informe a data de expiração de todos os cursos, projetos e análises liberados.');
+        return;
+      }
 
       const valorPago = eCursos.reduce((s, c) => s + (c.valor || 0), 0);
       const patch = {
@@ -525,15 +596,15 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         cursosAcesso: eCursos,
         cursosLiberados: eCursos.map((curso) => curso.curso),
         valorPago,
-        acessoProdutos: { ...(a.acessoProdutos || {}), analytics: rascunhoAnalytics },
-        projetosAcesso: rascunhoProjetos,
+        acessoProdutos: { ...(a.acessoProdutos || {}), analytics: analyticsSelecionados },
+        projetosAcesso: projetosSelecionados,
       };
       await updateUserNoConsultor(a.uid, consultorId, patch);
       setRows((p) => p.map((r) => (r.uid === a.uid ? {
         ...r,
         cursosAcesso: eCursos,
         acessoProdutos: patch.acessoProdutos,
-        projetosAcesso: rascunhoProjetos,
+        projetosAcesso: projetosSelecionados,
         unitarioLegado: false,
       } : r)));
       cancelarEdicaoGeral();
@@ -624,6 +695,19 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     </span>
   );
 
+  const renderToggleAcesso = (liberado: boolean, onChange: (value: boolean) => void) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={liberado}
+      onClick={() => onChange(!liberado)}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase whitespace-nowrap transition-colors ${liberado ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}
+    >
+      <span className={`h-3 w-3 rounded-full border-2 ${liberado ? 'border-emerald-500 bg-emerald-500' : 'border-gray-400 bg-white'}`} />
+      {liberado ? 'Liberado' : 'Sem acesso'}
+    </button>
+  );
+
   const renderAcessoLinha = (nome: string, liberado: boolean, valor?: number, vencimento?: string | null, extra?: string, legado = false) => (
     <div className="grid grid-cols-[minmax(180px,1.6fr)_auto_100px_120px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
       <div className="min-w-0">
@@ -679,6 +763,45 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     );
   };
 
+  const renderCursoEditLinha = (curso: string) => {
+    const registro = eCursos.find((item) => courseNamesMatch(item.curso, curso));
+    const liberado = !!registro;
+    return (
+      <div key={curso} className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
+        <div className="min-w-0 font-semibold text-gray-800 truncate">{curso}</div>
+        {renderToggleAcesso(liberado, (value) => alternarCursoEdit(curso, value))}
+        <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input disabled={!liberado} value={liberado ? fmtValor(registro?.valor || 0) : ''} onChange={(e) => setValorCurso(curso, e.target.value)} placeholder="0,00" className={campo + ' w-24 disabled:bg-gray-100 disabled:text-gray-400'} /></div>
+        <input disabled={!liberado} type="date" value={liberado ? (registro?.vencimento || '') : ''} onChange={(e) => setVenc(curso, e.target.value)} className={campo + ' disabled:bg-gray-100 disabled:text-gray-400'} />
+      </div>
+    );
+  };
+
+  const renderModuloEditLinha = (modulo: AnalyticsModulo) => {
+    const registro = rascunhoAnalyticsDetalhes.find((item) => item.id === modulo.id);
+    const liberado = !!registro;
+    return (
+      <div key={modulo.id} className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
+        <div className="min-w-0 font-semibold text-gray-800 truncate">{modulo.nome}</div>
+        {renderToggleAcesso(liberado, (value) => setRascunhoAnalyticsDetalhes((p) => alternarItemAcesso(p, modulo.id)))}
+        <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input disabled={!liberado} value={liberado ? registro?.valor : ''} onChange={(e) => setRascunhoAnalyticsDetalhes((p) => atualizarItemAcesso(p, modulo.id, 'valor', e.target.value))} placeholder="0,00" className={campo + ' w-24 disabled:bg-gray-100 disabled:text-gray-400'} /></div>
+        <input disabled={!liberado} type="date" value={liberado ? registro?.vencimento : ''} onChange={(e) => setRascunhoAnalyticsDetalhes((p) => atualizarItemAcesso(p, modulo.id, 'vencimento', e.target.value))} className={campo + ' disabled:bg-gray-100 disabled:text-gray-400'} />
+      </div>
+    );
+  };
+
+  const renderProjetoEditLinha = (projeto: Initiative) => {
+    const registro = rascunhoProjetosDetalhes.find((item) => item.id === projeto.id);
+    const liberado = !!registro;
+    return (
+      <div key={projeto.id} className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
+        <div className="min-w-0 font-semibold text-gray-800 truncate">{projeto.name}</div>
+        {renderToggleAcesso(liberado, (value) => setRascunhoProjetosDetalhes((p) => alternarItemAcesso(p, projeto.id)))}
+        <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input disabled={!liberado} value={liberado ? registro?.valor : ''} onChange={(e) => setRascunhoProjetosDetalhes((p) => atualizarItemAcesso(p, projeto.id, 'valor', e.target.value))} placeholder="0,00" className={campo + ' w-24 disabled:bg-gray-100 disabled:text-gray-400'} /></div>
+        <input disabled={!liberado} type="date" value={liberado ? registro?.vencimento : ''} onChange={(e) => setRascunhoProjetosDetalhes((p) => atualizarItemAcesso(p, projeto.id, 'vencimento', e.target.value))} className={campo + ' disabled:bg-gray-100 disabled:text-gray-400'} />
+      </div>
+    );
+  };
+
   const renderDetalheAcessos = (a: Aluno) => {
     const cursosExibidos = cursos.length > 0 ? cursos : cursosEfetivos(a).map((curso) => curso.curso);
     const cursosLiberados = cursosExibidos.filter((curso) => acessoCurso(a, curso)).length;
@@ -692,9 +815,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             <div className="text-sm font-black text-gray-800">Detalhes de acesso</div>
             <div className="text-xs text-gray-500">{a.email} · situação: <b>{situacaoAluno(a)}</b></div>
           </div>
-          {!somenteLeitura && !a.inativo && (
-            <button onClick={() => abrirEdicaoGeral(a)} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-50">
-              <Pencil size={13} /> {editGeralUid === a.uid ? 'Cancelar edição' : 'Editar todos os acessos'}
+          {!somenteLeitura && !a.inativo && editGeralUid === a.uid && (
+            <button onClick={() => salvarTudo(a)} disabled={editSalvando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-40">
+              {editSalvando ? 'Salvando tudo…' : 'Salvar todas as alterações'}
             </button>
           )}
         </div>
@@ -706,11 +829,13 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
             <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
           </div>
           <div className="px-4">
-            {renderFormCursos(a)}
-            {cursosExibidos.map((curso) => {
-              const registro = registroCurso(a, curso);
-              return <React.Fragment key={curso}>{renderAcessoLinha(curso, acessoCurso(a, curso), registro?.valor, registro?.vencimento || (a.plano === 'completo' ? a.acessoCompletoAte : null))}</React.Fragment>;
-            })}
+            {editGeralUid === a.uid && <div className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 px-0 py-2 text-[10px] font-black uppercase tracking-wide text-gray-400"><div>Curso</div><div>Acesso</div><div>Valor de venda</div><div>Expiração</div></div>}
+            {editGeralUid === a.uid
+              ? cursosExibidos.map(renderCursoEditLinha)
+              : cursosExibidos.map((curso) => {
+                  const registro = registroCurso(a, curso);
+                  return <React.Fragment key={curso}>{renderAcessoLinha(curso, acessoCurso(a, curso), registro?.valor, registro?.vencimento || (a.plano === 'completo' ? a.acessoCompletoAte : null))}</React.Fragment>;
+                })}
           </div>
         </section>
 
@@ -721,20 +846,13 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           </div>
           <div className="px-4">
             {editGeralUid === a.uid
-              ? ANALYTICS_MODULOS.map((modulo) => (
-                  <label key={modulo.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={rascunhoAnalytics.includes(modulo.id)}
-                      onChange={() => setRascunhoAnalytics((p) => alternar(p, modulo.id))}
-                    />
-                    <span className="text-sm text-gray-800">{modulo.nome}</span>
-                  </label>
-                ))
+              ? <>
+                  <div className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 px-0 py-2 text-[10px] font-black uppercase tracking-wide text-gray-400"><div>Análise</div><div>Acesso</div><div>Valor de venda</div><div>Expiração</div></div>
+                  {ANALYTICS_MODULOS.map(renderModuloEditLinha)}
+                </>
               : ANALYTICS_MODULOS.map((modulo) => {
                   const acesso = acessoAnalytics(a, modulo);
-                  return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, undefined, null, acesso.legado ? 'permissão individual ainda não configurada' : undefined, acesso.legado)}</React.Fragment>;
+                  return <React.Fragment key={modulo.id}>{renderAcessoLinha(modulo.nome, acesso.liberado, acesso.valor, acesso.vencimento, acesso.legado ? 'permissão individual ainda não configurada' : undefined, acesso.legado)}</React.Fragment>;
                 })}
           </div>
         </section>
@@ -747,17 +865,10 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           <div className="px-4">
             {tiposProjeto.length === 0 && <div className="py-3 text-sm text-gray-500">Nenhum tipo de projeto cadastrado.</div>}
             {editGeralUid === a.uid
-              ? tiposProjeto.map((projeto) => (
-                  <label key={projeto.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={rascunhoProjetos.includes(projeto.id)}
-                      onChange={() => setRascunhoProjetos((p) => alternar(p, projeto.id))}
-                    />
-                    <span className="text-sm text-gray-800">{projeto.name}</span>
-                  </label>
-                ))
+              ? <>
+                  <div className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 px-0 py-2 text-[10px] font-black uppercase tracking-wide text-gray-400"><div>Projeto</div><div>Acesso</div><div>Valor de venda</div><div>Expiração</div></div>
+                  {tiposProjeto.map(renderProjetoEditLinha)}
+                </>
               : tiposProjeto.map((projeto) => {
                   const acesso = acessoProjeto(a, projeto);
                   // cursoAssociadoId vazio NÃO quer dizer "independente": quer dizer que
@@ -805,7 +916,15 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           <span className="text-xs font-semibold text-gray-700">{analyticsLiberados === 0 ? 'Sem acesso' : `${analyticsLiberados} de ${ANALYTICS_MODULOS.length} módulos`}</span>
           <span className="text-xs font-semibold text-gray-700">{projetosLiberados === 0 ? 'Sem acesso' : `${projetosLiberados} projeto${projetosLiberados === 1 ? '' : 's'}`}</span>
           <span className={`text-[10px] font-black uppercase rounded-full px-2 py-1 whitespace-nowrap ${situacaoAluno(a) === 'Completo' ? 'bg-emerald-100 text-emerald-700' : situacaoAluno(a) === 'Limitado' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{situacaoAluno(a)}</span>
-          <button onClick={() => setDetalheUid(aberto ? null : a.uid)} title="Ver detalhes de acesso deste aluno" className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100 whitespace-nowrap">{aberto ? 'Fechar' : 'Gerenciar'}</button>
+          <button onClick={() => {
+            if (aberto) {
+              setDetalheUid(null);
+              cancelarEdicaoGeral();
+            } else {
+              setDetalheUid(a.uid);
+              if (!somenteLeitura && !a.inativo) abrirEdicaoGeral(a);
+            }
+          }} title="Ver detalhes de acesso deste aluno" className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 hover:bg-blue-100 whitespace-nowrap">{aberto ? 'Fechar' : 'Gerenciar'}</button>
           {!somenteLeitura && <div className="flex justify-end">{!a.inativo ? <button onClick={() => bloquearAluno(a)} disabled={removingUid === a.uid} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Remover aluno do meu ambiente"><Trash2 size={15} /></button> : <button onClick={() => excluirDefinitivo(a)} disabled={!podeExcluirDefinitivo(a) || deletingUid === a.uid} className="text-xs font-bold text-red-600 disabled:text-gray-300" title={podeExcluirDefinitivo(a) ? 'Excluir definitivamente' : 'Disponível após 90 dias'}>excluir</button>}</div>}
         </div>
         {aberto && renderDetalheAcessos(a)}
