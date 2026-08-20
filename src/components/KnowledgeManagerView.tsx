@@ -1423,16 +1423,35 @@ export default function KnowledgeManagerView() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const makeHandleDragEnd = (playlistItems: KnowledgeEntry[]) => async (event: DragEndEvent) => {
+  const ordenarVideos = (videos: KnowledgeEntry[]) => [...videos].sort((a, b) => {
+    const ordemA = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
+    const ordemB = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
+    if (ordemA !== ordemB) return ordemA - ordemB;
+    return b.timestamp.getTime() - a.timestamp.getTime();
+  });
+
+  const makeHandleDragEnd = (courseName: string, playlistName: string) => async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+
+    // Sempre usa todos os vídeos da playlist, e não apenas os filtrados pela
+    // busca. Assim uma busca ativa não renumera ou perde vídeos ocultos.
+    const playlistItems = ordenarVideos(
+      items.filter((item) => item.course === courseName && item.playlist === playlistName)
+    );
     const oldIdx = playlistItems.findIndex(v => v.id === String(active.id));
     const newIdx = playlistItems.findIndex(v => v.id === String(over.id));
     if (oldIdx === -1 || newIdx === -1) return;
     const reordered = arrayMove(playlistItems, oldIdx, newIdx);
+
+    const ordemPorId = new Map(reordered.map((item, index) => [item.id, index + 1]));
     setItems(prev => {
-      const others = prev.filter(i => !playlistItems.some(v => v.id === i.id));
-      return [...others, ...reordered.map((item, i) => ({ ...item, order: i + 1 }))];
+      // Mantém cada vídeo no seu curso/playlist e altera somente o campo de
+      // ordem. Isso evita que a lista inteira seja remontada ao final.
+      return prev.map((item) => {
+        const novaOrdem = ordemPorId.get(item.id);
+        return novaOrdem === undefined ? item : { ...item, order: novaOrdem };
+      });
     });
     try {
       const batch = writeBatch(db);
@@ -1480,6 +1499,15 @@ export default function KnowledgeManagerView() {
     acc[course][playlist].push(item);
     return acc;
   }, {} as Record<string, Record<string, KnowledgeEntry[]>>);
+
+  // A sequência dos vídeos é independente da sequência das playlists/fases.
+  // Ordenar aqui também protege a tela contra registros antigos com
+  // playlistOrder inconsistente.
+  Object.values(groupedItemsMap).forEach((playlists) => {
+    Object.keys(playlists).forEach((playlistName) => {
+      playlists[playlistName] = ordenarVideos(playlists[playlistName]);
+    });
+  });
 
   // Cursos cadastrados que ainda não têm nenhum vídeo também aparecem — senão o
   // curso recém-criado ficaria invisível e não haveria como perceber que existe.
@@ -2049,7 +2077,7 @@ export default function KnowledgeManagerView() {
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
-                      onDragEnd={makeHandleDragEnd(course.playlists.find(p => p.name === activePlaylists[course.name])!.videos)}
+                      onDragEnd={makeHandleDragEnd(course.name, activePlaylists[course.name])}
                     >
                       <SortableContext
                         items={course.playlists.find(p => p.name === activePlaylists[course.name])!.videos.map(v => v.id!)}
