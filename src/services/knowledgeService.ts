@@ -31,6 +31,17 @@ export interface KnowledgeEntry {
   /** Identificador estável da etapa do Consultor Comece por aqui. */
   onboardingStep?: string;
   transcricaoErro?: { mensagem?: string; ocorridoEm?: string };
+  /** Estado das três etapas do processamento automático do vídeo. */
+  pipelineStatus?: {
+    processamentoVideo?: 'aguardando' | 'processando' | 'concluido' | 'erro';
+    transcricao?: 'aguardando' | 'processando' | 'concluido' | 'erro';
+    indice?: 'aguardando' | 'processando' | 'concluido' | 'erro';
+    erro?: {
+      etapa?: 'processamentoVideo' | 'transcricao' | 'indice';
+      mensagem?: string;
+      ocorridoEm?: string;
+    };
+  };
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';

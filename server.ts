@@ -1986,6 +1986,25 @@ async function startServer() {
       let rawTranscript = String(saved.find(value => value.rawTranscript?.trim())?.rawTranscript || "");
       const savedSummary = saved.find(value => Array.isArray(value.summary) && value.summary.length)?.summary;
 
+      // O consultor acompanha cada etapa sem precisar interpretar um erro genérico.
+      // O status é salvo nos placements irmãos para todos os cursos exibirem a mesma informação.
+      const pipelineStatus: Record<string, any> = {
+        processamentoVideo: rawTranscript ? "concluido" : "processando",
+        transcricao: rawTranscript ? "concluido" : "aguardando",
+        indice: savedSummary ? "concluido" : rawTranscript ? "processando" : "aguardando",
+      };
+      let etapaAtual: "processamentoVideo" | "transcricao" | "indice" = rawTranscript
+        ? "indice"
+        : "processamentoVideo";
+      const salvarPipelineStatus = async (limparErro = false) => {
+        const batch = adminFirestore().batch();
+        videoDocs!.docs.forEach(doc => batch.update(doc.ref, {
+          pipelineStatus: { ...pipelineStatus },
+          ...(limparErro ? { transcricaoErro: admin.firestore.FieldValue.delete() } : {}),
+        }));
+        await batch.commit();
+      };
+
       // Thumbnail é independente do transcript — busca 1x e propaga pra todos os placements.
       if (!saved.some(value => value.bunnyThumbnailUrl)) {
         const hostname = await getBunnyLibraryHostname(lib.libraryId);
@@ -1999,11 +2018,14 @@ async function startServer() {
 
       if (rawTranscript && savedSummary) {
         // Sucesso (ou já processado antes) — limpa qualquer erro anterior persistido.
-        const clearBatch = adminFirestore().batch();
-        videoDocs.docs.forEach(doc => clearBatch.update(doc.ref, { transcricaoErro: admin.firestore.FieldValue.delete() }));
-        await clearBatch.commit().catch(() => {});
+        pipelineStatus.processamentoVideo = "concluido";
+        pipelineStatus.transcricao = "concluido";
+        pipelineStatus.indice = "concluido";
+        await salvarPipelineStatus(true).catch(() => {});
         return res.json({ transcript: rawTranscript, summary: savedSummary, reused: true, complete: true });
       }
+
+      await salvarPipelineStatus(true);
 
       if (!rawTranscript) {
         const deepinfraKey = process.env.DEEPINFRA_API_KEY;
@@ -2037,6 +2059,11 @@ async function startServer() {
           if (!mediaUrl) await new Promise(resolve => setTimeout(resolve, 10_000));
         }
         if (!mediaUrl) throw new Error("Bunny não disponibilizou o arquivo MP4 dentro de 10 minutos.");
+
+        pipelineStatus.processamentoVideo = "concluido";
+        pipelineStatus.transcricao = "processando";
+        etapaAtual = "transcricao";
+        await salvarPipelineStatus();
 
         // DeepInfra (diferente do Groq) não aceita "url" — precisa do arquivo em si no form.
         const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
@@ -2108,6 +2135,12 @@ async function startServer() {
         await transcriptBatch.commit();
       }
 
+      pipelineStatus.processamentoVideo = "concluido";
+      pipelineStatus.transcricao = "concluido";
+      pipelineStatus.indice = "processando";
+      etapaAtual = "indice";
+      await salvarPipelineStatus();
+
       const { summary, transcript: indiceTranscript } = await gerarIndicePorIA(rawTranscript);
       const indexBatch = adminFirestore().batch();
       videoDocs.docs.forEach(doc => indexBatch.update(doc.ref, {
@@ -2117,9 +2150,10 @@ async function startServer() {
       }));
       await indexBatch.commit();
 
-      const clearBatch = adminFirestore().batch();
-      videoDocs.docs.forEach(doc => clearBatch.update(doc.ref, { transcricaoErro: admin.firestore.FieldValue.delete() }));
-      await clearBatch.commit().catch(() => {});
+      pipelineStatus.processamentoVideo = "concluido";
+      pipelineStatus.transcricao = "concluido";
+      pipelineStatus.indice = "concluido";
+      await salvarPipelineStatus(true).catch(() => {});
 
       return res.json({ transcript: rawTranscript, summary, caption: "pt", complete: true });
     } catch (error: any) {
@@ -2133,8 +2167,15 @@ async function startServer() {
         .replace(/\bbunny\b/gi, "servidor de vídeo")
         .slice(0, 500);
       if (videoDocs && !videoDocs.empty) {
+        pipelineStatus[etapaAtual] = "erro";
+        pipelineStatus.erro = {
+          etapa: etapaAtual,
+          mensagem: errorMessage,
+          ocorridoEm: new Date().toISOString(),
+        };
         const failureBatch = adminFirestore().batch();
         videoDocs.docs.forEach(doc => failureBatch.update(doc.ref, {
+          pipelineStatus: { ...pipelineStatus },
           transcricaoErro: {
             mensagem: errorMessage,
             ocorridoEm: new Date().toISOString(),

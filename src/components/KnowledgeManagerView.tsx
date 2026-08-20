@@ -236,6 +236,50 @@ interface SortableVideoRowProps {
   setEditOriginalIds: (ids: string[]) => void;
 }
 
+type PipelineStageStatus = 'aguardando' | 'processando' | 'concluido' | 'erro';
+
+const PIPELINE_STATUS_LABEL: Record<PipelineStageStatus, string> = {
+  aguardando: 'Aguardando',
+  processando: 'Processando...',
+  concluido: 'Concluído',
+  erro: 'Falha',
+};
+
+function PipelineStageRow({
+  label,
+  status,
+  onRetry,
+  retrying,
+}: {
+  label: string;
+  status: PipelineStageStatus;
+  onRetry?: () => void;
+  retrying?: boolean;
+}) {
+  const colors = {
+    aguardando: 'text-slate-500',
+    processando: 'text-blue-700',
+    concluido: 'text-emerald-700',
+    erro: 'text-red-700',
+  }[status];
+  return (
+    <div className="flex items-center gap-2 text-[11px] leading-5">
+      <span className="w-[132px] text-slate-600">{label}</span>
+      <span className={cn('font-bold', colors)}>{PIPELINE_STATUS_LABEL[status]}</span>
+      {status === 'erro' && onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={retrying}
+          className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full hover:bg-blue-100 disabled:opacity-50 cursor-pointer"
+        >
+          {retrying ? 'Refazendo...' : 'Refazer processamento'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SortableVideoRow({
   item, items, expandedId, seekTime, isReprocessing,
   parseTimeToSeconds, handleRegenerateIndex, handleRetryProcessing,
@@ -269,6 +313,16 @@ function SortableVideoRow({
   const youtubeMatch = String(item.sourceUrl || '').match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
   const youtubeId = youtubeMatch && youtubeMatch[2].length === 11 ? youtubeMatch[2] : null;
   const thumbnailUrl = youtubeId ? youtubeThumb(youtubeId, 'hqdefault') : item.bunnyThumbnailUrl || '';
+  const legacyErrorStage: 'transcricao' | 'indice' | undefined = item.transcricaoErro
+    ? (item.rawTranscript && !(item.summary?.length || 0) ? 'indice' : 'transcricao')
+    : undefined;
+  const pipeline = item.pipelineStatus || {};
+  const statusVideo: PipelineStageStatus = pipeline.processamentoVideo
+    || (item.rawTranscript || (item.summary?.length || 0) > 0 ? 'concluido' : 'aguardando');
+  const statusTranscricao: PipelineStageStatus = pipeline.transcricao
+    || (legacyErrorStage === 'transcricao' ? 'erro' : item.rawTranscript ? 'concluido' : 'aguardando');
+  const statusIndice: PipelineStageStatus = pipeline.indice
+    || (legacyErrorStage === 'indice' ? 'erro' : (item.summary?.length || 0) > 0 ? 'concluido' : 'aguardando');
   return (
     <React.Fragment>
       <tr ref={setNodeRef} style={style} className="border-b border-[#eee] last:border-0 hover:bg-gray-50 transition-colors group/row">
@@ -313,38 +367,28 @@ function SortableVideoRow({
                       : 'Importar Transcrição'}
                 </button>
               </div>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {item.transcricaoErro ? (
-                  <>
-                    <span
-                      className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"
-                      title={item.transcricaoErro.mensagem || 'Falha no processamento automático'}
-                    >
-                      Falha no processamento
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRetryProcessing(item)}
-                      disabled={isReprocessing === item.id}
-                      className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full hover:bg-blue-100 disabled:opacity-50 cursor-pointer"
-                    >
-                      {isReprocessing === item.id ? 'Refazendo...' : 'Refazer processamento'}
-                    </button>
-                  </>
-                ) : item.summary && item.summary.length > 0 ? (
-                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                    Processamento concluído
-                  </span>
-                ) : item.rawTranscript ? (
-                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                    Transcript salvo · índice pendente
-                  </span>
-                ) : item.bunnyVideoId ? (
-                  <span className="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full">
-                    Aguardando processamento
-                  </span>
-                ) : null}
-              </div>
+              {item.bunnyVideoId && (
+                <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2">
+                  <PipelineStageRow label="Processamento do vídeo" status={statusVideo} />
+                  <PipelineStageRow
+                    label="Transcrição"
+                    status={statusTranscricao}
+                    onRetry={() => handleRetryProcessing(item)}
+                    retrying={isReprocessing === item.id}
+                  />
+                  <PipelineStageRow
+                    label="Índice e resumo"
+                    status={statusIndice}
+                    onRetry={() => handleRetryProcessing(item)}
+                    retrying={isReprocessing === item.id}
+                  />
+                  {item.transcricaoErro?.mensagem && (
+                    <p className="mt-1 max-w-[420px] text-[10px] leading-4 text-red-600" title={item.transcricaoErro.mensagem}>
+                      {item.transcricaoErro.mensagem}
+                    </p>
+                  )}
+                </div>
+              )}
               {((item.associatedTools && item.associatedTools.length > 0) || (item.associatedAnalyses && item.associatedAnalyses.length > 0)) && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {(item.associatedTools || []).map(toolId => (
@@ -414,15 +458,21 @@ function SortableVideoRow({
                       </div>
                     ) : (item.summary?.length || 0) === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center p-4 gap-3">
-                        <p className="text-sm text-gray-500">A transcrição está salva. Gere o índice clicável a partir dela:</p>
-                        <button
-                          onClick={() => handleRegenerateIndex(item)}
-                          disabled={isReprocessing === item.id}
-                          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                          <Sparkles size={14} />
-                          {isReprocessing === item.id ? 'Gerando...' : 'Gerar índice'}
-                        </button>
+                        {item.bunnyVideoId ? (
+                          <p className="text-sm text-gray-500">A transcrição está salva. O índice e o resumo serão concluídos pelo processamento automático; acompanhe o status acima.</p>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-500">A transcrição está salva. Gere o índice clicável a partir dela:</p>
+                            <button
+                              onClick={() => handleRegenerateIndex(item)}
+                              disabled={isReprocessing === item.id}
+                              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              <Sparkles size={14} />
+                              {isReprocessing === item.id ? 'Gerando...' : 'Gerar índice'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     ) : item.summary!.map((s, i) => (
                       <button key={i} onClick={() => setSeekTime(parseTimeToSeconds(s.time))}
