@@ -1868,9 +1868,27 @@ async function startServer() {
         method: "POST", headers: { AccessKey: lib.apiKey, "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ title }),
       });
-      if (!r.ok) return res.status(502).json({ error: `Bunny createVideo ${r.status}` });
-      const { guid } = (await r.json()) as any;
-      const expiration = Math.floor(Date.now() / 1000) + 3600;
+      if (!r.ok) {
+        const detail = (await r.text()).slice(0, 500);
+        console.error(`[Bunny create-video] HTTP ${r.status} library=${lib.libraryId}: ${detail}`);
+        const error = r.status === 401
+          ? "A API Key da Video Library do Bunny foi rejeitada. Atualize BUNNY_STREAM_API_KEY no servidor."
+          : r.status === 403
+            ? "A API Key do Bunny não tem permissão para criar vídeos nesta Video Library."
+            : r.status === 404
+              ? "A Video Library configurada não foi encontrada no Bunny. Confira BUNNY_LIBRARY_ID."
+              : `Bunny recusou a criação do vídeo (HTTP ${r.status}).`;
+        return res.status(502).json({ error });
+      }
+      const video = (await r.json()) as any;
+      const guid = String(video?.guid || "").trim();
+      if (!guid) {
+        console.error(`[Bunny create-video] resposta sem guid library=${lib.libraryId}`);
+        return res.status(502).json({ error: "O Bunny não devolveu o identificador do vídeo." });
+      }
+      // Arquivos grandes podem levar mais de uma hora. A assinatura TUS fica
+      // válida por 24h, sem expor a chave da library ao navegador.
+      const expiration = Math.floor(Date.now() / 1000) + 86400;
       const { createHash } = await import("crypto");
       const signature = createHash("sha256").update(lib.libraryId + lib.apiKey + expiration + guid).digest("hex");
       return res.json({ guid, libraryId: lib.libraryId, signature, expiration });

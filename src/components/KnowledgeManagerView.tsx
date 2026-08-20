@@ -583,25 +583,37 @@ export default function KnowledgeManagerView() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title: nome }),
       });
-      const cred = await r.json();
-      if (!r.ok) throw new Error('Não foi possível preparar o envio do vídeo.');
+      const resposta = await r.text();
+      let cred: any = {};
+      try { cred = resposta ? JSON.parse(resposta) : {}; } catch { /* servidor pode ter devolvido HTML */ }
+      if (!r.ok) throw new Error(cred.error || `Não foi possível preparar o envio do vídeo (HTTP ${r.status}).`);
+      if (!cred.guid || !cred.libraryId || !cred.signature || !cred.expiration) {
+        throw new Error('O servidor não devolveu as credenciais completas do Bunny.');
+      }
       const tus = await import('tus-js-client');
       await new Promise<void>((resolve, reject) => {
         const up = new tus.Upload(upFile as File, {
           endpoint: 'https://video.bunnycdn.com/tusupload',
-          retryDelays: [0, 3000, 5000, 10000, 20000],
+          retryDelays: [0, 3000, 5000, 10000, 20000, 30000, 60000],
+          storeFingerprintForResuming: true,
+          removeFingerprintOnSuccess: true,
           headers: {
             AuthorizationSignature: cred.signature,
             AuthorizationExpire: String(cred.expiration),
             LibraryId: String(cred.libraryId),
             VideoId: cred.guid,
           },
-          metadata: { filetype: (upFile as File).type, title: nome },
+          metadata: { filetype: (upFile as File).type || 'video/mp4', title: nome },
           onError: (e: any) => reject(e),
           onProgress: (sent: number, total: number) => setUpProgress(Math.round((sent / total) * 100)),
           onSuccess: () => resolve(),
         });
-        up.start();
+        void up.findPreviousUploads()
+          .then((previous) => {
+            if (previous.length > 0) up.resumeFromPreviousUpload(previous[0]);
+            up.start();
+          })
+          .catch(reject);
       });
       setUpBunny({ guid: cred.guid, libraryId: String(cred.libraryId) });
       setUpProgress(100);
