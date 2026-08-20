@@ -570,6 +570,7 @@ export default function KnowledgeManagerView() {
   const [upProgress, setUpProgress] = useState<number | null>(null);
   const [upBunny, setUpBunny] = useState<{ guid: string; libraryId: string } | null>(null);
   const [upErro, setUpErro] = useState('');
+  const uploadAreaRef = useRef<HTMLDivElement>(null);
 
   const uploadParaBunny = async () => {
     if (!upFile) { setUpErro('Escolha um arquivo de vídeo.'); return; }
@@ -1744,7 +1745,17 @@ export default function KnowledgeManagerView() {
                 placeholder="Título do vídeo (ou use o nome do arquivo)"
                 className="w-full px-4 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
               />
-              <div className="flex items-center gap-2 flex-wrap">
+              <div ref={uploadAreaRef} className="flex items-center gap-2 flex-wrap [&>input[type=file]]:sr-only">
+                <button
+                  type="button"
+                  onClick={() => uploadAreaRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
+                  className="px-4 py-2 rounded-lg text-sm font-bold border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 cursor-pointer"
+                >
+                  Selecionar vídeo
+                </button>
+                <span className="text-sm text-gray-600 truncate max-w-[420px]">
+                  {upFile ? upFile.name : 'Nenhum arquivo selecionado'}
+                </span>
                 <input type="file" accept="video/*" onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpBunny(null); setUpProgress(null); setUpErro(''); }} className="text-sm" />
                 <button type="button" onClick={uploadParaBunny} title="Enviar este arquivo para o Bunny" disabled={upProgress !== null && upProgress < 100} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
                   {upProgress !== null && upProgress < 100 ? `Enviando ${upProgress}%` : (upBunny ? 'Enviado ✓' : 'Enviar vídeo')}
