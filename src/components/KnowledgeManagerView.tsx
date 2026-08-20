@@ -227,6 +227,7 @@ interface SortableVideoRowProps {
   isReprocessing: string | null;
   parseTimeToSeconds: (timeStr: string) => number;
   handleRegenerateIndex: (item: KnowledgeEntry) => void;
+  handleRetryProcessing: (item: KnowledgeEntry) => void;
   setModalConfig: React.Dispatch<React.SetStateAction<ModalConfig>>;
   setExpandedId: (id: string | null) => void;
   setSeekTime: (time: number) => void;
@@ -237,7 +238,7 @@ interface SortableVideoRowProps {
 
 function SortableVideoRow({
   item, items, expandedId, seekTime, isReprocessing,
-  parseTimeToSeconds, handleRegenerateIndex,
+  parseTimeToSeconds, handleRegenerateIndex, handleRetryProcessing,
   setModalConfig, setExpandedId, setSeekTime,
   setEditVideoData, setEditPlacements, setEditOriginalIds,
 }: SortableVideoRowProps) {
@@ -311,6 +312,38 @@ function SortableVideoRow({
                       ? 'Transcrição ✓'
                       : 'Importar Transcrição'}
                 </button>
+              </div>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {item.transcricaoErro ? (
+                  <>
+                    <span
+                      className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"
+                      title={item.transcricaoErro.mensagem || 'Falha no processamento automático'}
+                    >
+                      Falha no processamento
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRetryProcessing(item)}
+                      disabled={isReprocessing === item.id}
+                      className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full hover:bg-blue-100 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isReprocessing === item.id ? 'Refazendo...' : 'Refazer processamento'}
+                    </button>
+                  </>
+                ) : item.summary && item.summary.length > 0 ? (
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                    Processamento concluído
+                  </span>
+                ) : item.rawTranscript ? (
+                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                    Transcript salvo · índice pendente
+                  </span>
+                ) : item.bunnyVideoId ? (
+                  <span className="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full">
+                    Aguardando processamento
+                  </span>
+                ) : null}
               </div>
               {((item.associatedTools && item.associatedTools.length > 0) || (item.associatedAnalyses && item.associatedAnalyses.length > 0)) && (
                 <div className="flex flex-wrap gap-1 mt-2">
@@ -623,7 +656,7 @@ export default function KnowledgeManagerView() {
       setUpProgress(null);
     }
   };
-  const processUploadedVideoAutomatically = async (bunnyVideoId: string, title: string) => {
+  const processUploadedVideoAutomatically = async (bunnyVideoId: string) => {
     try {
       const user = auth.currentUser;
       const token = user ? await user.getIdToken() : '';
@@ -635,13 +668,25 @@ export default function KnowledgeManagerView() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
       await fetchItems();
-      alert(`✅ Processamento automático concluído para “${title}”.\n\nTranscript, legenda em português e índice foram gerados.`);
+      return true;
     } catch (error: any) {
       console.error('[processUploadedVideoAutomatically]', error);
-      alert(`⚠️ O vídeo foi salvo, mas o processamento automático ainda não terminou.\n\n${error?.message || 'Erro desconhecido'}\n\nO botão de transcripts faltantes pode retomar sem cobrar novamente etapas já concluídas.`);
+      // O servidor persiste transcricaoErro. Recarregar a lista transforma a
+      // falha em status no vídeo, sem interromper o consultor com alertas.
+      await fetchItems();
+      return false;
     }
   };
   const [isReprocessing, setIsReprocessing] = useState<string | null>(null);
+  const handleRetryProcessing = async (item: KnowledgeEntry) => {
+    if (!item.id || !item.bunnyVideoId) return;
+    setIsReprocessing(item.id);
+    try {
+      await processUploadedVideoAutomatically(item.bunnyVideoId);
+    } finally {
+      setIsReprocessing(null);
+    }
+  };
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
   const [isAnalysesDropdownOpen, setIsAnalysesDropdownOpen] = useState(false);
 
@@ -1213,7 +1258,7 @@ export default function KnowledgeManagerView() {
 
       // Inicia automaticamente as três etapas no servidor. Não bloqueia o fechamento
       // do formulário; o servidor aguarda a codificação do Bunny e atualiza os placements.
-      void processUploadedVideoAutomatically(upBunny.guid, title);
+      void processUploadedVideoAutomatically(upBunny.guid);
 
       setFormData(emptyFormData);
       setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
@@ -1574,68 +1619,6 @@ export default function KnowledgeManagerView() {
           <p className="text-[#666] mt-1 text-sm">Gerencie seus vídeos e recursos educacionais.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleBulkImportTranscripts}
-            disabled={bulkProgress?.running}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-purple-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Transcreve vídeos novos, publica legenda em português e salva o transcript completo"
-          >
-            {bulkProgress?.running && bulkProgress.kind === 'transcript' ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Processando {bulkProgress.done + bulkProgress.failed + 1}/{bulkProgress.total}…
-              </>
-            ) : (
-              <>
-                <Download size={18} /> Importar todos transcripts faltantes
-              </>
-            )}
-          </button>
-          {(() => {
-            // Conta vídeos únicos (por sourceUrl) que precisam de índice.
-            // Se QUALQUER placement irmã já tem summary, considera o vídeo todo pronto.
-            const sourceUrlsComSummary = new Set<string>();
-            for (const it of items) {
-              if ((it.summary?.length || 0) > 0 && it.sourceUrl) {
-                sourceUrlsComSummary.add(it.sourceUrl);
-              }
-            }
-            const seenUrls = new Set<string>();
-            let pendingCount = 0;
-            for (const it of items) {
-              if (!it.sourceUrl) continue;
-              if (sourceUrlsComSummary.has(it.sourceUrl)) continue;
-              const hasRaw = it.rawTranscript && it.rawTranscript.trim().length > 0;
-              if (!hasRaw) continue;
-              if (!seenUrls.has(it.sourceUrl)) {
-                seenUrls.add(it.sourceUrl);
-                pendingCount++;
-              }
-            }
-            const noPending = pendingCount === 0 && !(bulkProgress?.running && bulkProgress.kind === 'index');
-            return (
-              <button
-                onClick={handleBulkGenerateIndexes}
-                disabled={bulkProgress?.running || noPending}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-[4px] font-bold hover:bg-indigo-700 transition-all border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                title="Só roda IA nos vídeos que têm transcript mas não têm índice. Já-indexados são puladas."
-              >
-                {bulkProgress?.running && bulkProgress.kind === 'index' ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Gerando índice {bulkProgress.done + bulkProgress.failed + 1} de {bulkProgress.total} pendentes…
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={18} />
-                    {pendingCount === 0
-                      ? 'Todos com índice ✓'
-                      : `Gerar índice (${pendingCount} ${pendingCount === 1 ? 'pendente' : 'pendentes'})`}
-                  </>
-                )}
-              </button>
-            );
-          })()}
           <button
             onClick={() => { setIsCreatingCourse(true); setIsAdding(false); }}
             className="flex items-center gap-2 bg-white text-blue-700 border border-blue-600 px-4 py-2 rounded-[4px] font-bold hover:bg-blue-50 transition-all cursor-pointer"
@@ -2119,6 +2102,7 @@ export default function KnowledgeManagerView() {
                               isReprocessing={isReprocessing}
                               parseTimeToSeconds={parseTimeToSeconds}
                               handleRegenerateIndex={handleRegenerateIndex}
+                              handleRetryProcessing={handleRetryProcessing}
                               setModalConfig={setModalConfig}
                               setExpandedId={setExpandedId}
                               setSeekTime={setSeekTime}

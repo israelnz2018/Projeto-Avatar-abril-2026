@@ -1979,7 +1979,7 @@ async function startServer() {
       if (!isAdmin && !belongsToTenant) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
 
       const lib = await bunnyLibraryDoConsultor(consultorId);
-      if (!lib) return res.status(503).json({ error: "Biblioteca Bunny do consultor não configurada." });
+      if (!lib) throw new Error("Biblioteca de vídeo do consultor não configurada.");
       const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${videoId}`;
 
       const saved = videoDocs.docs.map(doc => doc.data() as any);
@@ -2007,22 +2007,45 @@ async function startServer() {
 
       if (!rawTranscript) {
         const deepinfraKey = process.env.DEEPINFRA_API_KEY;
-        if (!deepinfraKey) return res.status(503).json({ error: "DEEPINFRA_API_KEY não configurada no servidor." });
+        if (!deepinfraKey) throw new Error("Serviço de transcrição não configurado no servidor.");
 
         // O upload TUS termina antes da codificação. Aguarda até 10 minutos pelo MP4.
         let mediaUrl = "";
         for (let attempt = 0; attempt < 60 && !mediaUrl; attempt++) {
-          const playResponse = await fetch(`${base}/play`);
+          const playResponse = await fetch(`${base}/play`, {
+            headers: { AccessKey: lib.apiKey, Accept: "application/json" },
+          });
           if (playResponse.ok) {
             const play = await playResponse.json() as any;
             mediaUrl = String(play.fallbackUrl || play.originalUrl || "");
+            // O Bunny devolve fallbackUrl como prefixo (ex.: .../play_). A
+            // resolução precisa ser acrescentada antes do download.
+            if (mediaUrl.endsWith("/play_")) {
+              const resolutions = String(play.video?.availableResolutions || "")
+                .split(",")
+                .map((value: string) => Number.parseInt(value, 10))
+                .filter((value: number) => Number.isFinite(value));
+              const sourceHeight = Number(play.video?.height || 0);
+              const usable = resolutions.filter((value: number) => !sourceHeight || value <= sourceHeight);
+              // Para transcrição, a menor resolução preserva o áudio e reduz muito
+              // o download/memória do servidor (um vídeo 1080p pode ter centenas de MB).
+              const candidates = usable.length > 0 ? usable : resolutions;
+              const resolution = candidates.length > 0 ? Math.min(...candidates) : 0;
+              mediaUrl = resolution > 0 ? `${mediaUrl}${resolution}p.mp4` : "";
+            }
           }
           if (!mediaUrl) await new Promise(resolve => setTimeout(resolve, 10_000));
         }
         if (!mediaUrl) throw new Error("Bunny não disponibilizou o arquivo MP4 dentro de 10 minutos.");
 
         // DeepInfra (diferente do Groq) não aceita "url" — precisa do arquivo em si no form.
-        const mediaResponse = await fetch(mediaUrl);
+        const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
+        const mediaResponse = await fetch(mediaUrl, {
+          headers: {
+            Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8",
+            ...(origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {}),
+          },
+        });
         if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do Bunny: HTTP ${mediaResponse.status}`);
         const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
 

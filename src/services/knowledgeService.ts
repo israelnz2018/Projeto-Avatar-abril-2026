@@ -30,6 +30,7 @@ export interface KnowledgeEntry {
   bunnyThumbnailUrl?: string;
   /** Identificador estável da etapa do Consultor Comece por aqui. */
   onboardingStep?: string;
+  transcricaoErro?: { mensagem?: string; ocorridoEm?: string };
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';
