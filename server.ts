@@ -1967,6 +1967,11 @@ async function startServer() {
     if (!/^[0-9a-f-]{36}$/i.test(videoId)) return res.status(400).json({ error: "Vídeo Bunny inválido." });
 
     let videoDocs: admin.firestore.QuerySnapshot | null = null;
+    // Declarados FORA do try: o catch abaixo usa os dois pra registrar a falha.
+    // Quando viviam dentro do try, o catch estourava ReferenceError antes de gravar
+    // qualquer coisa — o vídeo ficava preso em "processando" e nenhum erro aparecia.
+    const pipelineStatus: Record<string, any> = {};
+    let etapaAtual: "processamentoVideo" | "transcricao" | "indice" = "processamentoVideo";
     try {
       // Confirma que o GUID pertence à base deste consultor antes de usar suas credenciais.
       videoDocs = await adminFirestore().collection("knowledge_base")
@@ -1988,14 +1993,10 @@ async function startServer() {
 
       // O consultor acompanha cada etapa sem precisar interpretar um erro genérico.
       // O status é salvo nos placements irmãos para todos os cursos exibirem a mesma informação.
-      const pipelineStatus: Record<string, any> = {
-        processamentoVideo: rawTranscript ? "concluido" : "processando",
-        transcricao: rawTranscript ? "concluido" : "aguardando",
-        indice: savedSummary ? "concluido" : rawTranscript ? "processando" : "aguardando",
-      };
-      let etapaAtual: "processamentoVideo" | "transcricao" | "indice" = rawTranscript
-        ? "indice"
-        : "processamentoVideo";
+      pipelineStatus.processamentoVideo = rawTranscript ? "concluido" : "processando";
+      pipelineStatus.transcricao = rawTranscript ? "concluido" : "aguardando";
+      pipelineStatus.indice = savedSummary ? "concluido" : rawTranscript ? "processando" : "aguardando";
+      etapaAtual = rawTranscript ? "indice" : "processamentoVideo";
       const salvarPipelineStatus = async (limparErro = false) => {
         pipelineStatus.atualizadoEm = new Date().toISOString();
         const batch = adminFirestore().batch();
@@ -2004,6 +2005,14 @@ async function startServer() {
           ...(limparErro ? { transcricaoErro: admin.firestore.FieldValue.delete() } : {}),
         }));
         await batch.commit();
+      };
+
+      // Etapas longas (transcrição e índice) não emitem progresso. Sem uma batida
+      // periódica o atualizadoEm congela e a tela acusa "travado" no meio de um
+      // processamento saudável. Só renova o carimbo de hora; não muda etapa.
+      const comSinalDeVida = async <T,>(tarefa: Promise<T>): Promise<T> => {
+        const batida = setInterval(() => { void salvarPipelineStatus().catch(() => {}); }, 60_000);
+        try { return await tarefa; } finally { clearInterval(batida); }
       };
 
       // Thumbnail é independente do transcript — busca 1x e propaga pra todos os placements.
@@ -2057,7 +2066,14 @@ async function startServer() {
               mediaUrl = resolution > 0 ? `${mediaUrl}${resolution}p.mp4` : "";
             }
           }
-          if (!mediaUrl) await new Promise(resolve => setTimeout(resolve, 10_000));
+          if (!mediaUrl) {
+            // Sinal de vida a cada 30s. Sem isso o atualizadoEm ficava parado
+            // durante toda a codificação e a tela marcava como "travado" um vídeo
+            // que está processando normalmente — e um Refazer ali dispararia uma
+            // segunda transcrição paga do mesmo vídeo.
+            if (attempt % 3 === 2) await salvarPipelineStatus().catch(() => {});
+            await new Promise(resolve => setTimeout(resolve, 10_000));
+          }
         }
         if (!mediaUrl) throw new Error("Bunny não disponibilizou o arquivo MP4 dentro de 10 minutos.");
 
@@ -2087,14 +2103,14 @@ async function startServer() {
         form.append("temperature", "0");
         form.append("prompt", "Aula técnica em português sobre Lean Six Sigma, DMAIC, Minitab, capabilidade, MSA, CEP e gestão de projetos de melhoria.");
 
-        const deepinfraResponse = await fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
+        const deepinfraResponse = await comSinalDeVida(fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
           method: "POST",
           headers: { Authorization: `Bearer ${deepinfraKey}` },
           body: form,
           // Uma chamada presa não pode deixar o vídeo indefinidamente em
           // "Transcrição — Processando". O catch persiste Falha + Refazer.
           signal: AbortSignal.timeout(300_000),
-        });
+        }));
         if (!deepinfraResponse.ok) {
           const detail = await deepinfraResponse.text().catch(() => "");
           if (deepinfraResponse.status === 402) {
@@ -2170,7 +2186,7 @@ async function startServer() {
           180_000,
         )),
       ]);
-      const { summary, transcript: indiceTranscript } = await indiceComTimeout;
+      const { summary, transcript: indiceTranscript } = await comSinalDeVida(indiceComTimeout);
       const indexBatch = adminFirestore().batch();
       videoDocs.docs.forEach(doc => indexBatch.update(doc.ref, {
         rawTranscript,

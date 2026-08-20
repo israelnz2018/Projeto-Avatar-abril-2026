@@ -984,15 +984,17 @@ export default function KnowledgeManagerView() {
           const errBody = await res.json().catch(() => ({}));
           throw new Error(errBody.error || `HTTP ${res.status}`);
         }
-        const { transcript: rawTranscript } = await res.json();
+        const { transcript: rawTranscript, summary } = await res.json();
         if (!rawTranscript || rawTranscript.trim().length === 0) {
           throw new Error('Transcript vazio retornado pela transcrição');
         }
 
+        // O servidor já gravou rawTranscript, transcript e summary nos placements.
+        // Só sincroniza os irmãos por sourceUrl com o que ele devolveu — NUNCA
+        // sobrescrever com summary vazio, que apagava o índice recém-gerado.
         await syncSiblingsBySourceUrl(item.sourceUrl, {
           rawTranscript,
-          transcript: rawTranscript,
-          summary: []
+          ...(Array.isArray(summary) && summary.length ? { summary } : {}),
         });
 
         done++;
@@ -1204,8 +1206,10 @@ export default function KnowledgeManagerView() {
     return atualizados;
   };
 
-  const fetchItems = async () => {
-    setLoading(true);
+  // silencioso = releitura de fundo (polling do processamento). Não liga o "loading"
+  // pra não trocar a lista inteira pelo "Carregando recursos..." a cada ciclo.
+  const fetchItems = async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
     const data = await getAllKnowledge(consultorId);
     const dataOrdenada = await normalizarOrdemInicialPlaylists(data);
     setItems(dataOrdenada);
@@ -1235,9 +1239,38 @@ export default function KnowledgeManagerView() {
       });
       return next;
     });
-    
-    setLoading(false);
+
+    if (!silencioso) setLoading(false);
   };
+
+  // ===== Acompanhamento automático do processamento =====
+  // O servidor grava cada etapa (vídeo → transcrição → índice) em pipelineStatus,
+  // mas a tela lia os dados uma única vez, no mount: o consultor via o status
+  // congelado e precisava recarregar a página pra descobrir que já tinha acabado.
+  // Enquanto houver vídeo em andamento, relê em silêncio a cada 15s e para sozinho
+  // quando as três etapas concluem.
+  const JANELA_PROCESSAMENTO_MS = 30 * 60 * 1000;
+  const temVideoProcessando = useMemo(() => items.some((item) => {
+    if (!item.bunnyVideoId) return false;
+    const ps = item.pipelineStatus;
+    const referencia = ps?.atualizadoEm
+      ? Date.parse(ps.atualizadoEm)
+      : (item.timestamp instanceof Date ? item.timestamp.getTime() : 0);
+    // Vídeo antigo travado não entra em loop eterno de polling — pra esse caso
+    // o consultor tem o "Refazer" em cada vídeo.
+    if (!referencia || Date.now() - referencia > JANELA_PROCESSAMENTO_MS) return false;
+    if (ps) {
+      return [ps.processamentoVideo, ps.transcricao, ps.indice].some((etapa) => etapa === 'processando');
+    }
+    // Recém-enviado: o servidor ainda não gravou a primeira etapa.
+    return !(item.summary?.length);
+  }), [items]);
+
+  useEffect(() => {
+    if (!temVideoProcessando) return;
+    const timer = setInterval(() => { void fetchItems(true); }, 15_000);
+    return () => clearInterval(timer);
+  }, [temVideoProcessando]);
 
   const toggleTool = (toolId: string) => {
     setFormData(prev => ({
