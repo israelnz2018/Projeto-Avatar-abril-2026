@@ -1488,6 +1488,14 @@ export default function KnowledgeManagerView() {
     .filter((nome) => !searchTerm || nome.toLowerCase().includes(searchTerm.toLowerCase()))
     .forEach((nome) => { groupedItemsMap[nome] = {}; });
 
+  // As três trilhas de orientação são áreas especiais, mas devem aparecer
+  // sempre na Base de Conhecimento do consultor — inclusive antes de haver
+  // vídeos cadastrados nessa trilha.
+  introCourseOptions
+    .filter((nome) => !groupedItemsMap[nome])
+    .filter((nome) => !searchTerm || nome.toLowerCase().includes(searchTerm.toLowerCase()))
+    .forEach((nome) => { groupedItemsMap[nome] = {}; });
+
   // Convert to sorted arrays — cursos ordenados por nome com numeric:true,
   // pra que prefixos numéricos do nome ("1-", "2-", "10-") sejam respeitados.
   const groupedItems = Object.entries(groupedItemsMap)
@@ -1495,6 +1503,7 @@ export default function KnowledgeManagerView() {
       const introA = isIntroCourse(a);
       const introB = isIntroCourse(b);
       if (introA !== introB) return introA ? -1 : 1;
+      if (introA && introB) return introCourseOptions.indexOf(a) - introCourseOptions.indexOf(b);
       return a.localeCompare(b, 'pt-BR', { numeric: true });
     })
     .map(([courseName, playlistsMap]) => {
