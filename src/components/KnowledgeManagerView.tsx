@@ -1746,10 +1746,12 @@ export default function KnowledgeManagerView() {
               />
               <div className="flex items-center gap-2 flex-wrap">
                 <input type="file" accept="video/*" onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpBunny(null); setUpProgress(null); setUpErro(''); }} className="text-sm" />
-                <button type="button" onClick={uploadParaBunny} disabled={!upFile || (upProgress !== null && upProgress < 100)} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                <button type="button" onClick={uploadParaBunny} title="Enviar este arquivo para o Bunny" disabled={upProgress !== null && upProgress < 100} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
                   {upProgress !== null && upProgress < 100 ? `Enviando ${upProgress}%` : (upBunny ? 'Enviado ✓' : 'Enviar vídeo')}
                 </button>
               </div>
+              <div className="text-xs text-gray-500">1) Envie o arquivo para o Bunny  2) Escolha o curso e a playlist  3) Clique em Salvar Vídeo</div>
+              {!upFile && !upErro && <div className="text-xs text-gray-500">Selecione um arquivo de vídeo antes de enviar.</div>}
               {upProgress !== null && (
                 <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div className="bg-emerald-500 h-2 transition-all" style={{ width: `${upProgress}%` }} />
