@@ -42,6 +42,12 @@ export interface KnowledgeEntry {
       ocorridoEm?: string;
     };
   };
+  /** Metadados para comprovar a persistência da transcrição completa. */
+  transcriptMeta?: {
+    segmentCount?: number;
+    characterCount?: number;
+    savedAt?: string;
+  };
 }
 
 export const KNOWLEDGE_COLLECTION = 'knowledge_base';

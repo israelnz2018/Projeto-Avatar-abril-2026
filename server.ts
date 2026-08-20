@@ -2118,9 +2118,28 @@ async function startServer() {
             : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
           return `[${time}] ${String(segment.text).trim()}`;
         }).join("\n");
+        if (!rawTranscript.trim()) throw new Error("A transcrição completa retornou vazia.");
+        const transcriptMeta = {
+          segmentCount: segments.length,
+          characterCount: rawTranscript.length,
+          savedAt: new Date().toISOString(),
+        };
         const vtt = `WEBVTT\n\n${segments.map((segment: any) =>
           `${stamp(segment.start)} --> ${stamp(Math.max(Number(segment.end || 0), Number(segment.start || 0) + 0.5))}\n${String(segment.text).replace(/-->/g, "→").trim()}`
         ).join("\n\n")}\n`;
+
+        // Salva a transcrição completa antes de legenda e índice. Assim, uma falha
+        // posterior não perde o texto nem cobra novamente a transcrição no retry.
+        const transcriptBatch = adminFirestore().batch();
+        videoDocs.docs.forEach(doc => transcriptBatch.update(doc.ref, { rawTranscript, transcriptMeta }));
+        await transcriptBatch.commit();
+
+        // Confirma que o Firestore recebeu exatamente o texto integral montado a
+        // partir de todos os segmentos, sem truncamento silencioso.
+        const persistedTranscript = String((await videoDocs.docs[0].ref.get()).data()?.rawTranscript || "");
+        if (persistedTranscript !== rawTranscript) {
+          throw new Error("A transcrição completa não foi persistida integralmente.");
+        }
 
         const captionResponse = await fetch(`${base}/captions/pt`, {
           method: "POST",
@@ -2128,11 +2147,6 @@ async function startServer() {
           body: JSON.stringify({ srclang: "pt", label: "Português", captionsFile: Buffer.from(vtt, "utf8").toString("base64") }),
         });
         if (!captionResponse.ok) throw new Error(`Bunny caption HTTP ${captionResponse.status}`);
-
-        // Persiste o transcript antes do índice: uma repetição nunca cobra Groq novamente.
-        const transcriptBatch = adminFirestore().batch();
-        videoDocs.docs.forEach(doc => transcriptBatch.update(doc.ref, { rawTranscript }));
-        await transcriptBatch.commit();
       }
 
       pipelineStatus.processamentoVideo = "concluido";
