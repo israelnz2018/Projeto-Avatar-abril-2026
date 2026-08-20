@@ -250,11 +250,13 @@ function PipelineStageRow({
   status,
   onRetry,
   retrying,
+  retryWhenProcessing,
 }: {
   label: string;
   status: PipelineStageStatus;
   onRetry?: () => void;
   retrying?: boolean;
+  retryWhenProcessing?: boolean;
 }) {
   const colors = {
     aguardando: 'text-slate-500',
@@ -266,7 +268,7 @@ function PipelineStageRow({
     <div className="flex items-center gap-2 text-[11px] leading-5">
       <span className="w-[132px] text-slate-600">{label}</span>
       <span className={cn('font-bold', colors)}>{PIPELINE_STATUS_LABEL[status]}</span>
-      {status === 'erro' && onRetry && (
+      {(status === 'erro' || (status === 'processando' && retryWhenProcessing)) && onRetry && (
         <button
           type="button"
           onClick={onRetry}
@@ -326,6 +328,9 @@ function SortableVideoRow({
   const pipelineCompleto = statusVideo === 'concluido'
     && statusTranscricao === 'concluido'
     && statusIndice === 'concluido';
+  const ultimoStatus = pipeline.atualizadoEm ? Date.parse(pipeline.atualizadoEm) : 0;
+  const pipelineTravado = [statusVideo, statusTranscricao, statusIndice].some(status => status === 'processando')
+    && (!ultimoStatus || Date.now() - ultimoStatus > 5 * 60 * 1000);
   return (
     <React.Fragment>
       <tr ref={setNodeRef} style={style} className="border-b border-[#eee] last:border-0 hover:bg-gray-50 transition-colors group/row">
@@ -350,28 +355,6 @@ function SortableVideoRow({
             </div>
             <div>
               <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
-              {(!item.bunnyVideoId || pipelineCompleto) && (
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <button
-                    onClick={() => setModalConfig({ isOpen: true, type: 'importTranscript', targetId: item.id })}
-                    disabled={isReprocessing === item.id}
-                    className={cn(
-                      "text-[11px] flex items-center gap-1 px-2.5 py-1 rounded-full font-bold border transition-colors disabled:opacity-50 cursor-pointer",
-                      item.rawTranscript
-                        ? "bg-teal-600 border-teal-600 text-white hover:bg-teal-700"
-                        : "bg-white border-blue-500 text-blue-600 hover:bg-blue-50"
-                    )}
-                    title={item.rawTranscript ? 'Ver/editar transcrição e reprocessar' : 'Colar transcrição do vídeo — a IA gera índice e resumo automaticamente'}
-                  >
-                    <ListVideo size={12} />
-                    {isReprocessing === item.id
-                      ? 'Processando...'
-                      : item.rawTranscript
-                        ? 'Transcrição ✓'
-                        : 'Importar Transcrição'}
-                  </button>
-                </div>
-              )}
               {item.bunnyVideoId && (
                 <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2">
                   <PipelineStageRow
@@ -379,18 +362,21 @@ function SortableVideoRow({
                     status={statusVideo}
                     onRetry={() => handleRetryProcessing(item)}
                     retrying={isReprocessing === item.id}
+                    retryWhenProcessing={pipelineTravado && statusVideo === 'processando'}
                   />
                   <PipelineStageRow
                     label="Transcrição"
                     status={statusTranscricao}
                     onRetry={() => handleRetryProcessing(item)}
                     retrying={isReprocessing === item.id}
+                    retryWhenProcessing={pipelineTravado && statusTranscricao === 'processando'}
                   />
                   <PipelineStageRow
                     label="Índice e resumo"
                     status={statusIndice}
                     onRetry={() => handleRetryProcessing(item)}
                     retrying={isReprocessing === item.id}
+                    retryWhenProcessing={pipelineTravado && statusIndice === 'processando'}
                   />
                   {item.transcricaoErro?.mensagem && (
                     <p className="mt-1 max-w-[420px] text-[10px] leading-4 text-red-600" title={item.transcricaoErro.mensagem}>
@@ -398,7 +384,9 @@ function SortableVideoRow({
                     </p>
                   )}
                   {!pipelineCompleto && !item.transcricaoErro && (
-                    <p className="mt-1 text-[10px] leading-4 text-slate-500">A transcrição será importada automaticamente.</p>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                      {pipelineTravado ? 'O processamento parece travado. Use Refazer processamento.' : 'A transcrição será importada automaticamente.'}
+                    </p>
                   )}
                 </div>
               )}

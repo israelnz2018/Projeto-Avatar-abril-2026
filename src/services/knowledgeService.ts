@@ -36,6 +36,7 @@ export interface KnowledgeEntry {
     processamentoVideo?: 'aguardando' | 'processando' | 'concluido' | 'erro';
     transcricao?: 'aguardando' | 'processando' | 'concluido' | 'erro';
     indice?: 'aguardando' | 'processando' | 'concluido' | 'erro';
+    atualizadoEm?: string;
     erro?: {
       etapa?: 'processamentoVideo' | 'transcricao' | 'indice';
       mensagem?: string;

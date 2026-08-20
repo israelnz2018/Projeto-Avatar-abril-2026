@@ -1997,6 +1997,7 @@ async function startServer() {
         ? "indice"
         : "processamentoVideo";
       const salvarPipelineStatus = async (limparErro = false) => {
+        pipelineStatus.atualizadoEm = new Date().toISOString();
         const batch = adminFirestore().batch();
         videoDocs!.docs.forEach(doc => batch.update(doc.ref, {
           pipelineStatus: { ...pipelineStatus },
@@ -2072,6 +2073,7 @@ async function startServer() {
             Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8",
             ...(origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {}),
           },
+          signal: AbortSignal.timeout(120_000),
         });
         if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do Bunny: HTTP ${mediaResponse.status}`);
         const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
@@ -2081,7 +2083,7 @@ async function startServer() {
         form.append("model", "openai/whisper-large-v3-turbo");
         form.append("language", "pt");
         form.append("response_format", "verbose_json");
-        form.append("timestamp_granularities[]", "segment");
+        form.append("timestamp_granularities", "segment");
         form.append("temperature", "0");
         form.append("prompt", "Aula técnica em português sobre Lean Six Sigma, DMAIC, Minitab, capabilidade, MSA, CEP e gestão de projetos de melhoria.");
 
@@ -2089,9 +2091,15 @@ async function startServer() {
           method: "POST",
           headers: { Authorization: `Bearer ${deepinfraKey}` },
           body: form,
+          // Uma chamada presa não pode deixar o vídeo indefinidamente em
+          // "Transcrição — Processando". O catch persiste Falha + Refazer.
+          signal: AbortSignal.timeout(300_000),
         });
         if (!deepinfraResponse.ok) {
           const detail = await deepinfraResponse.text().catch(() => "");
+          if (deepinfraResponse.status === 402) {
+            throw new Error("Serviço de transcrição sem saldo positivo. Adicione saldo para processar este vídeo.");
+          }
           throw new Error(`DeepInfra HTTP ${deepinfraResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
         }
         const transcription = await deepinfraResponse.json() as any;
@@ -2155,7 +2163,14 @@ async function startServer() {
       etapaAtual = "indice";
       await salvarPipelineStatus();
 
-      const { summary, transcript: indiceTranscript } = await gerarIndicePorIA(rawTranscript);
+      const indiceComTimeout = Promise.race([
+        gerarIndicePorIA(rawTranscript),
+        new Promise<never>((_, reject) => setTimeout(
+          () => reject(new Error("O índice e o resumo demoraram mais que 3 minutos.")),
+          180_000,
+        )),
+      ]);
+      const { summary, transcript: indiceTranscript } = await indiceComTimeout;
       const indexBatch = adminFirestore().batch();
       videoDocs.docs.forEach(doc => indexBatch.update(doc.ref, {
         rawTranscript,
@@ -2182,6 +2197,7 @@ async function startServer() {
         .slice(0, 500);
       if (videoDocs && !videoDocs.empty) {
         pipelineStatus[etapaAtual] = "erro";
+        pipelineStatus.atualizadoEm = new Date().toISOString();
         pipelineStatus.erro = {
           etapa: etapaAtual,
           mensagem: errorMessage,
