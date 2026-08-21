@@ -895,8 +895,8 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   if ((escopo === 'rede' || escopo === 'consultor') && !isAdmin && !isConsultor) {
     return <div className="p-8 text-red-600 font-bold">Esta comunidade é exclusiva dos consultores.</div>;
   }
-  if (escopo === 'time' && !isAdmin && !isConsultor && !isCoordenador) {
-    return <div className="p-8 text-red-600 font-bold">Esta comunidade pertence à Área do Coordenador.</div>;
+  if (escopo === 'time' && !isAdmin && !isConsultor && !isCoordenador && !empresaId) {
+    return <div className="p-8 text-red-600 font-bold">Você ainda não está vinculado a um coordenador.</div>;
   }
 
   return (

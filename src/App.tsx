@@ -261,6 +261,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Projetos', path: '/projects', icon: ClipboardList },
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
+        { name: 'Comunidade', path: '/comunidade-aluno', icon: Users },
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
       ],
     }] : []),
