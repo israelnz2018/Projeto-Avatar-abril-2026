@@ -482,7 +482,9 @@ function SortableVideoRow({
                       <button key={i} onClick={() => setSeekTime(parseTimeToSeconds(s.time))}
                         className="text-left text-sm hover:bg-blue-50 p-2 rounded w-full flex gap-3 transition-colors border border-transparent hover:border-blue-100 group cursor-pointer">
                         <span className="text-blue-600 font-mono font-bold bg-blue-50 px-2 py-0.5 rounded group-hover:bg-blue-100">{s.time}</span>
-                        <span className="text-gray-700 leading-tight">{s.topic}</span>
+                        {/* line-clamp: rede de segurança contra tópicos gerados antes do limite de
+                            tamanho existir no prompt (vídeos já indexados). Novos já saem curtos. */}
+                        <span className="text-gray-700 leading-tight line-clamp-2">{s.topic}</span>
                       </button>
                     ))}
                   </div>

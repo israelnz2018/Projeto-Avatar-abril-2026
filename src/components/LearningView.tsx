@@ -841,7 +841,9 @@ export default function LearningView() {
                                     <span className="text-blue-600 font-mono text-xs font-bold bg-blue-50 group-hover/point:bg-blue-100 px-2 py-0.5 rounded h-fit transition-colors flex-shrink-0">
                                       {point.time}
                                     </span>
-                                    <p className="text-xs text-gray-700 m-0 leading-relaxed group-hover/point:text-blue-600 transition-colors">
+                                    {/* line-clamp: rede de segurança contra tópicos gerados antes do
+                                        limite de tamanho existir no prompt (vídeos já indexados). */}
+                                    <p className="text-xs text-gray-700 m-0 leading-relaxed group-hover/point:text-blue-600 transition-colors line-clamp-2">
                                       {point.topic}
                                     </p>
                                   </button>

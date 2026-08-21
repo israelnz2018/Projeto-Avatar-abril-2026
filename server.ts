@@ -1905,7 +1905,16 @@ async function startServer() {
     const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
     if (!geminiKey) throw new Error("Gemini API key não configurada para gerar o índice.");
     const ai = new GoogleGenAI({ apiKey: geminiKey });
-    const prompt = `TRANSCRIÇÃO COMPLETA (com tempos):\n${rawTranscript}\n\nCrie um índice clicável e um resumo detalhado. Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"descrição"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
+    const prompt = `TRANSCRIÇÃO COMPLETA (com tempos):\n${rawTranscript}\n\n` +
+      `Crie um ÍNDICE DE CAPÍTULOS no estilo YouTube (aquele que aparece embaixo do vídeo) e um resumo detalhado à parte.\n\n` +
+      `Regras do índice — cada "topic" é um TÍTULO DE CAPÍTULO, não um resumo do que foi dito:\n` +
+      `- Máximo 6 palavras / 40 caracteres.\n` +
+      `- Substantivo ou frase nominal curta (ex: "Cálculo do DPMO", "Exemplo no Minitab"), NUNCA uma frase completa narrando a fala.\n` +
+      `- Sempre em português, mesmo que a transcrição tenha termos em inglês.\n` +
+      `- Sem verbos conjugados narrando terceira pessoa (proibido: "O palestrante explica...", "É demonstrado que...").\n` +
+      `- Um capítulo por virada real de assunto — não um por minuto.\n\n` +
+      `O resumo detalhado ("transcript") é o único lugar com texto mais longo, e fica separado do índice.\n\n` +
+      `Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"título curto"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
     const generated = await ai.models.generateContent({
       model: geminiModel,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -1914,7 +1923,25 @@ async function startServer() {
     const cleaned = String(generated.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
     const parsed = JSON.parse(cleaned);
     if (!Array.isArray(parsed.summary) || !parsed.summary.length) throw new Error("Gemini retornou índice vazio.");
-    return { summary: parsed.summary, transcript: String(parsed.transcript || "") };
+
+    // Garantia no servidor, não só no prompt: a IA às vezes ignora o limite e devolve
+    // uma frase inteira em vez de um título de capítulo. Trunca em palavra inteira
+    // pra o índice nunca virar o "texto imenso" que o prompt tenta evitar.
+    const TOPIC_MAX = 46;
+    const summary = parsed.summary
+      .filter((item: any) => item && typeof item.time === "string" && typeof item.topic === "string" && item.topic.trim())
+      .map((item: any) => {
+        let topic = item.topic.trim().replace(/\s+/g, " ").replace(/[.!?]+$/, "");
+        if (topic.length > TOPIC_MAX) {
+          const corte = topic.slice(0, TOPIC_MAX);
+          const ultimoEspaco = corte.lastIndexOf(" ");
+          topic = `${(ultimoEspaco > 20 ? corte.slice(0, ultimoEspaco) : corte).trim()}…`;
+        }
+        return { time: item.time, topic };
+      });
+    if (!summary.length) throw new Error("Gemini retornou índice vazio.");
+
+    return { summary, transcript: String(parsed.transcript || "") };
   }
 
   // POST /api/gerar-indice — gera índice/resumo a partir de uma transcrição já salva
