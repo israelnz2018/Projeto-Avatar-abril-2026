@@ -163,6 +163,7 @@ const configuracoesAnalises = {
   "Análise Exploratória": [
     { nome: "Análise de variabilidade ➡️ ", subitens: ["Gráfico Sumario", "Análise de outliers"] },
     { nome: "Análise de correlação ➡️ ", subitens: ["Correlação de person", "Matrix de dispersão"] },
+    { nome: "Teste de normalidade" },
     { nome: "Análise de estabilidade" },
     { nome: "Análise de limpeza dos dados" },
     { nome: "Análise de cluster" },
@@ -221,6 +222,7 @@ const configuracoesAnalises = {
   ],
   "Análises Diversas": [
     { nome: "Cálculo de probabilidade" },
+    { nome: "Teste de normalidade" },
   ]
 };
 
@@ -459,16 +461,18 @@ export default function DataAnalysis() {
 
   // Descobre a qual grupo do menu uma análise pertence (o menu tem o grupo em mãos,
   // mas o "Executar" só conhece o nome da análise selecionada).
-  const grupoDaAnalise = (nomeAnalise: string) =>
-    Object.keys(configuracoesAnalises).find((grupo) =>
+  const gruposDaAnalise = (nomeAnalise: string) =>
+    Object.keys(configuracoesAnalises).filter((grupo) =>
       (configuracoesAnalises[grupo as keyof typeof configuracoesAnalises] as any[]).some(
         (item) => item.nome === nomeAnalise || (item.subitens || []).includes(nomeAnalise),
       ),
     );
 
   const isAnalysisLocked = (analysisName: string) => {
-    const grupo = grupoDaAnalise(analysisName);
-    return grupo ? !grupoLiberado(grupo) : false;
+    const grupos = gruposDaAnalise(analysisName);
+    // A análise segue o módulo principal em que aparece. Se existir em mais
+    // de um módulo, basta um deles estar liberado para não bloquear a análise.
+    return grupos.length > 0 ? grupos.every((grupo) => !grupoLiberado(grupo)) : false;
   };
 
   // Vídeos educacionais FIXOS sobre como usar variáveis X e Y na aba Data Analysis.
