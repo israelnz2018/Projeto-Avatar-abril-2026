@@ -3112,13 +3112,15 @@ async function startServer() {
     const nome = String(req.body?.nome || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const profissao = String(req.body?.profissao || "").trim().slice(0, 120);
-    const interesseCurso = String(req.body?.interesseCurso || "").trim().slice(0, 180);
+    const interesseCursos = Array.from(new Set((Array.isArray(req.body?.interesseCursos) ? req.body.interesseCursos : [req.body?.interesseCurso]).map((item: any) => String(item || "").trim()).filter(Boolean))).slice(0, 20);
+    const interesseCurso = interesseCursos.join(", ");
     const whatsapp = String(req.body?.whatsapp || "").trim();
     if (produto !== "capabilidade-processo") return res.status(400).json({ error: "Produto gratuito invÃ¡lido." });
     if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail vÃ¡lido." });
     if (!profissao) return res.status(400).json({ error: "Informe sua profissÃ£o." });
-    if (!interesseCurso) return res.status(400).json({ error: "Escolha um curso ou selecione Nenhum curso." });
+    if (!interesseCursos.length) return res.status(400).json({ error: "Escolha pelo menos um curso ou selecione Nenhum curso." });
+    if (interesseCursos.includes("Nenhum curso") && interesseCursos.length > 1) return res.status(400).json({ error: "Nenhum curso não pode ser combinado com outros cursos." });
 
     const consultorId = "israel";
     const curso = "Capabilidade de Processo";
@@ -3157,7 +3159,7 @@ async function startServer() {
         acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
         projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
         origem: anterior.origem || "landing-capabilidade-gratis", ultimoCadastroGratisEm: agora,
-        profissao, interesseCurso,
+        profissao, interesseCurso, interesseCursos,
         ...(whatsapp ? { whatsapp } : {}),
       };
       if (base.consultorId && !vinculos[base.consultorId]) {
@@ -3167,7 +3169,7 @@ async function startServer() {
       const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
       const preservarPrincipal = !!base.consultorId && String(base.consultorId) !== consultorId;
       await ref.set({
-        uid, email, nome: nome || base.nome || "", profissao, interesseCurso,
+        uid, email, nome: nome || base.nome || "", profissao, interesseCurso, interesseCursos,
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
         ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
