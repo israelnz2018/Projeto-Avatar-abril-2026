@@ -3082,6 +3082,26 @@ async function startServer() {
 
   // DELETE /api/aluno/:uid — remove o aluno do tenant sem apagar a conta Auth,
   // os projetos ou o histórico. O aluno deixa de ter acesso aos cursos deste consultor.
+  // Catálogo público usado pelas landing pages para mostrar os cursos do consultor.
+  // Só retorna nomes de cursos; nenhum conteúdo protegido é exposto.
+  app.get("/api/public/cursos", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado.", cursos: [] });
+    const consultorId = String(req.query?.consultorId || "israel").trim() || "israel";
+    try {
+      const snapshot = await adminFirestore().collection("initiatives").get();
+      const cursos = snapshot.docs
+        .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+        .filter((item: any) => String(item.consultorId || "israel") === consultorId && item.somenteProjeto !== true)
+        .map((item: any) => String(item.name || "").trim())
+        .filter(Boolean)
+        .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
+      return res.json({ cursos: Array.from(new Set(cursos)) });
+    } catch (err: any) {
+      console.error("[GET /api/public/cursos] erro:", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível carregar os cursos.", cursos: [] });
+    }
+  });
+
   // Landing page gratuita do produto Capabilidade de Processo.
   // O endpoint Ã© pÃºblico de propÃ³sito: cria/atualiza o aluno e libera o pacote
   // especÃ­fico sem depender do painel do consultor ou do webhook antigo.
@@ -3091,10 +3111,14 @@ async function startServer() {
     const produto = String(req.body?.produto || "").trim().toLowerCase();
     const nome = String(req.body?.nome || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
+    const profissao = String(req.body?.profissao || "").trim().slice(0, 120);
+    const interesseCurso = String(req.body?.interesseCurso || "").trim().slice(0, 180);
     const whatsapp = String(req.body?.whatsapp || "").trim();
     if (produto !== "capabilidade-processo") return res.status(400).json({ error: "Produto gratuito invÃ¡lido." });
     if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail vÃ¡lido." });
+    if (!profissao) return res.status(400).json({ error: "Informe sua profissÃ£o." });
+    if (!interesseCurso) return res.status(400).json({ error: "Escolha um curso ou selecione Nenhum curso." });
 
     const consultorId = "israel";
     const curso = "Capabilidade de Processo";
@@ -3133,6 +3157,7 @@ async function startServer() {
         acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
         projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
         origem: anterior.origem || "landing-capabilidade-gratis", ultimoCadastroGratisEm: agora,
+        profissao, interesseCurso,
         ...(whatsapp ? { whatsapp } : {}),
       };
       if (base.consultorId && !vinculos[base.consultorId]) {
@@ -3142,7 +3167,7 @@ async function startServer() {
       const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
       const preservarPrincipal = !!base.consultorId && String(base.consultorId) !== consultorId;
       await ref.set({
-        uid, email, nome: nome || base.nome || "",
+        uid, email, nome: nome || base.nome || "", profissao, interesseCurso,
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
         ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),

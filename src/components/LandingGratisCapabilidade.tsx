@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
 type FormState = 'idle' | 'sending' | 'ok' | 'err';
@@ -22,6 +22,11 @@ const PAISES_WHATSAPP = [
   { nome: 'África do Sul', codigo: '+27', min: 9, max: 9 },
 ] as const;
 
+const SELECT_STYLE: React.CSSProperties = {
+  display: 'block', width: '100%', padding: '12px 13px', borderRadius: 10,
+  border: '1px solid rgba(148,163,184,.3)', background: '#0b1426', color: '#fff', fontSize: 14,
+};
+
 const CSS = `
 .lgc{--ink:#07101f;--blue:#2563eb;--cyan:#22d3ee;--muted:#a8b6cc;--line:rgba(148,163,184,.18);min-height:100vh;background:radial-gradient(900px 500px at 80% -10%,rgba(37,99,235,.32),transparent 65%),#07101f;color:#f8fafc;font-family:Inter,Segoe UI,system-ui,sans-serif}
 .lgc *{box-sizing:border-box}.lgc .wrap{width:min(1080px,calc(100% - 40px));margin:auto}.lgc h1,.lgc h2,.lgc h3{letter-spacing:-.035em;line-height:1.08;margin:0}.lgc p{line-height:1.6}.lgc .top{padding:22px 0;border-bottom:1px solid var(--line)}.lgc .brand{font-weight:900;letter-spacing:.12em;font-size:13px}.lgc .brand span{color:var(--cyan)}
@@ -37,6 +42,10 @@ const CSS = `
 export default function LandingGratisCapabilidade() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [profissao, setProfissao] = useState('');
+  const [cursosInteresse, setCursosInteresse] = useState<string[]>([]);
+  const [cursoInteresse, setCursoInteresse] = useState('');
+  const [cursosCarregando, setCursosCarregando] = useState(true);
   const [codigoPais, setCodigoPais] = useState('+55');
   const [whatsapp, setWhatsapp] = useState('');
   const [state, setState] = useState<FormState>('idle');
@@ -46,10 +55,20 @@ export default function LandingGratisCapabilidade() {
   const numeroWhatsappDigitado = whatsapp.replace(/\D/g, '');
   const whatsappFormatoValido = numeroWhatsappDigitado.length >= paisSelecionado.min && numeroWhatsappDigitado.length <= paisSelecionado.max && /^[1-9]\d+$/.test(numeroWhatsappDigitado);
 
+  useEffect(() => {
+    fetch('/api/public/cursos?consultorId=israel')
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Falha ao carregar cursos')))
+      .then(data => setCursosInteresse(Array.isArray(data.cursos) ? data.cursos : []))
+      .catch(error => console.error('[LandingGratisCapabilidade] cursos:', error))
+      .finally(() => setCursosCarregando(false));
+  }, []);
+
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     if (nome.trim().length < 2) { setState('err'); setMessage('Informe seu nome.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setState('err'); setMessage('Informe um e-mail válido.'); return; }
+    if (!profissao.trim()) { setState('err'); setMessage('Informe sua profissão.'); return; }
+    if (!cursoInteresse) { setState('err'); setMessage('Escolha um curso ou selecione “Nenhum curso”.'); return; }
     const pais = paisSelecionado;
     const numeroWhatsapp = whatsapp.replace(/\D/g, '');
     if (numeroWhatsapp.length < pais.min || numeroWhatsapp.length > pais.max || !/^[1-9]\d+$/.test(numeroWhatsapp)) {
@@ -60,7 +79,7 @@ export default function LandingGratisCapabilidade() {
     try {
       const response = await fetch('/api/public/acesso-gratis', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produto: 'capabilidade-processo', nome: nome.trim(), email: email.trim(), whatsapp: `${codigoPais.trim()} ${whatsapp.trim()}` }),
+        body: JSON.stringify({ produto: 'capabilidade-processo', nome: nome.trim(), email: email.trim(), profissao: profissao.trim(), interesseCurso: cursoInteresse, whatsapp: `${codigoPais.trim()} ${whatsapp.trim()}` }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Não foi possível liberar seu acesso.');
@@ -71,7 +90,7 @@ export default function LandingGratisCapabilidade() {
   };
 
   const renderForm = () => (
-    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" required /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required /><div className="whatsapp-row" style={{ display: 'grid', gridTemplateColumns: '30% 70%', gap: 8 }}><select aria-label="País do WhatsApp" value={codigoPais} onChange={e => setCodigoPais(e.target.value)} required style={{ display: 'block', width: '100%', padding: '12px 13px', borderRadius: 10, border: '1px solid rgba(148,163,184,.3)', background: '#0b1426', color: '#fff', fontSize: 14 }}><option value="" disabled>Escolha o país</option>{PAISES_WHATSAPP.map(pais => <option key={`${pais.nome}-${pais.codigo}`} value={pais.codigo}>{pais.nome} ({pais.codigo})</option>)}</select><input aria-label="WhatsApp" placeholder="Seu WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" required /></div>{whatsapp && <p style={{ color: whatsappFormatoValido ? '#6ee7b7' : '#fca5a5', fontSize: 12, margin: '-4px 0 10px' }}>{whatsappFormatoValido ? `Formato válido para ${paisSelecionado.nome}.` : `Verifique o formato: ${paisSelecionado.min === paisSelecionado.max ? paisSelecionado.min : `${paisSelecionado.min} a ${paisSelecionado.max}`} dígitos, sem o código do país.`}</p>}{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form></>}</div>
+    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" required /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required /><input aria-label="Profissão" placeholder="Sua profissão" value={profissao} onChange={e => setProfissao(e.target.value)} autoComplete="organization-title" required /><select aria-label="Curso de interesse" value={cursoInteresse} onChange={e => setCursoInteresse(e.target.value)} required style={SELECT_STYLE}><option value="">{cursosCarregando ? 'Carregando cursos...' : 'Qual curso você gostaria de aprender mais?'}</option>{cursosInteresse.map(curso => <option key={curso} value={curso}>{curso}</option>)}<option value="Nenhum curso">Nenhum curso</option></select><div className="whatsapp-row" style={{ display: 'grid', gridTemplateColumns: '30% 70%', gap: 8, marginTop: 11 }}><select aria-label="País do WhatsApp" value={codigoPais} onChange={e => setCodigoPais(e.target.value)} required style={SELECT_STYLE}><option value="" disabled>Escolha o país</option>{PAISES_WHATSAPP.map(pais => <option key={`${pais.nome}-${pais.codigo}`} value={pais.codigo}>{pais.nome} ({pais.codigo})</option>)}</select><input aria-label="WhatsApp" placeholder="Seu WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" required /></div>{whatsapp && <p style={{ color: whatsappFormatoValido ? '#6ee7b7' : '#fca5a5', fontSize: 12, margin: '-4px 0 10px' }}>{whatsappFormatoValido ? `Formato válido para ${paisSelecionado.nome}.` : `Verifique o formato: ${paisSelecionado.min === paisSelecionado.max ? paisSelecionado.min : `${paisSelecionado.min} a ${paisSelecionado.max}`} dígitos, sem o código do país.`}</p>}{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form></>}</div>
   );
 
   return <div className="lgc"><style>{CSS}</style>
