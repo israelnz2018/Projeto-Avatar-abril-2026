@@ -3084,9 +3084,9 @@ async function startServer() {
   // os projetos ou o histórico. O aluno deixa de ter acesso aos cursos deste consultor.
   // Catálogo público usado pelas landing pages para mostrar os cursos do consultor.
   // Só retorna nomes de cursos; nenhum conteúdo protegido é exposto.
-  app.get("/api/public/cursos", async (req: any, res: any) => {
+  app.get("/api/public/cursos", async (_req: any, res: any) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado.", cursos: [] });
-    const consultorId = String(req.query?.consultorId || "israel").trim() || "israel";
+    const consultorId = "israel";
     try {
       const snapshot = await adminFirestore().collection("initiatives").get();
       const cursos = snapshot.docs

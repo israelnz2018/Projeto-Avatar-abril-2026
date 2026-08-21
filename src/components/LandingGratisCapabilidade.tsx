@@ -56,7 +56,7 @@ export default function LandingGratisCapabilidade() {
   const whatsappFormatoValido = numeroWhatsappDigitado.length >= paisSelecionado.min && numeroWhatsappDigitado.length <= paisSelecionado.max && /^[1-9]\d+$/.test(numeroWhatsappDigitado);
 
   useEffect(() => {
-    fetch('/api/public/cursos?consultorId=israel')
+    fetch('/api/public/cursos')
       .then(response => response.ok ? response.json() : Promise.reject(new Error('Falha ao carregar cursos')))
       .then(data => setCursosInteresse(Array.isArray(data.cursos) ? data.cursos : []))
       .catch(error => console.error('[LandingGratisCapabilidade] cursos:', error))
