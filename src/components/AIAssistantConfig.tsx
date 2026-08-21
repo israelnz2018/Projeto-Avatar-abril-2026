@@ -202,8 +202,8 @@ function InlineVideoList({ selected, onToggle }: {
     : ['Todas', ...Array.from(new Set(
         videos.filter(v => v.course === activeCourse).map(v => v.playlist).filter(Boolean)
       )).sort((a, b) => {
-        const orderA = videos.find(i => i.course === activeCourse && i.playlist === a)?.playlistOrder ?? 999;
-        const orderB = videos.find(i => i.course === activeCourse && i.playlist === b)?.playlistOrder ?? 999;
+        const orderA = videos.find(i => i.course === activeCourse && i.playlist === a && typeof i.playlistOrder === 'number')?.playlistOrder ?? 999;
+        const orderB = videos.find(i => i.course === activeCourse && i.playlist === b && typeof i.playlistOrder === 'number')?.playlistOrder ?? 999;
         return orderA - orderB;
       })];
 

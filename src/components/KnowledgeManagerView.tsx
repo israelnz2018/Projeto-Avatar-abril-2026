@@ -1174,7 +1174,10 @@ export default function KnowledgeManagerView() {
     porCurso.forEach((playlists, curso) => {
       const primeiraOcorrencia = new Map(playlists.map((playlist, index) => [playlist, index]));
       const ordemAtual = (playlist: string) => {
-        const item = data.find((entry) => entry.course === curso && entry.playlist === playlist);
+        // Basta UM vídeo da playlist ter ordem definida — não necessariamente o
+        // primeiro do array. Um vídeo novo sem playlistOrder não pode "esconder"
+        // a ordem que os irmãos já tinham.
+        const item = data.find((entry) => entry.course === curso && entry.playlist === playlist && typeof entry.playlistOrder === 'number');
         return typeof item?.playlistOrder === 'number' ? item.playlistOrder : Number.MAX_SAFE_INTEGER;
       };
       const temOrdemCompleta = playlists.every((playlist) => ordemAtual(playlist) !== Number.MAX_SAFE_INTEGER)
@@ -1345,6 +1348,21 @@ export default function KnowledgeManagerView() {
     }));
   };
 
+  // Todo vídeo novo numa playlist EXISTENTE precisa nascer com o mesmo playlistOrder
+  // dos irmãos. Sem isso o curso inteiro perde "ordem completa" (nem toda playlist
+  // tem valor numérico) e a tela recalcula a ordem de TODAS as playlists do curso
+  // do zero a cada carregamento — o que é exatamente o que fazia uma playlist
+  // reordenada manualmente "voltar sozinha" pro lugar errado.
+  const playlistOrderPara = (course: string, playlist: string): number | undefined => {
+    const irmao = items.find((i) => i.course === course && i.playlist === playlist && typeof i.playlistOrder === 'number');
+    if (irmao) return irmao.playlistOrder;
+    // Playlist nova: entra depois da última já existente no curso.
+    const ordensDoCurso = items
+      .filter((i) => i.course === course && typeof i.playlistOrder === 'number')
+      .map((i) => i.playlistOrder as number);
+    return ordensDoCurso.length ? Math.max(...ordensDoCurso) + 1 : 0;
+  };
+
   const resolvePlacements = () => formData.placements
     .map(p => ({ course: p.course, playlist: p.playlist === 'NEW' ? p.newPlaylistName.trim() : p.playlist }))
     .filter(p => p.course && p.playlist);
@@ -1371,6 +1389,7 @@ export default function KnowledgeManagerView() {
           associatedAnalyses: formData.associatedAnalyses,
           consultorId,
           bunnyVideoId: upBunny.guid, bunnyLibraryId: upBunny.libraryId,
+          playlistOrder: playlistOrderPara(p.course, p.playlist),
           ...(p.course === INTRO_COURSE_CONSULTOR && consultorOnboardingStepId(p.playlist)
             ? { onboardingStep: consultorOnboardingStepId(p.playlist) }
             : {}),
@@ -1550,6 +1569,7 @@ export default function KnowledgeManagerView() {
               associatedTools: editVideoData.associatedTools,
               associatedAnalyses: editVideoData.associatedAnalyses,
               consultorId,
+              playlistOrder: playlistOrderPara(p.course, finalPlaylist),
               ...(p.course === INTRO_COURSE_CONSULTOR && consultorOnboardingStepId(finalPlaylist)
                 ? { onboardingStep: consultorOnboardingStepId(finalPlaylist) }
                 : {}),
@@ -1719,8 +1739,11 @@ export default function KnowledgeManagerView() {
       .map(([playlistName, videos]) => ({
         name: playlistName,
         videos,
-        // Use the playlistOrder of the first video as the order for the whole playlist
-        order: videos[0]?.playlistOrder ?? Number.MAX_SAFE_INTEGER
+        // Ordem da playlist = a de QUALQUER vídeo dela que já tenha playlistOrder
+        // definido — não necessariamente videos[0]. Um vídeo recém-adicionado sem
+        // ordem (upload em andamento, dado legado) não pode empurrar a playlist
+        // inteira pro fim só por ter caído primeiro no array.
+        order: videos.find((v) => typeof v.playlistOrder === 'number')?.playlistOrder ?? Number.MAX_SAFE_INTEGER
       }))
       .sort((a, b) => {
         if (a.order !== b.order) return a.order - b.order;

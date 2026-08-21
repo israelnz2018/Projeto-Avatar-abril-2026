@@ -411,8 +411,10 @@ export default function LearningView() {
     ? [] 
     : ['Todas', ...Array.from(new Set(items.filter(item => item.course === activeCategory).map(item => item.playlist)))
         .sort((a, b) => {
-          const orderA = items.find(i => i.course === activeCategory && i.playlist === a)?.playlistOrder ?? Number.MAX_SAFE_INTEGER;
-          const orderB = items.find(i => i.course === activeCategory && i.playlist === b)?.playlistOrder ?? Number.MAX_SAFE_INTEGER;
+          // Qualquer vídeo da playlist com ordem definida vale — não só o primeiro
+          // encontrado, que pode ser justamente um vídeo novo ainda sem playlistOrder.
+          const orderA = items.find(i => i.course === activeCategory && i.playlist === a && typeof i.playlistOrder === 'number')?.playlistOrder ?? Number.MAX_SAFE_INTEGER;
+          const orderB = items.find(i => i.course === activeCategory && i.playlist === b && typeof i.playlistOrder === 'number')?.playlistOrder ?? Number.MAX_SAFE_INTEGER;
           if (orderA !== orderB) return orderA - orderB;
           return a.localeCompare(b);
         })
