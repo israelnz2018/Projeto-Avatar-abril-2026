@@ -732,9 +732,17 @@ export default function KnowledgeManagerView() {
     }
   };
   const [isReprocessing, setIsReprocessing] = useState<string | null>(null);
+  // Até quando continuar conferindo o servidor mesmo sem etapa em "processando".
+  // A requisição do navegador pode morrer (timeout de proxy, rede) enquanto o
+  // servidor segue trabalhando e conclui. Sem esta janela, a tela ficava exibindo
+  // a "Falha" antiga de um vídeo que já tinha dado certo.
+  const [acompanharAte, setAcompanharAte] = useState(0);
+  const acompanharPor20Min = () => setAcompanharAte(Date.now() + 20 * 60 * 1000);
+
   const handleRetryProcessing = async (item: KnowledgeEntry) => {
     if (!item.id || !item.bunnyVideoId) return;
     setIsReprocessing(item.id);
+    acompanharPor20Min();
     try {
       await processUploadedVideoAutomatically(item.bunnyVideoId);
     } finally {
@@ -1270,10 +1278,36 @@ export default function KnowledgeManagerView() {
   }), [items]);
 
   useEffect(() => {
-    if (!temVideoProcessando) return;
-    const timer = setInterval(() => { void fetchItems(true); }, 15_000);
+    if (!temVideoProcessando && Date.now() >= acompanharAte) return;
+    const timer = setInterval(() => {
+      // A janela de acompanhamento se encerra sozinha quando expira e não há
+      // mais nada em andamento.
+      if (!temVideoProcessando && Date.now() >= acompanharAte) {
+        clearInterval(timer);
+        return;
+      }
+      void fetchItems(true);
+    }, 15_000);
     return () => clearInterval(timer);
-  }, [temVideoProcessando]);
+  }, [temVideoProcessando, acompanharAte]);
+
+  // Voltar pra aba relê na hora. Cobre o caso de sair da tela enquanto processa
+  // e voltar depois: sem isso o consultor via o estado de quando saiu.
+  useEffect(() => {
+    let ultima = 0;
+    const aoVoltar = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - ultima < 10_000) return; // não relê a cada alt-tab
+      ultima = Date.now();
+      void fetchItems(true);
+    };
+    document.addEventListener('visibilitychange', aoVoltar);
+    window.addEventListener('focus', aoVoltar);
+    return () => {
+      document.removeEventListener('visibilitychange', aoVoltar);
+      window.removeEventListener('focus', aoVoltar);
+    };
+  }, []);
 
   const toggleTool = (toolId: string) => {
     setFormData(prev => ({
@@ -1346,6 +1380,7 @@ export default function KnowledgeManagerView() {
       // Inicia automaticamente as três etapas no servidor. Não bloqueia o fechamento
       // do formulário; o servidor aguarda a codificação do Bunny e atualiza os placements.
       void processUploadedVideoAutomatically(upBunny.guid);
+      acompanharPor20Min();
 
       setFormData(emptyFormData);
       setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
