@@ -3,6 +3,25 @@ import RodapeInstitucional from './RodapeInstitucional';
 
 type FormState = 'idle' | 'sending' | 'ok' | 'err';
 
+const PAISES_WHATSAPP = [
+  { nome: 'Brasil', codigo: '+55', min: 10, max: 11 },
+  { nome: 'Austrália', codigo: '+61', min: 9, max: 9 },
+  { nome: 'Nova Zelândia', codigo: '+64', min: 8, max: 9 },
+  { nome: 'Portugal', codigo: '+351', min: 9, max: 9 },
+  { nome: 'Estados Unidos', codigo: '+1', min: 10, max: 10 },
+  { nome: 'Canadá', codigo: '+1', min: 10, max: 10 },
+  { nome: 'Reino Unido', codigo: '+44', min: 10, max: 10 },
+  { nome: 'Irlanda', codigo: '+353', min: 9, max: 9 },
+  { nome: 'Espanha', codigo: '+34', min: 9, max: 9 },
+  { nome: 'França', codigo: '+33', min: 9, max: 9 },
+  { nome: 'Alemanha', codigo: '+49', min: 10, max: 11 },
+  { nome: 'Itália', codigo: '+39', min: 9, max: 10 },
+  { nome: 'México', codigo: '+52', min: 10, max: 10 },
+  { nome: 'Argentina', codigo: '+54', min: 10, max: 10 },
+  { nome: 'Chile', codigo: '+56', min: 9, max: 9 },
+  { nome: 'África do Sul', codigo: '+27', min: 9, max: 9 },
+] as const;
+
 const CSS = `
 .lgc{--ink:#07101f;--blue:#2563eb;--cyan:#22d3ee;--muted:#a8b6cc;--line:rgba(148,163,184,.18);min-height:100vh;background:radial-gradient(900px 500px at 80% -10%,rgba(37,99,235,.32),transparent 65%),#07101f;color:#f8fafc;font-family:Inter,Segoe UI,system-ui,sans-serif}
 .lgc *{box-sizing:border-box}.lgc .wrap{width:min(1080px,calc(100% - 40px));margin:auto}.lgc h1,.lgc h2,.lgc h3{letter-spacing:-.035em;line-height:1.08;margin:0}.lgc p{line-height:1.6}.lgc .top{padding:22px 0;border-bottom:1px solid var(--line)}.lgc .brand{font-weight:900;letter-spacing:.12em;font-size:13px}.lgc .brand span{color:var(--cyan)}
@@ -24,15 +43,20 @@ export default function LandingGratisCapabilidade() {
   const [state, setState] = useState<FormState>('idle');
   const [message, setMessage] = useState('');
   const [aceitouTermos, setAceitouTermos] = useState(false);
+  const paisSelecionado = PAISES_WHATSAPP.find(item => item.codigo === codigoPais) || PAISES_WHATSAPP[0];
+  const numeroWhatsappDigitado = whatsapp.replace(/\D/g, '');
+  const whatsappFormatoValido = numeroWhatsappDigitado.length >= paisSelecionado.min && numeroWhatsappDigitado.length <= paisSelecionado.max && /^[1-9]\d+$/.test(numeroWhatsappDigitado);
 
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     if (nome.trim().length < 2) { setState('err'); setMessage('Informe seu nome.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setState('err'); setMessage('Informe um e-mail válido.'); return; }
-    if (!/^\+\d{1,4}$/.test(codigoPais.trim())) { setState('err'); setMessage('Informe o código do país com o sinal +.'); return; }
+    const pais = paisSelecionado;
     const numeroWhatsapp = whatsapp.replace(/\D/g, '');
     const numeroConfirmado = confirmacaoWhatsapp.replace(/\D/g, '');
-    if (numeroWhatsapp.length < 8) { setState('err'); setMessage('Informe um número de WhatsApp válido.'); return; }
+    if (numeroWhatsapp.length < pais.min || numeroWhatsapp.length > pais.max || !/^[1-9]\d+$/.test(numeroWhatsapp)) {
+      setState('err'); setMessage(`Informe um WhatsApp válido para ${pais.nome} (${pais.min === pais.max ? `${pais.min}` : `${pais.min} a ${pais.max}`} dígitos, sem o código do país).`); return;
+    }
     if (numeroWhatsapp !== numeroConfirmado) { setState('err'); setMessage('A confirmação do WhatsApp não confere.'); return; }
     if (!aceitouTermos) { setState('err'); setMessage('Aceite os termos e condições para continuar.'); return; }
     setState('sending'); setMessage('');
@@ -50,7 +74,7 @@ export default function LandingGratisCapabilidade() {
   };
 
   const renderForm = () => (
-    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" required /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required /><div className="whatsapp-row"><input aria-label="Código do país" placeholder="+55" value={codigoPais} onChange={e => setCodigoPais(e.target.value)} autoComplete="tel-country-code" required /><input aria-label="WhatsApp" placeholder="Seu WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" required /></div><input aria-label="Confirme seu WhatsApp" placeholder="Confirme seu WhatsApp" value={confirmacaoWhatsapp} onChange={e => setConfirmacaoWhatsapp(e.target.value)} autoComplete="tel" required />{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form></>}</div>
+    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" required /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required /><div className="whatsapp-row" style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 8 }}><select aria-label="País do WhatsApp" value={codigoPais} onChange={e => setCodigoPais(e.target.value)} required style={{ display: 'block', width: '100%', padding: '12px 13px', borderRadius: 10, border: '1px solid rgba(148,163,184,.3)', background: '#0b1426', color: '#fff', fontSize: 14 }}><option value="" disabled>Escolha o país</option>{PAISES_WHATSAPP.map(pais => <option key={`${pais.nome}-${pais.codigo}`} value={pais.codigo}>{pais.nome} ({pais.codigo})</option>)}</select><input aria-label="WhatsApp" placeholder="Seu WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" required /></div><input aria-label="Confirme seu WhatsApp" placeholder="Confirme seu WhatsApp" value={confirmacaoWhatsapp} onChange={e => setConfirmacaoWhatsapp(e.target.value)} autoComplete="tel" required />{whatsapp && <p style={{ color: whatsappFormatoValido ? '#6ee7b7' : '#fca5a5', fontSize: 12, margin: '-4px 0 10px' }}>{whatsappFormatoValido ? `Formato válido para ${paisSelecionado.nome}.` : `Verifique o formato: ${paisSelecionado.min === paisSelecionado.max ? paisSelecionado.min : `${paisSelecionado.min} a ${paisSelecionado.max}`} dígitos, sem o código do país.`}</p>}{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form></>}</div>
   );
 
   return <div className="lgc"><style>{CSS}</style>
