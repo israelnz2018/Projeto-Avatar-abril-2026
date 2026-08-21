@@ -11,6 +11,7 @@ const CSS = `
 .lgc .brand{text-align:center}.lgc .hero{padding:34px 0 42px}.lgc .hero-grid{grid-template-columns:1.1fr .9fr;gap:32px;align-items:center}.lgc h1{font-size:clamp(34px,3.8vw,48px);margin:16px 0 14px}.lgc .lead{font-size:16px;line-height:1.48;margin-bottom:18px}.lgc .hero .form-box{height:100%;padding:22px}.lgc .hero .form-box h3{font-size:21px}.lgc .hero .form-box p{font-size:13px;margin-bottom:14px}.lgc .hero .form-box input{padding:12px 13px;margin-bottom:9px;font-size:14px}.lgc .hero .form-box .cta{padding:14px 16px;font-size:14px}.lgc .hero .form-box .note{font-size:11px}.lgc .hero-form{height:100%}
 @media(max-width:980px){.lgc .hero-grid{grid-template-columns:1fr 1fr}.lgc .hero-copy{grid-column:1 / -1;text-align:center}.lgc .hero-copy .lead{margin-left:auto;margin-right:auto}.lgc .hero-copy .note{margin-bottom:0}}
 @media(max-width:760px){.lgc .hero{padding-top:40px}.lgc .hero-grid{grid-template-columns:1fr;gap:20px}.lgc .hero-copy{grid-column:auto;text-align:left}.lgc .hero-copy .lead{margin-left:0;margin-right:0}.lgc .hero .visual{max-width:none}.lgc .hero-form{height:auto}}
+.lgc .hero-grid{grid-template-columns:1fr .9fr}.lgc .hero-benefits{display:grid;gap:14px}.lgc .benefit{display:flex;align-items:center;gap:15px;border:1px solid var(--line);border-radius:16px;background:rgba(15,23,42,.65);padding:18px 19px}.lgc .benefit-icon{width:48px;height:48px;display:grid;place-items:center;flex:none;border-radius:14px;background:rgba(37,99,235,.2);border:1px solid rgba(103,232,249,.25);font-size:25px}.lgc .benefit h3{font-size:17px;margin:0 0 3px}.lgc .benefit p{font-size:13px;color:var(--muted);margin:0;line-height:1.35}.lgc .terms-check{display:flex;align-items:flex-start;gap:9px;margin-top:12px;text-align:left;color:#9fb0c8;font-size:11px;line-height:1.4}.lgc .terms-check input{width:16px;height:16px;margin:1px 0 0;flex:none;accent-color:#22d3ee}.lgc .terms-check a{color:#67e8f9;text-decoration:underline}
 `;
 
 export default function LandingGratisCapabilidade() {
@@ -19,11 +20,13 @@ export default function LandingGratisCapabilidade() {
   const [whatsapp, setWhatsapp] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [message, setMessage] = useState('');
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
   const enviar = async (event: React.FormEvent) => {
     event.preventDefault();
     if (nome.trim().length < 2) { setState('err'); setMessage('Informe seu nome.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setState('err'); setMessage('Informe um e-mail válido.'); return; }
+    if (!aceitouTermos) { setState('err'); setMessage('Aceite os termos e condições para continuar.'); return; }
     setState('sending'); setMessage('');
     try {
       const response = await fetch('/api/public/acesso-gratis', {
@@ -39,14 +42,14 @@ export default function LandingGratisCapabilidade() {
   };
 
   const renderForm = () => (
-    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /><input aria-label="WhatsApp" placeholder="WhatsApp (opcional)" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" />{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button></form><p className="note">Usaremos seu e-mail somente para enviar o acesso e informações importantes da plataforma.</p></>}</div>
+    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /><input aria-label="WhatsApp" placeholder="WhatsApp (opcional)" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" />{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form><p className="note">Usaremos seu e-mail somente para enviar o acesso e informações importantes da plataforma.</p></>}</div>
   );
 
   return <div className="lgc"><style>{CSS}</style>
     <header className="top"><div className="wrap"><div className="brand">LBW <span>·</span> EDUCAÇÃO PELO TRABALHO</div></div></header>
     <main>
       <section className="hero"><div className="wrap hero-grid">
-        <div className="hero-copy"><span className="eyebrow">Pacote gratuito · Capabilidade</span><h1>Entenda se o seu processo é <span className="grad">capaz de entregar o que promete.</span></h1><p className="lead">Aprenda a interpretar a capabilidade do processo através de aulas completas, exercícios e software estatístico gratuito para fazer as análises. Tudo isso dentro da melhor e mais completa plataforma em gerenciamento de projetos de melhoria.</p><a className="cta" href="#cadastro">Quero meu acesso gratuito →</a><p className="note">Cadastro rápido · acesso enviado por e-mail · conteúdo em português</p></div>
+        <div className="hero-benefits"><span className="eyebrow">Pacote gratuito · Capabilidade</span><div className="benefit"><div className="benefit-icon">🎥</div><div><h3>Assista videoaulas</h3><p>Aprenda a interpretar a capabilidade do processo.</p></div></div><div className="benefit"><div className="benefit-icon">📊</div><div><h3>Faça as análises estatísticas</h3><p>Use o software estatístico gratuito da plataforma.</p></div></div><div className="benefit"><div className="benefit-icon">🤖</div><div><h3>Converse com a IA digital</h3><p>Tire dúvidas sobre as análises e os resultados.</p></div></div></div>
         <div className="hero-form" id="cadastro">{renderForm()}</div>
       </div></section>
 

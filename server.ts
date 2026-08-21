@@ -3098,7 +3098,8 @@ async function startServer() {
 
     const consultorId = "israel";
     const curso = "Capabilidade de Processo";
-    const analytics = { modulo: "capabilidade", nome: "Capabilidade", vencimento: null, valor: 0 };
+    const validadeGratis = "2026-12-31";
+    const analytics = { modulo: "capabilidade", nome: "Capabilidade", vencimento: validadeGratis, valor: 0 };
     const agora = new Date().toISOString();
 
     try {
@@ -3121,7 +3122,7 @@ async function startServer() {
       const vinculos = { ...(base.vinculos || {}) };
       const anterior = { ...(vinculos[consultorId] || (base.consultorId === consultorId ? base : {})) };
       const cursosAnteriores = Array.isArray(anterior.cursosAcesso) ? anterior.cursosAcesso : [];
-      const cursosAcesso = [...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso), { curso, vencimento: null, valor: 0, quantidade: 1 }];
+      const cursosAcesso = [...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso), { curso, vencimento: validadeGratis, valor: 0, quantidade: 1 }];
       const analyticsAnteriores = Array.isArray(anterior.acessoProdutos?.analytics) ? anterior.acessoProdutos.analytics : [];
       const analyticsAcesso = [...analyticsAnteriores.filter((item: any) => String(item?.modulo || item?.id || "").trim() !== analytics.modulo), analytics];
       const vinculo = {

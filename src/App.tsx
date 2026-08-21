@@ -61,6 +61,7 @@ const CertificatePage = lazy(() => import('./components/CertificatePage').then(m
 const VerificarPage = lazy(() => import('./components/CertificatePage').then(m => ({ default: m.VerificarPage })));
 const LandingFormacao = lazy(() => import('./components/LandingFormacao'));
 const LandingGratisCapabilidade = lazy(() => import('./components/LandingGratisCapabilidade'));
+const LandingTermosGratuitos = lazy(() => import('./components/LandingTermosGratuitos'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingConsultores = lazy(() => import('./components/LandingConsultores'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
@@ -539,7 +540,7 @@ export default function App() {
     const host = window.location.hostname;
     const path = window.location.pathname;
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
-    const rotasPublicas = ['/formacao', '/gratis', '/capabilidade', '/vitrine', '/kit90dias', '/consultores', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    const rotasPublicas = ['/formacao', '/gratis', '/capabilidade', '/termos-gratuitos', '/vitrine', '/kit90dias', '/consultores', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
     return isSitePublico || rotasPublicas.some(r => path.startsWith(r));
   })();
 
@@ -564,7 +565,7 @@ export default function App() {
     // As landings de venda/captação e a verificação de certificado têm prioridade
     // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
     const ROTAS_INSTITUCIONAIS = ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
-    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/gratis') || path.startsWith('/capabilidade') || path.startsWith('/kit90dias') || path.startsWith('/consultores') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
+    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/gratis') || path.startsWith('/capabilidade') || path.startsWith('/termos-gratuitos') || path.startsWith('/kit90dias') || path.startsWith('/consultores') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
     if (isSitePublico && !rotaReservada) {
       return (
         <Router>
@@ -602,6 +603,13 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#07101f' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-cyan-400 rounded-full animate-spin" /></div>}>
         <LandingGratisCapabilidade />
+      </Suspense>
+    );
+  }
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/termos-gratuitos')) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#07101f' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-cyan-400 rounded-full animate-spin" /></div>}>
+        <LandingTermosGratuitos />
       </Suspense>
     );
   }
