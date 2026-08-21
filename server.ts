@@ -3004,6 +3004,90 @@ async function startServer() {
 
   // DELETE /api/aluno/:uid — remove o aluno do tenant sem apagar a conta Auth,
   // os projetos ou o histórico. O aluno deixa de ter acesso aos cursos deste consultor.
+  // Landing page gratuita do produto Capabilidade de Processo.
+  // O endpoint Ã© pÃºblico de propÃ³sito: cria/atualiza o aluno e libera o pacote
+  // especÃ­fico sem depender do painel do consultor ou do webhook antigo.
+  app.post("/api/public/acesso-gratis", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Servidor nÃ£o configurado." });
+
+    const produto = String(req.body?.produto || "").trim().toLowerCase();
+    const nome = String(req.body?.nome || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const whatsapp = String(req.body?.whatsapp || "").trim();
+    if (produto !== "capabilidade-processo") return res.status(400).json({ error: "Produto gratuito invÃ¡lido." });
+    if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail vÃ¡lido." });
+
+    const consultorId = "israel";
+    const curso = "Capabilidade de Processo";
+    const analytics = { modulo: "capabilidade", nome: "Capabilidade", vencimento: null, valor: 0 };
+    const agora = new Date().toISOString();
+
+    try {
+      let uid = "";
+      let senhaProvisoria = "";
+      let novo = false;
+      try {
+        uid = (await adminAuth().getUserByEmail(email)).uid;
+        await adminAuth().updateUser(uid, { displayName: nome });
+      } catch (err: any) {
+        if (err?.code !== "auth/user-not-found") throw err;
+        senhaProvisoria = gerarSenhaProvisoria();
+        uid = (await adminAuth().createUser({ email, password: senhaProvisoria, displayName: nome })).uid;
+        novo = true;
+      }
+
+      const ref = adminFirestore().collection("users").doc(uid);
+      const snap = await ref.get();
+      const base = snap.exists ? (snap.data() as any) : {};
+      const vinculos = { ...(base.vinculos || {}) };
+      const anterior = { ...(vinculos[consultorId] || (base.consultorId === consultorId ? base : {})) };
+      const cursosAnteriores = Array.isArray(anterior.cursosAcesso) ? anterior.cursosAcesso : [];
+      const cursosAcesso = [...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso), { curso, vencimento: null, valor: 0, quantidade: 1 }];
+      const analyticsAnteriores = Array.isArray(anterior.acessoProdutos?.analytics) ? anterior.acessoProdutos.analytics : [];
+      const analyticsAcesso = [...analyticsAnteriores.filter((item: any) => String(item?.modulo || item?.id || "").trim() !== analytics.modulo), analytics];
+      const vinculo = {
+        ...anterior,
+        tipoUsuario: anterior.tipoUsuario === "consultor" || anterior.tipoUsuario === "coordenador" ? anterior.tipoUsuario : "aluno",
+        consultorId, plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso,
+        cursosLiberados: cursosAcesso.map((item: any) => item.curso),
+        acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
+        projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
+        origem: anterior.origem || "landing-capabilidade-gratis", ultimoCadastroGratisEm: agora,
+        ...(whatsapp ? { whatsapp } : {}),
+      };
+      if (base.consultorId && !vinculos[base.consultorId]) {
+        vinculos[base.consultorId] = { tipoUsuario: base.tipoUsuario || "aluno", consultorId: base.consultorId, plano: base.plano || "gratuito", cursosAcesso: base.cursosAcesso || [], acessoProdutos: base.acessoProdutos || {} };
+      }
+      vinculos[consultorId] = vinculo;
+      const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
+      const preservarPrincipal = !!base.consultorId && String(base.consultorId) !== consultorId;
+      await ref.set({
+        uid, email, nome: nome || base.nome || "",
+        tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
+        consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
+        ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
+        origem: base.origem || "landing-capabilidade-gratis",
+        formacoes: Array.isArray(base.formacoes) && base.formacoes.length ? base.formacoes : ["capabilidade-processo"],
+        creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
+        criadoEm: base.criadoEm || agora, ...(novo ? { senhaProvisoria: true } : {}),
+      }, { merge: true });
+
+      let emailEnviado = false;
+      const site = `https://${consultorId}.educacaopelotrabalho.com`;
+      const primeiroNome = nome.split(/\s+/)[0].replace(/[<>&]/g, "");
+      const credenciais = novo
+        ? `<div style="background:#F0F2FA;border-left:4px solid #0033CC;padding:14px 16px;margin:18px 0"><strong>Seus dados de acesso</strong><br>E-mail: <strong>${email}</strong><br>Senha provisÃ³ria: <code>${senhaProvisoria}</code><br><small>No primeiro acesso, vocÃª criarÃ¡ sua senha definitiva.</small></div>`
+        : `<div style="background:#F0F2FA;border-left:4px solid #0033CC;padding:14px 16px;margin:18px 0"><strong>Como entrar</strong><br>Use o e-mail <strong>${email}</strong> e a senha que vocÃª jÃ¡ utiliza na plataforma.</div>`;
+      const html = `<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto"><div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:22px">Seu acesso gratuito foi liberado</h1><p style="margin:6px 0 0;opacity:.85">LBW â€” EducaÃ§Ã£o pelo Trabalho</p></div><div style="padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px"><p>OlÃ¡, ${primeiroNome}!</p><p>VocÃª recebeu gratuitamente o pacote <strong>Capabilidade de Processo</strong>.</p><ul><li>Curso Capabilidade de Processo</li><li>Data Analysis â€” mÃ³dulo Capabilidade</li><li>Mentor Israel digital para apoiar o uso das ferramentas liberadas</li></ul>${credenciais}<p style="text-align:center;margin:24px 0"><a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar a plataforma</a></p><p style="font-size:12px;color:#64748B">Se vocÃª nÃ£o solicitou este acesso, ignore este e-mail.</p></div></div>`;
+      try { emailEnviado = (await resendSend({ to: email, subject: "Seu acesso gratuito Ã  Capabilidade de Processo", html })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
+      return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analytics.modulo } });
+    } catch (err: any) {
+      console.error("[POST /api/public/acesso-gratis] erro:", err?.message || err);
+      return res.status(500).json({ error: err?.message || "NÃ£o foi possÃ­vel liberar o acesso agora." });
+    }
+  });
+
   app.delete("/api/aluno/:uid", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const header = req.headers.authorization || "";
