@@ -18,7 +18,9 @@ const CSS = `
 export default function LandingGratisCapabilidade() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [codigoPais, setCodigoPais] = useState('+55');
   const [whatsapp, setWhatsapp] = useState('');
+  const [confirmacaoWhatsapp, setConfirmacaoWhatsapp] = useState('');
   const [state, setState] = useState<FormState>('idle');
   const [message, setMessage] = useState('');
   const [aceitouTermos, setAceitouTermos] = useState(false);
@@ -27,12 +29,17 @@ export default function LandingGratisCapabilidade() {
     event.preventDefault();
     if (nome.trim().length < 2) { setState('err'); setMessage('Informe seu nome.'); return; }
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setState('err'); setMessage('Informe um e-mail válido.'); return; }
+    if (!/^\+\d{1,4}$/.test(codigoPais.trim())) { setState('err'); setMessage('Informe o código do país com o sinal +.'); return; }
+    const numeroWhatsapp = whatsapp.replace(/\D/g, '');
+    const numeroConfirmado = confirmacaoWhatsapp.replace(/\D/g, '');
+    if (numeroWhatsapp.length < 8) { setState('err'); setMessage('Informe um número de WhatsApp válido.'); return; }
+    if (numeroWhatsapp !== numeroConfirmado) { setState('err'); setMessage('A confirmação do WhatsApp não confere.'); return; }
     if (!aceitouTermos) { setState('err'); setMessage('Aceite os termos e condições para continuar.'); return; }
     setState('sending'); setMessage('');
     try {
       const response = await fetch('/api/public/acesso-gratis', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produto: 'capabilidade-processo', nome: nome.trim(), email: email.trim(), whatsapp: whatsapp.trim() }),
+        body: JSON.stringify({ produto: 'capabilidade-processo', nome: nome.trim(), email: email.trim(), whatsapp: `${codigoPais.trim()} ${whatsapp.trim()}` }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Não foi possível liberar seu acesso.');
@@ -43,7 +50,7 @@ export default function LandingGratisCapabilidade() {
   };
 
   const renderForm = () => (
-    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /><input aria-label="WhatsApp" placeholder="WhatsApp (opcional)" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" />{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form></>}</div>
+    <div className="form-box">{state === 'ok' ? <div className="success"><div className="mark">✅</div><h3>Seu acesso foi liberado!</h3><p>Enviamos os dados de acesso para <strong style={{ color: '#fff' }}>{email}</strong>. Confira também a caixa de spam.</p><a className="cta" href="https://israel.educacaopelotrabalho.com">Entrar na plataforma →</a></div> : <><h3>Libere seu pacote gratuito</h3><p>Preencha seus dados. O sistema cria seu acesso e envia as instruções por e-mail.</p><form onSubmit={enviar}><input aria-label="Nome" placeholder="Seu nome" value={nome} onChange={e => setNome(e.target.value)} autoComplete="name" required /><input aria-label="E-mail" type="email" placeholder="Seu melhor e-mail" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required /><div className="whatsapp-row"><input aria-label="Código do país" placeholder="+55" value={codigoPais} onChange={e => setCodigoPais(e.target.value)} autoComplete="tel-country-code" required /><input aria-label="WhatsApp" placeholder="Seu WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} autoComplete="tel" required /></div><input aria-label="Confirme seu WhatsApp" placeholder="Confirme seu WhatsApp" value={confirmacaoWhatsapp} onChange={e => setConfirmacaoWhatsapp(e.target.value)} autoComplete="tel" required />{state === 'err' && <p className="error">{message}</p>}<button className="cta" disabled={state === 'sending'}>{state === 'sending' ? 'Liberando acesso…' : 'Quero acessar gratuitamente →'}</button><label className="terms-check"><input type="checkbox" checked={aceitouTermos} onChange={e => { setAceitouTermos(e.target.checked); if (e.target.checked && state === 'err') { setState('idle'); setMessage(''); } }} /><span>Concordo com os <a href="/termos-gratuitos" target="_blank" rel="noreferrer">termos e condições deste treinamento</a>.</span></label></form></>}</div>
   );
 
   return <div className="lgc"><style>{CSS}</style>
