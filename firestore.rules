@@ -88,8 +88,14 @@ service cloud.firestore {
         (!('consultorId' in request.resource.data) && meuConsultorId() == 'israel');
     }
 
+    // Aluno sem empresaId (cadastro direto pelo consultor, landing page grátis, convite
+    // antigo, etc.) é implicitamente um "aluno direto": o time dele é o mesmo balde
+    // sentinela que o cliente usa em empresaIdDireto(consultorId) — '__direto__<cid>'.
+    // Sem esse fallback aqui, a regra barra mesmo quando a tela já resolve certo,
+    // porque a regra lê o campo cru do Firestore, não o valor calculado no app.
     function minhaEmpresaId() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.empresaId;
+      let dados = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return dados.get('empresaId', '__direto__' + dados.get('consultorId', 'israel'));
     }
 
     function podeAcessarComunidade(d) {

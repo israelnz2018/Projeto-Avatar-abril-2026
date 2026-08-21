@@ -757,10 +757,14 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const meIsAdmin = ADMIN_EMAILS.includes((auth.currentUser?.email || '').toLowerCase());
 
   // Escopo do time: admin/consultor escolhem a empresa; coordenador/aluno usam a própria.
-  const { isAdmin, isConsultor, isCoordenador, empresaId } = useUserAccess();
+  const { isAdmin, isConsultor, isCoordenador, empresaId, tipoUsuario } = useUserAccess();
   const { consultor } = useConsultor();
   const mePhotoUrl = consultor.branding?.fotoUrl || auth.currentUser?.photoURL || '';
   const cid = resolveConsultorId();
+  // Aluno sem empresaId (cadastro direto pelo consultor, landing page grátis, convite
+  // antigo, etc.) é um "aluno direto": o próprio consultor é o coordenador dele. Vale
+  // pra qualquer consultor (empresaIdDireto é escopado por cid), não só o Israel.
+  const empresaIdEfetivo = (tipoUsuario === 'aluno' && !empresaId) ? empresaIdDireto(cid) : empresaId;
   const podeEscolherEmpresa = escopo === 'time' && (isAdmin || isConsultor);
   const [empresas, setEmpresas] = useState<{ empresaId: string; nome: string }[]>([]);
   const [empresaSel, setEmpresaSel] = useState<string>('');
@@ -784,7 +788,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
     // eslint-disable-next-line
   }, [podeEscolherEmpresa, cid]);
 
-  const empresaAtiva = escopo === 'time' ? (podeEscolherEmpresa ? empresaSel : (empresaId || '')) : null;
+  const empresaAtiva = escopo === 'time' ? (podeEscolherEmpresa ? empresaSel : (empresaIdEfetivo || '')) : null;
   const espaco: EspacoComunidade = { escopo, empresaId: empresaAtiva };
   const boasVindasPostId = idBoasVindasPost(cid, empresaAtiva);
 
@@ -895,7 +899,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   if ((escopo === 'rede' || escopo === 'consultor') && !isAdmin && !isConsultor) {
     return <div className="p-8 text-red-600 font-bold">Esta comunidade é exclusiva dos consultores.</div>;
   }
-  if (escopo === 'time' && !isAdmin && !isConsultor && !isCoordenador && !empresaId) {
+  if (escopo === 'time' && !isAdmin && !isConsultor && !isCoordenador && !empresaIdEfetivo) {
     return <div className="p-8 text-red-600 font-bold">Você ainda não está vinculado a um coordenador.</div>;
   }
 
