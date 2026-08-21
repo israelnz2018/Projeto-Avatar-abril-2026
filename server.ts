@@ -19,6 +19,7 @@ import { addCoverSlide } from "./src/services/coverSlide";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const MAX_QUIZ_TRILHAS = 50;
 
 async function startServer() {
   const app = express();
@@ -814,7 +815,7 @@ async function startServer() {
         ? requested
         : (user.vinculos?.[requested] ? requested : String(user.consultorId || requested));
       const quizzes = [];
-      for (let trilha = 1; trilha <= 8; trilha++) {
+      for (let trilha = 1; trilha <= MAX_QUIZ_TRILHAS; trilha++) {
         const quiz = await loadQuizForServer(trilha, consultorId);
         if (quiz) quizzes.push(publicQuizPayload(quiz));
       }
@@ -828,7 +829,7 @@ async function startServer() {
   app.post("/api/quizzes/grade", requireUser, async (req: any, res) => {
     try {
       const trilha = Number(req.body?.trilha) || 0;
-      if (trilha < 1 || trilha > 8) return res.status(400).json({ error: "Trilha inválida." });
+      if (trilha < 1 || trilha > MAX_QUIZ_TRILHAS) return res.status(400).json({ error: "Trilha inválida." });
       const userSnap = await adminFirestore().collection("users").doc(req.userUid).get();
       const user = userSnap.exists ? (userSnap.data() as any) : {};
       const requested = String(req.body?.consultorId || user.consultorId || "israel");

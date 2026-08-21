@@ -20,6 +20,8 @@ import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export const QUIZZES_COLLECTION = 'quizzes';
+/** A plataforma pode ter cursos adicionais alÃ©m das 8 trilhas originais. */
+export const MAX_QUIZ_TRILHAS = 50;
 
 /** % mínimo de vídeos assistidos da trilha para LIBERAR a prova. */
 export const DEFAULT_WATCH_GATE_PCT = 0.70;
@@ -100,7 +102,7 @@ export async function getAllQuizzes(consultorId: string = 'israel'): Promise<Qui
   }
   const out: QuizConfig[] = [];
   const results = await Promise.all(
-    [1, 2, 3, 4, 5, 6, 7, 8].map(async (t) => {
+    Array.from({ length: MAX_QUIZ_TRILHAS }, (_, index) => index + 1).map(async (t) => {
       try { return await getQuiz(t, consultorId); } catch { return null; }
     })
   );
