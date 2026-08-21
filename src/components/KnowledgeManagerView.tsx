@@ -355,6 +355,20 @@ function SortableVideoRow({
               ) : (
                 <Video className="w-10 h-10 text-slate-300" />
               )}
+              {/* Vídeo do Bunny já processado (nenhuma etapa em "Falha") mas sem capa: o
+                  "Refazer processamento" só aparece quando há erro, então esse é o único
+                  jeito de pedir a capa de novo sem re-transcrever (é o caminho "reused"). */}
+              {!thumbnailUrl && item.bunnyVideoId && pipelineCompleto && (
+                <button
+                  type="button"
+                  onClick={() => handleRetryProcessing(item)}
+                  disabled={isReprocessing === item.id}
+                  title="Buscar a capa deste vídeo no servidor de vídeo"
+                  className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/50 text-white/0 hover:text-white text-[10px] font-bold transition-all border-none cursor-pointer disabled:cursor-wait"
+                >
+                  {isReprocessing === item.id ? 'Buscando...' : 'Buscar capa'}
+                </button>
+              )}
             </div>
             <div>
               <p className="font-bold text-sm m-0 text-gray-800 line-clamp-2">{item.title}</p>
