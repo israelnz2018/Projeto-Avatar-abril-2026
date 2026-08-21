@@ -55,7 +55,7 @@ export default function LandingGratisCapabilidade() {
   const numeroWhatsappDigitado = whatsapp.replace(/\D/g, '');
   const whatsappFormatoValido = numeroWhatsappDigitado.length >= paisSelecionado.min && numeroWhatsappDigitado.length <= paisSelecionado.max && /^[1-9]\d+$/.test(numeroWhatsappDigitado);
   const resumoCursos = cursosInteresseSelecionados.length === 0
-    ? (cursosCarregando ? 'Carregando cursos...' : 'Selecione um ou mais cursos')
+    ? 'Qual outro curso você gostaria de aprender mais?'
     : cursosInteresseSelecionados.length === 1 ? cursosInteresseSelecionados[0] : `${cursosInteresseSelecionados.length} cursos selecionados`;
 
   const alternarCursoInteresse = (curso: string) => {
