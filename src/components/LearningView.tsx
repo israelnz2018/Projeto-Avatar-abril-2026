@@ -740,7 +740,10 @@ export default function LearningView() {
                           "w-full h-full object-cover transition-transform duration-500",
                           videoLocked ? "grayscale-[40%] brightness-75" : "group-hover:scale-105"
                         )}
-                        referrerPolicy="no-referrer"
+                        // no-referrer só no YouTube: o CDN do Bunny exige referer e
+                        // devolve 403 sem ele, quebrando a capa dos vídeos enviados
+                        // direto pra plataforma.
+                        referrerPolicy={youtubeId ? 'no-referrer' : undefined}
                       />
                     ) : (
                       <div className="w-full h-full bg-slate-900 flex items-center justify-center">

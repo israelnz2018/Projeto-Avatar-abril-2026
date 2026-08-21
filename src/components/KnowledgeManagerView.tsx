@@ -348,7 +348,10 @@ function SortableVideoRow({
           <div className="flex items-center gap-3">
             <div className="w-24 aspect-video rounded overflow-hidden flex-shrink-0 border border-[#eee] relative group bg-slate-100 flex items-center justify-center">
               {thumbnailUrl ? (
-                <img src={thumbnailUrl} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                // no-referrer só no YouTube. O CDN do Bunny exige referer e devolve
+                // 403 sem ele — era isso que quebrava a capa dos vídeos enviados
+                // direto pra plataforma (os do YouTube não usam esta URL).
+                <img src={thumbnailUrl} alt={item.title} className="w-full h-full object-cover" referrerPolicy={youtubeId ? 'no-referrer' : undefined} />
               ) : (
                 <Video className="w-10 h-10 text-slate-300" />
               )}
