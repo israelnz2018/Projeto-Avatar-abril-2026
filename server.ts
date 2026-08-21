@@ -3091,7 +3091,7 @@ async function startServer() {
       const snapshot = await adminFirestore().collection("initiatives").get();
       const cursos = snapshot.docs
         .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-        .filter((item: any) => String(item.consultorId || "israel") === consultorId && item.somenteProjeto !== true)
+        .filter((item: any) => String(item.consultorId || "israel") === consultorId && item.somenteProjeto !== true && String(item.name || "").trim() !== "Capabilidade de Processo")
         .map((item: any) => String(item.name || "").trim())
         .filter(Boolean)
         .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
