@@ -2015,14 +2015,25 @@ async function startServer() {
         try { return await tarefa; } finally { clearInterval(batida); }
       };
 
-      // Thumbnail é independente do transcript — busca 1x e propaga pra todos os placements.
+      // O play-data do Bunny já devolve a thumbnail pública. Isso usa a mesma
+      // chave Stream da biblioteca e não exige BUNNY_ACCOUNT_API_KEY.
       if (!saved.some(value => value.bunnyThumbnailUrl)) {
-        const hostname = await getBunnyLibraryHostname(lib.libraryId);
-        if (hostname) {
-          const bunnyThumbnailUrl = `https://${hostname}/${videoId}/thumbnail.jpg`;
-          const thumbBatch = adminFirestore().batch();
-          videoDocs.docs.forEach(doc => thumbBatch.update(doc.ref, { bunnyThumbnailUrl }));
-          await thumbBatch.commit();
+        try {
+          const playForThumbnail = await fetch(`${base}/play`, {
+            headers: { AccessKey: lib.apiKey, Accept: "application/json" },
+            signal: AbortSignal.timeout(30_000),
+          });
+          if (playForThumbnail.ok) {
+            const playData = await playForThumbnail.json() as any;
+            const bunnyThumbnailUrl = String(playData?.video?.thumbnailUrl || "").trim();
+            if (bunnyThumbnailUrl) {
+              const thumbBatch = adminFirestore().batch();
+              videoDocs.docs.forEach(doc => thumbBatch.update(doc.ref, { bunnyThumbnailUrl }));
+              await thumbBatch.commit();
+            }
+          }
+        } catch (thumbnailError) {
+          console.warn("[/api/bunny/transcribe-video] thumbnail não disponível:", thumbnailError);
         }
       }
 
