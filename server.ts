@@ -2052,31 +2052,71 @@ async function startServer() {
         const deepinfraKey = process.env.DEEPINFRA_API_KEY;
         if (!deepinfraKey) throw new Error("Serviço de transcrição não configurado no servidor.");
 
-        // O upload TUS termina antes da codificação. Aguarda até 10 minutos pelo MP4.
+        // O pull zone do Bunny exige Referer. Calculado aqui porque tanto a sondagem
+        // quanto o download abaixo precisam do cabeçalho.
+        const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
+        const referer = origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {};
+
+        // O upload TUS termina antes da CODIFICAÇÃO. O /play devolve o fallbackUrl
+        // assim que o registro do vídeo existe, mesmo sem o MP4 estar gravado — era
+        // por isso que o download estourava 404 logo depois de enviar o vídeo.
+        // Agora espera o status de codificação concluída (4) E confirma que o arquivo
+        // responde, antes de tentar baixá-lo. Até 10 minutos.
         let mediaUrl = "";
+        let ultimoMotivo = "codificação ainda não concluída";
         for (let attempt = 0; attempt < 60 && !mediaUrl; attempt++) {
-          const playResponse = await fetch(`${base}/play`, {
+          const infoResponse = await fetch(base, {
             headers: { AccessKey: lib.apiKey, Accept: "application/json" },
           });
-          if (playResponse.ok) {
-            const play = await playResponse.json() as any;
-            mediaUrl = String(play.fallbackUrl || play.originalUrl || "");
+          const info = infoResponse.ok ? await infoResponse.json() as any : null;
+          const encodeStatus = Number(info?.status ?? -1);
+          // 5 = falha no processamento, 6 = falha no upload. Não adianta esperar.
+          if (encodeStatus === 5 || encodeStatus === 6) {
+            throw new Error("O servidor de vídeo não conseguiu processar este arquivo. Envie o vídeo novamente.");
+          }
+
+          if (encodeStatus === 4) {
+            const playResponse = await fetch(`${base}/play`, {
+              headers: { AccessKey: lib.apiKey, Accept: "application/json" },
+            });
+            const play = playResponse.ok ? await playResponse.json() as any : null;
             // O Bunny devolve fallbackUrl como prefixo (ex.: .../play_). A
             // resolução precisa ser acrescentada antes do download.
-            if (mediaUrl.endsWith("/play_")) {
-              const resolutions = String(play.video?.availableResolutions || "")
+            let candidata = String(play?.fallbackUrl || play?.originalUrl || "");
+            if (candidata.endsWith("/play_")) {
+              const resolutions = String(play?.video?.availableResolutions || info?.availableResolutions || "")
                 .split(",")
                 .map((value: string) => Number.parseInt(value, 10))
                 .filter((value: number) => Number.isFinite(value));
-              const sourceHeight = Number(play.video?.height || 0);
+              const sourceHeight = Number(play?.video?.height || info?.height || 0);
               const usable = resolutions.filter((value: number) => !sourceHeight || value <= sourceHeight);
               // Para transcrição, a menor resolução preserva o áudio e reduz muito
               // o download/memória do servidor (um vídeo 1080p pode ter centenas de MB).
               const candidates = usable.length > 0 ? usable : resolutions;
               const resolution = candidates.length > 0 ? Math.min(...candidates) : 0;
-              mediaUrl = resolution > 0 ? `${mediaUrl}${resolution}p.mp4` : "";
+              candidata = resolution > 0 ? `${candidata}${resolution}p.mp4` : "";
             }
+            if (candidata) {
+              // O arquivo pode demorar alguns segundos além do status 4. Confirma
+              // que ele responde antes de comprometer o download inteiro.
+              const sonda = await fetch(candidata, {
+                headers: { Range: "bytes=0-1", ...referer },
+                signal: AbortSignal.timeout(30_000),
+              }).catch(() => null);
+              if (sonda && (sonda.ok || sonda.status === 206)) mediaUrl = candidata;
+              // 403 é bloqueio de acesso do CDN (restrição de referer), não demora
+              // de codificação — insistir por 10 minutos não resolveria nada.
+              else if (sonda?.status === 403) {
+                throw new Error("O servidor de vídeo recusou o acesso ao arquivo (403). Verifique a restrição de domínios do CDN e a variável APP_URL.");
+              }
+              else ultimoMotivo = `arquivo ainda não disponível (HTTP ${sonda?.status ?? "sem resposta"})`;
+            } else {
+              ultimoMotivo = "o servidor de vídeo não informou nenhuma resolução para download";
+            }
+          } else {
+            ultimoMotivo = `codificação em ${Number(info?.encodeProgress ?? 0)}%`;
           }
+
           if (!mediaUrl) {
             // Sinal de vida a cada 30s. Sem isso o atualizadoEm ficava parado
             // durante toda a codificação e a tela marcava como "travado" um vídeo
@@ -2086,7 +2126,7 @@ async function startServer() {
             await new Promise(resolve => setTimeout(resolve, 10_000));
           }
         }
-        if (!mediaUrl) throw new Error("Bunny não disponibilizou o arquivo MP4 dentro de 10 minutos.");
+        if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 10 minutos (${ultimoMotivo}).`);
 
         pipelineStatus.processamentoVideo = "concluido";
         pipelineStatus.transcricao = "processando";
@@ -2094,12 +2134,8 @@ async function startServer() {
         await salvarPipelineStatus();
 
         // DeepInfra (diferente do Groq) não aceita "url" — precisa do arquivo em si no form.
-        const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
         const mediaResponse = await fetch(mediaUrl, {
-          headers: {
-            Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8",
-            ...(origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {}),
-          },
+          headers: { Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8", ...referer },
           signal: AbortSignal.timeout(120_000),
         });
         if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do Bunny: HTTP ${mediaResponse.status}`);
