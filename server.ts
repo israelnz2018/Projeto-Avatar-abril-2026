@@ -2042,9 +2042,12 @@ async function startServer() {
         try { return await tarefa; } finally { clearInterval(batida); }
       };
 
-      // O play-data do Bunny já devolve a thumbnail pública. Isso usa a mesma
-      // chave Stream da biblioteca e não exige BUNNY_ACCOUNT_API_KEY.
-      if (!saved.some(value => value.bunnyThumbnailUrl)) {
+      // O play-data do Bunny já devolve a thumbnail pública (video.thumbnailUrl).
+      // Isso usa a mesma chave Stream da biblioteca e não exige BUNNY_ACCOUNT_API_KEY.
+      // Retorna true se salvou (ou já tinha) — usado pra decidir se vale tentar de novo.
+      let thumbnailSalva = false;
+      const tentarSalvarThumbnail = async (): Promise<boolean> => {
+        if (thumbnailSalva || saved.some(value => value.bunnyThumbnailUrl)) return true;
         try {
           const playForThumbnail = await fetch(`${base}/play`, {
             headers: { AccessKey: lib.apiKey, Accept: "application/json" },
@@ -2055,14 +2058,21 @@ async function startServer() {
             const bunnyThumbnailUrl = String(playData?.video?.thumbnailUrl || "").trim();
             if (bunnyThumbnailUrl) {
               const thumbBatch = adminFirestore().batch();
-              videoDocs.docs.forEach(doc => thumbBatch.update(doc.ref, { bunnyThumbnailUrl }));
+              videoDocs!.docs.forEach(doc => thumbBatch.update(doc.ref, { bunnyThumbnailUrl }));
               await thumbBatch.commit();
+              thumbnailSalva = true;
             }
           }
         } catch (thumbnailError) {
           console.warn("[/api/bunny/transcribe-video] thumbnail não disponível:", thumbnailError);
         }
-      }
+        return thumbnailSalva;
+      };
+      // Primeira tentativa: rápida, cobre o vídeo já totalmente processado antes
+      // (retry/"reused"). Num vídeo NOVO a codificação pode ainda não ter gerado a
+      // capa aqui — por isso há uma segunda chamada mais abaixo, depois de confirmar
+      // que a codificação terminou, garantindo que a capa não fique pra sempre vazia.
+      await tentarSalvarThumbnail();
 
       if (rawTranscript && savedSummary) {
         // Sucesso (ou já processado antes) — limpa qualquer erro anterior persistido.
@@ -2154,6 +2164,10 @@ async function startServer() {
           }
         }
         if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 10 minutos (${ultimoMotivo}).`);
+
+        // Codificação confirmada concluída — se a primeira tentativa (antes da espera)
+        // não achou a capa porque o Bunny ainda estava gerando, agora é a hora certa.
+        await tentarSalvarThumbnail();
 
         pipelineStatus.processamentoVideo = "concluido";
         pipelineStatus.transcricao = "processando";
