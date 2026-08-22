@@ -352,28 +352,18 @@ export default function LearningView() {
     }
   }, [items, location.search]);
 
-  // Ordena cursos pelo prefixo numérico ("1- ...", "2- ...", "9- ..."), "Todos" fica primeiro.
+  // "Todos" fica primeiro; depois vêm os cursos liberados e os demais,
+  // ambos em ordem alfabética pelo nome do curso.
   const requestedIntroCourse = resolveIntroCourseFromLocation();
   const courseSet = new Set(items.map(item => item.course).filter((course) => course !== INTRO_COURSE_ALUNO && course !== INTRO_COURSE_COORDENADOR));
-  const sortedCourses = Array.from(courseSet)
-    .sort((a, b) => {
-      const specialOrder = (course: string) => {
-        if (course === INTRO_COURSE_ALUNO) return 0;
-        if (course === INTRO_COURSE_COORDENADOR) return 1;
-        return 2;
-      };
-      const oa = specialOrder(a);
-      const ob = specialOrder(b);
-      if (oa !== ob) return oa - ob;
-      const na = parseInt(a);
-      const nb = parseInt(b);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      if (!isNaN(na)) return -1;
-      if (!isNaN(nb)) return 1;
-      return a.localeCompare(b);
-    });
+  const nomeParaOrdenacao = (curso: string) => curso.replace(/^\s*\d+\s*[-–—:]\s*/, '').trim();
+  const ordenarAlfabeticamente = (a: string, b: string) =>
+    nomeParaOrdenacao(a).localeCompare(nomeParaOrdenacao(b), 'pt-BR', { sensitivity: 'base', numeric: true });
+  const cursos = Array.from(courseSet);
+  const cursosComAcesso = cursos.filter((curso) => !isCourseLocked(curso)).sort(ordenarAlfabeticamente);
+  const cursosSemAcesso = cursos.filter((curso) => isCourseLocked(curso)).sort(ordenarAlfabeticamente);
   const isIntroArea = Boolean(requestedIntroCourse);
-  const categories = isIntroArea && requestedIntroCourse ? [requestedIntroCourse] : ['Todos', ...sortedCourses];
+  const categories = isIntroArea && requestedIntroCourse ? [requestedIntroCourse] : ['Todos', ...cursosComAcesso, ...cursosSemAcesso];
 
   // Paleta de gradientes (1 por trilha, ciclada se passar de 10)
   const CARD_GRADIENTS = [
