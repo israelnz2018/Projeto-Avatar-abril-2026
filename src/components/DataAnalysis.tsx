@@ -1434,7 +1434,10 @@ export default function DataAnalysis() {
                 >
                   {/* Grupo NUNCA fica bloqueado: o aluno abre e vê o que existe.
                       O cadeado aparece só no último nível (a análise em si). */}
-                  <button className="text-white bg-transparent border-none text-[0.85rem] cursor-pointer hover:text-blue-300 transition-colors flex items-center gap-1 font-sans font-bold">
+                  <button className={cn(
+                    "bg-transparent border-none text-[0.85rem] cursor-pointer transition-colors flex items-center gap-1 font-sans font-bold",
+                    grupoLiberado(grupo) ? "text-white hover:text-blue-300" : "text-gray-400 hover:text-gray-300"
+                  )}>
                     {grupo} <ChevronDown size={12} />
                   </button>
                   
