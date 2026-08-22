@@ -12,7 +12,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Initiative, InitiativePhaseConfig } from '../types';
-import { updateCourseName, countVideosByCourse } from './knowledgeService';
 import { resolveConsultorId } from './consultorService';
 
 const INITIATIVES_COLLECTION = 'initiatives';
@@ -138,75 +137,6 @@ export const deleteInitiative = async (id: string): Promise<void> => {
   for (const config of configs) {
     await deleteDoc(doc(db, CONFIG_COLLECTION, `${id}_${config.phaseId}`));
   }
-};
-
-/**
- * Funde uma iniciativa (source) em outra (target).
- *
- * Operação atômica em 3 passos:
- *   1. Move todos os vídeos da Base de Conhecimento da source pra target
- *      (renomeia o campo `course` em batch via updateCourseName).
- *   2. Deleta a Initiative source e suas configs (phaseId+toolIds).
- *   3. (Opcional) Renomeia a target se newTargetName for passado.
- *
- * Uso típico: admin acabou de fundir 2 trilhas conceitualmente (ex: T1+T2)
- * e precisa propagar a fusão nos dados do Firestore. Esta função executa os
- * 3 passos manuais que antes o admin fazia pelo painel — em 1 chamada.
- *
- * NÃO faz dry-run. Operação destrutiva da source. Sempre confirme com o
- * usuário antes de chamar (ver UI em ProjectToolsConfig.tsx).
- *
- * @param sourceId   ID da Initiative que vai SUMIR (toda a essência vai pra target)
- * @param targetId   ID da Initiative que RECEBE (sobrevive ao final)
- * @param newTargetName  (opcional) novo nome pra target depois da fusão.
- *                       Se passado, propaga pros vídeos também.
- * @returns número de vídeos movidos
- */
-export const mergeInitiativeInto = async (
-  sourceId: string,
-  targetId: string,
-  newTargetName?: string
-): Promise<number> => {
-  if (sourceId === targetId) {
-    throw new Error('Source e target não podem ser a mesma iniciativa.');
-  }
-
-  // Carrega ambas — falha cedo se uma não existe
-  const [source, target] = await Promise.all([
-    getInitiative(sourceId),
-    getInitiative(targetId),
-  ]);
-  if (!source) throw new Error(`Initiative source (${sourceId}) não encontrada.`);
-  if (!target) throw new Error(`Initiative target (${targetId}) não encontrada.`);
-
-  // 1. Move vídeos: source.name → target.name (ou newTargetName se passado)
-  const finalTargetName = newTargetName?.trim() || target.name;
-  const videosMoved = await countVideosByCourse(source.name);
-  if (videosMoved > 0) {
-    await updateCourseName(source.name, finalTargetName);
-  }
-
-  // 2. Se admin pediu renomear target, propaga pros vídeos que JÁ eram dela
-  if (newTargetName && newTargetName.trim() !== target.name) {
-    await updateCourseName(target.name, newTargetName.trim());
-    await updateInitiative(targetId, { name: newTargetName.trim() });
-  }
-
-  // 3. Deleta source (Initiative + configs)
-  await deleteInitiative(sourceId);
-
-  return videosMoved;
-};
-
-/**
- * Conta quantos vídeos serão movidos numa fusão antes de executá-la.
- * Usado pra mostrar preview no modal de confirmação.
- */
-export const previewMergeImpact = async (sourceId: string): Promise<{ videosCount: number; sourceName: string }> => {
-  const source = await getInitiative(sourceId);
-  if (!source) throw new Error(`Initiative source (${sourceId}) não encontrada.`);
-  const videosCount = await countVideosByCourse(source.name);
-  return { videosCount, sourceName: source.name };
 };
 
 // ===== Ferramentas em RASCUNHO (não prontas pra distribuir aos consultores) =====

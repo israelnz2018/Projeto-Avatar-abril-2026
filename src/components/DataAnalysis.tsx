@@ -228,6 +228,27 @@ const configuracoesAnalises = {
   ],
 };
 
+// Garantia contra o mesmo erro que já aconteceu uma vez (renomear/reorganizar
+// um grupo aqui sem atualizar ANALYTICS_MODULOS em services/analyticsModules.ts):
+// se os dois ficarem fora de sincronia, o módulo inteiro passa a bloquear TODO
+// MUNDO em silêncio (grupoLiberado não encontra o módulo e trata como restrito).
+// Em vez de silêncio, isso aparece AGORA — no console assim que a tela carrega —
+// em vez de virar reclamação de aluno dias depois.
+if (import.meta.env.DEV) {
+  const gruposReais = new Set(Object.keys(configuracoesAnalises));
+  const gruposCatalogados = new Set(ANALYTICS_MODULOS.map((m) => m.grupo));
+  for (const g of gruposReais) {
+    if (!gruposCatalogados.has(g)) {
+      console.error(`[DataAnalysis] Grupo "${g}" existe em configuracoesAnalises mas não em ANALYTICS_MODULOS (services/analyticsModules.ts) — esse módulo vai bloquear todo aluno, mesmo com acesso liberado. Adicione uma entrada com esse "grupo" lá.`);
+    }
+  }
+  for (const g of gruposCatalogados) {
+    if (!gruposReais.has(g)) {
+      console.error(`[DataAnalysis] ANALYTICS_MODULOS referencia o grupo "${g}", que não existe (mais) em configuracoesAnalises — provavelmente foi renomeado aqui sem atualizar lá.`);
+    }
+  }
+}
+
 // Mapeamento nome da análise → ID usado em associatedAnalyses
 const ANALISE_NOME_PARA_ID: Record<string, string> = {
   'Gráfico Sumario': 'graficoSumario',
@@ -435,6 +456,12 @@ export default function DataAnalysis() {
   const [columns, setColumns] = useState<string[]>([]);
   const [previewData, setPreviewData] = useState<any[][]>([]);
   const [ferramentaAtual, setFerramentaAtual] = useState("");
+  // Grupo/módulo do menu de onde a análise foi selecionada. Precisa acompanhar
+  // ferramentaAtual porque o mesmo nome de análise pode existir em mais de um
+  // módulo (ex: "Teste de normalidade" aparece em Estatística Básica E em
+  // Análises de Capabilidade) — sem saber QUAL módulo o aluno abriu, não dá
+  // pra decidir corretamente se está liberado.
+  const [grupoAtual, setGrupoAtual] = useState("");
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeEntry[]>([]);
   const [selectedAnalysisVideo, setSelectedAnalysisVideo] = useState<KnowledgeEntry | null>(null);
   const supportVideoIframeRef = useRef<HTMLIFrameElement>(null);
@@ -461,21 +488,15 @@ export default function DataAnalysis() {
     return acessoAnalyticsDoAluno(modulosLiberados, modulo).liberado;
   };
 
-  // Descobre a qual grupo do menu uma análise pertence (o menu tem o grupo em mãos,
-  // mas o "Executar" só conhece o nome da análise selecionada).
-  const gruposDaAnalise = (nomeAnalise: string) =>
-    Object.keys(configuracoesAnalises).filter((grupo) =>
-      (configuracoesAnalises[grupo as keyof typeof configuracoesAnalises] as any[]).some(
-        (item) => item.nome === nomeAnalise || (item.subitens || []).includes(nomeAnalise),
-      ),
-    );
-
-  const isAnalysisLocked = (analysisName: string) => {
-    const grupos = gruposDaAnalise(analysisName);
-    // A análise segue o módulo principal em que aparece. Se existir em mais
-    // de um módulo, basta um deles estar liberado para não bloquear a análise.
-    return grupos.length > 0 ? grupos.every((grupo) => !grupoLiberado(grupo)) : false;
-  };
+  // Trava por GRUPO, não por nome de análise. Um mesmo nome pode existir em mais
+  // de um módulo (ex: "Teste de normalidade" está em Estatística Básica E em
+  // Análises de Capabilidade) — com a versão antiga, bastava UM desses módulos
+  // estar liberado pra destravar o nome em TODO lugar, inclusive dentro do menu
+  // de um módulo que o aluno não comprou. Resultado visível: abrir "Estatística
+  // Básica" sem tê-la liberada e ver alguns itens destravados (os que também
+  // pertencem a outro módulo liberado) e outros travados — parecia aleatório.
+  // Agora cada item obedece só o módulo do menu em que está sendo mostrado.
+  const isAnalysisLocked = (grupo: string) => !grupoLiberado(grupo);
 
   // Vídeos educacionais FIXOS sobre como usar variáveis X e Y na aba Data Analysis.
   // Aparecem sempre, independente da análise selecionada. Click → toca no player inline.
@@ -710,7 +731,7 @@ export default function DataAnalysis() {
   };
 
   const handleRunAnalysis = async () => {
-    if (isAnalysisLocked(ferramentaAtual)) {
+    if (grupoAtual && isAnalysisLocked(grupoAtual)) {
       setLockedAnalisePopupOpen(true);
       return;
     }
@@ -1437,13 +1458,14 @@ export default function DataAnalysis() {
                               activeNestedMenu === item.nome ? "block" : "hidden"
                             )}>
                               {item.subitens.map((sub: string) => {
-                                const subLocked = isAnalysisLocked(sub);
+                                const subLocked = isAnalysisLocked(grupo);
                                 return (
                                   <li key={sub}>
                                     <button
                                       onClick={() => {
                                         if (subLocked) { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); setActiveNestedMenu(null); return; }
                                         setFerramentaAtual(sub);
+                                        setGrupoAtual(grupo);
                                         setToolParams({});
                                         setActiveSubmenu(null);
                                         setActiveNestedMenu(null);
@@ -1461,12 +1483,13 @@ export default function DataAnalysis() {
                             </ul>
                           </>
                         ) : (() => {
-                          const itemLocked = isAnalysisLocked(item.nome);
+                          const itemLocked = isAnalysisLocked(grupo);
                           return (
                             <button
                               onClick={() => {
                                 if (itemLocked) { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); return; }
                                 setFerramentaAtual(item.nome);
+                                setGrupoAtual(grupo);
                                 setToolParams({});
                                 setActiveSubmenu(null);
                                 setSelectedAnalysisVideo(null);
