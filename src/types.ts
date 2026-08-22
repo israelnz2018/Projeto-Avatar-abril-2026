@@ -126,8 +126,10 @@ export interface Consultor {
   capAlunos?: number;    // teto total de alunos da base do consultor (admin define). 0/ausente = sem limite
   branding: ConsultorBranding;
   certificado?: ConsultorCertificateConfig;
-  /** Se false, a prova abre direto, sem solicitar depoimento/opinião antes. */
+  /** Legado: mantido para compatibilidade com configurações antigas. */
   depoimentoPreProvaAtivo?: boolean;
+  /** Se false, o certificado pode ser emitido sem solicitar depoimento após a aprovação. */
+  depoimentoPosProvaAtivo?: boolean;
   vitrine?: ConsultorVitrine;
   plano?: string;        // faixa SaaS (monetização)
   ativo: boolean;

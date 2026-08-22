@@ -301,7 +301,7 @@ export async function checkAndIssueCertificate(
   });
   const body = await res.json().catch(() => ({} as any));
   if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
-  return body?.issued === true;
+  return body?.issued === true || body?.already === true;
 }
 
 /** Lê um certificado público pelo certId. Usado na rota /verificar/{certId} (sem auth). */

@@ -78,7 +78,7 @@ export function campanhaCortesiaHtml(emailDestino: string, senhaProvisoria: stri
           <h2 style="font-size:16px;color:${NAVY};margin:0 0 12px;font-weight:800;">Em troca, te peço só 3 coisas 🤝</h2>
           <div style="font-size:14px;line-height:1.6;margin:0 0 10px;"><strong>1.</strong> Participe da <strong>comunidade</strong>.</div>
           <div style="font-size:14px;line-height:1.6;margin:0 0 10px;"><strong>2.</strong> Me ajude reportando <strong>sugestões de melhoria, bugs</strong> e o que achar que pode melhorar.</div>
-          <div style="font-size:14px;line-height:1.6;margin:0;"><strong>3.</strong> Antes de fazer a prova de cada trilha, escreva um <strong>breve depoimento</strong> sobre a plataforma, pode ser positivo ou negativo, quero a sua opinião sincera. Esse depoimento poderá ser usado nas minhas redes sociais para divulgar o trabalho.</div>
+          <div style="font-size:14px;line-height:1.6;margin:0;"><strong>3.</strong> Depois de ser aprovado na prova de cada trilha, escreva um <strong>breve depoimento</strong> sobre a plataforma, pode ser positivo ou negativo, quero a sua opinião sincera. O depoimento é necessário para a emissão do certificado e poderá ser usado nas minhas redes sociais somente se você autorizar.</div>
         </div>
         <p style="font-size:15px;line-height:1.65;margin:0 0 14px;">É isso. Aproveite de verdade, foi feito pra você. Qualquer dúvida, é só responder este e-mail.</p>
         <p style="font-size:15px;line-height:1.65;margin:18px 0 4px;">Um abraço,</p>

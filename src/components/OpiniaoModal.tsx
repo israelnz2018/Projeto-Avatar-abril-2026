@@ -1,5 +1,5 @@
 /**
- * OpiniaoModal — pop-up de depoimento OBRIGATÓRIO (e educado) antes da prova.
+ * OpiniaoModal — pop-up de depoimento OBRIGATÓRIO depois da aprovação.
  *
  * Mostra: nome do aluno, o curso que está concluindo, uma lista de itens com
  * rating 1-5 estrelas cada, um campo de comentário e um checkbox de autorização
@@ -9,26 +9,28 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Star, Heart, Loader2 } from 'lucide-react';
-import { getOpiniaoItens, salvarOpiniao } from '../services/opiniaoService';
+import { getOpiniaoConfig, salvarOpiniao } from '../services/opiniaoService';
 import { useConsultor } from '../contexts/ConsultorContext';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
 export default function OpiniaoModal({
-  uid, alunoNome, alunoEmail, trilha, trilhaTitulo, onDone, onCancel, obrigatorioSemSaida = false,
+  uid, alunoNome, alunoEmail, trilha, trilhaTitulo, initiativeId, onDone, onCancel, obrigatorioSemSaida = false,
 }: {
   uid: string;
   alunoNome: string;
   alunoEmail: string;
   trilha: number;
   trilhaTitulo: string;
-  /** Chamado após salvar com sucesso — segue para a prova. */
+  initiativeId?: string;
+  /** Chamado após salvar com sucesso — segue para a emissão do certificado. */
   onDone: () => void;
   onCancel: () => void;
   /** Trilha 1 do aluno gratuito: depoimento obrigatório, sem botão de pular. */
   obrigatorioSemSaida?: boolean;
 }) {
   const [itens, setItens] = useState<string[]>([]);
+  const [perguntaAberta, setPerguntaAberta] = useState('Como foi sua experiência com este curso e com a plataforma LBW?');
   const [notas, setNotas] = useState<Record<string, number>>({});
   const [hover, setHover] = useState<Record<string, number>>({});
   const [comentario, setComentario] = useState('');
@@ -41,7 +43,10 @@ export default function OpiniaoModal({
   const nomeMarca = consultor.branding.nome || 'a plataforma';
 
   useEffect(() => {
-    getOpiniaoItens().then(setItens).finally(() => setLoading(false));
+    getOpiniaoConfig().then((config) => {
+      setItens(config.itens);
+      setPerguntaAberta(config.perguntaAberta);
+    }).finally(() => setLoading(false));
   }, []);
 
   // Depois do agradecimento, redireciona para a prova.
@@ -54,25 +59,28 @@ export default function OpiniaoModal({
   const todasPreenchidas = itens.length > 0 && itens.every((it) => (notas[it] ?? 0) >= 1);
 
   const handleEnviar = async () => {
-    if (!todasPreenchidas) {
-      setErro('Por favor, dê uma nota para cada item antes de continuar. 🙏');
+    if (!todasPreenchidas || !comentario.trim()) {
+      setErro(!todasPreenchidas
+        ? 'Por favor, dê uma nota para cada item antes de continuar. 🙏'
+        : 'Responda à pergunta aberta antes de continuar.');
       return;
     }
     setSaving(true); setErro('');
     try {
       await salvarOpiniao({
-        uid, alunoNome, alunoEmail, trilha, trilhaTitulo,
+        uid, alunoNome, alunoEmail, trilha, trilhaTitulo, initiativeId,
         notas: itens.map((item) => ({ item, nota: notas[item] })),
         comentario: comentario.trim(),
         autorizaDivulgacao: autoriza,
       });
     } catch (e) {
-      // Não trava o aluno se o Firestore falhar — agradece e segue mesmo assim.
       console.error('[OpiniaoModal] salvar:', e);
+      setErro('Não foi possível salvar seu depoimento. Verifique sua conexão e tente novamente.');
+      return;
     } finally {
       setSaving(false);
-      setEnviado(true); // mostra o agradecimento e redireciona
     }
+    setEnviado(true);
   };
 
   return (
@@ -92,11 +100,11 @@ export default function OpiniaoModal({
             </motion.div>
             <h2 className="text-2xl font-black text-gray-900 mb-2">Muito obrigado, {alunoNome.split(' ')[0]}! 🙏</h2>
             <p className="text-gray-600 leading-relaxed max-w-sm mx-auto">
-              Sua opinião é muito importante para nós e nos ajuda a melhorar cada vez mais.
+              Seu depoimento foi registrado. Agora o sistema poderá liberar seu certificado.
             </p>
             <p className="text-gray-500 text-sm mt-4 flex items-center justify-center gap-2">
               <Loader2 size={16} className="animate-spin" />
-              Você será redirecionado para realizar a avaliação…
+              Estamos finalizando seu certificado…
             </p>
           </div>
         ) : (
@@ -106,17 +114,14 @@ export default function OpiniaoModal({
           <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(0,51,204,.1)' }}>
             <Heart size={26} style={{ color: LBW.blue }} />
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Antes de começar, {alunoNome.split(' ')[0]} 💙</h2>
+          <h2 className="text-xl font-bold text-gray-900">Parabéns pela aprovação, {alunoNome.split(' ')[0]} 💙</h2>
           <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-            Você está concluindo o curso <b style={{ color: LBW.navy }}>{trilhaTitulo}</b>.
-            Sua opinião sincera nos ajuda muito a melhorar. Leva menos de 1 minuto — e é o que
-            nos permite continuar evoluindo por você.
+            Você foi aprovado no curso <b style={{ color: LBW.navy }}>{trilhaTitulo}</b>.
+            Responda ao depoimento abaixo para liberar a emissão do seu certificado.
           </p>
           {obrigatorioSemSaida && (
             <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-3 leading-relaxed">
-              Antes de seguir para a prova, pedimos com todo o carinho que compartilhe sua
-              avaliação deste primeiro curso. É a nossa forma de continuar evoluindo e
-              oferecendo conteúdo de qualidade. 💙
+              O depoimento é obrigatório para concluir a emissão do certificado. 💙
             </p>
           )}
         </div>
@@ -154,12 +159,12 @@ export default function OpiniaoModal({
 
               {/* Comentário */}
               <div className="mt-5">
-                <label className="text-sm font-bold text-gray-700">Deixe seu depoimento (opcional)</label>
+                <label className="text-sm font-bold text-gray-700">{perguntaAberta}</label>
                 <textarea
                   value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
                   rows={3}
-                  placeholder="Conte como foi sua experiência com o curso e a plataforma…"
+                  placeholder="Escreva sua resposta…"
                   className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-blue-400"
                 />
               </div>
@@ -192,7 +197,7 @@ export default function OpiniaoModal({
             className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ background: LBW.blue }}
           >
-            {saving ? <><Loader2 size={16} className="animate-spin" /> Enviando…</> : 'Enviar e começar a avaliação →'}
+            {saving ? <><Loader2 size={16} className="animate-spin" /> Enviando…</> : 'Enviar depoimento e liberar certificado →'}
           </button>
         </div>
         </>

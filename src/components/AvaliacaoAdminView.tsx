@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import { Save, Plus, Trash2, Check, ChevronDown, ClipboardCheck, Target, Video } from 'lucide-react';
 import { getQuiz, saveQuiz, type QuizConfig, type QuizQuestion } from '../services/quizService';
-import { getOpiniaoItens, saveOpiniaoItens } from '../services/opiniaoService';
+import { getOpiniaoConfig, saveOpiniaoConfig } from '../services/opiniaoService';
 import { resolveConsultorId } from '../services/consultorService';
 import { getEducationCourses } from '../services/educationCourseService';
 import { useConsultor } from '../contexts/ConsultorContext';
@@ -57,6 +57,7 @@ export default function AvaliacaoAdminView() {
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [opiniaoItens, setOpiniaoItens] = useState<string[]>([]);
+  const [opiniaoPergunta, setOpiniaoPergunta] = useState('');
   const [opiniaoMsg, setOpiniaoMsg] = useState('');
   const [salvandoDepoimento, setSalvandoDepoimento] = useState(false);
 
@@ -86,7 +87,10 @@ export default function AvaliacaoAdminView() {
   }, []);
 
   useEffect(() => {
-    getOpiniaoItens().then(setOpiniaoItens).catch(() => {});
+    getOpiniaoConfig().then((config) => {
+      setOpiniaoItens(config.itens);
+      setOpiniaoPergunta(config.perguntaAberta);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -108,7 +112,7 @@ export default function AvaliacaoAdminView() {
 
   const handleSaveItens = async () => {
     try {
-      await saveOpiniaoItens(opiniaoItens);
+      await saveOpiniaoConfig(opiniaoItens, opiniaoPergunta);
       setOpiniaoMsg('✓ Itens salvos.');
       setTimeout(() => setOpiniaoMsg(''), 3000);
     } catch {
@@ -120,7 +124,7 @@ export default function AvaliacaoAdminView() {
     setSalvandoDepoimento(true);
     setOpiniaoMsg('');
     try {
-      await setDoc(doc(db, 'consultores', consultorId), { depoimentoPreProvaAtivo: ativo }, { merge: true });
+      await setDoc(doc(db, 'consultores', consultorId), { depoimentoPosProvaAtivo: ativo }, { merge: true });
       await refresh();
       setOpiniaoMsg(ativo ? '✓ Depoimento ativado.' : '✓ Depoimento desativado.');
     } catch {
@@ -208,8 +212,8 @@ export default function AvaliacaoAdminView() {
       <div className="bg-white rounded-3xl border border-gray-200 p-5 mb-6 shadow-sm">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-            <h2 className="font-black text-gray-900">Depoimento pré-prova — itens avaliados (nota 1-5)</h2>
-            <p className="text-xs text-gray-400">Escolha se os alunos devem preencher o depoimento antes dos testes. A opção vale para todos os seus cursos.</p>
+            <h2 className="font-black text-gray-900">Depoimento pós-aprovação — itens avaliados (nota 1-5)</h2>
+            <p className="text-xs text-gray-400">Configure o depoimento que será solicitado depois da aprovação. A opção vale para todos os seus cursos.</p>
           </div>
           <div className="flex items-center gap-2">
             {opiniaoMsg && <span className={`text-sm font-bold ${opiniaoMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-500'}`}>{opiniaoMsg}</span>}
@@ -221,15 +225,26 @@ export default function AvaliacaoAdminView() {
         <label className="mb-4 flex cursor-pointer items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-3">
           <input
             type="checkbox"
-            checked={consultor.depoimentoPreProvaAtivo !== false}
+            checked={consultor.depoimentoPosProvaAtivo
+              ?? consultor.depoimentoPreProvaAtivo !== false}
             disabled={salvandoDepoimento}
             onChange={(event) => handleToggleDepoimento(event.target.checked)}
             className="h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
           />
           <div>
-            <div className="text-sm font-bold text-gray-800">Solicitar depoimento antes do teste</div>
-            <div className="text-xs text-gray-500">Desmarque para abrir o teste diretamente.</div>
+            <div className="text-sm font-bold text-gray-800">Solicitar depoimento após aprovação</div>
+            <div className="text-xs text-gray-500">O aluno precisa responder antes da emissão do certificado.</div>
           </div>
+        </label>
+        <label className="block mb-4">
+          <span className="mb-1 block text-xs font-black uppercase tracking-wide text-gray-500">Pergunta aberta para o aluno</span>
+          <input
+            value={opiniaoPergunta}
+            onChange={(e) => setOpiniaoPergunta(e.target.value)}
+            placeholder="Ex.: O que você achou do curso e da plataforma?"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+          />
+          <span className="mt-1 block text-xs text-gray-400">O aluno responderá em um campo de texto obrigatório antes de gerar o certificado.</span>
         </label>
         <div className="space-y-2">
           {opiniaoItens.map((item, i) => (

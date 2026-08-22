@@ -78,9 +78,10 @@ export default function AvaliacaoView() {
   const [alunoNome, setAlunoNome] = useState('Aluno LBW');
   const [activeQuizTrilha, setActiveQuizTrilha] = useState<number | null>(null);
   const [justPassedTrilha, setJustPassedTrilha] = useState<number | null>(null);
-  // Trilha cujo depoimento (obrigatório) está sendo pedido, antes de abrir a prova.
+  // Trilha aprovada cujo depoimento obrigatório está sendo pedido antes do certificado.
   const [opiniaoTrilha, setOpiniaoTrilha] = useState<number | null>(null);
   const [cursoBloqueado, setCursoBloqueado] = useState<string | null>(null);
+  const [certificadoErro, setCertificadoErro] = useState('');
 
   const uid = auth.currentUser?.uid;
   const consultorId = resolveConsultorId();
@@ -149,19 +150,39 @@ export default function AvaliacaoView() {
     });
   }, [quizzes, initiatives, videos, progress, plano, isAdmin, isConsultor, isCoordenador, cursosLiberados, acessoPorCurso]);
 
-  // Ao terminar a prova aprovado: emite certificado e mostra parabéns.
-  const handlePassed = async (trilha: number) => {
+  const depoimentoPosProvaAtivo = consultor.depoimentoPosProvaAtivo
+    ?? consultor.depoimentoPreProvaAtivo !== false;
+
+  // A emissão acontece depois da prova e, quando ativado, depois do depoimento.
+  const emitirCertificado = async (trilha: number) => {
+    setCertificadoErro('');
     const bloco = blocos.find((b) => b.quiz.trilha === trilha);
     if (bloco?.initiative && uid) {
-      // Emite mesmo que o gate de vídeo não bata (a prova é a validação final aqui).
       try {
-        await checkAndIssueCertificate(uid, bloco.initiative, videos, alunoNome).catch(() => {});
+        const emitido = await checkAndIssueCertificate(uid, bloco.initiative, videos, alunoNome);
         const fresh = await getUserProgress(uid);
         setProgress(fresh);
-      } catch (e) { console.error('[AvaliacaoView] emitir cert:', e); }
+        if (!emitido && !fresh?.certificadosEmitidos?.[bloco.initiative.id]) {
+          setCertificadoErro('O certificado ainda não foi emitido. Confirme os 70% dos vídeos, a aprovação na prova e o depoimento enviado.');
+          return;
+        }
+      } catch (e) {
+        console.error('[AvaliacaoView] emitir cert:', e);
+        setCertificadoErro('Não foi possível emitir o certificado agora. Tente novamente em instantes.');
+        return;
+      }
     }
     setActiveQuizTrilha(null);
     setJustPassedTrilha(trilha);
+  };
+
+  const handlePassed = async (trilha: number) => {
+    setActiveQuizTrilha(null);
+    if (depoimentoPosProvaAtivo) {
+      setOpiniaoTrilha(trilha);
+      return;
+    }
+    await emitirCertificado(trilha);
   };
 
   if (accessLoading || loading) {
@@ -193,6 +214,7 @@ export default function AvaliacaoView() {
       <p className="text-gray-500 mb-8">
         Complete os vídeos de cada curso, faça a avaliação e conquiste seu certificado.
       </p>
+      {certificadoErro && <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">{certificadoErro}</p>}
 
       {blocos.length === 0 && (
         <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center">
@@ -209,8 +231,7 @@ export default function AvaliacaoView() {
             index={i}
             certAluno={alunoNome}
             onStart={() => {
-              if (consultor.depoimentoPreProvaAtivo === false) setActiveQuizTrilha(b.quiz.trilha);
-              else setOpiniaoTrilha(b.quiz.trilha);
+              setActiveQuizTrilha(b.quiz.trilha);
             }}
             onLocked={() => setCursoBloqueado(b.initiative?.name || b.quiz.titulo)}
             showCongrats={justPassedTrilha === b.quiz.trilha}
@@ -218,7 +239,7 @@ export default function AvaliacaoView() {
         ))}
       </div>
 
-      {/* Pop-up de depoimento obrigatório — abre antes da prova */}
+      {/* Pop-up de depoimento obrigatório — abre depois da aprovação */}
       {opiniaoTrilha !== null && uid && (() => {
         const quiz = quizzes.find((q) => q.trilha === opiniaoTrilha);
         if (!quiz) return null;
@@ -229,9 +250,10 @@ export default function AvaliacaoView() {
             alunoEmail={auth.currentUser?.email || ''}
             trilha={opiniaoTrilha}
             trilhaTitulo={blocos.find((b) => b.quiz.trilha === opiniaoTrilha)?.initiative?.name || quiz.titulo}
-            obrigatorioSemSaida={false}
+            initiativeId={blocos.find((b) => b.quiz.trilha === opiniaoTrilha)?.initiative?.id}
+            obrigatorioSemSaida
             onCancel={() => setOpiniaoTrilha(null)}
-            onDone={() => { const t = opiniaoTrilha; setOpiniaoTrilha(null); setActiveQuizTrilha(t); }}
+            onDone={() => { const t = opiniaoTrilha; setOpiniaoTrilha(null); void emitirCertificado(t); }}
           />
         );
       })()}

@@ -357,6 +357,24 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
     }
 
+    // Depoimentos dos alunos: o aluno cria o próprio depoimento; o consultor
+    // enxerga apenas os depoimentos do seu tenant; o servidor valida a existência
+    // antes de emitir o certificado.
+    match /opiniaoClientes/{opiniaoId} {
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid == resource.data.uid ||
+        (ehConsultor() && (
+          resource.data.consultorId == meuConsultorId() ||
+          (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
+        ))
+      );
+      allow update, delete: if isAuthenticated() && (
+        isAdmin() || request.auth.uid == resource.data.uid
+      );
+    }
+
     match /courses/{courseId} {
       allow read: if isAuthenticated() && (
         isAdmin() ||

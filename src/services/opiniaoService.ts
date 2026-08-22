@@ -1,9 +1,9 @@
 /**
  * opiniaoService — depoimentos + avaliação (NPS interno) dos alunos.
  *
- * Fluxo: antes de fazer a prova de qualquer trilha, o aluno preenche um depoimento
- * obrigatório (educado): dá nota 1-5 para vários itens, escreve um comentário e
- * autoriza (ou não) a divulgação nas redes sociais.
+ * Fluxo: depois de ser aprovado na prova de qualquer trilha, o aluno preenche um
+ * depoimento obrigatório: dá nota 1-5 para vários itens, responde à pergunta aberta
+ * do consultor e autoriza (ou não) a divulgação nas redes sociais.
  *
  * Persistência:
  *   - Firestore `opiniaoClientes/{autoId}` = uma opinião (por trilha, por aluno).
@@ -29,6 +29,7 @@ export const DEFAULT_ITENS: string[] = [
   'O suporte que oferecemos',
   'Avaliação geral do curso e da plataforma',
 ];
+export const DEFAULT_PERGUNTA_ABERTA = 'Como foi sua experiência com este curso e com a plataforma LBW?';
 
 // O Israel (consultor 'israel') mantém o doc legado 'opiniaoItens' (sem consultorId,
 // já existia antes do modelo multi-tenant). Os demais consultores ganham um doc próprio
@@ -49,6 +50,8 @@ export interface Opiniao {
   alunoEmail: string;
   trilha: number;
   trilhaTitulo: string;
+  initiativeId?: string;
+  consultorId?: string;
   notas: OpiniaoItemNota[];
   /** Média das notas (0..5), pré-calculada pra facilitar listagem/ordenação no admin. */
   mediaNota: number;
@@ -57,29 +60,49 @@ export interface Opiniao {
   criadoEm: string;
 }
 
+export interface OpiniaoConfig {
+  itens: string[];
+  perguntaAberta: string;
+}
+
 // ===================================================================================
 // Itens avaliados (config editável)
 // ===================================================================================
 
 export async function getOpiniaoItens(): Promise<string[]> {
+  return (await getOpiniaoConfig()).itens;
+}
+
+export async function getOpiniaoConfig(): Promise<OpiniaoConfig> {
   const consultorId = resolveConsultorId();
   try {
     const snap = await getDoc(doc(db, CONFIG_COLLECTION, docIdOpiniaoItens(consultorId)));
     if (snap.exists()) {
-      const data = snap.data() as { itens?: string[] };
-      if (Array.isArray(data.itens) && data.itens.length > 0) return data.itens;
+      const data = snap.data() as { itens?: string[]; perguntaAberta?: string };
+      return {
+        itens: Array.isArray(data.itens) && data.itens.length > 0 ? data.itens : DEFAULT_ITENS,
+        perguntaAberta: String(data.perguntaAberta || DEFAULT_PERGUNTA_ABERTA),
+      };
     }
   } catch (e) {
     console.error('[opiniaoService] getOpiniaoItens erro, usando default:', e);
   }
-  return DEFAULT_ITENS;
+  return { itens: DEFAULT_ITENS, perguntaAberta: DEFAULT_PERGUNTA_ABERTA };
 }
 
 export async function saveOpiniaoItens(itens: string[]): Promise<void> {
+  const config = await getOpiniaoConfig();
+  await saveOpiniaoConfig(itens, config.perguntaAberta);
+}
+
+export async function saveOpiniaoConfig(itens: string[], perguntaAberta: string): Promise<void> {
   const consultorId = resolveConsultorId();
   const limpos = itens.map((i) => i.trim()).filter(Boolean);
   await setDoc(doc(db, CONFIG_COLLECTION, docIdOpiniaoItens(consultorId)), {
-    itens: limpos, consultorId, updatedAt: new Date().toISOString(),
+    itens: limpos,
+    perguntaAberta: perguntaAberta.trim() || DEFAULT_PERGUNTA_ABERTA,
+    consultorId,
+    updatedAt: new Date().toISOString(),
   });
 }
 
@@ -94,6 +117,7 @@ export async function salvarOpiniao(op: Omit<Opiniao, 'id' | 'criadoEm' | 'media
     : 0;
   const payload: Omit<Opiniao, 'id'> = {
     ...op,
+    consultorId: op.consultorId || resolveConsultorId(),
     mediaNota: Math.round(mediaNota * 100) / 100,
     criadoEm: new Date().toISOString(),
   };

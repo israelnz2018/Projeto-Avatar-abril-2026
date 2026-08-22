@@ -710,6 +710,41 @@ async function startServer() {
     const pct = uniqueUrls.length === 0 ? 0 : watched.length / uniqueUrls.length;
     if (uniqueUrls.length === 0 || pct < 0.70) return { issued: false };
 
+    const quiz = await loadQuizForInitiative(initiative, consultorId);
+    const quizQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
+    if (!quiz || quizQuestions.length === 0) return { issued: false };
+
+    const attemptsSnap = await adminFirestore().collection("quiz_attempts")
+      .where("uid", "==", uid)
+      .get();
+    const passouNaProva = attemptsSnap.docs.some((entry) => {
+      const attempt = entry.data() as any;
+      return attempt.passed === true
+        && String(attempt.consultorId || "israel") === consultorId
+        && (String(quiz.initiativeId || "") === initiativeId
+          ? (String(attempt.initiativeId || "") === initiativeId || (!attempt.initiativeId && Number(attempt.trilha) === Number(quiz.trilha)))
+          : Number(attempt.trilha) === Number(quiz.trilha));
+    });
+    if (!passouNaProva) return { issued: false };
+
+    const consultorSnap = await adminFirestore().collection("consultores").doc(consultorId).get();
+    const consultorData = consultorSnap.exists ? (consultorSnap.data() as any) : {};
+    const depoimentoAtivo = consultorData.depoimentoPosProvaAtivo
+      ?? consultorData.depoimentoPreProvaAtivo !== false;
+    if (depoimentoAtivo) {
+      const opinioesSnap = await adminFirestore().collection("opiniaoClientes")
+        .where("uid", "==", uid)
+        .get();
+      const temDepoimento = opinioesSnap.docs.some((entry) => {
+        const opiniao = entry.data() as any;
+        return (String(opiniao.initiativeId || "") === initiativeId
+          || (!opiniao.initiativeId && Number(opiniao.trilha) === Number(quiz.trilha)))
+          && (!opiniao.consultorId || String(opiniao.consultorId) === consultorId)
+          && String(opiniao.comentario || "").trim().length > 0;
+      });
+      if (!temDepoimento) return { issued: false };
+    }
+
     if (userNoConsultor.empresaId) {
       const repasseSnap = await adminFirestore().collection("repasses").doc(String(userNoConsultor.empresaId)).get();
       if (repasseSnap.exists && (repasseSnap.data() as any).certificadoLiberado !== true) {
@@ -720,7 +755,6 @@ async function startServer() {
     const certId = generateCertId();
     const issuedAt = new Date().toISOString();
     const alunoNome = String(user.nome || user.displayName || user.email?.split("@")[0] || "Aluno LBW");
-    const consultorSnap = await adminFirestore().collection("consultores").doc(consultorId).get();
     const certificadoConfig = (consultorSnap.data() as any)?.certificado || {};
     const pendenciasCertificado = certificateMissingItems(certificadoConfig, consultorId, initiativeId);
     if (pendenciasCertificado.length) {
@@ -785,6 +819,23 @@ async function startServer() {
     }
     const seed = (DEFAULT_QUIZZES as any)[trilha];
     return seed ? { ...seed, consultorId } : null;
+  }
+
+  async function loadQuizForInitiative(initiative: any, consultorId: string): Promise<any | null> {
+    const byInitiative = await adminFirestore().collection("quizzes")
+      .where("initiativeId", "==", String(initiative.id))
+      .get();
+    const exact = byInitiative.docs.find((entry) => {
+      const data = entry.data() as any;
+      return String(data.consultorId || consultorId) === consultorId;
+    });
+    if (exact) {
+      const data = exact.data() as any;
+      return { ...data, trilha: Number(data.trilha) || Number(initiative.ordem) || 0, consultorId };
+    }
+
+    const trilha = Number(initiative.ordem) || 0;
+    return trilha > 0 ? loadQuizForServer(trilha, consultorId) : null;
   }
 
   function publicQuizPayload(quiz: any) {
@@ -878,6 +929,7 @@ async function startServer() {
         email: req.userEmail || user.email || "",
         consultorId,
         trilha,
+        initiativeId: quiz.initiativeId || null,
         total,
         correct,
         pct,

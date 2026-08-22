@@ -193,7 +193,7 @@ export default function ComecePorAqui() {
 
     carregarChecksAutomaticos();
     return () => { ativo = false; };
-  }, [consultorId, consultor.certificado, consultor.comunidadeBoasVindas, consultor.depoimentoPreProvaAtivo]);
+  }, [consultorId, consultor.certificado, consultor.comunidadeBoasVindas, consultor.depoimentoPosProvaAtivo, consultor.depoimentoPreProvaAtivo]);
 
   useEffect(() => {
     getAllKnowledge(consultorId)
