@@ -1913,7 +1913,10 @@ async function startServer() {
       `- Substantivo ou frase nominal curta (ex: "Cálculo do DPMO", "Exemplo no Minitab"), NUNCA uma frase completa narrando a fala.\n` +
       `- Sempre em português, mesmo que a transcrição tenha termos em inglês.\n` +
       `- Sem verbos conjugados narrando terceira pessoa (proibido: "O palestrante explica...", "É demonstrado que...").\n` +
-      `- Um capítulo por virada real de assunto — não um por minuto.\n\n` +
+      `- Espaçamento mínimo de 90 segundos entre um capítulo e o seguinte — nunca dois capítulos\n` +
+      `  a menos de 90s um do outro. Alvo aproximado: 1 capítulo a cada 2 minutos de vídeo.\n` +
+      `- Um capítulo marca uma virada REAL de assunto (um bloco temático novo), não cada micro-passo\n` +
+      `  de uma explicação (ex: "agora eu clico aqui", "agora calculo isso" são o MESMO capítulo).\n\n` +
       `O resumo detalhado ("transcript") é o único lugar com texto mais longo, e fica separado do índice.\n\n` +
       `Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"título curto"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
     // responseSchema força decodificação restrita a essa estrutura — o modelo não
@@ -1976,7 +1979,26 @@ async function startServer() {
       });
     if (!summary.length) throw new Error("Gemini retornou índice vazio.");
 
-    return { summary, transcript: String(parsed.transcript || "") };
+    // Garantia no servidor pro espaçamento também — o prompt pede mínimo de 90s entre
+    // capítulos, mas isso é instrução, não trava. Ordena por tempo e descarta qualquer
+    // capítulo que caia a menos de 90s do último mantido (sempre mantém o primeiro).
+    const ESPACAMENTO_MIN_SEG = 90;
+    const paraSegundos = (tempo: string): number => {
+      const partes = tempo.split(":").map((v) => Number.parseInt(v, 10) || 0);
+      if (partes.length === 3) return partes[0] * 3600 + partes[1] * 60 + partes[2];
+      if (partes.length === 2) return partes[0] * 60 + partes[1];
+      return 0;
+    };
+    const summaryEspacado = summary
+      .slice()
+      .sort((a, b) => paraSegundos(a.time) - paraSegundos(b.time))
+      .reduce((acc: typeof summary, item) => {
+        const ultimo = acc[acc.length - 1];
+        if (!ultimo || paraSegundos(item.time) - paraSegundos(ultimo.time) >= ESPACAMENTO_MIN_SEG) acc.push(item);
+        return acc;
+      }, []);
+
+    return { summary: summaryEspacado, transcript: String(parsed.transcript || "") };
   }
 
   // POST /api/gerar-indice — gera índice/resumo a partir de uma transcrição já salva
@@ -3149,7 +3171,22 @@ async function startServer() {
     const interesseCursos = Array.from(new Set((Array.isArray(req.body?.interesseCursos) ? req.body.interesseCursos : [req.body?.interesseCurso]).map((item: any) => String(item || "").trim()).filter(Boolean))).slice(0, 20);
     const interesseCurso = interesseCursos.join(", ");
     const whatsapp = String(req.body?.whatsapp || "").trim();
-    if (produto !== "capabilidade-processo") return res.status(400).json({ error: "Produto gratuito invÃ¡lido." });
+    const configuracaoGratis = ({
+      "capabilidade-processo": {
+        curso: "Capabilidade de Processo",
+        nomePacote: "Capabilidade de Processo",
+        analytics: [{ modulo: "capabilidade", nome: "Capabilidade" }],
+      },
+      "estatistica-aplicada": {
+        curso: "Estatística Aplicada e Ferramentas da Qualidade",
+        nomePacote: "Estatística Aplicada e Ferramentas da Qualidade",
+        analytics: [
+          { modulo: "graficos", nome: "Gráficos" },
+          { modulo: "diversas", nome: "Análises Diversas" },
+        ],
+      },
+    } as const)[produto as "capabilidade-processo" | "estatistica-aplicada"];
+    if (!configuracaoGratis) return res.status(400).json({ error: "Produto gratuito inválido." });
     if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail vÃ¡lido." });
     if (!profissao) return res.status(400).json({ error: "Informe sua profissÃ£o." });
@@ -3157,9 +3194,9 @@ async function startServer() {
     if (interesseCursos.includes("Nenhum curso") && interesseCursos.length > 1) return res.status(400).json({ error: "Nenhum curso não pode ser combinado com outros cursos." });
 
     const consultorId = "israel";
-    const curso = "Capabilidade de Processo";
+    const curso = configuracaoGratis.curso;
     const validadeGratis = "2026-12-31";
-    const analytics = { modulo: "capabilidade", nome: "Capabilidade", vencimento: validadeGratis, valor: 0 };
+    const analyticsGratis = configuracaoGratis.analytics.map((item) => ({ ...item, vencimento: validadeGratis, valor: 0 }));
     const agora = new Date().toISOString();
 
     try {
@@ -3184,7 +3221,11 @@ async function startServer() {
       const cursosAnteriores = Array.isArray(anterior.cursosAcesso) ? anterior.cursosAcesso : [];
       const cursosAcesso = [...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso), { curso, vencimento: validadeGratis, valor: 0, quantidade: 1 }];
       const analyticsAnteriores = Array.isArray(anterior.acessoProdutos?.analytics) ? anterior.acessoProdutos.analytics : [];
-      const analyticsAcesso = [...analyticsAnteriores.filter((item: any) => String(item?.modulo || item?.id || "").trim() !== analytics.modulo), analytics];
+      const modulosGratis = new Set(analyticsGratis.map((item) => item.modulo));
+      const analyticsAcesso = [
+        ...analyticsAnteriores.filter((item: any) => !modulosGratis.has(String(typeof item === "string" ? item : item?.modulo || item?.id || "").trim())),
+        ...analyticsGratis,
+      ];
       const vinculo = {
         ...anterior,
         tipoUsuario: anterior.tipoUsuario === "consultor" || anterior.tipoUsuario === "coordenador" ? anterior.tipoUsuario : "aluno",
@@ -3192,7 +3233,7 @@ async function startServer() {
         cursosLiberados: cursosAcesso.map((item: any) => item.curso),
         acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
         projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
-        origem: anterior.origem || "landing-capabilidade-gratis", ultimoCadastroGratisEm: agora,
+        origem: anterior.origem || `landing-${produto}-gratis`, ultimoCadastroGratisEm: agora,
         profissao, interesseCurso, interesseCursos,
         ...(whatsapp ? { whatsapp } : {}),
       };
@@ -3208,7 +3249,7 @@ async function startServer() {
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
         ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
         origem: base.origem || "landing-capabilidade-gratis",
-        formacoes: Array.isArray(base.formacoes) && base.formacoes.length ? base.formacoes : ["capabilidade-processo"],
+        formacoes: Array.from(new Set([...(Array.isArray(base.formacoes) ? base.formacoes : []), produto])),
         creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agora, ...(novo ? { senhaProvisoria: true } : {}),
       }, { merge: true });
