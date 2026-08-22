@@ -2291,13 +2291,13 @@ export default function KnowledgeManagerView() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[calc(100vh-2rem)] flex flex-col"
             >
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 {modalConfig.type === 'deleteCourse' && `Excluir Curso`}
@@ -2309,7 +2309,7 @@ export default function KnowledgeManagerView() {
                 {modalConfig.type === 'importTranscript' && `Importar Transcrição Completa`}
               </h3>
               
-              <div className="mb-6 text-sm text-gray-600">
+              <div className="mb-6 text-sm text-gray-600 flex-1 min-h-0 overflow-y-auto pr-1">
                 {modalConfig.type === 'deleteCourse' && (
                   <p>Tem certeza que deseja excluir o curso <strong>{modalConfig.targetCourse}</strong>? Isso excluirá <strong>todos os vídeos</strong> associados a ele. Esta ação não pode ser desfeita.</p>
                 )}
@@ -2516,7 +2516,7 @@ export default function KnowledgeManagerView() {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 shrink-0 pt-2 bg-white">
                 <button 
                   onClick={() => setModalConfig({ isOpen: false, type: 'editCourse' })}
                   className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-[4px] transition-colors"
