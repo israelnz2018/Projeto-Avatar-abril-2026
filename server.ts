@@ -3144,7 +3144,7 @@ async function startServer() {
     if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado.", cursos: [] });
     const consultorId = "israel";
     const excluirCurso = String(_req.query?.excluirCurso || "").trim();
-    const cursosGratuitos = new Set(["Capabilidade de Processo", excluirCurso].filter(Boolean));
+    const cursosGratuitos = new Set([excluirCurso].filter(Boolean));
     try {
       const snapshot = await adminFirestore().collection("initiatives").get();
       const cursos = snapshot.docs
