@@ -205,6 +205,31 @@ export default function AvaliacaoView() {
     }
   }
 
+  const avaliacaoPronta = (bloco: BlocoState) => bloco.unlocked && (bloco.quizAvailable || !!bloco.cert);
+  const grupos = [
+    {
+      key: 'agora',
+      titulo: '1. Avaliações que você já pode fazer',
+      descricao: 'Cursos liberados e com os requisitos de progresso atendidos.',
+      itens: blocos.filter(avaliacaoPronta),
+      className: 'border-emerald-200 bg-emerald-50/40',
+    },
+    {
+      key: 'depois',
+      titulo: '2. Avaliações que você fará depois',
+      descricao: 'Cursos liberados que ainda precisam de mais vídeos assistidos ou de uma avaliação configurada.',
+      itens: blocos.filter((bloco) => bloco.unlocked && !avaliacaoPronta(bloco)),
+      className: 'border-blue-200 bg-blue-50/40',
+    },
+    {
+      key: 'sem-acesso',
+      titulo: '3. Avaliações sem acesso ao curso',
+      descricao: 'Cursos que ainda não foram liberados para você pelo consultor.',
+      itens: blocos.filter((bloco) => !bloco.unlocked),
+      className: 'border-gray-200 bg-gray-50',
+    },
+  ];
+
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-2">
@@ -223,19 +248,29 @@ export default function AvaliacaoView() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {blocos.map((b, i) => (
-          <BlocoCard
-            key={b.initiative?.id || b.quiz.trilha}
-            bloco={b}
-            index={i}
-            certAluno={alunoNome}
-            onStart={() => {
-              setActiveQuizTrilha(b.quiz.trilha);
-            }}
-            onLocked={() => setCursoBloqueado(b.initiative?.name || b.quiz.titulo)}
-            showCongrats={justPassedTrilha === b.quiz.trilha}
-          />
+      <div className="space-y-8">
+        {grupos.filter((grupo) => grupo.itens.length > 0).map((grupo) => (
+          <section key={grupo.key} className={`rounded-3xl border p-4 md:p-5 ${grupo.className}`}>
+            <div className="mb-4">
+              <h2 className="text-lg font-black text-gray-900">{grupo.titulo}</h2>
+              <p className="mt-1 text-sm text-gray-500">{grupo.descricao}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {grupo.itens.map((b, i) => (
+                <BlocoCard
+                  key={b.initiative?.id || b.quiz.trilha}
+                  bloco={b}
+                  index={i}
+                  certAluno={alunoNome}
+                  onStart={() => {
+                    setActiveQuizTrilha(b.quiz.trilha);
+                  }}
+                  onLocked={() => setCursoBloqueado(b.initiative?.name || b.quiz.titulo)}
+                  showCongrats={justPassedTrilha === b.quiz.trilha}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
 
