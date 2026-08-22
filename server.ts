@@ -1916,13 +1916,47 @@ async function startServer() {
       `- Um capítulo por virada real de assunto — não um por minuto.\n\n` +
       `O resumo detalhado ("transcript") é o único lugar com texto mais longo, e fica separado do índice.\n\n` +
       `Retorne APENAS JSON neste formato: {"summary":[{"time":"MM:SS","topic":"título curto"}],"transcript":"resumo detalhado com tempos"}. Use somente a transcrição.`;
-    const generated = await ai.models.generateContent({
-      model: geminiModel,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { responseMimeType: "application/json", maxOutputTokens: 8192, temperature: 0.4 },
-    });
-    const cleaned = String(generated.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
-    const parsed = JSON.parse(cleaned);
+    // responseSchema força decodificação restrita a essa estrutura — o modelo não
+    // consegue gerar JSON sintaticamente inválido (aspas soltas, chave faltando etc.),
+    // que era a causa real do "Expected ',' or '}' after property value": o resumo
+    // detalhado é texto livre e longo, e no modo só-prompt o Gemini ocasionalmente
+    // devolvia uma aspas do que foi falado sem escapar, quebrando o JSON.
+    const schemaIndice = {
+      type: Type.OBJECT,
+      properties: {
+        summary: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: { time: { type: Type.STRING }, topic: { type: Type.STRING } },
+            required: ["time", "topic"],
+          },
+        },
+        transcript: { type: Type.STRING },
+      },
+      required: ["summary", "transcript"],
+    };
+    // Defesa em profundidade: além do schema, uma nova tentativa se ainda assim vier
+    // algo não-parseável (rede instável, resposta cortada etc.) — o Gemini não é
+    // determinístico, uma segunda chamada quase sempre resolve o que a primeira não deu.
+    let parsed: any;
+    let ultimoErro: any;
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      try {
+        const generated = await ai.models.generateContent({
+          model: geminiModel,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: { responseMimeType: "application/json", responseSchema: schemaIndice, maxOutputTokens: 8192, temperature: 0.4 },
+        });
+        const cleaned = String(generated.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+        parsed = JSON.parse(cleaned);
+        ultimoErro = null;
+        break;
+      } catch (erro) {
+        ultimoErro = erro;
+      }
+    }
+    if (ultimoErro) throw new Error(`Gemini devolveu um índice inválido mesmo após nova tentativa: ${ultimoErro?.message || ultimoErro}`);
     if (!Array.isArray(parsed.summary) || !parsed.summary.length) throw new Error("Gemini retornou índice vazio.");
 
     // Garantia no servidor, não só no prompt: a IA às vezes ignora o limite e devolve
