@@ -48,7 +48,9 @@ function nomeVisualCurso(nome: string) {
 export default function AvaliacaoAdminView() {
   const consultorId = resolveConsultorId();
   const { consultor, refresh } = useConsultor();
-  const [trilha, setTrilha] = useState(1);
+  // Nenhum curso começa aberto. O primeiro deve ter exatamente o mesmo
+  // comportamento de abrir/fechar dos demais.
+  const [trilha, setTrilha] = useState<number | null>(null);
   const [cursos, setCursos] = useState<Initiative[]>([]);
   const [config, setConfig] = useState<QuizConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,6 @@ export default function AvaliacaoAdminView() {
           return ordemA - ordemB;
         });
         setCursos(ordenados);
-        if (ordenados[0]) setTrilha(cursoChave(ordenados[0], 0, consultorId));
       })
       .catch(() => setCursos([]));
   }, []);
@@ -89,6 +90,11 @@ export default function AvaliacaoAdminView() {
   }, []);
 
   useEffect(() => {
+    if (trilha === null) {
+      setConfig(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     getQuiz(trilha, consultorId)
       .then((quiz) => {
@@ -140,7 +146,7 @@ export default function AvaliacaoAdminView() {
     setConfig((c) => c ? {
       ...c,
       questions: [...c.questions, {
-        id: `t${trilha}-new-${Date.now()}`,
+        id: `t${trilha ?? 0}-new-${Date.now()}`,
         text: 'Nova pergunta',
         options: ['Alternativa A', 'Alternativa B', 'Alternativa C', 'Alternativa D'],
         correctIndex: 0,
@@ -261,7 +267,7 @@ export default function AvaliacaoAdminView() {
               <div key={curso.id || curso.name} className={`rounded-3xl border overflow-hidden bg-white shadow-sm transition-all ${aberto ? 'border-blue-200 shadow-blue-100/60' : 'border-gray-200'}`}>
                 <button
                   type="button"
-                  onClick={() => setTrilha(numero)}
+                  onClick={() => setTrilha(aberto ? null : numero)}
                   className={`w-full border-none cursor-pointer text-left p-5 flex items-center gap-4 ${aberto ? 'bg-gradient-to-r from-blue-50 to-white' : 'bg-white hover:bg-gray-50'}`}
                 >
                   <div className={`w-12 h-12 rounded-2xl grid place-items-center shrink-0 ${aberto ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
