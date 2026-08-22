@@ -160,6 +160,12 @@ const configuracoesFerramentas: Record<string, any[]> = {
 
 // --- CONFIGURATIONS FROM menu.js ---
 const configuracoesAnalises = {
+  "Estatística Básica": [
+    { nome: "Teste de normalidade" },
+    { nome: "Cálculo de probabilidade" },
+    { nome: "Gráfico Sumario" },
+    { nome: "Análise de estabilidade" },
+  ],
   "Análise Exploratória": [
     { nome: "Análise de variabilidade ➡️ ", subitens: ["Gráfico Sumario", "Análise de outliers"] },
     { nome: "Análise de correlação ➡️ ", subitens: ["Correlação de person", "Matrix de dispersão"] },
@@ -220,10 +226,6 @@ const configuracoesAnalises = {
     { nome: "Capabilidade - com dados transformados" },
     { nome: "Capabilidade - com dados discretizados" }
   ],
-  "Análises Diversas": [
-    { nome: "Cálculo de probabilidade" },
-    { nome: "Teste de normalidade" },
-  ]
 };
 
 // Mapeamento nome da análise → ID usado em associatedAnalyses

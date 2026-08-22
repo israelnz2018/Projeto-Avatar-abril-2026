@@ -24,6 +24,7 @@ export interface AnalyticsModulo {
 
 /** Os 8 grupos reais do menu do Data Analysis. */
 export const ANALYTICS_MODULOS: AnalyticsModulo[] = [
+  { id: 'diversas',     nome: 'Estatística Básica',     grupo: 'Estatística Básica' },
   { id: 'graficos',     nome: 'Gráficos',             grupo: 'Análise Descritiva (Gráficos)' },
   { id: 'exploratoria', nome: 'Análise Exploratória', grupo: 'Análise Exploratória' },
   { id: 'inferencial',  nome: 'Análise Inferencial',  grupo: 'Análise Inferencial' },
@@ -31,7 +32,6 @@ export const ANALYTICS_MODULOS: AnalyticsModulo[] = [
   { id: 'preditiva',    nome: 'Análise Preditiva',    grupo: 'Análise Preditiva' },
   { id: 'cep',          nome: 'Controle de Processo', grupo: 'Análise de controle de processo' },
   { id: 'capabilidade', nome: 'Capabilidade',         grupo: 'Análises de Capabilidade' },
-  { id: 'diversas',     nome: 'Análises Diversas',    grupo: 'Análises Diversas' },
 ];
 
 /** Ids liberados pro aluno. Ausente = legado (ver acessoAnalyticsDoAluno). */

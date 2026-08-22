@@ -3184,7 +3184,7 @@ async function startServer() {
         nomePacote: "Estatística Aplicada e Ferramentas da Qualidade",
         analytics: [
           { modulo: "graficos", nome: "Gráficos" },
-          { modulo: "diversas", nome: "Análises Diversas" },
+          { modulo: "diversas", nome: "Estatística Básica" },
         ],
       },
     } as const)[produto as "capabilidade-processo" | "estatistica-aplicada"];
