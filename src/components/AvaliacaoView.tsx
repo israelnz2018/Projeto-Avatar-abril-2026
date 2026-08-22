@@ -2,7 +2,7 @@
  * AvaliacaoView — aba "Teste de Avaliação e Certificado" (aluno).
  *
  * Jornada completa:
- *   1. Mostra 8 blocos (um por trilha).
+ *   1. Mostra um bloco para cada curso cadastrado pelo consultor.
  *   2. Cadeado por acesso: aluno completo/admin → todas liberadas; gratuito → só trilha 1.
  *   3. Cada bloco mostra: nº de vídeos, % assistido e a meta (watchGatePct) para liberar a prova.
  *   4. Botão da prova funciona quando: (a) tem acesso à trilha E (b) atingiu a meta de vídeos.
@@ -85,11 +85,6 @@ export default function AvaliacaoView() {
   const uid = auth.currentUser?.uid;
   const consultorId = resolveConsultorId();
 
-  const cursoDoTeste = (quiz: QuizConfig) => initiatives.find((initiative) => initiative.id === quiz.initiativeId)
-    || (consultorId === 'israel'
-      ? initiatives.find((initiative) => initiative.name === CURSO_ISRAEL_POR_TESTE[quiz.trilha])
-      : initiatives.find((initiative) => initiative.ordem === quiz.trilha));
-
   useEffect(() => {
     (async () => {
       try {
@@ -118,21 +113,38 @@ export default function AvaliacaoView() {
   const blocos: BlocoState[] = useMemo(() => {
     const staff = isAdmin || isConsultor;
     const acessoRestritoPorCurso = acessoPorCurso || isCoordenador;
-    return quizzes.flatMap((quiz) => {
-      // O ID salvo é prioritário. Para testes legados, a ordem do curso mantém a
-      // compatibilidade sem tentar extrair números do título comercial.
-      const initiative = cursoDoTeste(quiz);
-      if (!initiative) return [];
+    return initiatives.map((initiative, index) => {
+      // A lista nasce dos CURSOS, não das provas. Por isso um curso sem teste
+      // configurado continua visível e jamais some da área de certificação.
+      // O initiativeId é prioritário; os números existem apenas para compatibilidade.
+      const legacyTrilha = consultorId === 'israel'
+        ? Number(Object.entries(CURSO_ISRAEL_POR_TESTE)
+          .find(([, courseName]) => courseName === initiative.name)?.[0] || 0)
+        : 0;
+      const preferredTrilha = legacyTrilha || initiative.ordem || index + 1;
+      const savedQuiz = quizzes.find((item) => item.initiativeId === initiative.id)
+        || quizzes.find((item) => item.trilha === preferredTrilha);
+      const quiz: QuizConfig = {
+        trilha: savedQuiz?.trilha || preferredTrilha,
+        initiativeId: initiative.id,
+        titulo: initiative.name,
+        passPct: savedQuiz?.passPct ?? 0.70,
+        watchGatePct: savedQuiz?.watchGatePct ?? 0.70,
+        questions: savedQuiz?.questions || [],
+        consultorId,
+        updatedAt: savedQuiz?.updatedAt,
+      };
       const unlocked = staff || (acessoRestritoPorCurso && hasCourseAccess(cursosLiberados, initiative.name));
       const tp = initiative && progress
         ? calculateTrilhaProgress(initiative, videos, progress.watchedUrls)
         : { total: 0, watched: 0, pct: 0 } as any;
-      const quizAvailable = unlocked && tp.total > 0 && tp.pct >= quiz.watchGatePct;
+      const hasConfiguredQuiz = quiz.questions.length > 0;
+      const quizAvailable = hasConfiguredQuiz && unlocked && tp.total > 0 && tp.pct >= quiz.watchGatePct;
       const cert = progress?.certificadosEmitidos?.[initiative?.id || ''];
       return {
         quiz, initiative,
         videosTotal: tp.total, videosWatched: tp.watched, watchPct: tp.pct,
-        unlocked, quizAvailable: quizAvailable || (unlocked && isAdmin), cert,
+        unlocked, quizAvailable: quizAvailable || (hasConfiguredQuiz && unlocked && isAdmin), cert,
       };
     });
   }, [quizzes, initiatives, videos, progress, plano, isAdmin, isConsultor, isCoordenador, cursosLiberados, acessoPorCurso]);
@@ -192,7 +204,7 @@ export default function AvaliacaoView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {blocos.map((b, i) => (
           <BlocoCard
-            key={b.quiz.trilha}
+            key={b.initiative?.id || b.quiz.trilha}
             bloco={b}
             index={i}
             certAluno={alunoNome}
@@ -242,6 +254,7 @@ function BlocoCard({ bloco, index, certAluno, onStart, onLocked, showCongrats }:
   const pctInt = Math.round(watchPct * 100);
   const metaInt = Math.round(quiz.watchGatePct * 100);
   const aprovado = !!cert;
+  const hasConfiguredQuiz = quiz.questions.length > 0;
 
   return (
     <motion.div
@@ -268,7 +281,11 @@ function BlocoCard({ bloco, index, certAluno, onStart, onLocked, showCongrats }:
       </div>
 
       <h3 className={`font-bold leading-snug mb-1 ${unlocked ? 'text-gray-900' : 'text-slate-600'}`}>{bloco.initiative?.name?.replace(/^\d+\s*[-—]?\s*/, '') || quiz.titulo}</h3>
-      <p className={`text-xs mb-4 ${unlocked ? 'text-gray-400' : 'text-slate-500'}`}>{quiz.questions.length} questões · aprovação {Math.round(quiz.passPct * 100)}%</p>
+      <p className={`text-xs mb-4 ${unlocked ? 'text-gray-400' : 'text-slate-500'}`}>
+        {hasConfiguredQuiz
+          ? `${quiz.questions.length} questões · aprovação ${Math.round(quiz.passPct * 100)}%`
+          : 'Avaliação ainda não configurada'}
+      </p>
 
       {/* Progresso de vídeos */}
       {unlocked && (
@@ -293,6 +310,10 @@ function BlocoCard({ bloco, index, certAluno, onStart, onLocked, showCongrats }:
           </button>
         ) : aprovado ? (
           <CertificadoBlock cert={cert!} alunoNome={certAluno} initiativeId={bloco.initiative?.id} showCongrats={showCongrats} />
+        ) : !hasConfiguredQuiz ? (
+          <button disabled className="w-full py-2.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 font-bold text-sm cursor-not-allowed">
+            Avaliação em preparação
+          </button>
         ) : quizAvailable ? (
           <button onClick={onStart}
             className="w-full py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]"

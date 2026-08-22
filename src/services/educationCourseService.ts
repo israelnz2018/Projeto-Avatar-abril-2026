@@ -26,15 +26,24 @@ function stableEducationId(consultorId: string, name: string): string {
 
 /**
  * Catálogo educacional independente dos tipos de projeto.
- * Um curso existe quando possui vídeos; ter fases/ferramentas de projeto é opcional.
+ *
+ * A Initiative do curso é a fonte principal. Os vídeos entram apenas como fallback
+ * para cursos antigos que ainda não foram migrados para uma Initiative. Assim, um
+ * curso novo aparece em Educação, Avaliação e Certificados mesmo antes do primeiro
+ * vídeo ser enviado. Tipos de projeto vinculados a outro curso ficam de fora.
  */
 export async function getEducationCourses(consultorId = resolveConsultorId()): Promise<Initiative[]> {
-  const [projectTypes, videos] = await Promise.all([
-    getInitiatives().then((items) => items.filter((item) => !item.somenteProjeto)),
+  const [initiatives, videos] = await Promise.all([
+    getInitiatives(),
     getAllKnowledge(consultorId),
   ]);
 
-  const names: string[] = [];
+  const registeredCourses = initiatives.filter((item) =>
+    !item.somenteProjeto && (!item.cursoAssociadoId || item.cursoAssociadoId === item.id));
+
+  const names: string[] = registeredCourses
+    .map((course) => String(course.name || '').trim())
+    .filter(Boolean);
   for (const video of videos) {
     const name = String(video.course || '').trim();
     if (!name || isIntroCourse(name) || names.some((current) => courseNamesMatch(current, name))) continue;
@@ -43,7 +52,7 @@ export async function getEducationCourses(consultorId = resolveConsultorId()): P
 
   return names
     .map((name, index): Initiative => {
-      const existing = projectTypes.find((item) => courseNamesMatch(item.name, name));
+      const existing = registeredCourses.find((item) => courseNamesMatch(item.name, name));
       if (existing) {
         return {
           ...existing,
