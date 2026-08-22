@@ -3,6 +3,46 @@ import RodapeInstitucional from './RodapeInstitucional';
 
 type FormState = 'idle' | 'sending' | 'ok' | 'err';
 
+type LandingGratisVariante = 'capabilidade' | 'estatistica';
+
+const CONFIG_LANDING: Record<LandingGratisVariante, {
+  produto: string;
+  cursoGratis: string;
+  eyebrow: string;
+  titulo: React.ReactNode;
+  descricao: string;
+  beneficio1: string;
+  beneficio1Descricao: string;
+  beneficio2: string;
+  beneficio2Descricao: string;
+  beneficio3Descricao: string;
+}> = {
+  capabilidade: {
+    produto: 'capabilidade-processo',
+    cursoGratis: 'Capabilidade de Processo',
+    eyebrow: 'Pacote gratuito · Capabilidade',
+    titulo: <>Entenda se o seu processo é <span className="grad">capaz de entregar o que promete.</span></>,
+    descricao: 'Aprenda a interpretar e gerar a capabilidade do processo através de aulas completas, exercícios e software estatístico gratuito para fazer as análises. Tudo isso dentro da melhor e mais completa plataforma em gerenciamento de projetos de melhoria.',
+    beneficio1: 'Assista videoaulas',
+    beneficio1Descricao: 'Aprenda a interpretar a capabilidade.',
+    beneficio2: 'Faça as análises estatísticas',
+    beneficio2Descricao: 'Use o software gratuito.',
+    beneficio3Descricao: 'Tire dúvidas sobre os resultados.',
+  },
+  estatistica: {
+    produto: 'estatistica-aplicada',
+    cursoGratis: 'Estatística Aplicada e Ferramentas da Qualidade',
+    eyebrow: 'Pacote gratuito · Estatística Aplicada',
+    titulo: <>Aprenda estatística aplicada e <span className="grad">use as ferramentas da qualidade.</span></>,
+    descricao: 'Aprenda a interpretar dados, gerar gráficos e aplicar ferramentas da qualidade para tomar decisões melhores. Tudo isso através de aulas completas, exercícios e software estatístico gratuito dentro da melhor e mais completa plataforma em gerenciamento de projetos de melhoria.',
+    beneficio1: 'Assista videoaulas',
+    beneficio1Descricao: 'Aprenda estatística aplicada na prática.',
+    beneficio2: 'Faça as análises estatísticas',
+    beneficio2Descricao: 'Use gráficos e ferramentas da qualidade.',
+    beneficio3Descricao: 'Tire dúvidas sobre suas análises.',
+  },
+};
+
 const PAISES_WHATSAPP = [
   { nome: 'Brasil', codigo: '+55', min: 10, max: 11 },
   { nome: 'Austrália', codigo: '+61', min: 9, max: 9 },
@@ -40,7 +80,8 @@ const CSS = `
 @media(max-width:760px){.lgc{overflow-x:hidden}.lgc .wrap{width:calc(100% - 28px);max-width:100%}.lgc .hero{padding:40px 0 42px}.lgc .hero-grid{grid-template-columns:1fr !important;gap:24px}.lgc .hero-copy{grid-column:auto;text-align:left}.lgc .hero-copy .lead{margin-left:0;margin-right:0}.lgc .hero-form{height:auto}.lgc h1{font-size:clamp(34px,11vw,48px)}}
 `;
 
-export default function LandingGratisCapabilidade() {
+export default function LandingGratisCapabilidade({ variante = 'capabilidade' }: { variante?: LandingGratisVariante }) {
+  const config = CONFIG_LANDING[variante];
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [profissao, setProfissao] = useState('');
@@ -77,10 +118,10 @@ export default function LandingGratisCapabilidade() {
   };
 
   useEffect(() => {
-    fetch('/api/public/cursos')
+    fetch(`/api/public/cursos?excluirCurso=${encodeURIComponent(config.cursoGratis)}`)
       .then(response => response.ok ? response.json() : Promise.reject(new Error('Falha ao carregar cursos')))
       .then(data => setCursosInteresse(Array.isArray(data.cursos) ? data.cursos : []))
-      .catch(error => console.error('[LandingGratisCapabilidade] cursos:', error))
+      .catch(error => console.error('[LandingGratis] cursos:', error))
       .finally(() => setCursosCarregando(false));
   }, []);
 
@@ -110,7 +151,7 @@ export default function LandingGratisCapabilidade() {
     try {
       const response = await fetch('/api/public/acesso-gratis', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ produto: 'capabilidade-processo', nome: nome.trim(), email: email.trim(), profissao: profissao.trim(), interesseCursos: cursosInteresseSelecionados, whatsapp: `${codigoPais.trim()} ${whatsapp.trim()}` }),
+        body: JSON.stringify({ produto: config.produto, nome: nome.trim(), email: email.trim(), profissao: profissao.trim(), interesseCursos: cursosInteresseSelecionados, whatsapp: `${codigoPais.trim()} ${whatsapp.trim()}` }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Não foi possível liberar seu acesso.');
@@ -128,7 +169,7 @@ export default function LandingGratisCapabilidade() {
     <header className="top"><div className="wrap"><div className="brand">LBW <span>·</span> EDUCAÇÃO PELO TRABALHO</div></div></header>
     <main>
       <section className="hero"><div className="wrap hero-grid">
-        <div className="hero-copy"><span className="eyebrow">Pacote gratuito · Capabilidade</span><h1>Entenda se o seu processo é <span className="grad">capaz de entregar o que promete.</span></h1><p className="lead">Aprenda a interpretar e gerar a capabilidade do processo através de aulas completas, exercícios e software estatístico gratuito para fazer as análises. Tudo isso dentro da melhor e mais completa plataforma em gerenciamento de projetos de melhoria.</p><div className="hero-benefits"><div className="benefit"><div className="benefit-icon">🎥</div><div><h3>Assista videoaulas</h3><p>Aprenda a interpretar a capabilidade.</p></div></div><div className="benefit"><div className="benefit-icon">📊</div><div><h3>Faça as análises estatísticas</h3><p>Use o software gratuito.</p></div></div><div className="benefit"><div className="benefit-icon">🤖</div><div><h3>Converse com a IA digital</h3><p>Tire dúvidas sobre os resultados.</p></div></div></div></div>
+        <div className="hero-copy"><span className="eyebrow">{config.eyebrow}</span><h1>{config.titulo}</h1><p className="lead">{config.descricao}</p><div className="hero-benefits"><div className="benefit"><div className="benefit-icon">🎥</div><div><h3>{config.beneficio1}</h3><p>{config.beneficio1Descricao}</p></div></div><div className="benefit"><div className="benefit-icon">📊</div><div><h3>{config.beneficio2}</h3><p>{config.beneficio2Descricao}</p></div></div><div className="benefit"><div className="benefit-icon">🤖</div><div><h3>Converse com a IA digital</h3><p>{config.beneficio3Descricao}</p></div></div></div></div>
         <div className="hero-form" id="cadastro">{renderForm()}</div>
       </div></section>
 

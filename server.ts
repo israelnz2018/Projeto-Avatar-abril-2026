@@ -3143,11 +3143,13 @@ async function startServer() {
   app.get("/api/public/cursos", async (_req: any, res: any) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado.", cursos: [] });
     const consultorId = "israel";
+    const excluirCurso = String(_req.query?.excluirCurso || "").trim();
+    const cursosGratuitos = new Set(["Capabilidade de Processo", excluirCurso].filter(Boolean));
     try {
       const snapshot = await adminFirestore().collection("initiatives").get();
       const cursos = snapshot.docs
         .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-        .filter((item: any) => String(item.consultorId || "israel") === consultorId && item.somenteProjeto !== true && String(item.name || "").trim() !== "Capabilidade de Processo")
+        .filter((item: any) => String(item.consultorId || "israel") === consultorId && item.somenteProjeto !== true && !cursosGratuitos.has(String(item.name || "").trim()))
         .map((item: any) => String(item.name || "").trim())
         .filter(Boolean)
         .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
@@ -3248,7 +3250,7 @@ async function startServer() {
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
         ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
-        origem: base.origem || "landing-capabilidade-gratis",
+        origem: base.origem || `landing-${produto}-gratis`,
         formacoes: Array.from(new Set([...(Array.isArray(base.formacoes) ? base.formacoes : []), produto])),
         creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agora, ...(novo ? { senhaProvisoria: true } : {}),
@@ -3257,12 +3259,25 @@ async function startServer() {
       let emailEnviado = false;
       const site = `https://${consultorId}.educacaopelotrabalho.com`;
       const primeiroNome = nome.split(/\s+/)[0].replace(/[<>&]/g, "");
+      if (produto === "estatistica-aplicada") {
+        const credenciaisEstatistica = novo
+          ? `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Seus dados de acesso</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:3px 6px;border-radius:4px">${senhaProvisoria}</code><br><small>No primeiro acesso, você criará sua senha definitiva.</small></div>`
+          : `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Como entrar</strong><br>Use o e-mail <strong>${email}</strong> e a senha que você já utiliza na plataforma.</div>`;
+        const itensEstatistica = [
+          `Curso ${configuracaoGratis.curso}`,
+          ...configuracaoGratis.analytics.map((item) => `Data Analysis - módulo ${item.nome}`),
+          "IA digital do Israel para apoiar o uso das ferramentas liberadas",
+        ].map((item) => `<li style="margin-bottom:6px">${item}</li>`).join("");
+        const htmlEstatistica = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#F4F7FB;font-family:Arial,Helvetica,sans-serif;color:#273142"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F7FB"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #D9E0EA"><tr><td style="background:#1E2D6E;color:#fff;padding:28px 30px"><h1 style="margin:0;font-size:24px;line-height:1.25">Seu acesso gratuito foi liberado</h1><p style="margin:8px 0 0;font-size:15px;color:#DCE6FF">LBW - Educação pelo Trabalho</p></td></tr><tr><td style="padding:30px;font-size:16px;line-height:1.55"><p style="margin:0 0 16px">Olá, ${primeiroNome}!</p><p style="margin:0 0 16px">Você recebeu gratuitamente o pacote <strong>${configuracaoGratis.nomePacote}</strong>.</p><ul style="margin:0 0 22px;padding-left:22px">${itensEstatistica}</ul>${credenciaisEstatistica}<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:26px auto"><tr><td align="center" bgcolor="#2563EB" style="border-radius:8px;background:#2563EB"><a href="${site}" style="display:inline-block;background:#2563EB;border:1px solid #2563EB;border-radius:8px;color:#FFFFFF;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 28px">Acessar a plataforma -&gt;</a></td></tr></table><p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748B">Se você não solicitou este acesso, ignore este e-mail.</p></td></tr></table></td></tr></table></body></html>`;
+        try { emailEnviado = (await resendSend({ to: email, subject: `Seu acesso gratuito a ${configuracaoGratis.nomePacote}`, html: htmlEstatistica })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
+        return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analyticsGratis.map((item) => item.modulo) } });
+      }
       const credenciais = novo
         ? `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Seus dados de acesso</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:3px 6px;border-radius:4px">${senhaProvisoria}</code><br><small>No primeiro acesso, você criará sua senha definitiva.</small></div>`
         : `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Como entrar</strong><br>Use o e-mail <strong>${email}</strong> e a senha que você já utiliza na plataforma.</div>`;
       const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#F4F7FB;font-family:Arial,Helvetica,sans-serif;color:#273142"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F7FB"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #D9E0EA"><tr><td style="background:#1E2D6E;color:#fff;padding:28px 30px"><h1 style="margin:0;font-size:24px;line-height:1.25">Seu acesso gratuito foi liberado</h1><p style="margin:8px 0 0;font-size:15px;color:#DCE6FF">LBW \u2014 Educa\u00e7\u00e3o pelo Trabalho</p></td></tr><tr><td style="padding:30px;font-size:16px;line-height:1.55"><p style="margin:0 0 16px">Ol\u00e1, ${primeiroNome}!</p><p style="margin:0 0 16px">Voc\u00ea recebeu gratuitamente o pacote <strong>Capabilidade de Processo</strong>.</p><ul style="margin:0 0 22px;padding-left:22px"><li style="margin-bottom:6px">Curso Capabilidade de Processo</li><li style="margin-bottom:6px">Data Analysis \u2014 m\u00f3dulo Capabilidade</li><li>IA digital do Israel para apoiar o uso das ferramentas liberadas</li></ul>${credenciais}<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:26px auto"><tr><td align="center" bgcolor="#2563EB" style="border-radius:8px;background:#2563EB"><a href="${site}" style="display:inline-block;background:#2563EB;border:1px solid #2563EB;border-radius:8px;color:#FFFFFF;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 28px">Acessar a plataforma \u2192</a></td></tr></table><p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748B">Se voc\u00ea n\u00e3o solicitou este acesso, ignore este e-mail.</p></td></tr></table></td></tr></table></body></html>`;
       try { emailEnviado = (await resendSend({ to: email, subject: "Seu acesso gratuito \u00e0 Capabilidade de Processo", html })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
-      return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analytics.modulo } });
+      return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analyticsGratis.map((item) => item.modulo) } });
     } catch (err: any) {
       console.error("[POST /api/public/acesso-gratis] erro:", err?.message || err);
       return res.status(500).json({ error: err?.message || "NÃ£o foi possÃ­vel liberar o acesso agora." });
