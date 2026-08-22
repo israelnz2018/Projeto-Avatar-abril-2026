@@ -247,7 +247,7 @@ export default function ProjectManagement() {
   // Projeto aguardando confirmação de "gerar apresentação completa".
   const [pptConfirmProject, setPptConfirmProject] = useState<Project | null>(null);
 
-  const { isCoordenador, acessoPorCurso } = useUserAccess();
+  const { isCoordenador, acessoPorCurso, canUseInitiative } = useUserAccess();
   const { consultor } = useConsultor();
   // Modelo por-consultor (coordenador ou aluno com pacote): não existe upgrade
   // self-service — o popup de bloqueio orienta a falar com o consultor, não a Hotmart.
@@ -260,6 +260,22 @@ export default function ProjectManagement() {
 
   // Dropdown "Meus Projetos Ativos"
   const [isProjectsListOpen, setIsProjectsListOpen] = useState(false);
+
+  const nomeProjetoParaOrdenacao = (nome: string) => nome.replace(/^\s*\d+\s*[-–—:]\s*/, '').trim();
+  const ordenarProjetosAlfabeticamente = (a: Initiative, b: Initiative) =>
+    nomeProjetoParaOrdenacao(a.name).localeCompare(nomeProjetoParaOrdenacao(b.name), 'pt-BR', { sensitivity: 'base', numeric: true });
+
+  // A lista continua mostrando todos os tipos de projeto. Apenas agrupamos
+  // visualmente pela disponibilidade e ordenamos cada grupo alfabeticamente.
+  const tiposDeProjeto = useMemo(() => initiatives
+    .filter(i => !i.parentId && i.temProjeto !== false), [initiatives]);
+  const tiposDeProjetoLiberados = useMemo(() => tiposDeProjeto
+    .filter(i => canUseInitiative(i.id, initiatives))
+    .sort(ordenarProjetosAlfabeticamente), [tiposDeProjeto, initiatives, canUseInitiative]);
+  const tiposDeProjetoSemAcesso = useMemo(() => tiposDeProjeto
+    .filter(i => !canUseInitiative(i.id, initiatives))
+    .sort(ordenarProjetosAlfabeticamente), [tiposDeProjeto, initiatives, canUseInitiative]);
+  const tiposDeProjetoOrdenados = [...tiposDeProjetoLiberados, ...tiposDeProjetoSemAcesso];
 
   // Trilhas (sub-iniciativas) da iniciativa selecionada
   const children = useMemo(() => {
@@ -689,7 +705,7 @@ export default function ProjectManagement() {
 
                   {/* Lista de cursos — clique abre o popup direto */}
                   <div className="space-y-2 mb-2" data-tour-id="proj-trilhas">
-                    {initiatives.filter(i => !i.parentId).filter(i => i.temProjeto !== false).length === 0 && (
+                    {tiposDeProjeto.length === 0 && (
                       <div className="rounded-2xl bg-white border border-dashed border-gray-300 p-6 text-center">
                         <p className="text-sm font-bold text-gray-700 mb-1">Você ainda não tem nenhum curso cadastrado.</p>
                         <p className="text-xs text-gray-500">
@@ -697,20 +713,16 @@ export default function ProjectManagement() {
                         </p>
                       </div>
                     )}
-                    {initiatives
+                    {tiposDeProjetoOrdenados
                       .filter(i => !i.parentId)
                       .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
-                      .sort((a, b) => {
-                        const numA = a.ordem ?? 0;
-                        const numB = b.ordem ?? 0;
-                        if (numA !== numB) return numA - numB;
-                        return a.name.localeCompare(b.name);
-                      })
+                      .sort(() => 0)
                       .map((initiative, index) => {
                         const numeroVisual = initiative.ordem ?? (index + 1);
                         const visual = resolveInitiativeVisual(initiative, numeroVisual);
                         const titleClean = initiative.name;
                         const VisualIcon = visual.Icon;
+                        const projetoLiberado = canUseInitiative(initiative.id, initiatives);
                         // Regra geral: NÃO trava na entrada. O aluno abre o projeto e vê
                         // as fases e as ferramentas; o cadeado aparece só na ferramenta
                         // (ProjectJourney), que é o último nível.
@@ -727,7 +739,8 @@ export default function ProjectManagement() {
                             whileHover={{ x: 4 }}
                             className="group relative w-full flex items-center gap-4 pl-5 pr-4 py-3.5 rounded-2xl bg-white hover:bg-gradient-to-r hover:from-white hover:to-blue-50/40 transition-all cursor-pointer text-left overflow-hidden"
                             style={{
-                              borderLeft: `4px solid ${visual.borderColor}`,
+                              borderLeft: `4px solid ${projetoLiberado ? '#10B981' : visual.borderColor}`,
+                              background: projetoLiberado ? 'linear-gradient(90deg, rgba(236, 253, 245, 0.95), #FFFFFF 42%)' : '#FFFFFF',
                               boxShadow: '0 6px 16px -8px rgba(30, 45, 110, 0.12), 0 0 0 1px rgba(229, 231, 235, 0.6)',
                             }}
                           >
@@ -751,6 +764,12 @@ export default function ProjectManagement() {
                                 {titleClean}
                               </p>
                             </div>
+
+                            {projetoLiberado && (
+                              <span className="relative z-10 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-700 shrink-0">
+                                <CheckCircle2 size={11} /> Liberado
+                              </span>
+                            )}
 
                             {/* Seta indicando ação */}
                             <ChevronRight
