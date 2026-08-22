@@ -25,7 +25,8 @@ import {
   Wallet,
   AlertTriangle,
   TrendingUp,
-  Rocket
+  Rocket,
+  FolderOpen
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -337,23 +338,33 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
           </div>
         </div>
 
-        {isSidebarOpen && (
-          <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50">
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-              <span>📁</span>
-              <span>Projeto Ativo:</span>
-            </div>
-            {projetoAtivo ? (
-              <p className="text-sm font-bold text-white truncate" title={projetoAtivo.name}>
-                {projetoAtivo.name}
-              </p>
-            ) : (
-              <p className="text-sm italic text-gray-500">
-                Nenhum projeto selecionado
-              </p>
-            )}
-          </div>
-        )}
+        <div
+          className={cn(
+            "border-b border-gray-700 bg-gray-800/50",
+            isSidebarOpen ? "px-4 py-3" : "p-3 flex justify-center",
+          )}
+          title={projetoAtivo ? `Projeto vigente: ${projetoAtivo.name}` : 'Nenhum projeto selecionado'}
+        >
+          {isSidebarOpen ? (
+            <>
+              <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+                <FolderOpen size={14} />
+                <span>Projeto vigente:</span>
+              </div>
+              {projetoAtivo ? (
+                <p className="text-sm font-bold text-white truncate">
+                  {projetoAtivo.name}
+                </p>
+              ) : (
+                <p className="text-sm italic text-gray-500">
+                  Nenhum projeto selecionado
+                </p>
+              )}
+            </>
+          ) : (
+            <FolderOpen size={20} className={projetoAtivo ? 'text-blue-400' : 'text-gray-500'} />
+          )}
+        </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {menuSections.map((section) => {

@@ -9,6 +9,7 @@ import type { AcessoAnalytics } from '../services/analyticsModules';
 
 type Plano = 'gratuito' | 'completo' | 'coordenador' | 'por_curso';
 type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
+type ProjetoAcesso = { projeto: string; vencimento: string | null; valor?: number };
 
 export function useUserAccess() {
   const [loading, setLoading] = useState(true);
@@ -27,6 +28,8 @@ export function useUserAccess() {
   const [pptInternaUrl, setPptInternaUrl] = useState('');
   const [cursosLiberados, setCursosLiberados] = useState<string[]>([]);
   const [cursosAcesso, setCursosAcesso] = useState<CursoAcesso[]>([]);
+  const [projetosAcesso, setProjetosAcesso] = useState<ProjetoAcesso[]>([]);
+  const [acessoProjetosConfigurado, setAcessoProjetosConfigurado] = useState(false);
   // Acesso por produto (hoje: quais módulos do Data Analysis o aluno tem).
   // Ausente = aluno legado, de antes desse controle — quem lê trata como liberado.
   const [acessoProdutos, setAcessoProdutos] = useState<{ analytics?: AcessoAnalytics } | null>(null);
@@ -61,6 +64,8 @@ export function useUserAccess() {
         let pCores: { navy: string; blue: string; light: string } | null = null;
         let cursosLib: string[] = [];
         let cursosAcc: CursoAcesso[] = [];
+        let projetosAcc: ProjetoAcesso[] = [];
+        let projetosConfigurados = false;
         let porCurso = false;
         if (userSnap.exists()) {
           const dataGlobal = userSnap.data();
@@ -108,6 +113,16 @@ export function useUserAccess() {
             } catch { /* sem doc/permissão — mantém marca do consultor */ }
           }
           setAcessoProdutos(data.acessoProdutos && typeof data.acessoProdutos === 'object' ? data.acessoProdutos : null);
+          projetosConfigurados = Array.isArray(data.projetosAcesso);
+          if (projetosConfigurados) {
+            projetosAcc = data.projetosAcesso
+              .map((item: any) => ({
+                projeto: String(typeof item === 'string' ? item : item?.projeto || item?.projetoId || '').trim(),
+                vencimento: typeof item === 'object' && item?.vencimento ? String(item.vencimento) : null,
+                valor: typeof item === 'object' && typeof item?.valor === 'number' ? item.valor : 0,
+              }))
+              .filter((item: ProjetoAcesso) => item.projeto && (!item.vencimento || new Date(item.vencimento).getTime() >= Date.now()));
+          }
           // Modelo novo: cursosAcesso [{curso, vencimento}] — ativos = não vencidos.
           // Fallback pro legado cursosLiberados (string[] sem vencimento).
           const ca = Array.isArray(data.cursosAcesso) ? data.cursosAcesso : null;
@@ -148,6 +163,8 @@ export function useUserAccess() {
         setPptCores(pCores);
         setCursosAcesso(cursosAcc);
         setCursosLiberados(cursosLib);
+        setProjetosAcesso(projetosAcc);
+        setAcessoProjetosConfigurado(projetosConfigurados);
         setAcessoPorCurso(porCurso);
         if (admin || cons) {
           setFreeToolIds(new Set());
@@ -211,6 +228,13 @@ export function useUserAccess() {
     if (isAdmin || isConsultor) return true;
     const initiative = initiatives.find(i => i.id === initiativeId);
     if (!initiative) return false;
+    // Quando o consultor configurou Projects explicitamente, essa lista é a
+    // fonte de verdade independente dos cursos. Lista vazia significa sem acesso.
+    if (acessoProjetosConfigurado) {
+      return projetosAcesso.some((acesso) =>
+        acesso.projeto === initiative.id || hasCourseAccess([acesso.projeto], initiative.name),
+      );
+    }
     // Modelo POR-CONSULTOR: idem — só o que foi explicitamente liberado, sem bypass de isFree.
     if (isCoordenador || acessoPorCurso) {
       const cursoAssociado = initiative.cursoAssociadoId
@@ -239,6 +263,8 @@ export function useUserAccess() {
     pptInternaUrl,
     cursosLiberados,
     cursosAcesso,
+    projetosAcesso,
+    acessoProjetosConfigurado,
     acessoProdutos,
     acessoPorCurso,
     freeToolIds,

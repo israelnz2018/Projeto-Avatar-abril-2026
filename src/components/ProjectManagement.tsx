@@ -12,7 +12,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { getUserProjects, createProject, deleteProject, updateProjectName } from '../services/projectService';
+import { getUserProjects, createProject, deleteProject, updateProjectName, updateProjectInitiative } from '../services/projectService';
 import { getInitiatives } from '../services/configService';
 import { Initiative, Project } from '../types';
 import { Toaster, toast } from 'sonner';
@@ -222,7 +222,7 @@ const getInitiativeIcon = (name: string) => {
 import { useProject } from '../contexts/ProjectContext';
 
 export default function ProjectManagement() {
-  const { setProjetoAtivo } = useProject();
+  const { projetoAtivo, setProjetoAtivo } = useProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -232,6 +232,9 @@ export default function ProjectManagement() {
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   // Renomear projeto (botão lápis)
   const [projectToRename, setProjectToRename] = useState<Project | null>(null);
+  const [projectToAssociate, setProjectToAssociate] = useState<Project | null>(null);
+  const [associationInitiativeId, setAssociationInitiativeId] = useState('');
+  const [isAssociating, setIsAssociating] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -276,6 +279,31 @@ export default function ProjectManagement() {
     .filter(i => !canUseInitiative(i.id, initiatives))
     .sort(ordenarProjetosAlfabeticamente), [tiposDeProjeto, initiatives, canUseInitiative]);
   const tiposDeProjetoOrdenados = [...tiposDeProjetoLiberados, ...tiposDeProjetoSemAcesso];
+  const projetosVisiveis = useMemo(() => projects.filter((project) => {
+    if (project.initiativeId) return canUseInitiative(project.initiativeId, initiatives);
+    // Projetos criados em Data Analysis só aparecem aqui quando o aluno possui
+    // pelo menos um tipo de projeto liberado pelo consultor.
+    return tiposDeProjetoLiberados.length > 0;
+  }), [projects, initiatives, tiposDeProjetoLiberados, canUseInitiative]);
+
+  // A selecao exibida em Projects acompanha o unico projeto vigente da plataforma.
+  // Um projeto exclusivo de Data Analysis continua vigente, mas nao e aberto aqui
+  // enquanto o aluno nao possuir acesso a uma estrutura de Projects.
+  useEffect(() => {
+    if (!projetoAtivo) {
+      setSelectedProject(null);
+      setCurrentPhase(null);
+      return;
+    }
+    const projetoVisivel = projetosVisiveis.find((project) => project.id === projetoAtivo.id);
+    if (!projetoVisivel || !projetoVisivel.initiativeId) {
+      setSelectedProject(null);
+      setCurrentPhase(null);
+      return;
+    }
+    setSelectedProject(projetoVisivel);
+    setCurrentPhase(projetoVisivel.currentPhase);
+  }, [projetoAtivo?.id, projetosVisiveis]);
 
   // Trilhas (sub-iniciativas) da iniciativa selecionada
   const children = useMemo(() => {
@@ -478,6 +506,59 @@ export default function ProjectManagement() {
     }
   };
 
+  const ativarProjeto = (project: Project) => {
+    setSelectedProject(project);
+    setCurrentPhase(project.currentPhase);
+    setProjetoAtivo(project);
+    setIsProjectsListOpen(false);
+  };
+
+  const associarEAtivarProjeto = async (project: Project, initiative: Initiative) => {
+    const primeiraFase = initiative.phases?.[0]?.id || 'Define';
+    await updateProjectInitiative(project.id, initiative.id, primeiraFase);
+    const atualizado = { ...project, initiativeId: initiative.id, currentPhase: primeiraFase };
+    setProjects((atuais) => atuais.map((item) => item.id === project.id ? atualizado : item));
+    ativarProjeto(atualizado);
+  };
+
+  const abrirProjetoExistente = async (project: Project) => {
+    if (project.initiativeId) {
+      ativarProjeto(project);
+      return;
+    }
+
+    if (tiposDeProjetoLiberados.length === 1) {
+      try {
+        await associarEAtivarProjeto(project, tiposDeProjetoLiberados[0]);
+      } catch (error) {
+        console.error('Erro ao vincular projeto:', error);
+        toast.error('Não foi possível abrir o projeto com a estrutura liberada.');
+      }
+      return;
+    }
+
+    setProjectToAssociate(project);
+    setAssociationInitiativeId(tiposDeProjetoLiberados[0]?.id || '');
+    setIsProjectsListOpen(false);
+  };
+
+  const confirmarAssociacaoProjeto = async () => {
+    if (!projectToAssociate || !associationInitiativeId || isAssociating) return;
+    const initiative = tiposDeProjetoLiberados.find((item) => item.id === associationInitiativeId);
+    if (!initiative) return;
+    setIsAssociating(true);
+    try {
+      await associarEAtivarProjeto(projectToAssociate, initiative);
+      setProjectToAssociate(null);
+      setAssociationInitiativeId('');
+    } catch (error) {
+      console.error('Erro ao vincular projeto:', error);
+      toast.error('Não foi possível vincular o projeto.');
+    } finally {
+      setIsAssociating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-6 bg-[#f0f2f5] h-screen overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 min-w-0 space-y-4" data-tour-id="proj-coluna">
@@ -488,7 +569,7 @@ export default function ProjectManagement() {
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               Carregando...
             </div>
-          ) : projects.length === 0 ? (
+          ) : projetosVisiveis.length === 0 ? (
             <div className="text-center py-4 bg-white rounded-2xl border border-dashed border-gray-200">
               <p className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">Nenhum projeto ativo · crie seu primeiro abaixo</p>
             </div>
@@ -514,7 +595,7 @@ export default function ProjectManagement() {
                     <div className="text-[13px] font-semibold" style={{ color: LBW.navy }}>
                       {selectedProject
                         ? <>{selectedProject.name} · <span className="font-normal text-gray-400">trocar projeto</span></>
-                        : <>{projects.length} {projects.length === 1 ? 'projeto' : 'projetos'} · clique para {isProjectsListOpen ? 'recolher' : 'expandir'}</>
+                        : <>{projetosVisiveis.length} {projetosVisiveis.length === 1 ? 'projeto' : 'projetos'} · clique para {isProjectsListOpen ? 'recolher' : 'expandir'}</>
                       }
                     </div>
                   </div>
@@ -555,7 +636,7 @@ export default function ProjectManagement() {
                   >
                     <div className="bg-white border border-blue-100 rounded-2xl p-3 space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar"
                       style={{ boxShadow: '0 18px 40px -20px rgba(30, 45, 110, 0.25)' }}>
-                      {projects.map((project, idx) => {
+                      {projetosVisiveis.map((project, idx) => {
                         const initiative = initiatives.find(i => i.id === project.initiativeId);
                         const isCurrentSelected = selectedProject?.id === project.id;
                         return (
@@ -564,12 +645,7 @@ export default function ProjectManagement() {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.04 }}
-                            onClick={() => {
-                              setSelectedProject(project);
-                              setCurrentPhase(project.currentPhase);
-                              setProjetoAtivo(project);
-                              setIsProjectsListOpen(false);
-                            }}
+                            onClick={() => { void abrirProjetoExistente(project); }}
                             className={cn(
                               "rounded-xl p-3 flex items-center justify-between cursor-pointer transition-all group",
                               isCurrentSelected
@@ -723,13 +799,16 @@ export default function ProjectManagement() {
                         const titleClean = initiative.name;
                         const VisualIcon = visual.Icon;
                         const projetoLiberado = canUseInitiative(initiative.id, initiatives);
-                        // Regra geral: NÃO trava na entrada. O aluno abre o projeto e vê
-                        // as fases e as ferramentas; o cadeado aparece só na ferramenta
-                        // (ProjectJourney), que é o último nível.
+                        // O card continua visível sem novo cadeado. A criação, porém,
+                        // só é permitida para tipos liberados pelo consultor.
                         return (
                           <motion.button
                             key={initiative.id}
                             onClick={() => {
+                              if (!projetoLiberado) {
+                                toast.error('Este tipo de projeto ainda não foi liberado para você.');
+                                return;
+                              }
                               setSelectedInitiativeId(initiative.id);
                               setIsCreating(true);
                             }}
@@ -1038,6 +1117,54 @@ export default function ProjectManagement() {
         )}
       </AnimatePresence>
 
+      {/* Projeto criado em Data Analysis: escolhe a estrutura apenas ao abrir em Projects. */}
+      <AnimatePresence>
+        {projectToAssociate && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-blue-100"
+            >
+              <div className="p-8">
+                <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight mb-2">Abrir em Projects</h3>
+                <p className="text-sm text-gray-500 mb-5">
+                  O projeto <strong>{projectToAssociate.name}</strong> foi criado em Data Analysis. Escolha uma das estruturas que o consultor liberou para continuar.
+                </p>
+                <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Estrutura do projeto</label>
+                <select
+                  value={associationInitiativeId}
+                  onChange={(event) => setAssociationInitiativeId(event.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {tiposDeProjetoLiberados.map((initiative) => (
+                    <option key={initiative.id} value={initiative.id}>{initiative.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="p-6 bg-gray-50 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setProjectToAssociate(null); setAssociationInitiativeId(''); }}
+                  className="flex-1 py-3.5 text-xs font-black text-gray-500 hover:text-gray-700 uppercase tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmarAssociacaoProjeto}
+                  disabled={isAssociating || !associationInitiativeId}
+                  className="flex-[2] bg-blue-600 text-white py-3.5 rounded-2xl font-black text-xs hover:bg-blue-700 shadow-xl shadow-blue-200 uppercase tracking-widest transition-all disabled:opacity-40"
+                >
+                  {isAssociating ? 'Abrindo...' : 'Vincular e abrir'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Create Project Modal (Simplified) */}
       <AnimatePresence>
         {isCreating && (
@@ -1060,8 +1187,7 @@ export default function ProjectManagement() {
           </div>
         )}
       </AnimatePresence>
-      {/* Popup de bloqueio removido daqui: nesta tela não há mais trava na entrada.
-          O aviso de acesso agora vive no último nível, na ferramenta (ProjectJourney). */}
+      {/* Tipos não liberados continuam visíveis, mas não criam projetos. */}
     </div>
   );
 }

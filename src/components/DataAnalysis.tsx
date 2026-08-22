@@ -35,6 +35,8 @@ import { logAnalysisRun } from '../services/eventLogger';
 import { ANALYTICS_MODULOS, acessoAnalyticsDoAluno } from '../services/analyticsModules';
 import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
+import { createProject, getUserProjects } from '../services/projectService';
+import type { Project } from '../types';
 
 /**
  * Backend de análises (Python — repo israelnz2018/Analises no Railway), acessado SEMPRE
@@ -48,6 +50,7 @@ import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
  * no servidor — é lá que a escolha do upstream passa a viver.
  */
 const ANALISES_API = '/api/analises';
+const NOVO_PROJETO_ID = '__novo_projeto__';
 
 // --- CONFIGURATIONS FROM entradadedados.js ---
 const configuracoesFerramentas: Record<string, any[]> = {
@@ -382,7 +385,7 @@ function seekBunnyVideo(iframe: HTMLIFrameElement | null, seconds: number) {
 }
 
 export default function DataAnalysis() {
-  const { projetoAtivo } = useProject();
+  const { projetoAtivo, setProjetoAtivo } = useProject();
   const {
     plano,
     isAdmin,
@@ -398,6 +401,12 @@ export default function DataAnalysis() {
   const [modalSubstituirPlanilha, setModalSubstituirPlanilha] = useState(false);
   const [modalSucessoSalvar, setModalSucessoSalvar] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [projetosDisponiveis, setProjetosDisponiveis] = useState<Project[]>([]);
+  const [modalSelecionarProjeto, setModalSelecionarProjeto] = useState(false);
+  const [projetoDestinoId, setProjetoDestinoId] = useState('');
+  const [novoProjetoTitulo, setNovoProjetoTitulo] = useState('');
+  const [projetoDestinoSalvar, setProjetoDestinoSalvar] = useState<Project | null>(null);
+  const [planilhaDestinoSalvar, setPlanilhaDestinoSalvar] = useState<PlanilhaInfo | null>(null);
 
   useEffect(() => {
     // Vídeos institucionais (ex.: os 4 fixos de "como usar a plataforma") ficam disponíveis
@@ -903,48 +912,121 @@ export default function DataAnalysis() {
     }
   }, [results]);
 
-  const handleSalvarTudo = async () => {
-    if (!projetoAtivo) {
-      exibirModalErro('⚠️ Selecione um projeto na aba "Projetos" para salvar.');
-      return;
-    }
-
-    // Verifica se o arquivo na memória é DIFERENTE do que já está salvo
-    const arquivoIgualAoSalvo = file && planilhaProjeto && file.name === planilhaProjeto.nome;
-
-    // Só pergunta substituir se for arquivo diferente
-    if (file && planilhaProjeto && !arquivoIgualAoSalvo) {
-      setModalSubstituirPlanilha(true);
-      return;
-    }
-
-    await executarSalvamento();
+  const listarProjetosDoAluno = async (): Promise<Project[]> => {
+    const lista = (await getUserProjects()) || [];
+    const unicos = Array.from(new Map(lista.map((projeto) => [projeto.id, projeto])).values());
+    setProjetosDisponiveis(unicos);
+    return unicos;
   };
 
-  const executarSalvamento = async () => {
-    if (!projetoAtivo) return;
+  const prepararSalvamento = async (projeto: Project) => {
+    try {
+      const planilhaDoDestino = await obterPlanilhaProjeto(projeto.id);
+      setProjetoDestinoSalvar(projeto);
+      setPlanilhaDestinoSalvar(planilhaDoDestino);
+
+      // Ao trocar de projeto, qualquer planilha existente no destino precisa de
+      // confirmação antes de ser substituída, mesmo que o nome do arquivo coincida.
+      const trocandoProjeto = projeto.id !== projetoAtivo?.id;
+      const arquivoDiferente = !!file && !!planilhaDoDestino && (trocandoProjeto || file.name !== planilhaDoDestino.nome);
+      if (arquivoDiferente) {
+        setModalSubstituirPlanilha(true);
+        return;
+      }
+
+      await executarSalvamento(projeto, planilhaDoDestino);
+    } catch (err: any) {
+      exibirModalErro(`❌ Erro ao preparar o salvamento: ${err.message}`);
+    }
+  };
+
+  const handleSalvarTudo = async () => {
+    if (!file && results.length === 0) {
+      exibirModalErro('⚠️ Não há nada para salvar. Faça upload de uma planilha ou realize uma análise primeiro.');
+      return;
+    }
+
+    setSalvandoTudo(true);
+    try {
+      const projetos = await listarProjetosDoAluno();
+
+      if (projetos.length === 0) {
+        setProjetoDestinoId(NOVO_PROJETO_ID);
+        setNovoProjetoTitulo('');
+        setModalSelecionarProjeto(true);
+        return;
+      }
+
+      if (projetos.length === 1) {
+        await prepararSalvamento(projetos[0]);
+        return;
+      }
+
+      const vigenteNaLista = projetoAtivo && projetos.some((projeto) => projeto.id === projetoAtivo.id);
+      setProjetoDestinoId(vigenteNaLista ? projetoAtivo.id : projetos[0].id);
+      setNovoProjetoTitulo('');
+      setModalSelecionarProjeto(true);
+    } catch (err: any) {
+      exibirModalErro(`❌ Erro ao carregar seus projetos: ${err.message}`);
+    } finally {
+      setSalvandoTudo(false);
+    }
+  };
+
+  const confirmarProjetoDestino = async () => {
+    if (salvandoTudo) return;
+    setSalvandoTudo(true);
+    try {
+      let destino: Project | undefined;
+
+      if (projetoDestinoId === NOVO_PROJETO_ID) {
+        const titulo = novoProjetoTitulo.trim();
+        if (!titulo) {
+          exibirModalErro('Informe o título do projeto.');
+          return;
+        }
+        const criado = await createProject(titulo);
+        if (!criado?.id) throw new Error('O projeto não pôde ser criado.');
+        destino = criado as Project;
+        setProjetosDisponiveis((atuais) => [destino!, ...atuais]);
+      } else {
+        destino = projetosDisponiveis.find((projeto) => projeto.id === projetoDestinoId);
+      }
+
+      if (!destino) throw new Error('Selecione um projeto válido.');
+      setModalSelecionarProjeto(false);
+      await prepararSalvamento(destino);
+    } catch (err: any) {
+      exibirModalErro(`❌ Erro ao selecionar o projeto: ${err.message}`);
+    } finally {
+      setSalvandoTudo(false);
+    }
+  };
+
+  const executarSalvamento = async (
+    destino: Project | null = projetoDestinoSalvar,
+    planilhaDoDestino: PlanilhaInfo | null = planilhaDestinoSalvar,
+  ) => {
+    if (!destino) return;
     setSalvandoTudo(true);
     setModalSubstituirPlanilha(false);
 
-    let resumo: string[] = [];
+    const resumo: string[] = [];
 
     try {
-      // 1. Salvar planilha (se tem nova)
-      let planilhaTimestamp: number | null = planilhaProjeto?.atualizadaEm?.toMillis?.() || null;
-      
-      const arquivoIgualAoSalvo = file && planilhaProjeto && file.name === planilhaProjeto.nome;
+      let planilhaTimestamp: number | null = planilhaDoDestino?.atualizadaEm?.toMillis?.() || null;
+      const mesmoProjeto = destino.id === projetoAtivo?.id;
+      const arquivoJaSalvoNesteProjeto = !!file && !!planilhaDoDestino && mesmoProjeto && file.name === planilhaDoDestino.nome;
 
-      if (file && !arquivoIgualAoSalvo) {
-        // Arquivo é novo ou diferente — fazer upload
-        const info = await salvarPlanilhaProjeto(projetoAtivo.id, file);
-        setPlanilhaProjeto(info);
+      if (file && !arquivoJaSalvoNesteProjeto) {
+        const info = await salvarPlanilhaProjeto(destino.id, file);
         planilhaTimestamp = Date.now();
         resumo.push(`📁 Planilha: ${info.nome}`);
       }
 
-      // 2. Salvar análises (se tem)
       if (results.length > 0) {
-        const analises = results.map(r => ({
+        const dadosExistentes = await carregarAnalises(destino.id);
+        const analisesAtuais = results.map(r => ({
           id: r.id,
           tool: r.tool,
           toolParams: r.toolParams || {},
@@ -958,16 +1040,22 @@ export default function DataAnalysis() {
           planilhaVersao: planilhaTimestamp,
           graficoInterativo: r.graficoInterativo || null,
         }));
-        await salvarAnalises(projetoAtivo.id, analises, planilhaTimestamp);
-        resumo.push(`📊 ${results.length} análise(s)`);
+        const porId = new Map((dadosExistentes?.analises || []).map((analise) => [analise.id, analise]));
+        analisesAtuais.forEach((analise) => porId.set(analise.id, analise));
+        await salvarAnalises(destino.id, Array.from(porId.values()), planilhaTimestamp);
+        resumo.push(`📊 ${analisesAtuais.length} análise(s)`);
       }
 
       if (resumo.length === 0) {
-        exibirModalErro('⚠️ Não há nada para salvar. Faça upload de planilha ou rode análises primeiro.');
+        exibirModalErro('⚠️ Não há nada novo para salvar.');
         return;
       }
 
-      setModalSucessoSalvar(`Salvo em "${projetoAtivo.name}":\n${resumo.join('\n')}`);
+      // O projeto só muda globalmente depois que todos os dados foram confirmados.
+      setProjetoAtivo(destino);
+      setProjetoDestinoSalvar(null);
+      setPlanilhaDestinoSalvar(null);
+      setModalSucessoSalvar(`Salvo em "${destino.name}":\n${resumo.join('\n')}\n\nEste agora é o projeto vigente em toda a plataforma.`);
     } catch (err: any) {
       exibirModalErro(`❌ Erro ao salvar: ${err.message}`);
     } finally {
@@ -1514,12 +1602,12 @@ export default function DataAnalysis() {
                 <button
                   data-tour-id="salvar"
                   onClick={handleSalvarTudo}
-                  disabled={!projetoAtivo || salvandoTudo}
+                  disabled={salvandoTudo}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-[11px] font-black uppercase tracking-widest rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer whitespace-nowrap transition-colors"
-                  title={!projetoAtivo ? 'Selecione um projeto primeiro na aba Projetos' : 'Salvar planilha e análises no projeto ativo'}
+                  title={projetoAtivo ? `Salvar análises no projeto vigente: ${projetoAtivo.name}` : 'Criar ou escolher um projeto para salvar as análises'}
                 >
                   <Save size={13} />
-                  {salvandoTudo ? 'Salvando...' : 'Salvar no Projeto'}
+                  {salvandoTudo ? 'Salvando...' : 'Salvar Projeto'}
                 </button>
               </div>
             </ul>
@@ -2726,6 +2814,109 @@ export default function DataAnalysis() {
           </div>
         </div>
       </div>
+      {modalSelecionarProjeto && (
+        <div className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 m-0">Salvar projeto</h3>
+                <p className="text-sm text-gray-500 mt-1 mb-0">
+                  {projetosDisponiveis.length > 0
+                    ? 'Escolha onde deseja salvar as análises realizadas.'
+                    : 'Informe somente o título para criar seu primeiro projeto.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalSelecionarProjeto(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 border-none bg-transparent cursor-pointer"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-3 max-h-[55vh] overflow-y-auto">
+              {projetosDisponiveis.map((projeto) => {
+                const selecionado = projetoDestinoId === projeto.id;
+                const vigente = projetoAtivo?.id === projeto.id;
+                return (
+                  <button
+                    key={projeto.id}
+                    type="button"
+                    onClick={() => setProjetoDestinoId(projeto.id)}
+                    className={cn(
+                      'w-full rounded-xl border px-4 py-3 text-left cursor-pointer transition-all flex items-center gap-3',
+                      selecionado ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'border-gray-200 bg-white hover:border-blue-300',
+                    )}
+                  >
+                    <span className={cn(
+                      'w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center',
+                      selecionado ? 'border-blue-600' : 'border-gray-300',
+                    )}>
+                      {selecionado && <span className="w-2 h-2 rounded-full bg-blue-600" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-gray-900 truncate">{projeto.name}</span>
+                      {vigente && <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Projeto vigente</span>}
+                    </span>
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setProjetoDestinoId(NOVO_PROJETO_ID)}
+                className={cn(
+                  'w-full rounded-xl border px-4 py-3 text-left cursor-pointer transition-all flex items-center gap-3',
+                  projetoDestinoId === NOVO_PROJETO_ID ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100' : 'border-dashed border-gray-300 bg-gray-50 hover:border-blue-300',
+                )}
+              >
+                <span className={cn(
+                  'w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center',
+                  projetoDestinoId === NOVO_PROJETO_ID ? 'border-blue-600' : 'border-gray-300',
+                )}>
+                  {projetoDestinoId === NOVO_PROJETO_ID && <span className="w-2 h-2 rounded-full bg-blue-600" />}
+                </span>
+                <span className="text-sm font-bold text-blue-700">+ Criar novo projeto</span>
+              </button>
+
+              {projetoDestinoId === NOVO_PROJETO_ID && (
+                <div className="pt-1">
+                  <label className="block text-xs font-black uppercase tracking-wider text-gray-600 mb-2">Título do projeto</label>
+                  <input
+                    autoFocus
+                    value={novoProjetoTitulo}
+                    onChange={(event) => setNovoProjetoTitulo(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === 'Enter') confirmarProjetoDestino(); }}
+                    placeholder="Ex.: Análise de perdas da produção"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setModalSelecionarProjeto(false)}
+                className="px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-700 cursor-pointer hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarProjetoDestino}
+                disabled={salvandoTudo || !projetoDestinoId || (projetoDestinoId === NOVO_PROJETO_ID && !novoProjetoTitulo.trim())}
+                className="px-5 py-2.5 rounded-lg border-none bg-blue-600 text-white text-sm font-black cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {salvandoTudo ? 'Salvando...' : projetoDestinoId === NOVO_PROJETO_ID ? 'Criar e salvar' : 'Salvar neste projeto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Modal */}
       {modalErro && (
         <div className="fixed inset-0 bg-[rgba(0,0,0,0.5)] z-[1000] flex justify-center items-center">
@@ -2742,20 +2933,24 @@ export default function DataAnalysis() {
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4">
             <h3 className="text-lg font-bold text-gray-900 mb-3">⚠️ Substituir planilha?</h3>
             <p className="text-sm text-gray-700 mb-2">
-              Este projeto já tem uma planilha salva (<strong>{planilhaProjeto?.nome}</strong>).
+              Este projeto já tem uma planilha salva (<strong>{planilhaDestinoSalvar?.nome}</strong>).
             </p>
             <p className="text-sm text-gray-700 mb-5">
               Ao substituir, as análises antigas ficarão marcadas como desatualizadas (🟡).
             </p>
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setModalSubstituirPlanilha(false)}
+                onClick={() => {
+                  setModalSubstituirPlanilha(false);
+                  setProjetoDestinoSalvar(null);
+                  setPlanilhaDestinoSalvar(null);
+                }}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-bold rounded border-none cursor-pointer"
               >
                 Cancelar
               </button>
               <button
-                onClick={executarSalvamento}
+                onClick={() => executarSalvamento()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded border-none cursor-pointer"
               >
                 Substituir
