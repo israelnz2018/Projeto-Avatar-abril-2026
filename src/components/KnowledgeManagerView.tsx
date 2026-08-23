@@ -861,8 +861,14 @@ export default function KnowledgeManagerView() {
       const iconId = ICON_CATALOG.find((i) => i.id === 'book')?.id || ICON_CATALOG[0].id;
       const corId = COLOR_CATALOG[initiatives.length % COLOR_CATALOG.length].id;
       const ordem = initiatives.reduce((max, i) => Math.max(max, Number(i.ordem) || 0), 0) + 1;
-      await updateInitiative(criado.id, { iconId, corId, ordem });
-      const completo = { ...criado, iconId, corId, ordem };
+      // temProjeto: true explícito (não deixar implícito por ausência) — é o que faz
+      // o curso aparecer automaticamente como tipo de projeto na aba Projetos, pro
+      // aluno poder criar um projeto dele. Sem nenhuma fase configurada ainda
+      // (ProjectToolsConfig faz isso depois, se o consultor quiser adicionar
+      // ferramentas da qualidade), o projeto que o aluno criar mostra a tela
+      // "Este projeto não tem ferramentas da qualidade" — ver ProjectManagement.tsx.
+      await updateInitiative(criado.id, { iconId, corId, ordem, temProjeto: true });
+      const completo = { ...criado, iconId, corId, ordem, temProjeto: true };
       setInitiatives((prev) => [...prev, completo]);
       setInitiativeNames((prev) => [...prev, nome]);
       setNewCourseName('');
