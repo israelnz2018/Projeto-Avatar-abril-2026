@@ -18,8 +18,8 @@ const CONFIG_LANDING: Record<LandingGratisVariante, {
   beneficio3Descricao: string;
 }> = {
   capabilidade: {
-    produto: 'capabilidade-processo',
-    cursoGratis: 'Capabilidade de Processo',
+    produto: 'capabilidade-processo-gratis',
+    cursoGratis: 'Capabilidade de Processo Avançado',
     eyebrow: 'Pacote gratuito · Capabilidade',
     titulo: <>Entenda se o seu processo é <span className="grad">capaz de entregar o que promete.</span></>,
     descricao: 'Aprenda a interpretar e gerar a capabilidade do processo através de aulas completas, exercícios e software estatístico gratuito para fazer as análises. Tudo isso dentro da melhor e mais completa plataforma em gerenciamento de projetos de melhoria.',

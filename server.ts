@@ -180,7 +180,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo";
+    plano: "gratuito" | "completo" | "capabilidade";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,9 +197,10 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
-      params.plano === "completo" ? "pago" : "gratis";
+      params.plano === "completo" ? "pago" :
+      params.plano === "capabilidade" ? "capabilidade" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -262,6 +263,21 @@ async function startServer() {
         <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">DEPOIS DO KIT, TEM UMA JORNADA INTEIRA À SUA FRENTE:</p>
         <p style="margin:0 0 12px 0;font-size:14px;">O Kit 90 Dias é a porta de entrada. Quando quiser ir além, a formação completa te leva do básico ao nível de quem senta na mesa de decisão — com mais 7 trilhas:</p>
         ${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}`;
+    } else if (tipo === "capabilidade") {
+      titulo = "Seu acesso à Capabilidade de Processo Avançado está liberado 🚀";
+      planoLabel = "Capabilidade de Processo Avançado";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Capabilidade de Processo Avançado</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Capabilidade de Processo Avançado</strong> — aulas e exercícios para aprender a interpretar e gerar a capabilidade do processo.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Capabilidade</strong> — use o software estatístico para realizar as análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else if (tipo === "pago") {
       titulo = "Seu curso de Especialista está liberado 🚀";
       planoLabel = "Especialista em Gestão de Projetos de Melhoria";
@@ -3212,13 +3228,18 @@ async function startServer() {
     }
   });
 
-  // Landing page gratuita do produto Capabilidade de Processo.
+  // Landing page gratuita do produto Capabilidade de Processo Avançado.
   // O endpoint Ã© pÃºblico de propÃ³sito: cria/atualiza o aluno e libera o pacote
   // especÃ­fico sem depender do painel do consultor ou do webhook antigo.
   app.post("/api/public/acesso-gratis", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Servidor nÃ£o configurado." });
 
-    const produto = String(req.body?.produto || "").trim().toLowerCase();
+    const produtoInformado = String(req.body?.produto || "").trim().toLowerCase();
+    // Mantém compatibilidade com a landing antiga, mas separa o identificador
+    // do pacote gratuito do pacote comercial de Capabilidade.
+    const produto = produtoInformado === "capabilidade-processo"
+      ? "capabilidade-processo-gratis"
+      : produtoInformado;
     const nome = String(req.body?.nome || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const profissao = String(req.body?.profissao || "").trim().slice(0, 120);
@@ -3226,9 +3247,9 @@ async function startServer() {
     const interesseCurso = interesseCursos.join(", ");
     const whatsapp = String(req.body?.whatsapp || "").trim();
     const configuracaoGratis = ({
-      "capabilidade-processo": {
-        curso: "Capabilidade de Processo",
-        nomePacote: "Capabilidade de Processo",
+      "capabilidade-processo-gratis": {
+        curso: "Capabilidade de Processo Avançado",
+        nomePacote: "Capabilidade de Processo Avançado",
         analytics: [{ modulo: "capabilidade", nome: "Capabilidade" }],
       },
       "estatistica-aplicada": {
@@ -3239,7 +3260,7 @@ async function startServer() {
           { modulo: "diversas", nome: "Estatística Básica" },
         ],
       },
-    } as const)[produto as "capabilidade-processo" | "estatistica-aplicada"];
+    } as const)[produto as "capabilidade-processo-gratis" | "estatistica-aplicada"];
     if (!configuracaoGratis) return res.status(400).json({ error: "Produto gratuito inválido." });
     if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail vÃ¡lido." });
@@ -3287,7 +3308,7 @@ async function startServer() {
         cursosLiberados: cursosAcesso.map((item: any) => item.curso),
         acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
         projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
-        origem: anterior.origem || `landing-${produto}-gratis`, ultimoCadastroGratisEm: agora,
+        origem: anterior.origem || `landing-${produto}`, ultimoCadastroGratisEm: agora,
         profissao, interesseCurso, interesseCursos,
         ...(whatsapp ? { whatsapp } : {}),
       };
@@ -3302,7 +3323,7 @@ async function startServer() {
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
         ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
-        origem: base.origem || `landing-${produto}-gratis`,
+        origem: base.origem || `landing-${produto}`,
         formacoes: Array.from(new Set([...(Array.isArray(base.formacoes) ? base.formacoes : []), produto])),
         creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agora, ...(novo ? { senhaProvisoria: true } : {}),
@@ -3328,7 +3349,8 @@ async function startServer() {
         ? `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Seus dados de acesso</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:3px 6px;border-radius:4px">${senhaProvisoria}</code><br><small>No primeiro acesso, você criará sua senha definitiva.</small></div>`
         : `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Como entrar</strong><br>Use o e-mail <strong>${email}</strong> e a senha que você já utiliza na plataforma.</div>`;
       const html = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#F4F7FB;font-family:Arial,Helvetica,sans-serif;color:#273142"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F7FB"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #D9E0EA"><tr><td style="background:#1E2D6E;color:#fff;padding:28px 30px"><h1 style="margin:0;font-size:24px;line-height:1.25">Seu acesso gratuito foi liberado</h1><p style="margin:8px 0 0;font-size:15px;color:#DCE6FF">LBW \u2014 Educa\u00e7\u00e3o pelo Trabalho</p></td></tr><tr><td style="padding:30px;font-size:16px;line-height:1.55"><p style="margin:0 0 16px">Ol\u00e1, ${primeiroNome}!</p><p style="margin:0 0 16px">Voc\u00ea recebeu gratuitamente o pacote <strong>Capabilidade de Processo</strong>.</p><ul style="margin:0 0 22px;padding-left:22px"><li style="margin-bottom:6px">Curso Capabilidade de Processo</li><li style="margin-bottom:6px">Data Analysis \u2014 m\u00f3dulo Capabilidade</li><li>IA digital do Israel para apoiar o uso das ferramentas liberadas</li></ul>${credenciais}<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:26px auto"><tr><td align="center" bgcolor="#2563EB" style="border-radius:8px;background:#2563EB"><a href="${site}" style="display:inline-block;background:#2563EB;border:1px solid #2563EB;border-radius:8px;color:#FFFFFF;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 28px">Acessar a plataforma \u2192</a></td></tr></table><p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748B">Se voc\u00ea n\u00e3o solicitou este acesso, ignore este e-mail.</p></td></tr></table></td></tr></table></body></html>`;
-      try { emailEnviado = (await resendSend({ to: email, subject: "Seu acesso gratuito \u00e0 Capabilidade de Processo", html })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
+      const htmlAtualizado = html.replaceAll("Capabilidade de Processo", "Capabilidade de Processo Avançado");
+      try { emailEnviado = (await resendSend({ to: email, subject: "Seu acesso gratuito \u00e0 Capabilidade de Processo Avançado", html: htmlAtualizado })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
       return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analyticsGratis.map((item) => item.modulo) } });
     } catch (err: any) {
       console.error("[POST /api/public/acesso-gratis] erro:", err?.message || err);
@@ -5053,11 +5075,21 @@ async function startServer() {
     //   'trilha1'   -> COMPRA da Trilha 1 (R$67). Acesso = mesma Trilha 1 do grátis,
     //                  mas conta como venda (origem + validade 1 ano).
     //   'gratuito'  -> Trilha 1 grátis (fluxo antigo). Default.
-    const planoRaw = String(body.plano || "").toLowerCase();
+    const planoRaw = String(body.plano || "").toLowerCase().trim();
     const isCompraTrilha1 = planoRaw === "trilha1" || planoRaw === "trilha-1" || planoRaw === "trilha1-pago";
-    const planoSolicitado: "completo" | "gratuito" = planoRaw === "completo" ? "completo" : "gratuito";
+    const PACOTE_CAPABILIDADE_ID = "capabilidade-processo-avancado";
+    const PACOTE_CAPABILIDADE_NOME = "Capabilidade de Processo Avançado";
+    const normalizarPacote = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+    // Compatibilidade: o fluxo antigo pode ainda enviar "capabilidade".
+    // O novo fluxo deve enviar o ID ou o nome oficial do pacote.
+    const isCompraCapabilidade = planoRaw === "capabilidade"
+      || normalizarPacote(planoRaw) === PACOTE_CAPABILIDADE_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CAPABILIDADE_NOME);
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" = planoRaw === "completo"
+      ? "completo"
+      : isCompraCapabilidade ? "capabilidade" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5067,7 +5099,20 @@ async function startServer() {
 
     const CURSO_KIT_90 = "Como Resolver Problemas no Trabalho - Kit 90 dias";
     const CURSO_ESPECIALISTA = "Como Se Tornar um Especialista em Gestão de Projetos de Melhoria";
-    const cursoComprado = planoSolicitado === "completo" ? CURSO_ESPECIALISTA : CURSO_KIT_90;
+    const CURSO_CAPABILIDADE = PACOTE_CAPABILIDADE_NOME;
+    const nomePacoteComercial = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : planoSolicitado;
+    const dadosPacoteComercial = isCompraCapabilidade
+      ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
+      : {};
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade
+      ? "compra-hotmart"
+      : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
+    const cursoComprado = planoSolicitado === "completo"
+      ? CURSO_ESPECIALISTA
+      : isCompraCapabilidade ? CURSO_CAPABILIDADE : CURSO_KIT_90;
+    const analyticsComprado = isCompraCapabilidade
+      ? [{ modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 }]
+      : [];
     const cursoAcessoComprado = {
       curso: cursoComprado,
       vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null,
@@ -5111,10 +5156,12 @@ async function startServer() {
           consultorId: consultorCompraId,
           consultorIds: [consultorCompraId],
           plano: "por_curso",
-          planoComercialLegado: planoSolicitado,
+           planoComercialLegado: nomePacoteComercial,
+           ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
           cursosAcesso: [cursoAcessoComprado],
           cursosLiberados: [cursoComprado],
+          ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
           creditoIA: {
             limite: planoSolicitado === "completo" ? 1000 : 100,
             usado: 0,
@@ -5122,18 +5169,17 @@ async function startServer() {
           },
           senhaProvisoria: true, // força troca obrigatória no 1º acesso
           criadoEm: new Date().toISOString(),
-          origem: planoSolicitado === "completo"
-            ? "compra-hotmart"
-            : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing"),
+          origem: origemAcesso,
           // Compra (completa OU Trilha 1) = 1 ano de acesso. Só exibição por enquanto;
           // o rebaixamento automático ao vencer ainda é pendência (cron, Camada B).
           ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
           vinculos: {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
-              plano: "por_curso", planoComercialLegado: planoSolicitado, modeloAcesso: "por_curso",
+               plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
               cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado],
-              origem: planoSolicitado === "completo" ? "compra-hotmart" : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing"),
+              ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
+              origem: origemAcesso,
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
             },
           },
@@ -5158,10 +5204,12 @@ async function startServer() {
           consultorId: consultorCompraId,
           consultorIds: [consultorCompraId],
           plano: "por_curso",
-          planoComercialLegado: planoSolicitado,
+           planoComercialLegado: nomePacoteComercial,
+           ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
           cursosAcesso: [cursoAcessoComprado],
           cursosLiberados: [cursoComprado],
+          ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
           creditoIA: { limite: planoSolicitado === "completo" ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
           criadoEm: new Date().toISOString(),
           origem: "regularizado",
@@ -5169,8 +5217,9 @@ async function startServer() {
           vinculos: {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
-              plano: "por_curso", planoComercialLegado: planoSolicitado, modeloAcesso: "por_curso",
+               plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
               cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado],
+              ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: "regularizado",
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
             },
@@ -5216,12 +5265,40 @@ async function startServer() {
       // Conta existente de outro consultor: cria o novo papel de aluno de Israel,
       // sem tocar na senha nem no papel principal.
       if (!vinculoIsraelAnterior) {
-        const origem = planoSolicitado === "completo" ? "compra-hotmart" : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
-        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: planoSolicitado, modeloAcesso: "por_curso", cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado], origem });
+        const origem = origemAcesso;
+        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), origem });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
         const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
         return res.json({ ok: true, status: statusCompat, vinculoCriado: true, uid, email, plano: planoSolicitado, emailEnviado });
+      }
+
+      // COMPRA da Capabilidade de Processo Avançado: preserva cursos anteriores e
+      // acrescenta o curso e o módulo estatístico correspondente.
+      if (isCompraCapabilidade) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => String(item?.modulo || item?.id || item).trim() !== "capabilidade"),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+           planoComercialLegado: PACOTE_CAPABILIDADE_NOME,
+           pacoteId: PACOTE_CAPABILIDADE_ID,
+           pacoteNome: PACOTE_CAPABILIDADE_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "capabilidade", contexto: "existente" });
+        console.log(`[acesso/liberar] CAPABILIDADE ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "capabilidade-liberada", uid, email, plano: "capabilidade", emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
