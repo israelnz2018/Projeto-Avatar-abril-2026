@@ -20,6 +20,7 @@ interface AnaliseSalva {
   grafico_base64?: string;
   grafico_isolado_base64?: string | string[];
   graficoPptBase64?: string;
+  graficoInterativo?: any;
   interpretacao?: string;
   qa: { question: string; answer: string }[];
   timestamp: number;
@@ -36,6 +37,103 @@ function getLegacyIsolatedGraphics(item: AnaliseSalva): string[] {
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : [raw];
   return arr.filter(g => typeof g === 'string' && g.length > 50);
+}
+
+interface IndicadorGrafico {
+  label: string;
+  value: string;
+}
+
+interface LinhaIntervalo {
+  grupo: string;
+  n: string;
+  media: string;
+  dp: string;
+  se: string;
+  inferior: string;
+  superior: string;
+}
+
+interface ComplementoGrafico {
+  indicadores: IndicadorGrafico[];
+  regressao: IndicadorGrafico[];
+  intervalo?: {
+    nivel: string;
+    linhas: LinhaIntervalo[];
+  };
+}
+
+function formatNumber(value: unknown, decimals: number = 2, integer: boolean = false): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  if (integer) return Math.round(numeric).toLocaleString('pt-BR');
+  return numeric.toLocaleString('pt-BR', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/**
+ * Lê os mesmos dados estruturados exibidos abaixo do Plotly na plataforma.
+ * Assim, o PPT não depende de tentar capturar elementos HTML junto da imagem.
+ */
+function getGraphicSupplement(item: AnaliseSalva): ComplementoGrafico | null {
+  const graphic = item.graficoInterativo;
+  if (!graphic || typeof graphic !== 'object') return null;
+
+  const indicadores: IndicadorGrafico[] = [];
+  const stats = graphic.estatisticas?.global || graphic.estatisticas;
+  if (stats && stats.n !== undefined) {
+    indicadores.push(
+      { label: 'n', value: formatNumber(stats.n, 0, true) },
+      { label: 'Média', value: formatNumber(stats.media) },
+      { label: 'DP', value: formatNumber(stats.desvio_padrao) },
+      { label: 'Mínimo', value: formatNumber(stats.minimo) },
+      { label: 'Mediana', value: formatNumber(stats.mediana) },
+      { label: 'Máximo', value: formatNumber(stats.maximo) },
+    );
+  }
+
+  const regressao: IndicadorGrafico[] = [];
+  const trend = graphic.tipo === 'dispersao' ? graphic.config?.tendencia_global : null;
+  if (trend) {
+    const slope = Number(trend.slope);
+    const intercept = Number(trend.intercept);
+    const equation = Number.isFinite(slope) && Number.isFinite(intercept)
+      ? `y = ${formatNumber(slope, 4)} · x ${intercept >= 0 ? '+' : '−'} ${formatNumber(Math.abs(intercept), 4)}`
+      : '—';
+    regressao.push(
+      { label: 'n', value: formatNumber(trend.n, 0, true) },
+      { label: 'R (Pearson)', value: formatNumber(trend.r, 4) },
+      { label: 'R²', value: formatNumber(trend.r2, 4) },
+      { label: 'Equação', value: equation },
+    );
+  }
+
+  let intervalo: ComplementoGrafico['intervalo'];
+  if (graphic.tipo === 'intervalo' && graphic.series?.[0]) {
+    const serie = graphic.series[0];
+    const categorias = Array.isArray(serie.categorias) ? serie.categorias : [];
+    const linhas = categorias.map((categoria: unknown, index: number): LinhaIntervalo => ({
+      grupo: String(categoria ?? '—'),
+      n: formatNumber(serie.ns?.[index], 0, true),
+      media: formatNumber(serie.medias?.[index], 4),
+      dp: formatNumber(serie.dps?.[index], 4),
+      se: formatNumber(serie.ses?.[index], 4),
+      inferior: formatNumber(serie.ic_inferior?.[index], 4),
+      superior: formatNumber(serie.ic_superior?.[index], 4),
+    }));
+    if (linhas.length > 0) {
+      intervalo = {
+        nivel: formatNumber(graphic.config?.nivel_confianca ?? 95, 0),
+        linhas,
+      };
+    }
+  }
+
+  if (indicadores.length === 0 && regressao.length === 0 && !intervalo) return null;
+  return { indicadores, regressao, intervalo };
 }
 
 /**
@@ -103,6 +201,197 @@ function drawHeader(slide: any, banner: string, summary: string) {
   }
 }
 
+function getFirstIntervalRowCount(supplement: ComplementoGrafico | null): number {
+  if (!supplement?.intervalo) return 0;
+  const hasOtherBlocks = supplement.indicadores.length > 0 || supplement.regressao.length > 0;
+  return Math.min(supplement.intervalo.linhas.length, hasOtherBlocks ? 3 : 5);
+}
+
+function getSupplementHeight(supplement: ComplementoGrafico | null, intervalRows: number): number {
+  if (!supplement) return 0;
+  const heights: number[] = [];
+  if (supplement.indicadores.length > 0) heights.push(0.62);
+  if (supplement.regressao.length > 0) heights.push(0.62);
+  if (supplement.intervalo && intervalRows > 0) heights.push(0.54 + intervalRows * 0.25);
+  return heights.reduce((total, height) => total + height, 0) + Math.max(0, heights.length - 1) * 0.08;
+}
+
+function drawIndicatorCards(
+  slide: any,
+  title: string,
+  indicators: IndicadorGrafico[],
+  x: number,
+  y: number,
+  w: number,
+): number {
+  if (indicators.length === 0) return 0;
+
+  slide.addText(title, {
+    x, y, w, h: 0.16,
+    fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY,
+    charSpacing: 1.2, valign: 'middle',
+  });
+
+  const gap = 0.08;
+  const cardY = y + 0.19;
+  const cardH = 0.43;
+  const cardW = (w - gap * (indicators.length - 1)) / indicators.length;
+  indicators.forEach((indicator, index) => {
+    const cardX = x + index * (cardW + gap);
+    slide.addShape('rect', {
+      x: cardX, y: cardY, w: cardW, h: cardH,
+      fill: { color: THEME.LIGHT }, line: { color: THEME.CHIP_BD, width: 0.5 }, rectRadius: 0.04,
+    });
+    slide.addText(indicator.label.toUpperCase(), {
+      x: cardX + 0.08, y: cardY + 0.03, w: cardW - 0.16, h: 0.12,
+      fontFace: 'Calibri', fontSize: 5.5, bold: true, color: THEME.MUTED,
+      charSpacing: 0.5, align: 'center', valign: 'middle', shrinkText: true,
+    });
+    slide.addText(indicator.value, {
+      x: cardX + 0.06, y: cardY + 0.16, w: cardW - 0.12, h: 0.21,
+      fontFace: 'Calibri', fontSize: indicator.label === 'Equação' ? 8 : 9,
+      bold: true, color: THEME.NAVY, align: 'center', valign: 'middle', shrinkText: true,
+    });
+  });
+
+  return 0.62;
+}
+
+const INTERVAL_COLUMNS = [0.24, 0.07, 0.13, 0.12, 0.12, 0.16, 0.16];
+
+function drawIntervalTable(
+  slide: any,
+  supplement: NonNullable<ComplementoGrafico['intervalo']>,
+  rows: LinhaIntervalo[],
+  x: number,
+  y: number,
+  w: number,
+  continuation: boolean = false,
+): number {
+  const title = continuation
+    ? `INTERVALOS DE CONFIANÇA (${supplement.nivel}%) · CONTINUAÇÃO`
+    : `INTERVALOS DE CONFIANÇA (${supplement.nivel}%)`;
+  slide.addText(title, {
+    x, y, w, h: 0.18,
+    fontFace: 'Calibri', fontSize: 6.5, bold: true, color: THEME.NAVY,
+    charSpacing: 1.2, valign: 'middle',
+  });
+
+  const headers = ['Grupo', 'n', 'Média', 'DP', 'SE', 'IC inferior', 'IC superior'];
+  const rowValues = rows.map(row => [row.grupo, row.n, row.media, row.dp, row.se, row.inferior, row.superior]);
+  const tableY = y + 0.21;
+  const headerH = 0.28;
+  const rowH = 0.25;
+  let cellX = x;
+
+  headers.forEach((header, index) => {
+    const cellW = w * INTERVAL_COLUMNS[index];
+    slide.addShape('rect', {
+      x: cellX, y: tableY, w: cellW, h: headerH,
+      fill: { color: THEME.NAVY }, line: { color: 'FFFFFF', width: 0.4 },
+    });
+    slide.addText(header, {
+      x: cellX + 0.03, y: tableY, w: cellW - 0.06, h: headerH,
+      fontFace: 'Calibri', fontSize: 6.5, bold: true, color: 'FFFFFF',
+      align: index === 0 ? 'left' : 'center', valign: 'middle', shrinkText: true,
+    });
+    cellX += cellW;
+  });
+
+  rowValues.forEach((values, rowIndex) => {
+    const rowY = tableY + headerH + rowIndex * rowH;
+    cellX = x;
+    values.forEach((value, columnIndex) => {
+      const cellW = w * INTERVAL_COLUMNS[columnIndex];
+      slide.addShape('rect', {
+        x: cellX, y: rowY, w: cellW, h: rowH,
+        fill: { color: rowIndex % 2 === 0 ? 'FFFFFF' : THEME.LIGHT },
+        line: { color: THEME.CHIP_BD, width: 0.35 },
+      });
+      slide.addText(value, {
+        x: cellX + 0.03, y: rowY, w: cellW - 0.06, h: rowH,
+        fontFace: 'Calibri', fontSize: 6.5, color: THEME.INK,
+        bold: columnIndex === 0, align: columnIndex === 0 ? 'left' : 'right',
+        valign: 'middle', shrinkText: true,
+      });
+      cellX += cellW;
+    });
+  });
+
+  return 0.54 + rows.length * rowH;
+}
+
+function drawGraphicSupplement(
+  slide: any,
+  supplement: ComplementoGrafico | null,
+  x: number,
+  y: number,
+  w: number,
+  intervalRows: number,
+): void {
+  if (!supplement) return;
+  let currentY = y;
+
+  if (supplement.indicadores.length > 0) {
+    currentY += drawIndicatorCards(slide, 'INDICADORES DO GRÁFICO', supplement.indicadores, x, currentY, w) + 0.08;
+  }
+  if (supplement.regressao.length > 0) {
+    currentY += drawIndicatorCards(slide, 'REGRESSÃO LINEAR GLOBAL', supplement.regressao, x, currentY, w) + 0.08;
+  }
+  if (supplement.intervalo && intervalRows > 0) {
+    drawIntervalTable(
+      slide,
+      supplement.intervalo,
+      supplement.intervalo.linhas.slice(0, intervalRows),
+      x,
+      currentY,
+      w,
+    );
+  }
+}
+
+function drawIntervalContinuationSlides(
+  pres: any,
+  project: Project,
+  item: AnaliseSalva,
+  supplement: ComplementoGrafico | null,
+  firstRowCount: number,
+  idx: number,
+  total: number,
+  aiAnalysis: string,
+): void {
+  if (!supplement?.intervalo || firstRowCount >= supplement.intervalo.linhas.length) return;
+
+  const remaining = supplement.intervalo.linhas.slice(firstRowCount);
+  const rowsPerSlide = 15;
+  const totalPages = Math.ceil(remaining.length / rowsPerSlide);
+  for (let pageIndex = 0; pageIndex < totalPages; pageIndex += 1) {
+    const rows = remaining.slice(pageIndex * rowsPerSlide, (pageIndex + 1) * rowsPerSlide);
+    const pageLabel = totalPages > 1 ? ` ${pageIndex + 1}/${totalPages}` : '';
+    const slide = createSlide(
+      pres,
+      project,
+      `Dados — ${item.tool || 'Intervalos'}${pageLabel}`,
+      'Analyze',
+      aiAnalysis,
+    );
+    drawHeader(
+      slide,
+      `${(item.tool || 'INTERVALOS').toUpperCase()} · DADOS DO GRÁFICO`,
+      `Análise ${idx + 1} de ${total}`,
+    );
+    drawIntervalTable(
+      slide,
+      supplement.intervalo,
+      rows,
+      TOOL_AREA.x,
+      TOOL_AREA.y + 0.44,
+      TOOL_AREA.w,
+      true,
+    );
+  }
+}
+
 // Cenário 1: texto + gráfico (esquerda + direita)
 function drawTextWithChart(pres: any, project: Project, item: AnaliseSalva, idx: number, total: number, aiAnalysis: string) {
   const slide = createSlide(pres, project, `Análise — ${item.tool || 'Estatística'}`, 'Analyze', aiAnalysis);
@@ -115,13 +404,17 @@ function drawTextWithChart(pres: any, project: Project, item: AnaliseSalva, idx:
   const BANNER_H = 0.30;
   const MAIN_Y = TY + BANNER_H + 0.12;
   const MAIN_H = TH - BANNER_H - 0.12;
+  const supplement = getGraphicSupplement(item);
+  const intervalRows = getFirstIntervalRowCount(supplement);
+  const supplementH = getSupplementHeight(supplement, intervalRows);
+  const contentH = MAIN_H - (supplementH > 0 ? supplementH + 0.10 : 0);
   const LEFT_W = TW * 0.48;
   const RIGHT_X = TX + LEFT_W + 0.20;
   const RIGHT_W = TW - LEFT_W - 0.20;
 
   // Esquerda - texto
   slide.addShape('rect', {
-    x: TX, y: MAIN_Y, w: LEFT_W, h: MAIN_H,
+    x: TX, y: MAIN_Y, w: LEFT_W, h: contentH,
     fill: { color: 'F8F9FC' }, line: { color: 'E8ECF4', width: 0.5 }, rectRadius: 0.06,
   });
   slide.addText('ANÁLISE ESTATÍSTICA', {
@@ -129,14 +422,14 @@ function drawTextWithChart(pres: any, project: Project, item: AnaliseSalva, idx:
     fontFace: 'Calibri', fontSize: 8, bold: true, color: THEME.NAVY, charSpacing: 2,
   });
   slide.addText(cleanText(item.analise || ''), {
-    x: TX + 0.16, y: MAIN_Y + 0.34, w: LEFT_W - 0.32, h: MAIN_H - 0.44,
+    x: TX + 0.16, y: MAIN_Y + 0.34, w: LEFT_W - 0.32, h: contentH - 0.44,
     fontFace: 'Calibri', fontSize: 9, color: THEME.NAVY,
     valign: 'top', shrinkText: true,
   });
 
   // Direita - gráfico
   slide.addShape('rect', {
-    x: RIGHT_X, y: MAIN_Y, w: RIGHT_W, h: MAIN_H,
+    x: RIGHT_X, y: MAIN_Y, w: RIGHT_W, h: contentH,
     fill: { color: 'FFFFFF' }, line: { color: 'E8ECF4', width: 0.5 }, rectRadius: 0.06,
   });
   slide.addText('GRÁFICO', {
@@ -147,16 +440,21 @@ function drawTextWithChart(pres: any, project: Project, item: AnaliseSalva, idx:
     slide.addImage({
       data: ensureBase64Prefix(getPreferredGraphics(item)[0] || ''),
       x: RIGHT_X + 0.20, y: MAIN_Y + 0.34,
-      w: RIGHT_W - 0.40, h: MAIN_H - 0.44,
-      sizing: { type: 'contain', w: RIGHT_W - 0.40, h: MAIN_H - 0.44 },
+      w: RIGHT_W - 0.40, h: contentH - 0.44,
+      sizing: { type: 'contain', w: RIGHT_W - 0.40, h: contentH - 0.44 },
     });
   } catch (e) {
     slide.addText('(erro ao renderizar gráfico)', {
-      x: RIGHT_X + 0.20, y: MAIN_Y + 0.34, w: RIGHT_W - 0.40, h: MAIN_H - 0.44,
+      x: RIGHT_X + 0.20, y: MAIN_Y + 0.34, w: RIGHT_W - 0.40, h: contentH - 0.44,
       fontFace: 'Calibri', fontSize: 9, color: THEME.MUTED, italic: true,
       align: 'center', valign: 'middle',
     });
   }
+
+  if (supplementH > 0) {
+    drawGraphicSupplement(slide, supplement, TX, MAIN_Y + contentH + 0.10, TW, intervalRows);
+  }
+  drawIntervalContinuationSlides(pres, project, item, supplement, intervalRows, idx, total, aiAnalysis);
 }
 
 // Cenário 2: 2 análises só-texto, lado a lado
@@ -225,6 +523,9 @@ function drawSingleText(pres: any, project: Project, item: AnaliseSalva, idx: nu
 // Cenário 4: gráficos isolados (1 = central, 2 = lado a lado, 3+ = pagina)
 function drawGraphicsOnly(pres: any, project: Project, item: AnaliseSalva, idx: number, total: number, aiAnalysis: string) {
   const graphics = getPreferredGraphics(item);
+  const supplement = getGraphicSupplement(item);
+  const intervalRows = getFirstIntervalRowCount(supplement);
+  const supplementH = getSupplementHeight(supplement, intervalRows);
   const TX = TOOL_AREA.x;
   const TY = TOOL_AREA.y;
   const TW = TOOL_AREA.w;
@@ -247,7 +548,8 @@ function drawGraphicsOnly(pres: any, project: Project, item: AnaliseSalva, idx: 
     if (pageGraphics.length === 1) {
       // Gráfico central
       const W = TW * 0.80;
-      const H = MAIN_H;
+      const hasSupplement = pageStart === 0 && supplementH > 0;
+      const H = MAIN_H - (hasSupplement ? supplementH + 0.10 : 0);
       const X = TX + (TW - W) / 2;
       slide.addShape('rect', {
         x: X, y: MAIN_Y, w: W, h: H,
@@ -266,6 +568,9 @@ function drawGraphicsOnly(pres: any, project: Project, item: AnaliseSalva, idx: 
           fontFace: 'Calibri', fontSize: 10, color: THEME.MUTED, italic: true,
           align: 'center', valign: 'middle',
         });
+      }
+      if (hasSupplement) {
+        drawGraphicSupplement(slide, supplement, TX, MAIN_Y + H + 0.10, TW, intervalRows);
       }
     } else {
       // 2 gráficos lado a lado
@@ -293,6 +598,8 @@ function drawGraphicsOnly(pres: any, project: Project, item: AnaliseSalva, idx: 
       });
     }
   }
+
+  drawIntervalContinuationSlides(pres, project, item, supplement, intervalRows, idx, total, aiAnalysis);
 }
 
 export async function exportStatisticalAnalysisSlide(
