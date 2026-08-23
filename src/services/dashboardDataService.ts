@@ -628,6 +628,12 @@ export interface ProjetoComDetalhes {
   totalToolsNaIniciativa: number;
   ultimoUpdate: number;
   travado: boolean;
+  /**
+   * Projeto sem tipo vinculado — nasceu no Data Analysis, de um curso que não tem
+   * ferramentas da qualidade. Sem esta marca ele aparece como "0 de 0 ferramentas"
+   * e o consultor não distingue projeto de análise de projeto abandonado.
+   */
+  somenteAnalise: boolean;
 }
 
 /** Projetos do usuário enriquecidos com progresso e nome da trilha. */
@@ -660,6 +666,7 @@ export async function getProjetosComDetalhes(uid: string): Promise<ProjetoComDet
       totalToolsNaIniciativa: totalTools,
       ultimoUpdate,
       travado: ultimoUpdate > 0 && Date.now() - ultimoUpdate > SETE_DIAS_MS,
+      somenteAnalise: !initiativeId,
     });
   }
 

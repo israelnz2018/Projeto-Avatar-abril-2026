@@ -281,10 +281,12 @@ export default function ProjectManagement() {
   const tiposDeProjetoOrdenados = [...tiposDeProjetoLiberados, ...tiposDeProjetoSemAcesso];
   const projetosVisiveis = useMemo(() => projects.filter((project) => {
     if (project.initiativeId) return canUseInitiative(project.initiativeId, initiatives);
-    // Projetos criados em Data Analysis só aparecem aqui quando o aluno possui
-    // pelo menos um tipo de projeto liberado pelo consultor.
-    return tiposDeProjetoLiberados.length > 0;
-  }), [projects, initiatives, tiposDeProjetoLiberados, canUseInitiative]);
+    // Projeto criado no Data Analysis (sem tipo vinculado) SEMPRE aparece na lista
+    // de projetos do aluno — é o mesmo projeto, visto de outro lugar. Ele não entra
+    // na grade de TIPOS de projeto (essa continua vindo só das iniciativas do
+    // consultor); ao ser aberto sem ferramentas, a tela explica e manda pro Data Analysis.
+    return true;
+  }), [projects, initiatives, canUseInitiative]);
 
   // A selecao exibida em Projects acompanha o unico projeto vigente da plataforma.
   // Um projeto exclusivo de Data Analysis continua vigente, mas nao e aberto aqui
@@ -296,11 +298,13 @@ export default function ProjectManagement() {
       return;
     }
     const projetoVisivel = projetosVisiveis.find((project) => project.id === projetoAtivo.id);
-    if (!projetoVisivel || !projetoVisivel.initiativeId) {
+    if (!projetoVisivel) {
       setSelectedProject(null);
       setCurrentPhase(null);
       return;
     }
+    // Projeto sem tipo vinculado TAMBÉM é selecionado: a tela mostra a explicação de
+    // que não há ferramentas da qualidade, em vez de ficar em branco como antes.
     setSelectedProject(projetoVisivel);
     setCurrentPhase(projetoVisivel.currentPhase);
   }, [projetoAtivo?.id, projetosVisiveis]);
@@ -527,6 +531,14 @@ export default function ProjectManagement() {
       return;
     }
 
+    // Nenhum tipo de projeto liberado (aluno só de análise, ex: Estatística Aplicada).
+    // Abre assim mesmo — a tela explica que não há ferramentas da qualidade e aponta
+    // pro Data Analysis. Antes, esse projeto simplesmente não abria.
+    if (tiposDeProjetoLiberados.length === 0) {
+      ativarProjeto(project);
+      return;
+    }
+
     if (tiposDeProjetoLiberados.length === 1) {
       try {
         await associarEAtivarProjeto(project, tiposDeProjetoLiberados[0]);
@@ -714,7 +726,50 @@ export default function ProjectManagement() {
             .lbw-sleek-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(30, 45, 110, 0.15) transparent; }
           `}</style>
           <AnimatePresence mode="wait">
-            {selectedProject ? (
+            {selectedProject && !selectedProject.initiativeId ? (
+              /* Projeto sem tipo vinculado: existe, aparece na lista e abre — mas o curso
+                 do aluno não tem ferramentas da qualidade configuradas. Em vez de tela
+                 vazia, explica onde o trabalho dele acontece. */
+              <motion.div
+                key={`sem-ferramentas-${selectedProject.id}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="pb-8"
+              >
+                <div
+                  className="rounded-[24px] border text-center px-6 py-12 md:px-12"
+                  style={{ background: LBW.light, borderColor: `${LBW.blue}22` }}
+                >
+                  <div
+                    className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+                    style={{ background: `${LBW.blue}14` }}
+                  >
+                    <BarChart3 size={30} style={{ color: LBW.blue }} />
+                  </div>
+                  <h2
+                    className="text-[26px] md:text-[30px] font-bold leading-tight tracking-tight mb-3"
+                    style={{ color: LBW.navy }}
+                  >
+                    Este projeto não tem ferramentas da qualidade
+                  </h2>
+                  <p className="text-[15px] leading-relaxed max-w-lg mx-auto mb-8" style={{ color: '#52596B' }}>
+                    O curso vinculado a ele é focado em análise de dados. Vá para
+                    <b> Data &amp; Analysis</b> para trabalhar suas análises — elas ficam
+                    salvas aqui, neste mesmo projeto.
+                  </p>
+                  <a
+                    href="/analysis"
+                    className="inline-flex items-center gap-2 px-7 py-3 rounded-xl text-white text-[14px] font-bold no-underline transition-transform hover:-translate-y-0.5"
+                    style={{ background: LBW.blue }}
+                  >
+                    <BarChart3 size={17} />
+                    Ir para Data &amp; Analysis
+                    <ArrowRight size={17} />
+                  </a>
+                </div>
+              </motion.div>
+            ) : selectedProject ? (
               <motion.div
                 key={selectedProject.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -722,7 +777,7 @@ export default function ProjectManagement() {
                 exit={{ opacity: 0, y: -10 }}
                 className="pb-8"
               >
-                <ProjectJourney 
+                <ProjectJourney
                   projectId={selectedProject.id}
                   project={selectedProject}
                   onPhaseChange={handlePhaseChange}

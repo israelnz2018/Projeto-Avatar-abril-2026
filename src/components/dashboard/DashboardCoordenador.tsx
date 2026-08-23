@@ -795,13 +795,24 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
                             <p className="text-white font-bold text-sm m-0 truncate">{p.name}</p>
                             {p.initiativeName && <p className="text-white/40 text-[11px] m-0 truncate">{p.initiativeName}</p>}
                           </div>
-                          <Pill tone={p.travado ? 'danger' : 'info'}>{p.currentPhase}</Pill>
+                          <Pill tone={p.somenteAnalise ? 'info' : (p.travado ? 'danger' : 'info')}>
+                            {p.somenteAnalise ? 'Análise de dados' : p.currentPhase}
+                          </Pill>
                         </div>
                         <div className="flex items-center gap-3 mt-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
-                            <div className="h-full" style={{ width: `${prog}%`, background: 'linear-gradient(90deg,#1E2D6E,#0033CC)' }} />
-                          </div>
-                          <span className="text-white/50 text-[11px] font-bold whitespace-nowrap">{p.completedTools.length}/{p.totalToolsNaIniciativa} · {prog}%</span>
+                          {/* Projeto só de análise não tem jornada de ferramentas — mostrar
+                              "0/0 · 0%" faria parecer abandonado. */}
+                          {!p.somenteAnalise && (
+                            <>
+                              <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                                <div className="h-full" style={{ width: `${prog}%`, background: 'linear-gradient(90deg,#1E2D6E,#0033CC)' }} />
+                              </div>
+                              <span className="text-white/50 text-[11px] font-bold whitespace-nowrap">{p.completedTools.length}/{p.totalToolsNaIniciativa} · {prog}%</span>
+                            </>
+                          )}
+                          {p.somenteAnalise && (
+                            <span className="flex-1 text-white/40 text-[11px]">Trabalho feito no Data &amp; Analysis</span>
+                          )}
                           <span className="text-white/35 text-[11px] flex items-center gap-1 whitespace-nowrap"><Clock size={10} />{formatRelativeTime(p.ultimoUpdate)}</span>
                         </div>
                       </div>

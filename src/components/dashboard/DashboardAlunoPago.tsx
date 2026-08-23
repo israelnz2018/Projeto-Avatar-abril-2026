@@ -193,8 +193,10 @@ export default function DashboardAlunoPago({ nome }: Props) {
                   <div className={`absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br ${LBW_GRADIENTS[tone]} opacity-15 blur-2xl`} />
                   <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-2.5">
-                      <Pill tone={p.travado ? 'danger' : 'info'}>{p.currentPhase}</Pill>
-                      {p.travado && <span className="text-[10px] font-bold text-rose-300 flex items-center gap-1"><AlertTriangle size={10} /> travado</span>}
+                      <Pill tone={p.somenteAnalise ? 'info' : (p.travado ? 'danger' : 'info')}>
+                        {p.somenteAnalise ? 'Análise de dados' : p.currentPhase}
+                      </Pill>
+                      {!p.somenteAnalise && p.travado && <span className="text-[10px] font-bold text-rose-300 flex items-center gap-1"><AlertTriangle size={10} /> travado</span>}
                     </div>
                     <h3 className="text-white font-black text-[15px] leading-tight m-0 mb-1 line-clamp-2">
                       {p.name}
@@ -204,17 +206,25 @@ export default function DashboardAlunoPago({ nome }: Props) {
                         {p.initiativeName}
                       </p>
                     )}
-                    <div className="mb-2">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[9px] font-black tracking-widest uppercase text-white/40">
-                          Ferramentas
-                        </span>
-                        <span className="text-[10px] font-bold text-white/60">
-                          {p.completedTools.length}{p.totalToolsNaIniciativa > 0 ? `/${p.totalToolsNaIniciativa}` : ''}
-                        </span>
+                    {/* Projeto só de análise não tem jornada de ferramentas — a barra
+                        zerada faria parecer que ele nunca saiu do lugar. */}
+                    {p.somenteAnalise ? (
+                      <p className="text-white/45 text-[11px] m-0 mb-2">
+                        Trabalho feito no Data &amp; Analysis
+                      </p>
+                    ) : (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[9px] font-black tracking-widest uppercase text-white/40">
+                            Ferramentas
+                          </span>
+                          <span className="text-[10px] font-bold text-white/60">
+                            {p.completedTools.length}{p.totalToolsNaIniciativa > 0 ? `/${p.totalToolsNaIniciativa}` : ''}
+                          </span>
+                        </div>
+                        <ProgressBar value={pctTools} gradient={tone} height={4} />
                       </div>
-                      <ProgressBar value={pctTools} gradient={tone} height={4} />
-                    </div>
+                    )}
                     <div className="flex items-center gap-1.5 mt-3 text-[10px] text-white/40">
                       <Clock size={10} />
                       <span>{formatRelativeTime(p.ultimoUpdate)}</span>

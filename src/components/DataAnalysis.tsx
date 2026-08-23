@@ -10,7 +10,8 @@ import {
   X,
   Clock,
   ChevronRight,
-  Lock
+  Lock,
+  Plus
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
@@ -396,6 +397,11 @@ export default function DataAnalysis() {
     acessoProdutos,
   } = useUserAccess();
   const [lockedAnalisePopupOpen, setLockedAnalisePopupOpen] = useState(false);
+  // Trabalho ainda não gravado no projeto. Sem isso, sair da tela (ou fechar o app)
+  // descartava as análises em silêncio — elas só vivem em memória até o "Salvar".
+  const [temTrabalhoNaoSalvo, setTemTrabalhoNaoSalvo] = useState(false);
+  const [modalSairSemSalvar, setModalSairSemSalvar] = useState(false);
+  const destinoNavegacao = useRef<string | null>(null);
   const [planilhaProjeto, setPlanilhaProjeto] = useState<PlanilhaInfo | null>(null);
   const [salvandoTudo, setSalvandoTudo] = useState(false);
   const [modalSubstituirPlanilha, setModalSubstituirPlanilha] = useState(false);
@@ -403,6 +409,7 @@ export default function DataAnalysis() {
   const [tourOpen, setTourOpen] = useState(false);
   const [projetosDisponiveis, setProjetosDisponiveis] = useState<Project[]>([]);
   const [modalSelecionarProjeto, setModalSelecionarProjeto] = useState(false);
+  const [modalNovoProjeto, setModalNovoProjeto] = useState(false);
   const [projetoDestinoId, setProjetoDestinoId] = useState('');
   const [novoProjetoTitulo, setNovoProjetoTitulo] = useState('');
   const [projetoDestinoSalvar, setProjetoDestinoSalvar] = useState<Project | null>(null);
@@ -452,6 +459,8 @@ export default function DataAnalysis() {
           }));
           setResults(reconstruidas as any);
         }
+        // Acabou de vir do banco: nada pendente de gravar.
+        setTemTrabalhoNaoSalvo(false);
       } catch (err) {
         console.error('Erro ao carregar dados do projeto:', err);
       }
@@ -627,6 +636,56 @@ export default function DataAnalysis() {
       }
     }
   }, [ferramentaAtual]);
+
+  // ===== Guarda de saída =====
+  // Duas frentes, porque o navegador só deixa personalizar uma delas:
+  //  1) FECHAR o app / recarregar → só dá pra pedir o aviso genérico do navegador.
+  //  2) TROCAR DE ABA dentro da plataforma → intercepta o clique no link ANTES da
+  //     navegação (fase de captura) e abre o nosso modal, que oferece salvar.
+  // A frente (2) também protege a troca de projeto: para chegar na aba Projetos e
+  // trocar o projeto vigente, o aluno precisa passar por aqui primeiro.
+  useEffect(() => {
+    if (!temTrabalhoNaoSalvo) return;
+
+    const aoFechar = (evento: BeforeUnloadEvent) => {
+      evento.preventDefault();
+      evento.returnValue = '';
+    };
+
+    const aoClicar = (evento: MouseEvent) => {
+      if (evento.defaultPrevented || evento.button !== 0) return;
+      if (evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
+      const alvo = evento.target as HTMLElement | null;
+      const link = alvo?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link) return;
+
+      const href = link.getAttribute('href') || '';
+      // Só interessa navegação interna da plataforma.
+      if (!href.startsWith('/') || href.startsWith('//')) return;
+      if (link.target === '_blank') return;
+      if (href === window.location.pathname) return;
+
+      evento.preventDefault();
+      evento.stopPropagation();
+      destinoNavegacao.current = href;
+      setModalSairSemSalvar(true);
+    };
+
+    window.addEventListener('beforeunload', aoFechar);
+    document.addEventListener('click', aoClicar, true);
+    return () => {
+      window.removeEventListener('beforeunload', aoFechar);
+      document.removeEventListener('click', aoClicar, true);
+    };
+  }, [temTrabalhoNaoSalvo]);
+
+  const seguirNavegacao = () => {
+    const destino = destinoNavegacao.current;
+    destinoNavegacao.current = null;
+    setModalSairSemSalvar(false);
+    setTemTrabalhoNaoSalvo(false); // libera a guarda antes de navegar
+    if (destino) window.location.assign(destino);
+  };
 
   const carregarPlanilhaDoProjeto = async (info: PlanilhaInfo) => {
     try {
@@ -886,6 +945,7 @@ export default function DataAnalysis() {
       };
 
       setResults([newResult, ...results]);
+      setTemTrabalhoNaoSalvo(true);
     } catch (error) {
       console.error("Analysis error:", error);
       exibirModalErro(`❌ Erro ao enviar: ${error instanceof Error ? error.message : String(error)}`);
@@ -937,6 +997,38 @@ export default function DataAnalysis() {
       await executarSalvamento(projeto, planilhaDoDestino);
     } catch (err: any) {
       exibirModalErro(`❌ Erro ao preparar o salvamento: ${err.message}`);
+    }
+  };
+
+  // "Novo Projeto" do topo. Se há análise na tela sem gravar, NÃO cria um projeto
+  // vazio direto: trocar o projeto vigente recarrega a tela a partir do projeto novo
+  // e o trabalho se perderia. Nesse caso cai no fluxo que cria JÁ salvando dentro.
+  const abrirCriacaoDeProjeto = () => {
+    setNovoProjetoTitulo('');
+    if (temTrabalhoNaoSalvo) {
+      setProjetoDestinoId(NOVO_PROJETO_ID);
+      setModalSelecionarProjeto(true);
+      return;
+    }
+    setModalNovoProjeto(true);
+  };
+
+  const criarProjetoVazio = async () => {
+    const titulo = novoProjetoTitulo.trim();
+    if (!titulo || salvandoTudo) return;
+    setSalvandoTudo(true);
+    try {
+      const criado = await createProject(titulo);
+      if (!criado?.id) throw new Error('O projeto não pôde ser criado.');
+      setProjetosDisponiveis((atuais) => [criado as Project, ...atuais]);
+      setModalNovoProjeto(false);
+      setNovoProjetoTitulo('');
+      setProjetoAtivo(criado as Project);
+      setModalSucessoSalvar(`Projeto "${titulo}" criado.\n\nEste agora é o projeto vigente em toda a plataforma.`);
+    } catch (err: any) {
+      exibirModalErro(`❌ Erro ao criar o projeto: ${err.message}`);
+    } finally {
+      setSalvandoTudo(false);
     }
   };
 
@@ -1055,6 +1147,13 @@ export default function DataAnalysis() {
       setProjetoAtivo(destino);
       setProjetoDestinoSalvar(null);
       setPlanilhaDestinoSalvar(null);
+      setTemTrabalhoNaoSalvo(false);
+
+      // Veio do "Salvar e sair": agora que gravou, segue pro destino pretendido.
+      if (destinoNavegacao.current) {
+        seguirNavegacao();
+        return;
+      }
       setModalSucessoSalvar(`Salvo em "${destino.name}":\n${resumo.join('\n')}\n\nEste agora é o projeto vigente em toda a plataforma.`);
     } catch (err: any) {
       exibirModalErro(`❌ Erro ao salvar: ${err.message}`);
@@ -1598,7 +1697,16 @@ export default function DataAnalysis() {
                   </ul>
                 </li>
               ))}
-              <div className="flex items-center pl-3">
+              <div className="flex items-center gap-2 pl-3">
+                <button
+                  onClick={abrirCriacaoDeProjeto}
+                  disabled={salvandoTudo}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-widest rounded-md border border-white/30 cursor-pointer whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Criar um novo projeto e torná-lo o projeto vigente"
+                >
+                  <Plus size={13} />
+                  Novo Projeto
+                </button>
                 <button
                   data-tour-id="salvar"
                   onClick={handleSalvarTudo}
@@ -2814,6 +2922,82 @@ export default function DataAnalysis() {
           </div>
         </div>
       </div>
+      {/* Sair da tela com análise não salva */}
+      {modalSairSemSalvar && (
+        <div className="fixed inset-0 bg-black/55 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h3 className="text-lg font-black text-gray-900 m-0">Salvar antes de sair?</h3>
+              <p className="text-sm text-gray-500 mt-1 mb-0">
+                Você tem análises nesta tela que ainda não foram gravadas em nenhum projeto.
+                Se sair agora, elas serão perdidas.
+              </p>
+            </div>
+            <div className="px-6 py-4 flex flex-col gap-2">
+              <button
+                onClick={() => { setModalSairSemSalvar(false); void handleSalvarTudo(); }}
+                disabled={salvandoTudo}
+                className="w-full px-4 py-2.5 rounded-xl bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-sm font-bold border-none cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                Salvar e sair
+              </button>
+              <button
+                onClick={seguirNavegacao}
+                className="w-full px-4 py-2.5 rounded-xl bg-white hover:bg-red-50 text-red-600 text-sm font-bold border border-red-200 cursor-pointer transition-colors"
+              >
+                Sair sem salvar
+              </button>
+              <button
+                onClick={() => { destinoNavegacao.current = null; setModalSairSemSalvar(false); }}
+                className="w-full px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-600 text-sm font-bold border border-gray-200 cursor-pointer transition-colors"
+              >
+                Continuar nesta tela
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Criar projeto vazio (só quando não há nada pendente de salvar) */}
+      {modalNovoProjeto && (
+        <div className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h3 className="text-lg font-black text-gray-900 m-0">Novo projeto</h3>
+              <p className="text-sm text-gray-500 mt-1 mb-0">
+                Ele passa a ser o projeto vigente em toda a plataforma.
+              </p>
+            </div>
+            <div className="px-6 py-5">
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Título do projeto</label>
+              <input
+                autoFocus
+                value={novoProjetoTitulo}
+                onChange={(e) => setNovoProjetoTitulo(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void criarProjetoVazio(); }}
+                placeholder="Ex: Redução de refugo na linha 3"
+                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => { setModalNovoProjeto(false); setNovoProjetoTitulo(''); }}
+                className="px-5 py-2 rounded-xl bg-white hover:bg-gray-50 text-gray-600 text-sm font-bold border border-gray-200 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => void criarProjetoVazio()}
+                disabled={salvandoTudo || !novoProjetoTitulo.trim()}
+                className="px-5 py-2 rounded-xl bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-sm font-bold border-none cursor-pointer disabled:opacity-40 transition-colors"
+              >
+                {salvandoTudo ? 'Criando...' : 'Criar projeto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modalSelecionarProjeto && (
         <div className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
