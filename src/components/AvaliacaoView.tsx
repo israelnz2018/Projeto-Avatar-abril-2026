@@ -208,23 +208,18 @@ export default function AvaliacaoView() {
   const avaliacaoPronta = (bloco: BlocoState) => bloco.unlocked && (bloco.quizAvailable || !!bloco.cert);
   const grupos = [
     {
-      key: 'agora',
-      titulo: '1. Avaliações que você já pode fazer',
-      descricao: 'Cursos liberados e com os requisitos de progresso atendidos.',
-      itens: blocos.filter(avaliacaoPronta),
-      className: 'border-emerald-200 bg-emerald-50/40',
-    },
-    {
-      key: 'depois',
-      titulo: '2. Avaliações que você fará depois',
-      descricao: 'Cursos liberados que ainda precisam de mais vídeos assistidos ou de uma avaliação configurada.',
-      itens: blocos.filter((bloco) => bloco.unlocked && !avaliacaoPronta(bloco)),
+      key: 'disponiveis',
+      titulo: '1. Avaliações disponíveis para você',
+      descricao: 'Avaliações dos cursos que você já adquiriu. Faça agora as que estão liberadas e acompanhe, nas demais, o progresso necessário para desbloqueá-las.',
+      itens: blocos
+        .filter((bloco) => bloco.unlocked)
+        .sort((a, b) => Number(avaliacaoPronta(b)) - Number(avaliacaoPronta(a))),
       className: 'border-blue-200 bg-blue-50/40',
     },
     {
       key: 'sem-acesso',
-      titulo: '3. Avaliações sem acesso ao curso',
-      descricao: 'Cursos que ainda não foram liberados para você pelo consultor.',
+      titulo: '2. Avaliações não disponíveis',
+      descricao: 'Avaliações de cursos que você ainda não adquiriu. Para acessá-las, solicite a liberação do curso ao seu consultor.',
       itens: blocos.filter((bloco) => !bloco.unlocked),
       className: 'border-gray-200 bg-gray-50',
     },
