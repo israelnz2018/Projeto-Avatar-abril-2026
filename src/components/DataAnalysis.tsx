@@ -166,12 +166,6 @@ const configuracoesFerramentas: Record<string, any[]> = {
 
 // --- CONFIGURATIONS FROM menu.js ---
 const configuracoesAnalises = {
-  "Estatística Básica": [
-    { nome: "Teste de normalidade" },
-    { nome: "Cálculo de probabilidade" },
-    { nome: "Gráfico Sumario" },
-    { nome: "Análise de estabilidade" },
-  ],
   "Análise Exploratória": [
     { nome: "Análise de variabilidade ➡️ ", subitens: ["Gráfico Sumario", "Análise de outliers"] },
     { nome: "Análise de correlação ➡️ ", subitens: ["Correlação de person", "Matrix de dispersão"] },
@@ -231,6 +225,12 @@ const configuracoesAnalises = {
     { nome: "Capabilidade - outras distribuições" },
     { nome: "Capabilidade - com dados transformados" },
     { nome: "Capabilidade - com dados discretizados" }
+  ],
+  "Análises Diversas": [
+    { nome: "Teste de normalidade" },
+    { nome: "Cálculo de probabilidade" },
+    { nome: "Gráfico Sumario" },
+    { nome: "Análise de estabilidade" },
   ],
 };
 
@@ -488,7 +488,7 @@ export default function DataAnalysis() {
   const [ferramentaAtual, setFerramentaAtual] = useState("");
   // Grupo/módulo do menu de onde a análise foi selecionada. Precisa acompanhar
   // ferramentaAtual porque o mesmo nome de análise pode existir em mais de um
-  // módulo (ex: "Teste de normalidade" aparece em Estatística Básica E em
+  // módulo (ex: "Teste de normalidade" aparece em Análises Diversas E em
   // Análises de Capabilidade) — sem saber QUAL módulo o aluno abriu, não dá
   // pra decidir corretamente se está liberado.
   const [grupoAtual, setGrupoAtual] = useState("");
@@ -519,7 +519,7 @@ export default function DataAnalysis() {
   };
 
   // Trava por GRUPO, não por nome de análise. Um mesmo nome pode existir em mais
-  // de um módulo (ex: "Teste de normalidade" está em Estatística Básica E em
+  // de um módulo (ex: "Teste de normalidade" está em Análises Diversas E em
   // Análises de Capabilidade) — com a versão antiga, bastava UM desses módulos
   // estar liberado pra destravar o nome em TODO lugar, inclusive dentro do menu
   // de um módulo que o aluno não comprou. Resultado visível: abrir "Estatística
