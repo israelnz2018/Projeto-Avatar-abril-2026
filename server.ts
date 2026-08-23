@@ -5104,6 +5104,7 @@ async function startServer() {
     const dadosPacoteComercial = isCompraCapabilidade
       ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
       : {};
+    const nomePlanoResposta = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : planoSolicitado;
     const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
@@ -5188,7 +5189,7 @@ async function startServer() {
           para: email, nome, senhaProvisoria, plano: planoSolicitado, contexto: "novo",
         });
         console.log(`[acesso/liberar] CRIADO ${email} (${planoSolicitado}) email=${emailEnviado}`);
-        return res.json({ ok: true, status: "criado", uid: novo.uid, email, plano: planoSolicitado, emailEnviado });
+        return res.json({ ok: true, status: "criado", uid: novo.uid, email, plano: nomePlanoResposta, ...dadosPacoteComercial, emailEnviado });
       }
 
       // ---- CASO B: usuário JÁ existe ----
@@ -5228,7 +5229,7 @@ async function startServer() {
         // Nota: não marca senhaProvisoria aqui — conta já existia no Auth com senha própria.
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] REGULARIZADO ${email} (${planoSolicitado})`);
-        return res.json({ ok: true, status: "regularizado", uid, email, plano: planoSolicitado, emailEnviado });
+        return res.json({ ok: true, status: "regularizado", uid, email, plano: nomePlanoResposta, ...dadosPacoteComercial, emailEnviado });
       }
 
       const base = snap.data() as any;
@@ -5270,7 +5271,7 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
         const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
-        return res.json({ ok: true, status: statusCompat, vinculoCriado: true, uid, email, plano: planoSolicitado, emailEnviado });
+        return res.json({ ok: true, status: statusCompat, vinculoCriado: true, uid, email, plano: nomePlanoResposta, ...dadosPacoteComercial, emailEnviado });
       }
 
       // COMPRA da Capabilidade de Processo Avançado: preserva cursos anteriores e
@@ -5298,7 +5299,7 @@ async function startServer() {
         });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "capabilidade", contexto: "existente" });
         console.log(`[acesso/liberar] CAPABILIDADE ${email} email=${emailEnviado}`);
-        return res.json({ ok: true, status: "capabilidade-liberada", uid, email, plano: "capabilidade", emailEnviado });
+        return res.json({ ok: true, status: "capabilidade-liberada", uid, email, plano: PACOTE_CAPABILIDADE_NOME, pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
