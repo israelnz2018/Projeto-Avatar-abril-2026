@@ -113,7 +113,13 @@ export function useUserAccess() {
             } catch { /* sem doc/permissão — mantém marca do consultor */ }
           }
           setAcessoProdutos(data.acessoProdutos && typeof data.acessoProdutos === 'object' ? data.acessoProdutos : null);
-          projetosConfigurados = Array.isArray(data.projetosAcesso);
+          // [] não é "configurado e restrito" — é o que o formulário do consultor
+          // manda por padrão quando o curso do aluno simplesmente não tem NENHUM
+          // tipo de projeto pra escolher (caso de cursos só-análise, como
+          // "Estatística Aplicada e Ferramentas da Qualidade"). Tratar [] como
+          // restritivo bloqueava esse aluno de QUALQUER tipo de projeto futuro,
+          // mesmo tendo o curso liberado — sem o consultor ter escolhido isso.
+          projetosConfigurados = Array.isArray(data.projetosAcesso) && data.projetosAcesso.length > 0;
           if (projetosConfigurados) {
             projetosAcc = data.projetosAcesso
               .map((item: any) => ({
