@@ -19,6 +19,7 @@ interface AnaliseSalva {
   analise?: string;
   grafico_base64?: string;
   grafico_isolado_base64?: string | string[];
+  graficoPptBase64?: string;
   interpretacao?: string;
   qa: { question: string; answer: string }[];
   timestamp: number;
@@ -30,11 +31,30 @@ function ensureBase64Prefix(b64: string): string {
   return `data:image/png;base64,${b64}`;
 }
 
-function getIsolatedGraphics(item: AnaliseSalva): string[] {
+function getLegacyIsolatedGraphics(item: AnaliseSalva): string[] {
   const raw = item.grafico_isolado_base64;
   if (!raw) return [];
   const arr = Array.isArray(raw) ? raw : [raw];
   return arr.filter(g => typeof g === 'string' && g.length > 50);
+}
+
+/**
+ * O gráfico Plotly capturado na tela é a fonte principal. Os campos antigos
+ * continuam como fallback para projetos salvos antes desta migração.
+ */
+function getPreferredGraphics(item: AnaliseSalva): string[] {
+  if (item.graficoPptBase64 && item.graficoPptBase64.length > 50) {
+    return [item.graficoPptBase64];
+  }
+  // Compatibilidade: análises textuais antigas usavam grafico_base64 no quadro
+  // ao lado do texto, mesmo quando também existia uma imagem isolada.
+  if (item.analise?.trim() && item.grafico_base64 && item.grafico_base64.length > 50) {
+    return [item.grafico_base64];
+  }
+  const isolated = getLegacyIsolatedGraphics(item);
+  if (isolated.length > 0) return isolated;
+  if (item.grafico_base64 && item.grafico_base64.length > 50) return [item.grafico_base64];
+  return [];
 }
 
 // Classifica cada análise pelo conteúdo
@@ -42,12 +62,11 @@ type ItemKind = 'text_with_chart' | 'text_only' | 'graphics_only' | 'skip';
 
 function classifyItem(item: AnaliseSalva): ItemKind {
   const hasText = !!(item.analise && item.analise.trim());
-  const hasChart = !!(item.grafico_base64 && item.grafico_base64.length > 50);
-  const isolated = getIsolatedGraphics(item);
+  const graphics = getPreferredGraphics(item);
 
-  if (hasText && hasChart) return 'text_with_chart';
-  if (hasText && !hasChart) return 'text_only';
-  if (!hasText && isolated.length > 0) return 'graphics_only';
+  if (hasText && graphics.length > 0) return 'text_with_chart';
+  if (hasText && graphics.length === 0) return 'text_only';
+  if (!hasText && graphics.length > 0) return 'graphics_only';
   // sem texto e sem gráfico (ex: só Q&A) -> ignorar
   return 'skip';
 }
@@ -126,7 +145,7 @@ function drawTextWithChart(pres: any, project: Project, item: AnaliseSalva, idx:
   });
   try {
     slide.addImage({
-      data: ensureBase64Prefix(item.grafico_base64 || ''),
+      data: ensureBase64Prefix(getPreferredGraphics(item)[0] || ''),
       x: RIGHT_X + 0.20, y: MAIN_Y + 0.34,
       w: RIGHT_W - 0.40, h: MAIN_H - 0.44,
       sizing: { type: 'contain', w: RIGHT_W - 0.40, h: MAIN_H - 0.44 },
@@ -205,7 +224,7 @@ function drawSingleText(pres: any, project: Project, item: AnaliseSalva, idx: nu
 
 // Cenário 4: gráficos isolados (1 = central, 2 = lado a lado, 3+ = pagina)
 function drawGraphicsOnly(pres: any, project: Project, item: AnaliseSalva, idx: number, total: number, aiAnalysis: string) {
-  const graphics = getIsolatedGraphics(item);
+  const graphics = getPreferredGraphics(item);
   const TX = TOOL_AREA.x;
   const TY = TOOL_AREA.y;
   const TW = TOOL_AREA.w;

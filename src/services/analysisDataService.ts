@@ -14,6 +14,18 @@ export interface PlanilhaInfo {
   atualizadaEm: any;
 }
 
+export interface GraficoPersonalizacao {
+  titulo: string;
+  tituloX: string;
+  tituloY: string;
+  corBarras: string;
+  tamanhoFonte: number;
+  rotacaoX: number;
+  coresPizza: string[];
+  mostrarTendencia: boolean;
+  mostrarMedia: boolean;
+}
+
 export interface AnaliseSalva {
   id: string;
   tool: string;
@@ -22,6 +34,10 @@ export interface AnaliseSalva {
   analise?: string;
   grafico_base64?: string;
   grafico_isolado_base64?: string | string[];
+  /** Captura do gráfico Plotly exibido ao aluno; usada pelo PowerPoint. */
+  graficoPptBase64?: string;
+  /** Personalização individual desta análise, persistida junto com o projeto. */
+  configGrafico?: GraficoPersonalizacao;
   interpretacao?: string;
   qa: { question: string; answer: string }[];
   timestamp: number;

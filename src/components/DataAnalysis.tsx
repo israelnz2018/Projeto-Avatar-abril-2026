@@ -19,6 +19,7 @@ import { auth } from '../lib/firebase';
 import { useProject } from '../contexts/ProjectContext';
 import { exportStatisticalAnalysisSlide } from '../services/statisticalAnalysisSlideExporter';
 import Plot from 'react-plotly.js';
+import PlotlyLib from 'plotly.js/dist/plotly';
 import {
   salvarPlanilhaProjeto,
   obterPlanilhaProjeto,
@@ -26,6 +27,7 @@ import {
   carregarAnalises,
   baixarPlanilhaProjeto,
   PlanilhaInfo,
+  GraficoPersonalizacao,
 } from '../services/analysisDataService';
 import { getAllKnowledge, getInstitutionalKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -354,6 +356,8 @@ interface AnalysisResult {
   analise?: string;
   grafico_base64?: string;
   grafico_isolado_base64?: string | string[];
+  graficoPptBase64?: string;
+  configGrafico?: GraficoPersonalizacao;
   interpretacao?: string;
   timestamp: Date;
   tool: string;
@@ -439,6 +443,9 @@ export default function DataAnalysis() {
       setPreviewData([]);
       setSelectedSheet('');
       setResults([]);
+      setPlotlyConfigs({});
+      plotlyGraphRefs.current = {};
+      setGraficoPersonalizandoId(null);
       setPlanilhaProjeto(null);
 
       if (!projetoAtivo) return;
@@ -458,6 +465,11 @@ export default function DataAnalysis() {
             timestamp: new Date(a.timestamp),
           }));
           setResults(reconstruidas as any);
+          setPlotlyConfigs(Object.fromEntries(
+            reconstruidas
+              .filter((analise) => analise.configGrafico)
+              .map((analise) => [analise.id, analise.configGrafico as GraficoPersonalizacao]),
+          ));
         }
         // Acabou de vir do banco: nada pendente de gravar.
         setTemTrabalhoNaoSalvo(false);
@@ -535,45 +547,36 @@ export default function DataAnalysis() {
   const [toolParams, setToolParams] = useState<Record<string, any>>({});
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showPersonalization, setShowPersonalization] = useState(false);
-  const defaultPlotlyConfig = (ferramenta?: string) => ({
-    titulo: '',
-    tituloX: '',
-    tituloY: '',
+  const defaultPlotlyConfig = (dados?: any): GraficoPersonalizacao => ({
+    titulo: dados?.labels?.titulo || '',
+    tituloX: dados?.labels?.x || '',
+    tituloY: dados?.labels?.y || 'Frequência',
     corBarras: '#3b82f6',
     tamanhoFonte: 12,
     rotacaoX: 0,
-    coresPizza: [] as string[],
+    coresPizza: [],
     mostrarTendencia: true,
     mostrarMedia: false,
   });
 
-  const [plotlyConfigs, setPlotlyConfigs] = useState<Record<string, ReturnType<typeof defaultPlotlyConfig>>>({});
+  const [plotlyConfigs, setPlotlyConfigs] = useState<Record<string, GraficoPersonalizacao>>({});
+  const plotlyGraphRefs = useRef<Record<string, any>>({});
+  const [graficoPersonalizandoId, setGraficoPersonalizandoId] = useState<string | null>(null);
 
-  const plotlyConfig = plotlyConfigs[ferramentaAtual || ''] || defaultPlotlyConfig();
+  const obterPlotlyConfig = (result: AnalysisResult): GraficoPersonalizacao =>
+    plotlyConfigs[result.id] || result.configGrafico || defaultPlotlyConfig(result.graficoInterativo);
 
-  const setPlotlyConfig = (updater: any) => {
+  const atualizarPlotlyConfig = (
+    result: AnalysisResult,
+    updater: GraficoPersonalizacao | ((atual: GraficoPersonalizacao) => GraficoPersonalizacao),
+  ) => {
     setPlotlyConfigs(prev => {
-      const key = ferramentaAtual || '';
-      const current = prev[key] || defaultPlotlyConfig();
+      const current = prev[result.id] || result.configGrafico || defaultPlotlyConfig(result.graficoInterativo);
       const updated = typeof updater === 'function' ? updater(current) : updater;
-      return { ...prev, [key]: updated };
+      return { ...prev, [result.id]: updated };
     });
+    setTemTrabalhoNaoSalvo(true);
   };
-
-  const [coresPizzaEditando, setCoresPizzaEditando] = useState<{idx: number, cor: string} | null>(null);
-  const [painelPersonalizarAberto, setPainelPersonalizarAberto] = useState(false);
-  const [personalization, setPersonalization] = useState({
-    cor_principal: "#3b82f6",
-    tamanho_fonte: 12,
-    rotacao_x: 0,
-    rotacao_y: 0,
-    titulo: "",
-    titulo_x: "",
-    titulo_y: "",
-    cor_linhas_limite: "#ef4444",
-    espessura_linhas_limite: 1.5,
-  });
   const [pergunta, setPergunta] = useState("");
   const [modalErro, setModalErro] = useState<string | null>(null);
   const exibirModalErro = (msg: string) => setModalErro(msg);
@@ -931,8 +934,9 @@ export default function DataAnalysis() {
         }
       }
 
+      const novoResultadoId = crypto.randomUUID();
       const newResult: AnalysisResult = {
-        id: crypto.randomUUID(),
+        id: novoResultadoId,
         analise: json.analise,
         grafico_base64: json.grafico_base64,
         grafico_isolado_base64: json.grafico_isolado_base64,
@@ -942,9 +946,13 @@ export default function DataAnalysis() {
         toolParams: { ...toolParams },          // ← NOVO
         selectedSheet: selectedSheet,           // ← NOVO
         graficoInterativo: dadosInterativos,
+        configGrafico: dadosInterativos ? defaultPlotlyConfig(dadosInterativos) : undefined,
       };
 
       setResults([newResult, ...results]);
+      if (newResult.configGrafico) {
+        setPlotlyConfigs((atuais) => ({ ...atuais, [novoResultadoId]: newResult.configGrafico! }));
+      }
       setTemTrabalhoNaoSalvo(true);
     } catch (error) {
       console.error("Analysis error:", error);
@@ -953,24 +961,6 @@ export default function DataAnalysis() {
       setIsProcessing(false);
     }
   };
-
-  useEffect(() => {
-    if (results.length > 0 && results[0].graficoInterativo) {
-      const labels = results[0].graficoInterativo.labels || {};
-      setPlotlyConfig((prev: any) => ({
-        ...prev,
-        titulo: prev.titulo || labels.titulo || '',
-        tituloX: prev.tituloX || labels.x || '',
-        tituloY: prev.tituloY || labels.y || 'Frequência',
-        corBarras: prev.corBarras || '#3b82f6',
-        tamanhoFonte: prev.tamanhoFonte || 12,
-        rotacaoX: prev.rotacaoX ?? 0,
-        coresPizza: prev.coresPizza?.length ? prev.coresPizza : [],
-        mostrarTendencia: prev.mostrarTendencia ?? true,
-        mostrarMedia: prev.mostrarMedia ?? false,
-      }));
-    }
-  }, [results]);
 
   const listarProjetosDoAluno = async (): Promise<Project[]> => {
     const lista = (await getUserProjects()) || [];
@@ -1117,8 +1107,9 @@ export default function DataAnalysis() {
       }
 
       if (results.length > 0) {
+        const resultadosPreparados = await prepararResultadosComGraficosAtuais();
         const dadosExistentes = await carregarAnalises(destino.id);
-        const analisesAtuais = results.map(r => ({
+        const analisesAtuais = resultadosPreparados.map(r => ({
           id: r.id,
           tool: r.tool,
           toolParams: r.toolParams || {},
@@ -1126,6 +1117,8 @@ export default function DataAnalysis() {
           analise: r.analise,
           grafico_base64: r.grafico_base64,
           grafico_isolado_base64: r.grafico_isolado_base64,
+          graficoPptBase64: r.graficoPptBase64,
+          configGrafico: r.configGrafico,
           interpretacao: r.interpretacao,
           qa: r.qa || [],
           timestamp: r.timestamp instanceof Date ? r.timestamp.getTime() : (r.timestamp as any),
@@ -1135,6 +1128,7 @@ export default function DataAnalysis() {
         const porId = new Map((dadosExistentes?.analises || []).map((analise) => [analise.id, analise]));
         analisesAtuais.forEach((analise) => porId.set(analise.id, analise));
         await salvarAnalises(destino.id, Array.from(porId.values()), planilhaTimestamp);
+        setResults(resultadosPreparados);
         resumo.push(`📊 ${analisesAtuais.length} análise(s)`);
       }
 
@@ -1209,56 +1203,46 @@ export default function DataAnalysis() {
     }
   };
 
-  const handleUpdatePersonalization = async () => {
-    if (results.length === 0) return;
-    setIsProcessing(true);
-    
-    const result = results[0];
-    const formData = new FormData();
-    formData.append("grafico", `${result.tool} Personalizado`);
-    
-    Object.entries(toolParams).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        formData.append(key, value.join(","));
-      } else {
-        formData.append(key, String(value));
-      }
-    });
-
-    formData.append("cor", personalization.cor_principal);
-    formData.append("titulo_x", personalization.titulo_x);
-    formData.append("titulo_y", personalization.titulo_y);
-    formData.append("titulo_grafico", personalization.titulo);
-    formData.append("tamanho_fonte", personalization.tamanho_fonte.toString());
-    formData.append("inclinacao_x", personalization.rotacao_x.toString());
+  const capturarGraficoParaPpt = async (result: AnalysisResult): Promise<string | null> => {
+    if (!result.graficoInterativo) return null;
+    const graphDiv = plotlyGraphRefs.current[result.id];
+    if (!graphDiv) return result.graficoPptBase64 || null;
 
     try {
-      const response = await fetch(`${ANALISES_API}/v2/personalizar-grafico`, {
-        method: 'POST',
-        body: formData
+      // Aguarda o React/Plotly concluir a última alteração visual antes da captura.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      return await (PlotlyLib as any).toImage(graphDiv, {
+        format: 'png',
+        width: 1400,
+        height: 800,
+        scale: 1,
       });
-
-      const json = await response.json();
-      if (json.grafico_isolado_base64) {
-        setResults(prev => prev.map((r, i) => 
-          i === 0 
-            ? { ...r, grafico_isolado_base64: json.grafico_isolado_base64 }
-            : r
-        ));
-      }
     } catch (error) {
-      console.error("Personalization error:", error);
-      exibirModalErro(`❌ Erro ao enviar: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsProcessing(false);
+      console.warn(`[DataAnalysis] Não foi possível capturar o gráfico ${result.id}:`, error);
+      return result.graficoPptBase64 || null;
     }
   };
+
+  const prepararResultadosComGraficosAtuais = async (
+    fonte: AnalysisResult[] = results,
+  ): Promise<AnalysisResult[]> => Promise.all(fonte.map(async (result) => {
+    if (!result.graficoInterativo) return result;
+    const configGrafico = obterPlotlyConfig(result);
+    const graficoPptBase64 = await capturarGraficoParaPpt(result);
+    return {
+      ...result,
+      configGrafico,
+      ...(graficoPptBase64
+        ? { graficoPptBase64, grafico_isolado_base64: undefined }
+        : {}),
+    };
+  }));
 
   const requiredFields = ferramentaAtual ? configuracoesFerramentas[ferramentaAtual] : [];
 
   const FERRAMENTAS_INTERATIVAS = ["Histograma", "Pareto", "Setores (Pizza)", "Barras", "BoxPlot", "Dispersão", "Tendência", "Bolhas - 3D", "Superfície - 3D", "Dispersão 3D", "Intervalo"];
 
-  const construirPlotlyHistograma = (dados: any) => {
+  const construirPlotlyHistograma = (dados: any, corUnica?: string) => {
     if (!dados || !dados.series) return [];
     const paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
     const temVarios = dados.series.length > 1;
@@ -1269,12 +1253,12 @@ export default function DataAnalysis() {
       opacity: temVarios ? 0.6 : 0.85,
       autobinx: true,
       marker: {
-        color: temVarios ? paleta[idx % paleta.length] : plotlyConfig.corBarras,
+        color: temVarios ? paleta[idx % paleta.length] : (corUnica || paleta[0]),
       },
     }));
   };
 
-  const construirPlotlyPareto = (dados: any) => {
+  const construirPlotlyPareto = (dados: any, corUnica?: string) => {
     if (!dados || !dados.series) return [];
     const paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
     return dados.series.map((serie: any, idx: number) => {
@@ -1296,7 +1280,7 @@ export default function DataAnalysis() {
         y: serie.valores,
         type: 'bar',
         name: serie.nome,
-        marker: { color: paleta[idx % paleta.length] },
+        marker: { color: corUnica || paleta[idx % paleta.length] },
       };
     });
   };
@@ -1451,7 +1435,7 @@ export default function DataAnalysis() {
     return traces;
   };
 
-  const construirPlotlyBolhas = (dados: any, tamanhoFonte?: number) => {
+  const construirPlotlyBolhas = (dados: any, tamanhoFonte?: number, corUnica?: string) => {
     if (!dados?.series?.length) return [];
     const serie = dados.series[0];
     const temZ = dados.config?.tem_z && serie.z?.length > 0;
@@ -1466,7 +1450,7 @@ export default function DataAnalysis() {
       marker: {
         size: serie.tamanhos,
         sizemode: 'diameter',
-        color: temZ ? serie.z : '#3b82f6',
+        color: temZ ? serie.z : (corUnica || '#3b82f6'),
         colorscale: temZ ? 'Viridis' : undefined,
         showscale: temZ,
         colorbar: temZ ? {
@@ -1596,6 +1580,19 @@ export default function DataAnalysis() {
       customdata,
       hovertemplate: '<b>%{x}</b><br>n: %{customdata[0]}<br>Média: %{y:.4f}<br>DP: %{customdata[1]:.4f}<br>SE: %{customdata[2]:.4f}<br>IC inferior: %{customdata[3]:.4f}<br>IC superior: %{customdata[4]:.4f}<extra></extra>',
     }];
+  };
+
+  const obterGraficoEstatico = (result: AnalysisResult): string => {
+    if (result.graficoPptBase64 && result.graficoPptBase64.length > 50) return result.graficoPptBase64;
+    const antigo = Array.isArray(result.grafico_isolado_base64)
+      ? result.grafico_isolado_base64.find((item) => typeof item === 'string' && item.length > 50)
+      : result.grafico_isolado_base64;
+    return typeof antigo === 'string' ? antigo : '';
+  };
+
+  const srcGraficoEstatico = (result: AnalysisResult): string => {
+    const grafico = obterGraficoEstatico(result);
+    return grafico.startsWith('data:image') ? grafico : `data:image/png;base64,${grafico}`;
   };
 
   return (
@@ -2381,9 +2378,10 @@ export default function DataAnalysis() {
                     return;
                   }
                   try {
+                    const resultadosPreparados = await prepararResultadosComGraficosAtuais();
                     await exportStatisticalAnalysisSlide(
                       projetoAtivo as any,
-                      { analyses: results },
+                      { analyses: resultadosPreparados },
                       ''
                     );
                   } catch (e) {
@@ -2400,11 +2398,10 @@ export default function DataAnalysis() {
               </button>
             </div>
             <div id="conteudoGrafico" className="flex-1 border border-[#ccc] bg-white p-[20px] min-h-[400px] shadow-sm rounded-[4px] relative">
-              {results.length > 0 && results.some(r => (!r.analise && r.qa.length > 0) || r.graficoInterativo || (r.grafico_isolado_base64 && (Array.isArray(r.grafico_isolado_base64) ? r.grafico_isolado_base64.find(i => typeof i === 'string' && i.length > 50) : typeof r.grafico_isolado_base64 === 'string' && r.grafico_isolado_base64.length > 50))) ? (
+              {results.length > 0 && results.some(r => (!r.analise && r.qa.length > 0) || r.graficoInterativo || obterGraficoEstatico(r)) ? (
                 <div className="flex flex-col items-center">
-                  {results.filter(r => (!r.analise && r.qa.length > 0) || r.graficoInterativo || (r.grafico_isolado_base64 && (Array.isArray(r.grafico_isolado_base64) ? r.grafico_isolado_base64.find(i => typeof i === 'string' && i.length > 50) : typeof r.grafico_isolado_base64 === 'string' && r.grafico_isolado_base64.length > 50))).map((result, idx) => (
+                  {results.filter(r => (!r.analise && r.qa.length > 0) || r.graficoInterativo || obterGraficoEstatico(r)).map((result, idx) => (
                     <div key={result.id} className={cn("w-full flex flex-col items-center", idx > 0 && "mt-8 pt-8 border-t border-gray-200")}>
-                      {(() => { const cfgResult = (plotlyConfigs as any)[result.tool || ''] || defaultPlotlyConfig(); return null; })()}
                       <h3 className="font-bold text-[1rem] text-gray-700 bg-gray-50 p-2 rounded mb-4 w-full text-left">📊 {result.tool || 'Gráfico'}</h3>
                       {!result.analise && result.qa.length > 0 && (
                         <div className="w-full space-y-4 mb-6">
@@ -2417,7 +2414,7 @@ export default function DataAnalysis() {
                           ))}
                         </div>
                       )}
-                      {(result.graficoInterativo || (result.grafico_isolado_base64 && (Array.isArray(result.grafico_isolado_base64) ? result.grafico_isolado_base64.find(i => typeof i === 'string' && i.length > 50) : typeof result.grafico_isolado_base64 === 'string' && result.grafico_isolado_base64.length > 50))) && (
+                      {(result.graficoInterativo || obterGraficoEstatico(result)) && (
                         <>
                           {result.graficoInterativo ? (
                             <div className="w-full bg-white rounded">
@@ -2425,25 +2422,25 @@ export default function DataAnalysis() {
                                 {/* Gráfico à esquerda */}
                                 <div className="flex-1 min-w-0">
                                   <Plot
-                                    key={`${result.id}-${JSON.stringify((plotlyConfigs as any)[result.tool || '']?.coresPizza || [])}-${(plotlyConfigs as any)[result.tool || '']?.tamanhoFonte || 12}-${(plotlyConfigs as any)[result.tool || '']?.mostrarTendencia ?? true}-${(plotlyConfigs as any)[result.tool || '']?.corBarras || ''}-${(plotlyConfigs as any)[result.tool || '']?.mostrarMedia ?? false}`}
+                                    key={`${result.id}-${JSON.stringify(obterPlotlyConfig(result))}`}
                                     data={(() => {
-                                      const cfg = (plotlyConfigs as any)[result.tool || ''] || defaultPlotlyConfig();
-                                      if (result.graficoInterativo?.tipo === 'pareto') return construirPlotlyPareto(result.graficoInterativo);
+                                      const cfg = obterPlotlyConfig(result);
+                                      if (result.graficoInterativo?.tipo === 'pareto') return construirPlotlyPareto(result.graficoInterativo, cfg.corBarras);
                                       if (result.graficoInterativo?.tipo === 'pizza') return construirPlotlyPizza(result.graficoInterativo, cfg.coresPizza?.length ? cfg.coresPizza : undefined, cfg.tamanhoFonte);
                                       if (result.graficoInterativo?.tipo === 'barras') return construirPlotlyBarras(result.graficoInterativo, cfg.corBarras, cfg.tamanhoFonte);
                                       if (result.graficoInterativo?.tipo === 'boxplot') return construirPlotlyBoxplot(result.graficoInterativo, cfg.tamanhoFonte);
                                       if (result.graficoInterativo?.tipo === 'dispersao') return construirPlotlyDispersao(result.graficoInterativo, cfg.corBarras, cfg.mostrarTendencia ?? true, cfg.tamanhoFonte);
                                       if (result.graficoInterativo?.tipo === 'tendencia') return construirPlotlyTendencia(result.graficoInterativo, cfg.corBarras, cfg.mostrarMedia ?? false, cfg.tamanhoFonte);
-                                      if (result.graficoInterativo?.tipo === 'bolhas') return construirPlotlyBolhas(result.graficoInterativo, cfg.tamanhoFonte);
+                                      if (result.graficoInterativo?.tipo === 'bolhas') return construirPlotlyBolhas(result.graficoInterativo, cfg.tamanhoFonte, cfg.corBarras);
                                       if (result.graficoInterativo?.tipo === 'dispersao3d') return construirPlotlyDispersao3D(result.graficoInterativo, cfg.corBarras, cfg.tamanhoFonte);
                                       if (result.graficoInterativo?.tipo === 'superficie3d') return construirPlotlySuperficie3D(result.graficoInterativo, cfg.tamanhoFonte);
                                       if (result.graficoInterativo?.tipo === 'intervalo') return construirPlotlyIntervalo(result.graficoInterativo, cfg.corBarras, cfg.tamanhoFonte);
-                                      return construirPlotlyHistograma(result.graficoInterativo);
+                                      return construirPlotlyHistograma(result.graficoInterativo, cfg.corBarras);
                                     })()}
                                     layout={{
                                       title: {
-                                        text: plotlyConfig.titulo || result.graficoInterativo.labels?.titulo || (result.graficoInterativo?.tipo === 'pareto' ? 'Pareto' : 'Histograma'),
-                                        font: { size: plotlyConfig.tamanhoFonte + 4 },
+                                        text: obterPlotlyConfig(result).titulo || result.graficoInterativo.labels?.titulo || (result.graficoInterativo?.tipo === 'pareto' ? 'Pareto' : 'Histograma'),
+                                        font: { size: obterPlotlyConfig(result).tamanhoFonte + 4 },
                                         x: 0.5,
                                         xanchor: 'center',
                                         y: 0.92,
@@ -2451,18 +2448,18 @@ export default function DataAnalysis() {
                                       },
                                       xaxis: {
                                         title: {
-                                          text: plotlyConfig.tituloX || result.graficoInterativo.labels?.x || '',
-                                          font: { size: plotlyConfig.tamanhoFonte },
-                                          standoff: Math.abs(plotlyConfig.rotacaoX || 0) > 0 ? 60 : 20,
+                                          text: obterPlotlyConfig(result).tituloX || result.graficoInterativo.labels?.x || '',
+                                          font: { size: obterPlotlyConfig(result).tamanhoFonte },
+                                          standoff: Math.abs(obterPlotlyConfig(result).rotacaoX || 0) > 0 ? 60 : 20,
                                         },
-                                        tickfont: { size: plotlyConfig.tamanhoFonte - 2 },
-                                        tickangle: plotlyConfig.rotacaoX || 0,
+                                        tickfont: { size: obterPlotlyConfig(result).tamanhoFonte - 2 },
+                                        tickangle: obterPlotlyConfig(result).rotacaoX || 0,
                                         automargin: true,
                                         visible: result.graficoInterativo?.tipo !== 'pizza',
                                       },
                                       yaxis: {
-                                        title: { text: plotlyConfig.tituloY || result.graficoInterativo.labels?.y || 'Frequência', font: { size: plotlyConfig.tamanhoFonte } },
-                                        tickfont: { size: plotlyConfig.tamanhoFonte - 2 },
+                                        title: { text: obterPlotlyConfig(result).tituloY || result.graficoInterativo.labels?.y || 'Frequência', font: { size: obterPlotlyConfig(result).tamanhoFonte } },
+                                        tickfont: { size: obterPlotlyConfig(result).tamanhoFonte - 2 },
                                         visible: result.graficoInterativo?.tipo !== 'pizza',
                                         ...(result.graficoInterativo?.tipo === 'pareto' && (() => {
                                           const total = result.graficoInterativo.config?.total || 1;
@@ -2491,14 +2488,14 @@ export default function DataAnalysis() {
                                           l: isTresD ? 0 : 60,
                                           r: tipo === 'bolhas' && result.graficoInterativo?.config?.tem_z ? 110 : (isTresD ? 0 : 70),
                                           t: 100,
-                                          b: isTresD ? 0 : (Math.abs(plotlyConfig.rotacaoX || 0) > 0 ? 160 : 100),
+                                          b: isTresD ? 0 : (Math.abs(obterPlotlyConfig(result).rotacaoX || 0) > 0 ? 160 : 100),
                                         };
                                       })(),
                                       ...((result.graficoInterativo?.tipo === 'dispersao3d' || result.graficoInterativo?.tipo === 'superficie3d') && {
                                         scene: {
-                                          xaxis: { title: { text: result.graficoInterativo.labels?.x || 'X', font: { size: plotlyConfig.tamanhoFonte } } },
-                                          yaxis: { title: { text: result.graficoInterativo.labels?.y || 'Y', font: { size: plotlyConfig.tamanhoFonte } } },
-                                          zaxis: { title: { text: result.graficoInterativo.labels?.z || 'Z', font: { size: plotlyConfig.tamanhoFonte } } },
+                                          xaxis: { title: { text: obterPlotlyConfig(result).tituloX || result.graficoInterativo.labels?.x || 'X', font: { size: obterPlotlyConfig(result).tamanhoFonte } } },
+                                          yaxis: { title: { text: obterPlotlyConfig(result).tituloY || result.graficoInterativo.labels?.y || 'Y', font: { size: obterPlotlyConfig(result).tamanhoFonte } } },
+                                          zaxis: { title: { text: result.graficoInterativo.labels?.z || 'Z', font: { size: obterPlotlyConfig(result).tamanhoFonte } } },
                                           camera: { eye: { x: 1.6, y: 1.6, z: 1.0 } },
                                           aspectmode: 'cube',
                                         },
@@ -2506,17 +2503,17 @@ export default function DataAnalysis() {
                                       showlegend: result.graficoInterativo.series?.length > 1 && result.graficoInterativo?.tipo !== 'pareto',
                                       legend: {
                                         orientation: 'h',
-                                        y: Math.abs(plotlyConfig.rotacaoX || 0) > 0 ? -0.50 : -0.30,
+                                        y: Math.abs(obterPlotlyConfig(result).rotacaoX || 0) > 0 ? -0.50 : -0.30,
                                         yanchor: 'top',
                                       },
                                       ...(result.graficoInterativo?.tipo === 'pareto' && {
                                         yaxis2: {
-                                          title: { text: '% Cumulativa', font: { size: plotlyConfig.tamanhoFonte }, standoff: 15 },
+                                          title: { text: '% Cumulativa', font: { size: obterPlotlyConfig(result).tamanhoFonte }, standoff: 15 },
                                           overlaying: 'y',
                                           side: 'right',
                                           range: [0, 105],
                                           ticksuffix: '%',
-                                          tickfont: { size: plotlyConfig.tamanhoFonte - 2 },
+                                          tickfont: { size: obterPlotlyConfig(result).tamanhoFonte - 2 },
                                           nticks: 6,
                                           showgrid: false,
                                           automargin: true,
@@ -2531,6 +2528,8 @@ export default function DataAnalysis() {
                                       toImageButtonOptions: { format: 'png', filename: 'histograma' },
                                     }}
                                     useResizeHandler={true}
+                                    onInitialized={(_figure: any, graphDiv: any) => { plotlyGraphRefs.current[result.id] = graphDiv; }}
+                                    onUpdate={(_figure: any, graphDiv: any) => { plotlyGraphRefs.current[result.id] = graphDiv; }}
                                   />
 
                                   {/* Estatísticas embaixo do gráfico (compatível com formato antigo e novo) */}
@@ -2607,21 +2606,21 @@ export default function DataAnalysis() {
                                 </div>
 
                                 {/* Painel de personalização à direita */}
-                                {idx === 0 && result.id === results[0].id && (
+                                {(
                                   <div className={cn(
                                     "shrink-0 bg-gray-50 border border-gray-200 rounded transition-all overflow-hidden",
-                                    painelPersonalizarAberto ? "w-[220px] p-3" : "w-auto"
+                                    graficoPersonalizandoId === result.id ? "w-[220px] p-3" : "w-auto"
                                   )}>
                                     {/* Botão de toggle */}
                                     <button
-                                      onClick={() => setPainelPersonalizarAberto(!painelPersonalizarAberto)}
+                                      onClick={() => setGraficoPersonalizandoId((atual) => atual === result.id ? null : result.id)}
                                       className={cn(
                                         "w-full flex items-center gap-2 text-[11px] font-bold text-gray-700 uppercase border-none cursor-pointer bg-transparent",
-                                        painelPersonalizarAberto ? "border-b border-gray-200 pb-2 mb-2" : "px-3 py-2 hover:bg-gray-100 rounded"
+                                        graficoPersonalizandoId === result.id ? "border-b border-gray-200 pb-2 mb-2" : "px-3 py-2 hover:bg-gray-100 rounded"
                                       )}
                                       title="Personalizar gráfico"
                                     >
-                                      {painelPersonalizarAberto ? (
+                                      {graficoPersonalizandoId === result.id ? (
                                         <>
                                           <span>⚙️ Personalizar</span>
                                           <span className="ml-auto">▼</span>
@@ -2631,17 +2630,17 @@ export default function DataAnalysis() {
                                       )}
                                     </button>
 
-                                    {painelPersonalizarAberto && (() => {
+                                    {graficoPersonalizandoId === result.id && (() => {
                                       const tipo = result.graficoInterativo?.tipo || '';
+                                      const configAtual = obterPlotlyConfig(result);
                                       const isPizza = tipo === 'pizza';
-                                      const isPareto = tipo === 'pareto';
                                       const temEixos = !isPizza;
-                                      const isBoxplot = tipo === 'boxplot';
-                                      const temCorBarras = !isPizza && !isBoxplot;
+                                      const temCorBarras = ['histograma', 'pareto', 'barras', 'dispersao', 'tendencia', 'intervalo'].includes(tipo)
+                                        || (tipo === 'bolhas' && !result.graficoInterativo?.config?.tem_z);
                                       const temInclinacao = !isPizza;
                                       const seriesPizza = isPizza ? (result.graficoInterativo?.series?.[0]?.labels || []) : [];
                                       const paleta = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#a855f7', '#14b8a6', '#f43f5e'];
-                                      const coresPizza = plotlyConfig.coresPizza?.length ? plotlyConfig.coresPizza : seriesPizza.map((_: any, i: number) => paleta[i % paleta.length]);
+                                      const coresPizza = configAtual.coresPizza?.length ? configAtual.coresPizza : seriesPizza.map((_: any, i: number) => paleta[i % paleta.length]);
 
                                       return (
                                         <div className="space-y-3">
@@ -2651,8 +2650,8 @@ export default function DataAnalysis() {
                                             <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Título</label>
                                             <input
                                               type="text"
-                                              value={plotlyConfig.titulo}
-                                              onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, titulo: e.target.value }))}
+                                              value={configAtual.titulo}
+                                              onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, titulo: e.target.value }))}
                                               className="w-full border border-gray-300 rounded px-2 py-1 text-[11px]"
                                             />
                                           </div>
@@ -2663,8 +2662,8 @@ export default function DataAnalysis() {
                                               <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Eixo X</label>
                                               <input
                                                 type="text"
-                                                value={plotlyConfig.tituloX}
-                                                onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, tituloX: e.target.value }))}
+                                                value={configAtual.tituloX}
+                                                onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, tituloX: e.target.value }))}
                                                 className="w-full border border-gray-300 rounded px-2 py-1 text-[11px]"
                                               />
                                             </div>
@@ -2676,8 +2675,8 @@ export default function DataAnalysis() {
                                               <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Eixo Y</label>
                                               <input
                                                 type="text"
-                                                value={plotlyConfig.tituloY}
-                                                onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, tituloY: e.target.value }))}
+                                                value={configAtual.tituloY}
+                                                onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, tituloY: e.target.value }))}
                                                 className="w-full border border-gray-300 rounded px-2 py-1 text-[11px]"
                                               />
                                             </div>
@@ -2686,11 +2685,11 @@ export default function DataAnalysis() {
                                           {/* Cor das Barras — oculto na Pizza */}
                                           {temCorBarras && (
                                             <div>
-                                              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Cor das Barras</label>
+                                              <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Cor principal</label>
                                               <input
                                                 type="color"
-                                                value={plotlyConfig.corBarras}
-                                                onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, corBarras: e.target.value }))}
+                                                value={configAtual.corBarras}
+                                                onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, corBarras: e.target.value }))}
                                                 className="w-full h-8 border border-gray-300 rounded cursor-pointer bg-white"
                                               />
                                             </div>
@@ -2709,7 +2708,7 @@ export default function DataAnalysis() {
                                                       onChange={(e) => {
                                                         const novasCores = [...coresPizza];
                                                         novasCores[i] = e.target.value;
-                                                        setPlotlyConfig((prev: any) => ({ ...prev, coresPizza: novasCores }));
+                                                        atualizarPlotlyConfig(result, (prev) => ({ ...prev, coresPizza: novasCores }));
                                                       }}
                                                       className="w-7 h-7 border border-gray-300 rounded cursor-pointer bg-white shrink-0"
                                                     />
@@ -2723,14 +2722,14 @@ export default function DataAnalysis() {
                                           {/* Tamanho Fonte — sempre visível */}
                                           <div>
                                             <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
-                                              Tamanho Fonte: {plotlyConfig.tamanhoFonte}px
+                                              Tamanho Fonte: {configAtual.tamanhoFonte}px
                                             </label>
                                             <input
                                               type="range"
                                               min={8}
                                               max={20}
-                                              value={plotlyConfig.tamanhoFonte}
-                                              onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, tamanhoFonte: parseInt(e.target.value) }))}
+                                              value={configAtual.tamanhoFonte}
+                                              onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, tamanhoFonte: parseInt(e.target.value) }))}
                                               className="w-full"
                                             />
                                           </div>
@@ -2741,8 +2740,8 @@ export default function DataAnalysis() {
                                               <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase cursor-pointer">
                                                 <input
                                                   type="checkbox"
-                                                  checked={plotlyConfig.mostrarTendencia ?? true}
-                                                  onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, mostrarTendencia: e.target.checked }))}
+                                                  checked={configAtual.mostrarTendencia ?? true}
+                                                  onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, mostrarTendencia: e.target.checked }))}
                                                   className="cursor-pointer"
                                                 />
                                                 Linha de Tendência
@@ -2756,8 +2755,8 @@ export default function DataAnalysis() {
                                               <label className="flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase cursor-pointer">
                                                 <input
                                                   type="checkbox"
-                                                  checked={plotlyConfig.mostrarMedia ?? false}
-                                                  onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, mostrarMedia: e.target.checked }))}
+                                                  checked={configAtual.mostrarMedia ?? false}
+                                                  onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, mostrarMedia: e.target.checked }))}
                                                   className="cursor-pointer"
                                                 />
                                                 Linha da Média
@@ -2769,15 +2768,15 @@ export default function DataAnalysis() {
                                           {temInclinacao && (
                                             <div>
                                               <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
-                                                Inclinação Eixo X: {plotlyConfig.rotacaoX || 0}°
+                                                Inclinação Eixo X: {configAtual.rotacaoX || 0}°
                                               </label>
                                               <input
                                                 type="range"
                                                 min={-90}
                                                 max={90}
                                                 step={15}
-                                                value={plotlyConfig.rotacaoX || 0}
-                                                onChange={(e) => setPlotlyConfig((prev: any) => ({ ...prev, rotacaoX: parseInt(e.target.value) }))}
+                                                value={configAtual.rotacaoX || 0}
+                                                onChange={(e) => atualizarPlotlyConfig(result, (prev) => ({ ...prev, rotacaoX: parseInt(e.target.value) }))}
                                                 className="w-full"
                                               />
                                               <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
@@ -2789,16 +2788,7 @@ export default function DataAnalysis() {
                                           {/* Resetar */}
                                           <button
                                             onClick={() => {
-                                              const labels = result.graficoInterativo?.labels || {};
-                                              setPlotlyConfig({
-                                                titulo: labels.titulo || '',
-                                                tituloX: labels.x || '',
-                                                tituloY: labels.y || 'Frequência',
-                                                corBarras: '#3b82f6',
-                                                tamanhoFonte: 12,
-                                                rotacaoX: 0,
-                                                coresPizza: [],
-                                              });
+                                              atualizarPlotlyConfig(result, defaultPlotlyConfig(result.graficoInterativo));
                                             }}
                                             className="w-full text-[10px] text-gray-500 hover:text-gray-700 border-t border-gray-200 pt-2 mt-2 cursor-pointer bg-transparent"
                                           >
@@ -2814,97 +2804,10 @@ export default function DataAnalysis() {
                           ) : (
                             <div className="w-full border border-gray-100 p-2 rounded bg-white mb-4">
                               <img 
-                                src={`data:image/png;base64,${Array.isArray(result.grafico_isolado_base64) ? result.grafico_isolado_base64.find(i => typeof i === 'string' && i.length > 50) : result.grafico_isolado_base64}`} 
+                                src={srcGraficoEstatico(result)}
                                 alt="Resultado Gráfico" 
                                 className="max-w-full h-auto mx-auto"
                               />
-                            </div>
-                          )}
-                          
-                          {/* Personalization Panel */}
-                          {idx === 0 && result.id === results[0].id && !FERRAMENTAS_INTERATIVAS.includes(ferramentaAtual) && (
-                            <div id="painelPersonalizacao" className="w-full border border-[#ccc] p-[15px] bg-[#f9f9f9] rounded mt-4">
-                              <button 
-                                onClick={() => setShowPersonalization(!showPersonalization)}
-                                className="w-full text-left font-bold text-[0.9rem] flex justify-between items-center"
-                              >
-                                Painel Personalização Gráfico <span>{showPersonalization ? '▲' : '▼'}</span>
-                              </button>
-
-                              <AnimatePresence>
-                                {showPersonalization && (
-                                  <motion.div 
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="overflow-hidden"
-                                  >
-                                    <div id="opcoesPersonalizacao" className="grid grid-cols-1 sm:grid-cols-2 gap-[15px] w-full mt-4">
-                                      <div className="col-span-full">
-                                        <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Título do Gráfico</label>
-                                        <input 
-                                          type="text" 
-                                          className="w-full border border-[#ccc] rounded-[4px] p-[8px] text-[12px]" 
-                                          placeholder="Título do gráfico"
-                                          value={personalization.titulo}
-                                          onChange={(e) => setPersonalization(prev => ({ ...prev, titulo: e.target.value }))}
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Título Eixo Y</label>
-                                        <input 
-                                          type="text" 
-                                          className="w-full border border-[#ccc] rounded-[4px] p-[8px] text-[12px]" 
-                                          placeholder="Eixo Y"
-                                          value={personalization.titulo_y}
-                                          onChange={(e) => setPersonalization(prev => ({ ...prev, titulo_y: e.target.value }))}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Título Eixo X</label>
-                                        <input 
-                                          type="text" 
-                                          className="w-full border border-[#ccc] rounded-[4px] p-[8px] text-[12px]" 
-                                          placeholder="Eixo X"
-                                          value={personalization.titulo_x}
-                                          onChange={(e) => setPersonalization(prev => ({ ...prev, titulo_x: e.target.value }))}
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Cor do Gráfico</label>
-                                        <input 
-                                          type="color" 
-                                          className="w-full h-[35px] border border-[#ccc] rounded-[4px] cursor-pointer bg-white"
-                                          value={personalization.cor_principal}
-                                          onChange={(e) => setPersonalization(prev => ({ ...prev, cor_principal: e.target.value }))}
-                                        />
-                                      </div>
-
-                                      <div>
-                                        <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Tamanho Fonte</label>
-                                        <input 
-                                          type="number" 
-                                          className="w-full border border-[#ccc] rounded-[4px] p-[8px] text-[12px]"
-                                          value={personalization.tamanho_fonte}
-                                          onChange={(e) => setToolParams(prev => ({ ...prev, tamanho_fonte: parseInt(e.target.value) }))}
-                                        />
-                                      </div>
-
-                                      <div className="col-span-full">
-                                        <button 
-                                          onClick={handleUpdatePersonalization}
-                                          disabled={isProcessing}
-                                          className="w-full bg-[#10b981] text-white py-2 rounded-[4px] text-[12px] hover:bg-[#059669] transition-all font-bold"
-                                        >
-                                          {isProcessing ? "Aplicando..." : "Aplicar Alterações"}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
                             </div>
                           )}
                         </>
