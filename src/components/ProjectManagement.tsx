@@ -279,14 +279,23 @@ export default function ProjectManagement() {
     .filter(i => !canUseInitiative(i.id, initiatives))
     .sort(ordenarProjetosAlfabeticamente), [tiposDeProjeto, initiatives, canUseInitiative]);
   const tiposDeProjetoOrdenados = [...tiposDeProjetoLiberados, ...tiposDeProjetoSemAcesso];
-  const projetosVisiveis = useMemo(() => projects.filter((project) => {
-    if (project.initiativeId) return canUseInitiative(project.initiativeId, initiatives);
-    // Projeto criado no Data Analysis (sem tipo vinculado) SEMPRE aparece na lista
-    // de projetos do aluno — é o mesmo projeto, visto de outro lugar. Ele não entra
-    // na grade de TIPOS de projeto (essa continua vindo só das iniciativas do
-    // consultor); ao ser aberto sem ferramentas, a tela explica e manda pro Data Analysis.
-    return true;
-  }), [projects, initiatives, canUseInitiative]);
+  // A LISTA de projetos do aluno mostra TUDO que é dele — inclusive projeto criado no
+  // Data Analysis e projeto de um curso cujo acesso mudou depois. Esconder o trabalho
+  // do próprio aluno é sempre errado; o acesso controla FERRAMENTA, não visibilidade
+  // (mesma regra de travar só no último nível). A grade de TIPOS de projeto, mais
+  // abaixo na tela, continua vindo só das iniciativas liberadas pelo consultor.
+  const projetosVisiveis = projects;
+
+  // Só existe jornada de ferramentas se o tipo vinculado tiver fases configuradas.
+  // Sem tipo, ou com tipo sem fases (caso de "Estatística Aplicada e Ferramentas da
+  // Qualidade", que é curso e não tem initiative_configs), o projeto existe e abre —
+  // mas exibindo a explicação, não uma jornada vazia.
+  const projetoSemFerramentas = useCallback((project: Project | null) => {
+    if (!project) return false;
+    if (!project.initiativeId) return true;
+    const ini = initiatives.find((i) => i.id === project.initiativeId);
+    return !ini?.phases?.length;
+  }, [initiatives]);
 
   // A selecao exibida em Projects acompanha o unico projeto vigente da plataforma.
   // Um projeto exclusivo de Data Analysis continua vigente, mas nao e aberto aqui
@@ -726,7 +735,7 @@ export default function ProjectManagement() {
             .lbw-sleek-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(30, 45, 110, 0.15) transparent; }
           `}</style>
           <AnimatePresence mode="wait">
-            {selectedProject && !selectedProject.initiativeId ? (
+            {selectedProject && projetoSemFerramentas(selectedProject) ? (
               /* Projeto sem tipo vinculado: existe, aparece na lista e abre — mas o curso
                  do aluno não tem ferramentas da qualidade configuradas. Em vez de tela
                  vazia, explica onde o trabalho dele acontece. */
