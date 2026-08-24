@@ -5116,9 +5116,23 @@ async function startServer() {
       || isCompraCapabilidade
       || isCompraEstatistica;
     if (!planoConhecido) {
+      // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
+      // se o único vestígio for a tela de execução do n8n. Com o nome exato no
+      // log dá pra mapear o produto e reprocessar.
+      const aceitos = [
+        "completo", "gratuito", "trilha1",
+        PACOTE_CAPABILIDADE_NOME, PACOTE_CAPABILIDADE_ID,
+        PACOTE_ESTATISTICA_NOME, PACOTE_ESTATISTICA_ID,
+      ];
+      console.error(
+        `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
+        `email="${email}" | planoRaw="${planoRaw}" | aceitos: ${aceitos.join(" | ")}`
+      );
       return res.status(422).json({
         error: "Produto Hotmart não mapeado.",
         produto: nomeProdutoHotmart || planoRaw || null,
+        planoRecebido: planoRaw || null,
+        aceitos,
       });
     }
     const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" = planoRaw === "completo"
