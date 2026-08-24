@@ -180,7 +180,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,10 +197,11 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
-      params.plano === "capabilidade" ? "capabilidade" : "gratis";
+      params.plano === "capabilidade" ? "capabilidade" :
+      params.plano === "estatistica-aplicada" ? "estatistica-aplicada" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -263,6 +264,21 @@ async function startServer() {
         <p style="font-weight:bold;color:#1E2D6E;margin:0 0 12px 0;">DEPOIS DO KIT, TEM UMA JORNADA INTEIRA À SUA FRENTE:</p>
         <p style="margin:0 0 12px 0;font-size:14px;">O Kit 90 Dias é a porta de entrada. Quando quiser ir além, a formação completa te leva do básico ao nível de quem senta na mesa de decisão — com mais 7 trilhas:</p>
         ${linha("2.", trilha2)}${linha("3.", trilha3)}${linha("4.", trilha4)}${linha("5.", trilha5)}${linha("6.", trilha6)}${linha("7.", trilha7)}${linha("8.", trilha8)}`;
+    } else if (tipo === "estatistica-aplicada") {
+      titulo = "Seu acesso à Estatística Aplicada e Ferramentas da Qualidade está liberado 🚀";
+      planoLabel = "Estatística Aplicada e Ferramentas da Qualidade";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Estatística Aplicada e Ferramentas da Qualidade</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Estatística Aplicada e Ferramentas da Qualidade</strong> — aulas e exercícios para aplicar estatística e ferramentas da qualidade.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análises Diversas e Gráficos</strong> — realize e interprete suas análises estatísticas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else if (tipo === "capabilidade") {
       titulo = "Seu acesso à Capabilidade de Processo Avançado está liberado 🚀";
       planoLabel = "Capabilidade de Processo Avançado";
@@ -5085,11 +5101,17 @@ async function startServer() {
     const isCompraCapabilidade = planoRaw === "capabilidade"
       || normalizarPacote(planoRaw) === PACOTE_CAPABILIDADE_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CAPABILIDADE_NOME);
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" = planoRaw === "completo"
+    const PACOTE_ESTATISTICA_ID = "estatistica-aplicada-ferramentas-qualidade";
+    const PACOTE_ESTATISTICA_NOME = "Estatística Aplicada e Ferramentas da Qualidade";
+    const isCompraEstatistica = planoRaw === "estatistica-aplicada"
+      || normalizarPacote(planoRaw) === PACOTE_ESTATISTICA_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ESTATISTICA_NOME);
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" = planoRaw === "completo"
       ? "completo"
-      : isCompraCapabilidade ? "capabilidade" : "gratuito";
+      : isCompraCapabilidade ? "capabilidade"
+      : isCompraEstatistica ? "estatistica-aplicada" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5100,19 +5122,27 @@ async function startServer() {
     const CURSO_KIT_90 = "Como Resolver Problemas no Trabalho - Kit 90 dias";
     const CURSO_ESPECIALISTA = "Como Se Tornar um Especialista em Gestão de Projetos de Melhoria";
     const CURSO_CAPABILIDADE = PACOTE_CAPABILIDADE_NOME;
-    const nomePacoteComercial = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : planoSolicitado;
+    const CURSO_ESTATISTICA = PACOTE_ESTATISTICA_NOME;
+    const nomePacoteComercial = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : isCompraEstatistica ? PACOTE_ESTATISTICA_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraCapabilidade
       ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
-      : {};
-    const nomePlanoResposta = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade
+      : isCompraEstatistica
+        ? { pacoteId: PACOTE_ESTATISTICA_ID, pacoteNome: PACOTE_ESTATISTICA_NOME }
+        : {};
+    const nomePlanoResposta = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : isCompraEstatistica ? PACOTE_ESTATISTICA_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     const cursoComprado = planoSolicitado === "completo"
       ? CURSO_ESPECIALISTA
-      : isCompraCapabilidade ? CURSO_CAPABILIDADE : CURSO_KIT_90;
+      : isCompraCapabilidade ? CURSO_CAPABILIDADE : isCompraEstatistica ? CURSO_ESTATISTICA : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [{ modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 }]
+      : isCompraEstatistica
+        ? [
+            { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          ]
       : [];
     const cursoAcessoComprado = {
       curso: cursoComprado,
@@ -5300,6 +5330,35 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "capabilidade", contexto: "existente" });
         console.log(`[acesso/liberar] CAPABILIDADE ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "capabilidade-liberada", uid, email, plano: PACOTE_CAPABILIDADE_NOME, pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME, emailEnviado });
+      }
+
+      // COMPRA de Estatística Aplicada e Ferramentas da Qualidade: preserva
+      // cursos anteriores e acrescenta somente os módulos Diversas e Gráficos.
+      if (isCompraEstatistica) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosEstatistica = new Set(["diversas", "graficos"]);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosEstatistica.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_ESTATISTICA_NOME,
+          pacoteId: PACOTE_ESTATISTICA_ID,
+          pacoteNome: PACOTE_ESTATISTICA_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "estatistica-aplicada", contexto: "existente" });
+        console.log(`[acesso/liberar] ESTATISTICA APLICADA ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "estatistica-aplicada-liberada", uid, email, plano: PACOTE_ESTATISTICA_NOME, pacoteId: PACOTE_ESTATISTICA_ID, pacoteNome: PACOTE_ESTATISTICA_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
