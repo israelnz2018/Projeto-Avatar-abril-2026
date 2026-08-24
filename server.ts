@@ -180,7 +180,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,12 +197,13 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
       params.plano === "estatistica-aplicada" ? "estatistica-aplicada" :
-      params.plano === "analise-inferencial" ? "analise-inferencial" : "gratis";
+      params.plano === "analise-inferencial" ? "analise-inferencial" :
+      params.plano === "cep" ? "cep" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -290,6 +291,21 @@ async function startServer() {
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Análise Inferencial - Testes de Hipóteses</strong> — aulas e exercícios para interpretar e aplicar testes de hipóteses.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análise Inferencial, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
+    } else if (tipo === "cep") {
+      titulo = "Seu acesso ao Controle Estatístico de Processo está liberado 🚀";
+      planoLabel = "Controle Estatístico de Processo";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>CEP - Controle Estatístico de Processo</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso CEP - Controle Estatístico de Processo</strong> — aulas e exercícios para monitorar e controlar a variabilidade dos processos.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Controle de Processo, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
         ${dashboardBloco}
@@ -5135,12 +5151,20 @@ async function startServer() {
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_INFERENCIAL_NOME)
       || normalizarPacote(planoRaw) === "teste-de-hipoteses"
       || normalizarPacote(planoRaw) === "testes-de-hipoteses";
+    const PACOTE_CEP_ID = "controle-estatistico-processo";
+    const PACOTE_CEP_NOME = "Controle Estatístico de Processo";
+    const CURSO_CEP_NOME = "CEP - Controle Estatístico de Processo";
+    const isCompraCep = planoRaw === "cep"
+      || normalizarPacote(planoRaw) === PACOTE_CEP_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CEP_NOME)
+      || normalizarPacote(planoRaw) === normalizarPacote(CURSO_CEP_NOME);
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
       || isCompraCapabilidade
       || isCompraEstatistica
-      || isCompraInferencial;
+      || isCompraInferencial
+      || isCompraCep;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5150,6 +5174,7 @@ async function startServer() {
         PACOTE_CAPABILIDADE_NOME, PACOTE_CAPABILIDADE_ID,
         PACOTE_ESTATISTICA_NOME, PACOTE_ESTATISTICA_ID,
         PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID, PACOTE_INFERENCIAL_ID_NORMALIZADO,
+        PACOTE_CEP_NOME, PACOTE_CEP_ID, CURSO_CEP_NOME,
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5162,13 +5187,14 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
-      : isCompraInferencial ? "analise-inferencial" : "gratuito";
+      : isCompraInferencial ? "analise-inferencial"
+      : isCompraCep ? "cep" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5181,24 +5207,31 @@ async function startServer() {
     const CURSO_CAPABILIDADE = PACOTE_CAPABILIDADE_NOME;
     const CURSO_ESTATISTICA = PACOTE_ESTATISTICA_NOME;
     const CURSO_INFERENCIAL = PACOTE_INFERENCIAL_NOME;
+    const CURSO_CONTROLE_ESTATISTICO = CURSO_CEP_NOME;
     const nomePacoteComercial = isCompraCapabilidade
       ? PACOTE_CAPABILIDADE_NOME
       : isCompraEstatistica
         ? PACOTE_ESTATISTICA_NOME
-        : isCompraInferencial ? PACOTE_INFERENCIAL_NOME : planoSolicitado;
+        : isCompraInferencial
+          ? PACOTE_INFERENCIAL_NOME
+          : isCompraCep ? PACOTE_CEP_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraCapabilidade
       ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
       : isCompraEstatistica
         ? { pacoteId: PACOTE_ESTATISTICA_ID, pacoteNome: PACOTE_ESTATISTICA_NOME }
         : isCompraInferencial
           ? { pacoteId: PACOTE_INFERENCIAL_ID, pacoteNome: PACOTE_INFERENCIAL_NOME }
+        : isCompraCep
+          ? { pacoteId: PACOTE_CEP_ID, pacoteNome: PACOTE_CEP_NOME }
         : {};
     const nomePlanoResposta = isCompraCapabilidade
       ? PACOTE_CAPABILIDADE_NOME
       : isCompraEstatistica
         ? PACOTE_ESTATISTICA_NOME
-        : isCompraInferencial ? PACOTE_INFERENCIAL_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial
+        : isCompraInferencial
+          ? PACOTE_INFERENCIAL_NOME
+          : isCompraCep ? PACOTE_CEP_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     const cursoComprado = planoSolicitado === "completo"
@@ -5206,7 +5239,8 @@ async function startServer() {
       : isCompraCapabilidade
         ? CURSO_CAPABILIDADE
         : isCompraEstatistica ? CURSO_ESTATISTICA
-        : isCompraInferencial ? CURSO_INFERENCIAL : CURSO_KIT_90;
+        : isCompraInferencial ? CURSO_INFERENCIAL
+        : isCompraCep ? CURSO_CONTROLE_ESTATISTICO : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [{ modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 }]
       : isCompraEstatistica
@@ -5217,6 +5251,12 @@ async function startServer() {
       : isCompraInferencial
         ? [
             { modulo: "inferencial", nome: "Análise Inferencial", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          ]
+      : isCompraCep
+        ? [
+            { modulo: "cep", nome: "Controle de Processo", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           ]
@@ -5465,6 +5505,35 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "analise-inferencial", contexto: "existente" });
         console.log(`[acesso/liberar] ANALISE INFERENCIAL ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "analise-inferencial-liberada", uid, email, plano: PACOTE_INFERENCIAL_NOME, pacoteId: PACOTE_INFERENCIAL_ID, pacoteNome: PACOTE_INFERENCIAL_NOME, emailEnviado });
+      }
+
+      // COMPRA de Controle Estatístico de Processo: preserva cursos anteriores
+      // e libera Controle de Processo, Gráficos e Análises Diversas.
+      if (isCompraCep) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosCep = new Set(["cep", "graficos", "diversas"]);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosCep.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_CEP_NOME,
+          pacoteId: PACOTE_CEP_ID,
+          pacoteNome: PACOTE_CEP_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "cep", contexto: "existente" });
+        console.log(`[acesso/liberar] CEP ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "cep-liberado", uid, email, plano: PACOTE_CEP_NOME, pacoteId: PACOTE_CEP_ID, pacoteNome: PACOTE_CEP_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente

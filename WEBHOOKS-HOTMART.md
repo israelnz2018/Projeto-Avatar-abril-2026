@@ -7,6 +7,7 @@ Catálogo sem credenciais ou tokens. As URLs abaixo são públicas por natureza;
 | Capabilidade de Processo Avançado | Capabilidade de Processo | `https://primary-production-1d53.up.railway.app/webhook/capabilidadeavancada` | Em configuração |
 | Estatística Aplicada e Ferramentas da Qualidade | Estatística Aplicada e Ferramentas da Qualidade | `https://primary-production-1d53.up.railway.app/webhook/estatisticaaplicada` | Em configuração |
 | Análise Inferencial - Testes de Hipóteses | Análise Inferencial - Testes de Hipóteses | `https://primary-production-1d53.up.railway.app/webhook/testedehipotesis` | Em configuração |
+| Controle Estatístico de Processo | Controle Estatístico de Processo | `https://primary-production-1d53.up.railway.app/webhook/controleestatistico` | Em configuração |
 
 ## Padrão de cadastro
 
