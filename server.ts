@@ -180,7 +180,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,11 +197,12 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
-      params.plano === "estatistica-aplicada" ? "estatistica-aplicada" : "gratis";
+      params.plano === "estatistica-aplicada" ? "estatistica-aplicada" :
+      params.plano === "analise-inferencial" ? "analise-inferencial" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -274,6 +275,21 @@ async function startServer() {
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Estatística Aplicada e Ferramentas da Qualidade</strong> — aulas e exercícios para aplicar estatística e ferramentas da qualidade.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análises Diversas e Gráficos</strong> — realize e interprete suas análises estatísticas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
+    } else if (tipo === "analise-inferencial") {
+      titulo = "Seu acesso à Análise Inferencial - Testes de Hipóteses está liberado 🚀";
+      planoLabel = "Análise Inferencial - Testes de Hipóteses";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Análise Inferencial - Testes de Hipóteses</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Análise Inferencial - Testes de Hipóteses</strong> — aulas e exercícios para interpretar e aplicar testes de hipóteses.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análise Inferencial, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
         ${dashboardBloco}
@@ -5110,11 +5126,19 @@ async function startServer() {
     const isCompraEstatistica = planoRaw === "estatistica-aplicada"
       || normalizarPacote(planoRaw) === PACOTE_ESTATISTICA_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ESTATISTICA_NOME);
+    const PACOTE_INFERENCIAL_ID = "analise-inferencial-testes-hipoteses";
+    const PACOTE_INFERENCIAL_NOME = "Análise Inferencial - Testes de Hipóteses";
+    const isCompraInferencial = planoRaw === "analise-inferencial"
+      || normalizarPacote(planoRaw) === PACOTE_INFERENCIAL_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_INFERENCIAL_NOME)
+      || normalizarPacote(planoRaw) === "teste-de-hipoteses"
+      || normalizarPacote(planoRaw) === "testes-de-hipoteses";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
       || isCompraCapabilidade
-      || isCompraEstatistica;
+      || isCompraEstatistica
+      || isCompraInferencial;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5123,6 +5147,7 @@ async function startServer() {
         "completo", "gratuito", "trilha1",
         PACOTE_CAPABILIDADE_NOME, PACOTE_CAPABILIDADE_ID,
         PACOTE_ESTATISTICA_NOME, PACOTE_ESTATISTICA_ID,
+        PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID,
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5135,12 +5160,13 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
-      : isCompraEstatistica ? "estatistica-aplicada" : "gratuito";
+      : isCompraEstatistica ? "estatistica-aplicada"
+      : isCompraInferencial ? "analise-inferencial" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5152,25 +5178,45 @@ async function startServer() {
     const CURSO_ESPECIALISTA = "Como Se Tornar um Especialista em Gestão de Projetos de Melhoria";
     const CURSO_CAPABILIDADE = PACOTE_CAPABILIDADE_NOME;
     const CURSO_ESTATISTICA = PACOTE_ESTATISTICA_NOME;
-    const nomePacoteComercial = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : isCompraEstatistica ? PACOTE_ESTATISTICA_NOME : planoSolicitado;
+    const CURSO_INFERENCIAL = PACOTE_INFERENCIAL_NOME;
+    const nomePacoteComercial = isCompraCapabilidade
+      ? PACOTE_CAPABILIDADE_NOME
+      : isCompraEstatistica
+        ? PACOTE_ESTATISTICA_NOME
+        : isCompraInferencial ? PACOTE_INFERENCIAL_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraCapabilidade
       ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
       : isCompraEstatistica
         ? { pacoteId: PACOTE_ESTATISTICA_ID, pacoteNome: PACOTE_ESTATISTICA_NOME }
+        : isCompraInferencial
+          ? { pacoteId: PACOTE_INFERENCIAL_ID, pacoteNome: PACOTE_INFERENCIAL_NOME }
         : {};
-    const nomePlanoResposta = isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME : isCompraEstatistica ? PACOTE_ESTATISTICA_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica
+    const nomePlanoResposta = isCompraCapabilidade
+      ? PACOTE_CAPABILIDADE_NOME
+      : isCompraEstatistica
+        ? PACOTE_ESTATISTICA_NOME
+        : isCompraInferencial ? PACOTE_INFERENCIAL_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     const cursoComprado = planoSolicitado === "completo"
       ? CURSO_ESPECIALISTA
-      : isCompraCapabilidade ? CURSO_CAPABILIDADE : isCompraEstatistica ? CURSO_ESTATISTICA : CURSO_KIT_90;
+      : isCompraCapabilidade
+        ? CURSO_CAPABILIDADE
+        : isCompraEstatistica ? CURSO_ESTATISTICA
+        : isCompraInferencial ? CURSO_INFERENCIAL : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [{ modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 }]
       : isCompraEstatistica
         ? [
             { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          ]
+      : isCompraInferencial
+        ? [
+            { modulo: "inferencial", nome: "Análise Inferencial", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           ]
       : [];
     const cursoAcessoComprado = {
@@ -5388,6 +5434,35 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "estatistica-aplicada", contexto: "existente" });
         console.log(`[acesso/liberar] ESTATISTICA APLICADA ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "estatistica-aplicada-liberada", uid, email, plano: PACOTE_ESTATISTICA_NOME, pacoteId: PACOTE_ESTATISTICA_ID, pacoteNome: PACOTE_ESTATISTICA_NOME, emailEnviado });
+      }
+
+      // COMPRA de Análise Inferencial - Testes de Hipóteses: preserva cursos
+      // anteriores e libera os módulos Inferencial, Gráficos e Análises Diversas.
+      if (isCompraInferencial) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosInferencial = new Set(["inferencial", "graficos", "diversas"]);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosInferencial.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_INFERENCIAL_NOME,
+          pacoteId: PACOTE_INFERENCIAL_ID,
+          pacoteNome: PACOTE_INFERENCIAL_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "analise-inferencial", contexto: "existente" });
+        console.log(`[acesso/liberar] ANALISE INFERENCIAL ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "analise-inferencial-liberada", uid, email, plano: PACOTE_INFERENCIAL_NOME, pacoteId: PACOTE_INFERENCIAL_ID, pacoteNome: PACOTE_INFERENCIAL_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
