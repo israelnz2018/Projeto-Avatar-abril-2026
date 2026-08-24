@@ -314,13 +314,13 @@ async function startServer() {
         <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else if (tipo === "preditiva") {
       titulo = "Seu acesso à Análise Preditiva está liberado 🚀";
-      planoLabel = "Análise Preditiva - Regressão e Correlação";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Análise Preditiva - Regressão e Correlação</strong> está liberado.`;
+      planoLabel = "Análise Preditiva - Regressões, Correlações e Séries Temporais";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Análise Preditiva - Regressões, Correlações e Séries Temporais</strong> está liberado.`;
       credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
       botaoLabel = "ACESSAR MEU CURSO";
       corpoHtml = `
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Análise Preditiva - Regressão e Correlação</strong> — aulas e exercícios para analisar relações e fazer previsões com dados.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Análise Preditiva - Regressões, Correlações e Séries Temporais</strong> — aulas e exercícios para analisar relações e fazer previsões com dados.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análise Preditiva, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
@@ -5174,11 +5174,15 @@ async function startServer() {
       || normalizarPacote(planoRaw) === PACOTE_CEP_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CEP_NOME)
       || normalizarPacote(planoRaw) === normalizarPacote(CURSO_CEP_NOME);
-    const PACOTE_PREDITIVA_ID = "analise-preditiva-regressao-correlacao";
-    const PACOTE_PREDITIVA_NOME = "Análise Preditiva - Regressão e Correlação";
+    const PACOTE_PREDITIVA_ID = "analise-preditiva-regressoes-correlacoes-series-temporais";
+    const PACOTE_PREDITIVA_NOME = "Análise Preditiva - Regressões, Correlações e Séries Temporais";
+    const PACOTE_PREDITIVA_ID_ANTIGO = "analise-preditiva-regressao-correlacao";
+    const PACOTE_PREDITIVA_NOME_ANTIGO = "Análise Preditiva - Regressão e Correlação";
     const isCompraPreditiva = planoRaw === "preditiva"
       || normalizarPacote(planoRaw) === PACOTE_PREDITIVA_ID
+      || normalizarPacote(planoRaw) === PACOTE_PREDITIVA_ID_ANTIGO
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PREDITIVA_NOME)
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PREDITIVA_NOME_ANTIGO)
       || normalizarPacote(planoRaw) === "regressoes-e-correlacoes";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
@@ -5199,6 +5203,7 @@ async function startServer() {
         PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID, PACOTE_INFERENCIAL_ID_NORMALIZADO,
         PACOTE_CEP_NOME, PACOTE_CEP_ID, CURSO_CEP_NOME,
         PACOTE_PREDITIVA_NOME, PACOTE_PREDITIVA_ID,
+        PACOTE_PREDITIVA_NOME_ANTIGO, PACOTE_PREDITIVA_ID_ANTIGO,
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5575,7 +5580,7 @@ async function startServer() {
         return res.json({ ok: true, status: "cep-liberado", uid, email, plano: PACOTE_CEP_NOME, pacoteId: PACOTE_CEP_ID, pacoteNome: PACOTE_CEP_NOME, emailEnviado });
       }
 
-      // COMPRA de Análise Preditiva - Regressão e Correlação: preserva cursos
+      // COMPRA de Análise Preditiva - Regressões, Correlações e Séries Temporais: preserva cursos
       // anteriores e libera Análise Preditiva, Gráficos e Análises Diversas.
       if (isCompraPreditiva) {
         const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
