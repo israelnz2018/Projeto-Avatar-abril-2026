@@ -8,6 +8,7 @@ Catálogo sem credenciais ou tokens. As URLs abaixo são públicas por natureza;
 | Estatística Aplicada e Ferramentas da Qualidade | Estatística Aplicada e Ferramentas da Qualidade | `https://primary-production-1d53.up.railway.app/webhook/estatisticaaplicada` | Em configuração |
 | Análise Inferencial - Testes de Hipóteses | Análise Inferencial - Testes de Hipóteses | `https://primary-production-1d53.up.railway.app/webhook/testedehipotesis` | Em configuração |
 | Controle Estatístico de Processo | Controle Estatístico de Processo | `https://primary-production-1d53.up.railway.app/webhook/controleestatistico` | Em configuração |
+| Análise Preditiva - Regressão e Correlação | Análise Preditiva - Regressão e Correlação | `https://primary-production-1d53.up.railway.app/webhook/analisepreditiva` | Em configuração |
 
 ## Padrão de cadastro
 

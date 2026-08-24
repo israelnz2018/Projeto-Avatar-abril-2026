@@ -180,7 +180,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,13 +197,14 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
       params.plano === "estatistica-aplicada" ? "estatistica-aplicada" :
       params.plano === "analise-inferencial" ? "analise-inferencial" :
-      params.plano === "cep" ? "cep" : "gratis";
+      params.plano === "cep" ? "cep" :
+      params.plano === "preditiva" ? "preditiva" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -306,6 +307,21 @@ async function startServer() {
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso CEP - Controle Estatístico de Processo</strong> — aulas e exercícios para monitorar e controlar a variabilidade dos processos.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Controle de Processo, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
+    } else if (tipo === "preditiva") {
+      titulo = "Seu acesso à Análise Preditiva está liberado 🚀";
+      planoLabel = "Análise Preditiva - Regressão e Correlação";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Análise Preditiva - Regressão e Correlação</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Análise Preditiva - Regressão e Correlação</strong> — aulas e exercícios para analisar relações e fazer previsões com dados.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análise Preditiva, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
         ${dashboardBloco}
@@ -5158,13 +5174,20 @@ async function startServer() {
       || normalizarPacote(planoRaw) === PACOTE_CEP_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CEP_NOME)
       || normalizarPacote(planoRaw) === normalizarPacote(CURSO_CEP_NOME);
+    const PACOTE_PREDITIVA_ID = "analise-preditiva-regressao-correlacao";
+    const PACOTE_PREDITIVA_NOME = "Análise Preditiva - Regressão e Correlação";
+    const isCompraPreditiva = planoRaw === "preditiva"
+      || normalizarPacote(planoRaw) === PACOTE_PREDITIVA_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PREDITIVA_NOME)
+      || normalizarPacote(planoRaw) === "regressoes-e-correlacoes";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
       || isCompraCapabilidade
       || isCompraEstatistica
       || isCompraInferencial
-      || isCompraCep;
+      || isCompraCep
+      || isCompraPreditiva;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5175,6 +5198,7 @@ async function startServer() {
         PACOTE_ESTATISTICA_NOME, PACOTE_ESTATISTICA_ID,
         PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID, PACOTE_INFERENCIAL_ID_NORMALIZADO,
         PACOTE_CEP_NOME, PACOTE_CEP_ID, CURSO_CEP_NOME,
+        PACOTE_PREDITIVA_NOME, PACOTE_PREDITIVA_ID,
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5187,14 +5211,15 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
       : isCompraInferencial ? "analise-inferencial"
-      : isCompraCep ? "cep" : "gratuito";
+      : isCompraCep ? "cep"
+      : isCompraPreditiva ? "preditiva" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5208,13 +5233,16 @@ async function startServer() {
     const CURSO_ESTATISTICA = PACOTE_ESTATISTICA_NOME;
     const CURSO_INFERENCIAL = PACOTE_INFERENCIAL_NOME;
     const CURSO_CONTROLE_ESTATISTICO = CURSO_CEP_NOME;
+    const CURSO_PREDITIVA = PACOTE_PREDITIVA_NOME;
     const nomePacoteComercial = isCompraCapabilidade
       ? PACOTE_CAPABILIDADE_NOME
       : isCompraEstatistica
         ? PACOTE_ESTATISTICA_NOME
         : isCompraInferencial
           ? PACOTE_INFERENCIAL_NOME
-          : isCompraCep ? PACOTE_CEP_NOME : planoSolicitado;
+          : isCompraCep
+            ? PACOTE_CEP_NOME
+            : isCompraPreditiva ? PACOTE_PREDITIVA_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraCapabilidade
       ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
       : isCompraEstatistica
@@ -5223,6 +5251,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_INFERENCIAL_ID, pacoteNome: PACOTE_INFERENCIAL_NOME }
         : isCompraCep
           ? { pacoteId: PACOTE_CEP_ID, pacoteNome: PACOTE_CEP_NOME }
+        : isCompraPreditiva
+          ? { pacoteId: PACOTE_PREDITIVA_ID, pacoteNome: PACOTE_PREDITIVA_NOME }
         : {};
     const nomePlanoResposta = isCompraCapabilidade
       ? PACOTE_CAPABILIDADE_NOME
@@ -5230,8 +5260,10 @@ async function startServer() {
         ? PACOTE_ESTATISTICA_NOME
         : isCompraInferencial
           ? PACOTE_INFERENCIAL_NOME
-          : isCompraCep ? PACOTE_CEP_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep
+          : isCompraCep
+            ? PACOTE_CEP_NOME
+            : isCompraPreditiva ? PACOTE_PREDITIVA_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     const cursoComprado = planoSolicitado === "completo"
@@ -5240,7 +5272,8 @@ async function startServer() {
         ? CURSO_CAPABILIDADE
         : isCompraEstatistica ? CURSO_ESTATISTICA
         : isCompraInferencial ? CURSO_INFERENCIAL
-        : isCompraCep ? CURSO_CONTROLE_ESTATISTICO : CURSO_KIT_90;
+        : isCompraCep ? CURSO_CONTROLE_ESTATISTICO
+        : isCompraPreditiva ? CURSO_PREDITIVA : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [{ modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 }]
       : isCompraEstatistica
@@ -5257,6 +5290,12 @@ async function startServer() {
       : isCompraCep
         ? [
             { modulo: "cep", nome: "Controle de Processo", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          ]
+      : isCompraPreditiva
+        ? [
+            { modulo: "preditiva", nome: "Análise Preditiva", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           ]
@@ -5534,6 +5573,35 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "cep", contexto: "existente" });
         console.log(`[acesso/liberar] CEP ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "cep-liberado", uid, email, plano: PACOTE_CEP_NOME, pacoteId: PACOTE_CEP_ID, pacoteNome: PACOTE_CEP_NOME, emailEnviado });
+      }
+
+      // COMPRA de Análise Preditiva - Regressão e Correlação: preserva cursos
+      // anteriores e libera Análise Preditiva, Gráficos e Análises Diversas.
+      if (isCompraPreditiva) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosPreditiva = new Set(["preditiva", "graficos", "diversas"]);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosPreditiva.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_PREDITIVA_NOME,
+          pacoteId: PACOTE_PREDITIVA_ID,
+          pacoteNome: PACOTE_PREDITIVA_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "preditiva", contexto: "existente" });
+        console.log(`[acesso/liberar] ANALISE PREDITIVA ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "analise-preditiva-liberada", uid, email, plano: PACOTE_PREDITIVA_NOME, pacoteId: PACOTE_PREDITIVA_ID, pacoteNome: PACOTE_PREDITIVA_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
