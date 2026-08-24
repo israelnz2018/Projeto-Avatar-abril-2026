@@ -5091,7 +5091,10 @@ async function startServer() {
     //   'trilha1'   -> COMPRA da Trilha 1 (R$67). Acesso = mesma Trilha 1 do grátis,
     //                  mas conta como venda (origem + validade 1 ano).
     //   'gratuito'  -> Trilha 1 grátis (fluxo antigo). Default.
-    const planoRaw = String(body.plano || "").toLowerCase().trim();
+    const nomeProdutoHotmart = String(body?.data?.product?.name || "").trim();
+    // O plano pode vir normalizado pelo n8n ou, como fallback seguro, do nome
+    // real do produto enviado pela Hotmart.
+    const planoRaw = String(body.plano || nomeProdutoHotmart || "").toLowerCase().trim();
     const isCompraTrilha1 = planoRaw === "trilha1" || planoRaw === "trilha-1" || planoRaw === "trilha1-pago";
     const PACOTE_CAPABILIDADE_ID = "capabilidade-processo-avancado";
     const PACOTE_CAPABILIDADE_NOME = "Capabilidade de Processo Avançado";
@@ -5099,6 +5102,7 @@ async function startServer() {
     // Compatibilidade: o fluxo antigo pode ainda enviar "capabilidade".
     // O novo fluxo deve enviar o ID ou o nome oficial do pacote.
     const isCompraCapabilidade = planoRaw === "capabilidade"
+      || normalizarPacote(planoRaw) === "capabilidade-de-processo"
       || normalizarPacote(planoRaw) === PACOTE_CAPABILIDADE_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CAPABILIDADE_NOME);
     const PACOTE_ESTATISTICA_ID = "estatistica-aplicada-ferramentas-qualidade";
@@ -5106,6 +5110,17 @@ async function startServer() {
     const isCompraEstatistica = planoRaw === "estatistica-aplicada"
       || normalizarPacote(planoRaw) === PACOTE_ESTATISTICA_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ESTATISTICA_NOME);
+    const planoConhecido = planoRaw === "completo"
+      || planoRaw === "gratuito"
+      || isCompraTrilha1
+      || isCompraCapabilidade
+      || isCompraEstatistica;
+    if (!planoConhecido) {
+      return res.status(422).json({
+        error: "Produto Hotmart não mapeado.",
+        produto: nomeProdutoHotmart || planoRaw || null,
+      });
+    }
     const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
