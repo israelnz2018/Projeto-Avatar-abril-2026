@@ -5128,8 +5128,10 @@ async function startServer() {
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ESTATISTICA_NOME);
     const PACOTE_INFERENCIAL_ID = "analise-inferencial-testes-hipoteses";
     const PACOTE_INFERENCIAL_NOME = "Análise Inferencial - Testes de Hipóteses";
+    const PACOTE_INFERENCIAL_ID_NORMALIZADO = "analise-inferencial-testes-de-hipoteses";
     const isCompraInferencial = planoRaw === "analise-inferencial"
       || normalizarPacote(planoRaw) === PACOTE_INFERENCIAL_ID
+      || normalizarPacote(planoRaw) === PACOTE_INFERENCIAL_ID_NORMALIZADO
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_INFERENCIAL_NOME)
       || normalizarPacote(planoRaw) === "teste-de-hipoteses"
       || normalizarPacote(planoRaw) === "testes-de-hipoteses";
@@ -5147,7 +5149,7 @@ async function startServer() {
         "completo", "gratuito", "trilha1",
         PACOTE_CAPABILIDADE_NOME, PACOTE_CAPABILIDADE_ID,
         PACOTE_ESTATISTICA_NOME, PACOTE_ESTATISTICA_ID,
-        PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID,
+        PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID, PACOTE_INFERENCIAL_ID_NORMALIZADO,
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
