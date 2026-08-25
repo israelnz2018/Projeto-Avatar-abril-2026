@@ -18,6 +18,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   if (nome.includes('capabilidade de processo')) {
     moduloEspecifico = 'Capabilidade';
     precoSugerido = 147;
+    checkoutSugerido = 'https://pay.hotmart.com/A98677506M';
     descricao = 'Aprenda a gerar e interpretar estudos de capabilidade para avaliar se o processo consegue atender às especificações.';
   } else if (nome.includes('estatistica aplicada') && nome.includes('ferramentas da qualidade')) {
     precoSugerido = 97;
