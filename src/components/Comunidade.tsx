@@ -954,6 +954,26 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         </div>
       </div>
 
+      {/* Busca — logo abaixo do cabeçalho, antes de tudo o mais */}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por texto, pessoa, ferramenta ou vídeo…"
+          className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {busca && (
+          <button
+            onClick={() => setBusca('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 bg-transparent border-none cursor-pointer"
+            title="Limpar busca"
+          >
+            <X size={15} />
+          </button>
+        )}
+      </div>
+
       {/* Nova mensagem — pergunta, sugestão, comentário ou bug.
           Faltava por completo: criarPost só era chamado pelo seed de demonstração,
           nunca por uma ação do usuário. */}
@@ -1039,26 +1059,6 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         </div>
       )}
 
-
-      {/* Busca */}
-      <div className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
-          placeholder="Buscar por texto, pessoa, ferramenta ou vídeo…"
-          className="w-full pl-9 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        {busca && (
-          <button
-            onClick={() => setBusca('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 bg-transparent border-none cursor-pointer"
-            title="Limpar busca"
-          >
-            <X size={15} />
-          </button>
-        )}
-      </div>
 
       {/* Barra de visualização + filtro por tipo */}
       <div className="flex items-center justify-between gap-2 mb-5 flex-wrap">
