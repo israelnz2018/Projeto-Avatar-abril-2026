@@ -32,14 +32,19 @@ import {
 import { getAllKnowledge, getInstitutionalKnowledge, KnowledgeEntry } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { LockedToolPopup } from './LockedToolPopup';
+import { CoursePurchasePopup } from './CoursePurchasePopup';
 import SlimSelect from 'slim-select';
 import 'slim-select/styles';
 import { logAnalysisRun } from '../services/eventLogger';
 import { ANALYTICS_MODULOS, acessoAnalyticsDoAluno } from '../services/analyticsModules';
+import { getCourses } from '../services/configService';
+import { getCourseNameForAnalyticsModule, getCourseOfferDefaults } from '../services/courseOfferService';
+import { courseNamesMatch } from '../lib/courseAccess';
+import { resolveConsultorId } from '../services/consultorService';
 import DataAnalysisTour from './DataAnalysisTour';
 import { HelpCircle, Sparkles, FileDown, Save } from 'lucide-react';
 import { createProject, getUserProjects } from '../services/projectService';
-import type { Project } from '../types';
+import type { Initiative, Project } from '../types';
 
 /**
  * Backend de análises (Python — repo israelnz2018/Analises no Railway), acessado SEMPRE
@@ -401,6 +406,9 @@ export default function DataAnalysis() {
     acessoProdutos,
   } = useUserAccess();
   const [lockedAnalisePopupOpen, setLockedAnalisePopupOpen] = useState(false);
+  const [lockedAnaliseNome, setLockedAnaliseNome] = useState('');
+  const [cursoParaCompra, setCursoParaCompra] = useState<Initiative | null>(null);
+  const [cursosOferta, setCursosOferta] = useState<Initiative[]>([]);
   // Trabalho ainda não gravado no projeto. Sem isso, sair da tela (ou fechar o app)
   // descartava as análises em silêncio — elas só vivem em memória até o "Salvar".
   // Âncora do botão "Enviar Análise". Ao gerar, a página rola até aqui: o botão fica
@@ -430,6 +438,10 @@ export default function DataAnalysis() {
   const [novoProjetoTitulo, setNovoProjetoTitulo] = useState('');
   const [projetoDestinoSalvar, setProjetoDestinoSalvar] = useState<Project | null>(null);
   const [planilhaDestinoSalvar, setPlanilhaDestinoSalvar] = useState<PlanilhaInfo | null>(null);
+
+  useEffect(() => {
+    getCourses().then(setCursosOferta).catch(() => setCursosOferta([]));
+  }, []);
 
   useEffect(() => {
     // Vídeos institucionais (ex.: os 4 fixos de "como usar a plataforma") ficam disponíveis
@@ -539,6 +551,30 @@ export default function DataAnalysis() {
   // pertencem a outro módulo liberado) e outros travados — parecia aleatório.
   // Agora cada item obedece só o módulo do menu em que está sendo mostrado.
   const isAnalysisLocked = (grupo: string) => !grupoLiberado(grupo);
+
+  const abrirAnaliseBloqueada = (grupo: string) => {
+    const modulo = ANALYTICS_MODULOS.find((item) => item.grupo === grupo);
+    const recursoNome = modulo?.nome || grupo;
+    const courseName = modulo ? getCourseNameForAnalyticsModule(modulo.id) : undefined;
+    const course = courseName
+      ? cursosOferta.find((item) => courseNamesMatch(item.name, courseName))
+      : undefined;
+
+    if (course && courseName) {
+      const padrao = getCourseOfferDefaults(courseName);
+      const usarPadraoIsrael = resolveConsultorId() === 'israel';
+      const precoVenda = Number(course.precoVenda ?? (usarPadraoIsrael ? padrao.precoSugerido : 0) ?? 0);
+      const hotmartCheckoutUrl = String(course.hotmartCheckoutUrl || (usarPadraoIsrael ? padrao.checkoutSugerido : '') || '');
+      const vendaAtiva = course.vendaAtiva ?? Boolean(usarPadraoIsrael && padrao.checkoutSugerido);
+      if (vendaAtiva && precoVenda > 0 && hotmartCheckoutUrl.startsWith('https://pay.hotmart.com/')) {
+        setCursoParaCompra({ ...course, precoVenda, hotmartCheckoutUrl });
+        return;
+      }
+    }
+
+    setLockedAnaliseNome(recursoNome);
+    setLockedAnalisePopupOpen(true);
+  };
 
   // Vídeos educacionais FIXOS sobre como usar variáveis X e Y na aba Data Analysis.
   // Aparecem sempre, independente da análise selecionada. Click → toca no player inline.
@@ -1623,6 +1659,11 @@ export default function DataAnalysis() {
       <LockedToolPopup
         isOpen={lockedAnalisePopupOpen}
         onClose={() => setLockedAnalisePopupOpen(false)}
+        recursoNome={lockedAnaliseNome}
+      />
+      <CoursePurchasePopup
+        course={cursoParaCompra}
+        onClose={() => setCursoParaCompra(null)}
       />
       {/* Header & Navigation Combined (Internal Workspace Header) */}
       <header className="bg-[#1f2937] text-white px-[20px] py-[10px] flex justify-between items-center border-b border-[#ccc] -mx-8 -mt-8 mb-8">
@@ -1673,7 +1714,7 @@ export default function DataAnalysis() {
                                   <li key={sub}>
                                     <button
                                       onClick={() => {
-                                        if (subLocked) { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); setActiveNestedMenu(null); return; }
+                                        if (subLocked) { abrirAnaliseBloqueada(grupo); setActiveSubmenu(null); setActiveNestedMenu(null); return; }
                                         setFerramentaAtual(sub);
                                         setGrupoAtual(grupo);
                                         setToolParams({});
@@ -1697,7 +1738,7 @@ export default function DataAnalysis() {
                           return (
                             <button
                               onClick={() => {
-                                if (itemLocked) { setLockedAnalisePopupOpen(true); setActiveSubmenu(null); return; }
+                                if (itemLocked) { abrirAnaliseBloqueada(grupo); setActiveSubmenu(null); return; }
                                 setFerramentaAtual(item.nome);
                                 setGrupoAtual(grupo);
                                 setToolParams({});

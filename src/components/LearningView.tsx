@@ -162,9 +162,10 @@ export default function LearningView() {
   const abrirCursoBloqueado = (courseName: string) => {
     const course = allInitiatives.find(item => courseNamesMatch(item.name, courseName));
     const padrao = getCourseOfferDefaults(courseName);
-    const precoVenda = Number(course?.precoVenda || padrao.precoSugerido || 0);
-    const hotmartCheckoutUrl = String(course?.hotmartCheckoutUrl || padrao.checkoutSugerido || '');
-    const vendaAtiva = course?.vendaAtiva ?? Boolean(padrao.checkoutSugerido);
+    const usarPadraoIsrael = consultorAtual === 'israel';
+    const precoVenda = Number(course?.precoVenda ?? (usarPadraoIsrael ? padrao.precoSugerido : 0) ?? 0);
+    const hotmartCheckoutUrl = String(course?.hotmartCheckoutUrl || (usarPadraoIsrael ? padrao.checkoutSugerido : '') || '');
+    const vendaAtiva = course?.vendaAtiva ?? Boolean(usarPadraoIsrael && padrao.checkoutSugerido);
     const vendaConfigurada = vendaAtiva
       && precoVenda > 0
       && hotmartCheckoutUrl.startsWith('https://pay.hotmart.com/');

@@ -1,5 +1,18 @@
 import { normalizeCourseName } from '../lib/courseAccess';
 
+const COURSE_NAME_BY_ANALYTICS_MODULE: Record<string, string> = {
+  graficos: 'Estatística Aplicada e Ferramentas da Qualidade',
+  diversas: 'Estatística Aplicada e Ferramentas da Qualidade',
+  inferencial: 'Análise Inferencial - Testes de Hipóteses',
+  preditiva: 'Análise Preditiva - Regressões, Correlações e Séries Temporais',
+  cep: 'CEP - Controle Estatístico de Processo',
+  capabilidade: 'Capabilidade de Processo Avançado',
+};
+
+export function getCourseNameForAnalyticsModule(moduleId: string): string | undefined {
+  return COURSE_NAME_BY_ANALYTICS_MODULE[moduleId];
+}
+
 export interface CourseOfferDefaults {
   descricao: string;
   moduloEspecifico?: string;
