@@ -25,6 +25,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   } else if (nome.includes('analise inferencial') || nome.includes('teste de hipotes')) {
     moduloEspecifico = 'Análise Inferencial';
     precoSugerido = 147;
+    checkoutSugerido = 'https://pay.hotmart.com/S98917902U';
     descricao = 'Aprenda a selecionar, executar e interpretar testes de hipóteses para tomar decisões com evidências.';
   } else if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
     moduloEspecifico = 'Controle de Processo';
