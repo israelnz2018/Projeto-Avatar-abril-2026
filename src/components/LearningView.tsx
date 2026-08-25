@@ -187,6 +187,15 @@ export default function LearningView() {
   };
   const isVideoLocked = (item: KnowledgeEntry) => !accessiblePlacementFor(item);
 
+  // Se um vídeo estiver associado a vários cursos e o aluno não possuir nenhum,
+  // usa somente o primeiro posicionamento da lista para decidir qual oferta abrir.
+  // A identidade é do vídeo no Bunny, então a regra independe de título ou playlist.
+  const abrirVideoBloqueado = (item: KnowledgeEntry) => {
+    const identity = videoIdentity(item);
+    const primeiroPosicionamento = items.find(candidate => videoIdentity(candidate) === identity);
+    abrirCursoBloqueado(primeiroPosicionamento?.course || item.course);
+  };
+
   useEffect(() => {
     if (loadingAcesso) return;
     fetchItems();
@@ -513,10 +522,6 @@ export default function LearningView() {
             <motion.button
               key={cat}
               onClick={() => {
-                if (trilhaLocked) {
-                  abrirCursoBloqueado(cat);
-                  return;
-                }
                 setActiveCategory(cat);
                 setActivePlaylist('Todas');
               }}
@@ -739,7 +744,7 @@ export default function LearningView() {
                   )}
                   onClick={() => {
                     if (videoLocked) {
-                      abrirCursoBloqueado(item.course);
+                      abrirVideoBloqueado(item);
                       return;
                     }
                     if (!isSelected && item.id) logVideoPlayed(item.id, item.title, item.course);
