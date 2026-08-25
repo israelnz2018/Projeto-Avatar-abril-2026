@@ -10,6 +10,7 @@ Catálogo sem credenciais ou tokens. As URLs abaixo são públicas por natureza;
 | Controle Estatístico de Processo | Controle Estatístico de Processo | `https://primary-production-1d53.up.railway.app/webhook/controleestatistico` | Em configuração |
 | Análise Preditiva - Regressões, Correlações e Séries Temporais | Análise Preditiva - Regressões, Correlações e Séries Temporais | `https://primary-production-1d53.up.railway.app/webhook/analisepreditiva` | Em configuração |
 | MSA - Análise do Sistema de Medição | MSA - Análise do Sistema de Medição | `https://primary-production-1d53.up.railway.app/webhook/analisedemedicao` | Em configuração |
+| Como Resolver Problemas no Trabalho - Kit 90 dias | Como Resolver Problemas no Trabalho - Kit 90 dias | `https://primary-production-1d53.up.railway.app/webhook/kit90dias` | Em configuração |
 
 ## Padrão de cadastro
 

@@ -5208,10 +5208,16 @@ async function startServer() {
     // O plano pode vir normalizado pelo n8n ou, como fallback seguro, do nome
     // real do produto enviado pela Hotmart.
     const planoRaw = String(body.plano || nomeProdutoHotmart || "").toLowerCase().trim();
-    const isCompraTrilha1 = planoRaw === "trilha1" || planoRaw === "trilha-1" || planoRaw === "trilha1-pago";
+    const normalizarPacote = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+    const PACOTE_KIT90_ID = "como-resolver-problemas-no-trabalho-kit-90-dias";
+    const PACOTE_KIT90_NOME = "Como Resolver Problemas no Trabalho - Kit 90 dias";
+    const isCompraTrilha1 = planoRaw === "trilha1"
+      || planoRaw === "trilha-1"
+      || planoRaw === "trilha1-pago"
+      || normalizarPacote(planoRaw) === PACOTE_KIT90_ID
+      || normalizarPacote(planoRaw) === "kit-90-dias";
     const PACOTE_CAPABILIDADE_ID = "capabilidade-processo-avancado";
     const PACOTE_CAPABILIDADE_NOME = "Capabilidade de Processo Avançado";
-    const normalizarPacote = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
     // Compatibilidade: o fluxo antigo pode ainda enviar "capabilidade".
     // O novo fluxo deve enviar o ID ou o nome oficial do pacote.
     const isCompraCapabilidade = planoRaw === "capabilidade"
@@ -5272,7 +5278,7 @@ async function startServer() {
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
       // log dá pra mapear o produto e reprocessar.
       const aceitos = [
-        "completo", "gratuito", "trilha1",
+        "completo", "gratuito", "trilha1", PACOTE_KIT90_NOME, PACOTE_KIT90_ID,
         PACOTE_CAPABILIDADE_NOME, PACOTE_CAPABILIDADE_ID,
         PACOTE_ESTATISTICA_NOME, PACOTE_ESTATISTICA_ID,
         PACOTE_INFERENCIAL_NOME, PACOTE_INFERENCIAL_ID, PACOTE_INFERENCIAL_ID_NORMALIZADO,
@@ -5309,7 +5315,7 @@ async function startServer() {
       return res.status(400).json({ error: "E-mail ausente ou inválido no payload." });
     }
 
-    const CURSO_KIT_90 = "Como Resolver Problemas no Trabalho - Kit 90 dias";
+    const CURSO_KIT_90 = PACOTE_KIT90_NOME;
     const CURSO_ESPECIALISTA = "Como Se Tornar um Especialista em Gestão de Projetos de Melhoria";
     const CURSO_CAPABILIDADE = PACOTE_CAPABILIDADE_NOME;
     const CURSO_ESTATISTICA = PACOTE_ESTATISTICA_NOME;
@@ -5317,8 +5323,9 @@ async function startServer() {
     const CURSO_CONTROLE_ESTATISTICO = CURSO_CEP_NOME;
     const CURSO_PREDITIVA = PACOTE_PREDITIVA_NOME;
     const CURSO_MSA = CURSO_MSA_NOME;
-    const nomePacoteComercial = isCompraCapabilidade
-      ? PACOTE_CAPABILIDADE_NOME
+    const nomePacoteComercial = isCompraTrilha1
+      ? PACOTE_KIT90_NOME
+      : isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME
       : isCompraEstatistica
         ? PACOTE_ESTATISTICA_NOME
         : isCompraInferencial
@@ -5328,8 +5335,9 @@ async function startServer() {
             : isCompraPreditiva
               ? PACOTE_PREDITIVA_NOME
               : isCompraMsa ? PACOTE_MSA_NOME : planoSolicitado;
-    const dadosPacoteComercial = isCompraCapabilidade
-      ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
+    const dadosPacoteComercial = isCompraTrilha1
+      ? { pacoteId: PACOTE_KIT90_ID, pacoteNome: PACOTE_KIT90_NOME }
+      : isCompraCapabilidade ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
       : isCompraEstatistica
         ? { pacoteId: PACOTE_ESTATISTICA_ID, pacoteNome: PACOTE_ESTATISTICA_NOME }
         : isCompraInferencial
@@ -5341,8 +5349,9 @@ async function startServer() {
         : isCompraMsa
           ? { pacoteId: PACOTE_MSA_ID, pacoteNome: PACOTE_MSA_NOME }
         : {};
-    const nomePlanoResposta = isCompraCapabilidade
-      ? PACOTE_CAPABILIDADE_NOME
+    const nomePlanoResposta = isCompraTrilha1
+      ? PACOTE_KIT90_NOME
+      : isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME
       : isCompraEstatistica
         ? PACOTE_ESTATISTICA_NOME
         : isCompraInferencial
@@ -5750,14 +5759,16 @@ async function startServer() {
         const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
         await salvarAcessoIsrael({
           plano: "por_curso",
-          planoComercialLegado: "gratuito",
+          planoComercialLegado: PACOTE_KIT90_NOME,
+          pacoteId: PACOTE_KIT90_ID,
+          pacoteNome: PACOTE_KIT90_NOME,
           modeloAcesso: "por_curso",
           cursosAcesso: cursosMesclados,
           cursosLiberados: cursosMesclados.map((c: any) => c.curso),
           origem: "compra-trilha1",
         });
         console.log(`[acesso/liberar] COMPRA-TRILHA1 (ja existia) ${email}`);
-        return res.json({ ok: true, status: "compra-trilha1-registrada", uid, email, plano: planoAtual });
+        return res.json({ ok: true, status: "compra-trilha1-registrada", uid, email, plano: PACOTE_KIT90_NOME, pacoteId: PACOTE_KIT90_ID, pacoteNome: PACOTE_KIT90_NOME });
       }
 
       // Materializa usuários legados no modelo de vínculos, mesmo sem mudança de plano.
