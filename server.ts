@@ -180,7 +180,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,14 +197,15 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
       params.plano === "estatistica-aplicada" ? "estatistica-aplicada" :
       params.plano === "analise-inferencial" ? "analise-inferencial" :
       params.plano === "cep" ? "cep" :
-      params.plano === "preditiva" ? "preditiva" : "gratis";
+      params.plano === "preditiva" ? "preditiva" :
+      params.plano === "msa" ? "msa" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -322,6 +323,21 @@ async function startServer() {
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Análise Preditiva - Regressões, Correlações e Séries Temporais</strong> — aulas e exercícios para analisar relações e fazer previsões com dados.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — Análise Preditiva, Gráficos e Análises Diversas</strong> — realize e interprete suas análises estatísticas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
+    } else if (tipo === "msa") {
+      titulo = "Seu acesso à Análise do Sistema de Medição está liberado 🚀";
+      planoLabel = "MSA - Análise do Sistema de Medição";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>MSA - Análise do Sistema de Medição</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso MSA - Análise do Sistema de Medição</strong> — aulas e exercícios para avaliar a confiabilidade dos sistemas de medição.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Data Analysis — MSA, Gráficos e Análises Diversas</strong> — realize e interprete estudos para dados contínuos e discretos.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
         ${dashboardBloco}
@@ -5233,6 +5249,15 @@ async function startServer() {
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PREDITIVA_NOME)
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PREDITIVA_NOME_ANTIGO)
       || normalizarPacote(planoRaw) === "regressoes-e-correlacoes";
+    const PACOTE_MSA_ID = "msa-analise-sistema-medicao";
+    const PACOTE_MSA_NOME = "MSA - Análise do Sistema de Medição";
+    const CURSO_MSA_NOME = "MSA- Análise  do Sistema de Medição";
+    const isCompraMsa = planoRaw === "msa"
+      || normalizarPacote(planoRaw) === PACOTE_MSA_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_MSA_NOME)
+      || normalizarPacote(planoRaw) === normalizarPacote(CURSO_MSA_NOME)
+      || normalizarPacote(planoRaw) === "analise-de-medicao"
+      || normalizarPacote(planoRaw) === "analise-do-sistema-de-medicao";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
@@ -5240,7 +5265,8 @@ async function startServer() {
       || isCompraEstatistica
       || isCompraInferencial
       || isCompraCep
-      || isCompraPreditiva;
+      || isCompraPreditiva
+      || isCompraMsa;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5253,6 +5279,7 @@ async function startServer() {
         PACOTE_CEP_NOME, PACOTE_CEP_ID, CURSO_CEP_NOME,
         PACOTE_PREDITIVA_NOME, PACOTE_PREDITIVA_ID,
         PACOTE_PREDITIVA_NOME_ANTIGO, PACOTE_PREDITIVA_ID_ANTIGO,
+        PACOTE_MSA_NOME, PACOTE_MSA_ID, CURSO_MSA_NOME,
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5265,15 +5292,16 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
       : isCompraInferencial ? "analise-inferencial"
       : isCompraCep ? "cep"
-      : isCompraPreditiva ? "preditiva" : "gratuito";
+      : isCompraPreditiva ? "preditiva"
+      : isCompraMsa ? "msa" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5288,6 +5316,7 @@ async function startServer() {
     const CURSO_INFERENCIAL = PACOTE_INFERENCIAL_NOME;
     const CURSO_CONTROLE_ESTATISTICO = CURSO_CEP_NOME;
     const CURSO_PREDITIVA = PACOTE_PREDITIVA_NOME;
+    const CURSO_MSA = CURSO_MSA_NOME;
     const nomePacoteComercial = isCompraCapabilidade
       ? PACOTE_CAPABILIDADE_NOME
       : isCompraEstatistica
@@ -5296,7 +5325,9 @@ async function startServer() {
           ? PACOTE_INFERENCIAL_NOME
           : isCompraCep
             ? PACOTE_CEP_NOME
-            : isCompraPreditiva ? PACOTE_PREDITIVA_NOME : planoSolicitado;
+            : isCompraPreditiva
+              ? PACOTE_PREDITIVA_NOME
+              : isCompraMsa ? PACOTE_MSA_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraCapabilidade
       ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
       : isCompraEstatistica
@@ -5307,6 +5338,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_CEP_ID, pacoteNome: PACOTE_CEP_NOME }
         : isCompraPreditiva
           ? { pacoteId: PACOTE_PREDITIVA_ID, pacoteNome: PACOTE_PREDITIVA_NOME }
+        : isCompraMsa
+          ? { pacoteId: PACOTE_MSA_ID, pacoteNome: PACOTE_MSA_NOME }
         : {};
     const nomePlanoResposta = isCompraCapabilidade
       ? PACOTE_CAPABILIDADE_NOME
@@ -5316,8 +5349,10 @@ async function startServer() {
           ? PACOTE_INFERENCIAL_NOME
           : isCompraCep
             ? PACOTE_CEP_NOME
-            : isCompraPreditiva ? PACOTE_PREDITIVA_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva
+            : isCompraPreditiva
+              ? PACOTE_PREDITIVA_NOME
+              : isCompraMsa ? PACOTE_MSA_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     const cursoComprado = planoSolicitado === "completo"
@@ -5327,7 +5362,8 @@ async function startServer() {
         : isCompraEstatistica ? CURSO_ESTATISTICA
         : isCompraInferencial ? CURSO_INFERENCIAL
         : isCompraCep ? CURSO_CONTROLE_ESTATISTICO
-        : isCompraPreditiva ? CURSO_PREDITIVA : CURSO_KIT_90;
+        : isCompraPreditiva ? CURSO_PREDITIVA
+        : isCompraMsa ? CURSO_MSA : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [
           { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
@@ -5354,6 +5390,12 @@ async function startServer() {
       : isCompraPreditiva
         ? [
             { modulo: "preditiva", nome: "Análise Preditiva", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+            { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          ]
+      : isCompraMsa
+        ? [
+            { modulo: "msa", nome: "MSA", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           ]
@@ -5660,6 +5702,35 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "preditiva", contexto: "existente" });
         console.log(`[acesso/liberar] ANALISE PREDITIVA ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "analise-preditiva-liberada", uid, email, plano: PACOTE_PREDITIVA_NOME, pacoteId: PACOTE_PREDITIVA_ID, pacoteNome: PACOTE_PREDITIVA_NOME, emailEnviado });
+      }
+
+      // COMPRA de MSA - Análise do Sistema de Medição: preserva cursos
+      // anteriores e libera MSA, Gráficos e Análises Diversas.
+      if (isCompraMsa) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosMsa = new Set(["msa", "graficos", "diversas"]);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosMsa.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_MSA_NOME,
+          pacoteId: PACOTE_MSA_ID,
+          pacoteNome: PACOTE_MSA_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "msa", contexto: "existente" });
+        console.log(`[acesso/liberar] MSA ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "msa-liberado", uid, email, plano: PACOTE_MSA_NOME, pacoteId: PACOTE_MSA_ID, pacoteNome: PACOTE_MSA_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente

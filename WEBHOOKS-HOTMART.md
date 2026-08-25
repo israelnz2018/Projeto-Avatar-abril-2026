@@ -9,6 +9,7 @@ Catálogo sem credenciais ou tokens. As URLs abaixo são públicas por natureza;
 | Análise Inferencial - Testes de Hipóteses | Análise Inferencial - Testes de Hipóteses | `https://primary-production-1d53.up.railway.app/webhook/testedehipotesis` | Em configuração |
 | Controle Estatístico de Processo | Controle Estatístico de Processo | `https://primary-production-1d53.up.railway.app/webhook/controleestatistico` | Em configuração |
 | Análise Preditiva - Regressões, Correlações e Séries Temporais | Análise Preditiva - Regressões, Correlações e Séries Temporais | `https://primary-production-1d53.up.railway.app/webhook/analisepreditiva` | Em configuração |
+| MSA - Análise do Sistema de Medição | MSA - Análise do Sistema de Medição | `https://primary-production-1d53.up.railway.app/webhook/analisedemedicao` | Em configuração |
 
 ## Padrão de cadastro
 
