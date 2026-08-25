@@ -33,6 +33,21 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   const nome = normalizeCourseName(courseName);
   const acessosMantidos = ['Comunidade LBW', 'IA Digital', 'Relatórios e PowerPoint'];
 
+  if (nome.includes('como resolver problemas no trabalho') || nome.includes('kit 90 dias')) {
+    return {
+      tituloPacote: 'Curso completo + jornada prática dos primeiros 90 dias',
+      ementa: [
+        'Como entender rapidamente uma nova área de trabalho',
+        'Identificação e priorização dos problemas mais relevantes',
+        'Estruturação da primeira oportunidade de melhoria',
+        'Aplicação prática de SIPOC, RACI e ferramentas de gestão',
+        'Plano de ação para gerar resultados e ganhar visibilidade',
+        'Checklist com atividades para acompanhar sua evolução',
+      ],
+      acessosMantidos: ['Comunidade LBW', 'IA Digital', 'Dashboard de progresso'],
+    };
+  }
+
   if (nome.includes('capabilidade de processo')) {
     return {
       tituloPacote: 'Curso completo + módulo Capabilidade de Processo no Software LBW',
@@ -133,7 +148,10 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   let checkoutSugerido: string | undefined;
   let descricao = 'Aprenda na prática com aulas completas, exercícios e os recursos integrados da plataforma LBW.';
 
-  if (nome.includes('capabilidade de processo')) {
+  if (nome.includes('como resolver problemas no trabalho') || nome.includes('kit 90 dias')) {
+    checkoutSugerido = 'https://pay.hotmart.com/J107328495S';
+    descricao = 'Aprenda a entender sua área, escolher o problema certo e entregar sua primeira melhoria nos primeiros 90 dias.';
+  } else if (nome.includes('capabilidade de processo')) {
     moduloEspecifico = 'Capabilidade';
     precoSugerido = 147;
     checkoutSugerido = 'https://pay.hotmart.com/A98677506M';
