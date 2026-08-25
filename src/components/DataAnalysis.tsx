@@ -726,11 +726,23 @@ export default function DataAnalysis() {
       setModalSairSemSalvar(true);
     };
 
+    // Válvula de escape. O interceptor acima engole o clique (capture +
+    // stopPropagation); se por qualquer motivo o modal não aparecer, a tela fica
+    // sem responder a clique nenhum e parece travada. Esc sempre devolve o
+    // controle: fecha o modal e desarma a guarda.
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key !== 'Escape') return;
+      destinoNavegacao.current = null;
+      setModalSairSemSalvar(false);
+    };
+
     window.addEventListener('beforeunload', aoFechar);
     document.addEventListener('click', aoClicar, true);
+    document.addEventListener('keydown', aoTeclar);
     return () => {
       window.removeEventListener('beforeunload', aoFechar);
       document.removeEventListener('click', aoClicar, true);
+      document.removeEventListener('keydown', aoTeclar);
     };
   }, [temTrabalhoNaoSalvo]);
 
@@ -2903,8 +2915,13 @@ export default function DataAnalysis() {
       </div>
       {/* Sair da tela com análise não salva */}
       {modalSairSemSalvar && (
-        <div className="fixed inset-0 bg-black/55 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        // Clique no fundo escuro fecha. Sem isso, se o card não renderizar por
+        // qualquer motivo, a tela fica escurecida e sem saída.
+        <div
+          className="fixed inset-0 bg-black/55 z-[1000] flex items-center justify-center p-4"
+          onClick={() => { destinoNavegacao.current = null; setModalSairSemSalvar(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-gray-200">
               <h3 className="text-lg font-black text-gray-900 m-0">Salvar antes de sair?</h3>
               <p className="text-sm text-gray-500 mt-1 mb-0">
@@ -2939,8 +2956,11 @@ export default function DataAnalysis() {
 
       {/* Criar projeto vazio (só quando não há nada pendente de salvar) */}
       {modalNovoProjeto && (
-        <div className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div
+          className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4"
+          onClick={() => { setModalNovoProjeto(false); setNovoProjetoTitulo(''); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-gray-200">
               <h3 className="text-lg font-black text-gray-900 m-0">Novo projeto</h3>
               <p className="text-sm text-gray-500 mt-1 mb-0">
@@ -2978,8 +2998,11 @@ export default function DataAnalysis() {
       )}
 
       {modalSelecionarProjeto && (
-        <div className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div
+          className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4"
+          onClick={() => setModalSelecionarProjeto(false)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
               <div>
                 <h3 className="text-lg font-black text-gray-900 m-0">Salvar projeto</h3>
