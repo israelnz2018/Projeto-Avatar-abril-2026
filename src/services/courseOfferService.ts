@@ -4,6 +4,7 @@ const COURSE_NAME_BY_ANALYTICS_MODULE: Record<string, string> = {
   graficos: 'Estatística Aplicada e Ferramentas da Qualidade',
   diversas: 'Estatística Aplicada e Ferramentas da Qualidade',
   inferencial: 'Análise Inferencial - Testes de Hipóteses',
+  msa: 'MSA- Análise  do Sistema de Medição',
   preditiva: 'Análise Preditiva - Regressões, Correlações e Séries Temporais',
   cep: 'CEP - Controle Estatístico de Processo',
   capabilidade: 'Capabilidade de Processo Avançado',
@@ -77,6 +78,21 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
     };
   }
 
+  if (nome.includes('sistema de medicao') || /^msa\b/.test(nome)) {
+    return {
+      tituloPacote: 'Curso completo + módulo MSA no Software LBW',
+      ementa: [
+        'Fundamentos e fontes de variação do sistema de medição',
+        'Gage R&R para dados contínuos',
+        'Repetibilidade e reprodutibilidade',
+        'Estudos de vício, linearidade e estabilidade',
+        'Concordância de atributos para dados discretos',
+        'Exercícios práticos utilizando o Software LBW',
+      ],
+      acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
+    };
+  }
+
   if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
     return {
       tituloPacote: 'Curso completo + módulo Controle Estatístico de Processo no Software LBW',
@@ -131,6 +147,10 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     precoSugerido = 147;
     checkoutSugerido = 'https://pay.hotmart.com/S98917902U';
     descricao = 'Aprenda a selecionar, executar e interpretar testes de hipóteses para tomar decisões com evidências.';
+  } else if (nome.includes('sistema de medicao') || /^msa\b/.test(nome)) {
+    moduloEspecifico = 'MSA';
+    checkoutSugerido = 'https://pay.hotmart.com/P107328090D';
+    descricao = 'Aprenda a avaliar a confiabilidade e a variação dos sistemas de medição para tomar decisões com dados confiáveis.';
   } else if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
     moduloEspecifico = 'Controle de Processo';
     precoSugerido = 147;
