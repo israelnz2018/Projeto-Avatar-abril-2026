@@ -13,6 +13,7 @@ import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } fro
 import { campanhaCortesiaHtml, CAMPANHA_ASSUNTO } from "./src/services/campanhaCortesiaEmail";
 import { DEFAULT_QUIZZES } from "./src/services/quizSeed";
 import { empresaIdDireto } from "./src/services/consultorService";
+import { ANALYTICS_MODULOS } from "./src/services/analyticsModules";
 import { TOOL_HANDLERS } from "./src/services/pptToolHandlers";
 import { setPptTemplateMode } from "./src/services/slideTemplate";
 import { addCoverSlide } from "./src/services/coverSlide";
@@ -180,7 +181,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -197,7 +198,7 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
@@ -205,7 +206,8 @@ async function startServer() {
       params.plano === "analise-inferencial" ? "analise-inferencial" :
       params.plano === "cep" ? "cep" :
       params.plano === "preditiva" ? "preditiva" :
-      params.plano === "msa" ? "msa" : "gratis";
+      params.plano === "msa" ? "msa" :
+      params.plano === "software-lbw" ? "software-lbw" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -343,6 +345,25 @@ async function startServer() {
         ${dashboardBloco}
         ${comunidadeBloco}
         <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
+    } else if (tipo === "software-lbw") {
+      // Plano SEM curso — só a plataforma. Por isso o texto não menciona
+      // "curso" nem "certificado" (o Software LBW Completo não inclui,
+      // conforme PLANO-PLATAFORMA-LBW.md).
+      titulo = "Seu acesso ao Software LBW Completo está liberado 🚀";
+      planoLabel = "Software LBW Completo";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao <strong>Software LBW Completo</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR O SOFTWARE LBW";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Todos os módulos de Data Analysis</strong> — Gráficos, Estatística Básica, Análise Exploratória, Inferencial, MSA, Preditiva, Controle de Processo e Capabilidade.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎥 <strong>Vídeos de orientação</strong> das análises e ferramentas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📁 <strong>Projetos livres</strong> — crie e salve quantos projetos precisar para organizar suas análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🖨️ <strong>Relatórios e apresentações PowerPoint</strong> geradas automaticamente a partir das suas análises.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Este plano não inclui os cursos da LBW Academy nem os projetos guiados Yellow, Green e Black Belt — só o Software LBW.</p>`;
     } else if (tipo === "capabilidade") {
       titulo = "Seu acesso à Capabilidade de Processo Avançado está liberado 🚀";
       planoLabel = "Capabilidade de Processo Avançado";
@@ -5264,6 +5285,17 @@ async function startServer() {
       || normalizarPacote(planoRaw) === normalizarPacote(CURSO_MSA_NOME)
       || normalizarPacote(planoRaw) === "analise-de-medicao"
       || normalizarPacote(planoRaw) === "analise-do-sistema-de-medicao";
+    // Software LBW Completo: NÃO libera curso nenhum (conferido em
+    // PLANO-PLATAFORMA-LBW.md: "Não inclui cursos da LBW Academy") — só os 8
+    // módulos de Data Analysis. Estruturalmente diferente dos demais pacotes,
+    // que sempre amarram exatamente 1 curso.
+    const PACOTE_SOFTWARE_ID = "software-lbw-completo";
+    const PACOTE_SOFTWARE_NOME = "Software LBW Completo";
+    const isCompraSoftware = planoRaw === "softwarelbw"
+      || planoRaw === "software-lbw"
+      || normalizarPacote(planoRaw) === PACOTE_SOFTWARE_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_SOFTWARE_NOME)
+      || normalizarPacote(planoRaw) === "software-lbw";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
@@ -5272,7 +5304,8 @@ async function startServer() {
       || isCompraInferencial
       || isCompraCep
       || isCompraPreditiva
-      || isCompraMsa;
+      || isCompraMsa
+      || isCompraSoftware;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5286,6 +5319,7 @@ async function startServer() {
         PACOTE_PREDITIVA_NOME, PACOTE_PREDITIVA_ID,
         PACOTE_PREDITIVA_NOME_ANTIGO, PACOTE_PREDITIVA_ID_ANTIGO,
         PACOTE_MSA_NOME, PACOTE_MSA_ID, CURSO_MSA_NOME,
+        PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw",
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5298,16 +5332,17 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
       : isCompraInferencial ? "analise-inferencial"
       : isCompraCep ? "cep"
       : isCompraPreditiva ? "preditiva"
-      : isCompraMsa ? "msa" : "gratuito";
+      : isCompraMsa ? "msa"
+      : isCompraSoftware ? "software-lbw" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5334,7 +5369,8 @@ async function startServer() {
             ? PACOTE_CEP_NOME
             : isCompraPreditiva
               ? PACOTE_PREDITIVA_NOME
-              : isCompraMsa ? PACOTE_MSA_NOME : planoSolicitado;
+              : isCompraMsa ? PACOTE_MSA_NOME
+              : isCompraSoftware ? PACOTE_SOFTWARE_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraTrilha1
       ? { pacoteId: PACOTE_KIT90_ID, pacoteNome: PACOTE_KIT90_NOME }
       : isCompraCapabilidade ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
@@ -5348,6 +5384,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_PREDITIVA_ID, pacoteNome: PACOTE_PREDITIVA_NOME }
         : isCompraMsa
           ? { pacoteId: PACOTE_MSA_ID, pacoteNome: PACOTE_MSA_NOME }
+        : isCompraSoftware
+          ? { pacoteId: PACOTE_SOFTWARE_ID, pacoteNome: PACOTE_SOFTWARE_NOME }
         : {};
     const nomePlanoResposta = isCompraTrilha1
       ? PACOTE_KIT90_NOME
@@ -5360,11 +5398,14 @@ async function startServer() {
             ? PACOTE_CEP_NOME
             : isCompraPreditiva
               ? PACOTE_PREDITIVA_NOME
-              : isCompraMsa ? PACOTE_MSA_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa
+              : isCompraMsa ? PACOTE_MSA_NOME
+              : isCompraSoftware ? PACOTE_SOFTWARE_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
-    const cursoComprado = planoSolicitado === "completo"
+    // Software LBW é o ÚNICO pacote sem curso — null de propósito. cursoAcessoComprado
+    // e mesclarCursoComprado abaixo tratam esse null como "não mexe em cursosAcesso".
+    const cursoComprado: string | null = planoSolicitado === "completo"
       ? CURSO_ESPECIALISTA
       : isCompraCapabilidade
         ? CURSO_CAPABILIDADE
@@ -5372,7 +5413,8 @@ async function startServer() {
         : isCompraInferencial ? CURSO_INFERENCIAL
         : isCompraCep ? CURSO_CONTROLE_ESTATISTICO
         : isCompraPreditiva ? CURSO_PREDITIVA
-        : isCompraMsa ? CURSO_MSA : CURSO_KIT_90;
+        : isCompraMsa ? CURSO_MSA
+        : isCompraSoftware ? null : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [
           { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
@@ -5408,15 +5450,26 @@ async function startServer() {
             { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
             { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           ]
+      // Software LBW: TODOS os módulos, "aba inteira" como pedido. Gerado a partir de
+      // ANALYTICS_MODULOS pra nunca ficar desalinhado se um módulo novo nascer lá —
+      // mesmo cuidado do commit que corrigiu o desalinhamento módulo↔grupo no
+      // Data Analysis (a checagem em DEV que existe hoje em DataAnalysis.tsx).
+      : isCompraSoftware
+        ? ANALYTICS_MODULOS.map(({ id, nome }) => ({
+            modulo: id, nome, vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0,
+          }))
       : [];
-    const cursoAcessoComprado = {
+    // curso === null (só acontece no Software LBW): não grava nem mexe em nenhum
+    // curso existente do aluno.
+    const cursoAcessoComprado = cursoComprado ? {
       curso: cursoComprado,
       vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null,
       valor: 0,
       quantidade: 1,
-    };
+    } : null;
     const mesclarCursoComprado = (lista: any) => {
       const existentes = Array.isArray(lista) ? lista.filter((c: any) => c?.curso) : [];
+      if (!cursoComprado || !cursoAcessoComprado) return existentes;
       const semDuplicar = existentes.filter((c: any) => String(c.curso).trim() !== cursoComprado);
       return [...semDuplicar, cursoAcessoComprado];
     };
@@ -5455,8 +5508,8 @@ async function startServer() {
            planoComercialLegado: nomePacoteComercial,
            ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
-          cursosAcesso: [cursoAcessoComprado],
-          cursosLiberados: [cursoComprado],
+          cursosAcesso: cursoAcessoComprado ? [cursoAcessoComprado] : [],
+          cursosLiberados: cursoComprado ? [cursoComprado] : [],
           ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
           creditoIA: {
             limite: planoSolicitado === "completo" ? 1000 : 100,
@@ -5473,7 +5526,7 @@ async function startServer() {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
                plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
-              cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado],
+              cursosAcesso: cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: cursoComprado ? [cursoComprado] : [],
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: origemAcesso,
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
@@ -5503,8 +5556,8 @@ async function startServer() {
            planoComercialLegado: nomePacoteComercial,
            ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
-          cursosAcesso: [cursoAcessoComprado],
-          cursosLiberados: [cursoComprado],
+          cursosAcesso: cursoAcessoComprado ? [cursoAcessoComprado] : [],
+          cursosLiberados: cursoComprado ? [cursoComprado] : [],
           ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
           creditoIA: { limite: planoSolicitado === "completo" ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
           criadoEm: new Date().toISOString(),
@@ -5514,7 +5567,7 @@ async function startServer() {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
                plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
-              cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado],
+              cursosAcesso: cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: cursoComprado ? [cursoComprado] : [],
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: "regularizado",
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
@@ -5562,7 +5615,7 @@ async function startServer() {
       // sem tocar na senha nem no papel principal.
       if (!vinculoIsraelAnterior) {
         const origem = origemAcesso;
-        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: [cursoAcessoComprado], cursosLiberados: [cursoComprado], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), origem });
+        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: cursoComprado ? [cursoComprado] : [], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), origem });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
         const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
@@ -5740,6 +5793,36 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "msa", contexto: "existente" });
         console.log(`[acesso/liberar] MSA ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "msa-liberado", uid, email, plano: PACOTE_MSA_NOME, pacoteId: PACOTE_MSA_ID, pacoteNome: PACOTE_MSA_NOME, emailEnviado });
+      }
+
+      // COMPRA de Software LBW Completo: NÃO mexe em cursosAcesso (cursoComprado é
+      // null pra esse pacote — mesclarCursoComprado já devolve a lista intacta) e
+      // libera os 8 módulos de Data Analysis de uma vez.
+      if (isCompraSoftware) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosSoftware = new Set(ANALYTICS_MODULOS.map((m) => m.id));
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosSoftware.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_SOFTWARE_NOME,
+          pacoteId: PACOTE_SOFTWARE_ID,
+          pacoteNome: PACOTE_SOFTWARE_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "software-lbw", contexto: "existente" });
+        console.log(`[acesso/liberar] SOFTWARE LBW ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "software-lbw-liberado", uid, email, plano: PACOTE_SOFTWARE_NOME, pacoteId: PACOTE_SOFTWARE_ID, pacoteNome: PACOTE_SOFTWARE_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
