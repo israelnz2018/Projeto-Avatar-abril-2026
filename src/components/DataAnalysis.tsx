@@ -1927,6 +1927,36 @@ export default function DataAnalysis() {
                 </div>
               )}
             </div>
+
+            {/* Action Button — Enviar Análise (primary)
+                Fica DENTRO da coluna da tabela, logo abaixo dela: assim nasce na mesma
+                altura dos vídeos de apoio da coluna da direita. Quando estava após a
+                grade inteira, ele era empurrado pra baixo da coluna mais alta (box de
+                análise + lista de vídeos) e sumia da primeira dobra.
+                Também é a âncora do scroll automático (ver rolarParaAnalise). */}
+            <div ref={ancoraAnaliseRef} className="text-center mt-4 scroll-mt-4">
+              <button
+                data-tour-id="enviar"
+                onClick={handleRunAnalysis}
+                disabled={isProcessing}
+                className={cn(
+                  "inline-flex items-center gap-2 px-10 py-3 rounded-lg font-black text-[13px] uppercase tracking-widest text-white",
+                  "bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] hover:from-[#0033CC] hover:to-[#1E2D6E]",
+                  "shadow-lg shadow-blue-500/30 hover:shadow-xl hover:scale-[1.02]",
+                  "transition-all border-none cursor-pointer",
+                  isProcessing && "opacity-50 cursor-not-allowed hover:scale-100"
+                )}
+              >
+                {isProcessing ? (
+                  <span className="pontinhos">Processando</span>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    Enviar Análise
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Tool Selection Box */}
@@ -2287,34 +2317,6 @@ export default function DataAnalysis() {
               )}
             </AnimatePresence>
           </div>
-        </div>
-
-        {/* Action Button — Enviar Análise (primary)
-            É a ação principal da tela: fica logo abaixo da tabela e serve de âncora
-            pro scroll automático (ver rolarParaAnalise em handleRunAnalysis), de modo
-            que o resultado nasça imediatamente abaixo dele. */}
-        <div ref={ancoraAnaliseRef} className="text-center scroll-mt-4">
-          <button
-            data-tour-id="enviar"
-            onClick={handleRunAnalysis}
-            disabled={isProcessing}
-            className={cn(
-              "inline-flex items-center gap-2 px-10 py-3 rounded-lg font-black text-[13px] uppercase tracking-widest text-white",
-              "bg-gradient-to-r from-[#1E2D6E] to-[#0033CC] hover:from-[#0033CC] hover:to-[#1E2D6E]",
-              "shadow-lg shadow-blue-500/30 hover:shadow-xl hover:scale-[1.02]",
-              "transition-all border-none cursor-pointer",
-              isProcessing && "opacity-50 cursor-not-allowed hover:scale-100"
-            )}
-          >
-            {isProcessing ? (
-              <span className="pontinhos">Processando</span>
-            ) : (
-              <>
-                <Sparkles size={14} />
-                Enviar Análise
-              </>
-            )}
-          </button>
         </div>
 
         {/* Question Section — Perguntar (secondary) */}
