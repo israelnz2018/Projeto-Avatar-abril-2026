@@ -149,6 +149,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   let descricao = 'Aprenda na prática com aulas completas, exercícios e os recursos integrados da plataforma LBW.';
 
   if (nome.includes('como resolver problemas no trabalho') || nome.includes('kit 90 dias')) {
+    precoSugerido = 97;
     checkoutSugerido = 'https://pay.hotmart.com/J107328495S';
     descricao = 'Aprenda a entender sua área, escolher o problema certo e entregar sua primeira melhoria nos primeiros 90 dias.';
   } else if (nome.includes('capabilidade de processo')) {
