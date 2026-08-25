@@ -406,6 +406,15 @@ export default function DataAnalysis() {
   // Âncora do botão "Enviar Análise". Ao gerar, a página rola até aqui: o botão fica
   // no topo da tela e o resultado aparece logo abaixo, sem o aluno procurar onde saiu.
   const ancoraAnaliseRef = useRef<HTMLDivElement>(null);
+  // Precisa rodar DUAS vezes: no clique a página ainda é curta (o resultado não
+  // existe), e o navegador só consegue rolar até onde há conteúdo — por isso o
+  // botão não chegava ao topo. Ao chegar o resultado a página cresce, e aí sim a
+  // segunda chamada consegue posicioná-lo. O rAF duplo espera o DOM pintar.
+  const rolarParaAnalise = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      ancoraAnaliseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  };
   const [temTrabalhoNaoSalvo, setTemTrabalhoNaoSalvo] = useState(false);
   const [modalSairSemSalvar, setModalSairSemSalvar] = useState(false);
   const destinoNavegacao = useRef<string | null>(null);
@@ -549,7 +558,11 @@ export default function DataAnalysis() {
   const [isGerandoPlanilha, setIsGerandoPlanilha] = useState(false);
   const [toolParams, setToolParams] = useState<Record<string, any>>({});
   const [results, setResults] = useState<AnalysisResult[]>([]);
+  // Estados SEPARADOS por ação. Antes os dois botões ("Enviar Análise" e
+  // "Perguntar") liam a mesma flag, então rodar um deixava o outro travado em
+  // "processando" — parecia que os dois estavam trabalhando ao mesmo tempo.
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPerguntando, setIsPerguntando] = useState(false);
   const defaultPlotlyConfig = (dados?: any): GraficoPersonalizacao => ({
     titulo: dados?.labels?.titulo || '',
     tituloX: dados?.labels?.x || '',
@@ -843,8 +856,7 @@ export default function DataAnalysis() {
 
     // Só rola DEPOIS de passar por todas as validações — rolar antes levaria o aluno
     // pra baixo bem na hora em que o aviso de erro aparece na parte de cima.
-    // Fica no topo o botão (com "Processando") e, logo abaixo, o resultado ao chegar.
-    ancoraAnaliseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    rolarParaAnalise();
 
     const config = configuracoesFerramentas[ferramentaAtual] || [];
     const camposSempreOpcionais = ["Subgrupo", "Data", "Z", "Zs"];
@@ -962,6 +974,9 @@ export default function DataAnalysis() {
         setPlotlyConfigs((atuais) => ({ ...atuais, [novoResultadoId]: newResult.configGrafico! }));
       }
       setTemTrabalhoNaoSalvo(true);
+      // Agora a página tem altura suficiente (o resultado existe): é ESTA rolagem
+      // que de fato deixa o botão no topo com a análise logo abaixo.
+      rolarParaAnalise();
     } catch (error) {
       console.error("Analysis error:", error);
       exibirModalErro(`❌ Erro ao enviar: ${error instanceof Error ? error.message : String(error)}`);
@@ -1180,7 +1195,7 @@ export default function DataAnalysis() {
     formData.append("pergunta", pergunta);
     formData.append("tipo", result.analise ? "analise" : "grafico");
 
-    setIsProcessing(true);
+    setIsPerguntando(true);
     try {
       const response = await fetch(`${ANALISES_API}/v2/pergunta`, {
         method: 'POST',
@@ -1207,7 +1222,7 @@ export default function DataAnalysis() {
       console.error("AI Question error:", error);
       exibirModalErro(`❌ Erro ao enviar: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      setIsProcessing(false);
+      setIsPerguntando(false);
     }
   };
 
@@ -2317,11 +2332,11 @@ export default function DataAnalysis() {
           />
           <button
             onClick={handleAskAI}
-            disabled={isProcessing}
+            disabled={isPerguntando}
             className="inline-flex items-center gap-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white px-6 py-2.5 transition-colors font-black text-[12px] uppercase tracking-widest border-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Sparkles size={13} className={isProcessing ? 'animate-spin' : ''} />
-            {isProcessing ? 'Perguntando…' : 'Perguntar'}
+            <Sparkles size={13} className={isPerguntando ? 'animate-spin' : ''} />
+            {isPerguntando ? 'Perguntando…' : 'Perguntar'}
           </button>
         </div>
 
