@@ -403,6 +403,9 @@ export default function DataAnalysis() {
   const [lockedAnalisePopupOpen, setLockedAnalisePopupOpen] = useState(false);
   // Trabalho ainda não gravado no projeto. Sem isso, sair da tela (ou fechar o app)
   // descartava as análises em silêncio — elas só vivem em memória até o "Salvar".
+  // Âncora do botão "Enviar Análise". Ao gerar, a página rola até aqui: o botão fica
+  // no topo da tela e o resultado aparece logo abaixo, sem o aluno procurar onde saiu.
+  const ancoraAnaliseRef = useRef<HTMLDivElement>(null);
   const [temTrabalhoNaoSalvo, setTemTrabalhoNaoSalvo] = useState(false);
   const [modalSairSemSalvar, setModalSairSemSalvar] = useState(false);
   const destinoNavegacao = useRef<string | null>(null);
@@ -837,6 +840,11 @@ export default function DataAnalysis() {
     }
 
     logAnalysisRun(ferramentaAtual, projetoAtivo?.id);
+
+    // Só rola DEPOIS de passar por todas as validações — rolar antes levaria o aluno
+    // pra baixo bem na hora em que o aviso de erro aparece na parte de cima.
+    // Fica no topo o botão (com "Processando") e, logo abaixo, o resultado ao chegar.
+    ancoraAnaliseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     const config = configuracoesFerramentas[ferramentaAtual] || [];
     const camposSempreOpcionais = ["Subgrupo", "Data", "Z", "Zs"];
@@ -1720,10 +1728,17 @@ export default function DataAnalysis() {
         </div>
       </header>
 
-      <div className="p-[20px] space-y-6">
-        {/* File Upload & Sheet Selection */}
-        <div className="flex flex-col md:flex-row gap-[40px] items-end mb-6">
-          <div className="flex-1" data-tour-id="upload">
+      {/* pt reduzido e space-y menor: o objetivo desta tela é chegar rápido ao botão
+          de gerar a análise — cada folga vertical aqui empurra o botão pra fora da
+          primeira dobra. */}
+      <div className="px-[20px] pb-[20px] pt-[10px] space-y-4">
+        {/* File Upload & Sheet Selection
+            items-start (não items-end): a coluna da esquerda ganha uma linha extra
+            quando há arquivo anexado, e com items-end isso desalinhava o rótulo
+            "Aba da Planilha" pra baixo. Alinhando pelo topo, os dois rótulos ficam
+            na mesma linha horizontal, com ou sem arquivo. */}
+        <div className="flex flex-col md:flex-row gap-x-[24px] gap-y-3 items-start mb-3">
+          <div className="flex-1 w-full" data-tour-id="upload">
             <label className="block mb-1 font-bold text-gray-700">Escolha seu arquivo (.xlsx):</label>
             <input
               type="file"
@@ -1737,7 +1752,7 @@ export default function DataAnalysis() {
               </p>
             )}
           </div>
-          <div className="w-full md:w-[45%]" data-tour-id="sheet">
+          <div className="w-full md:w-[38%]" data-tour-id="sheet">
             <label className="block mb-1 font-bold text-gray-700">Aba da Planilha</label>
             <select
               className="w-full border border-[#ccc] rounded-[4px] p-[8px] bg-white h-[38px] outline-none"
@@ -2259,8 +2274,11 @@ export default function DataAnalysis() {
           </div>
         </div>
 
-        {/* Action Button — Enviar Análise (primary) */}
-        <div className="text-center py-2">
+        {/* Action Button — Enviar Análise (primary)
+            É a ação principal da tela: fica logo abaixo da tabela e serve de âncora
+            pro scroll automático (ver rolarParaAnalise em handleRunAnalysis), de modo
+            que o resultado nasça imediatamente abaixo dele. */}
+        <div ref={ancoraAnaliseRef} className="text-center scroll-mt-4">
           <button
             data-tour-id="enviar"
             onClick={handleRunAnalysis}
