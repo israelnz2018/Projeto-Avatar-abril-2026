@@ -5329,7 +5329,11 @@ async function startServer() {
         : isCompraCep ? CURSO_CONTROLE_ESTATISTICO
         : isCompraPreditiva ? CURSO_PREDITIVA : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
-      ? [{ modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 }]
+      ? [
+          { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+        ]
       : isCompraEstatistica
         ? [
             { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },

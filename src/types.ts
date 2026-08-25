@@ -45,6 +45,16 @@ export interface Initiative {
   corId?: string;
   /** Ícone próprio, enviado pelo consultor (PNG/SVG) — tem prioridade sobre iconId. */
   iconUrl?: string;
+  /** Configuração comercial exibida ao aluno quando ele clica no curso bloqueado. */
+  vendaAtiva?: boolean;
+  /** Preço à vista apresentado no modal de compra, em reais. */
+  precoVenda?: number;
+  /** URL pública do checkout correspondente na Hotmart. */
+  hotmartCheckoutUrl?: string;
+  /** Texto curto de apresentação usado na mini landing page do curso. */
+  descricaoVenda?: string;
+  /** Lista do que está incluído no pacote comercial. */
+  itensInclusos?: string[];
 }
 
 // ===== Multi-tenant (white-label) =====

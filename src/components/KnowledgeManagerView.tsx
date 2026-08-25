@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Download,
   Loader2,
+  ShoppingCart,
 } from 'lucide-react';
 import {
   DndContext,
@@ -69,6 +70,8 @@ import {
   propagarRenomeacaoParaAcessos,
 } from '../services/configService';
 import { ICON_CATALOG, COLOR_CATALOG } from '../services/initiativeVisual';
+import type { Initiative } from '../types';
+import { CourseSaleConfigModal, type CourseSaleConfig } from './CourseSaleConfigModal';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -787,7 +790,9 @@ export default function KnowledgeManagerView() {
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
   // Initiatives completas (id + temProjeto) do consultor atual — pro toggle "tem projeto?".
-  const [initiatives, setInitiatives] = useState<any[]>([]);
+  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [cursoVendaEditando, setCursoVendaEditando] = useState<Initiative | null>(null);
+  const [salvandoVenda, setSalvandoVenda] = useState(false);
 
   // Estados do helper de reconciliação de cursos órfãos
   // (cursos que estão nos vídeos mas não existem mais como trilhas no /config — provavelmente foram renomeados)
@@ -907,6 +912,30 @@ export default function KnowledgeManagerView() {
       setInitiatives((prev) => prev.map((i) => (i.id === ini.id ? { ...i, temProjeto: novo } : i)));
     } catch (e) {
       console.error('Erro ao alternar "tem projeto":', e);
+    }
+  };
+
+  const abrirConfiguracaoVenda = (courseName: string) => {
+    const initiative = initiatives.find(item => item.name === courseName);
+    if (!initiative) {
+      alert('Não foi possível localizar a configuração deste curso.');
+      return;
+    }
+    setCursoVendaEditando(initiative);
+  };
+
+  const salvarConfiguracaoVenda = async (config: CourseSaleConfig) => {
+    if (!cursoVendaEditando) return;
+    setSalvandoVenda(true);
+    try {
+      await updateInitiative(cursoVendaEditando.id, config);
+      setInitiatives(prev => prev.map(item => item.id === cursoVendaEditando.id ? { ...item, ...config } : item));
+      setCursoVendaEditando(null);
+    } catch (error: any) {
+      console.error('[salvarConfiguracaoVenda]', error);
+      alert(`Não foi possível salvar a configuração de venda.\n\n${error?.message || 'Erro desconhecido'}`);
+    } finally {
+      setSalvandoVenda(false);
     }
   };
 
@@ -2160,6 +2189,17 @@ export default function KnowledgeManagerView() {
                 </div>
                 {!abaEspecial && <div className="flex items-center gap-2">
                   <button
+                    onClick={() => abrirConfiguracaoVenda(course.name)}
+                    className={`flex items-center gap-1.5 border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap rounded-[4px] ${
+                      initiatives.find(item => item.name === course.name)?.vendaAtiva
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                    title="Configurar preço, oferta e checkout deste curso"
+                  >
+                    <ShoppingCart size={14} /> {initiatives.find(item => item.name === course.name)?.vendaAtiva ? 'Venda ativa' : 'Configurar venda'}
+                  </button>
+                  <button
                     onClick={() => abrirAdicaoNoCurso(course.name)}
                     className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-[4px] hover:bg-blue-700 transition-colors border-none cursor-pointer whitespace-nowrap"
                     title={`Adicionar um vídeo em ${course.name}`}
@@ -2292,6 +2332,13 @@ export default function KnowledgeManagerView() {
 
       {/* Custom Modal */}
       <AnimatePresence>
+        <CourseSaleConfigModal
+          course={cursoVendaEditando}
+          saving={salvandoVenda}
+          onClose={() => { if (!salvandoVenda) setCursoVendaEditando(null); }}
+          onSave={salvarConfiguracaoVenda}
+        />
+
         {modalConfig.isOpen && (
           <motion.div 
             initial={{ opacity: 0 }}

@@ -39,6 +39,7 @@ import { getCourses } from '../services/configService';
 import { resolveConsultorId } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
+import { CoursePurchasePopup } from './CoursePurchasePopup';
 import { auth } from '../lib/firebase';
 import {
   subscribeUserProgress,
@@ -52,7 +53,7 @@ import {
 import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
-import { hasCourseAccess } from '../lib/courseAccess';
+import { courseNamesMatch, hasCourseAccess } from '../lib/courseAccess';
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
@@ -66,6 +67,8 @@ export default function LearningView() {
   const [seekNonce, setSeekNonce] = useState(0);
   const [freeCourseNames, setFreeCourseNames] = useState<Set<string>>(new Set());
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+  const [lockedRecursoNome, setLockedRecursoNome] = useState('');
+  const [cursoParaCompra, setCursoParaCompra] = useState<Initiative | null>(null);
   const [allInitiatives, setAllInitiatives] = useState<Initiative[]>([]);
   const [watchedUrls, setWatchedUrls] = useState<Record<string, WatchedEntry>>({});
   const [justCompletedCertId, setJustCompletedCertId] = useState<string | null>(null);
@@ -153,6 +156,19 @@ export default function LearningView() {
     if (isCoordenador || acessoPorCurso) return !hasCourseAccess(cursosLiberados || [], course);
     // Modelo de plano LEGADO (aluno solo, sem coordenador/pacote): mantém os cursos grátis.
     return isStarter && !freeCourseNames.has(course);
+  };
+
+  const abrirCursoBloqueado = (courseName: string) => {
+    const course = allInitiatives.find(item => courseNamesMatch(item.name, courseName));
+    const vendaConfigurada = course?.vendaAtiva === true
+      && Number(course.precoVenda) > 0
+      && String(course.hotmartCheckoutUrl || '').startsWith('https://pay.hotmart.com/');
+    if (course && vendaConfigurada) {
+      setCursoParaCompra(course);
+      return;
+    }
+    setLockedRecursoNome(courseName);
+    setLockedPopupOpen(true);
   };
 
   // Um mesmo vídeo pode possuir vários documentos/posicionamentos, um em cada curso.
@@ -491,6 +507,10 @@ export default function LearningView() {
             <motion.button
               key={cat}
               onClick={() => {
+                if (trilhaLocked) {
+                  abrirCursoBloqueado(cat);
+                  return;
+                }
                 setActiveCategory(cat);
                 setActivePlaylist('Todas');
               }}
@@ -713,7 +733,7 @@ export default function LearningView() {
                   )}
                   onClick={() => {
                     if (videoLocked) {
-                      setLockedPopupOpen(true);
+                      abrirCursoBloqueado(item.course);
                       return;
                     }
                     if (!isSelected && item.id) logVideoPlayed(item.id, item.title, item.course);
@@ -874,6 +894,12 @@ export default function LearningView() {
         isOpen={lockedPopupOpen}
         onClose={() => setLockedPopupOpen(false)}
         consultorNome={nomeConsultor}
+        recursoNome={lockedRecursoNome}
+      />
+      <CoursePurchasePopup
+        course={cursoParaCompra}
+        onClose={() => setCursoParaCompra(null)}
+        videoCount={cursoParaCompra ? items.filter(item => courseNamesMatch(item.course, cursoParaCompra.name)).length : 0}
       />
     </div>
   );
