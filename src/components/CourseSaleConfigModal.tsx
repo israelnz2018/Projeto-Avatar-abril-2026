@@ -29,7 +29,7 @@ export function CourseSaleConfigModal({ course, saving, onClose, onSave }: Cours
     setPreco(typeof course.precoVenda === 'number'
       ? String(course.precoVenda).replace('.', ',')
       : (typeof padrao.precoSugerido === 'number' ? String(padrao.precoSugerido) : ''));
-    setCheckout(course.hotmartCheckoutUrl || '');
+    setCheckout(course.hotmartCheckoutUrl || padrao.checkoutSugerido || '');
     setDescricao(course.descricaoVenda || course.description || padrao.descricao);
     setItens(Array.isArray(course.itensInclusos) && course.itensInclusos.length > 0 ? course.itensInclusos.join('\n') : padrao.itens.join('\n'));
     setErro('');

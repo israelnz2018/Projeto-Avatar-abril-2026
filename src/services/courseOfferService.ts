@@ -4,6 +4,7 @@ export interface CourseOfferDefaults {
   descricao: string;
   moduloEspecifico?: string;
   precoSugerido?: number;
+  checkoutSugerido?: string;
   itens: string[];
 }
 
@@ -11,6 +12,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   const nome = normalizeCourseName(courseName);
   let moduloEspecifico: string | undefined;
   let precoSugerido: number | undefined;
+  let checkoutSugerido: string | undefined;
   let descricao = 'Aprenda na prática com aulas completas, exercícios e os recursos integrados da plataforma LBW.';
 
   if (nome.includes('capabilidade de processo')) {
@@ -27,6 +29,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   } else if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
     moduloEspecifico = 'Controle de Processo';
     precoSugerido = 147;
+    checkoutSugerido = 'https://pay.hotmart.com/X98692438N';
     descricao = 'Aprenda a monitorar a estabilidade do processo e interpretar cartas de controle para agir no momento correto.';
   } else if (nome.includes('analise preditiva') || nome.includes('regresso')) {
     moduloEspecifico = 'Análise Preditiva';
@@ -42,6 +45,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     descricao,
     moduloEspecifico,
     precoSugerido,
+    checkoutSugerido,
     itens: [
       videoCount > 0 ? `Curso online completo com ${videoCount} videoaulas` : 'Curso online completo com videoaulas',
       'Exercícios práticos para aplicar o conteúdo',

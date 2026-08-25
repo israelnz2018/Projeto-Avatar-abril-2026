@@ -54,6 +54,7 @@ import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
 import { courseNamesMatch, hasCourseAccess } from '../lib/courseAccess';
+import { getCourseOfferDefaults } from '../services/courseOfferService';
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
@@ -160,11 +161,15 @@ export default function LearningView() {
 
   const abrirCursoBloqueado = (courseName: string) => {
     const course = allInitiatives.find(item => courseNamesMatch(item.name, courseName));
-    const vendaConfigurada = course?.vendaAtiva === true
-      && Number(course.precoVenda) > 0
-      && String(course.hotmartCheckoutUrl || '').startsWith('https://pay.hotmart.com/');
+    const padrao = getCourseOfferDefaults(courseName);
+    const precoVenda = Number(course?.precoVenda || padrao.precoSugerido || 0);
+    const hotmartCheckoutUrl = String(course?.hotmartCheckoutUrl || padrao.checkoutSugerido || '');
+    const vendaAtiva = course?.vendaAtiva ?? Boolean(padrao.checkoutSugerido);
+    const vendaConfigurada = vendaAtiva
+      && precoVenda > 0
+      && hotmartCheckoutUrl.startsWith('https://pay.hotmart.com/');
     if (course && vendaConfigurada) {
-      setCursoParaCompra(course);
+      setCursoParaCompra({ ...course, precoVenda, hotmartCheckoutUrl });
       return;
     }
     setLockedRecursoNome(courseName);
