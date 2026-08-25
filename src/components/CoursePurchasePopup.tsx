@@ -26,7 +26,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
   return (
     <AnimatePresence>
       {aberto && course && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-3">
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
@@ -36,47 +36,47 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
-            className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-blue-100 bg-white shadow-2xl"
+            className="relative max-h-[96vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-blue-100 bg-white shadow-2xl"
           >
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#1E2D6E] via-[#0033CC] to-cyan-600 px-7 pb-7 pt-8 text-white">
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#1E2D6E] via-[#0033CC] to-cyan-600 px-6 py-5 text-white">
               <div className="absolute -right-12 -top-16 h-44 w-44 rounded-full bg-white/10" />
               <button onClick={onClose} aria-label="Fechar" className="absolute right-4 top-4 z-10 rounded-full border border-white/20 bg-white/10 p-2 text-white hover:bg-white/20">
                 <X size={20} />
               </button>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-wider">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider">
                 <ShoppingCart size={14} /> Curso disponível
               </div>
-              <h2 className="relative m-0 pr-7 text-2xl font-black leading-tight">{course.name}</h2>
-              <p className="relative mb-0 mt-3 text-sm leading-relaxed text-blue-50">
+              <h2 className="relative m-0 pr-7 text-xl font-black leading-tight sm:text-[22px]">{course.name}</h2>
+              <p className="relative mb-0 mt-2 text-[13px] leading-5 text-blue-50">
                 {course.descricaoVenda?.trim() || course.description?.trim() || padrao.descricao}
               </p>
             </div>
 
-            <div className="p-7">
-              <p className="mb-3 mt-0 text-xs font-black uppercase tracking-widest text-slate-500">O que você receberá</p>
-              <div className="space-y-3">
+            <div className="p-5 sm:px-6">
+              <p className="mb-2 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-500">O que você receberá</p>
+              <div className="space-y-2">
                 {itens.map(item => (
-                  <div key={item} className="flex items-start gap-3 text-sm font-semibold leading-relaxed text-slate-700">
-                    <CheckCircle2 size={19} className="mt-0.5 shrink-0 text-emerald-500" />
+                  <div key={item} className="flex items-start gap-2.5 text-[13px] font-semibold leading-5 text-slate-700">
+                    <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-500" />
                     <span>{item}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="my-6 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                <p className="m-0 text-xs font-bold uppercase tracking-wider text-blue-700">Investimento</p>
-                <p className="mb-0 mt-1 text-3xl font-black text-[#1E2D6E]">{formatarPreco(Number(course.precoVenda) || 0)}</p>
+              <div className="my-4 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3">
+                <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-blue-700">Investimento</p>
+                <p className="mb-0 mt-0.5 text-2xl font-black text-[#1E2D6E]">{formatarPreco(Number(course.precoVenda) || 0)}</p>
               </div>
 
               <a
                 href={course.hotmartCheckoutUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-5 py-4 text-center text-base font-black text-white no-underline shadow-lg shadow-blue-200 transition hover:bg-[#1E2D6E]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-5 py-3 text-center text-sm font-black text-white no-underline shadow-lg shadow-blue-200 transition hover:bg-[#1E2D6E]"
               >
                 Comprar agora <ExternalLink size={18} />
               </a>
-              <div className="mt-4 flex items-center justify-center gap-2 text-center text-xs text-slate-500">
+              <div className="mt-3 flex items-center justify-center gap-2 text-center text-[11px] text-slate-500">
                 <ShieldCheck size={16} className="text-emerald-600" />
                 Pagamento seguro via Hotmart e acesso após a confirmação.
               </div>
