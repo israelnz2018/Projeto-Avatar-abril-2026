@@ -21,6 +21,95 @@ export interface CourseOfferDefaults {
   itens: string[];
 }
 
+export interface CourseOfferPresentation {
+  tituloPacote: string;
+  ementa: string[];
+  acessosMantidos: string[];
+}
+
+/** Conteúdo resumido dos produtos que já possuem checkout Hotmart. */
+export function getCourseOfferPresentation(courseName: string): CourseOfferPresentation | undefined {
+  const nome = normalizeCourseName(courseName);
+  const acessosMantidos = ['Comunidade LBW', 'IA Digital', 'Relatórios e PowerPoint'];
+
+  if (nome.includes('capabilidade de processo')) {
+    return {
+      tituloPacote: 'Curso completo + módulo Capabilidade de Processo no Software LBW',
+      ementa: [
+        'Estabilidade e normalidade do processo',
+        'Capabilidade para dados contínuos e discretos',
+        'Cálculo e interpretação de Cp, Cpk, Pp e Ppk',
+        'Transformação matemática e discretização de dados',
+        'Interpretação dos gráficos e resultados',
+        'Exercícios práticos utilizando o Software LBW',
+      ],
+      acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
+    };
+  }
+
+  if (nome.includes('estatistica aplicada') && nome.includes('ferramentas da qualidade')) {
+    return {
+      tituloPacote: 'Curso completo + módulos Gráficos e Análises Diversas no Software LBW',
+      ementa: [
+        'Estatística descritiva aplicada a negócios',
+        'Média, mediana, dispersão e interpretação dos dados',
+        'Histogramas, Pareto, boxplot, dispersão e tendência',
+        'Teste de normalidade, probabilidade e estabilidade',
+        'Ferramentas da qualidade para análise e tomada de decisão',
+        'Exercícios práticos utilizando o Software LBW',
+      ],
+      acessosMantidos,
+    };
+  }
+
+  if (nome.includes('analise inferencial') || nome.includes('teste de hipotes')) {
+    return {
+      tituloPacote: 'Curso completo + módulo Análise Inferencial no Software LBW',
+      ementa: [
+        'Fundamentos dos testes de hipóteses, p-valor e significância',
+        'Testes de médias e análise de variância (ANOVA)',
+        'Testes de medianas e métodos não paramétricos',
+        'Testes de variâncias, proporções e independência',
+        'Intervalos de confiança e interpretação dos resultados',
+        'Exercícios práticos utilizando o Software LBW',
+      ],
+      acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
+    };
+  }
+
+  if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
+    return {
+      tituloPacote: 'Curso completo + módulo Controle Estatístico de Processo no Software LBW',
+      ementa: [
+        'Estabilidade, variação e causas comuns e especiais',
+        'Seleção da carta de controle adequada para cada tipo de dado',
+        'Cartas I-MR, X-Barra R e X-Barra S',
+        'Cartas P, NP, C e U para dados discretos',
+        'Carta EWMA e interpretação dos sinais do processo',
+        'Exercícios práticos utilizando o Software LBW',
+      ],
+      acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
+    };
+  }
+
+  if (nome.includes('analise preditiva') || nome.includes('regresso')) {
+    return {
+      tituloPacote: 'Curso completo + módulo Análise Preditiva no Software LBW',
+      ementa: [
+        'Correlação e análise das relações entre variáveis',
+        'Regressões linear, quadrática e cúbica',
+        'Regressão linear múltipla e seleção do modelo',
+        'Regressões logística binária, ordinal e nominal',
+        'Árvore de decisão, Random Forest e séries temporais',
+        'Exercícios práticos utilizando o Software LBW',
+      ],
+      acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
+    };
+  }
+
+  return undefined;
+}
+
 export function getCourseOfferDefaults(courseName: string, videoCount = 0): CourseOfferDefaults {
   const nome = normalizeCourseName(courseName);
   let moduloEspecifico: string | undefined;
