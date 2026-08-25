@@ -3272,16 +3272,41 @@ async function startServer() {
   // os projetos ou o histórico. O aluno deixa de ter acesso aos cursos deste consultor.
   // Catálogo público usado pelas landing pages para mostrar os cursos do consultor.
   // Só retorna nomes de cursos; nenhum conteúdo protegido é exposto.
+  const TERMOS_GRATUITOS_VERSAO = "gratuitos-2026-08-25";
+  const normalizarNomeLanding = (valor: unknown) => String(valor || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+  const regrasWhatsappLanding: Record<string, { nome: string; min: number; max: number }> = {
+    "+55": { nome: "Brasil", min: 10, max: 11 },
+    "+61": { nome: "Austrália", min: 9, max: 9 },
+    "+64": { nome: "Nova Zelândia", min: 8, max: 9 },
+    "+351": { nome: "Portugal", min: 9, max: 9 },
+    "+1": { nome: "Estados Unidos ou Canadá", min: 10, max: 10 },
+    "+44": { nome: "Reino Unido", min: 10, max: 10 },
+    "+353": { nome: "Irlanda", min: 9, max: 9 },
+    "+34": { nome: "Espanha", min: 9, max: 9 },
+    "+33": { nome: "França", min: 9, max: 9 },
+    "+49": { nome: "Alemanha", min: 10, max: 11 },
+    "+39": { nome: "Itália", min: 9, max: 10 },
+    "+52": { nome: "México", min: 10, max: 10 },
+    "+54": { nome: "Argentina", min: 10, max: 10 },
+    "+56": { nome: "Chile", min: 9, max: 9 },
+    "+27": { nome: "África do Sul", min: 9, max: 9 },
+  };
   app.get("/api/public/cursos", async (_req: any, res: any) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado.", cursos: [] });
     const consultorId = "israel";
     const excluirCurso = String(_req.query?.excluirCurso || "").trim();
-    const cursosGratuitos = new Set([excluirCurso].filter(Boolean));
+    const excluirCursoNormalizado = normalizarNomeLanding(excluirCurso);
     try {
       const snapshot = await adminFirestore().collection("initiatives").get();
       const cursos = snapshot.docs
         .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-        .filter((item: any) => String(item.consultorId || "israel") === consultorId && item.somenteProjeto !== true && !cursosGratuitos.has(String(item.name || "").trim()))
+        .filter((item: any) => String(item.consultorId || "israel") === consultorId
+          && item.somenteProjeto !== true
+          && (!excluirCursoNormalizado || normalizarNomeLanding(item.name) !== excluirCursoNormalizado))
         .map((item: any) => String(item.name || "").trim())
         .filter(Boolean)
         .sort((a: string, b: string) => a.localeCompare(b, "pt-BR"));
@@ -3293,10 +3318,10 @@ async function startServer() {
   });
 
   // Landing page gratuita do produto Capabilidade de Processo Avançado.
-  // O endpoint Ã© pÃºblico de propÃ³sito: cria/atualiza o aluno e libera o pacote
-  // especÃ­fico sem depender do painel do consultor ou do webhook antigo.
+  // O endpoint é público de propósito: cria/atualiza o aluno e libera o pacote
+  // específico sem depender do painel do consultor ou do webhook antigo.
   app.post("/api/public/acesso-gratis", async (req: any, res) => {
-    if (!isAdminReady()) return res.status(503).json({ error: "Servidor nÃ£o configurado." });
+    if (!isAdminReady()) return res.status(503).json({ error: "Servidor não configurado." });
 
     const produtoInformado = String(req.body?.produto || "").trim().toLowerCase();
     // Mantém compatibilidade com a landing antiga, mas separa o identificador
@@ -3309,7 +3334,10 @@ async function startServer() {
     const profissao = String(req.body?.profissao || "").trim().slice(0, 120);
     const interesseCursos = Array.from(new Set((Array.isArray(req.body?.interesseCursos) ? req.body.interesseCursos : [req.body?.interesseCurso]).map((item: any) => String(item || "").trim()).filter(Boolean))).slice(0, 20);
     const interesseCurso = interesseCursos.join(", ");
-    const whatsapp = String(req.body?.whatsapp || "").trim();
+    const codigoPais = String(req.body?.codigoPais || "").trim();
+    const whatsappNumero = String(req.body?.whatsappNumero || "").replace(/\D/g, "");
+    const aceitouTermos = req.body?.aceitouTermos === true;
+    const termosVersao = String(req.body?.termosVersao || "").trim();
     const configuracaoGratis = ({
       "capabilidade-processo-gratis": {
         curso: "Capabilidade de Processo Avançado",
@@ -3317,26 +3345,43 @@ async function startServer() {
         analytics: [{ modulo: "capabilidade", nome: "Capabilidade" }],
       },
       "estatistica-aplicada": {
-        curso: "Estatística Aplicada e Ferramentas da Qualidade",
-        nomePacote: "Estatística Aplicada e Ferramentas da Qualidade",
+        curso: "Estatística aplicada e ferramentas da qualidade",
+        nomePacote: "Estatística aplicada e ferramentas da qualidade",
         analytics: [
           { modulo: "graficos", nome: "Gráficos" },
-          { modulo: "diversas", nome: "Estatística Básica" },
+          { modulo: "diversas", nome: "Análises Diversas" },
         ],
       },
     } as const)[produto as "capabilidade-processo-gratis" | "estatistica-aplicada"];
     if (!configuracaoGratis) return res.status(400).json({ error: "Produto gratuito inválido." });
     if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
-    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail vÃ¡lido." });
-    if (!profissao) return res.status(400).json({ error: "Informe sua profissÃ£o." });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail válido." });
+    if (!profissao) return res.status(400).json({ error: "Informe sua profissão." });
     if (!interesseCursos.length) return res.status(400).json({ error: "Escolha pelo menos um curso ou selecione Nenhum curso." });
     if (interesseCursos.includes("Nenhum curso") && interesseCursos.length > 1) return res.status(400).json({ error: "Nenhum curso não pode ser combinado com outros cursos." });
+    const regraWhatsapp = regrasWhatsappLanding[codigoPais];
+    if (!regraWhatsapp) return res.status(400).json({ error: "Selecione um país válido para o WhatsApp." });
+    if (!/^[1-9]\d+$/.test(whatsappNumero) || whatsappNumero.length < regraWhatsapp.min || whatsappNumero.length > regraWhatsapp.max) {
+      const quantidade = regraWhatsapp.min === regraWhatsapp.max ? String(regraWhatsapp.min) : `${regraWhatsapp.min} a ${regraWhatsapp.max}`;
+      return res.status(400).json({ error: `Informe um WhatsApp válido para ${regraWhatsapp.nome} (${quantidade} dígitos, sem o código do país).` });
+    }
+    if (!aceitouTermos || termosVersao !== TERMOS_GRATUITOS_VERSAO) {
+      return res.status(400).json({ error: "Aceite os termos e condições atuais para continuar." });
+    }
 
     const consultorId = "israel";
     const curso = configuracaoGratis.curso;
     const validadeGratis = "2026-12-31";
     const analyticsGratis = configuracaoGratis.analytics.map((item) => ({ ...item, vencimento: validadeGratis, valor: 0 }));
     const agora = new Date().toISOString();
+    const whatsapp = `${codigoPais}${whatsappNumero}`;
+    const consentimentoGratuito = {
+      aceito: true,
+      versao: TERMOS_GRATUITOS_VERSAO,
+      aceitoEm: agora,
+      produto,
+      origem: "landing-page",
+    };
 
     try {
       let uid = "";
@@ -3358,7 +3403,7 @@ async function startServer() {
       const vinculos = { ...(base.vinculos || {}) };
       const anterior = { ...(vinculos[consultorId] || (base.consultorId === consultorId ? base : {})) };
       const cursosAnteriores = Array.isArray(anterior.cursosAcesso) ? anterior.cursosAcesso : [];
-      const cursosAcesso = [...cursosAnteriores.filter((item: any) => String(item?.curso || "").trim() !== curso), { curso, vencimento: validadeGratis, valor: 0, quantidade: 1 }];
+      const cursosAcesso = [...cursosAnteriores.filter((item: any) => normalizarNomeLanding(item?.curso) !== normalizarNomeLanding(curso)), { curso, vencimento: validadeGratis, valor: 0, quantidade: 1 }];
       const analyticsAnteriores = Array.isArray(anterior.acessoProdutos?.analytics) ? anterior.acessoProdutos.analytics : [];
       const modulosGratis = new Set(analyticsGratis.map((item) => item.modulo));
       const analyticsAcesso = [
@@ -3373,8 +3418,8 @@ async function startServer() {
         acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
         projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
         origem: anterior.origem || `landing-${produto}`, ultimoCadastroGratisEm: agora,
-        profissao, interesseCurso, interesseCursos,
-        ...(whatsapp ? { whatsapp } : {}),
+        profissao, interesseCurso, interesseCursos, whatsapp,
+        consentimentos: { ...(anterior.consentimentos || {}), termosTreinamentoGratuito: consentimentoGratuito },
       };
       if (base.consultorId && !vinculos[base.consultorId]) {
         vinculos[base.consultorId] = { tipoUsuario: base.tipoUsuario || "aluno", consultorId: base.consultorId, plano: base.plano || "gratuito", cursosAcesso: base.cursosAcesso || [], acessoProdutos: base.acessoProdutos || {} };
@@ -3383,12 +3428,13 @@ async function startServer() {
       const consultorIds = Array.from(new Set([...(Array.isArray(base.consultorIds) ? base.consultorIds : []), base.consultorId, consultorId].filter(Boolean)));
       const preservarPrincipal = !!base.consultorId && String(base.consultorId) !== consultorId;
       await ref.set({
-        uid, email, nome: nome || base.nome || "", profissao, interesseCurso, interesseCursos,
+        uid, email, nome: nome || base.nome || "", profissao, interesseCurso, interesseCursos, whatsapp,
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
         ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
         origem: base.origem || `landing-${produto}`,
         formacoes: Array.from(new Set([...(Array.isArray(base.formacoes) ? base.formacoes : []), produto])),
+        consentimentos: { ...(base.consentimentos || {}), termosTreinamentoGratuito: consentimentoGratuito },
         creditoIA: base.creditoIA || { limite: 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
         criadoEm: base.criadoEm || agora, ...(novo ? { senhaProvisoria: true } : {}),
       }, { merge: true });
@@ -3404,6 +3450,9 @@ async function startServer() {
           `Curso ${configuracaoGratis.curso}`,
           ...configuracaoGratis.analytics.map((item) => `Data Analysis - módulo ${item.nome}`),
           "IA digital do Israel para apoiar o uso das ferramentas liberadas",
+          "Participação na comunidade LBW",
+          "Certificado após cumprir 70% dos vídeos, obter 70% na avaliação e enviar o depoimento",
+          "Acesso válido até 31 de dezembro de 2026",
         ].map((item) => `<li style="margin-bottom:6px">${item}</li>`).join("");
         const htmlEstatistica = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#F4F7FB;font-family:Arial,Helvetica,sans-serif;color:#273142"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F7FB"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #D9E0EA"><tr><td style="background:#1E2D6E;color:#fff;padding:28px 30px"><h1 style="margin:0;font-size:24px;line-height:1.25">Seu acesso gratuito foi liberado</h1><p style="margin:8px 0 0;font-size:15px;color:#DCE6FF">LBW - Educação pelo Trabalho</p></td></tr><tr><td style="padding:30px;font-size:16px;line-height:1.55"><p style="margin:0 0 16px">Olá, ${primeiroNome}!</p><p style="margin:0 0 16px">Você recebeu gratuitamente o pacote <strong>${configuracaoGratis.nomePacote}</strong>.</p><ul style="margin:0 0 22px;padding-left:22px">${itensEstatistica}</ul>${credenciaisEstatistica}<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:26px auto"><tr><td align="center" bgcolor="#2563EB" style="border-radius:8px;background:#2563EB"><a href="${site}" style="display:inline-block;background:#2563EB;border:1px solid #2563EB;border-radius:8px;color:#FFFFFF;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 28px">Acessar a plataforma -&gt;</a></td></tr></table><p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748B">Se você não solicitou este acesso, ignore este e-mail.</p></td></tr></table></td></tr></table></body></html>`;
         try { emailEnviado = (await resendSend({ to: email, subject: `Seu acesso gratuito a ${configuracaoGratis.nomePacote}`, html: htmlEstatistica })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
@@ -3418,7 +3467,7 @@ async function startServer() {
       return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analyticsGratis.map((item) => item.modulo) } });
     } catch (err: any) {
       console.error("[POST /api/public/acesso-gratis] erro:", err?.message || err);
-      return res.status(500).json({ error: err?.message || "NÃ£o foi possÃ­vel liberar o acesso agora." });
+      return res.status(500).json({ error: err?.message || "Não foi possível liberar o acesso agora." });
     }
   });
 
