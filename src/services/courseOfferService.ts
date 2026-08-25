@@ -149,6 +149,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     descricao = 'Aprenda a selecionar, executar e interpretar testes de hipóteses para tomar decisões com evidências.';
   } else if (nome.includes('sistema de medicao') || /^msa\b/.test(nome)) {
     moduloEspecifico = 'MSA';
+    precoSugerido = 147;
     checkoutSugerido = 'https://pay.hotmart.com/P107328090D';
     descricao = 'Aprenda a avaliar a confiabilidade e a variação dos sistemas de medição para tomar decisões com dados confiáveis.';
   } else if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
