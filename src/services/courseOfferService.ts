@@ -22,6 +22,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     descricao = 'Aprenda a gerar e interpretar estudos de capabilidade para avaliar se o processo consegue atender às especificações.';
   } else if (nome.includes('estatistica aplicada') && nome.includes('ferramentas da qualidade')) {
     precoSugerido = 97;
+    checkoutSugerido = 'https://pay.hotmart.com/T98914582E';
     descricao = 'Aprenda estatística aplicada e ferramentas da qualidade para transformar dados em decisões práticas.';
   } else if (nome.includes('analise inferencial') || nome.includes('teste de hipotes')) {
     moduloEspecifico = 'Análise Inferencial';
