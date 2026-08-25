@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, ExternalLink, ShieldCheck, ShoppingCart, X } from 'lucide-react';
 import type { Initiative } from '../types';
 import { getCourseOfferDefaults } from '../services/courseOfferService';
+import { normalizeCourseName } from '../lib/courseAccess';
 
 interface CoursePurchasePopupProps {
   course: Initiative | null;
@@ -17,11 +18,20 @@ const formatarPreco = (valor: number) => new Intl.NumberFormat('pt-BR', {
 
 export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CoursePurchasePopupProps) {
   const aberto = Boolean(course);
+  const isCapabilidade = normalizeCourseName(course?.name).includes('capabilidade de processo');
   const itensConfigurados = Array.isArray(course?.itensInclusos)
     ? course.itensInclusos.map(item => String(item).trim()).filter(Boolean)
     : [];
   const padrao = getCourseOfferDefaults(course?.name || '', videoCount);
   const itens = itensConfigurados.length > 0 ? itensConfigurados : padrao.itens;
+  const ementaCapabilidade = [
+    'Estabilidade e normalidade do processo',
+    'Capabilidade para dados contínuos e discretos',
+    'Cálculo e interpretação de Cp, Cpk, Pp e Ppk',
+    'Transformação matemática e discretização de dados',
+    'Interpretação dos gráficos e resultados',
+    'Exercícios práticos utilizando o Software LBW',
+  ];
 
   return (
     <AnimatePresence>
@@ -44,7 +54,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                 <X size={20} />
               </button>
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider">
-                <ShoppingCart size={14} /> Curso disponível
+                <ShoppingCart size={14} /> {isCapabilidade ? 'Amplie seu acesso à LBW' : 'Curso disponível'}
               </div>
               <h2 className="relative m-0 pr-7 text-xl font-black leading-tight sm:text-[22px]">{course.name}</h2>
               <p className="relative mb-0 mt-2 text-[13px] leading-5 text-blue-50">
@@ -53,17 +63,41 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
             </div>
 
             <div className="p-5 sm:px-6">
-              <p className="mb-2 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-500">O que você receberá</p>
-              <div className="space-y-2">
-                {itens.map(item => (
-                  <div key={item} className="flex items-start gap-2.5 text-[13px] font-semibold leading-5 text-slate-700">
-                    <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-500" />
-                    <span>{item}</span>
+              {isCapabilidade ? (
+                <>
+                  <p className="mb-2 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-500">O que você receberá a mais</p>
+                  <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-[13px] font-black leading-5 text-[#1E2D6E]">
+                    Curso completo + módulo Capabilidade de Processo no Software LBW
                   </div>
-                ))}
-              </div>
+                  <p className="mb-2 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-500">Conteúdo do curso</p>
+                  <div className="space-y-1.5">
+                    {ementaCapabilidade.map(item => (
+                      <div key={item} className="flex items-start gap-2.5 text-[13px] font-semibold leading-5 text-slate-700">
+                        <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-500" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-center text-[12px] leading-5 text-slate-600">
+                    <strong className="text-slate-700">Você continuará tendo acesso a:</strong><br />
+                    Comunidade LBW · IA Digital · Gráficos · Análises Diversas · Relatórios e PowerPoint
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mb-2 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-500">O que você receberá</p>
+                  <div className="space-y-2">
+                    {itens.map(item => (
+                      <div key={item} className="flex items-start gap-2.5 text-[13px] font-semibold leading-5 text-slate-700">
+                        <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-500" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
-              <div className="my-4 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3">
+              <div className={`my-4 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3 ${isCapabilidade ? 'text-center' : ''}`}>
                 <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-blue-700">Investimento</p>
                 <p className="mb-0 mt-0.5 text-2xl font-black text-[#1E2D6E]">{formatarPreco(Number(course.precoVenda) || 0)}</p>
               </div>
