@@ -35,6 +35,7 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
   } else if (nome.includes('analise preditiva') || nome.includes('regresso')) {
     moduloEspecifico = 'Análise Preditiva';
     precoSugerido = 197;
+    checkoutSugerido = 'https://pay.hotmart.com/A98916105N';
     descricao = 'Aprenda a usar regressões, correlações e séries temporais para explicar relações e apoiar previsões.';
   }
 
