@@ -101,6 +101,12 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               >
                 Comprar agora <ExternalLink size={18} />
               </a>
+              <a
+                href="/plataformalbw"
+                className="mt-2.5 flex w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-2.5 text-center text-sm font-black text-[#0033CC] no-underline transition hover:border-blue-400 hover:bg-blue-50"
+              >
+                Consultar pacotes e planos
+              </a>
               <div className="mt-3 flex items-center justify-center gap-2 text-center text-[11px] text-slate-500">
                 <ShieldCheck size={16} className="text-emerald-600" />
                 Pagamento seguro via Hotmart e acesso após a confirmação.
