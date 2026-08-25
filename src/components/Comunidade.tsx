@@ -15,7 +15,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle,
+  Users2, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Circle, Plus,
   Wrench, Clock, ListFilter, Trash2, MessageCircle, Shield, X, Bell,
   Search, ThumbsUp, Flame, Pin, Pencil, Check, Paperclip, FileText, Loader2,
 } from 'lucide-react';
@@ -752,6 +752,14 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const [repliesPorPost, setRepliesPorPost] = useState<Record<string, CommunityReply[]>>({});
   const exemplosIniciados = useRef(false);
 
+  // ===== Nova mensagem (pergunta, sugestão, comentário ou bug) =====
+  const [novoPostAberto, setNovoPostAberto] = useState(false);
+  const [novoPostTipo, setNovoPostTipo] = useState<PostTipo>('duvida');
+  const [novoPostTitulo, setNovoPostTitulo] = useState('');
+  const [novoPostTexto, setNovoPostTexto] = useState('');
+  const [novoPostAnexos, setNovoPostAnexos] = useState<Anexo[]>([]);
+  const [enviandoPost, setEnviandoPost] = useState(false);
+
   const meUid = auth.currentUser?.uid || '';
   const ADMIN_EMAILS = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
   const meIsAdmin = ADMIN_EMAILS.includes((auth.currentUser?.email || '').toLowerCase());
@@ -791,6 +799,29 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   const empresaAtiva = escopo === 'time' ? (podeEscolherEmpresa ? empresaSel : (empresaIdEfetivo || '')) : null;
   const espaco: EspacoComunidade = { escopo, empresaId: empresaAtiva };
   const boasVindasPostId = idBoasVindasPost(cid, empresaAtiva);
+
+  const enviarNovoPost = async () => {
+    const texto = novoPostTexto.trim();
+    if (texto.length < 2 || enviandoPost) return;
+    setEnviandoPost(true);
+    try {
+      await criarPost({
+        tipo: novoPostTipo,
+        titulo: novoPostTitulo.trim() || null,
+        texto,
+        anexos: novoPostAnexos,
+        espaco,
+      });
+      setNovoPostTitulo('');
+      setNovoPostTexto('');
+      setNovoPostAnexos([]);
+      setNovoPostAberto(false);
+    } catch {
+      alert('Não foi possível publicar agora. Tente novamente.');
+    } finally {
+      setEnviandoPost(false);
+    }
+  };
 
   async function criarExemplosAluno() {
     if (!isAdmin && !isConsultor) return;
@@ -921,6 +952,79 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
         <div className="flex items-center gap-2 shrink-0">
           <NotificationsBell />
         </div>
+      </div>
+
+      {/* Nova mensagem — pergunta, sugestão, comentário ou bug.
+          Faltava por completo: criarPost só era chamado pelo seed de demonstração,
+          nunca por uma ação do usuário. */}
+      <div className="mb-5">
+        {escopo === 'time' && !empresaAtiva ? null : !novoPostAberto ? (
+          <button
+            onClick={() => setNovoPostAberto(true)}
+            className="w-full flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-500 bg-white hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer text-left"
+          >
+            <Plus size={16} className="text-blue-600 shrink-0" />
+            Pergunte, sugira, comente ou reporte um bug…
+          </button>
+        ) : (
+          <div className="border border-blue-200 rounded-xl bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+              {(Object.keys(TIPO_CFG) as PostTipo[]).map(t => {
+                const cfg = TIPO_CFG[t];
+                const Icon = cfg.icon;
+                const sel = novoPostTipo === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setNovoPostTipo(t)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition-colors',
+                      sel ? cfg.cls : 'text-gray-500 bg-white border-gray-200 hover:bg-gray-50'
+                    )}
+                  >
+                    <Icon size={13} />
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input
+              value={novoPostTitulo}
+              onChange={e => setNovoPostTitulo(e.target.value)}
+              placeholder="Título (opcional)"
+              className="w-full mb-2 px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <textarea
+              value={novoPostTexto}
+              onChange={e => setNovoPostTexto(e.target.value)}
+              placeholder="Escreva aqui…"
+              rows={3}
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="mt-2">
+              <AnexosInput anexos={novoPostAnexos} setAnexos={setNovoPostAnexos} />
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => { setNovoPostAberto(false); setNovoPostTitulo(''); setNovoPostTexto(''); setNovoPostAnexos([]); }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 bg-white hover:bg-gray-50 border border-gray-200 cursor-pointer transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={enviarNovoPost}
+                disabled={novoPostTexto.trim().length < 2 || enviandoPost}
+                className="h-9 px-4 rounded-xl bg-blue-600 text-white text-xs font-black flex items-center gap-1.5 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer border-none transition"
+              >
+                <Send size={13} /> {enviandoPost ? 'Publicando…' : 'Publicar'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Seletor de empresa — só admin/consultor no escopo do coordenador (cada empresa é isolada) */}
