@@ -1,8 +1,26 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CheckCircle2, ExternalLink, ShieldCheck, ShoppingCart, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ExternalLink, ShieldCheck, ShoppingCart, Sparkles, X } from 'lucide-react';
 import type { Initiative } from '../types';
 import { getCourseOfferDefaults, getCourseOfferPresentation } from '../services/courseOfferService';
+import { resolveConsultorId } from '../services/consultorService';
+
+// Degrau 2 da escada de /plataformalbw. É este o pacote certo para o upsell do
+// popup — e NÃO o de R$ 597: a compra avulsa de qualquer curso já libera módulos
+// do Software LBW (ver modulosSoftware em courseOfferService), e o plano de 597
+// não tem Data Analysis. Apontar para ele entregaria menos do que a pessoa já
+// leva no avulso. Preços espelham PLANOS em LandingPlataformaLBW.tsx.
+const PACOTE = {
+  nome: 'Formação Profissional + Software LBW',
+  parcela: '12x de R$ 103,11',
+  vista: 997,
+  checkout: 'https://pay.hotmart.com/Q100793649F',
+  ganhos: [
+    'Todos os cursos da LBW, não só este',
+    'Todos os módulos de Data Analysis',
+    'Certificados de conclusão de cada curso',
+  ],
+};
 
 interface CoursePurchasePopupProps {
   course: Initiative | null;
@@ -23,6 +41,15 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
   const padrao = getCourseOfferDefaults(course?.name || '', videoCount);
   const apresentacao = getCourseOfferPresentation(course?.name || '');
   const itens = itensConfigurados.length > 0 ? itensConfigurados : padrao.itens;
+
+  const precoCurso = Number(course?.precoVenda) || 0;
+  // O pacote é produto da LBW: num subdomínio de consultor seria oferta de
+  // terceiro. Mesma checagem que DataAnalysis/LearningView usam para o avulso.
+  const mostrarPacote = resolveConsultorId() === 'israel' && precoCurso > 0;
+  // A partir de quantos avulsos a conta passa do pacote. Só vale a pena dizer
+  // se o número for pequeno o bastante para soar concreto.
+  const cursosAtePagarPacote = precoCurso > 0 ? Math.ceil(PACOTE.vista / precoCurso) : 0;
+  const mostrarContaAvulsa = cursosAtePagarPacote >= 2 && cursosAtePagarPacote <= 8;
 
   return (
     <AnimatePresence>
@@ -53,7 +80,10 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               </p>
             </div>
 
-            <div className="p-5 sm:px-6">
+            {/* Sem padding-bottom: quem fecha a caixa é o rodapé sticky, que
+                precisa encostar na borda para não deixar conteúdo aparecendo
+                por baixo enquanto rola. */}
+            <div className="px-5 pt-5 sm:px-6">
               {apresentacao ? (
                 <>
                   <p className="mb-2 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-500">O que você receberá a mais</p>
@@ -88,28 +118,98 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                 </>
               )}
 
-              <div className={`my-4 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3 ${apresentacao ? 'text-center' : ''}`}>
-                <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-blue-700">Investimento</p>
-                <p className="mb-0 mt-0.5 text-2xl font-black text-[#1E2D6E]">{formatarPreco(Number(course.precoVenda) || 0)}</p>
-              </div>
+              {mostrarPacote ? (
+                <div className="my-4 overflow-hidden rounded-2xl border-2 border-[#0033CC] bg-gradient-to-br from-blue-50 to-white shadow-lg shadow-blue-100">
+                  <div className="flex items-center gap-1.5 bg-[#0033CC] px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">
+                    <Sparkles size={13} /> A escolha da maioria
+                  </div>
+                  <div className="p-4">
+                    {/* Os dois preços lado a lado: é a comparação que faz o
+                        pacote parecer óbvio, não o tamanho do botão. */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                        <p className="m-0 text-[10px] font-bold uppercase tracking-wide text-slate-500">Só este curso</p>
+                        <p className="mb-0 mt-1 text-[19px] font-black leading-none text-slate-700 [font-variant-numeric:tabular-nums]">
+                          {formatarPreco(precoCurso)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-[#0033CC] bg-white px-3 py-2.5">
+                        <p className="m-0 text-[10px] font-bold uppercase tracking-wide text-[#0033CC]">Tudo da LBW</p>
+                        <p className="mb-0 mt-1 text-[19px] font-black leading-none text-[#1E2D6E] [font-variant-numeric:tabular-nums]">
+                          {PACOTE.parcela}
+                        </p>
+                        <p className="mb-0 mt-1 text-[11px] font-semibold leading-none text-slate-500">
+                          ou {formatarPreco(PACOTE.vista)} à vista
+                        </p>
+                      </div>
+                    </div>
 
-              <a
-                href={course.hotmartCheckoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-5 py-3 text-center text-sm font-black text-white no-underline shadow-lg shadow-blue-200 transition hover:bg-[#1E2D6E]"
-              >
-                Comprar agora <ExternalLink size={18} />
-              </a>
-              <a
-                href="/plataformalbw"
-                className="mt-2.5 flex w-full items-center justify-center rounded-xl border border-blue-200 bg-white px-5 py-2.5 text-center text-sm font-black text-[#0033CC] no-underline transition hover:border-blue-400 hover:bg-blue-50"
-              >
-                Consultar pacotes e planos
-              </a>
-              <div className="mt-3 flex items-center justify-center gap-2 text-center text-[11px] text-slate-500">
-                <ShieldCheck size={16} className="text-emerald-600" />
-                Pagamento seguro via Hotmart e acesso após a confirmação.
+                    {mostrarContaAvulsa && (
+                      <p className="mb-0 mt-3 text-center text-[12px] font-bold leading-5 text-[#1E2D6E]">
+                        Comprando curso por curso, {cursosAtePagarPacote} cursos já custam
+                        mais do que levar tudo.
+                      </p>
+                    )}
+
+                    <div className="mt-3 space-y-1.5 border-t border-blue-100 pt-3">
+                      {PACOTE.ganhos.map(ganho => (
+                        <div key={ganho} className="flex items-start gap-2 text-[12.5px] font-semibold leading-5 text-slate-700">
+                          <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-[#0033CC]" />
+                          <span>{ganho}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={`my-4 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-3 ${apresentacao ? 'text-center' : ''}`}>
+                  <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-blue-700">Investimento</p>
+                  <p className="mb-0 mt-0.5 text-2xl font-black text-[#1E2D6E]">{formatarPreco(precoCurso)}</p>
+                </div>
+              )}
+
+              {/* Fica colado no rodapé enquanto o conteúdo rola — no celular a
+                  ementa empurra os botões para fora da tela. */}
+              <div className="sticky bottom-0 -mx-5 mt-4 border-t border-slate-100 bg-white px-5 pb-4 pt-3 sm:-mx-6 sm:px-6">
+                {mostrarPacote ? (
+                  <>
+                    <a
+                      href={PACOTE.checkout}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-4 py-3.5 text-center text-[15px] font-black leading-tight text-white no-underline shadow-lg shadow-blue-200 transition hover:bg-[#1E2D6E]"
+                    >
+                      Quero tudo por {PACOTE.parcela} <ArrowRight size={18} className="shrink-0" />
+                    </a>
+                    <a
+                      href={course.hotmartCheckoutUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-center text-[13px] font-bold leading-tight text-slate-600 no-underline transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      Comprar só este curso · {formatarPreco(precoCurso)}
+                    </a>
+                    <a
+                      href="/plataformalbw"
+                      className="mt-2 block text-center text-[12px] font-bold text-[#0033CC] underline underline-offset-2 hover:text-[#1E2D6E]"
+                    >
+                      Comparar os 3 planos da LBW
+                    </a>
+                  </>
+                ) : (
+                  <a
+                    href={course.hotmartCheckoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-4 py-3.5 text-center text-[15px] font-black leading-tight text-white no-underline shadow-lg shadow-blue-200 transition hover:bg-[#1E2D6E]"
+                  >
+                    Comprar agora <ExternalLink size={18} className="shrink-0" />
+                  </a>
+                )}
+                <div className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[11px] leading-4 text-slate-500">
+                  <ShieldCheck size={15} className="shrink-0 text-emerald-600" />
+                  Pagamento seguro via Hotmart e acesso após a confirmação.
+                </div>
               </div>
             </div>
           </motion.div>
