@@ -39,7 +39,7 @@ const PLANOS: Plano[] = [
     itens: ['Tudo do Software LBW Completo', 'Tudo da Formação Profissional', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
     naoInclui: 'A certificação do projeto é uma validação profissional separada, contratada quando você estiver pronto.',
     precoDe: 'R$ 1.497',
-    preco: '12x de R$ 113,11', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_COMPLETA,
+    preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_COMPLETA,
     promo: 'Condição promocional por tempo limitado',
     cta: 'Quero a Formação Completa', destaque: true,
   },
