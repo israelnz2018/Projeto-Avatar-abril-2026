@@ -24,7 +24,7 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW completo nem projetos guiados Yellow, Green e Black Belt.',
-    href: '/contato?plano=lbw-academy', cta: 'Quero conhecer a LBW Academy',
+    preco: 'R$ 597 à vista', href: '/contato?plano=lbw-academy', cta: 'Quero conhecer a LBW Academy',
   },
   {
     id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Formação Completa em Gestão de Projetos de Melhoria',

@@ -30,6 +30,8 @@ Não inclui:
 
 Para profissionais que querem aprender e receber certificados de conclusão, sem utilizar o Software LBW.
 
+Preço comercial atual: **R$ 597 à vista**.
+
 Inclui:
 
 - Todos os cursos incluídos no catálogo do plano.
