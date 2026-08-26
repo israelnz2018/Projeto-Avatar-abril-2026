@@ -9,7 +9,8 @@ const CHECKOUT_COMPLETA = 'https://pay.hotmart.com/U107332530P';
 
 type Plano = {
   id: string; tag: string; nome: string; resumo: string; ideal: string;
-  itens: string[]; naoInclui: string; href: string; cta: string;
+  // naoInclui é opcional: o último degrau não exclui nada, então não mostra rodapé.
+  itens: string[]; naoInclui?: string; href: string; cta: string;
   preco?: string; detalhePreco?: string; destaque?: boolean;
   // Preço cheio riscado + selo da condição promocional.
   precoDe?: string; promo?: string;
@@ -32,18 +33,17 @@ const PLANOS: Plano[] = [
     itens: ['Tudo da Formação Profissional', 'Todos os módulos de Data Analysis', 'Relatórios e apresentações PowerPoint', 'Projetos livres para organizar suas análises', 'IA digital para explicar uso e interpretação', 'Histórico completo dos seus trabalhos'],
     naoInclui: 'Não inclui os projetos guiados Yellow, Green e Black Belt.',
     preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista',
-    href: CHECKOUT_CURSOS_SOFTWARE, cta: 'Quero cursos + Software',
+    href: CHECKOUT_CURSOS_SOFTWARE, cta: 'Quero a Formação + Software completo',
   },
   {
-    id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Formação Completa em Gestão de Projetos de Melhoria',
+    id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Plataforma Profissional em Gestão de Projetos de Melhoria',
     resumo: 'A experiência completa da LBW para aprender, analisar dados e conduzir projetos reais de melhoria.',
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
     itens: ['Tudo da Formação Profissional', 'Todo o Software LBW', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
-    naoInclui: 'A certificação do projeto é uma validação profissional separada, contratada quando você estiver pronto.',
     precoDe: 'R$ 1.497',
     preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_COMPLETA,
     promo: 'Condição promocional por tempo limitado',
-    cta: 'Quero a Formação Completa', destaque: true,
+    cta: 'Quero a Plataforma Profissional completa', destaque: true,
   },
 ];
 
@@ -61,10 +61,10 @@ const COMPARACAO: Array<[string, boolean, boolean, boolean]> = [
 ];
 
 const FAQ = [
-  ['Os projetos Yellow, Green e Black Belt estão em todos os planos?', 'Não. Eles fazem parte exclusivamente da Formação Completa em Gestão de Projetos de Melhoria.'],
+  ['Os projetos Yellow, Green e Black Belt estão em todos os planos?', 'Não. Eles fazem parte exclusivamente da Plataforma Profissional em Gestão de Projetos de Melhoria.'],
   ['Certificado de curso e certificação de projeto são a mesma coisa?', 'Não. O certificado de curso confirma a conclusão do conteúdo. A certificação de projeto valida uma aplicação real e exige análise técnica separada.'],
-  ['Posso começar por um plano e evoluir depois?', 'Sim. Os planos são cumulativos: cada um contém o anterior. Você pode começar pela Formação Profissional, acrescentar o Software LBW e depois avançar para a Formação Completa.'],
-  ['Qual a diferença entre os três planos?', 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Formação Completa acrescenta os projetos guiados Yellow, Green e Black Belt.'],
+  ['Posso começar por um plano e evoluir depois?', 'Sim. Os planos são cumulativos: cada um contém o anterior. Você pode começar pela Formação Profissional, acrescentar o Software LBW e depois avançar para a Plataforma Profissional.'],
+  ['Qual a diferença entre os três planos?', 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Plataforma Profissional acrescenta os projetos guiados Yellow, Green e Black Belt.'],
   ['O Master Black Belt está incluído?', 'Não. O Master Black Belt é uma etapa avançada posterior, indicada para profissionais que já dominam projetos Black Belt.'],
   ['Existe uma solução para consultores e empresas?', 'Sim. Consultores possuem uma trilha própria e empresas podem solicitar pacotes corporativos para equipes.'],
 ];
@@ -78,16 +78,24 @@ const CSS = `
 .plbw .btn{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:0 27px;border-radius:12px;font-weight:800;color:#fff;border:1px solid transparent;transition:.2s ease;cursor:pointer}.plbw .btn:hover{transform:translateY(-2px)}.plbw .btn-primary{background:linear-gradient(120deg,#2866f4,#0aaacb);box-shadow:0 18px 42px -18px rgba(37,99,235,.9)}.plbw .btn-secondary{border-color:var(--line);background:rgba(255,255,255,.045)}
 .plbw .hero-proof{display:grid;grid-template-columns:repeat(3,1fr);max-width:780px;margin:52px auto 0;border:1px solid var(--line);border-radius:18px;background:rgba(13,23,48,.74);overflow:hidden}.plbw .proof{padding:21px 16px}.plbw .proof+.proof{border-left:1px solid var(--line)}.plbw .proof strong{display:block;font-size:18px}.plbw .proof span{display:block;color:var(--muted);font-size:13px;margin-top:5px}
 .plbw .head{text-align:center;max-width:780px;margin:0 auto 42px}.plbw .head small{font-weight:900;color:#74a2ff;letter-spacing:.18em}.plbw .head h2{font-size:clamp(30px,4.2vw,46px);letter-spacing:-.035em;margin:14px 0}.plbw .head p{color:var(--muted);line-height:1.65;font-size:17px}
-.plbw .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}.plbw .plan{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:22px;padding:28px;background:linear-gradient(160deg,rgba(17,31,66,.95),rgba(8,14,31,.96));box-shadow:0 24px 70px -42px #000}.plbw .plan.featured{border-color:#4381ff;box-shadow:0 0 0 1px rgba(67,129,255,.22),0 30px 80px -35px rgba(33,100,243,.75)}.plbw .recommended{position:absolute;top:-13px;right:20px;background:linear-gradient(120deg,#2866f4,#10b8dc);padding:7px 13px;border-radius:999px;font-size:11px;font-weight:900}.plbw .plan-tag{font-size:11px;color:#84adff;font-weight:900;letter-spacing:.12em;min-height:28px}.plbw .plan h3{font-size:27px;line-height:1.15;margin:10px 0 13px}.plbw .summary{color:#c7d1e8;line-height:1.55;min-height:100px}.plbw .ideal{margin:19px 0;padding:13px 14px;border-radius:11px;background:rgba(72,117,218,.09);color:#aebde0;font-size:13px;line-height:1.5}.plbw .items{list-style:none;padding:0;margin:0 0 18px}.plbw .items li{position:relative;padding:0 0 12px 25px;color:#e7ecf8;font-size:14px;line-height:1.45}.plbw .items li:before{content:'✓';position:absolute;left:0;color:#22d3a1;font-weight:900}.plbw .exclude{color:#93a2c3;font-size:12.5px;line-height:1.5;border-top:1px solid var(--line);padding-top:15px;margin-top:auto}.plbw .price{text-align:center;font-size:27px;font-weight:900;margin:22px 0 3px}.plbw .price-note{text-align:center;color:#aab6d2;font-size:13px;margin-bottom:14px}.plbw .soon{text-align:center;color:#bfd1fa;font-size:14px;font-weight:700;margin:22px 0 16px}.plbw .plan .btn{width:100%;text-align:center}
+.plbw .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}.plbw .plan{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:22px;padding:28px;background:linear-gradient(160deg,rgba(17,31,66,.95),rgba(8,14,31,.96));box-shadow:0 24px 70px -42px #000}.plbw .plan.featured{border-color:#4381ff;box-shadow:0 0 0 1px rgba(67,129,255,.22),0 30px 80px -35px rgba(33,100,243,.75)}.plbw .recommended{position:absolute;top:-13px;right:20px;background:linear-gradient(120deg,#2866f4,#10b8dc);padding:7px 13px;border-radius:999px;font-size:11px;font-weight:900}.plbw .plan-tag{font-size:11px;color:#84adff;font-weight:900;letter-spacing:.12em;min-height:28px}.plbw .plan h3{font-size:27px;line-height:1.15;margin:10px 0 13px}.plbw .summary{color:#c7d1e8;line-height:1.55;min-height:100px}.plbw .ideal{margin:19px 0;padding:13px 14px;border-radius:11px;background:rgba(72,117,218,.09);color:#aebde0;font-size:13px;line-height:1.5}.plbw .items{list-style:none;padding:0;margin:0 0 18px}.plbw .items li{position:relative;padding:0 0 12px 25px;color:#e7ecf8;font-size:14px;line-height:1.45}.plbw .items li:before{content:'✓';position:absolute;left:0;color:#22d3a1;font-weight:900}.plbw .exclude{color:#93a2c3;font-size:12.5px;line-height:1.5;border-top:1px solid var(--line);padding-top:15px;margin-top:auto}.plbw .exclude-vazio{margin-top:auto}.plbw .price{text-align:center;font-size:27px;font-weight:900;margin:22px 0 3px}.plbw .price-note{text-align:center;color:#aab6d2;font-size:13px;margin-bottom:14px}.plbw .soon{text-align:center;color:#bfd1fa;font-size:14px;font-weight:700;margin:22px 0 16px}.plbw .plan .btn{width:100%;text-align:center}
 .plbw .price-de{text-align:center;color:#8fa0c4;font-size:13px;margin:22px 0 0}.plbw .price-de s{color:#7b8bb0}.plbw .price-de+.price{margin-top:2px}
-.plbw .saving{display:flex;justify-content:center;margin:0 0 14px}.plbw .saving-badge{display:inline-flex;text-align:center;padding:6px 13px;border-radius:999px;background:rgba(34,211,161,.12);border:1px solid rgba(34,211,161,.42);color:#3ee0b0;font-size:12px;font-weight:900;line-height:1.35}
+.plbw .saving{display:flex;justify-content:center;margin:0 0 14px}.plbw .saving-badge{display:inline-flex;text-align:center;padding:6px 13px;border-radius:999px;background:rgba(34,211,161,.12);border:1px solid rgba(34,211,161,.42);color:#3ee0b0;font-size:12px;font-weight:900;line-height:1.35;max-width:100%}
+/* Os CTAs têm textos longos ("Quero a Plataforma Profissional completa"). O .btn
+   base tem padding vertical zero e min-height fixo — se o texto quebrar em duas
+   linhas, encosta nas bordas. Dentro do card o botão pode crescer. */
+.plbw .plan .btn{padding:14px 20px;min-height:56px;line-height:1.3}
 .plbw .table-shell{overflow-x:auto;border:1px solid var(--line);border-radius:18px;background:#0b1329}.plbw table{width:100%;border-collapse:collapse;min-width:720px}.plbw th,.plbw td{padding:17px 18px;border-bottom:1px solid var(--line);text-align:center}.plbw th:first-child,.plbw td:first-child{text-align:left}.plbw th{color:#a9c3ff;font-size:13px}.plbw td{font-size:14px;color:#dbe3f6}.plbw tr:last-child td{border-bottom:0}.plbw .yes{color:#23d6a3;font-size:19px}.plbw .no{color:#55627f;font-size:19px}
 .plbw .row-preco td{background:rgba(33,100,243,.08);border-top:1px solid var(--line)}.plbw .row-preco strong{display:block;font-size:16px;color:#fff}.plbw .row-preco span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 .plbw .distinction{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:center}.plbw .info-card{height:100%;padding:30px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#101c3a,#0a1125)}.plbw .info-icon{font-size:30px;margin-bottom:13px}.plbw .info-card h3{font-size:24px;margin-bottom:10px}.plbw .info-card p{color:var(--muted);line-height:1.6}.plbw .versus{font-weight:900;color:#6394ff}
 .plbw .paths{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:18px}.plbw .path{border:1px solid var(--line);border-radius:20px;padding:28px;background:rgba(255,255,255,.025)}.plbw .path.main{background:linear-gradient(140deg,rgba(33,100,243,.2),rgba(16,184,220,.07));border-color:rgba(75,132,255,.55)}.plbw .path h3{font-size:23px;margin:13px 0 10px}.plbw .path p{color:var(--muted);line-height:1.6;margin-bottom:20px}.plbw .path-label{font-size:11px;letter-spacing:.12em;font-weight:900;color:#89afff}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font:inherit;font-weight:800;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 @media(max-width:950px){.plbw .plans,.plbw .paths{grid-template-columns:1fr}.plbw .summary{min-height:0}.plbw .distinction{grid-template-columns:1fr}.plbw .versus{text-align:center}.plbw .plan{max-width:620px;width:100%;margin:0 auto}}
-@media(max-width:620px){.plbw .wrap{width:min(100% - 28px,1140px)}.plbw .hero{padding:60px 0}.plbw .hero-lead{font-size:17px}.plbw .hero-proof{grid-template-columns:1fr}.plbw .proof+.proof{border-left:0;border-top:1px solid var(--line)}.plbw .section{padding:60px 0}.plbw .plan{padding:24px 20px}.plbw .hero-actions .btn{width:100%}}
+@media(max-width:620px){.plbw .wrap{width:min(100% - 28px,1140px)}.plbw .hero{padding:60px 0}.plbw .hero-lead{font-size:17px}.plbw .hero-proof{grid-template-columns:1fr}.plbw .proof+.proof{border-left:0;border-top:1px solid var(--line)}.plbw .section{padding:60px 0}.plbw .plan{padding:24px 20px}.plbw .hero-actions .btn{width:100%}
+/* Nomes de plano são longos ("Plataforma Profissional em Gestão de Projetos de
+   Melhoria"): 27px estoura em tela estreita. Tabela também aperta o padding —
+   ela já rola na horizontal, mas com menos folga cabe mais coluna na tela. */
+.plbw .plan h3{font-size:22px}.plbw .price{font-size:24px}.plbw th,.plbw td{padding:14px 12px}.plbw .faq-q{padding:17px 18px}.plbw .faq-a{padding:0 18px 18px}}
 `;
 
 export default function LandingPlataformaLBW() {
@@ -124,7 +132,10 @@ export default function LandingPlataformaLBW() {
           <div className="head"><small>ESCOLHA SEU CAMINHO</small><h2>Três produtos claros. Uma única plataforma.</h2><p>Você não precisa contratar tudo para começar. Escolha o nível de acesso que resolve sua necessidade agora e evolua quando fizer sentido.</p></div>
           <div className="plans">{PLANOS.map((plano) => <article className={`plan${plano.destaque ? ' featured' : ''}`} key={plano.id}>
             {plano.destaque && <span className="recommended">MAIS COMPLETO</span>}<div className="plan-tag">{plano.tag}</div><h3>{plano.nome}</h3><p className="summary">{plano.resumo}</p><p className="ideal"><strong>Ideal para:</strong> {plano.ideal}</p>
-            <ul className="items">{plano.itens.map((item) => <li key={item}>{item}</li>)}</ul><p className="exclude">{plano.naoInclui}</p>
+            <ul className="items">{plano.itens.map((item) => <li key={item}>{item}</li>)}</ul>
+            {/* Sem texto de exclusão, entra um espaçador: é o margin-top:auto do
+                .exclude que empurra o preço pra base e alinha os três cards. */}
+            {plano.naoInclui ? <p className="exclude">{plano.naoInclui}</p> : <div className="exclude-vazio" />}
             {plano.preco ? <>
               {plano.precoDe && <div className="price-de">de <s>{plano.precoDe}</s> por</div>}
               <div className="price">{plano.preco}</div>
@@ -143,8 +154,8 @@ export default function LandingPlataformaLBW() {
         </div></section>
 
         <section className="section section-soft" id="como-escolher"><div className="wrap">
-          <div className="head"><small>COMPARAÇÃO DIRETA</small><h2>Veja exatamente o que muda</h2><p>Os projetos guiados Yellow, Green e Black Belt pertencem somente à Formação Completa.</p></div>
-          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Formação Profissional</th><th>Profissional + Software</th><th>Formação Completa</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody>
+          <div className="head"><small>COMPARAÇÃO DIRETA</small><h2>Veja exatamente o que muda</h2><p>Os projetos guiados Yellow, Green e Black Belt pertencem somente à Plataforma Profissional.</p></div>
+          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Formação Profissional</th><th>Profissional + Software</th><th>Plataforma Profissional</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody>
             {/* Preço na própria tabela: quem compara linha a linha decide aqui,
                 sem precisar rolar de volta pros cards. */}
             <tfoot><tr className="row-preco"><td>Investimento</td>{PLANOS.map((plano) => <td key={plano.id}><strong>{plano.preco}</strong><span>{plano.detalhePreco}</span></td>)}</tr></tfoot>
@@ -155,7 +166,7 @@ export default function LandingPlataformaLBW() {
           <div className="distinction"><article className="info-card"><div className="info-icon">🎓</div><h3>Certificado de curso</h3><p>Comprova que você cumpriu os critérios de aprendizagem, assistiu ao conteúdo e foi aprovado na avaliação do curso.</p></article><div className="versus">SÃO ETAPAS DIFERENTES</div><article className="info-card"><div className="info-icon">🏅</div><h3>Certificação de projeto</h3><p>Valida um projeto real, seus resultados e a aplicação do método. É um serviço profissional separado, contratado quando o projeto estiver pronto.</p></article></div>
         </div></section>
 
-        <section className="section section-soft"><div className="wrap"><div className="head"><small>PRÓXIMOS PASSOS</small><h2>A plataforma acompanha sua evolução</h2><p>Depois da Formação Completa, existem caminhos específicos para liderança técnica, consultoria e implantação em empresas.</p></div>
+        <section className="section section-soft"><div className="wrap"><div className="head"><small>PRÓXIMOS PASSOS</small><h2>A plataforma acompanha sua evolução</h2><p>Depois da Plataforma Profissional, existem caminhos específicos para liderança técnica, consultoria e implantação em empresas.</p></div>
           <div className="paths"><article className="path main"><div className="path-label">TRILHA AVANÇADA</div><h3>Master Black Belt</h3><p>Uma evolução posterior para quem já domina projetos Black Belt e quer liderar portfólios, orientar especialistas e estruturar sistemas de melhoria.</p><a className="btn btn-secondary" href="/contato?interesse=master-black-belt">Tenho interesse no MBB</a></article><article className="path"><div className="path-label">PARA PROFISSIONAIS</div><h3>Seja consultor LBW</h3><p>Conheça a estrutura destinada a quem deseja aplicar e comercializar sua própria operação de consultoria e treinamento.</p><a className="btn btn-secondary" href="/consultores">Área de consultores</a></article><article className="path"><div className="path-label">PARA EQUIPES</div><h3>LBW para empresas</h3><p>Pacotes corporativos, gestão de acessos e desenvolvimento aplicado às necessidades da organização.</p><a className="btn btn-secondary" href="/pacotes-corporativos">Solução corporativa</a></article></div>
         </div></section>
 
