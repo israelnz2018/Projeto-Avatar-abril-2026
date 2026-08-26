@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
-const CHECKOUT_FORMACAO = 'https://pay.hotmart.com/N102603781W?checkoutMode=2&bid=1781388122214';
+const CHECKOUT_ACADEMY = 'https://pay.hotmart.com/N102603781W';
 
 type Plano = {
   id: string; tag: string; nome: string; resumo: string; ideal: string;
@@ -24,7 +24,7 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW completo nem projetos guiados Yellow, Green e Black Belt.',
-    preco: 'R$ 597 à vista', href: '/contato?plano=lbw-academy', cta: 'Quero conhecer a LBW Academy',
+    preco: 'R$ 597 à vista', href: CHECKOUT_ACADEMY, cta: 'Quero a LBW Academy',
   },
   {
     id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Formação Completa em Gestão de Projetos de Melhoria',
@@ -32,7 +32,7 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
     itens: ['Tudo do Software LBW Completo', 'Tudo da LBW Academy', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
     naoInclui: 'A certificação do projeto é uma validação profissional separada, contratada quando você estiver pronto.',
-    preco: '12x de R$ 83,08', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_FORMACAO,
+    preco: '12x de R$ 83,08', detalhePreco: 'ou R$ 997 à vista', href: '/contato?plano=plataforma-completa',
     cta: 'Quero a Formação Completa', destaque: true,
   },
 ];

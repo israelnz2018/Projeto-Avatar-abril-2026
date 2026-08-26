@@ -27,7 +27,7 @@ const VTURB_PLAYER_ID = 'vid-6a5340027e3b42281f6a52cd';
 const VTURB_SCRIPT_SRC = 'https://scripts.converteai.net/21190591-631c-400a-94ca-b1400c31d918/players/6a5340027e3b42281f6a52cd/v4/player.js';
 
 const WEBHOOK_GRATUITO = 'https://primary-production-1d53.up.railway.app/webhook/acessogratuito';
-const HOTMART = 'https://pay.hotmart.com/N102603781W?checkoutMode=2&bid=1781388122214';
+const CONTATO_FORMACAO_COMPLETA = '/contato?plano=plataforma-completa';
 
 const CSS = `
 .lf{--ink:#070A18;--line:rgba(255,255,255,.10);--txt:rgba(255,255,255,.72);--txt2:rgba(255,255,255,.5)}
@@ -557,7 +557,7 @@ export default function LandingFormacao() {
                   12x <span style={{ fontSize: 20 }}>de</span> R$ 83,08
                 </div>
                 <div style={{ fontSize: 15, color: 'var(--txt2)', marginBottom: 26 }}>ou R$ 997 à vista</div>
-                <a className="btn btn-primary hotmart-fb hotmart__button-checkout" href={HOTMART} onClick={trackCheckout} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo</a>
+                <a className="btn btn-primary" href={CONTATO_FORMACAO_COMPLETA} onClick={trackCheckout} style={{ display: 'block', textAlign: 'center', width: '100%' }}>Quero acesso completo</a>
                 <p className="plan-note">🔒 Compra segura via Hotmart · Acesso imediato · 7 dias de garantia</p>
               </div>
             </div>
@@ -620,7 +620,7 @@ export default function LandingFormacao() {
         <div className="wrap" style={{ maxWidth: 600 }}>
           <h2>Sua próxima entrega começa aqui.</h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,.85)', marginBottom: 30 }}>Pare de colecionar cursos. Comece a resolver problema de verdade e a mostrar resultado.</p>
-          <a className="btn hotmart-fb hotmart__button-checkout" href={HOTMART} onClick={trackCheckout} style={{ background: '#fff', color: '#0033CC', fontSize: 17, padding: '18px 42px' }}>Quero a formação completa →</a>
+          <a className="btn" href={CONTATO_FORMACAO_COMPLETA} onClick={trackCheckout} style={{ background: '#fff', color: '#0033CC', fontSize: 17, padding: '18px 42px' }}>Quero a formação completa →</a>
         </div>
       </section>
 

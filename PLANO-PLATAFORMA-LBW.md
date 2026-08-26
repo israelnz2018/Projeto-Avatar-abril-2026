@@ -32,6 +32,8 @@ Para profissionais que querem aprender e receber certificados de conclusão, sem
 
 Preço comercial atual: **R$ 597 à vista**.
 
+Checkout Hotmart: `https://pay.hotmart.com/N102603781W`.
+
 Inclui:
 
 - Todos os cursos incluídos no catálogo do plano.
