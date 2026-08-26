@@ -48,6 +48,10 @@ Não inclui:
 
 ### 3. Formação Completa em Gestão de Projetos de Melhoria
 
+Na Hotmart e no webhook de acesso, esta oferta é identificada pelo nome comercial **Plataforma Profissional em Gestão de Projetos de Melhoria**.
+
+Preço comercial atual: **R$ 997 à vista**.
+
 Plano principal da LBW, com foco em formar profissionais capazes de aprender, executar, documentar e apresentar projetos de melhoria.
 
 Inclui:

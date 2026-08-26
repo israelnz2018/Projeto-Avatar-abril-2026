@@ -67,9 +67,11 @@ export function useUserAccess() {
         let projetosAcc: ProjetoAcesso[] = [];
         let projetosConfigurados = false;
         let porCurso = false;
+        let acessoPlataformaCompleta = false;
         if (userSnap.exists()) {
           const dataGlobal = userSnap.data();
           const data = userDataNoConsultor(dataGlobal, resolveConsultorId());
+          acessoPlataformaCompleta = data.pacoteId === 'plataforma-profissional-gestao-projetos-melhoria';
           // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
           if (!dataGlobal.primeiroAcessoEm) {
             setDoc(userRef, { primeiroAcessoEm: new Date().toISOString() }, { merge: true }).catch(() => {});
@@ -199,6 +201,10 @@ export function useUserAccess() {
         // Inclui também tipos de projeto que não são cursos. O vínculo explícito
         // cursoAssociadoId é o que decide se seus recursos ficam disponíveis.
         const liberadas = allInitiatives.filter((initiative) => {
+          const liberadaDiretamenteEmProjetos = acessoPlataformaCompleta && projetosAcc.some((acesso) =>
+            acesso.projeto === initiative.id || hasCourseAccess([acesso.projeto], initiative.name),
+          );
+          if (liberadaDiretamenteEmProjetos) return true;
           const curso = initiative.cursoAssociadoId
             ? allInitiatives.find((item) => item.id === initiative.cursoAssociadoId)
             : initiative;
