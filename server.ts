@@ -5315,6 +5315,11 @@ async function startServer() {
 
     // 2) Dados de entrada (aceita tanto campos diretos quanto o payload cru da Hotmart)
     const body = req.body || {};
+    const hotmartBuyer = body?.data?.buyer || {};
+    const email = String(body.email || hotmartBuyer.email || "").toLowerCase().trim();
+    const nome = String(body.nome || body.name || hotmartBuyer.name || hotmartBuyer.first_name || "").trim();
+    const transacao = String(body.transacao || body.transaction || body?.data?.purchase?.transaction || "").trim();
+    const eventId = String(body.eventId || body.id || "").trim();
     // O mesmo workflow do n8n pode encaminhar aprovação, pedido de reembolso,
     // reembolso e chargeback. Somente a aprovação pode criar/ ampliar acesso.
     // Antes, o endpoint ignorava o evento e tratava qualquer notificação como
@@ -5329,27 +5334,32 @@ async function startServer() {
       "PURCHASE_CANCELLED",
       "PURCHASE_EXPIRED",
     ]);
-    if (eventosSemLiberacao.has(evento)) {
-      console.warn(`[acesso/liberar] EVENTO SEM LIBERACAO evento=${evento} email=${body.email || body?.data?.buyer?.email || ""}`);
+    const eventosQueRevogam = new Set([
+      "PURCHASE_REFUNDED",
+      "PURCHASE_CHARGEBACK",
+      "PURCHASE_CANCELED",
+      "PURCHASE_CANCELLED",
+      "PURCHASE_EXPIRED",
+    ]);
+    const eventoRevogacao = eventosQueRevogam.has(evento);
+    const eventoApenasInformativo = eventosSemLiberacao.has(evento) && !eventoRevogacao;
+    const eventosQueLiberam = new Set(["PURCHASE_APPROVED"]);
+    if (eventoApenasInformativo) {
       return res.status(200).json({
         ok: true,
-        status: "evento-recebido-sem-liberacao",
+        status: "evento-recebido-sem-revogacao",
         evento,
         acessoAlterado: false,
-        mensagem: "Evento recebido. Nenhum acesso novo foi liberado.",
+        mensagem: "Pedido de reembolso recebido. O acesso permanece ativo ate a confirmacao do reembolso.",
       });
     }
-    const eventosQueLiberam = new Set(["PURCHASE_APPROVED"]);
-    if (!eventosQueLiberam.has(evento)) {
+    if (!eventoRevogacao && !eventosQueLiberam.has(evento)) {
       return res.status(422).json({
         error: "Evento Hotmart não habilitado para liberação.",
         evento,
         aceitos: Array.from(eventosQueLiberam),
       });
     }
-    const hotmartBuyer = body?.data?.buyer || {};
-    const email = String(body.email || hotmartBuyer.email || "").toLowerCase().trim();
-    const nome = String(body.nome || body.name || hotmartBuyer.name || hotmartBuyer.first_name || "").trim();
     // plano recebido do n8n:
     //   'completo'  -> curso especialista (nome comercial legado da Hotmart)
     //   'trilha1'   -> COMPRA da Trilha 1 (R$67). Acesso = mesma Trilha 1 do grátis,
@@ -5489,7 +5499,7 @@ async function startServer() {
       || isCompraCulturaLean
       || isCompraPlataformaCompleta
       || isCompraAcademy;
-    if (!planoConhecido) {
+    if (!planoConhecido && !eventoRevogacao) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
       // log dá pra mapear o produto e reprocessar.
@@ -5740,6 +5750,140 @@ async function startServer() {
         }))
       : cursoAcessoComprado ? [cursoAcessoComprado] : [];
     const projetosComprados = isCompraPlataformaCompleta ? projetosCatalogoCompleto : [];
+    const snapshotAcessoAntesDoHistorico = (vinculo: any) => ({
+      cursosAcesso: Array.isArray(vinculo?.cursosAcesso) ? vinculo.cursosAcesso : [],
+      cursosLiberados: Array.isArray(vinculo?.cursosLiberados) ? vinculo.cursosLiberados : [],
+      acessoProdutos: vinculo?.acessoProdutos || {},
+      projetosAcesso: Array.isArray(vinculo?.projetosAcesso) ? vinculo.projetosAcesso : [],
+      projetosAcessoConfigurado: vinculo?.projetosAcessoConfigurado === true,
+      acessoCompletoAte: vinculo?.acessoCompletoAte || null,
+    });
+    // O historico usa a transacao como chave. Assim, reenvios do mesmo evento
+    // Hotmart sao idempotentes e nao duplicam acessos.
+    const compraHotmartAtual = evento === "PURCHASE_APPROVED" && transacao
+      ? {
+          transacao,
+          eventId: eventId || null,
+          produtoUcode: String(body.produtoUcode || body?.data?.product?.ucode || "").trim() || null,
+          pacoteId: String((dadosPacoteComercial as any).pacoteId || normalizarPacote(nomePlanoResposta)),
+          pacoteNome: String((dadosPacoteComercial as any).pacoteNome || nomePlanoResposta),
+          plano: planoSolicitado,
+          status: "approved",
+          aprovadoEm: new Date().toISOString(),
+          acessoAte: acessoAteCompra || null,
+          cursosAcesso: cursosAcessoComprados,
+          cursosLiberados: cursosAcessoComprados.map((item: any) => item.curso),
+          analytics: analyticsComprado,
+          projetosAcesso: projetosComprados,
+          projetosAcessoConfigurado: isCompraSoftware || isCompraPlataformaCompleta || isCompraAcademy,
+        }
+      : null;
+    const anexarCompraHotmart = (vinculoBase: any, patch: Record<string, any>) => {
+      if (!compraHotmartAtual) return patch;
+      const comprasAnteriores = Array.isArray(vinculoBase?.comprasHotmart) ? vinculoBase.comprasHotmart : [];
+      const indice = comprasAnteriores.findIndex((item: any) => String(item?.transacao || "") === transacao);
+      const comprasAtualizadas = [...comprasAnteriores];
+      if (indice >= 0) comprasAtualizadas[indice] = { ...comprasAtualizadas[indice], ...compraHotmartAtual };
+      else comprasAtualizadas.push(compraHotmartAtual);
+      return {
+        ...patch,
+        ...(vinculoBase?.acessoLegadoAntesCompras ? {} : { acessoLegadoAntesCompras: snapshotAcessoAntesDoHistorico(vinculoBase) }),
+        comprasHotmart: comprasAtualizadas,
+      };
+    };
+    const historicoCompraInicial = compraHotmartAtual
+      ? { comprasHotmart: [compraHotmartAtual], acessoLegadoAntesCompras: snapshotAcessoAntesDoHistorico(null) }
+      : {};
+    // Reembolso so remove a compra identificada pela transacao. Se o aluno
+    // ainda nao possui historico, mantemos o acesso legado por seguranca.
+    if (eventoRevogacao) {
+      if (!email || !email.includes("@")) return res.status(400).json({ error: "E-mail ausente ou invalido no payload." });
+      if (!transacao) {
+        return res.status(200).json({ ok: true, status: "evento-sem-transacao", evento, acessoAlterado: false });
+      }
+      let userParaRevogar: any = null;
+      try {
+        userParaRevogar = await adminAuth().getUserByEmail(email);
+      } catch (e: any) {
+        if (e?.code !== "auth/user-not-found") throw e;
+      }
+      if (!userParaRevogar) return res.status(200).json({ ok: true, status: "aluno-nao-encontrado", evento, acessoAlterado: false });
+      const docRefRevogacao = adminFirestore().collection("users").doc(userParaRevogar.uid);
+      const snapRevogacao = await docRefRevogacao.get();
+      const baseRevogacao = snapRevogacao.exists ? snapRevogacao.data() as any : null;
+      const vinculoRevogacao = baseRevogacao?.vinculos?.israel
+        || (String(baseRevogacao?.consultorId || "") === "israel" ? baseRevogacao : null);
+      const comprasRevogacao = Array.isArray(vinculoRevogacao?.comprasHotmart) ? vinculoRevogacao.comprasHotmart : [];
+      const indiceCompra = comprasRevogacao.findIndex((item: any) => String(item?.transacao || "") === transacao);
+      if (indiceCompra < 0) {
+        return res.status(200).json({ ok: true, status: "compra-nao-registrada", evento, transacao, acessoAlterado: false });
+      }
+      const compraEncontrada = comprasRevogacao[indiceCompra];
+      const statusRevogacao = evento.includes("CHARGEBACK") ? "chargeback" : evento.includes("EXPIRED") ? "expired" : "refunded";
+      if (compraEncontrada.status === statusRevogacao) {
+        return res.status(200).json({ ok: true, status: "revogacao-ja-processada", evento, transacao, acessoAlterado: false });
+      }
+      const comprasAtualizadas = comprasRevogacao.map((item: any, index: number) => index === indiceCompra
+        ? { ...item, status: statusRevogacao, revogadoEm: new Date().toISOString(), eventoRevogacao: evento }
+        : item);
+      const comprasAtivas = comprasAtualizadas.filter((item: any) => {
+        if (item?.status !== "approved") return false;
+        if (!item?.acessoAte) return true;
+        return new Date(item.acessoAte).getTime() > Date.now();
+      });
+      const legado = vinculoRevogacao?.acessoLegadoAntesCompras || {};
+      const mesclarPorChave = (listas: any[], chave: (item: any) => string) => {
+        const mapa = new Map<string, any>();
+        listas.flat().forEach((item: any) => {
+          const id = chave(item);
+          if (id) mapa.set(id, item);
+        });
+        return Array.from(mapa.values());
+      };
+      const cursosAposRevogacao = mesclarPorChave([
+        legado.cursosAcesso || [],
+        ...comprasAtivas.map((item: any) => item.cursosAcesso || []),
+      ], (item: any) => normalizarPacote(String(item?.curso || item || "")));
+      const analyticsAposRevogacao = mesclarPorChave([
+        legado.acessoProdutos?.analytics || [],
+        ...comprasAtivas.map((item: any) => item.analytics || []),
+      ], (item: any) => String(item?.modulo || item?.id || item || "").trim());
+      const temProjetosExplicitos = legado.projetosAcessoConfigurado === true
+        || comprasAtivas.some((item: any) => item.projetosAcessoConfigurado === true);
+      const projetosAposRevogacao = mesclarPorChave([
+        legado.projetosAcesso || [],
+        ...comprasAtivas.map((item: any) => item.projetosAcesso || []),
+      ], (item: any) => String(item?.projeto || item?.projetoId || "").trim());
+      const datasDeAcesso = [legado.acessoCompletoAte, ...comprasAtivas.map((item: any) => item.acessoAte)].filter(Boolean);
+      const acessoCompletoAte = datasDeAcesso.length > 0
+        ? datasDeAcesso.sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime())[0]
+        : null;
+      const vinculoAtualizado = {
+        ...vinculoRevogacao,
+        comprasHotmart: comprasAtualizadas,
+        cursosAcesso: cursosAposRevogacao,
+        cursosLiberados: cursosAposRevogacao.map((item: any) => item.curso),
+        acessoProdutos: { ...(vinculoRevogacao?.acessoProdutos || {}), analytics: analyticsAposRevogacao },
+        projetosAcesso: projetosAposRevogacao,
+        projetosAcessoConfigurado: temProjetosExplicitos,
+        acessoCompletoAte,
+      };
+      const vinculosRevogados = { ...(baseRevogacao?.vinculos || {}), israel: vinculoAtualizado };
+      const principalEhIsrael = !baseRevogacao?.consultorId || String(baseRevogacao.consultorId) === "israel";
+      await docRefRevogacao.set({
+        vinculos: vinculosRevogados,
+        ...(principalEhIsrael ? {
+          cursosAcesso: cursosAposRevogacao,
+          cursosLiberados: cursosAposRevogacao.map((item: any) => item.curso),
+          acessoProdutos: { ...(baseRevogacao?.acessoProdutos || {}), analytics: analyticsAposRevogacao },
+          projetosAcesso: projetosAposRevogacao,
+          projetosAcessoConfigurado: temProjetosExplicitos,
+          acessoCompletoAte,
+        } : {}),
+      }, { merge: true });
+      console.warn(`[acesso/liberar] ACESSO REVOGADO evento=${evento} transacao=${transacao} email=${email}`);
+      return res.status(200).json({ ok: true, status: "acesso-revogado", evento, transacao, uid: userParaRevogar.uid, pacote: compraEncontrada.pacoteNome, acessoAlterado: true });
+    }
     const mesclarCursoComprado = (lista: any) => {
       const existentes = Array.isArray(lista) ? lista.filter((c: any) => c?.curso) : [];
       if (!cursoComprado || !cursoAcessoComprado) return existentes;
@@ -5812,6 +5956,7 @@ async function startServer() {
           senhaProvisoria: true, // força troca obrigatória no 1º acesso
           criadoEm: new Date().toISOString(),
           origem: origemAcesso,
+          ...historicoCompraInicial,
           // Compra (completa OU Trilha 1) = 1 ano de acesso. Só exibição por enquanto;
           // o rebaixamento automático ao vencer ainda é pendência (cron, Camada B).
           ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
@@ -5825,6 +5970,7 @@ async function startServer() {
               ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: origemAcesso,
+              ...historicoCompraInicial,
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
             },
           },
@@ -5860,6 +6006,7 @@ async function startServer() {
           creditoIA: { limite: planoSolicitado === "completo" || isCompraPlataformaCompleta ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
           criadoEm: new Date().toISOString(),
           origem: "regularizado",
+          ...historicoCompraInicial,
           ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
           vinculos: {
             [consultorCompraId]: {
@@ -5871,6 +6018,7 @@ async function startServer() {
               ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: "regularizado",
+              ...historicoCompraInicial,
               ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
             },
           },
@@ -5884,6 +6032,13 @@ async function startServer() {
       const base = snap.data() as any;
       const vinculoIsraelAnterior = base.vinculos?.[consultorCompraId]
         || (String(base.consultorId || "israel") === consultorCompraId ? base : null);
+      const compraJaRevogada = evento === "PURCHASE_APPROVED"
+        && transacao
+        && Array.isArray(vinculoIsraelAnterior?.comprasHotmart)
+        && vinculoIsraelAnterior.comprasHotmart.find((item: any) => String(item?.transacao || "") === transacao && item?.status !== "approved");
+      if (compraJaRevogada) {
+        return res.status(200).json({ ok: true, status: "compra-ja-revogada", transacao, acessoAlterado: false });
+      }
       const planoAtual = vinculoIsraelAnterior?.plano || null;
       const vinculosExistentes = { ...(base.vinculos || {}) };
       // Converte o vínculo principal legado antes de acrescentar Israel.
@@ -5897,9 +6052,13 @@ async function startServer() {
       }
       const salvarAcessoIsrael = async (patch: Record<string, any>) => {
         const papelAtual = vinculoIsraelAnterior?.tipoUsuario;
+        const patchComHistorico = anexarCompraHotmart(
+          vinculoIsraelAnterior || (String(base.consultorId || "") === consultorCompraId ? base : {}),
+          patch,
+        );
         const vinculoIsrael = {
           ...(vinculoIsraelAnterior || {}),
-          ...patch,
+          ...patchComHistorico,
           tipoUsuario: papelAtual === "consultor" || papelAtual === "coordenador" ? papelAtual : "aluno",
           consultorId: consultorCompraId,
         };
@@ -5908,7 +6067,7 @@ async function startServer() {
         await docRef.set({
           consultorIds,
           vinculos: { ...vinculosExistentes, [consultorCompraId]: vinculoIsrael },
-          ...(principalEhIsrael ? patch : {}),
+          ...(principalEhIsrael ? patchComHistorico : {}),
         }, { merge: true });
       };
 
