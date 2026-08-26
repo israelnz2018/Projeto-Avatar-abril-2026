@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
+const CHECKOUT_SOFTWARE = 'https://pay.hotmart.com/Q100793649F';
 const CHECKOUT_ACADEMY = 'https://pay.hotmart.com/N102603781W';
+const CHECKOUT_COMPLETA = 'https://pay.hotmart.com/U107332530P';
 
 type Plano = {
   id: string; tag: string; nome: string; resumo: string; ideal: string;
@@ -16,7 +18,8 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem já domina os métodos e precisa de uma plataforma completa para aplicar.',
     itens: ['Todos os módulos de Data Analysis', 'Vídeos de orientação das análises', 'IA digital para explicar uso e interpretação', 'Relatórios e apresentações PowerPoint', 'Projetos livres para organizar suas análises', 'Comunidade LBW e histórico de trabalhos'],
     naoInclui: 'Não inclui cursos, avaliações, certificados ou projetos guiados Belt.',
-    href: '/contato?plano=software-lbw', cta: 'Quero conhecer o Software LBW',
+    preco: '12x de R$ 61,74', detalhePreco: 'ou R$ 597 à vista',
+    href: CHECKOUT_SOFTWARE, cta: 'Quero o Software LBW',
   },
   {
     id: 'academy', tag: 'APRENDER E CERTIFICAR', nome: 'Formação Profissional em Gestão de Projetos de Melhoria',
@@ -24,7 +27,8 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW completo nem projetos guiados Yellow, Green e Black Belt.',
-    preco: 'R$ 597 à vista', href: CHECKOUT_ACADEMY, cta: 'Quero a Formação Profissional',
+    preco: '12x de R$ 61,74', detalhePreco: 'ou R$ 597 à vista',
+    href: CHECKOUT_ACADEMY, cta: 'Quero a Formação Profissional',
   },
   {
     id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Formação Completa em Gestão de Projetos de Melhoria',
@@ -32,7 +36,7 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
     itens: ['Tudo do Software LBW Completo', 'Tudo da Formação Profissional', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
     naoInclui: 'A certificação do projeto é uma validação profissional separada, contratada quando você estiver pronto.',
-    preco: '12x de R$ 83,08', detalhePreco: 'ou R$ 997 à vista', href: '/contato?plano=plataforma-completa',
+    preco: '12x de R$ 113,11', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_COMPLETA,
     cta: 'Quero a Formação Completa', destaque: true,
   },
 ];
@@ -108,8 +112,15 @@ export default function LandingPlataformaLBW() {
           <div className="plans">{PLANOS.map((plano) => <article className={`plan${plano.destaque ? ' featured' : ''}`} key={plano.id}>
             {plano.destaque && <span className="recommended">MAIS COMPLETO</span>}<div className="plan-tag">{plano.tag}</div><h3>{plano.nome}</h3><p className="summary">{plano.resumo}</p><p className="ideal"><strong>Ideal para:</strong> {plano.ideal}</p>
             <ul className="items">{plano.itens.map((item) => <li key={item}>{item}</li>)}</ul><p className="exclude">{plano.naoInclui}</p>
-            {plano.preco ? <><div className="price">{plano.preco}</div><div className="price-note">{plano.detalhePreco}</div></> : <div className="soon">Condição comercial sob consulta</div>}
-            <a className={`btn ${plano.destaque ? 'btn-primary hotmart-fb hotmart__button-checkout' : 'btn-secondary'}`} href={plano.href}>{plano.cta}</a>
+            {plano.preco ? <><div className="price">{plano.preco}</div>{plano.detalhePreco && <div className="price-note">{plano.detalhePreco}</div>}</> : <div className="soon">Condição comercial sob consulta</div>}
+            {/* As classes do widget da Hotmart seguem o LINK, não o destaque visual.
+                Antes estavam presas a `destaque`: a Formação Profissional tinha
+                checkout real e abria sem o popup, e a Completa (href de /contato)
+                recebia o widget e tentava abrir um checkout que não existe. */}
+            <a
+              className={`btn ${plano.destaque ? 'btn-primary' : 'btn-secondary'}${plano.href.includes('pay.hotmart.com') ? ' hotmart-fb hotmart__button-checkout' : ''}`}
+              href={plano.href}
+            >{plano.cta}</a>
           </article>)}</div>
         </div></section>
 
