@@ -29,7 +29,7 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW completo nem projetos guiados Yellow, Green e Black Belt.',
-    preco: '12x de R$ 61,74', detalhePreco: 'ou R$ 597 à vista',
+    preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista',
     href: CHECKOUT_ACADEMY, cta: 'Quero a Formação Profissional',
   },
   {
