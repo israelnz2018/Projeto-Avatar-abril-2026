@@ -181,7 +181,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -198,7 +198,7 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
@@ -207,7 +207,8 @@ async function startServer() {
       params.plano === "cep" ? "cep" :
       params.plano === "preditiva" ? "preditiva" :
       params.plano === "msa" ? "msa" :
-      params.plano === "software-lbw" ? "software-lbw" : "gratis";
+      params.plano === "software-lbw" ? "software-lbw" :
+      params.plano === "gate" ? "gate" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -364,6 +365,21 @@ async function startServer() {
         ${dashboardBloco}
         ${comunidadeBloco}
         <p style="margin:18px 0 0 0;font-size:14px;">Este plano não inclui os cursos da LBW Academy nem os projetos guiados Yellow, Green e Black Belt — só o Software LBW.</p>`;
+    } else if (tipo === "gate") {
+      titulo = "Seu acesso ao curso GATE está liberado 🚀";
+      planoLabel = "Como Recomendar Melhorias com Base em Dados - GATE";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Como Recomendar Melhorias com Base em Dados - GATE</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso GATE</strong> — transforme dados em recomendações de melhoria claras e estruturadas.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🛠️ <strong>Projeto e ferramentas associadas</strong> — liberados conforme a configuração atual do curso.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — apoio para aplicar o conteúdo e estruturar suas recomendações.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else if (tipo === "capabilidade") {
       titulo = "Seu acesso à Capabilidade de Processo Avançado está liberado 🚀";
       planoLabel = "Capabilidade de Processo Avançado";
@@ -5296,6 +5312,11 @@ async function startServer() {
       || normalizarPacote(planoRaw) === PACOTE_SOFTWARE_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_SOFTWARE_NOME)
       || normalizarPacote(planoRaw) === "software-lbw";
+    const PACOTE_GATE_ID = "como-recomendar-melhorias-base-dados-gate";
+    const PACOTE_GATE_NOME = "Como Recomendar Melhorias com Base em Dados - GATE";
+    const isCompraGate = planoRaw === "gate"
+      || normalizarPacote(planoRaw) === PACOTE_GATE_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_GATE_NOME);
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
@@ -5305,7 +5326,8 @@ async function startServer() {
       || isCompraCep
       || isCompraPreditiva
       || isCompraMsa
-      || isCompraSoftware;
+      || isCompraSoftware
+      || isCompraGate;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5320,6 +5342,7 @@ async function startServer() {
         PACOTE_PREDITIVA_NOME_ANTIGO, PACOTE_PREDITIVA_ID_ANTIGO,
         PACOTE_MSA_NOME, PACOTE_MSA_ID, CURSO_MSA_NOME,
         PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw",
+        PACOTE_GATE_NOME, PACOTE_GATE_ID, "gate",
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5332,7 +5355,7 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
@@ -5340,9 +5363,10 @@ async function startServer() {
       : isCompraCep ? "cep"
       : isCompraPreditiva ? "preditiva"
       : isCompraMsa ? "msa"
-      : isCompraSoftware ? "software-lbw" : "gratuito";
+      : isCompraSoftware ? "software-lbw"
+      : isCompraGate ? "gate" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5358,6 +5382,7 @@ async function startServer() {
     const CURSO_CONTROLE_ESTATISTICO = CURSO_CEP_NOME;
     const CURSO_PREDITIVA = PACOTE_PREDITIVA_NOME;
     const CURSO_MSA = CURSO_MSA_NOME;
+    const CURSO_GATE = PACOTE_GATE_NOME;
     const nomePacoteComercial = isCompraTrilha1
       ? PACOTE_KIT90_NOME
       : isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME
@@ -5370,7 +5395,8 @@ async function startServer() {
             : isCompraPreditiva
               ? PACOTE_PREDITIVA_NOME
               : isCompraMsa ? PACOTE_MSA_NOME
-              : isCompraSoftware ? PACOTE_SOFTWARE_NOME : planoSolicitado;
+              : isCompraSoftware ? PACOTE_SOFTWARE_NOME
+              : isCompraGate ? PACOTE_GATE_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraTrilha1
       ? { pacoteId: PACOTE_KIT90_ID, pacoteNome: PACOTE_KIT90_NOME }
       : isCompraCapabilidade ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
@@ -5386,6 +5412,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_MSA_ID, pacoteNome: PACOTE_MSA_NOME }
         : isCompraSoftware
           ? { pacoteId: PACOTE_SOFTWARE_ID, pacoteNome: PACOTE_SOFTWARE_NOME }
+        : isCompraGate
+          ? { pacoteId: PACOTE_GATE_ID, pacoteNome: PACOTE_GATE_NOME }
         : {};
     const nomePlanoResposta = isCompraTrilha1
       ? PACOTE_KIT90_NOME
@@ -5399,8 +5427,9 @@ async function startServer() {
             : isCompraPreditiva
               ? PACOTE_PREDITIVA_NOME
               : isCompraMsa ? PACOTE_MSA_NOME
-              : isCompraSoftware ? PACOTE_SOFTWARE_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware
+              : isCompraSoftware ? PACOTE_SOFTWARE_NOME
+              : isCompraGate ? PACOTE_GATE_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     // Software LBW é o ÚNICO pacote sem curso — null de propósito. cursoAcessoComprado
@@ -5414,7 +5443,8 @@ async function startServer() {
         : isCompraCep ? CURSO_CONTROLE_ESTATISTICO
         : isCompraPreditiva ? CURSO_PREDITIVA
         : isCompraMsa ? CURSO_MSA
-        : isCompraSoftware ? null : CURSO_KIT_90;
+        : isCompraSoftware ? null
+        : isCompraGate ? CURSO_GATE : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [
           { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
@@ -5823,6 +5853,27 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "software-lbw", contexto: "existente" });
         console.log(`[acesso/liberar] SOFTWARE LBW ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "software-lbw-liberado", uid, email, plano: PACOTE_SOFTWARE_NOME, pacoteId: PACOTE_SOFTWARE_ID, pacoteNome: PACOTE_SOFTWARE_NOME, emailEnviado });
+      }
+
+      // COMPRA de Como Recomendar Melhorias com Base em Dados - GATE: preserva
+      // os acessos anteriores e acrescenta somente o curso. O projeto guiado e
+      // suas ferramentas continuam obedecendo à associação já configurada no curso.
+      if (isCompraGate) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_GATE_NOME,
+          pacoteId: PACOTE_GATE_ID,
+          pacoteNome: PACOTE_GATE_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "gate", contexto: "existente" });
+        console.log(`[acesso/liberar] GATE ${email} email=${emailEnviado}`);
+        return res.json({ ok: true, status: "gate-liberado", uid, email, plano: PACOTE_GATE_NOME, pacoteId: PACOTE_GATE_ID, pacoteNome: PACOTE_GATE_NOME, emailEnviado });
       }
 
       // O produto historicamente chamado "completo" agora libera literalmente
