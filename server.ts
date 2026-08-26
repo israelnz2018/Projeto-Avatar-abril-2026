@@ -181,7 +181,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "lbw-academy";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "plataforma-completa" | "lbw-academy";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -198,7 +198,7 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "lbw-academy" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "plataforma-completa" | "lbw-academy" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
@@ -209,6 +209,7 @@ async function startServer() {
       params.plano === "msa" ? "msa" :
       params.plano === "software-lbw" ? "software-lbw" :
       params.plano === "gate" ? "gate" :
+      params.plano === "gestao-mudanca" ? "gestao-mudanca" :
       params.plano === "plataforma-completa" ? "plataforma-completa" :
       params.plano === "lbw-academy" ? "lbw-academy" : "gratis";
 
@@ -378,6 +379,21 @@ async function startServer() {
         <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso GATE</strong> — transforme dados em recomendações de melhoria claras e estruturadas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🛠️ <strong>Projeto e ferramentas associadas</strong> — liberados conforme a configuração atual do curso.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — apoio para aplicar o conteúdo e estruturar suas recomendações.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
+    } else if (tipo === "gestao-mudanca") {
+      titulo = "Seu acesso ao curso de Gestão de Mudança está liberado 🚀";
+      planoLabel = "Como Conduzir Mudanças com Menos Resistência";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Como Conduzir Mudanças com Menos Resistência</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR MEU CURSO";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Curso Como Conduzir Mudanças com Menos Resistência</strong> — aulas e exercícios para estruturar mudanças, engajar as pessoas e reduzir resistências.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🛠️ <strong>Projeto e ferramentas associadas</strong> — disponíveis quando estiverem habilitados na configuração do curso.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — apoio para aplicar o conteúdo e esclarecer dúvidas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado</strong> — disponível após cumprir os critérios do curso.</p>
         ${dashboardBloco}
         ${comunidadeBloco}
@@ -5351,6 +5367,12 @@ async function startServer() {
     const isCompraGate = planoRaw === "gate"
       || normalizarPacote(planoRaw) === PACOTE_GATE_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_GATE_NOME);
+    const PACOTE_MUDANCA_ID = "como-conduzir-mudancas-com-menos-resistencia";
+    const PACOTE_MUDANCA_NOME = "Como Conduzir Mudanças com Menos Resistência";
+    const isCompraMudanca = planoRaw === "gestao-mudanca"
+      || planoRaw === "gestaodemudanca"
+      || normalizarPacote(planoRaw) === PACOTE_MUDANCA_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_MUDANCA_NOME);
     const PACOTE_PLATAFORMA_COMPLETA_ID = "plataforma-profissional-gestao-projetos-melhoria";
     const PACOTE_PLATAFORMA_COMPLETA_NOME = "Plataforma Profissional em Gestão de Projetos de Melhoria";
     const isCompraPlataformaCompleta = planoRaw === "plataforma-completa"
@@ -5378,6 +5400,7 @@ async function startServer() {
       || isCompraMsa
       || isCompraSoftware
       || isCompraGate
+      || isCompraMudanca
       || isCompraPlataformaCompleta
       || isCompraAcademy;
     if (!planoConhecido) {
@@ -5395,6 +5418,7 @@ async function startServer() {
         PACOTE_MSA_NOME, PACOTE_MSA_ID, CURSO_MSA_NOME,
         PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw",
         PACOTE_GATE_NOME, PACOTE_GATE_ID, "gate",
+        PACOTE_MUDANCA_NOME, PACOTE_MUDANCA_ID, "gestao-mudanca", "gestaodemudanca",
         PACOTE_PLATAFORMA_COMPLETA_NOME, PACOTE_PLATAFORMA_COMPLETA_ID, "plataforma-completa",
         PACOTE_ACADEMY_NOME, PACOTE_ACADEMY_NOME_ANTIGO, PACOTE_ACADEMY_ID,
         "formacao-profissional-gestao-projetos-melhoria", "todos-os-cursos-da-plataforma",
@@ -5410,7 +5434,7 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "lbw-academy" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "plataforma-completa" | "lbw-academy" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
@@ -5420,10 +5444,11 @@ async function startServer() {
       : isCompraMsa ? "msa"
       : isCompraSoftware ? "software-lbw"
       : isCompraGate ? "gate"
+      : isCompraMudanca ? "gestao-mudanca"
       : isCompraPlataformaCompleta ? "plataforma-completa"
       : isCompraAcademy ? "lbw-academy" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraPlataformaCompleta || isCompraAcademy
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraMudanca || isCompraPlataformaCompleta || isCompraAcademy
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5440,6 +5465,7 @@ async function startServer() {
     const CURSO_PREDITIVA = PACOTE_PREDITIVA_NOME;
     const CURSO_MSA = CURSO_MSA_NOME;
     const CURSO_GATE = PACOTE_GATE_NOME;
+    const CURSO_MUDANCA = PACOTE_MUDANCA_NOME;
     let catalogoCompleto: any[] = [];
     if (isCompraPlataformaCompleta || isCompraAcademy) {
       try {
@@ -5488,6 +5514,7 @@ async function startServer() {
               : isCompraMsa ? PACOTE_MSA_NOME
               : isCompraSoftware ? PACOTE_SOFTWARE_NOME
               : isCompraGate ? PACOTE_GATE_NOME
+              : isCompraMudanca ? PACOTE_MUDANCA_NOME
               : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME
               : isCompraAcademy ? PACOTE_ACADEMY_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraTrilha1
@@ -5507,6 +5534,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_SOFTWARE_ID, pacoteNome: PACOTE_SOFTWARE_NOME }
         : isCompraGate
           ? { pacoteId: PACOTE_GATE_ID, pacoteNome: PACOTE_GATE_NOME }
+        : isCompraMudanca
+          ? { pacoteId: PACOTE_MUDANCA_ID, pacoteNome: PACOTE_MUDANCA_NOME }
         : isCompraPlataformaCompleta
           ? { pacoteId: PACOTE_PLATAFORMA_COMPLETA_ID, pacoteNome: PACOTE_PLATAFORMA_COMPLETA_NOME }
         : isCompraAcademy
@@ -5526,9 +5555,10 @@ async function startServer() {
               : isCompraMsa ? PACOTE_MSA_NOME
               : isCompraSoftware ? PACOTE_SOFTWARE_NOME
               : isCompraGate ? PACOTE_GATE_NOME
+              : isCompraMudanca ? PACOTE_MUDANCA_NOME
               : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME
               : isCompraAcademy ? PACOTE_ACADEMY_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraPlataformaCompleta || isCompraAcademy
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraMudanca || isCompraPlataformaCompleta || isCompraAcademy
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     // Software LBW não possui curso; a Plataforma Completa possui vários. Os dois
@@ -5543,7 +5573,8 @@ async function startServer() {
         : isCompraPreditiva ? CURSO_PREDITIVA
         : isCompraMsa ? CURSO_MSA
         : isCompraSoftware || isCompraPlataformaCompleta || isCompraAcademy ? null
-        : isCompraGate ? CURSO_GATE : CURSO_KIT_90;
+        : isCompraGate ? CURSO_GATE
+        : isCompraMudanca ? CURSO_MUDANCA : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [
           { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
@@ -6004,6 +6035,36 @@ async function startServer() {
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "gate", contexto: "existente" });
         console.log(`[acesso/liberar] GATE ${email} email=${emailEnviado}`);
         return res.json({ ok: true, status: "gate-liberado", uid, email, plano: PACOTE_GATE_NOME, pacoteId: PACOTE_GATE_ID, pacoteNome: PACOTE_GATE_NOME, emailEnviado });
+      }
+
+      // COMPRA de Como Conduzir Mudanças com Menos Resistência: preserva os
+      // acessos anteriores e acrescenta somente o curso. Projetos e ferramentas
+      // associados continuam seguindo a configuração administrativa do curso.
+      if (isCompraMudanca) {
+        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_MUDANCA_NOME,
+          pacoteId: PACOTE_MUDANCA_ID,
+          pacoteNome: PACOTE_MUDANCA_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "gestao-mudanca", contexto: "existente" });
+        console.log(`[acesso/liberar] GESTÃO DE MUDANÇA ${email} email=${emailEnviado}`);
+        return res.json({
+          ok: true,
+          status: "gestao-mudanca-liberada",
+          uid,
+          email,
+          plano: PACOTE_MUDANCA_NOME,
+          pacoteId: PACOTE_MUDANCA_ID,
+          pacoteNome: PACOTE_MUDANCA_NOME,
+          emailEnviado,
+        });
       }
 
       // COMPRA da Plataforma Profissional completa: mescla o catálogo vigente do

@@ -13,6 +13,7 @@ Catálogo sem credenciais ou tokens. As URLs abaixo são públicas por natureza;
 | Como Resolver Problemas no Trabalho - Kit 90 dias | Como Resolver Problemas no Trabalho - Kit 90 dias | `https://primary-production-1d53.up.railway.app/webhook/kit90dias` | Em configuração |
 | Software LBW Completo | Software LBW Completo | `https://primary-production-1d53.up.railway.app/webhook/softwarelbw` | Em configuração |
 | Como Recomendar Melhorias com Base em Dados - GATE | Como Recomendar Melhorias com Base em Dados - GATE | `https://primary-production-1d53.up.railway.app/webhook/gate` | Em configuração |
+| Como Conduzir Mudanças com Menos Resistência | Como Conduzir Mudanças com Menos Resistência | `https://primary-production-1d53.up.railway.app/webhook/gestaodemudanca` | Configurado no backend |
 | Plataforma Profissional em Gestão de Projetos de Melhoria | Plataforma Profissional em Gestão de Projetos de Melhoria | `https://primary-production-1d53.up.railway.app/webhook/Plataforma` | Em configuração |
 | Formação Profissional em Gestão de Projetos de Melhoria | Todos os cursos da plataforma | `https://primary-production-1d53.up.railway.app/webhook/formacao` | Configurado no backend |
 
