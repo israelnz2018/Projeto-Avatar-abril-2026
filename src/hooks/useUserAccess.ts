@@ -68,10 +68,12 @@ export function useUserAccess() {
         let projetosConfigurados = false;
         let porCurso = false;
         let acessoPlataformaCompleta = false;
+        let projetosAcessoExplicitamenteConfigurado = false;
         if (userSnap.exists()) {
           const dataGlobal = userSnap.data();
           const data = userDataNoConsultor(dataGlobal, resolveConsultorId());
           acessoPlataformaCompleta = data.pacoteId === 'plataforma-profissional-gestao-projetos-melhoria';
+          projetosAcessoExplicitamenteConfigurado = data.projetosAcessoConfigurado === true;
           // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
           if (!dataGlobal.primeiroAcessoEm) {
             setDoc(userRef, { primeiroAcessoEm: new Date().toISOString() }, { merge: true }).catch(() => {});
@@ -121,7 +123,8 @@ export function useUserAccess() {
           // "Estatística Aplicada e Ferramentas da Qualidade"). Tratar [] como
           // restritivo bloqueava esse aluno de QUALQUER tipo de projeto futuro,
           // mesmo tendo o curso liberado — sem o consultor ter escolhido isso.
-          projetosConfigurados = Array.isArray(data.projetosAcesso) && data.projetosAcesso.length > 0;
+          projetosConfigurados = projetosAcessoExplicitamenteConfigurado
+            || (Array.isArray(data.projetosAcesso) && data.projetosAcesso.length > 0);
           if (projetosConfigurados) {
             projetosAcc = data.projetosAcesso
               .map((item: any) => ({
@@ -201,10 +204,11 @@ export function useUserAccess() {
         // Inclui também tipos de projeto que não são cursos. O vínculo explícito
         // cursoAssociadoId é o que decide se seus recursos ficam disponíveis.
         const liberadas = allInitiatives.filter((initiative) => {
-          const liberadaDiretamenteEmProjetos = acessoPlataformaCompleta && projetosAcc.some((acesso) =>
+          const liberadaDiretamenteEmProjetos = (acessoPlataformaCompleta || projetosAcessoExplicitamenteConfigurado) && projetosAcc.some((acesso) =>
             acesso.projeto === initiative.id || hasCourseAccess([acesso.projeto], initiative.name),
           );
           if (liberadaDiretamenteEmProjetos) return true;
+          if (projetosAcessoExplicitamenteConfigurado) return false;
           const curso = initiative.cursoAssociadoId
             ? allInitiatives.find((item) => item.id === initiative.cursoAssociadoId)
             : initiative;

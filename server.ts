@@ -181,7 +181,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "lbw-academy";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -198,7 +198,7 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "lbw-academy" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
@@ -209,7 +209,8 @@ async function startServer() {
       params.plano === "msa" ? "msa" :
       params.plano === "software-lbw" ? "software-lbw" :
       params.plano === "gate" ? "gate" :
-      params.plano === "plataforma-completa" ? "plataforma-completa" : "gratis";
+      params.plano === "plataforma-completa" ? "plataforma-completa" :
+      params.plano === "lbw-academy" ? "lbw-academy" : "gratis";
 
     // ----- blocos reutilizáveis -----
     const linha = (n: string, txt: string) =>
@@ -397,6 +398,22 @@ async function startServer() {
         ${dashboardBloco}
         ${comunidadeBloco}
         <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e aproveite todos os recursos disponíveis para o aluno.</p>`;
+    } else if (tipo === "lbw-academy") {
+      titulo = "Todos os seus cursos da LBW Academy estão liberados 🚀";
+      planoLabel = "LBW Academy";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso de 12 meses a <strong>todos os cursos da LBW Academy</strong> está liberado.`;
+      credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
+      botaoLabel = "ACESSAR TODOS OS CURSOS";
+      corpoHtml = `
+        <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Todos os cursos online do Israel</strong> — o catálogo completo disponível na plataforma.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎥 <strong>Videoaulas, exercícios e materiais de apoio</strong> para estudar no seu ritmo.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📝 <strong>Avaliações de aprendizagem</strong> de cada curso configurado.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificados de conclusão</strong> após cumprir os critérios de cada curso.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> para apoiar seus estudos.</p>
+        ${dashboardBloco}
+        ${comunidadeBloco}
+        <p style="margin:18px 0 0 0;font-size:14px;">Este pacote não inclui os módulos do Software LBW nem a execução de projetos na aba Projects.</p>`;
     } else if (tipo === "capabilidade") {
       titulo = "Seu acesso à Capabilidade de Processo Avançado está liberado 🚀";
       planoLabel = "Capabilidade de Processo Avançado";
@@ -5339,6 +5356,12 @@ async function startServer() {
     const isCompraPlataformaCompleta = planoRaw === "plataforma-completa"
       || normalizarPacote(planoRaw) === PACOTE_PLATAFORMA_COMPLETA_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PLATAFORMA_COMPLETA_NOME);
+    const PACOTE_ACADEMY_ID = "lbw-academy";
+    const PACOTE_ACADEMY_NOME = "LBW Academy";
+    const isCompraAcademy = planoRaw === "lbw-academy"
+      || normalizarPacote(planoRaw) === PACOTE_ACADEMY_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ACADEMY_NOME)
+      || normalizarPacote(planoRaw) === "todos-os-cursos-da-plataforma";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
       || isCompraTrilha1
@@ -5350,7 +5373,8 @@ async function startServer() {
       || isCompraMsa
       || isCompraSoftware
       || isCompraGate
-      || isCompraPlataformaCompleta;
+      || isCompraPlataformaCompleta
+      || isCompraAcademy;
     if (!planoConhecido) {
       // Registrar no servidor, não só devolver pro n8n: uma venda recusada some
       // se o único vestígio for a tela de execução do n8n. Com o nome exato no
@@ -5367,6 +5391,7 @@ async function startServer() {
         PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw",
         PACOTE_GATE_NOME, PACOTE_GATE_ID, "gate",
         PACOTE_PLATAFORMA_COMPLETA_NOME, PACOTE_PLATAFORMA_COMPLETA_ID, "plataforma-completa",
+        PACOTE_ACADEMY_NOME, PACOTE_ACADEMY_ID, "todos-os-cursos-da-plataforma",
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5379,7 +5404,7 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "plataforma-completa" | "lbw-academy" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
@@ -5389,9 +5414,10 @@ async function startServer() {
       : isCompraMsa ? "msa"
       : isCompraSoftware ? "software-lbw"
       : isCompraGate ? "gate"
-      : isCompraPlataformaCompleta ? "plataforma-completa" : "gratuito";
+      : isCompraPlataformaCompleta ? "plataforma-completa"
+      : isCompraAcademy ? "lbw-academy" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraPlataformaCompleta
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraPlataformaCompleta || isCompraAcademy
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5409,7 +5435,7 @@ async function startServer() {
     const CURSO_MSA = CURSO_MSA_NOME;
     const CURSO_GATE = PACOTE_GATE_NOME;
     let catalogoCompleto: any[] = [];
-    if (isCompraPlataformaCompleta) {
+    if (isCompraPlataformaCompleta || isCompraAcademy) {
       try {
         const snapshot = await adminFirestore().collection("initiatives").get();
         catalogoCompleto = snapshot.docs
@@ -5438,6 +5464,10 @@ async function startServer() {
       console.error(`[acesso/liberar] Catálogo completo inconsistente: cursos=${cursosCatalogoCompleto.length}, projetos=${projetosCatalogoCompleto.length}`);
       return res.status(500).json({ error: "O catálogo completo está vazio ou incompleto. Nenhum acesso foi alterado." });
     }
+    if (isCompraAcademy && cursosCatalogoCompleto.length === 0) {
+      console.error("[acesso/liberar] Catálogo da LBW Academy sem cursos.");
+      return res.status(500).json({ error: "O catálogo de cursos está vazio. Nenhum acesso foi alterado." });
+    }
     const nomePacoteComercial = isCompraTrilha1
       ? PACOTE_KIT90_NOME
       : isCompraCapabilidade ? PACOTE_CAPABILIDADE_NOME
@@ -5452,7 +5482,8 @@ async function startServer() {
               : isCompraMsa ? PACOTE_MSA_NOME
               : isCompraSoftware ? PACOTE_SOFTWARE_NOME
               : isCompraGate ? PACOTE_GATE_NOME
-              : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME : planoSolicitado;
+              : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME
+              : isCompraAcademy ? PACOTE_ACADEMY_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraTrilha1
       ? { pacoteId: PACOTE_KIT90_ID, pacoteNome: PACOTE_KIT90_NOME }
       : isCompraCapabilidade ? { pacoteId: PACOTE_CAPABILIDADE_ID, pacoteNome: PACOTE_CAPABILIDADE_NOME }
@@ -5472,6 +5503,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_GATE_ID, pacoteNome: PACOTE_GATE_NOME }
         : isCompraPlataformaCompleta
           ? { pacoteId: PACOTE_PLATAFORMA_COMPLETA_ID, pacoteNome: PACOTE_PLATAFORMA_COMPLETA_NOME }
+        : isCompraAcademy
+          ? { pacoteId: PACOTE_ACADEMY_ID, pacoteNome: PACOTE_ACADEMY_NOME }
         : {};
     const nomePlanoResposta = isCompraTrilha1
       ? PACOTE_KIT90_NOME
@@ -5487,8 +5520,9 @@ async function startServer() {
               : isCompraMsa ? PACOTE_MSA_NOME
               : isCompraSoftware ? PACOTE_SOFTWARE_NOME
               : isCompraGate ? PACOTE_GATE_NOME
-              : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraPlataformaCompleta
+              : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME
+              : isCompraAcademy ? PACOTE_ACADEMY_NOME : planoSolicitado;
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraPlataformaCompleta || isCompraAcademy
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     // Software LBW não possui curso; a Plataforma Completa possui vários. Os dois
@@ -5502,7 +5536,7 @@ async function startServer() {
         : isCompraCep ? CURSO_CONTROLE_ESTATISTICO
         : isCompraPreditiva ? CURSO_PREDITIVA
         : isCompraMsa ? CURSO_MSA
-        : isCompraSoftware || isCompraPlataformaCompleta ? null
+        : isCompraSoftware || isCompraPlataformaCompleta || isCompraAcademy ? null
         : isCompraGate ? CURSO_GATE : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [
@@ -5554,7 +5588,7 @@ async function startServer() {
       valor: 0,
       quantidade: 1,
     } : null;
-    const cursosAcessoComprados = isCompraPlataformaCompleta
+    const cursosAcessoComprados = isCompraPlataformaCompleta || isCompraAcademy
       ? cursosCatalogoCompleto.map((curso: string) => ({
           curso,
           vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null,
@@ -5569,7 +5603,7 @@ async function startServer() {
       const semDuplicar = existentes.filter((c: any) => String(c.curso).trim() !== cursoComprado);
       return [...semDuplicar, cursoAcessoComprado];
     };
-    const mesclarCursosPlataformaCompleta = (lista: any) => {
+    const mesclarCursosCatalogo = (lista: any) => {
       const existentes = Array.isArray(lista) ? lista.filter((c: any) => c?.curso) : [];
       if (cursosAcessoComprados.length === 0) return existentes;
       const nomesNovos = new Set(cursosAcessoComprados.map((c: any) => normalizarPacote(String(c.curso || ""))));
@@ -5618,8 +5652,9 @@ async function startServer() {
            planoComercialLegado: nomePacoteComercial,
            ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
-          cursosAcesso: isCompraPlataformaCompleta ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-          cursosLiberados: isCompraPlataformaCompleta ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+          cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+          cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+          ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
           ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
           ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
           creditoIA: {
@@ -5637,8 +5672,9 @@ async function startServer() {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
                plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
-              cursosAcesso: isCompraPlataformaCompleta ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-              cursosLiberados: isCompraPlataformaCompleta ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+              cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+              cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+              ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
               ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: origemAcesso,
@@ -5669,8 +5705,9 @@ async function startServer() {
            planoComercialLegado: nomePacoteComercial,
            ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
-          cursosAcesso: isCompraPlataformaCompleta ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-          cursosLiberados: isCompraPlataformaCompleta ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+          cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+          cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+          ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
           ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
           ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
           creditoIA: { limite: planoSolicitado === "completo" || isCompraPlataformaCompleta ? 1000 : 100, usado: 0, resetEm: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() },
@@ -5681,8 +5718,9 @@ async function startServer() {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
                plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
-              cursosAcesso: isCompraPlataformaCompleta ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-              cursosLiberados: isCompraPlataformaCompleta ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+              cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+              cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+              ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
               ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
               origem: "regularizado",
@@ -5731,7 +5769,7 @@ async function startServer() {
       // sem tocar na senha nem no papel principal.
       if (!vinculoIsraelAnterior) {
         const origem = origemAcesso;
-        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: isCompraPlataformaCompleta ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: isCompraPlataformaCompleta ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}), origem });
+        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}), ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}), origem });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
         const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
@@ -5965,7 +6003,7 @@ async function startServer() {
       // COMPRA da Plataforma Profissional completa: mescla o catálogo vigente do
       // Israel com os acessos anteriores do aluno e libera cursos, Analytics e Projects.
       if (isCompraPlataformaCompleta) {
-        const cursosMesclados = mesclarCursosPlataformaCompleta(vinculoIsraelAnterior?.cursosAcesso);
+        const cursosMesclados = mesclarCursosCatalogo(vinculoIsraelAnterior?.cursosAcesso);
         const projetosMesclados = mesclarProjetosComprados(vinculoIsraelAnterior?.projetosAcesso);
         const modulosCompletos = new Set(ANALYTICS_MODULOS.map((m) => m.id));
         const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
@@ -6001,6 +6039,55 @@ async function startServer() {
           cursosLiberados: cursosMesclados.length,
           modulosAnalyticsLiberados: analyticsMesclados.length,
           projetosLiberados: projetosMesclados.length,
+          emailEnviado,
+        });
+      }
+
+      // COMPRA da LBW Academy: libera todos os cursos, avaliações e certificados,
+      // sem acrescentar Analytics ou Projects. Projetos que o aluno já possuía por
+      // outra compra são materializados e preservados antes de ampliar os cursos.
+      if (isCompraAcademy) {
+        const cursosAnteriores = Array.isArray(vinculoIsraelAnterior?.cursosAcesso)
+          ? vinculoIsraelAnterior.cursosAcesso.map((item: any) => normalizarPacote(String(item?.curso || "")))
+          : [];
+        const projetosAnterioresExplicitos = Array.isArray(vinculoIsraelAnterior?.projetosAcesso)
+          ? vinculoIsraelAnterior.projetosAcesso
+          : [];
+        const projetosHerdadosDosCursos = projetosAnterioresExplicitos.length > 0
+          ? projetosAnterioresExplicitos
+          : projetosCatalogoCompleto.filter((projeto: any) => {
+              const iniciativa = catalogoCompleto.find((item: any) => String(item.id) === String(projeto.projeto));
+              if (!iniciativa) return false;
+              const cursoAssociado = iniciativa.cursoAssociadoId
+                ? catalogoCompleto.find((item: any) => String(item.id) === String(iniciativa.cursoAssociadoId))
+                : iniciativa;
+              return cursoAssociado && cursosAnteriores.includes(normalizarPacote(String(cursoAssociado.name || "")));
+            });
+        const cursosMesclados = mesclarCursosCatalogo(vinculoIsraelAnterior?.cursosAcesso);
+        await salvarAcessoIsrael({
+          plano: "por_curso",
+          planoComercialLegado: PACOTE_ACADEMY_NOME,
+          pacoteId: PACOTE_ACADEMY_ID,
+          pacoteNome: PACOTE_ACADEMY_NOME,
+          modeloAcesso: "por_curso",
+          cursosAcesso: cursosMesclados,
+          cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          projetosAcesso: projetosHerdadosDosCursos,
+          projetosAcessoConfigurado: true,
+          origem: "compra-hotmart",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
+        });
+        const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "lbw-academy", contexto: "existente" });
+        console.log(`[acesso/liberar] LBW ACADEMY ${email} cursos=${cursosMesclados.length} email=${emailEnviado}`);
+        return res.json({
+          ok: true,
+          status: "lbw-academy-liberada",
+          uid,
+          email,
+          plano: PACOTE_ACADEMY_NOME,
+          pacoteId: PACOTE_ACADEMY_ID,
+          pacoteNome: PACOTE_ACADEMY_NOME,
+          cursosLiberados: cursosMesclados.length,
           emailEnviado,
         });
       }
