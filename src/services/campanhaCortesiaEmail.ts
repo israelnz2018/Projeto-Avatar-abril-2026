@@ -19,7 +19,7 @@ const TRILHAS = [
   '05 · Como Antecipar Riscos Antes que Virem Problemas',
   '06 · Cultura Lean na Prática',
   '07 · Como Fazer Análises Estatísticas Aplicadas a Negócios',
-  '08 · Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+  '08 · Formação Profissional em Gestão de Projetos de Melhoria',
 ];
 
 /** Gera o HTML do e-mail. `emailDestino` aparece no bloco de dados de acesso. */

@@ -12,7 +12,7 @@ const ORDEM_ISRAEL: Record<string, number> = {
   'Como Antecipar Riscos Antes que Virem Problemas': 5,
   'Como Aplicar a Cultura Lean': 6,
   'Como Fazer Análises Estatísticas Aplicadas a Negócios': 7,
-  'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria': 8,
+  'Formação Profissional em Gestão de Projetos de Melhoria': 8,
 };
 
 function stableEducationId(consultorId: string, name: string): string {

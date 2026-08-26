@@ -366,7 +366,7 @@ async function startServer() {
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         ${dashboardBloco}
         ${comunidadeBloco}
-        <p style="margin:18px 0 0 0;font-size:14px;">Este plano não inclui os cursos da LBW Academy nem os projetos guiados Yellow, Green e Black Belt — só o Software LBW.</p>`;
+        <p style="margin:18px 0 0 0;font-size:14px;">Este plano não inclui os cursos da Formação Profissional nem os projetos guiados Yellow, Green e Black Belt — só o Software LBW.</p>`;
     } else if (tipo === "gate") {
       titulo = "Seu acesso ao curso GATE está liberado 🚀";
       planoLabel = "Como Recomendar Melhorias com Base em Dados - GATE";
@@ -390,7 +390,7 @@ async function startServer() {
       botaoLabel = "ACESSAR A PLATAFORMA COMPLETA";
       corpoHtml = `
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Todos os cursos da LBW Academy</strong> — videoaulas, exercícios, avaliações e certificados de conclusão.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Todos os cursos da Formação Profissional</strong> — videoaulas, exercícios, avaliações e certificados de conclusão.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Software LBW completo</strong> — todos os módulos de Data Analysis disponíveis.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🛠️ <strong>Todos os projetos e ferramentas</strong> — incluindo os projetos guiados disponíveis na plataforma.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🖨️ <strong>Relatórios e apresentações PowerPoint</strong> gerados a partir das suas análises e projetos.</p>
@@ -399,9 +399,9 @@ async function startServer() {
         ${comunidadeBloco}
         <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e aproveite todos os recursos disponíveis para o aluno.</p>`;
     } else if (tipo === "lbw-academy") {
-      titulo = "Todos os seus cursos da LBW Academy estão liberados 🚀";
-      planoLabel = "LBW Academy";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso de 12 meses a <strong>todos os cursos da LBW Academy</strong> está liberado.`;
+      titulo = "Sua Formação Profissional está liberada 🚀";
+      planoLabel = "Formação Profissional em Gestão de Projetos de Melhoria";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso de 12 meses à <strong>Formação Profissional em Gestão de Projetos de Melhoria</strong>, com todos os cursos, está liberado.`;
       credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
       botaoLabel = "ACESSAR TODOS OS CURSOS";
       corpoHtml = `
@@ -430,9 +430,9 @@ async function startServer() {
         ${comunidadeBloco}
         <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else if (tipo === "pago") {
-      titulo = "Seu curso de Especialista está liberado 🚀";
-      planoLabel = "Especialista em Gestão de Projetos de Melhoria";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Que bom ter você aqui. Seu acesso ao curso <strong>Como Se Tornar um Especialista em Gestão de Projetos de Melhoria</strong> está liberado.`;
+      titulo = "Sua Formação Profissional está liberada 🚀";
+      planoLabel = "Formação Profissional em Gestão de Projetos de Melhoria";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Que bom ter você aqui. Seu acesso ao curso <strong>Formação Profissional em Gestão de Projetos de Melhoria</strong> está liberado.`;
       credenciaisHtml = credComSenha;
       botaoLabel = "ACESSAR MINHA FORMAÇÃO";
       corpoHtml = `
@@ -448,8 +448,8 @@ async function startServer() {
     } else {
       // upgrade
       titulo = "Novo curso liberado na plataforma LBW 🚀";
-      planoLabel = "Especialista em Gestão de Projetos de Melhoria";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Como Se Tornar um Especialista em Gestão de Projetos de Melhoria</strong> acaba de ser liberado.`;
+      planoLabel = "Formação Profissional em Gestão de Projetos de Melhoria";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao curso <strong>Formação Profissional em Gestão de Projetos de Melhoria</strong> acaba de ser liberado.`;
       credenciaisHtml = credSemSenha;
       botaoLabel = "ENTRAR NA MINHA FORMAÇÃO";
       corpoHtml = `
@@ -5336,7 +5336,7 @@ async function startServer() {
       || normalizarPacote(planoRaw) === "analise-de-medicao"
       || normalizarPacote(planoRaw) === "analise-do-sistema-de-medicao";
     // Software LBW Completo: NÃO libera curso nenhum (conferido em
-    // PLANO-PLATAFORMA-LBW.md: "Não inclui cursos da LBW Academy") — só os 8
+    // PLANO-PLATAFORMA-LBW.md: "Não inclui cursos da Formação Profissional") — só os 8
     // módulos de Data Analysis. Estruturalmente diferente dos demais pacotes,
     // que sempre amarram exatamente 1 curso.
     const PACOTE_SOFTWARE_ID = "software-lbw-completo";
@@ -5356,11 +5356,16 @@ async function startServer() {
     const isCompraPlataformaCompleta = planoRaw === "plataforma-completa"
       || normalizarPacote(planoRaw) === PACOTE_PLATAFORMA_COMPLETA_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_PLATAFORMA_COMPLETA_NOME);
+    // O identificador interno antigo é mantido para não quebrar compras, reembolsos
+    // nem acessos já gravados. O nome comercial e visível é a Formação Profissional.
     const PACOTE_ACADEMY_ID = "lbw-academy";
-    const PACOTE_ACADEMY_NOME = "LBW Academy";
+    const PACOTE_ACADEMY_NOME = "Formação Profissional em Gestão de Projetos de Melhoria";
+    const PACOTE_ACADEMY_NOME_ANTIGO = "LBW Academy";
     const isCompraAcademy = planoRaw === "lbw-academy"
       || normalizarPacote(planoRaw) === PACOTE_ACADEMY_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ACADEMY_NOME)
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_ACADEMY_NOME_ANTIGO)
+      || normalizarPacote(planoRaw) === "formacao-profissional-gestao-projetos-melhoria"
       || normalizarPacote(planoRaw) === "todos-os-cursos-da-plataforma";
     const planoConhecido = planoRaw === "completo"
       || planoRaw === "gratuito"
@@ -5391,7 +5396,8 @@ async function startServer() {
         PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw",
         PACOTE_GATE_NOME, PACOTE_GATE_ID, "gate",
         PACOTE_PLATAFORMA_COMPLETA_NOME, PACOTE_PLATAFORMA_COMPLETA_ID, "plataforma-completa",
-        PACOTE_ACADEMY_NOME, PACOTE_ACADEMY_ID, "todos-os-cursos-da-plataforma",
+        PACOTE_ACADEMY_NOME, PACOTE_ACADEMY_NOME_ANTIGO, PACOTE_ACADEMY_ID,
+        "formacao-profissional-gestao-projetos-melhoria", "todos-os-cursos-da-plataforma",
       ];
       console.error(
         `[acesso/liberar] RECUSADO produto="${nomeProdutoHotmart || planoRaw}" ` +
@@ -5426,7 +5432,7 @@ async function startServer() {
     }
 
     const CURSO_KIT_90 = PACOTE_KIT90_NOME;
-    const CURSO_ESPECIALISTA = "Como Se Tornar um Especialista em Gestão de Projetos de Melhoria";
+    const CURSO_ESPECIALISTA = "Formação Profissional em Gestão de Projetos de Melhoria";
     const CURSO_CAPABILIDADE = PACOTE_CAPABILIDADE_NOME;
     const CURSO_ESTATISTICA = PACOTE_ESTATISTICA_NOME;
     const CURSO_INFERENCIAL = PACOTE_INFERENCIAL_NOME;
@@ -5465,7 +5471,7 @@ async function startServer() {
       return res.status(500).json({ error: "O catálogo completo está vazio ou incompleto. Nenhum acesso foi alterado." });
     }
     if (isCompraAcademy && cursosCatalogoCompleto.length === 0) {
-      console.error("[acesso/liberar] Catálogo da LBW Academy sem cursos.");
+      console.error("[acesso/liberar] Catálogo da Formação Profissional sem cursos.");
       return res.status(500).json({ error: "O catálogo de cursos está vazio. Nenhum acesso foi alterado." });
     }
     const nomePacoteComercial = isCompraTrilha1
@@ -6043,7 +6049,7 @@ async function startServer() {
         });
       }
 
-      // COMPRA da LBW Academy: libera todos os cursos, avaliações e certificados,
+      // COMPRA da Formação Profissional: libera todos os cursos, avaliações e certificados,
       // sem acrescentar Analytics ou Projects. Projetos que o aluno já possuía por
       // outra compra são materializados e preservados antes de ampliar os cursos.
       if (isCompraAcademy) {
@@ -6078,7 +6084,7 @@ async function startServer() {
           ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
         });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: "lbw-academy", contexto: "existente" });
-        console.log(`[acesso/liberar] LBW ACADEMY ${email} cursos=${cursosMesclados.length} email=${emailEnviado}`);
+        console.log(`[acesso/liberar] FORMAÇÃO PROFISSIONAL ${email} cursos=${cursosMesclados.length} email=${emailEnviado}`);
         return res.json({
           ok: true,
           status: "lbw-academy-liberada",

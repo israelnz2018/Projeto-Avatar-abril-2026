@@ -19,18 +19,18 @@ const PLANOS: Plano[] = [
     href: '/contato?plano=software-lbw', cta: 'Quero conhecer o Software LBW',
   },
   {
-    id: 'academy', tag: 'APRENDER E CERTIFICAR', nome: 'LBW Academy',
+    id: 'academy', tag: 'APRENDER E CERTIFICAR', nome: 'Formação Profissional em Gestão de Projetos de Melhoria',
     resumo: 'Todos os cursos da LBW com aulas, exercícios, avaliações e certificados de conclusão.',
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW completo nem projetos guiados Yellow, Green e Black Belt.',
-    preco: 'R$ 597 à vista', href: CHECKOUT_ACADEMY, cta: 'Quero a LBW Academy',
+    preco: 'R$ 597 à vista', href: CHECKOUT_ACADEMY, cta: 'Quero a Formação Profissional',
   },
   {
     id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Formação Completa em Gestão de Projetos de Melhoria',
     resumo: 'A experiência completa da LBW para aprender, analisar dados e conduzir projetos reais de melhoria.',
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
-    itens: ['Tudo do Software LBW Completo', 'Tudo da LBW Academy', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
+    itens: ['Tudo do Software LBW Completo', 'Tudo da Formação Profissional', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
     naoInclui: 'A certificação do projeto é uma validação profissional separada, contratada quando você estiver pronto.',
     preco: '12x de R$ 83,08', detalhePreco: 'ou R$ 997 à vista', href: '/contato?plano=plataforma-completa',
     cta: 'Quero a Formação Completa', destaque: true,
@@ -50,7 +50,7 @@ const COMPARACAO: Array<[string, boolean, boolean, boolean]> = [
 const FAQ = [
   ['Os projetos Yellow, Green e Black Belt estão em todos os planos?', 'Não. Eles fazem parte exclusivamente da Formação Completa em Gestão de Projetos de Melhoria.'],
   ['Certificado de curso e certificação de projeto são a mesma coisa?', 'Não. O certificado de curso confirma a conclusão do conteúdo. A certificação de projeto valida uma aplicação real e exige análise técnica separada.'],
-  ['Posso começar por um plano e evoluir depois?', 'Sim. Você pode começar pelo software ou pela Academy e depois avançar para a Formação Completa.'],
+  ['Posso começar por um plano e evoluir depois?', 'Sim. Você pode começar pelo software ou pela Formação Profissional e depois avançar para a Formação Completa.'],
   ['O Master Black Belt está incluído?', 'Não. O Master Black Belt é uma etapa avançada posterior, indicada para profissionais que já dominam projetos Black Belt.'],
   ['Existe uma solução para consultores e empresas?', 'Sim. Consultores possuem uma trilha própria e empresas podem solicitar pacotes corporativos para equipes.'],
 ];
@@ -115,7 +115,7 @@ export default function LandingPlataformaLBW() {
 
         <section className="section section-soft" id="como-escolher"><div className="wrap">
           <div className="head"><small>COMPARAÇÃO DIRETA</small><h2>Veja exatamente o que muda</h2><p>Os projetos guiados Yellow, Green e Black Belt pertencem somente à Formação Completa.</p></div>
-          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Software LBW</th><th>LBW Academy</th><th>Formação Completa</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody></table></div>
+          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Software LBW</th><th>Formação Profissional</th><th>Formação Completa</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody></table></div>
         </div></section>
 
         <section className="section"><div className="wrap"><div className="head"><small>UMA DIFERENÇA IMPORTANTE</small><h2>Certificado do curso não é certificação do projeto</h2></div>

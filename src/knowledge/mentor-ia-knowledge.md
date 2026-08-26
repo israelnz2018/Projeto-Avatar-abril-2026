@@ -477,7 +477,7 @@ R: ...
 
 # SEÇÃO 8 — Trilha 08: Especialista em Projetos Complexos · FORMAÇÃO ÂNCORA
 
-ID: `especialista-projetos-complexos` · Título oficial: **"Como Se Tornar um Especialista em Gestão de Projetos de Melhoria"**
+ID: `especialista-projetos-complexos` · Título oficial: **"Formação Profissional em Gestão de Projetos de Melhoria"**
 
 ## ✅ Sobre a trilha
 **Subtítulo:** A formação completa pra liderar projetos estratégicos

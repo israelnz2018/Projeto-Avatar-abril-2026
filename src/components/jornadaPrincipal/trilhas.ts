@@ -501,7 +501,7 @@ Aqui te mostro como eu treinei esse olhar — com casos reais — e como você p
   {
     id: 'especialista-projetos-complexos',
     numero: '08',
-    titulo: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+    titulo: 'Formação Profissional em Gestão de Projetos de Melhoria',
     subtitulo: 'A formação completa pra liderar projetos estratégicos',
     dor: 'Pra você passar de "faz pequenos" pra "lidera os complexos"',
     paraQuem: 'Gestor que quer dar o salto pra diretor ou gerente sênior',

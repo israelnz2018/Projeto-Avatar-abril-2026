@@ -40,7 +40,7 @@ export default function RodapeInstitucional() {
             05 · Como Antecipar Riscos Antes que Virem Problemas<br/>
             06 · Cultura Lean na Prática<br/>
             07 · Como Fazer Análises Estatísticas Aplicadas a Negócios<br/>
-            08 · Como Se Tornar um Especialista em Gestão de Projetos de Melhoria
+            08 · Formação Profissional em Gestão de Projetos de Melhoria
           </div>
         </div>
         <div>

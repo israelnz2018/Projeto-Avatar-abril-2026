@@ -153,7 +153,7 @@ const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: st
   'Area': null, // sem recomendação específica — o aluno tem várias opções
   'Empresa': {
     trilhaNumero: 'Trilha 8',
-    trilhaNome: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+    trilhaNome: 'Formação Profissional em Gestão de Projetos de Melhoria',
     explicacao: 'Pra quem enxerga a empresa como sistema, essa formação cobre PMI completo, gerenciamento de stakeholders em múltiplas áreas, risk register e relatório executivo. É o nível pra liderar projeto que atravessa departamentos.',
   },
 };

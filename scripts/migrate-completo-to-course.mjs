@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import admin from 'firebase-admin';
 
-const TARGET_COURSE = 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria';
+const TARGET_COURSE = 'Formação Profissional em Gestão de Projetos de Melhoria';
 const apply = process.argv.includes('--apply');
 const keyPath = process.env.FIREBASE_ADMIN_KEY_PATH;
 if (!keyPath) throw new Error('FIREBASE_ADMIN_KEY_PATH não configurado.');

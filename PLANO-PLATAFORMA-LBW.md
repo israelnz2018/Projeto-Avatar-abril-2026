@@ -21,12 +21,12 @@ Inclui:
 
 Não inclui:
 
-- Cursos da LBW Academy.
+- Cursos da Formação Profissional.
 - Avaliações de cursos.
 - Certificados de conclusão de cursos.
 - Projetos guiados Yellow, Green e Black Belt.
 
-### 2. LBW Academy
+### 2. Formação Profissional em Gestão de Projetos de Melhoria
 
 Para profissionais que querem aprender e receber certificados de conclusão, sem utilizar o Software LBW.
 
@@ -61,7 +61,7 @@ Plano principal da LBW, com foco em formar profissionais capazes de aprender, ex
 Inclui:
 
 - Tudo do Software LBW Completo.
-- Tudo da LBW Academy.
+- Tudo da Formação Profissional.
 - Todos os cursos incluídos na formação.
 - Software estatístico e ferramentas de projetos.
 - Projetos guiados Yellow, Green e Black Belt.
@@ -74,7 +74,7 @@ Os projetos Yellow, Green e Black Belt são exclusivos da Formação Completa.
 
 ### Certificado de conclusão de curso
 
-Incluído na LBW Academy e na Formação Completa. Comprova que o aluno cumpriu os requisitos de conteúdo e avaliação do curso.
+Incluído na Formação Profissional e na Formação Completa. Comprova que o aluno cumpriu os requisitos de conteúdo e avaliação do curso.
 
 ### Certificação por projeto
 

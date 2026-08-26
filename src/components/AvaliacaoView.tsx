@@ -45,7 +45,7 @@ const CURSO_ISRAEL_POR_TESTE: Record<number, string> = {
   5: 'Como Antecipar Riscos Antes que Virem Problemas',
   6: 'Como Aplicar a Cultura Lean',
   7: 'Como Fazer Análises Estatísticas Aplicadas a Negócios',
-  8: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',
+  8: 'Formação Profissional em Gestão de Projetos de Melhoria',
 };
 
 interface BlocoState {

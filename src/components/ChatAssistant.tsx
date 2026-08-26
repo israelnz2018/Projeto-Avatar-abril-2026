@@ -50,7 +50,7 @@ const TRILHA_HERO_CARDS = [
   { id: 'analise-risco-mudanca',           num: '05', icon: ShieldAlert, label: 'Como Antecipar Riscos Antes que Virem Problemas',                         gradient: 'linear-gradient(135deg, #EF4444 0%, #BE123C 55%, #0F172A 100%)', glow: 'rgba(239, 68, 68, 0.45)'   },
   { id: 'perfil-gestor-lean',              num: '06', icon: Recycle,     label: 'Cultura Lean na Prática',                                                 gradient: 'linear-gradient(135deg, #34D399 0%, #0D9488 55%, #064E3B 100%)', glow: 'rgba(16, 185, 129, 0.45)'  },
   { id: 'problema-cronico',                num: '07', icon: LineChart,   label: 'Como Fazer Análises Estatísticas Aplicadas a Negócios',                   gradient: 'linear-gradient(135deg, #C084FC 0%, #7C3AED 55%, #312E81 100%)', glow: 'rgba(168, 85, 247, 0.45)'  },
-  { id: 'especialista-projetos-complexos', num: '08', icon: Trophy,      label: 'Como Se Tornar um Especialista em Gestão de Projetos de Melhoria',        gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
+  { id: 'especialista-projetos-complexos', num: '08', icon: Trophy,      label: 'Formação Profissional em Gestão de Projetos de Melhoria',                gradient: 'linear-gradient(135deg, #1E2D6E 0%, #0033CC 55%, #0A0F33 100%)', glow: 'rgba(0, 51, 204, 0.55)'    },
 ] as const;
 
 type TrilhaHeroCard = typeof TRILHA_HERO_CARDS[number];

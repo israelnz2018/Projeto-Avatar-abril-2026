@@ -282,7 +282,7 @@ const TRILHAS = [
   { n: '05', nome: 'Antecipar riscos antes que virem problema', tag: 'FMEA · boas práticas PMI', img: '/trilhas/trilha-05.png' },
   { n: '06', nome: 'Cultura Lean — identificar desperdícios e o Sistema Toyota de Produção', tag: 'Muri · Mura · Muda', img: '/trilhas/trilha-06.png' },
   { n: '07', nome: 'Realizar estudos e análises estatísticas pontuais', tag: 'Sem programar', img: '/trilhas/trilha-07.png' },
-  { n: '08', nome: 'Especialista em Gestão de Projetos de Melhoria', tag: 'O topo da jornada', img: '/trilhas/trilha-08.png', topo: true },
+  { n: '08', nome: 'Formação Profissional em Gestão de Projetos de Melhoria', tag: 'O topo da jornada', img: '/trilhas/trilha-08.png', topo: true },
 ];
 
 const PASSOS = [
