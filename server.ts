@@ -5396,7 +5396,12 @@ async function startServer() {
       || planoRaw === "software-lbw"
       || normalizarPacote(planoRaw) === PACOTE_SOFTWARE_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_SOFTWARE_NOME)
-      || normalizarPacote(planoRaw) === "software-lbw";
+      || normalizarPacote(planoRaw) === "software-lbw"
+      // Aceita o nome do próprio webhook (/webhook/softwareeformacao), com um "e"
+      // ou dois — é o valor que o n8n envia hoje.
+      || normalizarPacote(planoRaw) === "softwareformacao"
+      || normalizarPacote(planoRaw) === "softwareeformacao"
+      || normalizarPacote(planoRaw) === "software-e-formacao";
     const PACOTE_GATE_ID = "como-recomendar-melhorias-base-dados-gate";
     const PACOTE_GATE_NOME = "Como Recomendar Melhorias com Base em Dados - GATE";
     const isCompraGate = planoRaw === "gate"
@@ -5465,7 +5470,7 @@ async function startServer() {
         PACOTE_PREDITIVA_NOME, PACOTE_PREDITIVA_ID,
         PACOTE_PREDITIVA_NOME_ANTIGO, PACOTE_PREDITIVA_ID_ANTIGO,
         PACOTE_MSA_NOME, PACOTE_MSA_ID, CURSO_MSA_NOME,
-        PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw",
+        PACOTE_SOFTWARE_NOME, PACOTE_SOFTWARE_ID, "softwarelbw", "softwareformacao",
         PACOTE_GATE_NOME, PACOTE_GATE_ID, "gate",
         PACOTE_MUDANCA_NOME, PACOTE_MUDANCA_ID, "gestao-mudanca", "gestaodemudanca",
         PACOTE_RISCO_NOME, PACOTE_RISCO_ID, "gerenciamento-risco", "gerenciamentoderisco",
