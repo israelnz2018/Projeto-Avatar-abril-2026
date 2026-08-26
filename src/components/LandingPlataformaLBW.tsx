@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 
-const CHECKOUT_SOFTWARE = 'https://pay.hotmart.com/Q100793649F';
-const CHECKOUT_ACADEMY = 'https://pay.hotmart.com/N102603781W';
+// Escada de 3 degraus, cada um contendo o anterior:
+//   1) só cursos  ->  2) cursos + Software LBW  ->  3) tudo + projetos guiados Belt
+const CHECKOUT_CURSOS = 'https://pay.hotmart.com/N102603781W';
+const CHECKOUT_CURSOS_SOFTWARE = 'https://pay.hotmart.com/Q100793649F';
 const CHECKOUT_COMPLETA = 'https://pay.hotmart.com/U107332530P';
 
 type Plano = {
@@ -15,28 +17,28 @@ type Plano = {
 
 const PLANOS: Plano[] = [
   {
-    id: 'software', tag: 'ANALISAR E DECIDIR', nome: 'Software LBW Completo',
-    resumo: 'Todo o ambiente de Data Analysis para transformar dados em análises, relatórios e apresentações profissionais.',
-    ideal: 'Para quem já domina os métodos e precisa de uma plataforma completa para aplicar.',
-    itens: ['Todos os módulos de Data Analysis', 'Vídeos de orientação das análises', 'IA digital para explicar uso e interpretação', 'Relatórios e apresentações PowerPoint', 'Projetos livres para organizar suas análises', 'Comunidade LBW e histórico de trabalhos'],
-    naoInclui: 'Não inclui cursos, avaliações, certificados ou projetos guiados Belt.',
-    preco: '12x de R$ 61,74', detalhePreco: 'ou R$ 597 à vista',
-    href: CHECKOUT_SOFTWARE, cta: 'Quero o Software LBW',
-  },
-  {
-    id: 'academy', tag: 'APRENDER E CERTIFICAR', nome: 'Formação Profissional em Gestão de Projetos de Melhoria',
+    id: 'cursos', tag: 'APRENDER E CERTIFICAR', nome: 'Formação Profissional em Gestão de Projetos de Melhoria',
     resumo: 'Todos os cursos da LBW com aulas, exercícios, avaliações e certificados de conclusão.',
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
-    naoInclui: 'Não inclui o Software LBW completo nem projetos guiados Yellow, Green e Black Belt.',
+    naoInclui: 'Não inclui o Software LBW nem projetos guiados Yellow, Green e Black Belt.',
+    preco: '12x de R$ 61,74', detalhePreco: 'ou R$ 597 à vista',
+    href: CHECKOUT_CURSOS, cta: 'Quero a Formação Profissional',
+  },
+  {
+    id: 'cursos-software', tag: 'APRENDER E APLICAR', nome: 'Formação Profissional + Software LBW',
+    resumo: 'Os cursos completos somados ao ambiente de Data Analysis para aplicar o que você aprende nos seus próprios dados.',
+    ideal: 'Para quem quer aprender e já executar as análises no trabalho, sem depender de outra ferramenta.',
+    itens: ['Tudo da Formação Profissional', 'Todos os módulos de Data Analysis', 'Relatórios e apresentações PowerPoint', 'Projetos livres para organizar suas análises', 'IA digital para explicar uso e interpretação', 'Histórico completo dos seus trabalhos'],
+    naoInclui: 'Não inclui os projetos guiados Yellow, Green e Black Belt.',
     preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista',
-    href: CHECKOUT_ACADEMY, cta: 'Quero a Formação Profissional',
+    href: CHECKOUT_CURSOS_SOFTWARE, cta: 'Quero cursos + Software',
   },
   {
     id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Formação Completa em Gestão de Projetos de Melhoria',
     resumo: 'A experiência completa da LBW para aprender, analisar dados e conduzir projetos reais de melhoria.',
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
-    itens: ['Tudo do Software LBW Completo', 'Tudo da Formação Profissional', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
+    itens: ['Tudo da Formação Profissional', 'Todo o Software LBW', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
     naoInclui: 'A certificação do projeto é uma validação profissional separada, contratada quando você estiver pronto.',
     precoDe: 'R$ 1.497',
     preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_COMPLETA,
@@ -45,20 +47,24 @@ const PLANOS: Plano[] = [
   },
 ];
 
+// Ordem das colunas = ordem da escada: só cursos / cursos + software / tudo.
+// Cada degrau contém o anterior, então nenhuma linha pode ter ✓ num degrau e
+// — no degrau seguinte.
 const COMPARACAO: Array<[string, boolean, boolean, boolean]> = [
-  ['Todos os cursos online', false, true, true],
-  ['Avaliações e certificados dos cursos', false, true, true],
-  ['Todos os módulos de Data Analysis', true, false, true],
-  ['Relatórios e PowerPoint das análises', true, false, true],
+  ['Todos os cursos online', true, true, true],
+  ['Avaliações e certificados dos cursos', true, true, true],
   ['IA digital e comunidade', true, true, true],
-  ['Projetos livres de análises estatísticas', true, false, true],
+  ['Todos os módulos de Data Analysis', false, true, true],
+  ['Relatórios e PowerPoint das análises', false, true, true],
+  ['Projetos livres de análises estatísticas', false, true, true],
   ['Projetos guiados Yellow, Green e Black Belt', false, false, true],
 ];
 
 const FAQ = [
   ['Os projetos Yellow, Green e Black Belt estão em todos os planos?', 'Não. Eles fazem parte exclusivamente da Formação Completa em Gestão de Projetos de Melhoria.'],
   ['Certificado de curso e certificação de projeto são a mesma coisa?', 'Não. O certificado de curso confirma a conclusão do conteúdo. A certificação de projeto valida uma aplicação real e exige análise técnica separada.'],
-  ['Posso começar por um plano e evoluir depois?', 'Sim. Você pode começar pelo software ou pela Formação Profissional e depois avançar para a Formação Completa.'],
+  ['Posso começar por um plano e evoluir depois?', 'Sim. Os planos são cumulativos: cada um contém o anterior. Você pode começar pela Formação Profissional, acrescentar o Software LBW e depois avançar para a Formação Completa.'],
+  ['Qual a diferença entre os três planos?', 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Formação Completa acrescenta os projetos guiados Yellow, Green e Black Belt.'],
   ['O Master Black Belt está incluído?', 'Não. O Master Black Belt é uma etapa avançada posterior, indicada para profissionais que já dominam projetos Black Belt.'],
   ['Existe uma solução para consultores e empresas?', 'Sim. Consultores possuem uma trilha própria e empresas podem solicitar pacotes corporativos para equipes.'],
 ];
@@ -138,7 +144,7 @@ export default function LandingPlataformaLBW() {
 
         <section className="section section-soft" id="como-escolher"><div className="wrap">
           <div className="head"><small>COMPARAÇÃO DIRETA</small><h2>Veja exatamente o que muda</h2><p>Os projetos guiados Yellow, Green e Black Belt pertencem somente à Formação Completa.</p></div>
-          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Software LBW</th><th>Formação Profissional</th><th>Formação Completa</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody>
+          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Formação Profissional</th><th>Profissional + Software</th><th>Formação Completa</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody>
             {/* Preço na própria tabela: quem compara linha a linha decide aqui,
                 sem precisar rolar de volta pros cards. */}
             <tfoot><tr className="row-preco"><td>Investimento</td>{PLANOS.map((plano) => <td key={plano.id}><strong>{plano.preco}</strong><span>{plano.detalhePreco}</span></td>)}</tr></tfoot>

@@ -11,7 +11,7 @@ Catálogo sem credenciais ou tokens. As URLs abaixo são públicas por natureza;
 | Análise Preditiva - Regressões, Correlações e Séries Temporais | Análise Preditiva - Regressões, Correlações e Séries Temporais | `https://primary-production-1d53.up.railway.app/webhook/analisepreditiva` | Em configuração |
 | MSA - Análise do Sistema de Medição | MSA - Análise do Sistema de Medição | `https://primary-production-1d53.up.railway.app/webhook/analisedemedicao` | Em configuração |
 | Como Resolver Problemas no Trabalho - Kit 90 dias | Como Resolver Problemas no Trabalho - Kit 90 dias | `https://primary-production-1d53.up.railway.app/webhook/kit90dias` | Em configuração |
-| Software LBW Completo | Software LBW Completo | `https://primary-production-1d53.up.railway.app/webhook/softwarelbw` | Em configuração |
+| Formação Profissional + Software LBW (degrau 2: cursos + Data Analysis) | Software LBW Completo | `https://primary-production-1d53.up.railway.app/webhook/softwarelbw` | Em configuração |
 | Como Recomendar Melhorias com Base em Dados - GATE | Como Recomendar Melhorias com Base em Dados - GATE | `https://primary-production-1d53.up.railway.app/webhook/gate` | Em configuração |
 | Como Conduzir Mudanças com Menos Resistência | Como Conduzir Mudanças com Menos Resistência | `https://primary-production-1d53.up.railway.app/webhook/gestaodemudanca` | Configurado no backend |
 | Como Antecipar Riscos Antes que Virem Problemas | Gerenciamento de Risco | `https://primary-production-1d53.up.railway.app/webhook/gerenciamentoderisco` | Configurado no backend |

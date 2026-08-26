@@ -352,24 +352,24 @@ async function startServer() {
         ${comunidadeBloco}
         <p style="margin:18px 0 0 0;font-size:14px;">Acesse a plataforma e comece no seu ritmo.</p>`;
     } else if (tipo === "software-lbw") {
-      // Plano SEM curso — só a plataforma. Por isso o texto não menciona
-      // "curso" nem "certificado" (o Software LBW Completo não inclui,
-      // conforme PLANO-PLATAFORMA-LBW.md).
-      titulo = "Seu acesso ao Software LBW Completo está liberado 🚀";
-      planoLabel = "Software LBW Completo";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso ao <strong>Software LBW Completo</strong> está liberado.`;
+      // Degrau 2 da escada comercial: cursos + Software LBW. Antes este pacote
+      // era só a plataforma; passou a incluir o catálogo inteiro de cursos, e o
+      // e-mail acompanha (senão o comprador não saberia que tem os cursos).
+      titulo = "Seu acesso à Formação Profissional + Software LBW está liberado 🚀";
+      planoLabel = "Formação Profissional + Software LBW";
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso à <strong>Formação Profissional + Software LBW</strong> está liberado: todos os cursos mais o ambiente completo de análise.`;
       credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
-      botaoLabel = "ACESSAR O SOFTWARE LBW";
+      botaoLabel = "ACESSAR MINHA FORMAÇÃO";
       corpoHtml = `
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Todos os cursos da plataforma</strong> — videoaulas, exercícios, avaliações e certificado de conclusão de cada curso.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📊 <strong>Todos os módulos de Data Analysis</strong> — Gráficos, Estatística Básica, Análise Exploratória, Inferencial, MSA, Preditiva, Controle de Processo e Capabilidade.</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">🎥 <strong>Vídeos de orientação</strong> das análises e ferramentas.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📁 <strong>Projetos livres</strong> — crie e salve quantos projetos precisar para organizar suas análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🖨️ <strong>Relatórios e apresentações PowerPoint</strong> geradas automaticamente a partir das suas análises.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> — tire dúvidas sobre o uso e a interpretação das análises.</p>
         ${dashboardBloco}
         ${comunidadeBloco}
-        <p style="margin:18px 0 0 0;font-size:14px;">Este plano não inclui os cursos da Formação Profissional nem os projetos guiados Yellow, Green e Black Belt — só o Software LBW.</p>`;
+        <p style="margin:18px 0 0 0;font-size:14px;">Este plano não inclui os projetos guiados Yellow, Green e Black Belt — eles fazem parte da Formação Completa.</p>`;
     } else if (tipo === "gate") {
       titulo = "Seu acesso ao curso GATE está liberado 🚀";
       planoLabel = "Como Recomendar Melhorias com Base em Dados - GATE";
@@ -5387,8 +5387,11 @@ async function startServer() {
     // PLANO-PLATAFORMA-LBW.md: "Não inclui cursos da Formação Profissional") — só os 8
     // módulos de Data Analysis. Estruturalmente diferente dos demais pacotes,
     // que sempre amarram exatamente 1 curso.
+    // Degrau 2 da escada: cursos + Software LBW. O ID interno segue
+    // "software-lbw-completo" pra não quebrar compras e acessos já gravados;
+    // o nome comercial visível é o do degrau.
     const PACOTE_SOFTWARE_ID = "software-lbw-completo";
-    const PACOTE_SOFTWARE_NOME = "Software LBW Completo";
+    const PACOTE_SOFTWARE_NOME = "Formação Profissional + Software LBW";
     const isCompraSoftware = planoRaw === "softwarelbw"
       || planoRaw === "software-lbw"
       || normalizarPacote(planoRaw) === PACOTE_SOFTWARE_ID
@@ -5548,8 +5551,8 @@ async function startServer() {
       console.error(`[acesso/liberar] Catálogo completo inconsistente: cursos=${cursosCatalogoCompleto.length}, projetos=${projetosCatalogoCompleto.length}`);
       return res.status(500).json({ error: "O catálogo completo está vazio ou incompleto. Nenhum acesso foi alterado." });
     }
-    if (isCompraAcademy && cursosCatalogoCompleto.length === 0) {
-      console.error("[acesso/liberar] Catálogo da Formação Profissional sem cursos.");
+    if ((isCompraAcademy || isCompraSoftware) && cursosCatalogoCompleto.length === 0) {
+      console.error("[acesso/liberar] Catálogo de cursos vazio — pacote com cursos não pode ser liberado.");
       return res.status(500).json({ error: "O catálogo de cursos está vazio. Nenhum acesso foi alterado." });
     }
     const nomePacoteComercial = isCompraTrilha1
@@ -5687,7 +5690,11 @@ async function startServer() {
       valor: 0,
       quantidade: 1,
     } : null;
-    const cursosAcessoComprados = isCompraPlataformaCompleta || isCompraAcademy
+    // isCompraSoftware entra aqui junto com os outros dois: o degrau 2 da escada
+    // comercial é "cursos + Software LBW", então ele libera o catálogo INTEIRO de
+    // cursos além dos módulos de Data Analysis. Sem isso, quem comprasse o degrau 2
+    // pagava por cursos e recebia só a aba de análise.
+    const cursosAcessoComprados = isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware
       ? cursosCatalogoCompleto.map((curso: string) => ({
           curso,
           vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null,
@@ -6052,7 +6059,18 @@ async function startServer() {
       // null pra esse pacote — mesclarCursoComprado já devolve a lista intacta) e
       // libera os 8 módulos de Data Analysis de uma vez.
       if (isCompraSoftware) {
-        const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        // Catálogo inteiro de cursos (não mesclarCursoComprado, que serve pros
+        // pacotes de 1 curso só): este degrau entrega cursos + Data Analysis.
+        const cursosMesclados = mesclarCursosCatalogo(vinculoIsraelAnterior?.cursosAcesso);
+        // Projetos guiados NÃO entram neste degrau (são o degrau 3). Sem gravar
+        // projetosAcesso explicitamente, canUseInitiative cairia na checagem por
+        // CURSO — e como este pacote libera todos os cursos, inclusive o curso a
+        // que os projetos Yellow/Green/Black estão vinculados, o aluno receberia
+        // os Belts de graça e o degrau 3 perderia o sentido. Grava o que ele já
+        // tinha (upgrade preserva) ou vazio (compra nova não ganha Belt).
+        const projetosPreservados = Array.isArray(vinculoIsraelAnterior?.projetosAcesso)
+          ? vinculoIsraelAnterior.projetosAcesso
+          : [];
         const modulosSoftware = new Set(ANALYTICS_MODULOS.map((m) => m.id));
         const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
           ? vinculoIsraelAnterior.acessoProdutos.analytics
@@ -6070,6 +6088,8 @@ async function startServer() {
           cursosAcesso: cursosMesclados,
           cursosLiberados: cursosMesclados.map((c: any) => c.curso),
           acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
+          projetosAcesso: projetosPreservados,
+          projetosAcessoConfigurado: true,
           origem: "compra-hotmart",
           ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
         });
