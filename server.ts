@@ -5315,6 +5315,38 @@ async function startServer() {
 
     // 2) Dados de entrada (aceita tanto campos diretos quanto o payload cru da Hotmart)
     const body = req.body || {};
+    // O mesmo workflow do n8n pode encaminhar aprovação, pedido de reembolso,
+    // reembolso e chargeback. Somente a aprovação pode criar/ ampliar acesso.
+    // Antes, o endpoint ignorava o evento e tratava qualquer notificação como
+    // compra aprovada — inclusive um reembolso.
+    const evento = String(body.evento || body.event || "PURCHASE_APPROVED").toUpperCase().trim();
+    const eventosSemLiberacao = new Set([
+      "PURCHASE_REFUND_REQUESTED",
+      "PURCHASE_REFUND_REQUEST",
+      "PURCHASE_REFUNDED",
+      "PURCHASE_CHARGEBACK",
+      "PURCHASE_CANCELED",
+      "PURCHASE_CANCELLED",
+      "PURCHASE_EXPIRED",
+    ]);
+    if (eventosSemLiberacao.has(evento)) {
+      console.warn(`[acesso/liberar] EVENTO SEM LIBERACAO evento=${evento} email=${body.email || body?.data?.buyer?.email || ""}`);
+      return res.status(200).json({
+        ok: true,
+        status: "evento-recebido-sem-liberacao",
+        evento,
+        acessoAlterado: false,
+        mensagem: "Evento recebido. Nenhum acesso novo foi liberado.",
+      });
+    }
+    const eventosQueLiberam = new Set(["PURCHASE_APPROVED"]);
+    if (!eventosQueLiberam.has(evento)) {
+      return res.status(422).json({
+        error: "Evento Hotmart não habilitado para liberação.",
+        evento,
+        aceitos: Array.from(eventosQueLiberam),
+      });
+    }
     const hotmartBuyer = body?.data?.buyer || {};
     const email = String(body.email || hotmartBuyer.email || "").toLowerCase().trim();
     const nome = String(body.nome || body.name || hotmartBuyer.name || hotmartBuyer.first_name || "").trim();
@@ -5763,8 +5795,12 @@ async function startServer() {
            planoComercialLegado: nomePacoteComercial,
            ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
-          cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-          cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+          // O degrau 2 (cursos + Software) também libera o catálogo inteiro.
+          // Sem ele nestas duas condições, um comprador novo receberia os
+          // módulos de Analytics, mas nenhum curso — diferente de quem já
+          // possuía uma conta e fazia upgrade.
+          cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+          cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
           ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
           ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
           ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
@@ -5783,8 +5819,8 @@ async function startServer() {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
                plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
-              cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-              cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+              cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+              cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
               ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
               ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
@@ -5816,8 +5852,8 @@ async function startServer() {
            planoComercialLegado: nomePacoteComercial,
            ...dadosPacoteComercial,
           modeloAcesso: "por_curso",
-          cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-          cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+          cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+          cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
           ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
           ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
           ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
@@ -5829,8 +5865,8 @@ async function startServer() {
             [consultorCompraId]: {
               tipoUsuario: "aluno", consultorId: consultorCompraId,
                plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial,
-              cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
-              cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
+              cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [],
+              cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [],
               ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}),
               ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}),
               ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}),
@@ -5880,7 +5916,7 @@ async function startServer() {
       // sem tocar na senha nem no papel principal.
       if (!vinculoIsraelAnterior) {
         const origem = origemAcesso;
-        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}), ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}), origem });
+        await salvarAcessoIsrael({ plano: "por_curso", planoComercialLegado: nomePacoteComercial, modeloAcesso: "por_curso", ...dadosPacoteComercial, cursosAcesso: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados : cursoAcessoComprado ? [cursoAcessoComprado] : [], cursosLiberados: isCompraPlataformaCompleta || isCompraAcademy || isCompraSoftware ? cursosAcessoComprados.map((item: any) => item.curso) : cursoComprado ? [cursoComprado] : [], ...(analyticsComprado.length > 0 ? { acessoProdutos: { analytics: analyticsComprado } } : {}), ...(projetosComprados.length > 0 ? { projetosAcesso: projetosComprados } : {}), ...(isCompraAcademy ? { projetosAcesso: [], projetosAcessoConfigurado: true } : {}), origem });
         const emailEnviado = await sendAcessoEmail({ para: email, nome, plano: planoSolicitado, contexto: "existente" });
         console.log(`[acesso/liberar] NOVO-VINCULO-ISRAEL ${email} (${planoSolicitado})`);
         const statusCompat = planoSolicitado === "completo" ? "atualizado-completo" : (isCompraTrilha1 ? "compra-trilha1-registrada" : "ja-existia");
