@@ -55,13 +55,14 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
           />
           <motion.div
+            key={course.id || course.name}
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
-            className="relative flex max-h-[96vh] w-full max-w-lg flex-col overflow-y-auto rounded-3xl bg-white shadow-2xl"
+            className="relative flex max-h-[96vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
           >
             {/* 1. Nome do curso */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#1E2D6E] via-[#0033CC] to-cyan-600 px-5 py-5 text-white sm:px-6">
+            <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-[#1E2D6E] via-[#0033CC] to-cyan-600 px-5 py-5 text-white sm:px-6">
               <div className="absolute -right-12 -top-16 h-44 w-44 rounded-full bg-white/10" />
               <button onClick={onClose} aria-label="Fechar" className="absolute right-4 top-4 z-10 rounded-full border border-white/20 bg-white/10 p-2 text-white transition hover:bg-white/20">
                 <X size={18} />
@@ -74,7 +75,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               </p>
             </div>
 
-            <div className="px-5 py-5 sm:px-6">
+            <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
               {/* 2. Detalhes do conteúdo */}
               {usaEstruturaPadronizada && (
                 <>
@@ -115,9 +116,9 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               {/* 3. Preço unitário + compra do curso */}
               {temOfertaAvulsa && (
                 <>
-                  <div className="mt-5 flex flex-col items-center justify-center gap-1 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center">
+                  <div className="mt-5 flex items-center justify-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-center">
                     <span className="text-[11px] font-black uppercase tracking-wider text-blue-700">Investimento</span>
-                    <span className="text-[22px] font-black text-[#1E2D6E] [font-variant-numeric:tabular-nums]">
+                    <span className="whitespace-nowrap text-[21px] font-black text-[#1E2D6E] [font-variant-numeric:tabular-nums]">
                       {formatarPreco(precoCurso)}
                     </span>
                   </div>
