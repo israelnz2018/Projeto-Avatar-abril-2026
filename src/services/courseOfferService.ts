@@ -202,11 +202,17 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('apresentacoes que convencem')) {
     return {
       tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      recebeAMais: [
+        'Curso online completo de Como Criar Apresentações que Convencem',
+        'Avaliação e certificação de conclusão',
+        '4 templates de apresentação executiva em PowerPoint',
+      ],
       ementa: [
         'Antes da apresentação: estrutura, dados e mensagem',
         'Durante a apresentação: condução e resposta a objeções',
         'Depois da apresentação: follow-up e decisões',
       ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: semSoftware,
     };
   }

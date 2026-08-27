@@ -18,6 +18,8 @@ Este é o padrão oficial para os popups de venda exibidos aos alunos que já ac
 
 Não mencionar critérios internos da plataforma nesse bloco.
 
+Quando um curso não possuir exercícios, esse item deve ser omitido e substituído pelos materiais específicos entregues. No curso **Como Criar Apresentações que Convencem**, informar os quatro templates de apresentação executiva em PowerPoint.
+
 ## Curso sem módulo estatístico
 
 O bloco **O que você receberá a mais** contém somente os três itens obrigatórios. Não prometer Software LBW, relatórios estatísticos ou PowerPoint.
@@ -36,3 +38,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 - Como Aplicar a Cultura Lean.
 - Análise Inferencial — Testes de Hipóteses.
 - Análise Preditiva — Regressões, Correlações e Séries Temporais.
+- Como Criar Apresentações que Convencem.
