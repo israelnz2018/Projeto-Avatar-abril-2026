@@ -30,6 +30,9 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
     : [];
   const padrao = getCourseOfferDefaults(course?.name || '', videoCount);
   const apresentacao = getCourseOfferPresentation(course?.name || '');
+  const recebeAMais = apresentacao?.recebeAMais ?? [];
+  const continuaraAcessando = apresentacao?.continuaraAcessando;
+  const usaEstruturaPadronizada = recebeAMais.length > 0;
   // Ementa real quando existe; itens do consultor têm prioridade sobre ela.
   const conteudo = itensConfigurados.length > 0
     ? itensConfigurados
@@ -76,10 +79,25 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
 
             <div className="px-5 py-5 sm:px-6">
               {/* 2. Detalhes do conteúdo */}
-              {conteudo.length > 0 && (
+              {usaEstruturaPadronizada && (
                 <>
                   <p className="mb-2.5 mt-0 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                    O que você vai aprender
+                    O que você receberá a mais
+                  </p>
+                  <div className="space-y-2">
+                    {recebeAMais.map(item => (
+                      <div key={item} className="flex items-start gap-2.5 text-[13px] font-semibold leading-5 text-slate-700">
+                        <Check size={15} strokeWidth={3} className="mt-1 shrink-0 text-emerald-500" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {conteudo.length > 0 && (
+                <>
+                  <p className={`mb-2.5 text-[11px] font-black uppercase tracking-widest text-slate-400 ${usaEstruturaPadronizada ? 'mt-4' : 'mt-0'}`}>
+                    {usaEstruturaPadronizada ? 'Conteúdo principal' : 'O que você vai aprender'}
                   </p>
                   <div className="space-y-2">
                     {conteudo.map(item => (
@@ -90,6 +108,11 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                     ))}
                   </div>
                 </>
+              )}
+              {continuaraAcessando && (
+                <p className="mb-0 mt-4 text-[12px] leading-5 text-slate-500">
+                  <strong className="text-slate-700">Você continuará acessando:</strong> {continuaraAcessando}
+                </p>
               )}
 
               {/* 3. Preço unitário + compra do curso */}

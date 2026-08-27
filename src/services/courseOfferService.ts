@@ -24,7 +24,9 @@ export interface CourseOfferDefaults {
 
 export interface CourseOfferPresentation {
   tituloPacote: string;
+  recebeAMais?: string[];
   ementa: string[];
+  continuaraAcessando?: string;
   acessosMantidos: string[];
 }
 
@@ -81,14 +83,20 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('analise inferencial') || nome.includes('teste de hipotes')) {
     return {
       tituloPacote: 'Curso completo + módulo Análise Inferencial no Software LBW',
-      ementa: [
-        'Fundamentos dos testes de hipóteses, p-valor e significância',
-        'Testes de médias e análise de variância (ANOVA)',
-        'Testes de medianas e métodos não paramétricos',
-        'Testes de variâncias, proporções e independência',
-        'Intervalos de confiança e interpretação dos resultados',
-        'Exercícios práticos utilizando o Software LBW',
+      recebeAMais: [
+        'Curso online completo de Testes de Hipóteses',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Módulo de Análise Inferencial no Software LBW',
+        'Gráficos, Análises Diversas, relatórios e PowerPoint',
       ],
+      ementa: [
+        'Hipóteses, p-valor e significância',
+        'Testes de médias, medianas, variâncias e proporções',
+        'ANOVA e testes não paramétricos',
+        'Intervalos de confiança e interpretação dos resultados',
+      ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
     };
   }
@@ -174,17 +182,18 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('cultura lean')) {
     return {
       tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
-      ementa: [
-        'Introdução à cultura Lean',
-        'Os princípios do pensamento enxuto',
-        'Toyota Way e TPS (Sistema Toyota de Produção)',
-        'Os 14 Princípios do Toyota Way',
-        'Seção 1: Filosofia de Longo Prazo',
-        'Seção 2: O Processo Certo Gera os Resultados Certos',
-        'Seção 3: Desenvolvimento de Pessoas e Parceiros',
-        'Seção 4: Aprendizado Contínuo',
-        'Os tipos de desperdício e como identificá-los',
+      recebeAMais: [
+        'Curso online completo de Cultura Lean',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
       ],
+      ementa: [
+        'Toyota Way, TPS e os 14 Princípios',
+        'Filosofia de longo prazo e processos eficientes',
+        'Desenvolvimento de pessoas e parceiros',
+        'Aprendizado contínuo e eliminação de desperdícios',
+      ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: semSoftware,
     };
   }
