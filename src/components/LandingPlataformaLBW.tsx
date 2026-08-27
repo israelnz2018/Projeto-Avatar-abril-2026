@@ -139,7 +139,6 @@ const CSS = `
 .plbw .tools-track{display:flex;gap:16px;width:max-content;padding:4px}
 .plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:190px;height:264px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(165deg,#0d1428,#050810 65%);padding:20px 18px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px}
 .plbw .tool-glow{position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--glow) 55%,transparent),transparent 60%),radial-gradient(circle at 80% 85%,color-mix(in srgb,var(--glow) 35%,transparent),transparent 55%);opacity:.55}
-.plbw .tool-fase{position:relative;font-size:10.5px;font-weight:900;letter-spacing:.14em;color:var(--glow)}
 .plbw .tool-nome{position:relative;font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;font-size:19px;line-height:1.28;color:#f7f2e4;margin:0}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font:inherit;font-weight:800;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 @media(max-width:950px){.plbw .plans{grid-template-columns:1fr}.plbw .summary{min-height:0}.plbw .plan{max-width:620px;width:100%;margin:0 auto}}
@@ -215,10 +214,9 @@ export default function LandingPlataformaLBW() {
         </div></section>
 
         <section className="section"><div className="wrap">
-          <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>As ferramentas que conduzem o seu projeto</h2><p>Da ideia inicial ao encerramento, cada fase tem sua ferramenta pronta — a mesma cor marca a mesma fase do projeto.</p></div>
+          <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>As ferramentas que conduzem o seu projeto</h2><p>Da ideia inicial ao encerramento, cada etapa do seu projeto tem sua ferramenta pronta.</p></div>
           <div className="tools-scroll"><div className="tools-track">{FERRAMENTAS.map((ferramenta) => <article className="tool-card" key={ferramenta.nome} style={{ '--glow': FASE_COR[ferramenta.fase] } as React.CSSProperties}>
             <div className="tool-glow" />
-            <span className="tool-fase">{ferramenta.fase}</span>
             <h3 className="tool-nome">{ferramenta.nome}</h3>
           </article>)}</div></div>
         </div></section>
