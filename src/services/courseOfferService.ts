@@ -38,15 +38,21 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('como resolver problemas no trabalho') || nome.includes('kit 90 dias')) {
     return {
       tituloPacote: 'Curso completo + jornada prática dos primeiros 90 dias',
-      ementa: [
-        'Como entender rapidamente uma nova área de trabalho',
-        'Identificação e priorização dos problemas mais relevantes',
-        'Estruturação da primeira oportunidade de melhoria',
-        'Aplicação prática de SIPOC, RACI e ferramentas de gestão',
-        'Plano de ação para gerar resultados e ganhar visibilidade',
-        'Checklist com atividades para acompanhar sua evolução',
+      recebeAMais: [
+        'Curso online completo Como Resolver Problemas no Trabalho — Kit 90 dias',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Checklist de 90 dias para acompanhar sua evolução',
+        'Módulos do Software LBW: Análise Descritiva e Análises Diversas',
       ],
-      acessosMantidos: ['Comunidade LBW', 'IA Digital', 'Dashboard de progresso'],
+      ementa: [
+        'Como entender rapidamente uma nova área e seu contexto de trabalho',
+        'Identificação e priorização dos problemas e investigação das causas-raiz',
+        'Desenvolvimento e seleção das melhores soluções',
+        'Plano de ação para entregar sua primeira melhoria nos primeiros 90 dias',
+      ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
+      acessosMantidos: ['Comunidade LBW', 'IA Digital', 'Dashboard de progresso', 'Análise Descritiva', 'Análises Diversas'],
     };
   }
 
@@ -340,12 +346,14 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     descricao = 'Aprenda a preparar, conduzir e encaminhar uma apresentação que leva a decisão.';
   }
 
-  // Só os 6 cursos de estatística liberam módulo de Data Analysis na compra
-  // avulsa (ver analyticsComprado no /api/acesso/liberar). Kit 90 e os cinco
-  // cursos de método não liberam nenhum — prometer Software LBW aqui seria
-  // vender o que a compra não entrega.
+  // Os cursos de estatística e o Kit 90 dias liberam os módulos definidos em
+  // analyticsComprado no /api/acesso/liberar. Os demais cursos de método não
+  // liberam Data Analysis — prometer Software LBW neles seria vender algo que
+  // a compra não entrega.
   const liberaModulos = Boolean(moduloEspecifico)
-    || (nome.includes('estatistica aplicada') && nome.includes('ferramentas da qualidade'));
+    || (nome.includes('estatistica aplicada') && nome.includes('ferramentas da qualidade'))
+    || nome.includes('como resolver problemas no trabalho')
+    || nome.includes('kit 90 dias');
   const modulosSoftware = moduloEspecifico
     ? `Software LBW com Gráficos, Análises Diversas e o módulo ${moduloEspecifico}`
     : 'Software LBW com os módulos Gráficos e Análises Diversas';

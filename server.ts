@@ -5710,8 +5710,13 @@ async function startServer() {
         : isCompraRisco ? CURSO_RISCO
         : isCompraCulturaLean ? CURSO_CULTURA_LEAN
         : isCompraApresentacoes ? CURSO_APRESENTACOES : CURSO_KIT_90;
-    const analyticsComprado = isCompraCapabilidade
+    const analyticsComprado = isCompraTrilha1
       ? [
+          { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+          { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
+        ]
+      : isCompraCapabilidade
+        ? [
           { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           { modulo: "graficos", nome: "Gráficos", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
           { modulo: "diversas", nome: "Análises Diversas", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
@@ -6534,11 +6539,19 @@ async function startServer() {
         return res.json({ ok: true, status: "atualizado-completo", uid, email, plano: "completo", emailEnviado });
       }
 
-      // COMPRA da Trilha 1 por quem já existia (lead/cortesia/gratuito). Não muda o
-      // acesso (já tem a Trilha 1), mas registra que agora é COMPRA: origem + validade.
-      // Não rebaixa quem já é completo.
+      // COMPRA da Trilha 1 por quem já existia: preserva os acessos anteriores,
+      // libera o curso e os módulos Gráficos e Análises Diversas e registra a
+      // compra com sua validade. Não rebaixa quem já possui outros produtos.
       if (isCompraTrilha1) {
         const cursosMesclados = mesclarCursoComprado(vinculoIsraelAnterior?.cursosAcesso);
+        const modulosKit90 = new Set(["graficos", "diversas"]);
+        const analyticsAnteriores = Array.isArray(vinculoIsraelAnterior?.acessoProdutos?.analytics)
+          ? vinculoIsraelAnterior.acessoProdutos.analytics
+          : [];
+        const analyticsMesclados = [
+          ...analyticsAnteriores.filter((item: any) => !modulosKit90.has(String(item?.modulo || item?.id || item).trim())),
+          ...analyticsComprado,
+        ];
         await salvarAcessoIsrael({
           plano: "por_curso",
           planoComercialLegado: PACOTE_KIT90_NOME,
@@ -6547,7 +6560,9 @@ async function startServer() {
           modeloAcesso: "por_curso",
           cursosAcesso: cursosMesclados,
           cursosLiberados: cursosMesclados.map((c: any) => c.curso),
+          acessoProdutos: { ...(vinculoIsraelAnterior?.acessoProdutos || {}), analytics: analyticsMesclados },
           origem: "compra-trilha1",
+          ...(acessoAteCompra ? { acessoCompletoAte: acessoAteCompra } : {}),
         });
         console.log(`[acesso/liberar] COMPRA-TRILHA1 (ja existia) ${email}`);
         return res.json({ ok: true, status: "compra-trilha1-registrada", uid, email, plano: PACOTE_KIT90_NOME, pacoteId: PACOTE_KIT90_ID, pacoteNome: PACOTE_KIT90_NOME });

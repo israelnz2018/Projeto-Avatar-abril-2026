@@ -44,3 +44,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 - Como Antecipar Riscos Antes que Virem Problemas.
 - Como Conduzir Mudanças com Menos Resistência.
 - Como Recomendar Melhorias com Base em Dados — GATE.
+- Como Resolver Problemas no Trabalho — Kit 90 dias.
