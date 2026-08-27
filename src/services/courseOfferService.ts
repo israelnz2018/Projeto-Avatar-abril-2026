@@ -64,8 +64,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Exercícios práticos e materiais de apoio',
         'Avaliação e certificação de conclusão',
         'Módulo de Capabilidade de Processo no Software LBW',
-        'Gráficos, Análises Diversas, relatórios e PowerPoint',
-        'Mapa para download para escolher a ferramenta estatística mais adequada',
+        'Mapa para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Estabilidade e normalidade do processo',
@@ -104,8 +103,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Exercícios práticos e materiais de apoio',
         'Avaliação e certificação de conclusão',
         'Módulo de Análise Inferencial no Software LBW',
-        'Gráficos, Análises Diversas, relatórios e PowerPoint',
-        'Mapa para download para escolher a ferramenta estatística mais adequada',
+        'Mapa para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Hipóteses, p-valor e significância',
@@ -126,8 +124,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Exercícios práticos e materiais de apoio',
         'Avaliação e certificação de conclusão',
         'Módulo de MSA no Software LBW',
-        'Gráficos, Análises Diversas, relatórios e PowerPoint',
-        'Mapa para download para escolher a ferramenta estatística mais adequada',
+        'Mapa para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Fundamentos e fontes de variação do sistema de medição',
@@ -148,8 +145,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Exercícios práticos e materiais de apoio',
         'Avaliação e certificação de conclusão',
         'Módulo de Controle Estatístico de Processo no Software LBW',
-        'Gráficos, Análises Diversas, relatórios e PowerPoint',
-        'Mapa para download para escolher a ferramenta estatística mais adequada',
+        'Mapa para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Estabilidade, variação e causas comuns e especiais',
@@ -273,8 +269,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Exercícios práticos e materiais de apoio',
         'Avaliação e certificação de conclusão',
         'Módulo de Análise Preditiva no Software LBW',
-        'Gráficos, Análises Diversas, relatórios e PowerPoint',
-        'Mapa para download para escolher a ferramenta estatística mais adequada',
+        'Mapa para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Correlação e análise das relações entre variáveis',
