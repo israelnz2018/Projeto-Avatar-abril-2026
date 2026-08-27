@@ -39,3 +39,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 - Análise Inferencial — Testes de Hipóteses.
 - Análise Preditiva — Regressões, Correlações e Séries Temporais.
 - Como Criar Apresentações que Convencem.
+- Capabilidade de Processo Avançado.

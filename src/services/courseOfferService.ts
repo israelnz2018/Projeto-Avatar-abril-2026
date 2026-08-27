@@ -53,14 +53,24 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('capabilidade de processo')) {
     return {
       tituloPacote: 'Curso completo + módulo Capabilidade de Processo no Software LBW',
+      recebeAMais: [
+        'Curso online completo de Capabilidade de Processo',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Módulo de Capabilidade de Processo no Software LBW',
+        'Gráficos, Análises Diversas, relatórios e PowerPoint',
+        'Mapa para download para escolher a ferramenta estatística mais adequada',
+      ],
       ementa: [
         'Estabilidade e normalidade do processo',
-        'Capabilidade para dados contínuos e discretos',
+        'Investigação da não normalidade dos dados',
+        'Capabilidade para dados contínuos',
+        'Capabilidade para dados discretos',
         'Cálculo e interpretação de Cp, Cpk, Pp e Ppk',
         'Transformação matemática e discretização de dados',
         'Interpretação dos gráficos e resultados',
-        'Exercícios práticos utilizando o Software LBW',
       ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
     };
   }
