@@ -5474,7 +5474,13 @@ async function startServer() {
       || normalizarPacote(planoRaw) === PACOTE_APRESENTACOES_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_APRESENTACOES_NOME)
       || normalizarPacote(planoRaw) === "apresentacoes-eficazes"
-      || normalizarPacote(planoRaw) === "apresentacoes-que-convencem";
+      || normalizarPacote(planoRaw) === "apresentacoes-que-convencem"
+      // Aceita o nome da rota do n8n (/webhook/apresentacoeseficazes) grudado,
+      // com e sem "que": normalizarPacote não separa palavras coladas, então
+      // "apresentacoes-eficazes" não cobre "apresentacoeseficazes". Mesmo
+      // cuidado que já existe para softwareformacao/softwareeformacao.
+      || normalizarPacote(planoRaw) === "apresentacoeseficazes"
+      || normalizarPacote(planoRaw) === "apresentacoesqueconvencem";
     const PACOTE_PLATAFORMA_COMPLETA_ID = "plataforma-profissional-gestao-projetos-melhoria";
     const PACOTE_PLATAFORMA_COMPLETA_NOME = "Plataforma Profissional em Gestão de Projetos de Melhoria";
     const isCompraPlataformaCompleta = planoRaw === "plataforma-completa"
