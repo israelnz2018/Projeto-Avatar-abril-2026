@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
+import { PLANOS_LBW } from '../services/planosLBW';
 
 // Escada de 3 degraus, cada um contendo o anterior:
 //   1) só cursos  ->  2) cursos + Software LBW  ->  3) tudo + projetos guiados Belt
-const CHECKOUT_CURSOS = 'https://pay.hotmart.com/N102603781W';
-const CHECKOUT_CURSOS_SOFTWARE = 'https://pay.hotmart.com/Q100793649F';
-const CHECKOUT_COMPLETA = 'https://pay.hotmart.com/U107332530P';
+// Preço e link vêm de planosLBW: o popup de curso bloqueado mostra a mesma
+// escada, e as duas cópias já tinham começado a divergir. Copy de marketing
+// (tag, resumo, itens, CTA) continua aqui.
+const [P_CURSOS, P_CURSOS_SOFTWARE, P_PLATAFORMA] = PLANOS_LBW;
+const valorVista = (v: number) => `ou R$ ${v.toLocaleString('pt-BR')} à vista`;
 
 type Plano = {
   id: string; tag: string; nome: string; resumo: string; ideal: string;
@@ -23,8 +26,8 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
     itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW nem projetos guiados Yellow, Green e Black Belt.',
-    preco: '12x de R$ 61,74', detalhePreco: 'ou R$ 597 à vista',
-    href: CHECKOUT_CURSOS, cta: 'Quero a Formação Profissional',
+    preco: P_CURSOS.parcela, detalhePreco: valorVista(P_CURSOS.vista),
+    href: P_CURSOS.checkout, cta: 'Quero a Formação Profissional',
   },
   {
     id: 'cursos-software', tag: 'APRENDER E APLICAR', nome: 'Formação Profissional + Software LBW',
@@ -32,16 +35,16 @@ const PLANOS: Plano[] = [
     ideal: 'Para quem quer aprender e já executar as análises no trabalho, sem depender de outra ferramenta.',
     itens: ['Tudo da Formação Profissional', 'Todos os módulos de Data Analysis', 'Relatórios e apresentações PowerPoint', 'Projetos livres para organizar suas análises', 'IA digital para explicar uso e interpretação', 'Histórico completo dos seus trabalhos'],
     naoInclui: 'Não inclui os projetos guiados Yellow, Green e Black Belt.',
-    preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista',
-    href: CHECKOUT_CURSOS_SOFTWARE, cta: 'Quero a Formação + Software completo',
+    preco: P_CURSOS_SOFTWARE.parcela, detalhePreco: valorVista(P_CURSOS_SOFTWARE.vista),
+    href: P_CURSOS_SOFTWARE.checkout, cta: 'Quero a Formação + Software completo',
   },
   {
     id: 'formacao', tag: 'APRENDER, APLICAR E LIDERAR', nome: 'Plataforma Profissional em Gestão de Projetos de Melhoria',
     resumo: 'A experiência completa da LBW para aprender, analisar dados e conduzir projetos reais de melhoria.',
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
     itens: ['Tudo da Formação Profissional', 'Todo o Software LBW', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
-    precoDe: 'R$ 1.497',
-    preco: '12x de R$ 103,11', detalhePreco: 'ou R$ 997 à vista', href: CHECKOUT_COMPLETA,
+    precoDe: P_PLATAFORMA.precoDe ? `R$ ${P_PLATAFORMA.precoDe.toLocaleString('pt-BR')}` : undefined,
+    preco: P_PLATAFORMA.parcela, detalhePreco: valorVista(P_PLATAFORMA.vista), href: P_PLATAFORMA.checkout,
     promo: 'Condição promocional por tempo limitado',
     cta: 'Quero a Plataforma Profissional completa', destaque: true,
   },

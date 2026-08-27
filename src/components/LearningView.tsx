@@ -173,6 +173,14 @@ export default function LearningView() {
       setCursoParaCompra({ ...course, precoVenda, hotmartCheckoutUrl });
       return;
     }
+    // No tenant da LBW todo curso bloqueado é uma venda: os que não têm oferta
+    // avulsa (a maioria — só 7 dos 17 têm) abrem o mesmo popup mostrando os
+    // três planos. Antes caíam no LockedToolPopup, que pede acesso ao
+    // consultor — fluxo certo para o tenant de um consultor, sem sentido aqui.
+    if (usarPadraoIsrael) {
+      setCursoParaCompra({ ...(course || { name: courseName } as Initiative), precoVenda, hotmartCheckoutUrl });
+      return;
+    }
     setLockedRecursoNome(courseName);
     setLockedPopupOpen(true);
   };

@@ -560,9 +560,10 @@ export default function DataAnalysis() {
       ? cursosOferta.find((item) => courseNamesMatch(item.name, courseName))
       : undefined;
 
+    const usarPadraoIsrael = resolveConsultorId() === 'israel';
+
     if (course && courseName) {
       const padrao = getCourseOfferDefaults(courseName);
-      const usarPadraoIsrael = resolveConsultorId() === 'israel';
       const precoVenda = Number(course.precoVenda ?? (usarPadraoIsrael ? padrao.precoSugerido : 0) ?? 0);
       const hotmartCheckoutUrl = String(course.hotmartCheckoutUrl || (usarPadraoIsrael ? padrao.checkoutSugerido : '') || '');
       const vendaAtiva = course.vendaAtiva ?? Boolean(usarPadraoIsrael && padrao.checkoutSugerido);
@@ -570,6 +571,14 @@ export default function DataAnalysis() {
         setCursoParaCompra({ ...course, precoVenda, hotmartCheckoutUrl });
         return;
       }
+    }
+
+    // Módulo sem curso avulso — hoje só 'exploratoria', que não está em
+    // COURSE_NAME_BY_ANALYTICS_MODULE. No tenant da LBW ele abre o popup
+    // comercial com os três planos em vez de pedir acesso ao consultor.
+    if (usarPadraoIsrael) {
+      setCursoParaCompra({ name: recursoNome, precoVenda: 0, hotmartCheckoutUrl: '' } as Initiative);
+      return;
     }
 
     setLockedAnaliseNome(recursoNome);
