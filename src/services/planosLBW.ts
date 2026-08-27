@@ -1,10 +1,7 @@
 /**
- * Fonte única dos três planos comerciais da LBW (a "escada" de /plataformalbw).
- *
- * Existe porque preço e link de checkout precisavam aparecer em dois lugares —
- * a landing e o popup de curso bloqueado — e cópia manual entre eles já tinha
- * começado a divergir. Qualquer mudança de preço ou de link acontece AQUI e os
- * dois lados acompanham.
+ * Os três planos comerciais da LBW (a "escada" de /plataformalbw), separados da
+ * copy de marketing: preço e link de checkout mudam sozinhos, o texto não.
+ * Qualquer alteração de valor ou de link acontece AQUI.
  *
  * A escada é cumulativa: cada degrau contém o anterior.
  */
@@ -48,11 +45,3 @@ export const PLANOS_LBW: PlanoLBW[] = [
     checkout: 'https://pay.hotmart.com/U107332530P',
   },
 ];
-
-/**
- * Degrau que o popup destaca. Hoje é o último: como 'cursos-software' e
- * 'plataforma' estão os dois em R$ 997, o de cima entrega estritamente mais
- * pelo mesmo valor — destacar o do meio mandaria a pessoa pagar igual por
- * menos. Se os preços voltarem a ser diferentes, revisar esta escolha.
- */
-export const PLANO_DESTAQUE: PlanoLBW['id'] = 'plataforma';
