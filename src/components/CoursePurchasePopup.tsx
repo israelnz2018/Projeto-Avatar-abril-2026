@@ -66,10 +66,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               <button onClick={onClose} aria-label="Fechar" className="absolute right-4 top-4 z-10 rounded-full border border-white/20 bg-white/10 p-2 text-white transition hover:bg-white/20">
                 <X size={18} />
               </button>
-              <p className="relative m-0 text-[11px] font-black uppercase tracking-widest text-blue-100">
-                Conteúdo bloqueado
-              </p>
-              <h2 className="relative m-0 mt-1.5 pr-10 text-[19px] font-black leading-tight sm:text-[22px]">
+              <h2 className="relative m-0 pr-10 text-[19px] font-black leading-tight sm:text-[22px]">
                 {course.name}
               </h2>
               <p className="relative mb-0 mt-2 text-[13px] leading-5 text-blue-50">
@@ -118,7 +115,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               {/* 3. Preço unitário + compra do curso */}
               {temOfertaAvulsa && (
                 <>
-                  <div className="mt-5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                  <div className="mt-5 flex flex-col items-center justify-center gap-1 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center">
                     <span className="text-[11px] font-black uppercase tracking-wider text-blue-700">Investimento</span>
                     <span className="text-[22px] font-black text-[#1E2D6E] [font-variant-numeric:tabular-nums]">
                       {formatarPreco(precoCurso)}
@@ -139,6 +136,8 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               {mostrarPacotes && (
                 <a
                   href="/plataformalbw"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-[13.5px] font-black leading-tight no-underline transition ${
                     temOfertaAvulsa
                       ? 'mt-2.5 border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50'
