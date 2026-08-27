@@ -158,14 +158,18 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('recomendar melhorias') || nome.includes('gate')) {
     return {
       tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
-      ementa: [
-        'Introdução e entendimento do problema',
-        'Análise exploratória dos dados',
-        'Estatística aplicada ao negócio',
-        'Testes de hipóteses',
-        'Análise preditiva',
-        'Softwares LBW e Minitab na prática',
+      recebeAMais: [
+        'Curso online completo Como Recomendar Melhorias com Base em Dados — GATE',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
       ],
+      ementa: [
+        'Método GATE e planejamento da análise de dados',
+        'Relações de causa e efeito, correlação e causalidade',
+        'Tipos de dados e escolha entre ferramentas gráficas e estatísticas',
+        'Execução das análises, uso dos mapas, Minitab e interpretação dos resultados',
+      ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: semSoftware,
     };
   }

@@ -43,3 +43,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 - CEP — Controle Estatístico de Processo.
 - Como Antecipar Riscos Antes que Virem Problemas.
 - Como Conduzir Mudanças com Menos Resistência.
+- Como Recomendar Melhorias com Base em Dados — GATE.
