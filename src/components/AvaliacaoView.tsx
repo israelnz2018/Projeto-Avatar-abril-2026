@@ -32,8 +32,10 @@ import { useConsultor } from '../contexts/ConsultorContext';
 import QuizRunner from './QuizRunner';
 import Certificate from './Certificate';
 import OpiniaoModal from './OpiniaoModal';
-import { hasCourseAccess } from '../lib/courseAccess';
+import { courseNamesMatch, hasCourseAccess } from '../lib/courseAccess';
 import { LockedToolPopup } from './LockedToolPopup';
+import { CoursePurchasePopup } from './CoursePurchasePopup';
+import { getCourseOfferDefaults } from '../services/courseOfferService';
 
 const LBW = { navy: '#1E2D6E', blue: '#0033CC' };
 
@@ -81,6 +83,7 @@ export default function AvaliacaoView() {
   // Trilha aprovada cujo depoimento obrigatório está sendo pedido antes do certificado.
   const [opiniaoTrilha, setOpiniaoTrilha] = useState<number | null>(null);
   const [cursoBloqueado, setCursoBloqueado] = useState<string | null>(null);
+  const [cursoParaCompra, setCursoParaCompra] = useState<Initiative | null>(null);
   const [certificadoErro, setCertificadoErro] = useState('');
 
   const uid = auth.currentUser?.uid;
@@ -185,6 +188,25 @@ export default function AvaliacaoView() {
     await emitirCertificado(trilha);
   };
 
+  const abrirCursoBloqueado = (initiative?: Initiative) => {
+    if (!initiative) return;
+    const padrao = getCourseOfferDefaults(initiative.name);
+    const usarPadraoIsrael = consultorId === 'israel';
+    const precoVenda = Number(initiative.precoVenda ?? (usarPadraoIsrael ? padrao.precoSugerido : 0) ?? 0);
+    const hotmartCheckoutUrl = String(initiative.hotmartCheckoutUrl || (usarPadraoIsrael ? padrao.checkoutSugerido : '') || '');
+    const vendaAtiva = initiative.vendaAtiva ?? Boolean(usarPadraoIsrael && padrao.checkoutSugerido);
+    const vendaConfigurada = vendaAtiva
+      && precoVenda > 0
+      && hotmartCheckoutUrl.startsWith('https://pay.hotmart.com/');
+
+    if (vendaConfigurada || usarPadraoIsrael) {
+      setCursoParaCompra({ ...initiative, precoVenda, hotmartCheckoutUrl });
+      return;
+    }
+
+    setCursoBloqueado(initiative.name);
+  };
+
   if (accessLoading || loading) {
     return <div className="p-8 text-center text-gray-500">Carregando avaliações…</div>;
   }
@@ -219,7 +241,7 @@ export default function AvaliacaoView() {
     {
       key: 'sem-acesso',
       titulo: '2. Avaliações não disponíveis',
-      descricao: 'Avaliações de cursos que você ainda não adquiriu. Para acessá-las, solicite a liberação do curso ao seu consultor.',
+      descricao: 'Avaliações de cursos que você ainda não adquiriu. Clique em “Curso não adquirido” para conhecer as opções de acesso.',
       itens: blocos.filter((bloco) => !bloco.unlocked),
       className: 'border-gray-200 bg-gray-50',
     },
@@ -260,7 +282,7 @@ export default function AvaliacaoView() {
                   onStart={() => {
                     setActiveQuizTrilha(b.quiz.trilha);
                   }}
-                  onLocked={() => setCursoBloqueado(b.initiative?.name || b.quiz.titulo)}
+                  onLocked={() => abrirCursoBloqueado(b.initiative)}
                   showCongrats={justPassedTrilha === b.quiz.trilha}
                 />
               ))}
@@ -291,6 +313,11 @@ export default function AvaliacaoView() {
         isOpen={cursoBloqueado !== null}
         onClose={() => setCursoBloqueado(null)}
         recursoNome={cursoBloqueado ? `o curso ${cursoBloqueado}` : undefined}
+      />
+      <CoursePurchasePopup
+        course={cursoParaCompra}
+        onClose={() => setCursoParaCompra(null)}
+        videoCount={cursoParaCompra ? videos.filter((video) => courseNamesMatch(video.course, cursoParaCompra.name)).length : 0}
       />
     </div>
   );
