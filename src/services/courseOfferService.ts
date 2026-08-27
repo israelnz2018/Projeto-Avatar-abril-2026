@@ -213,14 +213,21 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('analise preditiva') || nome.includes('regresso')) {
     return {
       tituloPacote: 'Curso completo + módulo Análise Preditiva no Software LBW',
+      recebeAMais: [
+        'Curso online completo de Análise Preditiva',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Módulo de Análise Preditiva no Software LBW',
+        'Gráficos, Análises Diversas, relatórios e PowerPoint',
+      ],
       ementa: [
         'Correlação e análise das relações entre variáveis',
         'Regressões linear, quadrática e cúbica',
         'Regressão linear múltipla e seleção do modelo',
         'Regressões logística binária, ordinal e nominal',
         'Árvore de decisão, Random Forest e séries temporais',
-        'Exercícios práticos utilizando o Software LBW',
       ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
     };
   }

@@ -35,4 +35,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 
 - Como Aplicar a Cultura Lean.
 - Análise Inferencial — Testes de Hipóteses.
-
+- Análise Preditiva — Regressões, Correlações e Séries Temporais.
