@@ -135,8 +135,12 @@ const CSS = `
    um recebe a cor da fase via --glow (custom property inline) e usa essa
    variável tanto no brilho de fundo quanto no rótulo da fase — uma só fonte
    de cor por cartão, sem repetir o hex em vários lugares do CSS. */
-.plbw .tools-scroll{overflow-x:auto;padding-bottom:10px;margin:0 -4px}
+/* Rola no toque/arraste normalmente, mas sem a barra de rolagem visível —
+   scrollbar-width cobre Firefox, ::-webkit-scrollbar cobre Chrome/Safari/Edge. */
+.plbw .tools-scroll{overflow-x:auto;margin:0 -4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity}
+.plbw .tools-scroll::-webkit-scrollbar{display:none}
 .plbw .tools-track{display:flex;gap:16px;width:max-content;padding:4px}
+.plbw .tool-card{scroll-snap-align:start}
 .plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:190px;height:264px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(165deg,#0d1428,#050810 65%);padding:20px 18px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px}
 .plbw .tool-glow{position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--glow) 55%,transparent),transparent 60%),radial-gradient(circle at 80% 85%,color-mix(in srgb,var(--glow) 35%,transparent),transparent 55%);opacity:.55}
 .plbw .tool-nome{position:relative;font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;font-size:19px;line-height:1.28;color:#f7f2e4;margin:0}
