@@ -70,6 +70,36 @@ const COMPARACAO: LinhaComparacao[] = [
   { recurso: 'Mais de 30 templates e ferramentas prontas para a condução guiada — Contrato do Projeto, Matriz GUT, RAB, Cronograma, Ganhos do Projeto e outros', valores: [false, false, true], sub: true },
 ];
 
+// Vitrine de ferramentas, logo após o comparativo. Cor por fase do projeto —
+// mesma cor = mesma fase — pra virar uma leitura a mais sem precisar de texto
+// extra: quem rola o carrossel sente que as 5 fases estão todas cobertas.
+const FASE_COR: Record<string, string> = {
+  'DEFINIR': '#d9a441',
+  'MEDIR': '#10b8dc',
+  'ANALISAR': '#d946a8',
+  'MELHORAR': '#22d3a1',
+  'CONTROLAR': '#2164f3',
+  'GESTÃO DE MUDANÇA': '#8b5cf6',
+};
+
+const FERRAMENTAS: Array<{ nome: string; fase: keyof typeof FASE_COR }> = [
+  { nome: 'Ideias de Projetos de Melhoria', fase: 'DEFINIR' },
+  { nome: 'Matriz de Priorização - GUT', fase: 'MEDIR' },
+  { nome: 'Contrato do Projeto', fase: 'DEFINIR' },
+  { nome: 'Cronograma do Projeto', fase: 'DEFINIR' },
+  { nome: 'Ganhos Financeiros do Projeto', fase: 'CONTROLAR' },
+  { nome: 'SIPOC e Mapa do Processo', fase: 'DEFINIR' },
+  { nome: 'Brainstorming', fase: 'MEDIR' },
+  { nome: 'Espinha de Peixe', fase: 'MEDIR' },
+  { nome: 'Matriz de Esforço e Impacto', fase: 'MEDIR' },
+  { nome: 'Plano de Coleta de Dados', fase: 'MEDIR' },
+  { nome: '70 Análises Gráficas e Estatísticas', fase: 'ANALISAR' },
+  { nome: 'FMEA', fase: 'MELHORAR' },
+  { nome: 'Plano de Ação 5W2H', fase: 'MELHORAR' },
+  { nome: 'Plano de Controle', fase: 'CONTROLAR' },
+  { nome: 'ADKAR - em Todas as Etapas do Projeto', fase: 'GESTÃO DE MUDANÇA' },
+];
+
 const FAQ = [
   ['Os projetos Yellow, Green e Black Belt estão em todos os planos?', 'Não. Eles fazem parte exclusivamente da Plataforma Profissional em Gestão de Projetos de Melhoria.'],
   ['Certificado de curso e certificação de projeto são a mesma coisa?', 'Não. O certificado de curso confirma a conclusão do conteúdo. A certificação de projeto valida uma aplicação real e exige análise técnica separada.'],
@@ -101,6 +131,16 @@ const CSS = `
    acima, pra ficar claro que são detalhe dela e não um recurso à parte. */
 .plbw tr.row-sub td{padding-top:11px;padding-bottom:11px;color:var(--muted);font-size:12.5px}.plbw tr.row-sub td:first-child{padding-left:34px}.plbw tr.row-sub .yes,.plbw tr.row-sub .no{font-size:15px}
 .plbw .row-preco td{background:rgba(33,100,243,.08);border-top:1px solid var(--line)}.plbw .row-preco strong{display:block;font-size:16px;color:#fff}.plbw .row-preco span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+/* Vitrine de ferramentas: carrossel horizontal, um cartão por ferramenta. Cada
+   um recebe a cor da fase via --glow (custom property inline) e usa essa
+   variável tanto no brilho de fundo quanto no rótulo da fase — uma só fonte
+   de cor por cartão, sem repetir o hex em vários lugares do CSS. */
+.plbw .tools-scroll{overflow-x:auto;padding-bottom:10px;margin:0 -4px}
+.plbw .tools-track{display:flex;gap:16px;width:max-content;padding:4px}
+.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:190px;height:264px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(165deg,#0d1428,#050810 65%);padding:20px 18px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px}
+.plbw .tool-glow{position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--glow) 55%,transparent),transparent 60%),radial-gradient(circle at 80% 85%,color-mix(in srgb,var(--glow) 35%,transparent),transparent 55%);opacity:.55}
+.plbw .tool-fase{position:relative;font-size:10.5px;font-weight:900;letter-spacing:.14em;color:var(--glow)}
+.plbw .tool-nome{position:relative;font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;font-size:19px;line-height:1.28;color:#f7f2e4;margin:0}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font:inherit;font-weight:800;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 @media(max-width:950px){.plbw .plans{grid-template-columns:1fr}.plbw .summary{min-height:0}.plbw .plan{max-width:620px;width:100%;margin:0 auto}}
 @media(max-width:620px){.plbw .wrap{width:min(100% - 28px,1140px)}.plbw .hero{padding:60px 0}.plbw .hero-lead{font-size:17px}.plbw .hero-proof{grid-template-columns:1fr}.plbw .proof+.proof{border-left:0;border-top:1px solid var(--line)}.plbw .section{padding:60px 0}.plbw .plan{padding:24px 20px}.plbw .hero-actions .btn{width:100%}
@@ -172,6 +212,15 @@ export default function LandingPlataformaLBW() {
                 sem precisar rolar de volta pros cards. */}
             <tfoot><tr className="row-preco"><td>Investimento</td>{PLANOS.map((plano) => <td key={plano.id}><strong>{plano.preco}</strong><span>{plano.detalhePreco}</span></td>)}</tr></tfoot>
             </table></div>
+        </div></section>
+
+        <section className="section"><div className="wrap">
+          <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>As ferramentas que conduzem o seu projeto</h2><p>Da ideia inicial ao encerramento, cada fase tem sua ferramenta pronta — a mesma cor marca a mesma fase do projeto.</p></div>
+          <div className="tools-scroll"><div className="tools-track">{FERRAMENTAS.map((ferramenta) => <article className="tool-card" key={ferramenta.nome} style={{ '--glow': FASE_COR[ferramenta.fase] } as React.CSSProperties}>
+            <div className="tool-glow" />
+            <span className="tool-fase">{ferramenta.fase}</span>
+            <h3 className="tool-nome">{ferramenta.nome}</h3>
+          </article>)}</div></div>
         </div></section>
 
         <section className="section"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Antes de escolher</h2></div><div className="faq">{FAQ.map(([pergunta, resposta], index) => <div className="faq-item" key={pergunta}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{pergunta}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{resposta}</div>}</div>)}</div></div></section>
