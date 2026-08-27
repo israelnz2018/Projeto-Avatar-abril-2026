@@ -89,6 +89,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Avaliação e certificação de conclusão',
         'Módulo de Análise Inferencial no Software LBW',
         'Gráficos, Análises Diversas, relatórios e PowerPoint',
+        'Mapa para download para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Hipóteses, p-valor e significância',
@@ -219,6 +220,7 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
         'Avaliação e certificação de conclusão',
         'Módulo de Análise Preditiva no Software LBW',
         'Gráficos, Análises Diversas, relatórios e PowerPoint',
+        'Mapa para download para escolher a ferramenta estatística mais adequada',
       ],
       ementa: [
         'Correlação e análise das relações entre variáveis',
