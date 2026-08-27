@@ -41,3 +41,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 - Como Criar Apresentações que Convencem.
 - Capabilidade de Processo Avançado.
 - CEP — Controle Estatístico de Processo.
+- Como Antecipar Riscos Antes que Virem Problemas.

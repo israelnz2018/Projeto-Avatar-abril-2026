@@ -188,12 +188,20 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('antecipar riscos') || nome.includes('virem problemas')) {
     return {
       tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      recebeAMais: [
+        'Curso online completo Como Antecipar Riscos Antes que Virem Problemas',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Template de FMEA pronto para uso',
+        'Apresentação em PowerPoint pronta para uso',
+      ],
       ementa: [
         'Fundamentos da análise de riscos',
         'FMEA: modos de falha, efeitos e criticidade',
         'Gestão de riscos pelo método PMI',
         'Quando usar FMEA e quando usar PMI',
       ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: semSoftware,
     };
   }
