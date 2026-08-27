@@ -25,7 +25,11 @@ export const PLANOS_LBW: PlanoLBW[] = [
     resumo: '100% dos cursos disponíveis na aba Educação, com certificado para cada curso concluído',
     parcela: '12x de R$ 61,74',
     vista: 597,
-    checkout: 'https://pay.hotmart.com/N102603781W',
+    // Conferido direto no <title> da página de checkout da Hotmart (o link que
+    // o Israel tinha passado para este degrau abria, na prática, o produto
+    // "Plataforma Profissional" — o title da OUTRA página de checkout). Os
+    // dois links estavam trocados entre este degrau e o degrau 3.
+    checkout: 'https://pay.hotmart.com/U107332530P',
   },
   {
     id: 'cursos-software',
@@ -42,6 +46,9 @@ export const PLANOS_LBW: PlanoLBW[] = [
     parcela: '12x de R$ 103,11',
     vista: 997,
     precoDe: 1497,
-    checkout: 'https://pay.hotmart.com/U107332530P',
+    // Ver nota no degrau 'cursos': o <title> da Hotmart confirma que este link
+    // é de fato o produto "Plataforma Profissional em Gestão de Projetos de
+    // Melhoria" — o outro link é que estava aqui por engano.
+    checkout: 'https://pay.hotmart.com/N102603781W',
   },
 ];
