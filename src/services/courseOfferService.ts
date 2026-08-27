@@ -177,7 +177,12 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
       ementa: [
         'Introdução à cultura Lean',
         'Os princípios do pensamento enxuto',
-        'Sistema Toyota de Produção',
+        'Toyota Way e TPS (Sistema Toyota de Produção)',
+        'Os 14 Princípios do Toyota Way',
+        'Seção 1: Filosofia de Longo Prazo',
+        'Seção 2: O Processo Certo Gera os Resultados Certos',
+        'Seção 3: Desenvolvimento de Pessoas e Parceiros',
+        'Seção 4: Aprendizado Contínuo',
         'Os tipos de desperdício e como identificá-los',
       ],
       acessosMantidos: semSoftware,
