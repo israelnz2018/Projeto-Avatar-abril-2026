@@ -22,9 +22,9 @@ type Plano = {
 const PLANOS: Plano[] = [
   {
     id: 'cursos', tag: 'APRENDER E CERTIFICAR', nome: 'Formação Profissional em Gestão de Projetos de Melhoria',
-    resumo: 'Todos os cursos da LBW com aulas, exercícios, avaliações e certificados de conclusão.',
+    resumo: 'Acesso a 100% dos cursos disponíveis na aba Educação, com aulas, exercícios, avaliações e certificados.',
     ideal: 'Para quem quer construir conhecimento e comprovar sua formação curso a curso.',
-    itens: ['Todos os cursos online da LBW', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificados de conclusão dos cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
+    itens: ['100% dos cursos disponíveis na aba Educação', 'Videoaulas e exercícios práticos', 'Avaliações de aprendizagem', 'Certificado de conclusão disponível em todos os cursos', 'IA digital para apoiar os estudos', 'Participação na comunidade LBW'],
     naoInclui: 'Não inclui o Software LBW nem projetos guiados Yellow, Green e Black Belt.',
     preco: P_CURSOS.parcela, detalhePreco: valorVista(P_CURSOS.vista),
     href: P_CURSOS.checkout, cta: 'Quero a Formação Profissional',
@@ -54,7 +54,7 @@ const PLANOS: Plano[] = [
 // Cada degrau contém o anterior, então nenhuma linha pode ter ✓ num degrau e
 // — no degrau seguinte.
 const COMPARACAO: Array<[string, boolean, boolean, boolean]> = [
-  ['Todos os cursos online', true, true, true],
+  ['100% dos cursos disponíveis na aba Educação', true, true, true],
   ['Avaliações e certificados dos cursos', true, true, true],
   ['IA digital e comunidade', true, true, true],
   ['Todos os módulos de Data Analysis', false, true, true],

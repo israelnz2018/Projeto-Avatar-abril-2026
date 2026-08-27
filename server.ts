@@ -449,15 +449,15 @@ async function startServer() {
     } else if (tipo === "lbw-academy") {
       titulo = "Sua Formação Profissional está liberada 🚀";
       planoLabel = "Formação Profissional em Gestão de Projetos de Melhoria";
-      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso de 12 meses à <strong>Formação Profissional em Gestão de Projetos de Melhoria</strong>, com todos os cursos, está liberado.`;
+      introHtml = `Olá <strong>${primeiroNome}</strong>! Seu acesso de 12 meses à <strong>Formação Profissional em Gestão de Projetos de Melhoria</strong>, com 100% dos cursos disponíveis na aba Educação, está liberado.`;
       credenciaisHtml = params.contexto === "novo" ? credComSenha : credSemSenha;
       botaoLabel = "ACESSAR TODOS OS CURSOS";
       corpoHtml = `
         <p style="font-weight:bold;color:#1E2D6E;margin:24px 0 12px 0;">O QUE VOCÊ JÁ TEM ACESSO:</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>Todos os cursos online do Israel</strong> — o catálogo completo disponível na plataforma.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">🎓 <strong>100% dos cursos disponíveis na aba Educação</strong> — acesso ao catálogo completo da Formação Profissional.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🎥 <strong>Videoaulas, exercícios e materiais de apoio</strong> para estudar no seu ritmo.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">📝 <strong>Avaliações de aprendizagem</strong> de cada curso configurado.</p>
-        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificados de conclusão</strong> após cumprir os critérios de cada curso.</p>
+        <p style="margin:0 0 12px 0;font-size:14px;">📜 <strong>Certificado para todos os cursos</strong> — disponível após cumprir os critérios de conclusão de cada curso.</p>
         <p style="margin:0 0 12px 0;font-size:14px;">🤖 <strong>IA digital do Israel</strong> para apoiar seus estudos.</p>
         ${dashboardBloco}
         ${comunidadeBloco}

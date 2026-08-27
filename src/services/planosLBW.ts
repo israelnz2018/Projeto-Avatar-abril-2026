@@ -22,7 +22,7 @@ export const PLANOS_LBW: PlanoLBW[] = [
   {
     id: 'cursos',
     nome: 'Formação Profissional',
-    resumo: 'Todos os cursos da LBW, com avaliações e certificados',
+    resumo: '100% dos cursos disponíveis na aba Educação, com certificado para cada curso concluído',
     parcela: '12x de R$ 61,74',
     vista: 597,
     checkout: 'https://pay.hotmart.com/N102603781W',
