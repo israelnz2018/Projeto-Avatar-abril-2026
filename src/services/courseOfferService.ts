@@ -123,6 +123,79 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
     };
   }
 
+  // Os cinco cursos abaixo NÃO liberam módulo nenhum de Data Analysis (ver
+  // analyticsComprado no /api/acesso/liberar). O tituloPacote não pode prometer
+  // Software LBW, e acessosMantidos fica só com o que a compra realmente dá.
+  const semSoftware = ['Comunidade LBW', 'IA Digital'];
+
+  if (nome.includes('recomendar melhorias') || nome.includes('gate')) {
+    return {
+      tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      ementa: [
+        'Introdução e entendimento do problema',
+        'Análise exploratória dos dados',
+        'Estatística aplicada ao negócio',
+        'Testes de hipóteses',
+        'Análise preditiva',
+        'Softwares LBW e Minitab na prática',
+      ],
+      acessosMantidos: semSoftware,
+    };
+  }
+
+  if (nome.includes('conduzir mudancas') || nome.includes('menos resistencia')) {
+    return {
+      tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      ementa: [
+        'Definição e mapeamento das partes interessadas',
+        'Coleta de informações junto aos stakeholders',
+        'Engajamento dos stakeholders na implementação',
+        'Análise dos resultados com os envolvidos',
+        'Manutenção do comprometimento ao longo do tempo',
+        'Método ADKAR: consciência, desejo, conhecimento, habilidade e reforço',
+      ],
+      acessosMantidos: semSoftware,
+    };
+  }
+
+  if (nome.includes('antecipar riscos') || nome.includes('virem problemas')) {
+    return {
+      tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      ementa: [
+        'Fundamentos da análise de riscos',
+        'FMEA: modos de falha, efeitos e criticidade',
+        'Gestão de riscos pelo método PMI',
+        'Quando usar FMEA e quando usar PMI',
+      ],
+      acessosMantidos: semSoftware,
+    };
+  }
+
+  if (nome.includes('cultura lean')) {
+    return {
+      tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      ementa: [
+        'Introdução à cultura Lean',
+        'Os princípios do pensamento enxuto',
+        'Sistema Toyota de Produção',
+        'Os tipos de desperdício e como identificá-los',
+      ],
+      acessosMantidos: semSoftware,
+    };
+  }
+
+  if (nome.includes('apresentacoes que convencem')) {
+    return {
+      tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
+      ementa: [
+        'Antes da apresentação: estrutura, dados e mensagem',
+        'Durante a apresentação: condução e resposta a objeções',
+        'Depois da apresentação: follow-up e decisões',
+      ],
+      acessosMantidos: semSoftware,
+    };
+  }
+
   if (nome.includes('analise preditiva') || nome.includes('regresso')) {
     return {
       tituloPacote: 'Curso completo + módulo Análise Preditiva no Software LBW',
@@ -181,8 +254,34 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     precoSugerido = 197;
     checkoutSugerido = 'https://pay.hotmart.com/A98916105N';
     descricao = 'Aprenda a usar regressões, correlações e séries temporais para explicar relações e apoiar previsões.';
+  } else if (nome.includes('recomendar melhorias') || nome.includes('gate')) {
+    precoSugerido = 497;
+    checkoutSugerido = 'https://pay.hotmart.com/H98698949A';
+    descricao = 'Aprenda a sustentar uma recomendação de melhoria com dados, da exploração inicial até a análise preditiva.';
+  } else if (nome.includes('conduzir mudancas') || nome.includes('menos resistencia')) {
+    precoSugerido = 297;
+    checkoutSugerido = 'https://pay.hotmart.com/X98537560I';
+    descricao = 'Aprenda a conduzir mudanças usando o método ADKAR, engajando as partes interessadas do início ao fim.';
+  } else if (nome.includes('antecipar riscos') || nome.includes('virem problemas')) {
+    precoSugerido = 147;
+    checkoutSugerido = 'https://pay.hotmart.com/S107333641G';
+    descricao = 'Aprenda a identificar e priorizar riscos com FMEA e com o método PMI antes que eles virem problemas.';
+  } else if (nome.includes('cultura lean')) {
+    precoSugerido = 147;
+    checkoutSugerido = 'https://pay.hotmart.com/F107333658F';
+    descricao = 'Aprenda os princípios do pensamento enxuto e a identificar desperdícios no seu próprio processo.';
+  } else if (nome.includes('apresentacoes que convencem')) {
+    precoSugerido = 147;
+    checkoutSugerido = 'https://pay.hotmart.com/Y107333712I';
+    descricao = 'Aprenda a preparar, conduzir e encaminhar uma apresentação que leva a decisão.';
   }
 
+  // Só os 6 cursos de estatística liberam módulo de Data Analysis na compra
+  // avulsa (ver analyticsComprado no /api/acesso/liberar). Kit 90 e os cinco
+  // cursos de método não liberam nenhum — prometer Software LBW aqui seria
+  // vender o que a compra não entrega.
+  const liberaModulos = Boolean(moduloEspecifico)
+    || (nome.includes('estatistica aplicada') && nome.includes('ferramentas da qualidade'));
   const modulosSoftware = moduloEspecifico
     ? `Software LBW com Gráficos, Análises Diversas e o módulo ${moduloEspecifico}`
     : 'Software LBW com os módulos Gráficos e Análises Diversas';
@@ -195,9 +294,8 @@ export function getCourseOfferDefaults(courseName: string, videoCount = 0): Cour
     itens: [
       videoCount > 0 ? `Curso online completo com ${videoCount} videoaulas` : 'Curso online completo com videoaulas',
       'Exercícios práticos para aplicar o conteúdo',
-      modulosSoftware,
+      ...(liberaModulos ? [modulosSoftware, 'Relatórios e apresentações PowerPoint gerados a partir das análises'] : []),
       'IA digital para explicar o uso das ferramentas e interpretar os resultados',
-      'Relatórios e apresentações PowerPoint gerados a partir das análises',
       'Participação na comunidade LBW',
       'Avaliação e certificado após cumprir os critérios do curso',
     ],

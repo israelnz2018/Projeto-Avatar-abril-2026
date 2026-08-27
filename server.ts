@@ -181,7 +181,7 @@ async function startServer() {
     para: string;
     nome?: string;
     senhaProvisoria?: string;
-    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "gerenciamento-risco" | "cultura-lean" | "plataforma-completa" | "lbw-academy";
+    plano: "gratuito" | "completo" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "gerenciamento-risco" | "cultura-lean" | "apresentacoes" | "plataforma-completa" | "lbw-academy";
     contexto: "novo" | "upgrade" | "existente";
   }): Promise<boolean> {
     const host = process.env.SMTP_HOST;
@@ -198,7 +198,7 @@ async function startServer() {
     const primeiroNome = (params.nome || params.para.split("@")[0]).split(" ")[0];
 
     // Tipo de e-mail: upgrade > pago > gratuito
-    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "gerenciamento-risco" | "cultura-lean" | "plataforma-completa" | "lbw-academy" | "upgrade" =
+    const tipo: "gratis" | "pago" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "gerenciamento-risco" | "cultura-lean" | "apresentacoes" | "plataforma-completa" | "lbw-academy" | "upgrade" =
       params.contexto === "upgrade" ? "upgrade" :
       params.plano === "completo" ? "pago" :
       params.plano === "capabilidade" ? "capabilidade" :
@@ -5467,6 +5467,14 @@ async function startServer() {
       || planoRaw === "culturalean"
       || normalizarPacote(planoRaw) === PACOTE_CULTURA_LEAN_ID
       || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_CULTURA_LEAN_NOME);
+    const PACOTE_APRESENTACOES_ID = "como-criar-apresentacoes-que-convencem";
+    const PACOTE_APRESENTACOES_NOME = "Como Criar Apresentações que Convencem";
+    const isCompraApresentacoes = planoRaw === "apresentacoes"
+      || planoRaw === "apresentacoes-eficazes"
+      || normalizarPacote(planoRaw) === PACOTE_APRESENTACOES_ID
+      || normalizarPacote(planoRaw) === normalizarPacote(PACOTE_APRESENTACOES_NOME)
+      || normalizarPacote(planoRaw) === "apresentacoes-eficazes"
+      || normalizarPacote(planoRaw) === "apresentacoes-que-convencem";
     const PACOTE_PLATAFORMA_COMPLETA_ID = "plataforma-profissional-gestao-projetos-melhoria";
     const PACOTE_PLATAFORMA_COMPLETA_NOME = "Plataforma Profissional em Gestão de Projetos de Melhoria";
     const isCompraPlataformaCompleta = planoRaw === "plataforma-completa"
@@ -5497,6 +5505,7 @@ async function startServer() {
       || isCompraMudanca
       || isCompraRisco
       || isCompraCulturaLean
+      || isCompraApresentacoes
       || isCompraPlataformaCompleta
       || isCompraAcademy;
     if (!planoConhecido && !eventoRevogacao) {
@@ -5517,6 +5526,7 @@ async function startServer() {
         PACOTE_MUDANCA_NOME, PACOTE_MUDANCA_ID, "gestao-mudanca", "gestaodemudanca",
         PACOTE_RISCO_NOME, PACOTE_RISCO_ID, "gerenciamento-risco", "gerenciamentoderisco",
         PACOTE_CULTURA_LEAN_NOME, PACOTE_CULTURA_LEAN_ID, "cultura-lean", "culturalean",
+        PACOTE_APRESENTACOES_NOME, PACOTE_APRESENTACOES_ID, "apresentacoes", "apresentacoes-eficazes",
         PACOTE_PLATAFORMA_COMPLETA_NOME, PACOTE_PLATAFORMA_COMPLETA_ID, "plataforma-completa",
         PACOTE_ACADEMY_NOME, PACOTE_ACADEMY_NOME_ANTIGO, PACOTE_ACADEMY_ID,
         "formacao-profissional-gestao-projetos-melhoria", "todos-os-cursos-da-plataforma",
@@ -5532,7 +5542,7 @@ async function startServer() {
         aceitos,
       });
     }
-    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "gerenciamento-risco" | "cultura-lean" | "plataforma-completa" | "lbw-academy" = planoRaw === "completo"
+    const planoSolicitado: "completo" | "gratuito" | "capabilidade" | "estatistica-aplicada" | "analise-inferencial" | "cep" | "preditiva" | "msa" | "software-lbw" | "gate" | "gestao-mudanca" | "gerenciamento-risco" | "cultura-lean" | "apresentacoes" | "plataforma-completa" | "lbw-academy" = planoRaw === "completo"
       ? "completo"
       : isCompraCapabilidade ? "capabilidade"
       : isCompraEstatistica ? "estatistica-aplicada"
@@ -5545,10 +5555,11 @@ async function startServer() {
       : isCompraMudanca ? "gestao-mudanca"
       : isCompraRisco ? "gerenciamento-risco"
       : isCompraCulturaLean ? "cultura-lean"
+      : isCompraApresentacoes ? "apresentacoes"
       : isCompraPlataformaCompleta ? "plataforma-completa"
       : isCompraAcademy ? "lbw-academy" : "gratuito";
     const consultorCompraId = "israel";
-    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraMudanca || isCompraRisco || isCompraCulturaLean || isCompraPlataformaCompleta || isCompraAcademy
+    const acessoAteCompra = planoSolicitado === "completo" || isCompraTrilha1 || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraMudanca || isCompraRisco || isCompraCulturaLean || isCompraApresentacoes || isCompraPlataformaCompleta || isCompraAcademy
       ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
       : undefined;
 
@@ -5568,6 +5579,7 @@ async function startServer() {
     const CURSO_MUDANCA = PACOTE_MUDANCA_NOME;
     const CURSO_RISCO = PACOTE_RISCO_NOME;
     const CURSO_CULTURA_LEAN = PACOTE_CULTURA_LEAN_NOME;
+    const CURSO_APRESENTACOES = PACOTE_APRESENTACOES_NOME;
     let catalogoCompleto: any[] = [];
     if (isCompraPlataformaCompleta || isCompraAcademy) {
       try {
@@ -5619,6 +5631,7 @@ async function startServer() {
               : isCompraMudanca ? PACOTE_MUDANCA_NOME
               : isCompraRisco ? PACOTE_RISCO_NOME
               : isCompraCulturaLean ? PACOTE_CULTURA_LEAN_NOME
+              : isCompraApresentacoes ? PACOTE_APRESENTACOES_NOME
               : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME
               : isCompraAcademy ? PACOTE_ACADEMY_NOME : planoSolicitado;
     const dadosPacoteComercial = isCompraTrilha1
@@ -5644,6 +5657,8 @@ async function startServer() {
           ? { pacoteId: PACOTE_RISCO_ID, pacoteNome: PACOTE_RISCO_NOME }
         : isCompraCulturaLean
           ? { pacoteId: PACOTE_CULTURA_LEAN_ID, pacoteNome: PACOTE_CULTURA_LEAN_NOME }
+        : isCompraApresentacoes
+          ? { pacoteId: PACOTE_APRESENTACOES_ID, pacoteNome: PACOTE_APRESENTACOES_NOME }
         : isCompraPlataformaCompleta
           ? { pacoteId: PACOTE_PLATAFORMA_COMPLETA_ID, pacoteNome: PACOTE_PLATAFORMA_COMPLETA_NOME }
         : isCompraAcademy
@@ -5666,9 +5681,10 @@ async function startServer() {
               : isCompraMudanca ? PACOTE_MUDANCA_NOME
               : isCompraRisco ? PACOTE_RISCO_NOME
               : isCompraCulturaLean ? PACOTE_CULTURA_LEAN_NOME
+              : isCompraApresentacoes ? PACOTE_APRESENTACOES_NOME
               : isCompraPlataformaCompleta ? PACOTE_PLATAFORMA_COMPLETA_NOME
               : isCompraAcademy ? PACOTE_ACADEMY_NOME : planoSolicitado;
-    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraMudanca || isCompraRisco || isCompraCulturaLean || isCompraPlataformaCompleta || isCompraAcademy
+    const origemAcesso = planoSolicitado === "completo" || isCompraCapabilidade || isCompraEstatistica || isCompraInferencial || isCompraCep || isCompraPreditiva || isCompraMsa || isCompraSoftware || isCompraGate || isCompraMudanca || isCompraRisco || isCompraCulturaLean || isCompraApresentacoes || isCompraPlataformaCompleta || isCompraAcademy
       ? "compra-hotmart"
       : (isCompraTrilha1 ? "compra-trilha1" : "gratuito-landing");
     // Software LBW não possui curso; a Plataforma Completa possui vários. Os dois
@@ -5686,7 +5702,8 @@ async function startServer() {
         : isCompraGate ? CURSO_GATE
         : isCompraMudanca ? CURSO_MUDANCA
         : isCompraRisco ? CURSO_RISCO
-        : isCompraCulturaLean ? CURSO_CULTURA_LEAN : CURSO_KIT_90;
+        : isCompraCulturaLean ? CURSO_CULTURA_LEAN
+        : isCompraApresentacoes ? CURSO_APRESENTACOES : CURSO_KIT_90;
     const analyticsComprado = isCompraCapabilidade
       ? [
           { modulo: "capabilidade", nome: "Capabilidade", vencimento: acessoAteCompra ? acessoAteCompra.slice(0, 10) : null, valor: 0 },
