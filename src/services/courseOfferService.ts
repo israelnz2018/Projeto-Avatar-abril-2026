@@ -121,14 +121,21 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('sistema de medicao') || /^msa\b/.test(nome)) {
     return {
       tituloPacote: 'Curso completo + módulo MSA no Software LBW',
+      recebeAMais: [
+        'Curso online completo de Análise do Sistema de Medição — MSA',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Módulo de MSA no Software LBW',
+        'Gráficos, Análises Diversas, relatórios e PowerPoint',
+        'Mapa para download para escolher a ferramenta estatística mais adequada',
+      ],
       ementa: [
         'Fundamentos e fontes de variação do sistema de medição',
-        'Gage R&R para dados contínuos',
-        'Repetibilidade e reprodutibilidade',
+        'Gage R&R, repetibilidade e reprodutibilidade para dados contínuos',
         'Estudos de vício, linearidade e estabilidade',
         'Concordância de atributos para dados discretos',
-        'Exercícios práticos utilizando o Software LBW',
       ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
     };
   }

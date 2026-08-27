@@ -45,3 +45,4 @@ Os cursos devem ser migrados para este padrão individualmente. Os primeiros cur
 - Como Conduzir Mudanças com Menos Resistência.
 - Como Recomendar Melhorias com Base em Dados — GATE.
 - Como Resolver Problemas no Trabalho — Kit 90 dias.
+- MSA — Análise do Sistema de Medição.
