@@ -130,14 +130,22 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('controle estatistico de processo') || /^cep\b/.test(nome)) {
     return {
       tituloPacote: 'Curso completo + módulo Controle Estatístico de Processo no Software LBW',
+      recebeAMais: [
+        'Curso online completo de Controle Estatístico de Processo — CEP',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Módulo de Controle Estatístico de Processo no Software LBW',
+        'Gráficos, Análises Diversas, relatórios e PowerPoint',
+        'Mapa para download para escolher a ferramenta estatística mais adequada',
+      ],
       ementa: [
         'Estabilidade, variação e causas comuns e especiais',
         'Seleção da carta de controle adequada para cada tipo de dado',
         'Cartas I-MR, X-Barra R e X-Barra S',
         'Cartas P, NP, C e U para dados discretos',
         'Carta EWMA e interpretação dos sinais do processo',
-        'Exercícios práticos utilizando o Software LBW',
       ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: [...acessosMantidos, 'Gráficos', 'Análises Diversas'],
     };
   }
