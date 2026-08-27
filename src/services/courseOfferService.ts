@@ -173,14 +173,19 @@ export function getCourseOfferPresentation(courseName: string): CourseOfferPrese
   if (nome.includes('conduzir mudancas') || nome.includes('menos resistencia')) {
     return {
       tituloPacote: 'Curso completo, com avaliação e certificado de conclusão',
-      ementa: [
-        'Definição e mapeamento das partes interessadas',
-        'Coleta de informações junto aos stakeholders',
-        'Engajamento dos stakeholders na implementação',
-        'Análise dos resultados com os envolvidos',
-        'Manutenção do comprometimento ao longo do tempo',
-        'Método ADKAR: consciência, desejo, conhecimento, habilidade e reforço',
+      recebeAMais: [
+        'Curso online completo Como Conduzir Mudanças com Menos Resistência',
+        'Exercícios práticos e materiais de apoio',
+        'Avaliação e certificação de conclusão',
+        'Template disponível para cada fase da gestão de mudanças',
       ],
+      ementa: [
+        'Definição, importância e fundamentos do gerenciamento de mudanças',
+        'Princípios, metodologias e etapas da gestão de mudanças',
+        'Método ADKAR aplicado a projetos de melhoria',
+        'Gestão prática da mudança e testes de validação',
+      ],
+      continuaraAcessando: 'Comunidade LBW, IA Digital e recursos já liberados.',
       acessosMantidos: semSoftware,
     };
   }
