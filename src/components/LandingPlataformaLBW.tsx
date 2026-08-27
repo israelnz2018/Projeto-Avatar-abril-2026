@@ -52,15 +52,22 @@ const PLANOS: Plano[] = [
 
 // Ordem das colunas = ordem da escada: só cursos / cursos + software / tudo.
 // Cada degrau contém o anterior, então nenhuma linha pode ter ✓ num degrau e
-// — no degrau seguinte.
-const COMPARACAO: Array<[string, boolean, boolean, boolean]> = [
-  ['100% dos cursos disponíveis na aba Educação', true, true, true],
-  ['Avaliações e certificados dos cursos', true, true, true],
-  ['IA digital e comunidade', true, true, true],
-  ['Todos os módulos de Data Analysis', false, true, true],
-  ['Relatórios e PowerPoint das análises', false, true, true],
-  ['Projetos livres de análises estatísticas', false, true, true],
-  ['Projetos guiados Yellow, Green e Black Belt', false, false, true],
+// — no degrau seguinte. `sub` marca uma linha de detalhe: mesma marcação da
+// linha principal acima dela, só que indentada e com texto menor.
+type LinhaComparacao = { recurso: string; valores: [boolean, boolean, boolean]; sub?: boolean };
+
+const COMPARACAO: LinhaComparacao[] = [
+  { recurso: '100% dos cursos disponíveis na aba Educação', valores: [true, true, true] },
+  { recurso: 'Avaliações e certificados dos cursos', valores: [true, true, true] },
+  { recurso: 'IA digital e comunidade', valores: [true, true, true] },
+  { recurso: 'Todos os módulos de Data Analysis', valores: [false, true, true] },
+  { recurso: 'Relatórios e PowerPoint das análises', valores: [false, true, true] },
+  { recurso: 'Projetos livres de análises estatísticas', valores: [false, true, true] },
+  { recurso: 'Projetos de melhoria guiados passo a passo', valores: [false, false, true] },
+  { recurso: 'Certificado de curso para os projetos Yellow, Green e Black', valores: [false, false, true], sub: true },
+  { recurso: 'IA digital para explicar cada ferramenta da qualidade', valores: [false, false, true], sub: true },
+  { recurso: 'IA digital para explicar cada ferramenta estatística', valores: [false, false, true], sub: true },
+  { recurso: 'Mais de 30 templates e ferramentas prontas para a condução guiada — Contrato do Projeto, Matriz GUT, RAB, Cronograma, Ganhos do Projeto e outros', valores: [false, false, true], sub: true },
 ];
 
 const FAQ = [
@@ -89,6 +96,10 @@ const CSS = `
    linhas, encosta nas bordas. Dentro do card o botão pode crescer. */
 .plbw .plan .btn{padding:14px 20px;min-height:56px;line-height:1.3}
 .plbw .table-shell{overflow-x:auto;border:1px solid var(--line);border-radius:18px;background:#0b1329}.plbw table{width:100%;border-collapse:collapse;min-width:720px}.plbw th,.plbw td{padding:17px 18px;border-bottom:1px solid var(--line);text-align:center}.plbw th:first-child,.plbw td:first-child{text-align:left}.plbw th{color:#a9c3ff;font-size:13px}.plbw td{font-size:14px;color:#dbe3f6}.plbw tr:last-child td{border-bottom:0}.plbw .yes{color:#23d6a3;font-size:19px}.plbw .no{color:#55627f;font-size:19px}
+/* Sublinhas de detalhe (ex.: os itens dentro de "Projetos de melhoria guiados
+   passo a passo"): texto menor, recuado e mais apagado que a linha principal
+   acima, pra ficar claro que são detalhe dela e não um recurso à parte. */
+.plbw tr.row-sub td{padding-top:11px;padding-bottom:11px;color:var(--muted);font-size:12.5px}.plbw tr.row-sub td:first-child{padding-left:34px}.plbw tr.row-sub .yes,.plbw tr.row-sub .no{font-size:15px}
 .plbw .row-preco td{background:rgba(33,100,243,.08);border-top:1px solid var(--line)}.plbw .row-preco strong{display:block;font-size:16px;color:#fff}.plbw .row-preco span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font:inherit;font-weight:800;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 @media(max-width:950px){.plbw .plans{grid-template-columns:1fr}.plbw .summary{min-height:0}.plbw .plan{max-width:620px;width:100%;margin:0 auto}}
@@ -156,7 +167,7 @@ export default function LandingPlataformaLBW() {
 
         <section className="section section-soft" id="como-escolher"><div className="wrap">
           <div className="head"><small>COMPARAÇÃO DIRETA</small><h2>Veja exatamente o que muda</h2><p>Os projetos guiados Yellow, Green e Black Belt pertencem somente à Plataforma Profissional.</p></div>
-          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Formação Profissional</th><th>Profissional + Software</th><th>Plataforma Profissional</th></tr></thead><tbody>{COMPARACAO.map(([recurso, software, academy, formacao]) => <tr key={recurso}><td>{recurso}</td>{[software, academy, formacao].map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody>
+          <div className="table-shell"><table><thead><tr><th>Recurso</th><th>Formação Profissional</th><th>Profissional + Software</th><th>Plataforma Profissional</th></tr></thead><tbody>{COMPARACAO.map(({ recurso, valores, sub }) => <tr key={recurso} className={sub ? 'row-sub' : undefined}><td>{recurso}</td>{valores.map((valor, i) => <td key={i} className={valor ? 'yes' : 'no'}>{valor ? '✓' : '—'}</td>)}</tr>)}</tbody>
             {/* Preço na própria tabela: quem compara linha a linha decide aqui,
                 sem precisar rolar de volta pros cards. */}
             <tfoot><tr className="row-preco"><td>Investimento</td>{PLANOS.map((plano) => <td key={plano.id}><strong>{plano.preco}</strong><span>{plano.detalhePreco}</span></td>)}</tr></tfoot>
