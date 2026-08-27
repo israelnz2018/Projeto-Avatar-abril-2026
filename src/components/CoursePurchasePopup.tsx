@@ -75,7 +75,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
               </p>
             </div>
 
-            <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
               {/* 2. Detalhes do conteúdo */}
               {usaEstruturaPadronizada && (
                 <>
@@ -112,11 +112,15 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                   <strong className="text-slate-700">Você continuará acessando:</strong> {continuaraAcessando}
                 </p>
               )}
+            </div>
 
+            {/* Área comercial sempre visível; somente o conteúdo acima possui rolagem. */}
+            {(temOfertaAvulsa || mostrarPacotes) && (
+              <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3 shadow-[0_-10px_24px_-20px_rgba(15,23,42,0.45)] sm:px-6">
               {/* 3. Preço unitário + compra do curso */}
               {temOfertaAvulsa && (
                 <>
-                  <div className="mt-5 flex items-center justify-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-center">
+                  <div className="flex items-center justify-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-center">
                     <span className="text-[11px] font-black uppercase tracking-wider text-blue-700">Investimento</span>
                     <span className="whitespace-nowrap text-[21px] font-black text-[#1E2D6E] [font-variant-numeric:tabular-nums]">
                       {formatarPreco(precoCurso)}
@@ -126,7 +130,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                     href={checkoutCurso}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-4 py-3.5 text-center text-[14.5px] font-black leading-tight text-white no-underline shadow-md shadow-blue-200 transition hover:bg-[#1E2D6E]"
+                    className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0033CC] px-4 py-3 text-center text-[14.5px] font-black leading-tight text-white no-underline shadow-md shadow-blue-200 transition hover:bg-[#1E2D6E]"
                   >
                     Comprar agora <ArrowRight size={17} className="shrink-0" />
                   </a>
@@ -143,7 +147,7 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                     temOfertaAvulsa
                       ? 'mt-2.5 border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50'
                       // Sem oferta avulsa este é o único caminho: ganha o peso do botão principal.
-                      : 'mt-5 border-[#0033CC] bg-[#0033CC] text-white shadow-md shadow-blue-200 hover:bg-[#1E2D6E]'
+                      : 'border-[#0033CC] bg-[#0033CC] text-white shadow-md shadow-blue-200 hover:bg-[#1E2D6E]'
                   }`}
                 >
                   <LayoutGrid size={16} className="shrink-0" />
@@ -151,11 +155,12 @@ export function CoursePurchasePopup({ course, onClose, videoCount = 0 }: CourseP
                 </a>
               )}
 
-              <div className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-[11px] leading-4 text-slate-400">
+              <div className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[10.5px] leading-4 text-slate-400">
                 <ShieldCheck size={14} className="shrink-0 text-emerald-600" />
                 Pagamento seguro via Hotmart e acesso após a confirmação.
               </div>
-            </div>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
