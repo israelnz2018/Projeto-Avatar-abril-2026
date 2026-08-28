@@ -1124,8 +1124,16 @@ export default function DataAnalysis() {
         return;
       }
 
+      // Já existe um projeto vigente entre os disponíveis: salva direto nele,
+      // sem perguntar onde — a pergunta só faz sentido quando não há projeto
+      // selecionado (aluno teria que escolher um dos dele, ou criar um novo).
       const vigenteNaLista = projetoAtivo && projetos.some((projeto) => projeto.id === projetoAtivo.id);
-      setProjetoDestinoId(vigenteNaLista ? projetoAtivo.id : projetos[0].id);
+      if (vigenteNaLista) {
+        await prepararSalvamento(projetoAtivo!);
+        return;
+      }
+
+      setProjetoDestinoId(projetos[0].id);
       setNovoProjetoTitulo('');
       setModalSelecionarProjeto(true);
     } catch (err: any) {
