@@ -883,7 +883,7 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
 
         {/* Results Section */}
         {generatedProjects.length > 0 && (
-          <div className="space-y-4 mt-8">
+          <div className="order-first space-y-4">
             
             {/* Título da seção */}
             <div className="text-center space-y-2">
