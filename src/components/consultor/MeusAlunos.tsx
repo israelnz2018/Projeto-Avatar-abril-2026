@@ -82,7 +82,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
-  const [ordenacao, setOrdenacao] = useState<'alfabetica' | 'convite' | 'ultimoAcesso' | 'projetos'>('convite');
+  type CampoOrdenacao = 'alfabetica' | 'convite' | 'ultimoAcesso' | 'projetos' | 'education' | 'analytics' | 'situacao';
+  const [ordenacao, setOrdenacao] = useState<CampoOrdenacao>('convite');
+  const [ordemAscendente, setOrdemAscendente] = useState(false);
   const [detalheUid, setDetalheUid] = useState<string | null>(null);
 
   // agrupamento por time — cada grupo (meus próprios alunos + cada coordenador) é um
@@ -199,6 +201,26 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     if (!aluno.ultimoAcesso) return 0;
     const ms = new Date(aluno.ultimoAcesso).getTime();
     return Number.isNaN(ms) ? 0 : ms;
+  };
+
+  const conviteMs = (aluno: Aluno) => {
+    if (!aluno.dataConvite) return 0;
+    const ms = new Date(aluno.dataConvite).getTime();
+    return Number.isNaN(ms) ? 0 : ms;
+  };
+
+  const quantidadeCursosLiberados = (aluno: Aluno) => cursos.filter((curso) => acessoCurso(aluno, curso)).length;
+  const quantidadeAnalyticsLiberados = (aluno: Aluno) => ANALYTICS_MODULOS.filter((modulo) => acessoAnalytics(aluno, modulo).liberado).length;
+  const quantidadeProjetosLiberados = (aluno: Aluno) => tiposProjeto.filter((projeto) => acessoProjeto(aluno, projeto).liberado).length;
+  const pesoSituacao = (aluno: Aluno) => ({ Removido: 0, Limitado: 1, Acesso: 2, Completo: 3 }[situacaoAluno(aluno)] || 0);
+
+  const selecionarOrdenacao = (campo: CampoOrdenacao) => {
+    if (ordenacao === campo) {
+      setOrdemAscendente((atual) => !atual);
+      return;
+    }
+    setOrdenacao(campo);
+    setOrdemAscendente(campo === 'alfabetica');
   };
 
   const situacaoAluno = (aluno: Aluno) => {
@@ -327,24 +349,20 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     }
     for (const alunos of mapa.values()) {
       alunos.sort((a, b) => {
-        if (ordenacao === 'projetos') {
-          const projetosA = tiposProjeto.filter((projeto) => acessoProjeto(a, projeto).liberado).length;
-          const projetosB = tiposProjeto.filter((projeto) => acessoProjeto(b, projeto).liberado).length;
-          return projetosB - projetosA || a.nome.localeCompare(b.nome, 'pt-BR');
-        }
-        if (ordenacao === 'ultimoAcesso') {
-          return ultimoAcessoMs(b) - ultimoAcessoMs(a) || a.nome.localeCompare(b.nome, 'pt-BR');
-        }
-        if (ordenacao === 'convite') {
-          const conviteA = a.dataConvite ? new Date(a.dataConvite).getTime() || 0 : 0;
-          const conviteB = b.dataConvite ? new Date(b.dataConvite).getTime() || 0 : 0;
-          return conviteB - conviteA || a.nome.localeCompare(b.nome, 'pt-BR');
-        }
+        let resultado = 0;
+        if (ordenacao === 'alfabetica') resultado = a.nome.localeCompare(b.nome, 'pt-BR');
+        if (ordenacao === 'convite') resultado = conviteMs(a) - conviteMs(b);
+        if (ordenacao === 'ultimoAcesso') resultado = ultimoAcessoMs(a) - ultimoAcessoMs(b);
+        if (ordenacao === 'projetos') resultado = quantidadeProjetosLiberados(a) - quantidadeProjetosLiberados(b);
+        if (ordenacao === 'education') resultado = quantidadeCursosLiberados(a) - quantidadeCursosLiberados(b);
+        if (ordenacao === 'analytics') resultado = quantidadeAnalyticsLiberados(a) - quantidadeAnalyticsLiberados(b);
+        if (ordenacao === 'situacao') resultado = pesoSituacao(a) - pesoSituacao(b);
+        if (resultado !== 0) return (ordemAscendente ? 1 : -1) * resultado;
         return a.nome.localeCompare(b.nome, 'pt-BR');
       });
     }
     return mapa;
-  }, [rows, busca, consultorId, ordenacao, tiposProjeto, iniciativas]);
+  }, [rows, busca, consultorId, ordenacao, ordemAscendente, tiposProjeto, iniciativas, cursos]);
   const buscando = busca.trim().length > 0;
   const empresaDiretaId = empresaIdDireto(consultorId);
 
@@ -945,14 +963,15 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   };
 
   const renderLinha = (a: Aluno) => {
-    const cursosLiberados = cursos.filter((curso) => acessoCurso(a, curso)).length;
-    const analyticsLiberados = ANALYTICS_MODULOS.filter((modulo) => acessoAnalytics(a, modulo).liberado).length;
-    const projetosLiberados = tiposProjeto.filter((projeto) => acessoProjeto(a, projeto).liberado).length;
+    const cursosLiberados = quantidadeCursosLiberados(a);
+    const analyticsLiberados = quantidadeAnalyticsLiberados(a);
+    const projetosLiberados = quantidadeProjetosLiberados(a);
     const aberto = detalheUid === a.uid;
     return (
       <div key={a.uid} className="border-b border-gray-100 last:border-0">
-        <div className={`grid grid-cols-[minmax(170px,1.4fr)_minmax(105px,1fr)_minmax(125px,1fr)_minmax(105px,1fr)_auto_auto_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
-          <div className="min-w-0"><div className="flex items-center gap-2 min-w-0"><div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div><span className="shrink-0 text-[10px] text-gray-400 whitespace-nowrap">Convite: {dataBr(a.dataConvite)}</span></div><div className="text-xs text-gray-400 truncate">{a.email}</div></div>
+        <div className={`grid grid-cols-[minmax(180px,1.45fr)_minmax(105px,.9fr)_minmax(110px,1fr)_minmax(125px,1.1fr)_minmax(105px,1fr)_minmax(120px,1fr)_auto_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
+          <div className="min-w-0"><div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div><div className="text-xs text-gray-400 truncate">{a.email}</div></div>
+          <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{dataBr(a.dataConvite)}</span>
           <span className="text-xs font-semibold text-gray-700">{cursosLiberados === 0 ? 'Sem acesso' : `${cursosLiberados} de ${cursos.length} cursos`}</span>
           <span className="text-xs font-semibold text-gray-700">{analyticsLiberados === 0 ? 'Sem acesso' : `${analyticsLiberados} de ${ANALYTICS_MODULOS.length} módulos`}</span>
           <span className="text-xs font-semibold text-gray-700">{projetosLiberados === 0 ? 'Sem acesso' : `${projetosLiberados} projeto${projetosLiberados === 1 ? '' : 's'}`}</span>
@@ -1078,6 +1097,13 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
 
   // Corpo de um time: cabeçalho das colunas + alunos + "adicionar aluno".
   // Usado solto (dentro da linha do coordenador) e dentro do acordeão da tela cheia.
+  const indicadorOrdenacao = (campo: CampoOrdenacao) => ordenacao === campo ? (ordemAscendente ? '↑' : '↓') : '↕';
+  const cabecalhoOrdenavel = (campo: CampoOrdenacao, label: string) => (
+    <button type="button" onClick={() => selecionarOrdenacao(campo)} className="inline-flex items-center gap-1 text-left hover:text-blue-700" aria-label={`Ordenar por ${label}`} aria-sort={ordenacao === campo ? (ordemAscendente ? 'ascending' : 'descending') : 'none'}>
+      <span>{label}</span><span className={`text-[11px] ${ordenacao === campo ? 'text-blue-600' : 'text-gray-300'}`}>{indicadorOrdenacao(campo)}</span>
+    </button>
+  );
+
   const corpoGrupo = (empresaId: string) => {
     const alunosDoTime = alunosPorEmpresa.get(empresaId) || [];
     const cadastroDentroDoGrupo = embedded || empresaId !== empresaDiretaId;
@@ -1091,11 +1117,21 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         {!somenteLeitura && cadastroDentroDoGrupo && addAbertoEmpresaId === empresaId && (
           <div id={`adicionar-aluno-${empresaId}`}>{renderFormAdicionar(empresaId)}</div>
         )}
-        <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[minmax(170px,1.4fr)_minmax(105px,1fr)_minmax(125px,1fr)_minmax(105px,1fr)_auto_auto_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
-          <div>Aluno</div><div>Education</div><div>Data Analysis</div><div>Projects</div><div>Situação</div><div>Ação</div><div />
+        <div className="overflow-x-auto">
+          <div className="min-w-[980px]">
+            <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[minmax(180px,1.45fr)_minmax(105px,.9fr)_minmax(110px,1fr)_minmax(125px,1.1fr)_minmax(105px,1fr)_minmax(120px,1fr)_auto_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
+              <div>{cabecalhoOrdenavel('alfabetica', 'Aluno')}</div>
+              <div>{cabecalhoOrdenavel('convite', 'Convite')}</div>
+              <div>{cabecalhoOrdenavel('education', 'Education')}</div>
+              <div>{cabecalhoOrdenavel('analytics', 'Data Analysis')}</div>
+              <div>{cabecalhoOrdenavel('projetos', 'Projects')}</div>
+              <div className="flex flex-col gap-0.5"><span>Situação</span>{cabecalhoOrdenavel('ultimoAcesso', 'Último acesso')}</div>
+              <div>Ação</div><div />
+            </div>
+            {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
+            {alunosDoTime.map(renderLinha)}
+          </div>
         </div>
-        {alunosDoTime.length === 0 && <div className="px-4 py-6 text-center text-gray-400 text-sm">Nenhum aluno neste time ainda.</div>}
-        {alunosDoTime.map(renderLinha)}
       </>
     );
   };
@@ -1150,7 +1186,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-black text-gray-800 mb-1">Alunos na Plataforma</h1>
       <p className="text-gray-500 text-sm mb-5">
         Gerencie os alunos de <b>{consultor.branding.nome}</b>, agrupados por time — os seus diretos e os de cada coordenador.
@@ -1174,10 +1210,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           ['convite', 'Convite'],
           ['ultimoAcesso', 'Último acesso'],
           ['projetos', 'Projetos'],
+          ['education', 'Education'],
+          ['analytics', 'Data Analysis'],
           ['alfabetica', 'A–Z'],
-        ] as const).map(([valor, label]) => (
-          <button key={valor} type="button" onClick={() => setOrdenacao(valor)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${ordenacao === valor ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700'}`}>
-            {label}
+        ] as [CampoOrdenacao, string][]).map(([valor, label]) => (
+          <button key={valor} type="button" onClick={() => selecionarOrdenacao(valor)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${ordenacao === valor ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700'}`}>
+            {label} {ordenacao === valor ? (ordemAscendente ? '↑' : '↓') : ''}
           </button>
         ))}
       </div>
