@@ -100,6 +100,23 @@ function genItemId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function unwrapIdeaData(raw: any): any {
+  let data = raw;
+  if (data?.content?.toolData) data = data.content.toolData;
+  else if (data?.content) data = data.content;
+  if (data?.toolData) data = data.toolData;
+  return data && typeof data === 'object' ? data : {};
+}
+
+function inferIdeaProfile(raw: any): UserProfile {
+  const data = raw?.formData || raw || {};
+  if (normalizeProfile(raw?.userProfile)) return normalizeProfile(raw.userProfile);
+  if (data.minhaFuncao || data.atividadesQueExecuto || data.problemasQueEnfrento) return 'Atividades';
+  if (data.tamanhoEquipe || data.processCritical || data.principaisProcessos) return 'Area';
+  if (data.tamanhoEmpresa || data.meuPapelEmpresa || data.doresExecutivas) return 'Empresa';
+  return null;
+}
+
 // Rótulos dos itens e das 4 vozes — adaptados por nível (perfil).
 // Cada perfil olha o problema por 4 ângulos diferentes, conforme o escopo.
 const ITEM_CONFIG: Record<Exclude<UserProfile, null>, {
@@ -143,32 +160,11 @@ const ITEM_CONFIG: Record<Exclude<UserProfile, null>, {
   },
 };
 
-// Mapa de recomendação de trilha por perfil (popup informativo, aluno decide)
-const PERFIL_RECOMENDACAO: Record<Exclude<UserProfile, null>, { trilhaNumero: string; trilhaNome: string; explicacao: string } | null> = {
-  'Atividades': {
-    trilhaNumero: 'Trilha 1',
-    trilhaNome: 'Como Chegar em uma Área Nova e Já Entregar Resultado',
-    explicacao: 'Pra quem quer melhorar o que executa no dia a dia, essa trilha cobre 10 situações: da adaptação até implementar mudança que sustenta. Inclui Mini-Charter, causa-raiz com 5 Porquês, vender solução sem virar inimigo do time e plano de controle. É o caminho mais direto pro seu escopo.',
-  },
-  'Area': null, // sem recomendação específica — o aluno tem várias opções
-  'Empresa': {
-    trilhaNumero: 'Trilha 8',
-    trilhaNome: 'Formação Profissional em Gestão de Projetos de Melhoria',
-    explicacao: 'Pra quem enxerga a empresa como sistema, essa formação cobre PMI completo, gerenciamento de stakeholders em múltiplas áreas, risk register e relatório executivo. É o nível pra liderar projeto que atravessa departamentos.',
-  },
-};
-
 export default function ImprovementProjectIdea({ onSave, initialData }: ImprovementProjectIdeaProps) {
   const [loading, setLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile>(normalizeProfile(initialData?.userProfile));
-  // Popup de recomendação de trilha — aparece quando aluno clica em perfil com sugestão
-  const [recommendationPopup, setRecommendationPopup] = useState<{
-    perfil: UserProfile;
-    trilhaNumero: string;
-    trilhaNome: string;
-    explicacao: string;
-  } | null>(null);
-  const [formData, setFormData] = useState(initialData?.formData || initialData?.toolData || {
+  const savedData = unwrapIdeaData(initialData);
+  const [userProfile, setUserProfile] = useState<UserProfile>(inferIdeaProfile(savedData));
+  const [formData, setFormData] = useState(Object.keys(savedData).length > 0 ? (savedData?.formData || savedData) : {
     // Comuns
     sector: '',
     area: '',
@@ -256,7 +252,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     });
   };
 
-  const [generatedProjects, setGeneratedProjects] = useState<any[]>(initialData?.generatedProjects ? normalizeProjects(initialData.generatedProjects) : []);
+  const [generatedProjects, setGeneratedProjects] = useState<any[]>(savedData?.generatedProjects ? normalizeProjects(savedData.generatedProjects) : []);
   const [nivelFilter, setNivelFilter] = useState<string>('Todos');
 
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
@@ -265,9 +261,11 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
 
   useEffect(() => {
     if (initialData) {
-      if (initialData.userProfile) setUserProfile(normalizeProfile(initialData.userProfile));
-      if (initialData.formData || initialData.toolData) setFormData(initialData.formData || initialData.toolData);
-      if (initialData.generatedProjects) setGeneratedProjects(normalizeProjects(initialData.generatedProjects));
+      const nextData = unwrapIdeaData(initialData);
+      const nextProfile = inferIdeaProfile(nextData);
+      if (nextProfile) setUserProfile(nextProfile);
+      if (nextData.formData || Object.keys(nextData).length > 0) setFormData(nextData.formData || nextData);
+      if (nextData.generatedProjects) setGeneratedProjects(normalizeProjects(nextData.generatedProjects));
     }
   }, [initialData]);
 
@@ -309,7 +307,6 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
   // De qualquer forma, define o perfil pra que se ele decidir continuar, a ferramenta esteja pronta.
   const confirmProfileSelection = (profile: Exclude<UserProfile, null>) => {
     setUserProfile(profile);
-    setRecommendationPopup(null);
     onSave({
       userProfile: profile,
       formData,
@@ -566,7 +563,6 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               title: 'Quero melhorar MINHAS ATIVIDADES',
               description: 'O que EU faço no dia a dia — re-trabalho, ferramenta ruim, espera, reclamação que recebo.',
               icon: ClipboardList,
-              hint: 'Sugestão: Trilha 1',
             },
             {
               id: 'Area' as Exclude<UserProfile, null>,
@@ -580,7 +576,6 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               title: 'Quero melhorar MINHA EMPRESA',
               description: 'Sou especialista/consultor — visão sistêmica, dores executivas, conexões entre áreas, programa OpEx.',
               icon: Globe2,
-              hint: 'Sugestão: Trilha 8',
             },
           ].map((profile) => (
             <button
@@ -593,11 +588,6 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
               </div>
               <h3 className="text-[15px] font-black text-gray-900 mb-3 leading-tight">{profile.title}</h3>
               <p className="text-sm text-gray-500 font-medium leading-relaxed flex-1">{profile.description}</p>
-              {profile.hint && (
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mt-4 pt-3 border-t border-gray-100">
-                  💡 {profile.hint}
-                </p>
-              )}
             </button>
           ))}
         </div>
