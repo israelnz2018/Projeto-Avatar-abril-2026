@@ -155,16 +155,16 @@ const CSS = `
    de cor por cartão, sem repetir o hex em vários lugares do CSS. */
 /* Rola no toque/arraste normalmente, mas sem a barra de rolagem visível —
    scrollbar-width cobre Firefox, ::-webkit-scrollbar cobre Chrome/Safari/Edge. */
-.plbw .tools-carousel{position:relative}.plbw .tools-scroll{overflow-x:auto;margin:0 -4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;scroll-snap-type:x proximity;scroll-behavior:smooth;padding-right:4px}
+.plbw .tools-carousel{position:relative}.plbw .tools-scroll{overflow-x:auto;margin:0 -4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:12px 4px 20px;mask-image:linear-gradient(to right,transparent 0,#000 3%,#000 94%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0,#000 3%,#000 94%,transparent 100%)}
 .plbw .tools-scroll::-webkit-scrollbar{display:none}
 .plbw .tools-track{display:flex;gap:16px;width:max-content;padding:4px}
 .plbw .tools-next{position:absolute;right:10px;top:50%;z-index:5;width:44px;height:44px;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(6,10,24,.82);color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:.2s ease}.plbw .tools-next:hover{background:#2164f3;transform:translateX(2px)}.plbw .tools-next:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
-.plbw .tool-card{scroll-snap-align:start}
-.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:420px;height:286px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;flex-direction:column}
+.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:420px;height:286px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;flex-direction:column;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform}
+.plbw .tool-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}
 .plbw .tool-card-title{position:relative;z-index:2;min-height:64px;padding:14px 18px 12px;background:linear-gradient(120deg,#10295a,#2164f3);color:#fff;font-size:18px;font-weight:900;line-height:1.2;display:flex;align-items:center}
 .plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:9px;background:#f4f7fb;display:flex;align-items:center;justify-content:center}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:7px}
+.plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:7px;transition:transform .35s ease}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
 .plbw .tool-glow{position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--glow) 55%,transparent),transparent 60%),radial-gradient(circle at 80% 85%,color-mix(in srgb,var(--glow) 35%,transparent),transparent 55%);opacity:.55}
 .plbw .tool-nome{position:relative;font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;font-size:19px;line-height:1.28;color:#f7f2e4;margin:0}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font:inherit;font-weight:800;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
@@ -186,14 +186,33 @@ export default function LandingPlataformaLBW() {
     if (!area) return;
     const card = area.querySelector<HTMLElement>('.tool-card');
     const passo = (card?.offsetWidth || 420) + 16;
-    const limite = area.scrollWidth - area.clientWidth;
-    area.scrollTo({ left: area.scrollLeft >= limite - 8 ? 0 : area.scrollLeft + passo, behavior: 'smooth' });
+    area.scrollBy({ left: passo, behavior: 'smooth' });
   };
 
   useEffect(() => {
     if (pausarFerramentas) return;
-    const timer = window.setInterval(avancarFerramentas, 4000);
-    return () => window.clearInterval(timer);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let frame = 0;
+    let instanteAnterior = performance.now();
+
+    const moverContinuamente = (agora: number) => {
+      const area = ferramentasRef.current;
+      if (area) {
+        const delta = Math.min(agora - instanteAnterior, 50);
+        area.scrollLeft += delta * 0.035;
+
+        const primeiro = area.querySelector<HTMLElement>('[data-tool-copy="original"]');
+        const inicioCopia = area.querySelector<HTMLElement>('[data-tool-copy="duplicate"]');
+        const larguraCiclo = primeiro && inicioCopia ? inicioCopia.offsetLeft - primeiro.offsetLeft : 0;
+        if (larguraCiclo > 0 && area.scrollLeft >= larguraCiclo) area.scrollLeft -= larguraCiclo;
+      }
+      instanteAnterior = agora;
+      frame = window.requestAnimationFrame(moverContinuamente);
+    };
+
+    frame = window.requestAnimationFrame(moverContinuamente);
+    return () => window.cancelAnimationFrame(frame);
   }, [pausarFerramentas]);
 
   useEffect(() => {
@@ -258,11 +277,13 @@ export default function LandingPlataformaLBW() {
         </div></section>
 
         <section className="section"><div className="wrap">
-          <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>As ferramentas que conduzem o seu projeto</h2><p>Da ideia inicial ao encerramento, cada etapa do seu projeto tem sua ferramenta pronta.</p></div>
-          <div className="tools-carousel" onMouseEnter={() => setPausarFerramentas(true)} onMouseLeave={() => setPausarFerramentas(false)} onFocus={() => setPausarFerramentas(true)} onBlur={() => setPausarFerramentas(false)}>
-            <div className="tools-scroll" ref={ferramentasRef}><div className="tools-track">{FERRAMENTAS.map((ferramenta, index) => {
-            const imagens = FERRAMENTA_IMAGENS[index] || [];
-            return <article className="tool-card" key={ferramenta.nome} style={{ '--glow': FASE_COR[ferramenta.fase] } as React.CSSProperties}>
+          <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>Templates de gerenciamento de projetos prontos para usar</h2><p>Modelos profissionais para conduzir o projeto, da ideia inicial ao encerramento.</p></div>
+          <div className="tools-carousel" onMouseEnter={() => setPausarFerramentas(true)} onMouseLeave={() => setPausarFerramentas(false)}>
+            <div className="tools-scroll" ref={ferramentasRef}><div className="tools-track">{[...FERRAMENTAS, ...FERRAMENTAS].map((ferramenta, index) => {
+            const indiceOriginal = index % FERRAMENTAS.length;
+            const imagens = FERRAMENTA_IMAGENS[indiceOriginal] || [];
+            const duplicado = index >= FERRAMENTAS.length;
+            return <article className="tool-card" key={`${ferramenta.nome}-${duplicado ? 'copia' : 'original'}`} data-tool-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined} style={{ '--glow': FASE_COR[ferramenta.fase] } as React.CSSProperties}>
               <h3 className="tool-card-title">{ferramenta.nome}</h3>
               <div className={`tool-card-media${imagens.length > 1 ? ' multi' : ''}`}>
                 {imagens.map((imagem) => <img className="tool-card-image" key={imagem} src={imagem} alt="" loading="lazy" />)}
