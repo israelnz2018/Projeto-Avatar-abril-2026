@@ -118,13 +118,34 @@ const FERRAMENTA_IMAGENS: string[][] = [
   ['/landing-tools/adkar.png'],
 ];
 
-const FAQ = [
-  ['Os projetos Yellow, Green e Black Belt estão em todos os planos?', 'Não. Eles fazem parte exclusivamente da Plataforma Profissional em Gestão de Projetos de Melhoria.'],
-  ['Certificado de curso e certificação de projeto são a mesma coisa?', 'Não. O certificado de curso confirma a conclusão do conteúdo. A certificação de projeto valida uma aplicação real e exige análise técnica separada.'],
-  ['Posso começar por um plano e evoluir depois?', 'Sim. Os planos são cumulativos: cada um contém o anterior. Você pode começar pela Formação Profissional, acrescentar o Software LBW e depois avançar para a Plataforma Profissional.'],
-  ['Qual a diferença entre os três planos?', 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Plataforma Profissional acrescenta os projetos guiados Yellow, Green e Black Belt.'],
-  ['O Master Black Belt está incluído?', 'Não. O Master Black Belt é uma etapa avançada posterior, indicada para profissionais que já dominam projetos Black Belt.'],
-  ['Existe uma solução para consultores e empresas?', 'Sim. Consultores possuem uma trilha própria e empresas podem solicitar pacotes corporativos para equipes.'],
+// `link` transforma a última frase da resposta num link — hoje só o FAQ de
+// consultores precisa, mas fica genérico pra não virar caso especial depois.
+const FAQ: Array<{ p: string; r: string; link?: { texto: string; href: string } }> = [
+  {
+    p: 'Os projetos Yellow, Green e Black Belt estão em todos os planos?',
+    r: 'Os cursos da Formação Profissional cobrem o conteúdo dos níveis Yellow, Green e Black Belt em todos os planos. O que muda é a execução: só a Plataforma Profissional entrega o Software LBW e os templates de gerenciamento para você conduzir os seus próprios projetos de melhoria na prática.',
+  },
+  {
+    p: 'Vou receber o certificado de todos os cursos?',
+    r: 'Sim. Você tem acesso ao certificado de cada curso da plataforma, emitido após a realização do teste de avaliação.',
+  },
+  {
+    p: 'Posso começar por um plano e evoluir depois?',
+    r: 'Sim. Os planos são cumulativos: cada um contém o anterior. Você pode começar pela Formação Profissional, acrescentar o Software LBW e depois avançar para a Plataforma Profissional.',
+  },
+  {
+    p: 'Qual a diferença entre os três planos?',
+    r: 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Plataforma Profissional acrescenta os projetos guiados Yellow, Green e Black Belt.',
+  },
+  {
+    p: 'Que suporte eu recebo durante o meu projeto?',
+    r: 'Você participa da comunidade LBW para trocar experiência com outros profissionais e conta com a IA digital dentro da plataforma, treinada para responder como eu responderia — tanto nas dúvidas técnicas das ferramentas e análises quanto nas questões gerenciais da condução do projeto.',
+  },
+  {
+    p: 'Sou consultor. Posso ter uma plataforma igual à sua?',
+    r: 'Sim. Se você já tem vídeos prontos na área de melhoria contínua, pode montar a sua própria plataforma com a sua marca, os seus cursos e os seus alunos.',
+    link: { texto: 'Conheça a área de consultores', href: '/consultores' },
+  },
 ];
 
 const CSS = `
@@ -138,7 +159,9 @@ const CSS = `
 .plbw h1,.plbw h2,.plbw h3,.plbw .brand,.plbw .price,.plbw .recommended,.plbw .plan-tag,.plbw .head small,.plbw .hero-proof-title,.plbw .proof strong,.plbw .tool-card-title,.plbw th,.plbw .row-preco td:first-child{font-family:var(--fd)}
 /* Nav fixo no topo */
 .plbw .nav{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:13px clamp(16px,4vw,40px);background:rgba(6,10,24,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.plbw .nav-marca{display:flex;align-items:center;gap:10px;color:#fff}.plbw .nav-logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2866f4,#10b8dc);display:grid;place-items:center;font-family:var(--fd);font-weight:700;font-size:15px}.plbw .nav-nome{font-family:var(--fd);font-weight:700;font-size:15px}
+.plbw .nav-marca{display:flex;align-items:center;gap:10px;color:#fff}/* A logo é a mesma imagem do favicon (marca circular da LBW). Fundo branco
+   porque o traço é azul-marinho e sumiria no fundo escuro do nav. */
+.plbw .nav-logo{width:34px;height:34px;border-radius:9px;background:#fff;object-fit:contain;padding:3px;display:block}.plbw .nav-nome{font-family:var(--fd);font-weight:700;font-size:15px}
 .plbw .nav-dir{display:flex;align-items:center;gap:26px}.plbw .nav-links{display:flex;align-items:center;gap:26px}.plbw .nav-links a{color:var(--muted);font-size:14px;font-weight:500}.plbw .nav-links a:hover{color:#fff}
 .plbw .nav-cta{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;font-weight:700;font-size:13px;color:#fff;background:linear-gradient(120deg,#2866f4,#0aaacb);box-shadow:0 12px 28px -14px rgba(37,99,235,.9);transition:transform .2s ease}.plbw .nav-cta:hover{transform:translateY(-2px)}
 @media(max-width:820px){.plbw .nav-links{display:none}}
@@ -202,7 +225,7 @@ const CSS = `
 .plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:9px;background:#f4f7fb;display:flex;align-items:center;justify-content:center}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:7px;transition:transform .35s ease}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
-.plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
+.plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .faq-link{color:#7fb0ff;font-weight:700;white-space:nowrap}.plbw .faq-link:hover{color:#a9caff;text-decoration:underline}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 /* Empilhado, o selo do número (top:-18px) invade o card de cima se o gap for
    os mesmos 18px do desktop — por isso só o espaçamento cresce aqui. */
 @media(max-width:620px){.plbw .wrap{width:min(100% - 28px,1140px)}.plbw .hero{padding:60px 0}.plbw .hero-lead{font-size:17px}.plbw .hero-proof-wrap{margin-top:42px}.plbw .hero-proof{gap:32px}.plbw .section{padding:60px 0}.plbw .plan{padding:24px 20px}.plbw .hero-actions .btn{width:100%}
@@ -294,7 +317,7 @@ export default function LandingPlataformaLBW() {
       <style>{CSS}</style>
       <nav className="nav">
         <a className="nav-marca" href="#top">
-          <span className="nav-logo">L</span>
+          <img className="nav-logo" src="/favicon.png" alt="Learning by Working" width={34} height={34} />
           <span className="nav-nome">Learning by Working</span>
         </a>
         <div className="nav-dir">
@@ -381,7 +404,7 @@ export default function LandingPlataformaLBW() {
           </div>
         </div></section>
 
-        <section className="section" id="faq"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Ainda tem alguma dúvida?</h2></div><div className="faq">{FAQ.map(([pergunta, resposta], index) => <div className="faq-item" key={pergunta}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{pergunta}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{resposta}</div>}</div>)}</div></div></section>
+        <section className="section" id="faq"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Ainda tem alguma dúvida?</h2></div><div className="faq">{FAQ.map((item, index) => <div className="faq-item" key={item.p}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{item.p}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{item.r}{item.link && <> <a className="faq-link" href={item.link.href} target="_blank" rel="noopener noreferrer">{item.link.texto} →</a></>}</div>}</div>)}</div></div></section>
 
         <section className="final"><div className="wrap"><h2>Comece pelo que você precisa. Evolua até onde quiser.</h2><p>A LBW conecta aprendizagem, aplicação e resultado sem obrigar você a contratar recursos que ainda não precisa.</p><a className="btn btn-primary" href="#planos">Escolher meu plano</a></div></section>
       </main>
