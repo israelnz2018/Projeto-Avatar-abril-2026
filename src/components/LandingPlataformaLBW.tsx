@@ -128,8 +128,27 @@ const FAQ = [
 ];
 
 const CSS = `
-.plbw{--bg:#060a18;--card:#0e1730;--blue:#2164f3;--cyan:#10b8dc;--text:#f7f9ff;--muted:#aab6d2;--line:rgba(164,188,244,.18);background:var(--bg);color:var(--text);font-family:'Segoe UI',Inter,system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
-.plbw *{box-sizing:border-box}.plbw h1,.plbw h2,.plbw h3,.plbw p{margin:0}.plbw a{text-decoration:none}.plbw .wrap{width:min(1140px,calc(100% - 40px));margin:0 auto}.plbw .section{padding:82px 0}.plbw .section-soft{background:linear-gradient(180deg,rgba(20,47,111,.16),rgba(6,10,24,0))}
+.plbw{--bg:#060a18;--card:#0e1730;--blue:#2164f3;--cyan:#10b8dc;--text:#f7f9ff;--muted:#aab6d2;--line:rgba(164,188,244,.18);--fd:'Space Grotesk',system-ui,sans-serif;--fb:'Instrument Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);font-family:var(--fb);min-height:100vh;position:relative;overflow-x:hidden}
+/* overflow-x:hidden vira um scroll container e quebra o position:sticky do nav
+   (o nav passaria a grudar dentro do .plbw, não da janela). overflow-x:clip
+   corta o transbordo horizontal SEM criar scroll container, então o nav gruda.
+   O hidden acima fica de reserva pra navegador sem suporte a clip. */
+@supports (overflow-x:clip){.plbw{overflow-x:clip}}
+.plbw *{box-sizing:border-box}.plbw h1,.plbw h2,.plbw h3,.plbw p{margin:0}.plbw a{text-decoration:none}.plbw .wrap{width:min(1140px,calc(100% - 40px));margin:0 auto}.plbw .section{padding:82px 0;scroll-margin-top:70px}.plbw .section-soft{background:linear-gradient(180deg,rgba(20,47,111,.16),rgba(6,10,24,0))}
+.plbw h1,.plbw h2,.plbw h3,.plbw .brand,.plbw .price,.plbw .recommended,.plbw .plan-tag,.plbw .head small,.plbw .hero-proof-title,.plbw .proof strong,.plbw .tool-card-title,.plbw th,.plbw .row-preco td:first-child{font-family:var(--fd)}
+/* Space Grotesk vai só até 700: pesos 800/900 viravam negrito sintético
+   (borrado). Tudo que era 800+ passa a 700, que é o mais forte real da fonte. */
+.plbw .brand,.plbw .head small,.plbw .hero-proof-title,.plbw .proof strong,.plbw .proof::before,.plbw .recommended,.plbw .plan-tag,.plbw .price,.plbw .items li:before,.plbw .saving-badge,.plbw .faq-q,.plbw .btn,.plbw .tool-card-title,.plbw .proof-stage{font-weight:700}
+/* Nav fixo no topo */
+.plbw .nav{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:13px clamp(16px,4vw,40px);background:rgba(6,10,24,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.plbw .nav-marca{display:flex;align-items:center;gap:10px;color:#fff}.plbw .nav-logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2866f4,#10b8dc);display:grid;place-items:center;font-family:var(--fd);font-weight:700;font-size:15px}.plbw .nav-nome{font-family:var(--fd);font-weight:700;font-size:15px}
+.plbw .nav-dir{display:flex;align-items:center;gap:26px}.plbw .nav-links{display:flex;align-items:center;gap:26px}.plbw .nav-links a{color:var(--muted);font-size:14px;font-weight:500}.plbw .nav-links a:hover{color:#fff}
+.plbw .nav-cta{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;font-weight:700;font-size:13px;color:#fff;background:linear-gradient(120deg,#2866f4,#0aaacb);box-shadow:0 12px 28px -14px rgba(37,99,235,.9);transition:transform .2s ease}.plbw .nav-cta:hover{transform:translateY(-2px)}
+@media(max-width:820px){.plbw .nav-links{display:none}}
+/* Seção do autor */
+.plbw .autor{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:44px;align-items:center}
+.plbw .autor-foto-col{display:flex;justify-content:center}.plbw .autor-foto{width:220px;height:220px;border-radius:50%;object-fit:cover;box-shadow:0 24px 60px -20px rgba(33,100,243,.5);border:1px solid var(--line)}
+.plbw .autor h2{font-size:clamp(28px,3.6vw,38px);letter-spacing:-.03em;margin:14px 0 6px}.plbw .autor-cargo{color:#84adff;font-size:15px;font-weight:600;margin-bottom:16px}.plbw .autor-bio{color:var(--muted);line-height:1.65;font-size:17px}
 .plbw .hero{position:relative;padding:92px 0 78px;text-align:center;background:radial-gradient(circle at 80% 10%,rgba(33,100,243,.34),transparent 33%),radial-gradient(circle at 10% 65%,rgba(16,184,220,.17),transparent 34%)}
 .plbw .brand{font-size:12px;letter-spacing:.24em;font-weight:900;color:#8fb3ff;margin-bottom:20px}.plbw .pill{display:inline-flex;padding:9px 16px;border:1px solid rgba(96,165,250,.34);border-radius:999px;background:rgba(37,99,235,.1);color:#b9d1ff;font-size:12px;font-weight:800;letter-spacing:.08em}
 .plbw h1{font-size:clamp(38px,6vw,68px);line-height:1.02;letter-spacing:-.045em;max-width:930px;margin:22px auto 20px}.plbw .gradient{background:linear-gradient(100deg,#fff 10%,#92b7ff 55%,#13c4df);-webkit-background-clip:text;background-clip:text;color:transparent}.plbw .hero-lead{max-width:790px;margin:0 auto;color:var(--muted);font-size:20px;line-height:1.6}.plbw .hero-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:32px}
@@ -161,12 +180,12 @@ const CSS = `
 .plbw .tools-next{position:absolute;right:10px;top:50%;z-index:5;width:44px;height:44px;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(6,10,24,.82);color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:.2s ease}.plbw .tools-next:hover{background:#2164f3;transform:translateX(2px)}.plbw .tools-next:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
 .plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:420px;height:286px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;flex-direction:column;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform}
 .plbw .tool-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}
-.plbw .tool-card-title{position:relative;z-index:2;min-height:64px;padding:14px 18px 12px;background:linear-gradient(120deg,#10295a,#2164f3);color:#fff;font-size:18px;font-weight:900;line-height:1.2;display:flex;align-items:center}
+/* A cor da fase (--glow) vira a faixa lateral do título — é o único lugar em
+   que ela aparece de verdade no card, já que a área da imagem é opaca. */
+.plbw .tool-card-title{position:relative;z-index:2;min-height:64px;padding:14px 18px 12px;background:linear-gradient(120deg,#10295a,#2164f3);color:#fff;font-size:18px;line-height:1.2;display:flex;align-items:center;border-left:4px solid var(--glow)}
 .plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:9px;background:#f4f7fb;display:flex;align-items:center;justify-content:center}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:7px;transition:transform .35s ease}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
-.plbw .tool-glow{position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--glow) 55%,transparent),transparent 60%),radial-gradient(circle at 80% 85%,color-mix(in srgb,var(--glow) 35%,transparent),transparent 55%);opacity:.55}
-.plbw .tool-nome{position:relative;font-family:Georgia,'Iowan Old Style','Palatino Linotype',serif;font-size:19px;line-height:1.28;color:#f7f2e4;margin:0}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font:inherit;font-weight:800;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 @media(max-width:950px){.plbw .plans{grid-template-columns:1fr}.plbw .summary{min-height:0}.plbw .plan{max-width:620px;width:100%;margin:0 auto}}
 @media(max-width:620px){.plbw .wrap{width:min(100% - 28px,1140px)}.plbw .hero{padding:60px 0}.plbw .hero-lead{font-size:17px}.plbw .hero-proof-wrap{margin-top:42px;padding:0 4px 12px}.plbw .hero-proof-subtitle{margin-bottom:34px}.plbw .hero-proof{grid-template-columns:1fr;gap:34px;padding:0 10px}.plbw .hero-proof::before{display:none}.plbw .proof,.plbw .proof:nth-child(1),.plbw .proof:nth-child(2),.plbw .proof:nth-child(3),.plbw .proof:hover{transform:none!important;min-height:124px}.plbw .proof:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-29px;transform:translateX(50%);width:36px;height:36px;line-height:34px;font-size:20px}.plbw .proof+.proof{border-left:1px solid var(--line)}.plbw .section{padding:60px 0}.plbw .plan{padding:24px 20px}.plbw .hero-actions .btn{width:100%}
@@ -215,6 +234,30 @@ export default function LandingPlataformaLBW() {
     return () => window.cancelAnimationFrame(frame);
   }, [pausarFerramentas]);
 
+  // Fontes injetadas aqui, e não no index.html, porque só esta landing usa
+  // Space Grotesk/Instrument Sans — no index.html toda página do app pagaria o
+  // download. O guard evita duplicar a tag ao remontar o componente.
+  useEffect(() => {
+    if (document.querySelector('link[data-lbw-fontes]')) return;
+    const preconexoes: HTMLLinkElement[] = [];
+    ([['preconnect', 'https://fonts.googleapis.com', false], ['preconnect', 'https://fonts.gstatic.com', true]] as const).forEach(([rel, href, cors]) => {
+      const tag = document.createElement('link');
+      tag.rel = rel;
+      tag.href = href;
+      if (cors) tag.crossOrigin = 'anonymous';
+      tag.dataset.lbwFontes = 'true';
+      document.head.appendChild(tag);
+      preconexoes.push(tag);
+    });
+    const fontes = document.createElement('link');
+    fontes.rel = 'stylesheet';
+    fontes.href = 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap';
+    fontes.dataset.lbwFontes = 'true';
+    document.head.appendChild(fontes);
+    preconexoes.push(fontes);
+    return () => preconexoes.forEach((tag) => tag.remove());
+  }, []);
+
   useEffect(() => {
     if (document.querySelector('script[data-lbw-hotmart]')) return;
     const script = document.createElement('script');
@@ -232,7 +275,22 @@ export default function LandingPlataformaLBW() {
   return (
     <div className="plbw">
       <style>{CSS}</style>
-      <header className="hero"><div className="wrap">
+      <nav className="nav">
+        <a className="nav-marca" href="#top">
+          <span className="nav-logo">L</span>
+          <span className="nav-nome">Learning by Working</span>
+        </a>
+        <div className="nav-dir">
+          <div className="nav-links">
+            <a href="#planos">Planos</a>
+            <a href="#como-escolher">Comparar</a>
+            <a href="#ferramentas">Ferramentas</a>
+            <a href="#faq">Dúvidas</a>
+          </div>
+          <a className="nav-cta" href="#planos">Ver planos</a>
+        </div>
+      </nav>
+      <header className="hero" id="top"><div className="wrap">
         <div className="brand">LBW · EDUCAÇÃO PELO TRABALHO</div>
         <span className="pill">UMA PLATAFORMA · TRÊS FORMAS DE EVOLUIR</span>
         <h1>Escolha como você quer <span className="gradient">aprender, analisar e liderar melhorias</span></h1>
@@ -276,7 +334,7 @@ export default function LandingPlataformaLBW() {
             </table></div>
         </div></section>
 
-        <section className="section"><div className="wrap">
+        <section className="section" id="ferramentas"><div className="wrap">
           <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>Templates de gerenciamento de projetos prontos para usar</h2><p>Modelos profissionais para conduzir o projeto, da ideia inicial ao encerramento.</p></div>
           <div className="tools-carousel" onMouseEnter={() => setPausarFerramentas(true)} onMouseLeave={() => setPausarFerramentas(false)}>
             <div className="tools-scroll" ref={ferramentasRef}><div className="tools-track">{[...FERRAMENTAS, ...FERRAMENTAS].map((ferramenta, index) => {
@@ -294,7 +352,19 @@ export default function LandingPlataformaLBW() {
           </div>
         </div></section>
 
-        <section className="section"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Ainda tem alguma dúvida?</h2></div><div className="faq">{FAQ.map(([pergunta, resposta], index) => <div className="faq-item" key={pergunta}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{pergunta}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{resposta}</div>}</div>)}</div></div></section>
+        <section className="section section-soft"><div className="wrap">
+          <div className="autor">
+            <div className="autor-foto-col"><img className="autor-foto" src="/israel-foto.png" alt="Israel Cavalcanti de Souza" loading="lazy" /></div>
+            <div>
+              <small className="head-small-autor" style={{ fontFamily: 'var(--fd)', fontWeight: 700, color: '#74a2ff', letterSpacing: '.18em', fontSize: 13 }}>QUEM ENSINA</small>
+              <h2>Israel Cavalcanti de Souza</h2>
+              <p className="autor-cargo">CEO da Learning by Working · MBB · PMP · MBA</p>
+              <p className="autor-bio">Acredito em aprender fazendo: conhecimento só vira competência quando é aplicado em projetos reais. É esse princípio que estrutura a LBW, do primeiro curso à excelência operacional.</p>
+            </div>
+          </div>
+        </div></section>
+
+        <section className="section" id="faq"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Ainda tem alguma dúvida?</h2></div><div className="faq">{FAQ.map(([pergunta, resposta], index) => <div className="faq-item" key={pergunta}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{pergunta}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{resposta}</div>}</div>)}</div></div></section>
 
         <section className="final"><div className="wrap"><h2>Comece pelo que você precisa. Evolua até onde quiser.</h2><p>A LBW conecta aprendizagem, aplicação e resultado sem obrigar você a contratar recursos que ainda não precisa.</p><a className="btn btn-primary" href="#planos">Escolher meu plano</a></div></section>
       </main>
