@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileCheck2, Plus, Trash2, Sparkles, Info, Printer } from 'lucide-react';
+import { FileCheck2, Plus, Trash2, ArrowDownToLine, Info, Printer } from 'lucide-react';
 
 // ============================================================================
 // Termo de Encerramento do Projeto (toolId: projectClose)
@@ -61,6 +61,7 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
   const [causasRaizes, setCausasRaizes] = useState<string[]>(d?.causasRaizes?.length ? d.causasRaizes : ['']);
   const [solucoes, setSolucoes] = useState<string[]>(d?.solucoes?.length ? d.solucoes : ['']);
   const [ganhos, setGanhos] = useState<string>(d?.ganhos || '');
+  const [dadosPuxados, setDadosPuxados] = useState<boolean>(d?.dadosPuxados === true);
 
   useEffect(() => {
     const nd = initialData?.toolData || initialData;
@@ -73,9 +74,10 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
     if (Array.isArray(nd.causasRaizes) && nd.causasRaizes.length) setCausasRaizes(nd.causasRaizes);
     if (Array.isArray(nd.solucoes) && nd.solucoes.length) setSolucoes(nd.solucoes);
     if (typeof nd.ganhos === 'string') setGanhos(nd.ganhos);
+    if (typeof nd.dadosPuxados === 'boolean') setDadosPuxados(nd.dadosPuxados);
   }, [initialData]);
 
-  const save = () => onSave({ nomeProjeto, dataEncerramento, responsavel, status, problema, causasRaizes: causasRaizes.filter(c => c.trim()), solucoes: solucoes.filter(s => s.trim()), ganhos });
+  const save = () => onSave({ nomeProjeto, dataEncerramento, responsavel, status, problema, causasRaizes: causasRaizes.filter(c => c.trim()), solucoes: solucoes.filter(s => s.trim()), ganhos, dadosPuxados });
 
   const handlePrint = () => window.print();
 
@@ -88,9 +90,12 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
       return e?.toolData || e || null;
     };
 
+    const mergeUnique = (current: string[], incoming: string[]) =>
+      Array.from(new Set([...current.filter((item) => item.trim()), ...incoming.filter((item) => item.trim())]));
+
     const ish = get('measureIshikawa');
     const novoProblema = ish?.problem || get('charter')?.problem || get('brief')?.problema || '';
-    if (novoProblema && !problema.trim()) setProblema(novoProblema);
+    const proximoProblema = problema.trim() ? problema : novoProblema;
 
     const causas: string[] = [];
     if (ish?.causes && typeof ish.causes === 'object') {
@@ -100,21 +105,41 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
     }
     const fw = get('fiveWhys');
     if (Array.isArray(fw?.chains)) fw.chains.forEach((c: any) => { if (c?.rootCause) causas.push(c.rootCause); });
-    if (causas.length) setCausasRaizes(prev => { const base = prev.filter(x => x.trim()); return [...base, ...causas]; });
+    const proximasCausas = mergeUnique(causasRaizes, causas);
 
     const sols: string[] = [];
     const p5 = get('plan5w2h');
     if (Array.isArray(p5?.actions)) p5.actions.forEach((a: any) => { if (a?.what) sols.push(a.what); });
     const ap = get('actionPlan');
     if (Array.isArray(ap?.actions)) ap.actions.forEach((a: any) => { const t = a?.what || a?.acao || a?.descricao || a?.text; if (t) sols.push(t); });
-    if (sols.length) setSolucoes(prev => { const base = prev.filter(x => x.trim()); return [...base, ...sols]; });
+    const proximasSolucoes = mergeUnique(solucoes, sols);
 
     const tg = get('tangibleGains');
     const accReal = computeGanhoReal(tg);
+    let proximosGanhos = ganhos;
     if (accReal !== 0) {
       const linha = `Ganho real acumulado: ${fmtBRL(accReal)}${tg?.indicator ? ` (indicador: ${tg.indicator})` : ''}.`;
-      setGanhos(prev => (prev.trim() ? prev : linha));
+      proximosGanhos = ganhos.trim() ? ganhos : linha;
     }
+
+    setProblema(proximoProblema);
+    setCausasRaizes(proximasCausas.length ? proximasCausas : ['']);
+    setSolucoes(proximasSolucoes.length ? proximasSolucoes : ['']);
+    setGanhos(proximosGanhos);
+    setDadosPuxados(true);
+
+    // Persiste imediatamente a importação. Assim o botão não volta ao reabrir a ferramenta.
+    onSave({
+      nomeProjeto,
+      dataEncerramento,
+      responsavel,
+      status,
+      problema: proximoProblema,
+      causasRaizes: proximasCausas,
+      solucoes: proximasSolucoes,
+      ganhos: proximosGanhos,
+      dadosPuxados: true,
+    });
   };
 
   const listField = (
@@ -160,10 +185,12 @@ export default function ProjectClose({ onSave, initialData, allProjectData }: Pr
           <FileCheck2 size={20} className="text-[#0033CC]" /> Termo de Encerramento do Projeto
         </h2>
         <div className="flex gap-2">
-          <button onClick={puxarDoProjeto}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0">
-            <Sparkles size={14} /> Puxar do projeto
-          </button>
+          {!dadosPuxados && (
+            <button onClick={puxarDoProjeto}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-black uppercase tracking-widest cursor-pointer border-0 transition shadow-lg shadow-emerald-100 active:scale-95">
+              <ArrowDownToLine size={16} /> Puxar do projeto
+            </button>
+          )}
           <button onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1E2D6E] text-[#1E2D6E] hover:bg-[#F0F2FA] text-[11px] font-black uppercase tracking-widest transition cursor-pointer bg-white">
             <Printer size={14} /> Imprimir / PDF
