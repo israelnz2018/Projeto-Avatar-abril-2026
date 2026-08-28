@@ -294,7 +294,7 @@ export default function LandingPlataformaLBW() {
           </div>
         </div></section>
 
-        <section className="section"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Antes de escolher</h2></div><div className="faq">{FAQ.map(([pergunta, resposta], index) => <div className="faq-item" key={pergunta}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{pergunta}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{resposta}</div>}</div>)}</div></div></section>
+        <section className="section"><div className="wrap"><div className="head"><small>DÚVIDAS FREQUENTES</small><h2>Ainda tem alguma dúvida?</h2></div><div className="faq">{FAQ.map(([pergunta, resposta], index) => <div className="faq-item" key={pergunta}><button className="faq-q" type="button" onClick={() => setFaqAberta(faqAberta === index ? -1 : index)} aria-expanded={faqAberta === index}><span>{pergunta}</span><span>{faqAberta === index ? '−' : '+'}</span></button>{faqAberta === index && <div className="faq-a">{resposta}</div>}</div>)}</div></div></section>
 
         <section className="final"><div className="wrap"><h2>Comece pelo que você precisa. Evolua até onde quiser.</h2><p>A LBW conecta aprendizagem, aplicação e resultado sem obrigar você a contratar recursos que ainda não precisa.</p><a className="btn btn-primary" href="#planos">Escolher meu plano</a></div></section>
       </main>
