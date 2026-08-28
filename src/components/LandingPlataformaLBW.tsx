@@ -67,7 +67,7 @@ const COMPARACAO: LinhaComparacao[] = [
   { recurso: 'Certificado de curso para os projetos Yellow, Green e Black', valores: [false, false, true], sub: true },
   { recurso: 'IA digital para explicar cada ferramenta da qualidade', valores: [false, false, true], sub: true },
   { recurso: 'IA digital para explicar cada ferramenta estatística', valores: [false, false, true], sub: true },
-  { recurso: 'Mais de 30 templates e ferramentas prontas para a condução guiada — Contrato do Projeto, Matriz GUT, RAB, Cronograma, Ganhos do Projeto e outros', valores: [false, false, true], sub: true },
+  { recurso: 'Mais de 30 templates e ferramentas prontas para a condução guiada —\nContrato do Projeto, Matriz GUT, RAB,\nCronograma, Ganhos do Projeto e outros', valores: [false, false, true], sub: true },
 ];
 
 // Vitrine de ferramentas, logo após o comparativo. Cor por fase do projeto —
@@ -143,11 +143,11 @@ const CSS = `
    base tem padding vertical zero e min-height fixo — se o texto quebrar em duas
    linhas, encosta nas bordas. Dentro do card o botão pode crescer. */
 .plbw .plan .btn{padding:14px 20px;min-height:56px;line-height:1.3}
-.plbw .table-shell{overflow-x:auto;border:1px solid var(--line);border-radius:18px;background:#0b1329}.plbw table{width:100%;border-collapse:collapse;min-width:720px}.plbw th,.plbw td{padding:17px 18px;border-bottom:1px solid var(--line);text-align:center}.plbw th:first-child,.plbw td:first-child{text-align:left}.plbw th{color:#a9c3ff;font-size:13px}.plbw td{font-size:14px;color:#dbe3f6}.plbw tr:last-child td{border-bottom:0}.plbw .yes{color:#23d6a3;font-size:19px}.plbw .no{color:#55627f;font-size:19px}
+.plbw .table-shell{overflow-x:auto;border:1px solid var(--line);border-radius:18px;background:#0b1329}.plbw table{width:100%;border-collapse:collapse;min-width:760px}.plbw th,.plbw td{padding:17px 18px;border-bottom:1px solid var(--line);text-align:center}.plbw th:first-child,.plbw td:first-child{text-align:left}.plbw th{color:#a9c3ff;font-size:15px}.plbw td{font-size:15px;color:#dbe3f6}.plbw tr:last-child td{border-bottom:0}.plbw .yes{color:#23d6a3;font-size:20px}.plbw .no{color:#55627f;font-size:20px}
 /* Sublinhas de detalhe (ex.: os itens dentro de "Projetos de melhoria guiados
    passo a passo"): texto menor, recuado e mais apagado que a linha principal
    acima, pra ficar claro que são detalhe dela e não um recurso à parte. */
-.plbw tr.row-sub td{padding-top:11px;padding-bottom:11px;color:var(--muted);font-size:12.5px}.plbw tr.row-sub td:first-child{padding-left:34px}.plbw tr.row-sub .yes,.plbw tr.row-sub .no{font-size:15px}
+.plbw tr.row-sub td{padding-top:11px;padding-bottom:11px;color:var(--muted);font-size:14px;white-space:pre-line}.plbw tr.row-sub td:first-child{padding-left:34px}.plbw tr.row-sub .yes,.plbw tr.row-sub .no{font-size:16px}
 .plbw .row-preco td{background:rgba(33,100,243,.08);border-top:1px solid var(--line)}.plbw .row-preco strong{display:block;font-size:16px;color:#fff}.plbw .row-preco span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
 /* Vitrine de ferramentas: carrossel horizontal, um cartão por ferramenta. Cada
    um recebe a cor da fase via --glow (custom property inline) e usa essa
