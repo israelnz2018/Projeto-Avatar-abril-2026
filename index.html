@@ -7,6 +7,23 @@
     <link rel="apple-touch-icon" href="/favicon.png" />
     <title>Learning by Working — Educação pelo Trabalho</title>
     <meta name="description" content="A plataforma para gerenciar projetos de melhoria e análise de dados sem programação." />
+
+    <!-- Open Graph / LinkedIn / Facebook: sem isso o crawler não acha imagem
+         nenhuma pra mostrar no card de compartilhamento — é o motivo do
+         quadrado cinza quebrado no preview do LinkedIn. Sem og:url de
+         propósito: como é uma SPA (um index.html só pra todas as rotas), um
+         og:url fixo faria o card de QUALQUER página compartilhada apontar
+         pra essa URL fixa ao ser clicado — cada crawler já usa a URL real
+         que ele buscou. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Learning by Working" />
+    <meta property="og:title" content="Learning by Working — Educação pelo Trabalho" />
+    <meta property="og:description" content="A plataforma para gerenciar projetos de melhoria e análise de dados sem programação." />
+    <meta property="og:image" content="https://app.educacaopelotrabalho.com/israel-foto.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Learning by Working — Educação pelo Trabalho" />
+    <meta name="twitter:description" content="A plataforma para gerenciar projetos de melhoria e análise de dados sem programação." />
+    <meta name="twitter:image" content="https://app.educacaopelotrabalho.com/israel-foto.png" />
     <!-- Verificação de domínio do Meta (prova que o site é nosso) -->
     <meta name="facebook-domain-verification" content="0xdcmm9zq7kcojneb37xy8jembjnl1" />
     <!-- VTurb (player da VSL em /trilhagratis): aquece o DNS dos domínios do player. -->
