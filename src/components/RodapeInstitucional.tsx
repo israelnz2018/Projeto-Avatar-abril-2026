@@ -31,16 +31,21 @@ export default function RodapeInstitucional() {
           </p>
         </div>
         <div>
-          <div style={tituloCol}>Cursos</div>
+          {/* Antes era 1 linha por curso — com o catálogo passando de 8 pra 14
+              cursos reais no Firestore, a lista tinha ficado comprida demais
+              pra um rodapé. Agrupado por tema: cada linha aqui pode
+              representar mais de um curso do catálogo. */}
+          <div style={tituloCol}>Cursos e Ferramentas</div>
           <div style={{ fontSize: 13, color: TXT2, lineHeight: 2 }}>
-            01 · Como Resolver Problemas no Trabalho<br/>
-            02 · Como Recomendar Melhorias com Base em Análise de Dados<br/>
-            03 · Como Conduzir Mudanças com Menos Resistência<br/>
-            04 · Como Criar Apresentações que Convencem<br/>
-            05 · Como Antecipar Riscos Antes que Virem Problemas<br/>
-            06 · Cultura Lean na Prática<br/>
-            07 · Como Fazer Análises Estatísticas Aplicadas a Negócios<br/>
-            08 · Formação Profissional em Gestão de Projetos de Melhoria
+            01 · Gerenciamento de Projetos de Melhoria<br/>
+            02 · Gerenciamento de Mudança<br/>
+            03 · Gerenciamento de Risco<br/>
+            04 · Gerenciamento Lean<br/>
+            05 · Apresentações Eficazes<br/>
+            06 · Estatística Aplicada<br/>
+            07 · Estatística Avançada<br/>
+            08 · Software Estatístico LBW<br/>
+            09 · Templates Prontos de Gerenciamento de Projeto
           </div>
         </div>
         <div>
