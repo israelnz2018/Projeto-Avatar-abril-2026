@@ -71,8 +71,8 @@ const COURSE_CARD_BANNER_RULES: Array<{ matches: string[]; src: string }> = [
   { matches: ['antecipar riscos', 'gerenciamento de riscos', 'fmea e pmi'], src: '/landing-courses/gerenciamento-riscos-fmea-pmi.png' },
   { matches: ['cultura lean'], src: '/landing-courses/gerenciamento-cultura-lean.png' },
   { matches: ['formacao profissional', 'tornar um especialista'], src: '/landing-courses/formacao-profissional-gestao-projetos-melhoria.png' },
-  { matches: ['fazer analises estatisticas aplicadas', 'analises estatisticas aplicadas a negocios'], src: '/landing-courses/software-estatistico-formacao-projetos.png' },
-  { matches: ['recomendar melhorias', 'gate'], src: '/landing-courses/plataforma-profissional-gestao-projetos.png' },
+  { matches: ['fazer analises estatisticas aplicadas', 'analises estatisticas aplicadas a negocios', 'realizar analises estatisticas pontuais'], src: '/landing-courses/como-realizar-analises-estatisticas-pontuais.png' },
+  { matches: ['recomendar melhorias', 'gerar recomendacoes', 'gate'], src: '/landing-courses/como-gerar-recomendacoes-baseado-em-dados-gate.png' },
 ];
 
 const getCourseCardBanner = (courseName: string, consultorId: string) => {
