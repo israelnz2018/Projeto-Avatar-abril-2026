@@ -154,7 +154,7 @@ const FAQ: Array<{ p: string; r: string; link?: { texto: string; href: string } 
   },
   {
     p: 'Qual a diferença entre os três planos?',
-    r: 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Plataforma Profissional acrescenta os projetos guiados Yellow, Green e Black Belt.',
+    r: 'A Formação Profissional entrega todos os cursos e certificados. O plano com Software acrescenta todos os módulos de Data Analysis para você aplicar nos seus próprios dados. A Plataforma Profissional acrescenta todos os templates de gerenciamento de projeto para você realizar os seus projetos de melhoria como Yellow, Green e Black Belt.',
   },
   {
     p: 'Que suporte eu recebo durante o meu projeto?',
@@ -245,7 +245,7 @@ const CSS = `
 .plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:8px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:0 0 13px 13px;overflow:hidden;box-shadow:inset 0 0 0 1px #dce5f1}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:12px;transition:transform .35s ease;filter:contrast(1.035) saturate(1.03);image-rendering:auto}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
-.plbw .course-card{position:relative;overflow:hidden;flex:0 0 auto;width:330px;height:426px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;padding:8px}.plbw .course-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}.plbw .course-card-title{flex:0 0 96px;min-height:96px;font-size:17px}.plbw .course-card-media{flex:1;min-height:0;background:#fff;border-radius:0 0 13px 13px;overflow:hidden;display:flex;align-items:center;justify-content:center}.plbw .course-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:0 0 13px 13px;transition:transform .35s ease}.plbw .course-card:hover .course-card-image{transform:scale(1.025)}
+.plbw .course-card{position:relative;overflow:hidden;flex:0 0 auto;width:330px;height:330px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;align-items:stretch;justify-content:stretch;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;padding:8px}.plbw .course-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}.plbw .course-card-media{flex:1;min-width:0;min-height:0;background:#fff;border-radius:13px;overflow:hidden;display:flex;align-items:center;justify-content:center}.plbw .course-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:13px;transition:transform .35s ease}.plbw .course-card:hover .course-card-image{transform:scale(1.025)}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .faq-link{color:#7fb0ff;font-weight:700;white-space:nowrap}.plbw .faq-link:hover{color:#a9caff;text-decoration:underline}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 /* Empilhado, o selo do número (top:-18px) invade o card de cima se o gap for
    os mesmos 18px do desktop — por isso só o espaçamento cresce aqui. */
@@ -494,7 +494,6 @@ export default function LandingPlataformaLBW() {
               <div className="tools-scroll" ref={cursosRef}><div className="tools-track">{[...CURSOS_IMAGENS, ...CURSOS_IMAGENS].map((curso, index) => {
                 const duplicado = index >= CURSOS_IMAGENS.length;
                 return <article className="course-card" key={`${curso.src}-${duplicado ? 'copia' : 'original'}`} data-course-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined}>
-                  <h3 className="tool-card-title course-card-title">{curso.alt}</h3>
                   <div className="course-card-media">
                     <img className="course-card-image" src={curso.src} alt={duplicado ? '' : curso.alt} loading="lazy" />
                   </div>
