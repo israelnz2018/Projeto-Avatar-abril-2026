@@ -237,7 +237,7 @@ const CSS = `
 .plbw .tools-scroll::-webkit-scrollbar{display:none}
 .plbw .tools-track{display:flex;gap:16px;width:max-content;padding:4px}
 .plbw .tools-next{position:absolute;right:10px;top:50%;z-index:5;width:44px;height:44px;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(6,10,24,.82);color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:.2s ease}.plbw .tools-next:hover{background:#2164f3;transform:translateX(2px)}.plbw .tools-next:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
-.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:460px;height:320px;border-radius:22px;border:8px solid #f4f7fb;background:#f4f7fb;display:flex;flex-direction:column;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;box-shadow:0 10px 28px rgba(1,8,25,.18)}
+.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:460px;height:320px;border-radius:22px;border:8px solid #2563eb;background:#f4f7fb;display:flex;flex-direction:column;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;box-shadow:0 10px 28px rgba(1,8,25,.18)}
 .plbw .tool-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}
 /* A cor da fase (--glow) vira a faixa lateral do título — é o único lugar em
    que ela aparece de verdade no card, já que a área da imagem é opaca. */
