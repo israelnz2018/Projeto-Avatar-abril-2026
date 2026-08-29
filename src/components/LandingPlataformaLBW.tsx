@@ -236,14 +236,14 @@ const CSS = `
 .plbw .tools-scroll::-webkit-scrollbar{display:none}
 .plbw .tools-track{display:flex;gap:16px;width:max-content;padding:4px}
 .plbw .tools-next{position:absolute;right:10px;top:50%;z-index:5;width:44px;height:44px;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(6,10,24,.82);color:#fff;font-size:28px;line-height:1;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:.2s ease}.plbw .tools-next:hover{background:#2164f3;transform:translateX(2px)}.plbw .tools-next:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
-.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:420px;height:286px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;flex-direction:column;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform}
+.plbw .tool-card{position:relative;overflow:hidden;flex:0 0 auto;width:460px;height:320px;border-radius:22px;border:8px solid #f4f7fb;background:#f4f7fb;display:flex;flex-direction:column;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;box-shadow:0 10px 28px rgba(1,8,25,.18)}
 .plbw .tool-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}
 /* A cor da fase (--glow) vira a faixa lateral do título — é o único lugar em
    que ela aparece de verdade no card, já que a área da imagem é opaca. */
-.plbw .tool-card-title{position:relative;z-index:2;min-height:64px;padding:14px 18px 12px;background:linear-gradient(120deg,#10295a,#2164f3);color:#fff;font-size:18px;line-height:1.2;display:flex;align-items:center;border-left:4px solid var(--glow)}
-.plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:9px;background:#f4f7fb;display:flex;align-items:center;justify-content:center}
+.plbw .tool-card-title{position:relative;z-index:2;min-height:64px;padding:14px 18px 12px;background:linear-gradient(120deg,#10295a,#2164f3);color:#fff;font-size:18px;line-height:1.2;display:flex;align-items:center;border-left:4px solid var(--glow);border-radius:13px 13px 0 0}
+.plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:8px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:0 0 13px 13px;overflow:hidden;box-shadow:inset 0 0 0 1px #dce5f1}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:7px;transition:transform .35s ease}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
+.plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:12px;transition:transform .35s ease;filter:contrast(1.035) saturate(1.03);image-rendering:auto}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
 .plbw .course-card{position:relative;overflow:hidden;flex:0 0 auto;width:330px;height:330px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;align-items:center;justify-content:center;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;padding:8px}.plbw .course-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}.plbw .course-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:14px;transition:transform .35s ease}.plbw .course-card:hover .course-card-image{transform:scale(1.025)}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .faq-link{color:#7fb0ff;font-weight:700;white-space:nowrap}.plbw .faq-link:hover{color:#a9caff;text-decoration:underline}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 /* Empilhado, o selo do número (top:-18px) invade o card de cima se o gap for
@@ -266,7 +266,7 @@ export default function LandingPlataformaLBW() {
     const area = ferramentasRef.current;
     if (!area) return;
     const card = area.querySelector<HTMLElement>('.tool-card');
-    const passo = (card?.offsetWidth || 420) + 16;
+    const passo = (card?.offsetWidth || 460) + 16;
     area.scrollBy({ left: passo, behavior: 'smooth' });
   };
 
