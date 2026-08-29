@@ -220,8 +220,8 @@ export default function MeusCoordenadores() {
   const label = 'block text-xs font-black uppercase tracking-wide text-gray-500 mb-1';
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão de Usuários do Coordenador' : 'Meus Clientes'}</h1>
+    <div className="w-full max-w-[1400px] mx-auto">
+      <h1 className="text-3xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão de Usuários do Coordenador' : 'Meus Clientes'}</h1>
       <p className="text-gray-500 text-sm mb-6">
         {modoCoordenador
           ? 'Abra o seu time para consultar os cursos e acessos liberados e gerenciar os alunos.'

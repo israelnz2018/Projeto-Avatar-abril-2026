@@ -1119,7 +1119,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         )}
         <div className="overflow-x-auto">
           <div className="min-w-[980px]">
-            <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[minmax(180px,1.45fr)_minmax(105px,.9fr)_minmax(110px,1fr)_minmax(125px,1.1fr)_minmax(105px,1fr)_minmax(120px,1fr)_auto_auto] gap-3 text-[10px] font-black uppercase tracking-wide text-gray-400">
+            <div className="px-4 py-2.5 bg-gray-50 grid grid-cols-[minmax(180px,1.45fr)_minmax(105px,.9fr)_minmax(110px,1fr)_minmax(125px,1.1fr)_minmax(105px,1fr)_minmax(120px,1fr)_auto_auto] gap-3 text-[11px] font-black uppercase tracking-wide text-gray-400">
               <div>{cabecalhoOrdenavel('alfabetica', 'Aluno')}</div>
               <div>{cabecalhoOrdenavel('convite', 'Convite')}</div>
               <div>{cabecalhoOrdenavel('education', 'Education')}</div>
