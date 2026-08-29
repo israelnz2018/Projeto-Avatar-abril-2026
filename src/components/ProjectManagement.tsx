@@ -19,6 +19,9 @@ import { Toaster, toast } from 'sonner';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { resolveInitiativeVisual } from '../services/initiativeVisual';
+import { CoursePurchasePopup } from './CoursePurchasePopup';
+import { getCourseOfferDefaults } from '../services/courseOfferService';
+import { resolveConsultorId } from '../services/consultorService';
 
 const ADMIN_EMAIL = 'israelnz2018@hotmail.com';
 
@@ -263,6 +266,28 @@ export default function ProjectManagement() {
 
   // Dropdown "Meus Projetos Ativos"
   const [isProjectsListOpen, setIsProjectsListOpen] = useState(false);
+
+  // Popup de compra pro tipo de projeto sem acesso. Ainda não vale pros belts
+  // (Yellow/Green/Black) — o Israel vai construir um popup próprio pra eles,
+  // então esses continuam com o toast de "não liberado" por enquanto.
+  const [cursoParaCompra, setCursoParaCompra] = useState<Initiative | null>(null);
+  const ehBelt = (nome: string) => /belt/i.test(nome);
+  const abrirTipoBloqueado = (initiative: Initiative) => {
+    if (ehBelt(initiative.name)) {
+      toast.error('Este tipo de projeto ainda não foi liberado para você.');
+      return;
+    }
+    // Mesmo gate que o LearningView usa: sem upgrade self-service pra quem é
+    // gerenciado por coordenador/consultor, e só no tenant da própria LBW.
+    if (porConsultor || resolveConsultorId() !== 'israel') {
+      toast.error('Este tipo de projeto ainda não foi liberado para você.');
+      return;
+    }
+    const padrao = getCourseOfferDefaults(initiative.name);
+    const precoVenda = Number(initiative.precoVenda ?? padrao.precoSugerido ?? 0);
+    const hotmartCheckoutUrl = String(initiative.hotmartCheckoutUrl || padrao.checkoutSugerido || '');
+    setCursoParaCompra({ ...initiative, precoVenda, hotmartCheckoutUrl });
+  };
 
   const nomeProjetoParaOrdenacao = (nome: string) => nome.replace(/^\s*\d+\s*[-–—:]\s*/, '').trim();
   const ordenarProjetosAlfabeticamente = (a: Initiative, b: Initiative) =>
@@ -690,26 +715,30 @@ export default function ProjectManagement() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1 ml-3">
+                              {/* Cor forte já no estado normal (não só no hover) — antes eram
+                                  todos text-gray-400 sobre o fundo #F0F2FA da linha, quase
+                                  ilegíveis. Cada ícone com sua própria cor ajuda a diferenciar
+                                  a ação sem precisar ler o title. */}
                               {/* Gerar apresentação PowerPoint completa do projeto */}
                               <button
                                 onClick={(e) => handleGeneratePPT(project, e)}
                                 disabled={!!generatingPPTId}
-                                className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1.5 rounded-lg hover:bg-white text-indigo-500 hover:text-indigo-700 transition-all border border-indigo-200 hover:border-indigo-400 cursor-pointer bg-white disabled:opacity-40 disabled:cursor-not-allowed"
                                 title="Gerar apresentação PowerPoint completa do projeto (beta)"
                               >
                                 {generatingPPTId === project.id
-                                  ? <Loader2 size={12} className="animate-spin text-blue-600" />
+                                  ? <Loader2 size={12} className="animate-spin text-indigo-600" />
                                   : <Presentation size={12} />}
                               </button>
                               <button
                                 onClick={(e) => handleEditProject(project, e)}
-                                className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600 transition-all border border-gray-200 hover:border-blue-300 cursor-pointer bg-transparent"
+                                className="p-1.5 rounded-lg hover:bg-white text-blue-600 hover:text-blue-800 transition-all border border-blue-200 hover:border-blue-400 cursor-pointer bg-white"
                               >
                                 <Edit2 size={12} />
                               </button>
                               <button
                                 onClick={(e) => handleDeleteProject(project.id, e)}
-                                className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600 transition-all border border-gray-200 hover:border-red-300 cursor-pointer bg-transparent"
+                                className="p-1.5 rounded-lg hover:bg-white text-red-500 hover:text-red-700 transition-all border border-red-200 hover:border-red-400 cursor-pointer bg-white"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -870,7 +899,7 @@ export default function ProjectManagement() {
                             key={initiative.id}
                             onClick={() => {
                               if (!projetoLiberado) {
-                                toast.error('Este tipo de projeto ainda não foi liberado para você.');
+                                abrirTipoBloqueado(initiative);
                                 return;
                               }
                               setSelectedInitiativeId(initiative.id);
@@ -1252,6 +1281,7 @@ export default function ProjectManagement() {
         )}
       </AnimatePresence>
       {/* Tipos não liberados continuam visíveis, mas não criam projetos. */}
+      <CoursePurchasePopup course={cursoParaCompra} onClose={() => setCursoParaCompra(null)} />
     </div>
   );
 }
