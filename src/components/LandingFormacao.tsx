@@ -19,10 +19,17 @@ const CSS = `
 .lfv h1{font-size:clamp(30px,5vw,46px);font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:0 auto 16px;max-width:860px;text-wrap:balance}
 .lfv .grad{background:linear-gradient(100deg,#fff 10%,#92b7ff 55%,#13c4df);-webkit-background-clip:text;background-clip:text;color:transparent}
 .lfv .lead{font-size:clamp(15px,2vw,18px);line-height:1.55;color:#aab6d2;max-width:680px;margin:0 auto 28px;text-wrap:pretty}
-/* Nenhuma regra para o player aqui — de propósito. A /kit90dias, que funciona
-   há tempos, não estiliza a caixa do VTurb: só limita a largura. Foi a caixa
-   com borda/overflow/aspect-ratio que existia aqui que brigava com o player
-   (ele é Web Component com Shadow DOM e se dimensiona sozinho). */
+/* O script do VTurb faz, ao montar:
+     verticalVideo ? style.maxWidth = "400px" : style.maxWidth = null
+   Ou seja: para vídeo HORIZONTAL (o nosso) ele APAGA o limite de largura e
+   ainda aplica width:100% — por isso o player se espalha. Na /kit90dias o
+   vídeo é vertical e o próprio script prende em 400px, e por isso aquele
+   nunca deu problema.
+   Como ele zera o valor inline, uma regra externa passa a valer: é o que
+   prende a largura aqui. Só largura — nunca altura, que atravessaria o
+   Shadow DOM e deformaria o vídeo. */
+.lfv .videowrap{margin:0 auto;max-width:760px}
+.lfv .videowrap vturb-smartplayer{display:block;margin:0 auto;max-width:760px}
 .lfv .cta-row{display:flex;justify-content:center;margin-top:28px}
 .lfv .cta{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px;color:#fff;text-decoration:none;background:linear-gradient(120deg,#2866f4,#0aaacb);box-shadow:0 18px 42px -18px rgba(37,99,235,.9);transition:transform .2s ease}
 .lfv .cta:hover{transform:translateY(-2px)}
@@ -67,7 +74,7 @@ export default function LandingFormacao() {
             estado e re-renderiza a página inteira — se o React reescrevesse
             este HTML, o player que o VTurb montou aqui dentro seria destruído
             e o vídeo sumiria. */}
-        <div ref={playerRef} style={{ margin: '0 auto', maxWidth: 760 }} />
+        <div ref={playerRef} className="videowrap" />
         <div className="cta-row">
           <a className="cta" href="#planos">Quero a formação completa</a>
         </div>
