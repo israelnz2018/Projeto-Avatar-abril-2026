@@ -221,7 +221,16 @@ const CSS = `
    base tem padding vertical zero e min-height fixo — se o texto quebrar em duas
    linhas, encosta nas bordas. Dentro do card o botão pode crescer. */
 .plbw .plan .btn{padding:14px 20px;min-height:56px;line-height:1.3}
-.plbw .table-shell{overflow-x:auto;border:1px solid var(--line);border-radius:18px;background:#0b1329}.plbw table{width:100%;border-collapse:collapse;min-width:760px}.plbw th,.plbw td{padding:17px 18px;border-bottom:1px solid var(--line);text-align:center}.plbw th:first-child,.plbw td:first-child{text-align:left}.plbw th{color:#a9c3ff;font-size:15px}.plbw td{font-size:15px;color:#dbe3f6}.plbw tr:last-child td{border-bottom:0}.plbw .yes{color:#23d6a3;font-size:20px}.plbw .no{color:#55627f;font-size:20px}
+/* No celular a tabela de 4 colunas não cabe sem rolar — isso é inevitável com
+   nomes de plano longos. O que dava a sensação de "formato ruim" era rolar
+   e perder de vista A QUE LINHA aquele ✓ pertencia. Corrigido prendendo a
+   primeira coluna (position:sticky) e sinalizando com um fade na borda
+   direita que há mais colunas pra ver — mesmo recurso visual já usado nos
+   carrosséis de ferramentas/cursos desta página. */
+.plbw .table-shell{position:relative;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:18px;background:#0b1329;mask-image:linear-gradient(to right,#000 0,#000 97%,transparent 100%);-webkit-mask-image:linear-gradient(to right,#000 0,#000 97%,transparent 100%)}
+.plbw table{width:100%;border-collapse:collapse;min-width:640px}.plbw th,.plbw td{padding:17px 18px;border-bottom:1px solid var(--line);text-align:center}.plbw th:first-child,.plbw td:first-child{text-align:left}.plbw th{color:#a9c3ff;font-size:15px}.plbw td{font-size:15px;color:#dbe3f6}.plbw tr:last-child td{border-bottom:0}.plbw .yes{color:#23d6a3;font-size:20px}.plbw .no{color:#55627f;font-size:20px}
+.plbw th:first-child,.plbw td:first-child{position:sticky;left:0;z-index:1;background:#0b1329;border-right:1px solid var(--line)}
+.plbw .row-preco td:first-child{background:#132a54}
 /* Sublinhas de detalhe (ex.: os itens dentro de "Projetos de melhoria guiados
    passo a passo"): texto menor, recuado e mais apagado que a linha principal
    acima, pra ficar claro que são detalhe dela e não um recurso à parte. */
@@ -251,9 +260,13 @@ const CSS = `
    os mesmos 18px do desktop — por isso só o espaçamento cresce aqui. */
 @media(max-width:620px){.plbw .wrap{width:min(100% - 28px,1140px)}.plbw .hero{padding:60px 0}.plbw .hero-lead{font-size:17px}.plbw .hero-proof-wrap{margin-top:42px}.plbw .hero-proof{gap:32px}.plbw .section{padding:60px 0}.plbw .plan{padding:24px 20px}.plbw .hero-actions .btn{width:100%}
 /* Nomes de plano são longos ("Plataforma Profissional em Gestão de Projetos de
-   Melhoria"): 27px estoura em tela estreita. Tabela também aperta o padding —
-   ela já rola na horizontal, mas com menos folga cabe mais coluna na tela. */
-.plbw .plan h3{font-size:22px}.plbw .price{font-size:24px}.plbw th,.plbw td{padding:14px 12px}.plbw .faq-q{padding:17px 18px}.plbw .faq-a{padding:0 18px 18px}}
+   Melhoria"): 27px estoura em tela estreita. Tabela também aperta — min-width
+   menor precisa de menos rolagem, e a coluna presa (sticky) fica mais estreita
+   pra sobrar mais espaço de tela pras colunas de valor. */
+.plbw .plan h3{font-size:22px}.plbw .price{font-size:24px}
+.plbw table{min-width:520px}.plbw th,.plbw td{padding:13px 10px;font-size:13px}.plbw .yes,.plbw .no{font-size:17px}
+.plbw th:first-child,.plbw td:first-child{max-width:112px}
+.plbw .faq-q{padding:17px 18px}.plbw .faq-a{padding:0 18px 18px}}
 `;
 
 /**
