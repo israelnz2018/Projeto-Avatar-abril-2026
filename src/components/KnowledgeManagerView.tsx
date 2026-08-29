@@ -678,6 +678,39 @@ export default function KnowledgeManagerView() {
   const [upErro, setUpErro] = useState('');
   const uploadAreaRef = useRef<HTMLDivElement>(null);
 
+  // ===== Origem do vídeo: enviar novo OU reaproveitar um que já existe =====
+  // Reaproveitar é barato: cada aparição de um vídeo já é um registro próprio
+  // apontando para a mesma mídia (o modelo multi-placement). Então "usar em
+  // outro curso" é criar mais um registro — sem reenviar arquivo e herdando
+  // transcrição/resumo que já foram processados.
+  const [origemVideo, setOrigemVideo] = useState<'novo' | 'existente'>('novo');
+  const [buscaExistente, setBuscaExistente] = useState('');
+  const [cursoFiltroExistente, setCursoFiltroExistente] = useState('');
+  const [videoExistente, setVideoExistente] = useState<KnowledgeEntry | null>(null);
+
+  // Um vídeo pode ter vários registros (um por curso/playlist). Aqui a lista é
+  // por VÍDEO, não por aparição — senão o mesmo item apareceria repetido.
+  const videosUnicos = useMemo(() => {
+    const porMidia = new Map<string, { item: KnowledgeEntry; cursos: Set<string> }>();
+    items.forEach((item) => {
+      const chave = item.bunnyVideoId || item.sourceUrl || item.id || '';
+      if (!chave) return;
+      const atual = porMidia.get(chave);
+      if (atual) { if (item.course) atual.cursos.add(item.course); return; }
+      porMidia.set(chave, { item, cursos: new Set(item.course ? [item.course] : []) });
+    });
+    return [...porMidia.values()].sort((a, b) => (a.item.title || '').localeCompare(b.item.title || '', 'pt-BR'));
+  }, [items]);
+
+  const videosExistentesFiltrados = useMemo(() => {
+    const termo = buscaExistente.trim().toLowerCase();
+    return videosUnicos.filter(({ item, cursos }) => {
+      if (cursoFiltroExistente && !cursos.has(cursoFiltroExistente)) return false;
+      if (!termo) return true;
+      return (item.title || '').toLowerCase().includes(termo);
+    });
+  }, [videosUnicos, buscaExistente, cursoFiltroExistente]);
+
   const uploadParaBunny = async () => {
     if (!upFile) { setUpErro('Escolha um arquivo de vídeo.'); return; }
     setUpErro(''); setUpProgress(0); setUpBunny(null);
@@ -695,7 +728,7 @@ export default function KnowledgeManagerView() {
       try { cred = resposta ? JSON.parse(resposta) : {}; } catch { /* servidor pode ter devolvido HTML */ }
       if (!r.ok) throw new Error(cred.error || `Não foi possível preparar o envio do vídeo (HTTP ${r.status}).`);
       if (!cred.guid || !cred.libraryId || !cred.signature || !cred.expiration) {
-        throw new Error('O servidor não devolveu as credenciais completas do Bunny.');
+        throw new Error('O servidor não devolveu as credenciais completas de envio.');
       }
       const tus = await import('tus-js-client');
       await new Promise<void>((resolve, reject) => {
@@ -1034,7 +1067,7 @@ export default function KnowledgeManagerView() {
           throw new Error('Item sem id no Firestore');
         }
 
-        if (!item.bunnyVideoId) throw new Error('Vídeo sem identificação Bunny');
+        if (!item.bunnyVideoId) throw new Error('Vídeo sem identificação de mídia');
         const user = auth.currentUser;
         const token = user ? await user.getIdToken() : '';
         const res = await fetch('/api/bunny/transcribe-video', {
@@ -1425,21 +1458,52 @@ export default function KnowledgeManagerView() {
       alert('Selecione ao menos um curso e playlist.');
       return;
     }
+    // Reaproveitando um vídeo existente: não há upload, a mídia é a mesma.
+    const reaproveitando = origemVideo === 'existente';
+    if (reaproveitando && !videoExistente) {
+      alert('Escolha o vídeo que você quer usar.');
+      return;
+    }
+    // (a) Bloquear duplicata: o mesmo vídeo duas vezes na mesma playlist não
+    // tem uso e confunde o aluno. Compara pela mídia, não pelo título.
+    if (reaproveitando) {
+      const chaveNova = videoExistente!.bunnyVideoId || videoExistente!.sourceUrl || '';
+      const jaExiste = resolved.find((p) => items.some((i) =>
+        (i.bunnyVideoId || i.sourceUrl || '') === chaveNova
+        && i.course === p.course
+        && i.playlist === p.playlist,
+      ));
+      if (jaExiste) {
+        alert(`Este vídeo já está em "${jaExiste.course}" › "${jaExiste.playlist}". Escolha outro curso ou outra playlist.`);
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
-      if (!upBunny) { alert('Envie o arquivo de vídeo primeiro.'); setIsSaving(false); return; }
-      const title = (upTitle || upFile?.name?.replace(/\.[^.]+$/, '') || 'Vídeo').trim();
+      if (!reaproveitando && !upBunny) { alert('Envie o arquivo de vídeo primeiro.'); setIsSaving(false); return; }
+      const title = reaproveitando
+        ? (upTitle || videoExistente!.title || 'Vídeo').trim()
+        : (upTitle || upFile?.name?.replace(/\.[^.]+$/, '') || 'Vídeo').trim();
       // ID técnico único preserva multi-placement sem expor o provedor na interface.
-      const src = `bunny:${upBunny.guid}`;
+      const src = reaproveitando ? (videoExistente!.sourceUrl || '') : `bunny:${upBunny!.guid}`;
       await Promise.all(resolved.map(p =>
         saveKnowledge({
           title, content: '', sourceUrl: src,
           course: p.course, playlist: p.playlist,
-          rawTranscript: '', summary: [], transcript: '',
+          // Reaproveitando: herda transcrição, resumo e capa que já foram
+          // processados — não faz sentido reprocessar a mesma mídia.
+          rawTranscript: reaproveitando ? (videoExistente!.rawTranscript || '') : '',
+          summary: reaproveitando ? (videoExistente!.summary || []) : [],
+          transcript: reaproveitando ? (videoExistente!.transcript || '') : '',
           associatedTools: formData.associatedTools,
           associatedAnalyses: formData.associatedAnalyses,
           consultorId,
-          bunnyVideoId: upBunny.guid, bunnyLibraryId: upBunny.libraryId,
+          bunnyVideoId: reaproveitando ? (videoExistente!.bunnyVideoId || '') : upBunny!.guid,
+          bunnyLibraryId: reaproveitando ? (videoExistente!.bunnyLibraryId || '') : upBunny!.libraryId,
+          ...(reaproveitando && videoExistente!.bunnyThumbnailUrl
+            ? { bunnyThumbnailUrl: videoExistente!.bunnyThumbnailUrl }
+            : {}),
           playlistOrder: playlistOrderPara(p.course, p.playlist),
           ...(p.course === INTRO_COURSE_CONSULTOR && consultorOnboardingStepId(p.playlist)
             ? { onboardingStep: consultorOnboardingStepId(p.playlist) }
@@ -1447,13 +1511,16 @@ export default function KnowledgeManagerView() {
         } as any)
       ));
 
-      // Inicia automaticamente as três etapas no servidor. Não bloqueia o fechamento
-      // do formulário; o servidor aguarda a codificação do Bunny e atualiza os placements.
-      void processUploadedVideoAutomatically(upBunny.guid);
-      acompanharPor20Min();
+      // Só o upload novo dispara o processamento no servidor. Vídeo reaproveitado
+      // já passou por isso — mandar de novo gastaria crédito de IA à toa.
+      if (!reaproveitando) {
+        void processUploadedVideoAutomatically(upBunny!.guid);
+        acompanharPor20Min();
+      }
 
       setFormData(emptyFormData);
       setUpFile(null); setUpTitle(''); setUpProgress(null); setUpBunny(null); setUpErro('');
+      setOrigemVideo('novo'); setVideoExistente(null); setBuscaExistente(''); setCursoFiltroExistente('');
       setIsAdding(false);
       setIsToolsDropdownOpen(false);
       setIsAnalysesDropdownOpen(false);
@@ -1915,7 +1982,84 @@ export default function KnowledgeManagerView() {
           </div>
 
           <form onSubmit={handleSave} className="space-y-6">
-            <div className="space-y-2">
+            {/* Origem do vídeo. Reaproveitar não copia arquivo: cria mais uma
+                aparição da mesma mídia, herdando transcrição e resumo. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {([
+                { id: 'novo', titulo: 'Enviar um vídeo novo', desc: 'Escolher um arquivo do computador' },
+                { id: 'existente', titulo: 'Usar um vídeo que já tenho', desc: 'Reaproveitar de outro curso, sem reenviar' },
+              ] as const).map((opcao) => (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  onClick={() => setOrigemVideo(opcao.id)}
+                  className={`text-left p-3 rounded-lg border cursor-pointer transition-colors ${
+                    origemVideo === opcao.id
+                      ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-100'
+                      : 'border-gray-300 bg-white hover:border-blue-300'
+                  }`}
+                >
+                  <div className="text-sm font-bold text-gray-900">{opcao.titulo}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{opcao.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {origemVideo === 'existente' && (
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-500 uppercase">Escolha o vídeo</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={buscaExistente}
+                    onChange={(e) => setBuscaExistente(e.target.value)}
+                    placeholder="Buscar pelo título..."
+                    className="w-full px-3 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm"
+                  />
+                  <select
+                    value={cursoFiltroExistente}
+                    onChange={(e) => setCursoFiltroExistente(e.target.value)}
+                    className="w-full px-3 py-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500 text-sm bg-white"
+                  >
+                    <option value="">Todos os cursos</option>
+                    {[...introCourseOptions, ...regularCourseOptions].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="max-h-[260px] overflow-y-auto border border-[#ccc] rounded-[4px] divide-y divide-gray-100">
+                  {videosExistentesFiltrados.length === 0 && (
+                    <div className="p-4 text-sm text-gray-500">Nenhum vídeo encontrado com esse filtro.</div>
+                  )}
+                  {videosExistentesFiltrados.slice(0, 80).map(({ item, cursos }) => {
+                    const selecionado = (videoExistente?.bunnyVideoId || videoExistente?.sourceUrl) === (item.bunnyVideoId || item.sourceUrl);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => { setVideoExistente(item); if (!upTitle) setUpTitle(item.title || ''); }}
+                        className={`w-full text-left p-3 cursor-pointer border-none transition-colors ${selecionado ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'}`}
+                      >
+                        <div className="text-sm font-bold text-gray-900 truncate">{item.title || '(sem título)'}</div>
+                        <div className="text-[11px] text-gray-500 mt-0.5 truncate">
+                          {cursos.size > 0 ? `Já aparece em: ${[...cursos].join(' · ')}` : 'Sem curso'}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {videosExistentesFiltrados.length > 80 && (
+                    <div className="p-3 text-xs text-gray-500">
+                      Mostrando os primeiros 80 de {videosExistentesFiltrados.length}. Refine a busca para ver os demais.
+                    </div>
+                  )}
+                </div>
+                {videoExistente && (
+                  <div className="text-xs font-bold text-emerald-600">
+                    ✅ Vídeo escolhido: {videoExistente.title} — agora escolha os cursos e salve.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className={`space-y-2 ${origemVideo === 'existente' ? 'hidden' : ''}`}>
               <label className="block text-xs font-bold text-gray-500 uppercase">Arquivo de vídeo</label>
               <input
                 type="text"
@@ -1936,11 +2080,11 @@ export default function KnowledgeManagerView() {
                   {upFile ? upFile.name : 'Nenhum arquivo selecionado'}
                 </span>
                 <input type="file" accept="video/*" onChange={(e) => { setUpFile(e.target.files?.[0] || null); setUpBunny(null); setUpProgress(null); setUpErro(''); }} className="text-sm" />
-                <button type="button" onClick={uploadParaBunny} title="Enviar este arquivo para o Bunny" disabled={upProgress !== null && upProgress < 100} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                <button type="button" onClick={uploadParaBunny} title="Enviar este arquivo" disabled={upProgress !== null && upProgress < 100} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
                   {upProgress !== null && upProgress < 100 ? `Enviando ${upProgress}%` : (upBunny ? 'Enviado ✓' : 'Enviar vídeo')}
                 </button>
               </div>
-              <div className="text-xs text-gray-500">1) Envie o arquivo para o Bunny  2) Escolha o curso e a playlist  3) Clique em Salvar Vídeo</div>
+              <div className="text-xs text-gray-500">1) Envie o arquivo  2) Escolha o curso e a playlist  3) Clique em Salvar Vídeo</div>
               {!upFile && !upErro && <div className="text-xs text-gray-500">Selecione um arquivo de vídeo antes de enviar.</div>}
               {upProgress !== null && (
                 <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
