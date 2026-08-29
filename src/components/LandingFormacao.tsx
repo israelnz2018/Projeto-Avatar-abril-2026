@@ -30,6 +30,8 @@ const CSS = `
 `;
 
 export default function LandingFormacao() {
+  const playerRef = React.useRef<HTMLDivElement>(null);
+
   // Injeta o script do player VTurb uma única vez (evita duplicar em re-render).
   React.useEffect(() => {
     if (document.querySelector(`script[src="${VTURB_SCRIPT_SRC}"]`)) return;
@@ -37,6 +39,16 @@ export default function LandingFormacao() {
     s.src = VTURB_SCRIPT_SRC;
     s.async = true;
     document.head.appendChild(s);
+  }, []);
+
+  // Monta o player uma única vez, imperativamente. O guard de childElementCount
+  // evita duplicar se o efeito rodar de novo (StrictMode roda duas vezes em dev).
+  // O padding de 56.25% é o 16/9 do vídeo horizontal — na /kit90dias é 177.77%,
+  // porque lá o vídeo é vertical.
+  React.useEffect(() => {
+    const alvo = playerRef.current;
+    if (!alvo || alvo.childElementCount > 0) return;
+    alvo.innerHTML = `<vturb-smartplayer id="${VTURB_PLAYER_ID}" style="display:block;margin:0 auto;width:100%;max-width:760px"><div class="vturb-player-placeholder" style="position:relative;width:100%;padding:56.25% 0 0;z-index:0;background-color:black"></div></vturb-smartplayer>`;
   }, []);
 
   const hero = (
@@ -49,16 +61,13 @@ export default function LandingFormacao() {
           que você deve aprender para ser desejado pelas maiores e melhores empresas para se
           trabalhar, seja no Brasil ou no mundo.
         </p>
-        {/* Mesmo padrão da /kit90dias, que funciona: div sem estilo além da
-            largura + o snippet exato que o VTurb gera, inserido como HTML.
-            O padding de 56.25% é o 16/9 do vídeo horizontal (na /kit90dias é
-            177.77%, porque lá o vídeo é vertical). */}
-        <div
-          style={{ margin: '0 auto', maxWidth: 760 }}
-          dangerouslySetInnerHTML={{
-            __html: `<vturb-smartplayer id="${VTURB_PLAYER_ID}" style="display:block;margin:0 auto;width:100%;max-width:760px"><div class="vturb-player-placeholder" style="position:relative;width:100%;padding:56.25% 0 0;z-index:0;background-color:black"></div></vturb-smartplayer>`,
-          }}
-        />
+        {/* Div VAZIA para o React: o player é montado uma vez por efeito, no
+            ref. Assim nenhum re-render da página encosta neste pedaço do DOM.
+            Isso importa porque hover nos carrosséis de ferramentas/cursos muda
+            estado e re-renderiza a página inteira — se o React reescrevesse
+            este HTML, o player que o VTurb montou aqui dentro seria destruído
+            e o vídeo sumiria. */}
+        <div ref={playerRef} style={{ margin: '0 auto', maxWidth: 760 }} />
         <div className="cta-row">
           <a className="cta" href="#planos">Quero a formação completa</a>
         </div>
