@@ -53,13 +53,40 @@ import {
 import { useBunnyWatchTracker } from '../hooks/useBunnyWatchTracker';
 import { getUserData } from '../services/userService';
 import type { Initiative } from '../types';
-import { courseNamesMatch, hasCourseAccess } from '../lib/courseAccess';
+import { courseNamesMatch, hasCourseAccess, normalizeCourseName } from '../lib/courseAccess';
 import { getCourseOfferDefaults } from '../services/courseOfferService';
+
+// Os banners já incluem a identidade visual e o nome do curso. O card acrescenta
+// somente o rodapé com a quantidade de lições, sem repetir título ou cores.
+const COURSE_CARD_BANNER_RULES: Array<{ matches: string[]; src: string }> = [
+  { matches: ['estatistica aplicada e ferramentas da qualidade'], src: '/landing-courses/estatistica-aplicada-ferramentas-qualidade.png' },
+  { matches: ['analise inferencial', 'testes de hipoteses'], src: '/landing-courses/analise-inferencial-testes-hipoteses.png' },
+  { matches: ['analise preditiva'], src: '/landing-courses/analise-preditiva-regressoes-correlacoes.png' },
+  { matches: ['capabilidade de processo'], src: '/landing-courses/capabilidade-processo-avancado.png' },
+  { matches: ['controle estatistico de processo', 'cep -'], src: '/landing-courses/cep-controle-estatistico-processo.png' },
+  { matches: ['sistema de medicao', 'msa -', 'msa-'], src: '/landing-courses/msa-analise-sistema-medicao.png' },
+  { matches: ['resolver problemas no trabalho', 'kit 90 dias'], src: '/landing-courses/kit-90-dias.png' },
+  { matches: ['criar apresentacoes', 'apresentacoes eficazes'], src: '/landing-courses/apresentacoes-eficazes.png' },
+  { matches: ['conduzir mudancas', 'gerenciamento de mudanca', 'menos resistencia'], src: '/landing-courses/gerenciamento-mudanca-adkar.png' },
+  { matches: ['antecipar riscos', 'gerenciamento de riscos', 'fmea e pmi'], src: '/landing-courses/gerenciamento-riscos-fmea-pmi.png' },
+  { matches: ['cultura lean'], src: '/landing-courses/gerenciamento-cultura-lean.png' },
+  { matches: ['formacao profissional', 'tornar um especialista'], src: '/landing-courses/formacao-profissional-gestao-projetos-melhoria.png' },
+  { matches: ['fazer analises estatisticas aplicadas', 'analises estatisticas aplicadas a negocios'], src: '/landing-courses/software-estatistico-formacao-projetos.png' },
+  { matches: ['recomendar melhorias', 'gate'], src: '/landing-courses/plataforma-profissional-gestao-projetos.png' },
+];
+
+const getCourseCardBanner = (courseName: string, consultorId: string) => {
+  // As peças carregam a marca LBW/Israel e não devem aparecer no white-label de
+  // outro consultor.
+  if (consultorId !== 'israel') return '';
+  const normalized = normalizeCourseName(courseName);
+  return COURSE_CARD_BANNER_RULES.find(rule => rule.matches.some(match => normalized.includes(match)))?.src || '';
+};
 
 export default function LearningView() {
   const [items, setItems] = useState<KnowledgeEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('Todos');
+  const [activeCategory, setActiveCategory] = useState('');
   const [activePlaylist, setActivePlaylist] = useState('Todas');
   const [selectedVideo, setSelectedVideo] = useState<KnowledgeEntry | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -219,7 +246,7 @@ export default function LearningView() {
 
   useEffect(() => {
     const target = resolveIntroCourseFromLocation();
-    setActiveCategory(target || 'Todos');
+    setActiveCategory(target || '');
     setActivePlaylist('Todas');
     setSelectedVideo(null);
   }, [location.pathname, location.search]);
@@ -383,6 +410,8 @@ export default function LearningView() {
     const alvo = items.find(it => it.id === vid);
     const placementLiberado = alvo ? accessiblePlacementFor(alvo) : null;
     if (placementLiberado) {
+      setActiveCategory(placementLiberado.course);
+      setActivePlaylist('Todas');
       setSelectedVideo(placementLiberado);
       // rola até o player depois que renderiza
       setTimeout(() => {
@@ -391,8 +420,8 @@ export default function LearningView() {
     }
   }, [items, location.search]);
 
-  // "Todos" fica primeiro; depois vêm os cursos liberados e os demais,
-  // ambos em ordem alfabética pelo nome do curso.
+  // Cursos liberados primeiro e bloqueados depois; ambos permanecem em ordem
+  // alfabética. Não existe mais o card artificial "Todos".
   const requestedIntroCourse = resolveIntroCourseFromLocation();
   const courseSet = new Set(items.map(item => item.course).filter((course) => course !== INTRO_COURSE_ALUNO && course !== INTRO_COURSE_COORDENADOR));
   const nomeParaOrdenacao = (curso: string) => curso.replace(/^\s*\d+\s*[-–—:]\s*/, '').trim();
@@ -402,41 +431,31 @@ export default function LearningView() {
   const cursosComAcesso = cursos.filter((curso) => !isCourseLocked(curso)).sort(ordenarAlfabeticamente);
   const cursosSemAcesso = cursos.filter((curso) => isCourseLocked(curso)).sort(ordenarAlfabeticamente);
   const isIntroArea = Boolean(requestedIntroCourse);
-  const categories = isIntroArea && requestedIntroCourse ? [requestedIntroCourse] : ['Todos', ...cursosComAcesso, ...cursosSemAcesso];
+  const categories = isIntroArea && requestedIntroCourse ? [requestedIntroCourse] : [...cursosComAcesso, ...cursosSemAcesso];
+  const categoriesKey = categories.join('\u0001');
 
-  // Paleta de gradientes (1 por trilha, ciclada se passar de 10)
-  const CARD_GRADIENTS = [
-    'from-blue-500 via-blue-700 to-indigo-900',
-    'from-emerald-400 via-teal-600 to-cyan-900',
-    'from-cyan-400 via-blue-600 to-blue-900',
-    'from-red-500 via-rose-700 to-slate-900',
-    'from-amber-400 via-orange-600 to-red-900',
-    'from-violet-400 via-purple-700 to-indigo-900',
-    'from-orange-400 via-red-500 to-rose-800',
-    'from-emerald-400 via-teal-600 to-emerald-900',
-    'from-[#1E2D6E] via-[#0033CC] to-[#0a0f33]',
-    'from-lime-400 via-emerald-600 to-teal-900',
-    'from-purple-400 via-violet-600 to-indigo-900',
-    'from-indigo-400 via-violet-600 to-slate-900',
-  ];
+  // Sem "Todos", a página sempre abre um curso real. Como os liberados já vêm
+  // primeiro, o aluno entra no primeiro curso que possui; deep-links continuam
+  // respeitando o curso do vídeo solicitado.
+  useEffect(() => {
+    if (loading || isIntroArea || categories.length === 0) return;
+    if (categories.includes(activeCategory)) return;
+    const requestedVideoId = new URLSearchParams(location.search).get('video');
+    const requestedVideo = requestedVideoId ? items.find(item => item.id === requestedVideoId) : null;
+    const requestedPlacement = requestedVideo ? accessiblePlacementFor(requestedVideo) : null;
+    const initialCourse = requestedPlacement && categories.includes(requestedPlacement.course)
+      ? requestedPlacement.course
+      : categories[0];
+    setActiveCategory(initialCourse);
+    setActivePlaylist('Todas');
+  // A chave representa o conteúdo da lista sem disparar por uma nova referência
+  // de array a cada render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, isIntroArea, categoriesKey, activeCategory, location.search]);
 
-  // "Todos" conta vídeos DISTINTOS (por sourceUrl) — o mesmo vídeo aparece em
-  // várias trilhas/playlists (modelo multi-placement: cada ocorrência é um doc
-  // Firestore separado vinculado por sourceUrl). Sem dedup, o total inflava.
-  // Cada trilha individual continua contando suas próprias ocorrências.
-  const countByCategory = (cat: string) => {
-    if (cat !== 'Todos') return items.filter(i => i.course === cat).length;
-    // Dedup por sourceUrl; vídeos sem sourceUrl contam individualmente (cada doc = 1)
-    const distintos = new Set<string>();
-    let semUrl = 0;
-    items.forEach(i => {
-      if (i.sourceUrl) distintos.add(i.sourceUrl);
-      else semUrl++;
-    });
-    return distintos.size + semUrl;
-  };
+  const countByCategory = (cat: string) => items.filter(i => i.course === cat).length;
   
-  const playlists = activeCategory === 'Todos' 
+  const playlists = !activeCategory
     ? [] 
     : ['Todas', ...Array.from(new Set(items.filter(item => item.course === activeCategory).map(item => item.playlist)))
         .sort((a, b) => {
@@ -454,7 +473,7 @@ export default function LearningView() {
   const filteredItems = useMemo(() => {
     const termo = searchTerm.toLowerCase();
     return items.filter(item => {
-      const categoryMatch = activeCategory === 'Todos' || item.course === activeCategory;
+      const categoryMatch = Boolean(activeCategory) && item.course === activeCategory;
       const playlistMatch = activePlaylist === 'Todas' || item.playlist === activePlaylist;
       const searchMatch = item.title.toLowerCase().includes(termo) ||
                          (item.content || '').toLowerCase().includes(termo);
@@ -507,24 +526,14 @@ export default function LearningView() {
         </div>
       </div>
 
-      {/* Grid de cards de trilhas — estilo Sua Jornada */}
+      {/* Catálogo visual dos cursos: até sete cards por linha no desktop. */}
       {!isIntroArea && (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">
         {categories.map((cat, idx) => {
           const isActive = activeCategory === cat;
-          const isTodos = cat === 'Todos';
-          const trilhaLocked = !isTodos && isCourseLocked(cat);
-          // "Todos" tem visual especial (LBW navy/blue), demais ciclam pela paleta.
-          const gradient = isTodos
-            ? 'from-[#1E2D6E] via-[#0033CC] to-[#0a0f33]'
-            : CARD_GRADIENTS[(idx - 1) % CARD_GRADIENTS.length];
+          const trilhaLocked = isCourseLocked(cat);
           const total = countByCategory(cat);
-          // Extrai número do prefixo (ex: "9- COMO..." → "9")
-          const match = cat.match(/^(\d+)/);
-          const numero = match ? match[1].padStart(2, '0') : null;
-          const titulo = isTodos
-            ? 'Todos'
-            : (match ? cat.replace(/^\d+\s*[-—]\s*/, '') : cat);
+          const banner = getCourseCardBanner(cat, consultorAtual);
 
           return (
             <motion.button
@@ -537,49 +546,49 @@ export default function LearningView() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.03, duration: 0.3 }}
               className={cn(
-                "relative h-20 rounded-xl overflow-hidden text-left px-3 py-2 group cursor-pointer transition-all duration-200 focus:outline-none",
-                isActive ? "scale-[1.02]" : "hover:scale-[1.03]"
+                "relative rounded-2xl overflow-hidden text-left group cursor-pointer transition-all duration-200 focus:outline-none bg-white border",
+                isActive ? "scale-[1.015] border-blue-600" : "border-slate-200 hover:-translate-y-1 hover:border-blue-300"
               )}
               style={{
-                border: isActive ? '3px solid #FFFFFF' : '1px solid rgba(255,255,255,0.08)',
                 boxShadow: isActive
-                  ? '0 0 0 2px #0033CC, 0 12px 32px -8px rgba(0,51,204,0.6)'
-                  : '0 4px 12px rgba(0,0,0,0.08)',
-                background: 'transparent',
+                  ? '0 0 0 3px rgba(37,99,235,.16), 0 14px 32px -16px rgba(15,23,42,.55)'
+                  : '0 8px 24px -16px rgba(15,23,42,.42)',
               }}
+              aria-label={`${cat}. ${total} ${total === 1 ? 'lição' : 'lições'}${trilhaLocked ? '. Curso bloqueado' : ''}`}
+              title={cat}
             >
-              {/* Gradient base */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-              {/* Overlay escuro pra contraste do texto */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-              {/* Brilho de hover */}
-              <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
-
-              {/* Badge de trilha bloqueada (canto superior direito) */}
-              {trilhaLocked && (
-                <div className="absolute top-1.5 right-1.5 z-20 w-5 h-5 rounded-full bg-black/55 backdrop-blur-sm flex items-center justify-center border border-white/30">
-                  <Lock size={10} className="text-white" />
-                </div>
-              )}
-
-              {/* Conteúdo: título em cima, lições + número embaixo */}
-              <div className="relative z-10 h-full flex flex-col justify-between text-white">
-                <p
-                  className="font-black text-[11px] leading-tight m-0 line-clamp-2"
-                  style={{ textShadow: '0 1px 4px rgba(0,0,0,0.55)' }}
-                >
-                  {titulo}
-                </p>
-                <div className="flex items-end justify-between">
-                  <span className="text-[9px] font-black tracking-widest text-white/80 uppercase">
-                    {total} {total === 1 ? 'lição' : 'lições'}
-                  </span>
-                  {numero && (
-                    <span className="text-[13px] font-black text-white/90 leading-none">
-                      {numero}
-                    </span>
-                  )}
-                </div>
+              <div className="relative aspect-square w-full overflow-hidden bg-slate-950">
+                {banner ? (
+                  <img
+                    src={banner}
+                    alt={cat}
+                    loading="lazy"
+                    className="block h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.025]"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-slate-900 px-4 flex items-center justify-center text-center">
+                    <span className="text-white text-sm font-black leading-tight">{nomeParaOrdenacao(cat)}</span>
+                  </div>
+                )}
+                {trilhaLocked && (
+                  <div className="absolute top-2.5 right-2.5 z-20 w-8 h-8 rounded-full bg-slate-950/85 backdrop-blur-sm flex items-center justify-center border border-white/45 shadow-lg">
+                    <Lock size={14} className="text-white" />
+                  </div>
+                )}
+                {isActive && (
+                  <div className="absolute left-2.5 top-2.5 z-20 rounded-full bg-blue-600 px-2 py-1 text-[9px] font-black tracking-wider text-white shadow-lg">
+                    SELECIONADO
+                  </div>
+                )}
+              </div>
+              <div className="h-12 px-3 flex items-center justify-between border-t border-slate-200 bg-white">
+                <span className="text-[10px] font-black tracking-[.12em] text-slate-700 uppercase">
+                  {total} {total === 1 ? 'lição' : 'lições'}
+                </span>
+                <span
+                  className={cn("w-2 h-2 rounded-full", trilhaLocked ? "bg-slate-300" : "bg-emerald-500")}
+                  aria-hidden="true"
+                />
               </div>
             </motion.button>
           );
@@ -588,7 +597,7 @@ export default function LearningView() {
 
       )}
       {/* Sub-filtro de playlists (só quando uma trilha está selecionada) */}
-      {activeCategory !== 'Todos' && playlists.length > 1 && (
+      {Boolean(activeCategory) && playlists.length > 1 && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -613,7 +622,7 @@ export default function LearningView() {
 
       {/* Barra de progresso da trilha — só quando uma trilha específica está selecionada.
           Dedup por sourceUrl: se o mesmo vídeo aparece em N playlists, conta uma vez. */}
-      {activeCategory !== 'Todos' && activeCategory !== INTRO_COURSE_ALUNO && activeCategory !== INTRO_COURSE_COORDENADOR && (() => {
+      {Boolean(activeCategory) && activeCategory !== INTRO_COURSE_ALUNO && activeCategory !== INTRO_COURSE_COORDENADOR && (() => {
         const videosDaTrilha = items.filter(v => v.course === activeCategory);
         const urlsUnicas = Array.from(new Set(videosDaTrilha.map(v => v.sourceUrl).filter(Boolean)));
         const assistidos = urlsUnicas.filter(u => watchedUrls[u]).length;
