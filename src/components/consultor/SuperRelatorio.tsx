@@ -55,9 +55,9 @@ export default function SuperRelatorio() {
       .then((res) => {
         if (ativo) {
           setR(res);
-          // Alunos diretos já aparecem no bloco superior e nunca devem entrar
-          // no seletor de empresas/coordenadores.
-          setEmpresaSelecionada(res.empresas.filter((e) => e.chave !== 'diretos')[0]?.chave || '');
+          // O painel único começa mostrando os alunos diretos; as demais
+          // opções do seletor são os coordenadores/empresas.
+          setEmpresaSelecionada('diretos');
         }
       })
       .catch((e) => { if (ativo) setErro(e?.message || 'Erro ao carregar os relatórios.'); })
@@ -75,39 +75,28 @@ export default function SuperRelatorio() {
 
       {!loading && !erro && r && (
         <>
-          {/* BLOCO 1 — MEUS ALUNOS (diretos) */}
-          <section className="mb-10">
-            <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-gray-500 mb-3">
-              <Users size={15} /> Meus Alunos
-            </h2>
-            <Cards s={r.diretos} />
-          </section>
-
-          {/* BLOCO 2 — EMPRESAS (quebrado por empresa) */}
           <section>
             <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-gray-500 mb-3">
-              <Building2 size={15} /> Empresas
+              <Building2 size={15} /> Clientes
             </h2>
-            {r.empresas.filter((e) => e.chave !== 'diretos').length === 0 ? (
-              <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center text-gray-500">
-                Nenhuma empresa ainda. Convide um coordenador em <b>Meus Clientes</b>.
+            <select value={empresaSelecionada} onChange={(event) => setEmpresaSelecionada(event.target.value)} className="mb-5 w-full max-w-md border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
+              <option value="diretos">Meus próprios alunos</option>
+              {r.empresas.filter((e) => e.chave !== 'diretos').map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
+            </select>
+            {empresaSelecionada === 'diretos' ? (
+              <div>
+                <div className="font-black text-gray-800 mb-3">Meus próprios alunos</div>
+                <Cards s={r.diretos} />
               </div>
-            ) : (
-              <>
-                <select value={empresaSelecionada} onChange={(event) => setEmpresaSelecionada(event.target.value)} className="mb-5 w-full max-w-md border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
-                  {r.empresas.filter((e) => e.chave !== 'diretos').map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
-                </select>
-                {r.empresas.filter((e) => e.chave !== 'diretos' && e.chave === empresaSelecionada).map((e) => (
-                  <div key={e.chave}>
-                    <div className="flex items-baseline gap-2 mb-3">
-                      <span className="font-black text-gray-800">{e.titulo}</span>
-                      {e.coordenadorNome && <span className="text-xs text-gray-400">coord. {e.coordenadorNome}</span>}
-                    </div>
-                    <Cards s={e} />
-                  </div>
-                ))}
-              </>
-            )}
+            ) : r.empresas.filter((e) => e.chave !== 'diretos' && e.chave === empresaSelecionada).map((e) => (
+              <div key={e.chave}>
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span className="font-black text-gray-800">{e.titulo}</span>
+                  {e.coordenadorNome && <span className="text-xs text-gray-400">coord. {e.coordenadorNome}</span>}
+                </div>
+                <Cards s={e} />
+              </div>
+            ))}
           </section>
         </>
       )}
