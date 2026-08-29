@@ -312,8 +312,44 @@ export default function LandingPlataformaLBW() {
     document.head.appendChild(link);
   }, []);
 
+  // Dados estruturados (schema.org), lidos diretamente de PLANOS_LBW — nome,
+  // preço e link de checkout vêm da mesma fonte que os cards usam, então não
+  // há como isso divergir do que a página realmente mostra.
+  //
+  // Por que Product/Offer e não Course ou FAQPage: o Google aposentou o rich
+  // result de Course em jun/2025 e o de FAQ em mai/2026 — o schema continua
+  // válido, mas não gera mais nenhum destaque na busca. Product com Offer
+  // (preço, moeda, disponibilidade) segue válido e é o que agentes de IA de
+  // busca/compra de fato leem para responder "quanto custa X".
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'EducationalOrganization',
+        name: 'Learning by Working – Educação pelo Trabalho',
+        url: 'https://app.educacaopelotrabalho.com/',
+        logo: 'https://app.educacaopelotrabalho.com/favicon.png',
+        sameAs: ['https://www.linkedin.com/in/israel-cavalcanti-de-souza-mbb-pmp-mba-9244a320/'],
+      },
+      ...PLANOS_LBW.map((plano) => ({
+        '@type': 'Product',
+        name: plano.nome,
+        description: plano.resumo,
+        brand: { '@type': 'Brand', name: 'Learning by Working' },
+        offers: {
+          '@type': 'Offer',
+          price: plano.vista,
+          priceCurrency: 'BRL',
+          availability: 'https://schema.org/InStock',
+          url: 'https://app.educacaopelotrabalho.com/plataformalbw#planos',
+        },
+      })),
+    ],
+  };
+
   return (
     <div className="plbw">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <style>{CSS}</style>
       <nav className="nav">
         <a className="nav-marca" href="#top">
