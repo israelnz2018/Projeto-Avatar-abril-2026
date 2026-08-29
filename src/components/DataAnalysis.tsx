@@ -10,8 +10,7 @@ import {
   X,
   Clock,
   ChevronRight,
-  Lock,
-  Plus
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import * as XLSX from 'xlsx';
@@ -433,7 +432,6 @@ export default function DataAnalysis() {
   const [tourOpen, setTourOpen] = useState(false);
   const [projetosDisponiveis, setProjetosDisponiveis] = useState<Project[]>([]);
   const [modalSelecionarProjeto, setModalSelecionarProjeto] = useState(false);
-  const [modalNovoProjeto, setModalNovoProjeto] = useState(false);
   const [projetoDestinoId, setProjetoDestinoId] = useState('');
   const [novoProjetoTitulo, setNovoProjetoTitulo] = useState('');
   const [projetoDestinoSalvar, setProjetoDestinoSalvar] = useState<Project | null>(null);
@@ -1070,40 +1068,12 @@ export default function DataAnalysis() {
     }
   };
 
-  // "Novo Projeto" do topo. Se há análise na tela sem gravar, NÃO cria um projeto
-  // vazio direto: trocar o projeto vigente recarrega a tela a partir do projeto novo
-  // e o trabalho se perderia. Nesse caso cai no fluxo que cria JÁ salvando dentro.
-  const abrirCriacaoDeProjeto = () => {
-    setNovoProjetoTitulo('');
-    if (temTrabalhoNaoSalvo) {
-      setProjetoDestinoId(NOVO_PROJETO_ID);
-      setModalSelecionarProjeto(true);
-      return;
-    }
-    setModalNovoProjeto(true);
-  };
-
-  const criarProjetoVazio = async () => {
-    const titulo = novoProjetoTitulo.trim();
-    if (!titulo || salvandoTudo) return;
-    setSalvandoTudo(true);
-    try {
-      const criado = await createProject(titulo);
-      if (!criado?.id) throw new Error('O projeto não pôde ser criado.');
-      setProjetosDisponiveis((atuais) => [criado as Project, ...atuais]);
-      setModalNovoProjeto(false);
-      setNovoProjetoTitulo('');
-      setProjetoAtivo(criado as Project);
-      setModalSucessoSalvar(`Projeto "${titulo}" criado.\n\nEste agora é o projeto vigente em toda a plataforma.`);
-    } catch (err: any) {
-      exibirModalErro(`❌ Erro ao criar o projeto: ${err.message}`);
-    } finally {
-      setSalvandoTudo(false);
-    }
-  };
+  // Mesma condição que o handler valida logo abaixo — extraída para o botão
+  // poder ficar desabilitado em vez de deixar clicar e devolver erro.
+  const temAlgoParaSalvar = Boolean(file) || results.length > 0;
 
   const handleSalvarTudo = async () => {
-    if (!file && results.length === 0) {
+    if (!temAlgoParaSalvar) {
       exibirModalErro('⚠️ Não há nada para salvar. Faça upload de uma planilha ou realize uma análise primeiro.');
       return;
     }
@@ -1787,22 +1757,25 @@ export default function DataAnalysis() {
                   </ul>
                 </li>
               ))}
+              {/* Um botão só. Criar e trocar de projeto agora vive apenas na aba
+                  Projetos — aqui a única ação é salvar. A criação continua
+                  existindo DENTRO do modal de destino, mas só como alternativa a
+                  perder o trabalho: quem ainda não tem projeto nenhum precisa de
+                  um destino sem sair da tela (sair daqui descarta a análise, é o
+                  que o aviso de "salvar antes de sair" protege). */}
               <div className="flex items-center gap-2 pl-3">
-                <button
-                  onClick={abrirCriacaoDeProjeto}
-                  disabled={salvandoTudo}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-white/10 text-white text-[11px] font-black uppercase tracking-widest rounded-md border border-white/30 cursor-pointer whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Criar um novo projeto e torná-lo o projeto vigente"
-                >
-                  <Plus size={13} />
-                  Novo Projeto
-                </button>
                 <button
                   data-tour-id="salvar"
                   onClick={handleSalvarTudo}
-                  disabled={salvandoTudo}
+                  disabled={salvandoTudo || !temAlgoParaSalvar}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-[11px] font-black uppercase tracking-widest rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed border-none cursor-pointer whitespace-nowrap transition-colors"
-                  title={projetoAtivo ? `Salvar análises no projeto vigente: ${projetoAtivo.name}` : 'Criar ou escolher um projeto para salvar as análises'}
+                  title={
+                    !temAlgoParaSalvar
+                      ? 'Faça upload de uma planilha ou gere uma análise para poder salvar'
+                      : projetoAtivo
+                        ? `Salvar análises no projeto vigente: ${projetoAtivo.name}`
+                        : 'Escolher um projeto para salvar as análises'
+                  }
                 >
                   <Save size={13} />
                   {salvandoTudo ? 'Salvando...' : 'Salvar Projeto'}
@@ -2971,48 +2944,6 @@ export default function DataAnalysis() {
         </div>
       )}
 
-      {/* Criar projeto vazio (só quando não há nada pendente de salvar) */}
-      {modalNovoProjeto && (
-        <div
-          className="fixed inset-0 bg-black/55 z-[999] flex items-center justify-center p-4"
-          onClick={() => { setModalNovoProjeto(false); setNovoProjetoTitulo(''); }}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-5 border-b border-gray-200">
-              <h3 className="text-lg font-black text-gray-900 m-0">Novo projeto</h3>
-              <p className="text-sm text-gray-500 mt-1 mb-0">
-                Ele passa a ser o projeto vigente em toda a plataforma.
-              </p>
-            </div>
-            <div className="px-6 py-5">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Título do projeto</label>
-              <input
-                autoFocus
-                value={novoProjetoTitulo}
-                onChange={(e) => setNovoProjetoTitulo(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void criarProjetoVazio(); }}
-                placeholder="Ex: Redução de refugo na linha 3"
-                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:border-blue-500"
-              />
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-              <button
-                onClick={() => { setModalNovoProjeto(false); setNovoProjetoTitulo(''); }}
-                className="px-5 py-2 rounded-xl bg-white hover:bg-gray-50 text-gray-600 text-sm font-bold border border-gray-200 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => void criarProjetoVazio()}
-                disabled={salvandoTudo || !novoProjetoTitulo.trim()}
-                className="px-5 py-2 rounded-xl bg-[#0033CC] hover:bg-[#1E2D6E] text-white text-sm font-bold border-none cursor-pointer disabled:opacity-40 transition-colors"
-              >
-                {salvandoTudo ? 'Criando...' : 'Criar projeto'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {modalSelecionarProjeto && (
         <div
