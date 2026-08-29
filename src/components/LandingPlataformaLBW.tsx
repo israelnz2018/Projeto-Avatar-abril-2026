@@ -213,6 +213,7 @@ const CSS = `
 .plbw .proof:nth-child(2) .proof-copy{color:#cddbf5}
 .plbw .proof:nth-child(3) .proof-copy{color:#c5e9f2}
 .plbw .head{text-align:center;max-width:780px;margin:0 auto 42px}.plbw .head small{font-weight:700;color:#74a2ff;letter-spacing:.18em;font-size:13px}.plbw .head h2{font-size:clamp(30px,4.2vw,46px);letter-spacing:-.03em;margin:14px 0;font-weight:700;text-wrap:balance}.plbw .head p{color:var(--muted);line-height:1.65;font-size:17px;text-wrap:pretty}
+.plbw .platform-content-head{max-width:980px;margin-bottom:70px}.plbw .platform-content-head h2{font-size:clamp(38px,5.4vw,62px);line-height:1.04;background:linear-gradient(100deg,#fff 12%,#a8c5ff 58%,#26c9e4);-webkit-background-clip:text;background-clip:text;color:transparent}.plbw .showcase-block+.showcase-block{margin-top:86px;padding-top:76px;border-top:1px solid var(--line)}.plbw .showcase-head{margin-bottom:34px}.plbw .showcase-head h3{font-size:clamp(28px,3.8vw,42px);letter-spacing:-.03em;font-weight:700;text-wrap:balance;margin:0 0 14px}.plbw .showcase-head p{color:var(--muted);line-height:1.65;font-size:17px;text-wrap:pretty}
 .plbw .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:stretch}.plbw .plan{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:22px;padding:28px;background:linear-gradient(160deg,rgba(17,31,66,.95),rgba(8,14,31,.96));box-shadow:0 24px 70px -42px #000}.plbw .plan.featured{border-color:#4381ff;box-shadow:0 0 0 1px rgba(67,129,255,.22),0 30px 80px -35px rgba(33,100,243,.6)}.plbw .recommended{position:absolute;top:-13px;right:20px;background:linear-gradient(120deg,#2866f4,#10b8dc);padding:7px 13px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em}.plbw .plan-tag{font-size:11px;color:#84adff;font-weight:700;letter-spacing:.12em;min-height:28px}.plbw .plan h3{font-size:26px;line-height:1.15;margin:8px 0 13px;letter-spacing:-.02em}.plbw .summary{color:#c7d1e8;line-height:1.55}.plbw .ideal{margin:19px 0;padding:13px 14px;border-radius:11px;background:rgba(72,117,218,.09);color:#aebde0;font-size:13px;line-height:1.5}.plbw .items{list-style:none;padding:0;margin:0 0 18px;display:flex;flex-direction:column;gap:12px}.plbw .items li{position:relative;padding:0 0 0 25px;color:#e7ecf8;font-size:14px;line-height:1.45}.plbw .items li:before{content:'✓';position:absolute;left:0;color:#22d3a1;font-weight:800}.plbw .exclude{color:#93a2c3;font-size:12.5px;line-height:1.5;border-top:1px solid var(--line);padding-top:15px;margin-top:auto}.plbw .exclude-vazio{margin-top:auto}.plbw .price{text-align:center;font-size:27px;font-weight:700;margin:8px 0 3px}.plbw .price-note{text-align:center;color:#aab6d2;font-size:13px;margin-bottom:14px}.plbw .soon{text-align:center;color:#bfd1fa;font-size:14px;font-weight:700;margin:22px 0 16px}.plbw .plan .btn{width:100%;text-align:center}
 .plbw .price-de{text-align:center;color:#8fa0c4;font-size:13px;margin:22px 0 0}.plbw .price-de s{color:#7b8bb0}.plbw .price-de+.price{margin-top:2px}
 .plbw .saving{display:flex;justify-content:center;margin:0 0 14px}.plbw .saving-badge{display:inline-flex;text-align:center;padding:6px 13px;border-radius:999px;background:rgba(34,211,161,.12);border:1px solid rgba(34,211,161,.42);color:#3ee0b0;font-size:12px;font-weight:700;line-height:1.35;max-width:100%}
@@ -244,7 +245,7 @@ const CSS = `
 .plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:8px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:0 0 13px 13px;overflow:hidden;box-shadow:inset 0 0 0 1px #dce5f1}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:12px;transition:transform .35s ease;filter:contrast(1.035) saturate(1.03);image-rendering:auto}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
-.plbw .course-card{position:relative;overflow:hidden;flex:0 0 auto;width:330px;height:330px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;align-items:center;justify-content:center;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;padding:8px}.plbw .course-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}.plbw .course-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:14px;transition:transform .35s ease}.plbw .course-card:hover .course-card-image{transform:scale(1.025)}
+.plbw .course-card{position:relative;overflow:hidden;flex:0 0 auto;width:330px;height:426px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;padding:8px}.plbw .course-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}.plbw .course-card-title{flex:0 0 96px;min-height:96px;font-size:17px}.plbw .course-card-media{flex:1;min-height:0;background:#fff;border-radius:0 0 13px 13px;overflow:hidden;display:flex;align-items:center;justify-content:center}.plbw .course-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:0 0 13px 13px;transition:transform .35s ease}.plbw .course-card:hover .course-card-image{transform:scale(1.025)}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .faq-link{color:#7fb0ff;font-weight:700;white-space:nowrap}.plbw .faq-link:hover{color:#a9caff;text-decoration:underline}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 /* Empilhado, o selo do número (top:-18px) invade o card de cima se o gap for
    os mesmos 18px do desktop — por isso só o espaçamento cresce aqui. */
@@ -467,33 +468,40 @@ export default function LandingPlataformaLBW() {
         </div></section>
 
         <section className="section" id="ferramentas"><div className="wrap">
-          <div className="head"><small>DENTRO DA PLATAFORMA PROFISSIONAL</small><h2>Templates de gerenciamento de projetos prontos para usar</h2><p>Modelos profissionais para conduzir o projeto, da ideia inicial ao encerramento.</p></div>
-          <div className="tools-carousel" onMouseEnter={() => setPausarFerramentas(true)} onMouseLeave={() => setPausarFerramentas(false)}>
-            <div className="tools-scroll" ref={ferramentasRef}><div className="tools-track">{[...FERRAMENTAS, ...FERRAMENTAS].map((ferramenta, index) => {
-            const indiceOriginal = index % FERRAMENTAS.length;
-            const imagens = FERRAMENTA_IMAGENS[indiceOriginal] || [];
-            const duplicado = index >= FERRAMENTAS.length;
-            return <article className="tool-card" key={`${ferramenta.nome}-${duplicado ? 'copia' : 'original'}`} data-tool-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined} style={{ '--glow': FASE_COR[ferramenta.fase] } as React.CSSProperties}>
-              <h3 className="tool-card-title">{ferramenta.nome}</h3>
-              <div className={`tool-card-media${imagens.length > 1 ? ' multi' : ''}`}>
-                {imagens.map((imagem) => <img className="tool-card-image" key={imagem} src={imagem} alt="" loading="lazy" />)}
-              </div>
-            </article>;
-            })}</div></div>
-            <button type="button" className="tools-next" onClick={avancarFerramentas} aria-label="Avançar cards de ferramentas" title="Avançar ferramentas">→</button>
-          </div>
-        </div></section>
+          <div className="head platform-content-head"><h2>DENTRO DA PLATAFORMA PROFISSIONAL</h2></div>
 
-        <section className="section section-soft" id="cursos-disponiveis"><div className="wrap">
-          <div className="head"><small>CATÁLOGO DA LBW</small><h2>CURSOS DISPONÍVEIS NA PLATAFORMA LBW</h2><p>Conheça os cursos disponíveis para ampliar sua capacidade de aprender, aplicar e liderar melhorias.</p></div>
-          <div className="tools-carousel" onMouseEnter={() => setPausarCursos(true)} onMouseLeave={() => setPausarCursos(false)}>
-            <div className="tools-scroll" ref={cursosRef}><div className="tools-track">{[...CURSOS_IMAGENS, ...CURSOS_IMAGENS].map((curso, index) => {
-              const duplicado = index >= CURSOS_IMAGENS.length;
-              return <article className="course-card" key={`${curso.src}-${duplicado ? 'copia' : 'original'}`} data-course-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined}>
-                <img className="course-card-image" src={curso.src} alt={duplicado ? '' : curso.alt} loading="lazy" />
+          <div className="showcase-block">
+            <div className="head showcase-head"><h3>Templates de gerenciamento de projetos prontos para usar</h3><p>Modelos profissionais para conduzir o projeto, da ideia inicial ao encerramento.</p></div>
+            <div className="tools-carousel" onMouseEnter={() => setPausarFerramentas(true)} onMouseLeave={() => setPausarFerramentas(false)}>
+              <div className="tools-scroll" ref={ferramentasRef}><div className="tools-track">{[...FERRAMENTAS, ...FERRAMENTAS].map((ferramenta, index) => {
+              const indiceOriginal = index % FERRAMENTAS.length;
+              const imagens = FERRAMENTA_IMAGENS[indiceOriginal] || [];
+              const duplicado = index >= FERRAMENTAS.length;
+              return <article className="tool-card" key={`${ferramenta.nome}-${duplicado ? 'copia' : 'original'}`} data-tool-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined} style={{ '--glow': FASE_COR[ferramenta.fase] } as React.CSSProperties}>
+                <h3 className="tool-card-title">{ferramenta.nome}</h3>
+                <div className={`tool-card-media${imagens.length > 1 ? ' multi' : ''}`}>
+                  {imagens.map((imagem) => <img className="tool-card-image" key={imagem} src={imagem} alt="" loading="lazy" />)}
+                </div>
               </article>;
-            })}</div></div>
-            <button type="button" className="tools-next" onClick={avancarCursos} aria-label="Avançar cursos" title="Avançar cursos">→</button>
+              })}</div></div>
+              <button type="button" className="tools-next" onClick={avancarFerramentas} aria-label="Avançar cards de ferramentas" title="Avançar ferramentas">→</button>
+            </div>
+          </div>
+
+          <div className="showcase-block" id="cursos-disponiveis">
+            <div className="head showcase-head"><h3>Cursos disponíveis na Plataforma LBW</h3><p>Conheça os cursos disponíveis para ampliar sua capacidade de aprender, aplicar e liderar melhorias.</p></div>
+            <div className="tools-carousel" onMouseEnter={() => setPausarCursos(true)} onMouseLeave={() => setPausarCursos(false)}>
+              <div className="tools-scroll" ref={cursosRef}><div className="tools-track">{[...CURSOS_IMAGENS, ...CURSOS_IMAGENS].map((curso, index) => {
+                const duplicado = index >= CURSOS_IMAGENS.length;
+                return <article className="course-card" key={`${curso.src}-${duplicado ? 'copia' : 'original'}`} data-course-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined}>
+                  <h3 className="tool-card-title course-card-title">{curso.alt}</h3>
+                  <div className="course-card-media">
+                    <img className="course-card-image" src={curso.src} alt={duplicado ? '' : curso.alt} loading="lazy" />
+                  </div>
+                </article>;
+              })}</div></div>
+              <button type="button" className="tools-next" onClick={avancarCursos} aria-label="Avançar cursos" title="Avançar cursos">→</button>
+            </div>
           </div>
         </div></section>
 
