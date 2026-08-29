@@ -52,7 +52,14 @@ export default function SuperRelatorio() {
     setLoading(true);
     setErro('');
     getRelatorioConsultor(consultorId)
-      .then((res) => { if (ativo) { setR(res); setEmpresaSelecionada(res.empresas[0]?.chave || ''); } })
+      .then((res) => {
+        if (ativo) {
+          setR(res);
+          // Alunos diretos já aparecem no bloco superior e nunca devem entrar
+          // no seletor de empresas/coordenadores.
+          setEmpresaSelecionada(res.empresas.filter((e) => e.chave !== 'diretos')[0]?.chave || '');
+        }
+      })
       .catch((e) => { if (ativo) setErro(e?.message || 'Erro ao carregar os relatórios.'); })
       .finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
@@ -81,16 +88,16 @@ export default function SuperRelatorio() {
             <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-gray-500 mb-3">
               <Building2 size={15} /> Empresas
             </h2>
-            {r.empresas.length === 0 ? (
+            {r.empresas.filter((e) => e.chave !== 'diretos').length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center text-gray-500">
                 Nenhuma empresa ainda. Convide um coordenador em <b>Meus Clientes</b>.
               </div>
             ) : (
               <>
                 <select value={empresaSelecionada} onChange={(event) => setEmpresaSelecionada(event.target.value)} className="mb-5 w-full max-w-md border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
-                  {r.empresas.map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
+                  {r.empresas.filter((e) => e.chave !== 'diretos').map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
                 </select>
-                {r.empresas.filter((e) => e.chave === empresaSelecionada).map((e) => (
+                {r.empresas.filter((e) => e.chave !== 'diretos' && e.chave === empresaSelecionada).map((e) => (
                   <div key={e.chave}>
                     <div className="flex items-baseline gap-2 mb-3">
                       <span className="font-black text-gray-800">{e.titulo}</span>
