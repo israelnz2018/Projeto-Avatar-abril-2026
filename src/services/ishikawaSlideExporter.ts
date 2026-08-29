@@ -129,8 +129,11 @@ export async function exportIshikawaSlide(
     if (list.length === 0) return;
 
     // Caixa de causas ancorada logo à direita do badge, na direção da dorsal.
+    // CAUSE_SHIFT_LEFT puxa o bloco inteiro (as 6 categorias) mais pro lado do
+    // badge, em vez de ficar espalhado até quase encostar na espinha dorsal.
+    const CAUSE_SHIFT_LEFT = 0.35;
     const CW = DIAG_DX + BONE_W * 0.55;   // largura da coluna de causas
-    const cx = badgeX + BONE_W - 0.05;
+    const cx = badgeX + BONE_W - 0.05 - CAUSE_SHIFT_LEFT;
     const CH = Math.abs(SPINE_Y - (isTop ? badgeY + BONE_H : badgeY)) - 0.04;
     const cy = isTop ? badgeY + BONE_H + 0.02 : badgeY - CH - 0.02;
 
