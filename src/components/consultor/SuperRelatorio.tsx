@@ -1,7 +1,5 @@
 /**
- * Relatórios — o painel do mundo do consultor, dividido em DOIS blocos:
- *  1) Meus Alunos  — alunos diretos (sem empresa/coordenador)
- *  2) Empresas     — um sub-bloco por empresa (coordenador)
+ * Relatórios — painel do mundo do consultor, com seleção de clientes.
  * Read-only, scoped por consultorId. Ver PLANO-WHITELABEL.md.
  */
 import React, { useEffect, useState } from 'react';
@@ -12,6 +10,27 @@ import { getRelatorioConsultor, RelatorioConsultor, SegmentoRelatorio } from '..
 
 const fmtBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v || 0);
+
+// Dados fictícios usados exclusivamente em vídeos e demonstrações.
+// Não são gravados no Firebase e não misturam informações reais do consultor.
+const RELATORIO_DEMONSTRACAO: RelatorioConsultor = {
+  diretos: {
+    chave: 'diretos', titulo: 'Meus próprios alunos', totalAlunos: 0, ativos: 0,
+    totalProjetos: 0, ganhoReal: 0, ganhoTeo: 0, videos: 0, certificados: 0,
+  },
+  empresas: [{
+    chave: 'empresa-x-demo',
+    titulo: 'Empresa X - FICTÍCIA',
+    coordenadorNome: 'Coordenador demonstrativo',
+    totalAlunos: 320,
+    ativos: 278,
+    totalProjetos: 48,
+    ganhoReal: 1248000,
+    ganhoTeo: 1860000,
+    videos: 4860,
+    certificados: 142,
+  }],
+};
 
 function Card({ icon, label, valor, sub, destaque }: { icon: React.ReactNode; label: string; valor: string; sub?: string; destaque?: boolean }) {
   return (
@@ -41,6 +60,7 @@ function Cards({ s }: { s: SegmentoRelatorio }) {
 export default function SuperRelatorio() {
   const [searchParams] = useSearchParams();
   const modoCoordenador = searchParams.get('area') === 'coordenador';
+  const modoDemonstracao = searchParams.get('demo') === '1' || searchParams.get('demo') === 'true';
   const { consultor, consultorId } = useConsultor();
   const [r, setR] = useState<RelatorioConsultor | null>(null);
   const [empresaSelecionada, setEmpresaSelecionada] = useState('');
@@ -49,6 +69,13 @@ export default function SuperRelatorio() {
 
   useEffect(() => {
     let ativo = true;
+    if (modoDemonstracao) {
+      setR(RELATORIO_DEMONSTRACAO);
+      setEmpresaSelecionada('empresa-x-demo');
+      setLoading(false);
+      setErro('');
+      return () => { ativo = false; };
+    }
     setLoading(true);
     setErro('');
     getRelatorioConsultor(consultorId)
@@ -67,8 +94,11 @@ export default function SuperRelatorio() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Relatório do Meu Time' : 'Relatórios'}</h1>
-      <p className="text-gray-500 text-sm mb-6">{modoCoordenador ? 'Selecione um coordenador para visualizar exatamente o relatório do time dele.' : <>O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</>}</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap mb-1">
+        <h1 className="text-2xl font-black text-gray-800">{modoDemonstracao ? 'Relatório demonstrativo' : modoCoordenador ? 'Relatório do Meu Time' : 'Relatórios'}</h1>
+        {!modoDemonstracao && <a href={`${window.location.pathname}?area=consultor&demo=1`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100">Abrir demonstração segura</a>}
+      </div>
+      <p className="text-gray-500 text-sm mb-6">{modoDemonstracao ? 'Dados fictícios para apresentar a plataforma sem expor informações reais.' : modoCoordenador ? 'Selecione um coordenador para visualizar exatamente o relatório do time dele.' : <>O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</>}</p>
 
       {loading && <div className="text-gray-500">Calculando o painel…</div>}
       {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
@@ -80,7 +110,7 @@ export default function SuperRelatorio() {
               <Building2 size={15} /> Clientes
             </h2>
             <select value={empresaSelecionada} onChange={(event) => setEmpresaSelecionada(event.target.value)} className="mb-5 w-full max-w-md border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
-              <option value="diretos">Meus próprios alunos</option>
+              {!modoDemonstracao && <option value="diretos">Meus próprios alunos</option>}
               {r.empresas.filter((e) => e.chave !== 'diretos').map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
             </select>
             {empresaSelecionada === 'diretos' ? (
