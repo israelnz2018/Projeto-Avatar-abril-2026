@@ -221,7 +221,7 @@ export default function MeusCoordenadores() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão de Usuários do Coordenador' : 'Meus Coordenadores e Alunos'}</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Gestão de Usuários do Coordenador' : 'Meus Clientes'}</h1>
       <p className="text-gray-500 text-sm mb-6">
         {modoCoordenador
           ? 'Abra o seu time para consultar os cursos e acessos liberados e gerenciar os alunos.'
@@ -304,8 +304,6 @@ export default function MeusCoordenadores() {
                   <div className="text-lg font-black text-gray-800" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {c.time}{(() => { const lim = aberto && !c.euMesmo ? resumoEdit.totalAcessos : c.limite; return lim != null ? ` / ${lim}` : ''; })()}
                   </div>
-                  <div className="text-[11px] text-gray-400">{c.timeAtivo} ativos</div>
-                  {!c.euMesmo && <div className="text-[11px] text-gray-400">{c.cursosAcesso.length} cursos liberados</div>}
                 </div>
                 <ChevronDown size={18} className={`text-gray-400 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`} />
               </button>

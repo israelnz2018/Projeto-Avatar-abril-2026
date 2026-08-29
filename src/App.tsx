@@ -230,7 +230,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Certificados', path: '/configuracao?aba=certificados', icon: Award },
         { name: 'Minha Marca', path: '/configuracao?aba=marca', icon: Palette },
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
-        { name: 'Meus Coordenadores e Alunos', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
+        { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
       ],
@@ -505,8 +505,33 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
+    let authRespondido = false;
+    const limiteDeSeguranca = window.setTimeout(() => {
+      if (!authRespondido) {
+        console.error('[Auth] A autenticação demorou mais que o esperado. Liberando a interface.');
+        setLoading(false);
+      }
+    }, 10000);
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      authRespondido = true;
+      window.clearTimeout(limiteDeSeguranca);
+
+      // A interface não deve ficar bloqueada enquanto o perfil é sincronizado.
+      setUser(currentUser);
+      setLoading(false);
+
+      if (!currentUser) {
+        setPrecisaDefinirSenha(false);
+        return;
+      }
+
+      localStorage.setItem('sessaoAtiva', 'true');
+      localStorage.setItem('usuarioEmail', currentUser.email || '');
+
+      // Sincronização do perfil em segundo plano: uma indisponibilidade do
+      // Firestore não pode deixar o aplicativo inteiro preso no carregamento.
+      void (async () => {
         try {
           await ensureUserDocument(currentUser);
         } catch (err) {
@@ -515,20 +540,19 @@ export default function App() {
         // Conta nova com senha provisória → forçar criação de senha no 1º acesso
         try {
           const dados = await getUserData(currentUser.uid) as any;
-          setPrecisaDefinirSenha(dados?.senhaProvisoria === true);
+          if (auth.currentUser?.uid === currentUser.uid) {
+            setPrecisaDefinirSenha(dados?.senhaProvisoria === true);
+          }
         } catch {
-          setPrecisaDefinirSenha(false);
+          if (auth.currentUser?.uid === currentUser.uid) setPrecisaDefinirSenha(false);
         }
-        localStorage.setItem('sessaoAtiva', 'true');
-        localStorage.setItem('usuarioEmail', currentUser.email || '');
-      } else {
-        setPrecisaDefinirSenha(false);
-      }
-      setUser(currentUser);
-      setLoading(false);
+      })();
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.clearTimeout(limiteDeSeguranca);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
