@@ -901,7 +901,18 @@ export default function ProjectManagement() {
                           <motion.button
                             key={initiative.id}
                             onClick={() => {
-                              if (!projetoLiberado) {
+                              // Tipo COM ferramentas da qualidade (tem fases): mesmo
+                              // bloqueado, deixa criar o projeto e navegar as fases. O
+                              // bloqueio acontece lá dentro, na ferramenta — que é onde
+                              // o aluno entende o que está comprando. Sem fases, não há
+                              // "dentro" nenhum: aí o popup de compra é aqui mesmo.
+                              // Belts também têm fases, mas seguem barrados aqui: o
+                              // Israel ainda vai construir um popup próprio pra eles,
+                              // e deixá-los abrir levaria a ferramenta a oferecer o
+                              // popup de curso comum — justamente o que ele pediu pra
+                              // não acontecer com belt.
+                              const temFerramentas = !!initiative.phases?.length;
+                              if (!projetoLiberado && (!temFerramentas || ehBelt(initiative.name))) {
                                 abrirTipoBloqueado(initiative);
                                 return;
                               }

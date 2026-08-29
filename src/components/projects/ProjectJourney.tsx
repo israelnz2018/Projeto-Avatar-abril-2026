@@ -175,6 +175,9 @@ function getPhaseIcon(name: string, id: string, index: number): any {
 
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { LockedToolPopup } from '../LockedToolPopup';
+import { CoursePurchasePopup } from '../CoursePurchasePopup';
+import { getCourseOfferDefaults } from '../../services/courseOfferService';
+import { resolveConsultorId } from '../../services/consultorService';
 import { useMemo } from 'react';
 import { saveProjectToolData, getProjectToolData, updateProjectPhase, setProjectPhaseCompleted, markToolAsCompleted, deleteProjectToolData, getAllProjectToolData } from '../../services/projectService';
 import { getInitiativeConfigs, getInitiative, saveInitiativeConfig } from '../../services/configService';
@@ -219,6 +222,23 @@ useEffect(() => {
   const [completedPhases, setCompletedPhases] = useState<string[]>(project.completedPhases || []);
   const [savingPhaseCompletion, setSavingPhaseCompletion] = useState(false);
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
+  // Ferramenta bloqueada abre a oferta do curso DESTE projeto — é ele que
+  // destrava estas ferramentas. No tenant de um consultor não há checkout
+  // Hotmart nosso pra oferecer, então lá continua o LockedToolPopup, que
+  // orienta a falar com o consultor.
+  const [cursoParaCompra, setCursoParaCompra] = useState<Initiative | null>(null);
+  const abrirBloqueioDeFerramenta = () => {
+    if (!initiative || resolveConsultorId() !== 'israel') {
+      setLockedPopupOpen(true);
+      return;
+    }
+    const padrao = getCourseOfferDefaults(initiative.name);
+    setCursoParaCompra({
+      ...initiative,
+      precoVenda: Number(initiative.precoVenda ?? padrao.precoSugerido ?? 0),
+      hotmartCheckoutUrl: String(initiative.hotmartCheckoutUrl || padrao.checkoutSugerido || ''),
+    });
+  };
 
   // ===== Guard "sair sem salvar" =====
   // A ferramenta ativa reporta se tem alteração não-salva via onDirtyChange.
@@ -1087,7 +1107,7 @@ useEffect(() => {
                     if (hasAccess) {
                       requestToolChange(tool.id);
                     } else {
-                      setLockedPopupOpen(true);
+                      abrirBloqueioDeFerramenta();
                     }
                   }}
                   className={cn(
@@ -1527,6 +1547,7 @@ useEffect(() => {
         </div>
       </div>
       <LockedToolPopup isOpen={lockedPopupOpen} onClose={() => setLockedPopupOpen(false)} />
+      <CoursePurchasePopup course={cursoParaCompra} onClose={() => setCursoParaCompra(null)} />
     </div>
   );
 }
