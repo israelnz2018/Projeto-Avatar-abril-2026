@@ -256,7 +256,14 @@ const CSS = `
 .plbw .plan h3{font-size:22px}.plbw .price{font-size:24px}.plbw th,.plbw td{padding:14px 12px}.plbw .faq-q{padding:17px 18px}.plbw .faq-a{padding:0 18px 18px}}
 `;
 
-export default function LandingPlataformaLBW() {
+/**
+ * A /formacao usa esta MESMA página, trocando só o hero pelo dela (título,
+ * texto e o vídeo VTurb). Por isso o hero é um slot: assim planos, preços,
+ * comparativo, ferramentas, cursos e FAQ vivem em um lugar só e as duas
+ * páginas não têm como divergir — foi exatamente o que aconteceu antes com os
+ * preços, que precisaram virar planosLBW.ts pra parar de andar separados.
+ */
+export default function LandingPlataformaLBW({ hero }: { hero?: React.ReactNode } = {}) {
   const [faqAberta, setFaqAberta] = useState(0);
   const [pausarFerramentas, setPausarFerramentas] = useState(false);
   const [pausarCursos, setPausarCursos] = useState(false);
@@ -423,6 +430,7 @@ export default function LandingPlataformaLBW() {
           <a className="nav-cta" href="#planos">Ver planos</a>
         </div>
       </nav>
+      {hero ?? (
       <header className="hero" id="top"><div className="wrap">
         <div className="brand">LBW · EDUCAÇÃO PELO TRABALHO</div>
         <span className="pill">UMA PLATAFORMA · TRÊS FORMAS DE EVOLUIR</span>
@@ -431,6 +439,7 @@ export default function LandingPlataformaLBW() {
         <div className="hero-actions"><a className="btn btn-primary" href="#planos">Comparar os planos</a><a className="btn btn-secondary" href="#como-escolher">Entender as diferenças</a></div>
         <div className="hero-proof-wrap"><div className="hero-proof-title">Sua evolução na LBW</div><div className="hero-proof-subtitle">Do conhecimento à liderança de projetos</div><div className="hero-proof"><div className="proof" data-step="01"><span className="proof-stage">Primeiro degrau</span><strong>Aprenda</strong><span className="proof-copy">Cursos, exercícios e avaliações</span></div><div className="proof" data-step="02"><span className="proof-stage">Segundo degrau</span><strong>Aplique</strong><span className="proof-copy">Análises, IA, relatórios e PPT</span></div><div className="proof" data-step="03"><span className="proof-stage">Terceiro degrau</span><strong>Lidere</strong><span className="proof-copy">Projetos reais de melhoria</span></div></div></div>
       </div></header>
+      )}
 
       <main>
         <section className="section" id="planos"><div className="wrap">
