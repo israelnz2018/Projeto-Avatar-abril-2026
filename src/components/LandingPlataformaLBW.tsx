@@ -118,6 +118,25 @@ const FERRAMENTA_IMAGENS: string[][] = [
   ['/landing-tools/adkar.png'],
 ];
 
+// Banners dos cursos: o próprio banner já contém o nome do curso, então os
+// cards desta vitrine não repetem um título acima da imagem.
+const CURSOS_IMAGENS = [
+  { src: '/landing-courses/estatistica-aplicada-ferramentas-qualidade.png', alt: 'Estatística Aplicada e Ferramentas da Qualidade' },
+  { src: '/landing-courses/msa-analise-sistema-medicao.png', alt: 'MSA - Análise do Sistema de Medição' },
+  { src: '/landing-courses/analise-inferencial-testes-hipoteses.png', alt: 'Análise Inferencial - Testes de Hipóteses' },
+  { src: '/landing-courses/analise-preditiva-regressoes-correlacoes.png', alt: 'Análise Preditiva - Regressões e Correlações' },
+  { src: '/landing-courses/capabilidade-processo-avancado.png', alt: 'Capabilidade de Processo Avançado' },
+  { src: '/landing-courses/cep-controle-estatistico-processo.png', alt: 'CEP - Controle Estatístico de Processo' },
+  { src: '/landing-courses/kit-90-dias.png', alt: 'Como Resolver Problemas no Trabalho - Kit 90 dias' },
+  { src: '/landing-courses/apresentacoes-eficazes.png', alt: 'Apresentações Eficazes' },
+  { src: '/landing-courses/gerenciamento-mudanca-adkar.png', alt: 'Gerenciamento de Mudança - ADKAR' },
+  { src: '/landing-courses/gerenciamento-riscos-fmea-pmi.png', alt: 'Gerenciamento de Riscos - FMEA e PMI' },
+  { src: '/landing-courses/gerenciamento-cultura-lean.png', alt: 'Gerenciamento e Cultura Lean' },
+  { src: '/landing-courses/formacao-profissional-gestao-projetos-melhoria.png', alt: 'Formação Profissional em Gestão de Projetos de Melhoria' },
+  { src: '/landing-courses/software-estatistico-formacao-projetos.png', alt: 'Software Estatístico + Formação em Gestão de Projetos de Melhoria' },
+  { src: '/landing-courses/plataforma-profissional-gestao-projetos.png', alt: 'Plataforma Profissional em Gestão de Projetos de Melhoria' },
+];
+
 // `link` transforma a última frase da resposta num link — hoje só o FAQ de
 // consultores precisa, mas fica genérico pra não virar caso especial depois.
 const FAQ: Array<{ p: string; r: string; link?: { texto: string; href: string } }> = [
@@ -225,6 +244,7 @@ const CSS = `
 .plbw .tool-card-media{position:relative;z-index:1;flex:1;min-height:0;padding:9px;background:#f4f7fb;display:flex;align-items:center;justify-content:center}
 .plbw .tool-card-media.multi{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plbw .tool-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:7px;transition:transform .35s ease}.plbw .tool-card:hover .tool-card-image{transform:scale(1.025)}
+.plbw .course-card{position:relative;overflow:hidden;flex:0 0 auto;width:330px;height:330px;border-radius:20px;border:1px solid var(--line);background:#f4f7fb;display:flex;align-items:center;justify-content:center;transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;will-change:transform;padding:8px}.plbw .course-card:hover{z-index:3;transform:translateY(-5px) scale(1.012);border-color:rgba(96,165,250,.9);box-shadow:0 18px 42px rgba(33,100,243,.3)}.plbw .course-card-image{width:100%;height:100%;object-fit:contain;display:block;border-radius:14px;transition:transform .35s ease}.plbw .course-card:hover .course-card-image{transform:scale(1.025)}
 .plbw .faq{max-width:860px;margin:0 auto}.plbw .faq-item{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);margin-bottom:12px;overflow:hidden}.plbw .faq-q{width:100%;padding:20px 22px;display:flex;justify-content:space-between;gap:15px;border:0;background:none;color:#fff;text-align:left;font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer}.plbw .faq-a{padding:0 22px 20px;color:var(--muted);line-height:1.6}.plbw .faq-link{color:#7fb0ff;font-weight:700;white-space:nowrap}.plbw .faq-link:hover{color:#a9caff;text-decoration:underline}.plbw .final{text-align:center;padding:80px 0;background:linear-gradient(140deg,#10265e,#071127 55%,#08374c)}.plbw .final h2{font-size:clamp(32px,4vw,48px);max-width:760px;margin:0 auto 16px}.plbw .final p{color:#bac7e3;max-width:670px;margin:0 auto 28px;line-height:1.6}
 /* Empilhado, o selo do número (top:-18px) invade o card de cima se o gap for
    os mesmos 18px do desktop — por isso só o espaçamento cresce aqui. */
@@ -238,13 +258,23 @@ const CSS = `
 export default function LandingPlataformaLBW() {
   const [faqAberta, setFaqAberta] = useState(0);
   const [pausarFerramentas, setPausarFerramentas] = useState(false);
+  const [pausarCursos, setPausarCursos] = useState(false);
   const ferramentasRef = useRef<HTMLDivElement>(null);
+  const cursosRef = useRef<HTMLDivElement>(null);
 
   const avancarFerramentas = () => {
     const area = ferramentasRef.current;
     if (!area) return;
     const card = area.querySelector<HTMLElement>('.tool-card');
     const passo = (card?.offsetWidth || 420) + 16;
+    area.scrollBy({ left: passo, behavior: 'smooth' });
+  };
+
+  const avancarCursos = () => {
+    const area = cursosRef.current;
+    if (!area) return;
+    const card = area.querySelector<HTMLElement>('.course-card');
+    const passo = (card?.offsetWidth || 330) + 16;
     area.scrollBy({ left: passo, behavior: 'smooth' });
   };
 
@@ -273,6 +303,32 @@ export default function LandingPlataformaLBW() {
     frame = window.requestAnimationFrame(moverContinuamente);
     return () => window.cancelAnimationFrame(frame);
   }, [pausarFerramentas]);
+
+  useEffect(() => {
+    if (pausarCursos) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let frame = 0;
+    let instanteAnterior = performance.now();
+
+    const moverContinuamente = (agora: number) => {
+      const area = cursosRef.current;
+      if (area) {
+        const delta = Math.min(agora - instanteAnterior, 50);
+        area.scrollLeft += delta * 0.035;
+
+        const primeiro = area.querySelector<HTMLElement>('[data-course-copy="original"]');
+        const inicioCopia = area.querySelector<HTMLElement>('[data-course-copy="duplicate"]');
+        const larguraCiclo = primeiro && inicioCopia ? inicioCopia.offsetLeft - primeiro.offsetLeft : 0;
+        if (larguraCiclo > 0 && area.scrollLeft >= larguraCiclo) area.scrollLeft -= larguraCiclo;
+      }
+      instanteAnterior = agora;
+      frame = window.requestAnimationFrame(moverContinuamente);
+    };
+
+    frame = window.requestAnimationFrame(moverContinuamente);
+    return () => window.cancelAnimationFrame(frame);
+  }, [pausarCursos]);
 
   // Fontes injetadas aqui, e não no index.html, porque só esta landing usa
   // Space Grotesk/Instrument Sans — no index.html toda página do app pagaria o
@@ -425,6 +481,19 @@ export default function LandingPlataformaLBW() {
             </article>;
             })}</div></div>
             <button type="button" className="tools-next" onClick={avancarFerramentas} aria-label="Avançar cards de ferramentas" title="Avançar ferramentas">→</button>
+          </div>
+        </div></section>
+
+        <section className="section section-soft" id="cursos-disponiveis"><div className="wrap">
+          <div className="head"><small>CATÁLOGO DA LBW</small><h2>CURSOS DISPONÍVEIS NA PLATAFORMA LBW</h2><p>Conheça os cursos disponíveis para ampliar sua capacidade de aprender, aplicar e liderar melhorias.</p></div>
+          <div className="tools-carousel" onMouseEnter={() => setPausarCursos(true)} onMouseLeave={() => setPausarCursos(false)}>
+            <div className="tools-scroll" ref={cursosRef}><div className="tools-track">{[...CURSOS_IMAGENS, ...CURSOS_IMAGENS].map((curso, index) => {
+              const duplicado = index >= CURSOS_IMAGENS.length;
+              return <article className="course-card" key={`${curso.src}-${duplicado ? 'copia' : 'original'}`} data-course-copy={duplicado ? 'duplicate' : 'original'} aria-hidden={duplicado || undefined}>
+                <img className="course-card-image" src={curso.src} alt={duplicado ? '' : curso.alt} loading="lazy" />
+              </article>;
+            })}</div></div>
+            <button type="button" className="tools-next" onClick={avancarCursos} aria-label="Avançar cursos" title="Avançar cursos">→</button>
           </div>
         </div></section>
 
