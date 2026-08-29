@@ -28,13 +28,12 @@ const CSS = `
 .lfv h1{font-size:clamp(30px,5vw,46px);font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:0 auto 16px;max-width:860px;text-wrap:balance}
 .lfv .grad{background:linear-gradient(100deg,#fff 10%,#92b7ff 55%,#13c4df);-webkit-background-clip:text;background-clip:text;color:transparent}
 .lfv .lead{font-size:clamp(15px,2vw,18px);line-height:1.55;color:#aab6d2;max-width:680px;margin:0 auto 28px;text-wrap:pretty}
-/* O player do VTurb injeta a própria marcação ao dar play (controles, overlays)
-   e isso empurrava a altura da caixa — o vídeo crescia ao começar a tocar. O
-   aspect-ratio sozinho não segura: ele cede quando o conteúdo pede mais altura.
-   Tirando o player do fluxo (absolute + inset:0), a caixa manda no tamanho. */
-.lfv .videobox{position:relative;max-width:760px;margin:0 auto;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid rgba(164,188,244,.18);background:linear-gradient(160deg,#101a3a,#0a0f22)}
-.lfv .videobox > *{position:absolute;inset:0;width:100%;height:100%}
-.lfv .videobox video{width:100%;height:100%;object-fit:contain}
+/* NÃO forçar altura no vturb-smartplayer. Ele é um Web Component com Shadow
+   DOM: um height:100% no host chega lá dentro e faz o player esticar o vídeo
+   pra preencher, cortando as bordas — e o object-fit:contain que corrigiria
+   isso NÃO atravessa o shadow DOM. O player já se dimensiona em 16/9 sozinho;
+   aqui só limitamos a largura e arredondamos a borda. */
+.lfv .videobox{position:relative;max-width:760px;margin:0 auto;border-radius:18px;overflow:hidden;border:1px solid rgba(164,188,244,.18);background:#000;line-height:0}
 .lfv .cta-row{display:flex;justify-content:center;margin-top:28px}
 .lfv .cta{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:14px 30px;border-radius:12px;font-weight:800;font-size:15px;color:#fff;text-decoration:none;background:linear-gradient(120deg,#2866f4,#0aaacb);box-shadow:0 18px 42px -18px rgba(37,99,235,.9);transition:transform .2s ease}
 .lfv .cta:hover{transform:translateY(-2px)}
@@ -63,9 +62,10 @@ export default function LandingFormacao() {
         </p>
         <div className="videobox">
           <vturb-smartplayer id={VTURB_PLAYER_ID} style={{ display: 'block', margin: '0 auto', width: '100%' }}>
-            {/* Só o fundo preto enquanto o player carrega — a altura vem da
-                .videobox (16/9), não de padding. */}
-            <div style={{ position: 'absolute', inset: 0, zIndex: 0, backgroundColor: 'black' }} />
+            {/* Reserva o espaço 16/9 (padding-top 56.25%) enquanto o player
+                carrega, pra página não dar um salto quando ele aparece. É o
+                próprio player que define a altura final. */}
+            <div style={{ position: 'relative', width: '100%', padding: '56.25% 0 0', zIndex: 0, backgroundColor: 'black' }} />
           </vturb-smartplayer>
         </div>
         <div className="cta-row">
