@@ -56,7 +56,14 @@ const CSS = `
 .lf .orbB{width:420px;height:420px;background:radial-gradient(circle,#1E2D6E,transparent 70%);opacity:.4;bottom:-150px;left:-80px}
 .lf .hero h1{font-size:44px;font-weight:800;margin:22px 0 18px}
 .lf .hero .lead{font-size:19px;color:var(--txt);max-width:620px;margin:0 auto 30px;line-height:1.55}
-.lf .videobox{position:relative;max-width:760px;margin:0 auto;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(160deg,#101a3a,#0a0f22);display:flex;align-items:center;justify-content:center}
+/* O player do VTurb injeta a própria marcação ao dar play (controles, overlays)
+   e isso empurrava a altura da caixa — o vídeo "crescia" quando começava a
+   tocar. O aspect-ratio sozinho não segura: ele cede quando o conteúdo pede
+   mais altura. Tirando o player do fluxo (absolute + inset:0), a caixa passa a
+   mandar no tamanho e nada mais desloca a página. */
+.lf .videobox{position:relative;max-width:760px;margin:0 auto;aspect-ratio:16/9;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:linear-gradient(160deg,#101a3a,#0a0f22)}
+.lf .videobox > *{position:absolute;inset:0;width:100%;height:100%}
+.lf .videobox video{width:100%;height:100%;object-fit:contain}
 .lf .play{width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
 .lf .play::after{content:'';width:0;height:0;border-left:22px solid #fff;border-top:13px solid transparent;border-bottom:13px solid transparent;margin-left:5px}
 .lf .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
@@ -428,9 +435,12 @@ export default function LandingFormacao() {
               id={VTURB_PLAYER_ID}
               style={{ display: 'block', margin: '0 auto', width: '100%' }}
             >
+              {/* Só o fundo preto enquanto o player carrega. A altura vem da
+                  .videobox (16/9) — o antigo padding:56.25% duplicava esse
+                  cálculo agora que o player é posicionado por inset. */}
               <div
                 className="vturb-player-placeholder"
-                style={{ position: 'relative', width: '100%', padding: '56.25% 0 0', zIndex: 0, backgroundColor: 'black' }}
+                style={{ position: 'absolute', inset: 0, zIndex: 0, backgroundColor: 'black' }}
               />
             </vturb-smartplayer>
           </div>
