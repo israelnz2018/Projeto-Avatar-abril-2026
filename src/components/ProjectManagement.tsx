@@ -277,9 +277,12 @@ export default function ProjectManagement() {
       toast.error('Este tipo de projeto ainda não foi liberado para você.');
       return;
     }
-    // Mesmo gate que o LearningView usa: sem upgrade self-service pra quem é
-    // gerenciado por coordenador/consultor, e só no tenant da própria LBW.
-    if (porConsultor || resolveConsultorId() !== 'israel') {
+    // Gate igual ao do LearningView: SÓ o tenant. Não use `porConsultor` aqui —
+    // ele inclui `acessoPorCurso`, que é true para 96 dos 110 usuários (o
+    // webhook grava modeloAcesso:"por_curso" em toda compra). Ou seja, é
+    // exatamente o aluno pagante que queremos vender, e não um aluno
+    // "gerenciado por consultor" como o nome sugere.
+    if (resolveConsultorId() !== 'israel') {
       toast.error('Este tipo de projeto ainda não foi liberado para você.');
       return;
     }
