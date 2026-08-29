@@ -481,9 +481,13 @@ export interface RelatorioConsultor {
  */
 export async function getRelatorioConsultor(consultorId: string): Promise<RelatorioConsultor> {
   const userDocs = await getUserDocsByConsultor(consultorId);
+  // Alunos legados podem não ter tipoUsuario gravado. A tela MeusAlunos já
+  // trata esses documentos como aluno; o relatório precisa usar a mesma regra
+  // para não fazer a contagem desaparecer.
+  const tipoDeUsuario = (u: any): string => String(u.tipoUsuario || u.tipo || 'aluno').toLowerCase();
   const users = userDocs
     .map(d => ({ uid: d.id, ...(d.data() as any) }))
-    .filter(u => u.tipoUsuario !== 'admin');
+    .filter(u => tipoDeUsuario(u) !== 'admin');
 
   // Chave de segmento por usuário: coordenador/aluno com empresaId → empresaId; senão → 'diretos'
   const segDe = (u: any): string =>
@@ -496,7 +500,7 @@ export async function getRelatorioConsultor(consultorId: string): Promise<Relato
     if (u.empresaId) {
       const nome = u.empresaNome || u.empresaId;
       if (!nomeEmpresa.has(u.empresaId)) nomeEmpresa.set(u.empresaId, nome);
-      if (u.tipoUsuario === 'coordenador') {
+      if (tipoDeUsuario(u) === 'coordenador') {
         nomeEmpresa.set(u.empresaId, u.empresaNome || u.empresaId);
         nomeCoord.set(u.empresaId, u.nome || u.displayName || (u.email ? String(u.email).split('@')[0] : ''));
       }
@@ -519,7 +523,7 @@ export async function getRelatorioConsultor(consultorId: string): Promise<Relato
     uidSeg.set(u.uid, chave);
     const seg = segs.get(chave);
     if (!seg) return;
-    if (u.tipoUsuario === 'aluno') {
+    if (tipoDeUsuario(u) === 'aluno') {
       seg.totalAlunos++;
       if (u.primeiroAcessoEm) seg.ativos++;
     }
