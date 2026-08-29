@@ -170,6 +170,25 @@ export default function LandingGratisCapabilidade({ variante = 'capabilidade' }:
       if (!response.ok) throw new Error(data.error || 'Não foi possível liberar seu acesso.');
       setEmailEnviado(data.emailEnviado === true);
       setState('ok');
+      // Conversão para o Pixel da Meta. Sem este evento, uma campanha só
+      // consegue otimizar por clique/visita — o Meta não sabe QUEM se
+      // cadastrou, então não aprende a procurar mais gente parecida. É o que
+      // separa pagar por visita de pagar por lead. Disparado só no sucesso
+      // real da API, nunca no clique do botão.
+      try {
+        const w = window as any;
+        if (typeof w.fbq === 'function') {
+          w.fbq('track', 'Lead', {
+            content_name: config.produto,
+            content_category: 'curso-gratuito',
+            currency: 'BRL',
+            value: 0,
+          });
+        }
+      } catch {
+        // Bloqueador de anúncio derrubou o Pixel: o cadastro já foi feito e
+        // não pode falhar por causa de rastreamento.
+      }
     } catch (error: any) {
       setState('err'); setMessage(error?.message || 'Não foi possível liberar seu acesso.');
     }
