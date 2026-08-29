@@ -60,31 +60,25 @@ function Cards({ s }: { s: SegmentoRelatorio }) {
 export default function SuperRelatorio() {
   const [searchParams] = useSearchParams();
   const modoCoordenador = searchParams.get('area') === 'coordenador';
-  const modoDemonstracao = searchParams.get('demo') === '1' || searchParams.get('demo') === 'true';
   const { consultor, consultorId } = useConsultor();
   const [r, setR] = useState<RelatorioConsultor | null>(null);
   const [empresaSelecionada, setEmpresaSelecionada] = useState('');
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
+  const exibindoDadosFicticios = empresaSelecionada === 'empresa-x-demo';
 
   useEffect(() => {
     let ativo = true;
-    if (modoDemonstracao) {
-      setR(RELATORIO_DEMONSTRACAO);
-      setEmpresaSelecionada('empresa-x-demo');
-      setLoading(false);
-      setErro('');
-      return () => { ativo = false; };
-    }
     setLoading(true);
     setErro('');
     getRelatorioConsultor(consultorId)
       .then((res) => {
         if (ativo) {
-          setR(res);
+          const empresasReais = res.empresas.filter((e) => e.chave !== 'diretos');
+          setR({ ...res, empresas: [RELATORIO_DEMONSTRACAO.empresas[0], ...empresasReais] });
           // O painel único começa mostrando os alunos diretos; as demais
           // opções do seletor são os coordenadores/empresas.
-          setEmpresaSelecionada('diretos');
+          setEmpresaSelecionada('empresa-x-demo');
         }
       })
       .catch((e) => { if (ativo) setErro(e?.message || 'Erro ao carregar os relatórios.'); })
@@ -94,11 +88,8 @@ export default function SuperRelatorio() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-1">
-        <h1 className="text-2xl font-black text-gray-800">{modoDemonstracao ? 'Relatório demonstrativo' : modoCoordenador ? 'Relatório do Meu Time' : 'Relatórios'}</h1>
-        {!modoDemonstracao && <a href={`${window.location.pathname}?area=consultor&demo=1`} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100">Abrir demonstração segura</a>}
-      </div>
-      <p className="text-gray-500 text-sm mb-6">{modoDemonstracao ? 'Dados fictícios para apresentar a plataforma sem expor informações reais.' : modoCoordenador ? 'Selecione um coordenador para visualizar exatamente o relatório do time dele.' : <>O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</>}</p>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">{modoCoordenador ? 'Relatório do Meu Time' : 'Relatórios'}</h1>
+      <p className="text-gray-500 text-sm mb-6">{exibindoDadosFicticios ? 'Dados fictícios para apresentação, sem expor informações reais.' : modoCoordenador ? 'Selecione um coordenador para visualizar exatamente o relatório do time dele.' : <>O mundo de <b>{consultor.branding.nome}</b> — engajamento e resultados.</>}</p>
 
       {loading && <div className="text-gray-500">Calculando o painel…</div>}
       {erro && <div className="text-red-600 font-bold">❌ {erro}</div>}
@@ -110,7 +101,8 @@ export default function SuperRelatorio() {
               <Building2 size={15} /> Clientes
             </h2>
             <select value={empresaSelecionada} onChange={(event) => setEmpresaSelecionada(event.target.value)} className="mb-5 w-full max-w-md border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
-              {!modoDemonstracao && <option value="diretos">Meus próprios alunos</option>}
+              <option value="empresa-x-demo">Empresa X - FICTÍCIA</option>
+              <option value="diretos">Meus próprios alunos</option>
               {r.empresas.filter((e) => e.chave !== 'diretos').map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
             </select>
             {empresaSelecionada === 'diretos' ? (
