@@ -69,6 +69,7 @@ import {
   deleteInitiative,
   propagarRenomeacaoParaAcessos,
 } from '../services/configService';
+import { isSiteConsultor } from '../services/consultorService';
 import { ICON_CATALOG, COLOR_CATALOG } from '../services/initiativeVisual';
 import type { Initiative } from '../types';
 import { CourseSaleConfigModal, type CourseSaleConfig } from './CourseSaleConfigModal';
@@ -634,6 +635,9 @@ export default function KnowledgeManagerView() {
   // Multi-tenant: escopo do conteúdo pelo consultor atual (resolvido pelo subdomínio).
   // Hoje = 'israel' no app. e no israel., então nada muda — só passa a filtrar/carimbar por tenant.
   const { consultorId } = useConsultor();
+  // No site branded, o consultor cadastra apenas conteÃºdos de Aluno e Coordenador.
+  // O onboarding do consultor continua administrÃ¡vel pelo app.educa.
+  const siteConsultor = isSiteConsultor();
 
   const [formData, setFormData] = useState({
     placements: [{ course: '', playlist: '', newPlaylistName: '' }] as Array<{ course: string; playlist: string; newPlaylistName: string }>,
@@ -1783,15 +1787,26 @@ export default function KnowledgeManagerView() {
     }
   };
 
-  const filteredItems = items.filter(item => 
-    item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.playlist.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredItems = items.filter(item =>
+    (!siteConsultor || item.course !== INTRO_COURSE_CONSULTOR) && (
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.playlist.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
 
-  const uniqueCourses = Array.from(new Set(items.map(item => item.course).filter(Boolean)));
+  const uniqueCourses = Array.from(new Set(
+    items
+      .filter(item => !siteConsultor || item.course !== INTRO_COURSE_CONSULTOR)
+      .map(item => item.course)
+      .filter(Boolean)
+  ));
 
-  const introCourseOptions = [INTRO_COURSE_ALUNO, INTRO_COURSE_COORDENADOR, INTRO_COURSE_CONSULTOR];
+  const introCourseOptions = [
+    INTRO_COURSE_ALUNO,
+    INTRO_COURSE_COORDENADOR,
+    ...(siteConsultor ? [] : [INTRO_COURSE_CONSULTOR]),
+  ];
   const regularCourseOptions = initiativeNames.filter(c => !isIntroCourse(c));
 
   const playlistsForCourse = (course: string) => {
@@ -1801,7 +1816,7 @@ export default function KnowledgeManagerView() {
       : [];
     // A lista inicial aparece mesmo antes do primeiro vídeo ser cadastrado.
     return Array.from(new Set([
-      ...(course === INTRO_COURSE_CONSULTOR ? CONSULTOR_ONBOARDING_PLAYLISTS : []),
+      ...(!siteConsultor && course === INTRO_COURSE_CONSULTOR ? CONSULTOR_ONBOARDING_PLAYLISTS : []),
       ...playlistsCriadas,
     ]));
   };
