@@ -32,6 +32,15 @@
     <link rel="dns-prefetch" href="https://images.converteai.net" />
     <link rel="dns-prefetch" href="https://license.vturb.com" />
 
+    <!-- Hotmart: inicia DNS, TLS e download do widget antes do visitante
+         chegar aos botões de compra da página /plataformalbw. O script ainda
+         é ativado pela landing; aqui apenas aquecemos a conexão e o cache. -->
+    <link rel="preconnect" href="https://static.hotmart.com" />
+    <link rel="preconnect" href="https://pay.hotmart.com" />
+    <link rel="preconnect" href="https://checkout.hotmart.com" />
+    <link rel="preload" href="https://static.hotmart.com/checkout/widget.min.js" as="script" />
+    <link rel="preload" href="https://static.hotmart.com/css/hotmart-fb.min.css" as="style" />
+
     <!-- Meta Pixel Code -->
     <script>
       !function(f,b,e,v,n,t,s)
