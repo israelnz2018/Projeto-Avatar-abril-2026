@@ -3073,6 +3073,7 @@ async function startServer() {
         }
         senhaProvisoria = gerarSenhaProvisoria();
         await adminAuth().updateUser(uid, { email, displayName: nome, password: senhaProvisoria });
+        await adminAuth().revokeRefreshTokens(uid);
       } else {
         await adminAuth().updateUser(uid, { displayName: nome });
       }
