@@ -24,6 +24,7 @@ import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { deletarConvite, listarConvitesPorEmpresa, PendingInvite, updateUserSiglaPpt } from '../../services/userService';
 import { getProjetosComDetalhes, ProjetoComDetalhes } from '../../services/dashboardDataService';
+import { getCourses } from '../../services/configService';
 import {
   useResumoEquipe,
   useProjetosComDetalhes,
@@ -106,7 +107,7 @@ function CoordenadorShell({ children, light = false }: { children: React.ReactNo
 export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const isReport = modo === 'report';
   const uid = auth.currentUser?.uid || null;
-  const { consultor } = useConsultor();
+  const { consultor, consultorId } = useConsultor();
   const { empresaId, empresaNome, siglaPpt, cursosLiberados, cursosAcesso } = useUserAccess();
 
   const equipe = useResumoEquipe(empresaId, uid);
@@ -118,6 +119,7 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const [novoNome, setNovoNome] = useState('');
   const [novoEmail, setNovoEmail] = useState('');
   const [cursosConvite, setCursosConvite] = useState<CursoConvite[]>([]);
+  const [cursosCatalogo, setCursosCatalogo] = useState<string[]>([]);
   const [cadastroAberto, setCadastroAberto] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const [removingUid, setRemovingUid] = useState<string | null>(null);
@@ -128,6 +130,20 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     try { setInvites(await listarConvitesPorEmpresa(empresaId)); } catch { /* ignora */ }
   }, [empresaId]);
   useEffect(() => { carregarInvites(); }, [carregarInvites]);
+
+  // Mostra o catÃ¡logo completo do consultor. A seleÃ§Ã£o continua limitada aos
+  // cursos que o consultor jÃ¡ liberou para este coordenador.
+  useEffect(() => {
+    let ativo = true;
+    getCourses()
+      .then((cursos) => {
+        if (!ativo) return;
+        const nomes = cursos.map((curso) => String(curso.name || '').trim()).filter(Boolean);
+        setCursosCatalogo(Array.from(new Set(nomes)));
+      })
+      .catch(() => { if (ativo) setCursosCatalogo([]); });
+    return () => { ativo = false; };
+  }, [consultorId]);
 
   // Drill-down: ao clicar num membro, carrega os projetos dele (só leitura).
   const [drillMember, setDrillMember] = useState<{ uid: string; nome: string } | null>(null);
@@ -215,6 +231,10 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
   const totalAcessosCursos = cursosAcesso.reduce((s, c) => s + (Number((c as any).quantidade) || 0), 0);
   const totalUsadoCursos = cursosAcesso.reduce((s, c) => s + (usoPorCurso.get(c.curso) || 0), 0);
   const totalRestanteCursos = Math.max(0, totalAcessosCursos - totalUsadoCursos);
+  const cursosExibicao = Array.from(new Set([
+    ...(cursosCatalogo.length > 0 ? cursosCatalogo : cursosLiberados),
+    ...cursosLiberados,
+  ]));
 
   const solicitarMaisAcessos = () => {
     if (!consultor.email) {
@@ -389,22 +409,23 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
 
           <div className="mb-4">
             <p className="text-xs font-bold text-gray-600 mb-2 mt-0">Cursos que este aluno vai acessar</p>
-            {cursosLiberados.length === 0 ? (
+            {cursosExibicao.length === 0 ? (
               <p className="text-red-600 text-xs mt-0 mb-0">O consultor ainda nao liberou cursos para este coordenador e o time dele.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {cursosLiberados.map((curso) => {
+                {cursosExibicao.map((curso) => {
                   const item = cursosConvite.find((c) => c.curso === curso);
                   const cursoBase = cursosAcesso.find((c) => c.curso === curso);
                   const selecionado = !!item;
+                  const naoLiberadoParaOTime = !cursoBase;
                   const vencimento = cursoBase?.vencimento || item?.vencimento || null;
                   const limiteCurso = Number((cursoBase as any)?.quantidade) || 0;
                   const usadoCurso = usoPorCurso.get(curso) || 0;
                   const restante = Math.max(0, limiteCurso - usadoCurso);
                   const semConfiguracao = limiteCurso <= 0;
-                  const semSaldo = (semConfiguracao || restante <= 0) && !selecionado;
+                  const semSaldo = (naoLiberadoParaOTime || semConfiguracao || restante <= 0) && !selecionado;
                   return (
-                    <button key={curso} type="button" disabled={semSaldo} onClick={() => toggleCursoConvite(curso)} title={`Expira em ${vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : 'sem data'}`}
+                    <button key={curso} type="button" disabled={semSaldo} onClick={() => toggleCursoConvite(curso)} title={naoLiberadoParaOTime ? 'Curso do consultor ainda nao liberado para este time. Solicite ao consultor.' : `Expira em ${vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : 'sem data'}`}
                       className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${selecionado ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300'} disabled:cursor-not-allowed disabled:opacity-50`}>
                       {curso}{!semConfiguracao && <span className="ml-1 font-normal">· {restante} restantes</span>}
                     </button>

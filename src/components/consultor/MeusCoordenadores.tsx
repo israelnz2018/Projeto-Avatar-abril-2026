@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
-import { ChevronDown, Mail, Plus, Users2 } from 'lucide-react';
+import { ChevronDown, Mail, Pencil, Plus, Users2, X } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { empresaIdDireto } from '../../services/consultorService';
@@ -33,6 +33,7 @@ interface CoordRow {
   nome: string;
   email: string;
   empresa: string;
+  telefone: string;
   empresaId: string;
   time: number;
   timeAtivo: number;
@@ -77,6 +78,9 @@ export default function MeusCoordenadores() {
   const [eSalvando, setESalvando] = useState(false);
   const [eMsg, setEMsg] = useState('');
   const [removendoUid, setRemovendoUid] = useState<string | null>(null);
+  const [editando, setEditando] = useState<{ uid: string; nome: string; email: string; empresa: string; telefone: string } | null>(null);
+  const [salvandoDados, setSalvandoDados] = useState(false);
+  const [msgDados, setMsgDados] = useState('');
 
   const resumoConvite = resumoDaSel(selConvite, true);
   const resumoEdit = resumoDaSel(editSel, true);
@@ -107,6 +111,7 @@ export default function MeusCoordenadores() {
           nome: c.nome || c.displayName || (c.email ? String(c.email).split('@')[0] : '—'),
           email: c.email || '',
           empresa: c.empresaNome || c.empresaId || '—',
+          telefone: String(c.telefone || c.whatsapp || ''),
           empresaId: c.empresaId || '',
           time: time.length,
           timeAtivo: time.filter((a) => a.primeiroAcessoEm).length,
@@ -123,6 +128,7 @@ export default function MeusCoordenadores() {
         nome: 'Eu — meus próprios alunos',
         email: consultor.branding.nome || '',
         empresa: 'Alunos que você atende pessoalmente',
+        telefone: '',
         empresaId: direto,
         time: timeDireto.length,
         timeAtivo: timeDireto.filter((a) => a.primeiroAcessoEm).length,
@@ -216,6 +222,45 @@ export default function MeusCoordenadores() {
     }
   }
 
+  function iniciarEdicao(c: CoordRow) {
+    setMsgDados('');
+    setEditando({
+      uid: c.uid,
+      nome: c.nome,
+      email: c.email,
+      empresa: c.empresa === '—' ? '' : c.empresa,
+      telefone: c.telefone,
+    });
+  }
+
+  async function salvarDadosCoordenador() {
+    if (!editando) return;
+    if (!editando.nome.trim()) { setMsgDados('Informe o nome.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editando.email.trim())) { setMsgDados('Informe um e-mail válido.'); return; }
+    setSalvandoDados(true); setMsgDados('');
+    try {
+      const r = await authedFetch(`/api/coordenador/${encodeURIComponent(editando.uid)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: editando.nome, email: editando.email, empresa: editando.empresa, telefone: editando.telefone }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j.error || 'Não foi possível salvar os dados.');
+      setRows((atual) => atual.map((row) => row.uid === editando.uid
+        ? {
+            ...row,
+            nome: j.nome || editando.nome.trim(),
+            email: j.email || editando.email.trim().toLowerCase(),
+            empresa: j.empresaNome || editando.empresa.trim() || '—',
+            telefone: j.telefone || '',
+          }
+        : row));
+      setEditando(null);
+    } catch (e: any) {
+      setMsgDados(e?.message || 'Erro ao salvar.');
+    } finally { setSalvandoDados(false); }
+  }
+
   const campo = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
   const label = 'block text-xs font-black uppercase tracking-wide text-gray-500 mb-1';
 
@@ -279,7 +324,8 @@ export default function MeusCoordenadores() {
           const cursosExibidos = aberto && !c.euMesmo ? resumoEdit.cursosAcesso : c.cursosAcesso;
           return (
             <div key={c.uid} className={`bg-white border rounded-2xl overflow-hidden ${c.euMesmo ? 'border-blue-100' : 'border-gray-200'}`}>
-              <button onClick={() => alternar(c)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left bg-transparent">
+              <div className="w-full flex items-center gap-3 px-4 py-3.5">
+              <button onClick={() => alternar(c)} className="min-w-0 flex-1 flex items-center gap-3 text-left bg-transparent p-0">
                 <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 grid place-items-center shrink-0">
                   <Users2 size={20} />
                 </div>
@@ -307,6 +353,12 @@ export default function MeusCoordenadores() {
                 </div>
                 <ChevronDown size={18} className={`text-gray-400 transition-transform shrink-0 ${aberto ? 'rotate-180' : ''}`} />
               </button>
+              {!c.euMesmo && !modoCoordenador && (
+                <button type="button" onClick={() => iniciarEdicao(c)} title="Editar dados do coordenador" className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600">
+                  <Pencil size={16} />
+                </button>
+              )}
+              </div>
 
               {aberto && (
                 <div className="border-t border-gray-100 p-5 space-y-5">
@@ -355,6 +407,31 @@ export default function MeusCoordenadores() {
           );
         })}
       </div>
+
+      {editando && (
+        <div className="fixed inset-0 z-50 bg-slate-900/45 p-4 grid place-items-center" role="dialog" aria-modal="true" aria-label="Editar coordenador">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-black text-gray-800 m-0">Editar coordenador</h2>
+                <p className="text-xs text-gray-500 mt-1">Cursos, acessos e alunos do time serão preservados.</p>
+              </div>
+              <button type="button" onClick={() => { setEditando(null); setMsgDados(''); }} className="p-2 text-gray-400 hover:text-gray-700"><X size={20} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div><label className={label}>Nome completo</label><input value={editando.nome} onChange={(e) => setEditando({ ...editando, nome: e.target.value })} className={campo} /></div>
+              <div><label className={label}>E-mail de acesso</label><input type="email" value={editando.email} onChange={(e) => setEditando({ ...editando, email: e.target.value })} className={campo} /><p className="text-[11px] text-amber-600 mt-1">A alteração também muda o e-mail usado para entrar na plataforma.</p></div>
+              <div><label className={label}>Empresa</label><input value={editando.empresa} onChange={(e) => setEditando({ ...editando, empresa: e.target.value })} className={campo} /></div>
+              <div><label className={label}>Telefone / WhatsApp</label><input inputMode="tel" value={editando.telefone} onChange={(e) => setEditando({ ...editando, telefone: e.target.value })} className={campo} /></div>
+              {msgDados && <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{msgDados}</div>}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <button type="button" onClick={() => { setEditando(null); setMsgDados(''); }} className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-bold text-gray-700">Cancelar</button>
+              <button type="button" onClick={salvarDadosCoordenador} disabled={salvandoDados} className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50">{salvandoDados ? 'Salvando...' : 'Salvar alterações'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

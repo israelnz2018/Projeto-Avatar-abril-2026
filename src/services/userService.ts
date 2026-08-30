@@ -52,6 +52,8 @@ export interface UserData {
   origem?: string;
   empresaId?: string;
   empresaNome?: string;
+  telefone?: string;
+  whatsapp?: string;
   nome?: string;
   plano?: Plano | 'completo';
   modeloAcesso?: 'por_curso';

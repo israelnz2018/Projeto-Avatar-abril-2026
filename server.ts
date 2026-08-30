@@ -3012,6 +3012,90 @@ async function startServer() {
   // POST /api/aluno/convidar — o CONSULTOR (ou admin) adiciona/promove um ALUNO no tenant dele,
   // com cursos liberados (cada um com vencimento) e o valor pago. Conta nova = LBW2026 + troca no
   // 1º login; existente = mantém a senha e só ajusta. Autoriza consultor OU admin.
+  // PATCH /api/coordenador/:uid — edita os dados cadastrais do coordenador sem alterar
+  // cursos, acessos, empresaId ou os alunos já vinculados ao time.
+  app.patch("/api/coordenador/:uid", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    try {
+      const [callerSnap, targetSnap] = await Promise.all([
+        adminFirestore().collection("users").doc(callerUid).get(),
+        adminFirestore().collection("users").doc(String(req.params.uid || "")).get(),
+      ]);
+      if (!targetSnap.exists) return res.status(404).json({ error: "Coordenador não encontrado." });
+
+      const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+      const target = targetSnap.data() as any;
+      const callerEhAdmin = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"]
+        .includes(String(caller.email || "").toLowerCase());
+      const callerEhConsultor = caller.tipoUsuario === "consultor";
+      if (!callerEhAdmin && !callerEhConsultor) {
+        return res.status(403).json({ error: "Só o consultor ou admin pode editar coordenador." });
+      }
+      if (String(target.tipoUsuario || "") !== "coordenador") {
+        return res.status(400).json({ error: "Este usuário não é coordenador." });
+      }
+
+      const consultorId = String(caller.consultorId || "israel");
+      const pertenceAoTenant = String(target.consultorId || "") === consultorId
+        || target.vinculos?.[consultorId]?.tipoUsuario === "coordenador"
+        || (Array.isArray(target.consultorIds) && target.consultorIds.includes(consultorId));
+      if (!callerEhAdmin && !pertenceAoTenant) {
+        return res.status(403).json({ error: "Este coordenador não pertence ao seu ambiente." });
+      }
+
+      const nome = String(req.body?.nome || "").trim().slice(0, 120);
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      const empresaNome = String(req.body?.empresa || "").trim().slice(0, 160);
+      const telefone = String(req.body?.telefone || "").trim().slice(0, 40);
+      if (!nome) return res.status(400).json({ error: "Informe o nome do coordenador." });
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: "Informe um e-mail válido." });
+      }
+
+      const uid = targetSnap.id;
+      const emailAtual = String(target.email || "").trim().toLowerCase();
+      if (email !== emailAtual) {
+        try {
+          const outro = await adminAuth().getUserByEmail(email);
+          if (outro.uid !== uid) return res.status(409).json({ error: "Este e-mail já está sendo usado por outra conta." });
+        } catch (e: any) {
+          if (e?.code !== "auth/user-not-found") throw e;
+        }
+        await adminAuth().updateUser(uid, { email, displayName: nome });
+      } else {
+        await adminAuth().updateUser(uid, { displayName: nome });
+      }
+
+      const vinculos = { ...(target.vinculos || {}) };
+      Object.keys(vinculos).forEach((id) => {
+        if (vinculos[id] && typeof vinculos[id] === "object") {
+          vinculos[id] = { ...vinculos[id], email, nome };
+        }
+      });
+      await targetSnap.ref.update({
+        email,
+        nome,
+        empresaNome: empresaNome || null,
+        telefone: telefone || null,
+        ...(Object.keys(vinculos).length ? { vinculos } : {}),
+      });
+      return res.json({ ok: true, uid, email, nome, empresaNome, telefone });
+    } catch (err: any) {
+      console.error("[PATCH /api/coordenador/:uid] erro:", err);
+      if (err?.code === "auth/invalid-email") return res.status(400).json({ error: "E-mail inválido." });
+      if (err?.code === "auth/email-already-exists") return res.status(409).json({ error: "Este e-mail já está sendo usado por outra conta." });
+      return res.status(500).json({ error: err?.message || "Erro ao editar coordenador." });
+    }
+  });
+
   // POST /api/leads-consultor — formulário público da landing /consultores.
   // As primeiras vagas são aprovadas manualmente pelo administrador antes que o
   // consultor receba a plataforma.
