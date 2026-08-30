@@ -264,18 +264,23 @@ export default function DashboardCoordenador({ nome, modo = 'gestao' }: Props) {
     if (!email.includes('@')) { setErrMsg('Informe um e-mail valido.'); return; }
     if (cursosConvite.length === 0) { setErrMsg('Escolha ao menos um curso para o aluno.'); return; }
     if (cursosConvite.some((c) => !c.vencimento)) { setErrMsg('Informe a data de expiracao de todos os cursos.'); return; }
+    const enviarEmail = window.confirm(
+      'Deseja enviar o e-mail de acesso para este aluno?\n\n' +
+      'OK = cadastrar e enviar o e-mail.\n' +
+      'Cancelar = cadastrar sem enviar o e-mail.'
+    );
     setAddingMember(true); setErrMsg(null); setOkMsg(null);
     try {
       const r = await authedFetch('/api/aluno/convidar', {
         method: 'POST',
-        body: JSON.stringify({ nome: novoNome.trim(), email, cursosAcesso: cursosConvite }),
+        body: JSON.stringify({ nome: novoNome.trim(), email, cursosAcesso: cursosConvite, enviarEmail }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (!r.ok) throw new Error(j?.error || 'Falha ao convidar.');
       setNovoNome('');
       setNovoEmail('');
       setCursosConvite([]);
-      setOkMsg(`Aluno ${j.status === 'criado' ? 'cadastrado' : 'atualizado'} com sucesso. ${j.emailEnviado ? 'Convite enviado por e-mail.' : 'Cadastro salvo, mas o e-mail nao foi enviado.'}`);
+      setOkMsg(`Aluno ${j.status === 'criado' ? 'cadastrado' : 'atualizado'} com sucesso. ${j.emailEnviado ? 'Convite enviado por e-mail.' : 'Cadastro salvo sem envio de e-mail.'}`);
       await carregarInvites();
       equipe.refetch();
     } catch (e: any) { setErrMsg(e?.message || 'Falha ao convidar.'); }

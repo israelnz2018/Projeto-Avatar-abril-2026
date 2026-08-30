@@ -3250,6 +3250,9 @@ async function startServer() {
     const analyticsAcessoSolicitado = Array.isArray(req.body?.acessoProdutos?.analytics) ? req.body.acessoProdutos.analytics : [];
     const projetosAcessoSolicitado = Array.isArray(req.body?.projetosAcesso) ? req.body.projetosAcesso : [];
     const valorPago = Number(req.body?.valorPago) >= 0 ? Number(req.body.valorPago) : 0;
+    // O coordenador pode cadastrar sem disparar o convite. Ausência do campo
+    // preserva o comportamento anterior para os demais chamadores da rota.
+    const enviarEmail = req.body?.enviarEmail !== false;
     if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
     const SENHA_CONVITE = gerarSenhaProvisoria();
     let empresaId: string | null = null;
@@ -3448,7 +3451,7 @@ async function startServer() {
 
       const site = `https://${consultorId}.educacaopelotrabalho.com`;
       let emailEnviado = false;
-      try {
+      if (enviarEmail) try {
         const saud = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
         const nomeQuemConvidou = String(caller.nome || caller.displayName || caller.email || "O coordenador da empresa").trim();
         const empresaConviteNome = String(empresaNome || caller.empresaNome || "sua empresa").trim();
@@ -3480,7 +3483,7 @@ async function startServer() {
         const r = await resendSend({ to: email, subject: "Seu acesso à plataforma LBW foi liberado", html });
         emailEnviado = r.ok;
       } catch (e) { console.error("[aluno/convidar] falha e-mail:", e); }
-      return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, emailEnviado });
+      return res.json({ ok: true, status: novo ? "criado" : "atualizado", email, emailEnviado, emailSolicitado: enviarEmail });
     } catch (err: any) {
       console.error("[POST /api/aluno/convidar] erro:", err);
       return res.status(500).json({ error: err?.message || "Erro ao adicionar aluno." });
