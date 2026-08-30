@@ -4517,6 +4517,22 @@ async function startServer() {
   // Vai direto pro "pago" (relacionamento).
   // Corte de engajamento da Trilha 1: assistiu MAIS de 2 vídeos = engajado.
   const VIDEOS_ENGAJADO = 2;
+  // Nome do curso da Trilha 1 (mesma string do PACOTE_KIT90_NOME do webhook).
+  const CURSO_TRILHA1 = "Como Resolver Problemas no Trabalho - Kit 90 dias";
+  // A pessoa tem MESMO a Trilha 1? Olha a lista de cursos liberados, nos dois
+  // formatos que convivem hoje: cursosLiberados (nomes) e cursosAcesso (objetos).
+  // Normaliza porque o mesmo curso aparece com caixa diferente entre registros
+  // ("Estatística Aplicada..." e "Estatística aplicada...").
+  function temCursoTrilha1(u: any): boolean {
+    const semAcento = (v: unknown) =>
+      String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    const alvo = semAcento(CURSO_TRILHA1);
+    const nomes = [
+      ...(Array.isArray(u?.cursosLiberados) ? u.cursosLiberados : []),
+      ...(Array.isArray(u?.cursosAcesso) ? u.cursosAcesso.map((c: any) => c?.curso) : []),
+    ];
+    return nomes.some((n) => semAcento(n) === alvo);
+  }
   // videosPorUid: mapa uid → nº de vídeos assistidos (de userProgress). Opcional:
   // se não vier, trata todo Trilha 1 como "gratis" (novo) — fallback seguro.
   function classificarSequencia(u: any, videosPorUid?: Record<string, number>): "gratis" | "gratisEngajado" | "pago7" | "pago" | null {
@@ -4526,6 +4542,16 @@ async function startServer() {
     //   - Tem só a Trilha 1 (comprou o Kit 90 OU ganhou de cortesia) → aba "Trilha 1"
     //   - Tem o Completo (comprou OU ganhou de cortesia)             → aba "Completo"
     if (u.plano !== "completo") {
+      // As sequências "gratis" e "gratisEngajado" falam SÓ da Trilha 1 (Kit 90
+      // Dias): citam as fases dela e mandam abrir aquele conteúdo. Antes bastava
+      // não ser "completo" pra cair aqui — o que fazia sentido quando só
+      // existiam dois produtos. Com os cursos avulsos e o modelo por_curso,
+      // isso passou a mandar a régua do Kit 90 para 102 de 110 usuários, sendo
+      // que só 1 tinha o curso. Quem entrou pelo grátis de Estatística Aplicada
+      // recebia e-mail mandando abrir fases que ele nem tem acesso.
+      // Agora só entra quem REALMENTE tem a Trilha 1. Os demais ficam sem
+      // sequência até existirem réguas por curso.
+      if (!temCursoTrilha1(u)) return null;
       // Trilha 1 se divide por ENGAJAMENTO (vídeos assistidos):
       //   >2 vídeos → "gratisEngajado" (vender o completo)
       //   ≤2 vídeos → "gratis" (ativar; fala só da Trilha 1)
@@ -5489,7 +5515,7 @@ async function startServer() {
     // O plano pode vir normalizado pelo n8n ou, como fallback seguro, do nome
     // real do produto enviado pela Hotmart.
     const planoRaw = String(body.plano || nomeProdutoHotmart || "").toLowerCase().trim();
-    const normalizarPacote = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+    const normalizarPacote = (valor: string) => valor.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
     const PACOTE_KIT90_ID = "como-resolver-problemas-no-trabalho-kit-90-dias";
     const PACOTE_KIT90_NOME = "Como Resolver Problemas no Trabalho - Kit 90 dias";
     const isCompraTrilha1 = planoRaw === "trilha1"
