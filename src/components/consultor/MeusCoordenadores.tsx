@@ -237,12 +237,22 @@ export default function MeusCoordenadores() {
     if (!editando) return;
     if (!editando.nome.trim()) { setMsgDados('Informe o nome.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editando.email.trim())) { setMsgDados('Informe um e-mail válido.'); return; }
+    const emailNovo = editando.email.trim().toLowerCase();
+    const coordenadorAtual = rows.find((row) => row.uid === editando.uid);
+    const emailAtual = String(coordenadorAtual?.email || '').trim().toLowerCase();
+    const emailMudou = !!emailAtual && emailNovo !== emailAtual;
+    if (emailMudou && !window.confirm(
+      'Você está substituindo o e-mail de acesso deste coordenador.\n\n' +
+      'A empresa, a equipe, os cursos e o histórico serão preservados. ' +
+      'A senha anterior deixará de funcionar e uma nova senha provisória será enviada para o novo e-mail.\n\n' +
+      'Deseja continuar?'
+    )) return;
     setSalvandoDados(true); setMsgDados('');
     try {
       const r = await authedFetch(`/api/coordenador/${encodeURIComponent(editando.uid)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: editando.nome, email: editando.email, empresa: editando.empresa, telefone: editando.telefone }),
+        body: JSON.stringify({ nome: editando.nome, email: emailNovo, empresa: editando.empresa, telefone: editando.telefone }),
       });
       const j = await r.json().catch(() => ({} as any));
       if (!r.ok) throw new Error(j.error || 'Não foi possível salvar os dados.');
@@ -255,6 +265,11 @@ export default function MeusCoordenadores() {
             telefone: j.telefone || '',
           }
         : row));
+      setMsg(j.emailEnviado
+        ? '✅ Dados atualizados. Novo acesso enviado por e-mail.'
+        : emailMudou
+        ? '⚠️ Dados atualizados, mas o novo e-mail de acesso não foi enviado.'
+        : '✅ Dados do coordenador atualizados.');
       setEditando(null);
     } catch (e: any) {
       setMsgDados(e?.message || 'Erro ao salvar.');

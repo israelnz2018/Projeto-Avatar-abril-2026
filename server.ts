@@ -3062,14 +3062,17 @@ async function startServer() {
 
       const uid = targetSnap.id;
       const emailAtual = String(target.email || "").trim().toLowerCase();
-      if (email !== emailAtual) {
+      const emailMudou = email !== emailAtual;
+      let senhaProvisoria = "";
+      if (emailMudou) {
         try {
           const outro = await adminAuth().getUserByEmail(email);
           if (outro.uid !== uid) return res.status(409).json({ error: "Este e-mail já está sendo usado por outra conta." });
         } catch (e: any) {
           if (e?.code !== "auth/user-not-found") throw e;
         }
-        await adminAuth().updateUser(uid, { email, displayName: nome });
+        senhaProvisoria = gerarSenhaProvisoria();
+        await adminAuth().updateUser(uid, { email, displayName: nome, password: senhaProvisoria });
       } else {
         await adminAuth().updateUser(uid, { displayName: nome });
       }
@@ -3085,9 +3088,38 @@ async function startServer() {
         nome,
         empresaNome: empresaNome || null,
         telefone: telefone || null,
+        ...(emailMudou ? { senhaProvisoria: true } : {}),
         ...(Object.keys(vinculos).length ? { vinculos } : {}),
       });
-      return res.json({ ok: true, uid, email, nome, empresaNome, telefone });
+      let emailEnviado = false;
+      if (emailMudou) {
+        const site = `https://${consultorId}.educacaopelotrabalho.com`;
+        const escaparHtml = (valor: unknown) => String(valor || '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c] as string));
+        const primeiroNome = nome.split(/\s+/)[0] || nome;
+        const html = `
+<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto">
+  <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0">
+    <h1 style="margin:0;font-size:22px">Seu novo acesso de Coordenador na LBW</h1>
+  </div>
+  <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px">
+    <p style="font-size:15px">Olá <strong>${escaparHtml(primeiroNome)}</strong>!</p>
+    <p>Seu acesso como coordenador foi atualizado na plataforma LBW. A empresa, a equipe e os cursos vinculados foram preservados.</p>
+    <div style="background:#F0F2FA;border-left:4px solid #0033CC;padding:14px 16px;margin:20px 0">
+      <strong>Novos dados de acesso</strong><br>
+      E-mail: <strong>${escaparHtml(email)}</strong><br>
+      Senha provisória: <code style="background:#fff;padding:3px 7px;border:1px solid #ccc;border-radius:4px">${escaparHtml(senhaProvisoria)}</code>
+    </div>
+    <p>Por segurança, crie uma nova senha no primeiro acesso.</p>
+    <p style="text-align:center;margin:24px 0"><a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar minha plataforma</a></p>
+    <p style="font-size:13px;color:#666">Se você não esperava esta alteração, entre em contato com o consultor responsável.</p>
+  </div>
+</div>`;
+        try {
+          const envio = await resendSend({ to: email, subject: "Seu novo acesso de Coordenador na plataforma LBW", html });
+          emailEnviado = envio.ok;
+        } catch (e) { console.error("[PATCH /api/coordenador/:uid] falha no envio do novo acesso:", e); }
+      }
+      return res.json({ ok: true, uid, email, nome, empresaNome, telefone, emailMudou, emailEnviado });
     } catch (err: any) {
       console.error("[PATCH /api/coordenador/:uid] erro:", err);
       if (err?.code === "auth/invalid-email") return res.status(400).json({ error: "E-mail inválido." });
