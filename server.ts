@@ -3598,6 +3598,7 @@ async function startServer() {
         curso: "Capabilidade de Processo Avançado",
         nomePacote: "Capabilidade de Processo Avançado",
         analytics: [{ modulo: "capabilidade", nome: "Capabilidade" }],
+        projetoNome: null,
       },
       "estatistica-aplicada": {
         curso: "Estatística aplicada e ferramentas da qualidade",
@@ -3606,8 +3607,18 @@ async function startServer() {
           { modulo: "graficos", nome: "Gráficos" },
           { modulo: "diversas", nome: "Análises Diversas" },
         ],
+        projetoNome: null,
       },
-    } as const)[produto as "capabilidade-processo-gratis" | "estatistica-aplicada"];
+      "yellow-belt-gratis": {
+        curso: "Formação Profissional em Gestão de Projetos de Melhoria - Nível Yellow Belt",
+        nomePacote: "Formação Profissional em Gestão de Projetos de Melhoria - Nível Yellow Belt",
+        analytics: [
+          { modulo: "graficos", nome: "Gráficos" },
+          { modulo: "diversas", nome: "Análises Diversas" },
+        ],
+        projetoNome: "LEAN SIX SIGMA YELLOW BELT",
+      },
+    } as const)[produto as "capabilidade-processo-gratis" | "estatistica-aplicada" | "yellow-belt-gratis"];
     if (!configuracaoGratis) return res.status(400).json({ error: "Produto gratuito inválido." });
     if (nome.length < 2) return res.status(400).json({ error: "Informe seu nome." });
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Informe um e-mail válido." });
@@ -3639,6 +3650,31 @@ async function startServer() {
     };
 
     try {
+      let projetoGratis: { projeto: string; nome: string; vencimento: string; valor: number } | null = null;
+      if (configuracaoGratis.projetoNome) {
+        const iniciativasSnapshot = await adminFirestore().collection("initiatives").get();
+        const cursoDoc = iniciativasSnapshot.docs.find((doc: any) => {
+          const dados = doc.data() as any;
+          return dados.somenteProjeto !== true
+            && normalizarNomeLanding(dados.name) === normalizarNomeLanding(configuracaoGratis.curso);
+        });
+        const projetoDoc = iniciativasSnapshot.docs.find((doc: any) => {
+          const dados = doc.data() as any;
+          if (dados.somenteProjeto !== true) return false;
+          const associadoAoCurso = cursoDoc && String(dados.cursoAssociadoId || "") === String(cursoDoc.id);
+          const nomeEsperado = normalizarNomeLanding(dados.name) === normalizarNomeLanding(configuracaoGratis.projetoNome);
+          return associadoAoCurso || nomeEsperado;
+        });
+        if (!projetoDoc) throw new Error("O projeto Yellow Belt associado ao curso não foi encontrado.");
+        const projetoDados = projetoDoc.data() as any;
+        projetoGratis = {
+          projeto: projetoDoc.id,
+          nome: String(projetoDados.name || configuracaoGratis.projetoNome),
+          vencimento: validadeGratis,
+          valor: 0,
+        };
+      }
+
       let uid = "";
       let senhaProvisoria = "";
       let novo = false;
@@ -3665,13 +3701,22 @@ async function startServer() {
         ...analyticsAnteriores.filter((item: any) => !modulosGratis.has(String(typeof item === "string" ? item : item?.modulo || item?.id || "").trim())),
         ...analyticsGratis,
       ];
+      const projetosAnteriores = Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [];
+      const projetosAcesso = projetoGratis
+        ? [
+            ...projetosAnteriores.filter((item: any) => String(typeof item === "string" ? item : item?.projeto || item?.projetoId || "").trim() !== projetoGratis?.projeto),
+            projetoGratis,
+          ]
+        : projetosAnteriores;
+      const projetosAcessoConfigurado = projetoGratis ? true : anterior.projetosAcessoConfigurado === true;
       const vinculo = {
         ...anterior,
         tipoUsuario: anterior.tipoUsuario === "consultor" || anterior.tipoUsuario === "coordenador" ? anterior.tipoUsuario : "aluno",
         consultorId, plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso,
         cursosLiberados: cursosAcesso.map((item: any) => item.curso),
         acessoProdutos: { ...(anterior.acessoProdutos || {}), analytics: analyticsAcesso },
-        projetosAcesso: Array.isArray(anterior.projetosAcesso) ? anterior.projetosAcesso : [],
+        projetosAcesso,
+        projetosAcessoConfigurado,
         origem: anterior.origem || `landing-${produto}`, ultimoCadastroGratisEm: agora,
         profissao, interesseCurso, interesseCursos, whatsapp,
         consentimentos: { ...(anterior.consentimentos || {}), termosTreinamentoGratuito: consentimentoGratuito },
@@ -3686,7 +3731,7 @@ async function startServer() {
         uid, email, nome: nome || base.nome || "", profissao, interesseCurso, interesseCursos, whatsapp,
         tipoUsuario: base.tipoUsuario === "admin" || base.tipoUsuario === "coordenador" || base.tipoUsuario === "consultor" ? base.tipoUsuario : "aluno",
         consultorId: preservarPrincipal ? base.consultorId : consultorId, consultorIds, vinculos,
-        ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso }),
+        ...(preservarPrincipal ? {} : { plano: "por_curso", modeloAcesso: "por_curso", cursosAcesso, cursosLiberados: cursosAcesso.map((item: any) => item.curso), acessoProdutos: vinculo.acessoProdutos, projetosAcesso: vinculo.projetosAcesso, projetosAcessoConfigurado: vinculo.projetosAcessoConfigurado }),
         origem: base.origem || `landing-${produto}`,
         formacoes: Array.from(new Set([...(Array.isArray(base.formacoes) ? base.formacoes : []), produto])),
         consentimentos: { ...(base.consentimentos || {}), termosTreinamentoGratuito: consentimentoGratuito },
@@ -3697,21 +3742,24 @@ async function startServer() {
       let emailEnviado = false;
       const site = `https://${consultorId}.educacaopelotrabalho.com`;
       const primeiroNome = nome.split(/\s+/)[0].replace(/[<>&]/g, "");
-      if (produto === "estatistica-aplicada") {
+      if (produto === "estatistica-aplicada" || produto === "yellow-belt-gratis") {
         const credenciaisEstatistica = novo
           ? `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Seus dados de acesso</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:3px 6px;border-radius:4px">${senhaProvisoria}</code><br><small>No primeiro acesso, você criará sua senha definitiva.</small></div>`
           : `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Como entrar</strong><br>Use o e-mail <strong>${email}</strong> e a senha que você já utiliza na plataforma.</div>`;
         const itensEstatistica = [
           `Curso ${configuracaoGratis.curso}`,
           ...configuracaoGratis.analytics.map((item) => `Data Analysis - módulo ${item.nome}`),
+          ...(projetoGratis ? [`Projeto ${projetoGratis.nome} com ferramentas da qualidade e templates prontos`] : []),
           "IA digital do Israel para apoiar o uso das ferramentas liberadas",
           "Participação na comunidade LBW",
-          "Certificado após cumprir 70% dos vídeos, obter 70% na avaliação e enviar o depoimento",
+          produto === "yellow-belt-gratis"
+            ? "Certificado de conclusão do curso após cumprir 70% dos vídeos, obter 70% na avaliação e enviar o depoimento; a certificação do projeto não está incluída"
+            : "Certificado após cumprir 70% dos vídeos, obter 70% na avaliação e enviar o depoimento",
           "Acesso válido até 31 de dezembro de 2026",
         ].map((item) => `<li style="margin-bottom:6px">${item}</li>`).join("");
         const htmlEstatistica = `<!doctype html><html lang="pt-BR"><body style="margin:0;padding:0;background:#F4F7FB;font-family:Arial,Helvetica,sans-serif;color:#273142"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F4F7FB"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #D9E0EA"><tr><td style="background:#1E2D6E;color:#fff;padding:28px 30px"><h1 style="margin:0;font-size:24px;line-height:1.25">Seu acesso gratuito foi liberado</h1><p style="margin:8px 0 0;font-size:15px;color:#DCE6FF">LBW - Educação pelo Trabalho</p></td></tr><tr><td style="padding:30px;font-size:16px;line-height:1.55"><p style="margin:0 0 16px">Olá, ${primeiroNome}!</p><p style="margin:0 0 16px">Você recebeu gratuitamente o pacote <strong>${configuracaoGratis.nomePacote}</strong>.</p><ul style="margin:0 0 22px;padding-left:22px">${itensEstatistica}</ul>${credenciaisEstatistica}<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:26px auto"><tr><td align="center" bgcolor="#2563EB" style="border-radius:8px;background:#2563EB"><a href="${site}" style="display:inline-block;background:#2563EB;border:1px solid #2563EB;border-radius:8px;color:#FFFFFF;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 28px">Acessar a plataforma -&gt;</a></td></tr></table><p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#64748B">Se você não solicitou este acesso, ignore este e-mail.</p></td></tr></table></td></tr></table></body></html>`;
         try { emailEnviado = (await resendSend({ to: email, subject: `Seu acesso gratuito a ${configuracaoGratis.nomePacote}`, html: htmlEstatistica })).ok; } catch (err) { console.error("[public/acesso-gratis] falha e-mail:", err); }
-        return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analyticsGratis.map((item) => item.modulo) } });
+        return res.json({ ok: true, status: novo ? "criado" : "atualizado", uid, email, emailEnviado, acesso: { curso, analytics: analyticsGratis.map((item) => item.modulo), projetos: projetoGratis ? [projetoGratis.projeto] : [] } });
       }
       const credenciais = novo
         ? `<div style="background:#F0F2FA;border-left:4px solid #2563EB;padding:16px 18px;margin:22px 0"><strong>Seus dados de acesso</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:3px 6px;border-radius:4px">${senhaProvisoria}</code><br><small>No primeiro acesso, você criará sua senha definitiva.</small></div>`

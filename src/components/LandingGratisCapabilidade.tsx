@@ -3,7 +3,7 @@ import RodapeInstitucional from './RodapeInstitucional';
 
 type FormState = 'idle' | 'sending' | 'ok' | 'err';
 
-type LandingGratisVariante = 'capabilidade' | 'estatistica';
+type LandingGratisVariante = 'capabilidade' | 'estatistica' | 'yellowbelt';
 
 const TERMOS_GRATUITOS_VERSAO = 'gratuitos-2026-08-25';
 
@@ -17,6 +17,7 @@ const CONFIG_LANDING: Record<LandingGratisVariante, {
   beneficio1Descricao: string;
   beneficio2: string;
   beneficio2Descricao: string;
+  beneficio3: string;
   beneficio3Descricao: string;
 }> = {
   capabilidade: {
@@ -29,6 +30,7 @@ const CONFIG_LANDING: Record<LandingGratisVariante, {
     beneficio1Descricao: 'Aprenda a interpretar a capabilidade.',
     beneficio2: 'Faça as análises estatísticas',
     beneficio2Descricao: 'Use o software gratuito.',
+    beneficio3: 'Converse com a IA digital',
     beneficio3Descricao: 'Tire dúvidas sobre os resultados.',
   },
   estatistica: {
@@ -41,7 +43,21 @@ const CONFIG_LANDING: Record<LandingGratisVariante, {
     beneficio1Descricao: 'Aprenda estatística aplicada na prática.',
     beneficio2: 'Faça as análises estatísticas',
     beneficio2Descricao: 'Use gráficos e ferramentas da qualidade.',
+    beneficio3: 'Converse com a IA digital',
     beneficio3Descricao: 'Tire dúvidas sobre suas análises.',
+  },
+  yellowbelt: {
+    produto: 'yellow-belt-gratis',
+    cursoGratis: 'Formação Profissional em Gestão de Projetos de Melhoria - Nível Yellow Belt',
+    eyebrow: 'Pacote gratuito · Yellow Belt',
+    titulo: <>Conduza seu primeiro projeto de melhoria com <span className="grad">mais rapidez e segurança.</span></>,
+    descricao: 'Aprenda a transformar um problema real do trabalho em um projeto estruturado seguindo o DMAIC. Você terá curso completo, Software LBW, inteligência artificial e 18 templates prontos para aprender fazendo.',
+    beneficio1: 'Curso Yellow Belt',
+    beneficio1Descricao: 'Aprenda e aplique o DMAIC.',
+    beneficio2: 'Use o Software LBW',
+    beneficio2Descricao: 'Crie gráficos e analise os dados.',
+    beneficio3: '18 templates prontos',
+    beneficio3Descricao: 'Estruture e acelere seu projeto.',
   },
 };
 
@@ -126,7 +142,7 @@ export default function LandingGratisCapabilidade({ variante = 'capabilidade' }:
       .then(data => setCursosInteresse(Array.isArray(data.cursos) ? data.cursos : []))
       .catch(error => console.error('[LandingGratis] cursos:', error))
       .finally(() => setCursosCarregando(false));
-  }, []);
+  }, [config.cursoGratis]);
 
   useEffect(() => {
     const fecharAoClicarFora = (event: MouseEvent) => {
@@ -202,7 +218,7 @@ export default function LandingGratisCapabilidade({ variante = 'capabilidade' }:
     <header className="top"><div className="wrap"><div className="brand">LBW <span>·</span> EDUCAÇÃO PELO TRABALHO</div></div></header>
     <main>
       <section className="hero"><div className="wrap hero-grid">
-        <div className="hero-copy"><span className="eyebrow">{config.eyebrow}</span><h1>{config.titulo}</h1><p className="lead">{config.descricao}</p><div className="hero-benefits"><div className="benefit"><div className="benefit-icon">🎥</div><div><h3>{config.beneficio1}</h3><p>{config.beneficio1Descricao}</p></div></div><div className="benefit"><div className="benefit-icon">📊</div><div><h3>{config.beneficio2}</h3><p>{config.beneficio2Descricao}</p></div></div><div className="benefit"><div className="benefit-icon">🤖</div><div><h3>Converse com a IA digital</h3><p>{config.beneficio3Descricao}</p></div></div></div></div>
+        <div className="hero-copy"><span className="eyebrow">{config.eyebrow}</span><h1>{config.titulo}</h1><p className="lead">{config.descricao}</p><div className="hero-benefits"><div className="benefit"><div className="benefit-icon">🎥</div><div><h3>{config.beneficio1}</h3><p>{config.beneficio1Descricao}</p></div></div><div className="benefit"><div className="benefit-icon">📊</div><div><h3>{config.beneficio2}</h3><p>{config.beneficio2Descricao}</p></div></div><div className="benefit"><div className="benefit-icon">{variante === 'yellowbelt' ? '🧰' : '🤖'}</div><div><h3>{config.beneficio3}</h3><p>{config.beneficio3Descricao}</p></div></div></div></div>
         <div className="hero-form" id="cadastro">{renderForm()}</div>
       </div></section>
 
