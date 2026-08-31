@@ -70,7 +70,10 @@ const COURSE_CARD_BANNER_RULES: Array<{ matches: string[]; src: string }> = [
   { matches: ['conduzir mudancas', 'gerenciamento de mudanca', 'menos resistencia'], src: '/landing-courses/gerenciamento-mudanca-adkar.png' },
   { matches: ['antecipar riscos', 'gerenciamento de riscos', 'fmea e pmi'], src: '/landing-courses/gerenciamento-riscos-fmea-pmi.png' },
   { matches: ['cultura lean'], src: '/landing-courses/gerenciamento-cultura-lean.png' },
-  { matches: ['formacao profissional', 'tornar um especialista'], src: '/landing-courses/formacao-profissional-gestao-projetos-melhoria.png' },
+  { matches: ['nivel yellow belt'], src: '/landing-courses/formacao-gestao-projetos-yellow-belt.png' },
+  { matches: ['nivel green belt'], src: '/landing-courses/formacao-gestao-projetos-green-belt.png' },
+  { matches: ['nivel black belt'], src: '/landing-courses/formacao-gestao-projetos-black-belt.png' },
+  { matches: ['formacao profissional', 'formacao em gestao de projetos de melhoria', 'tornar um especialista'], src: '/landing-courses/formacao-gestao-projetos-black-belt.png' },
   { matches: ['fazer analises estatisticas aplicadas', 'analises estatisticas aplicadas a negocios', 'realizar analises estatisticas pontuais'], src: '/landing-courses/como-realizar-analises-estatisticas-pontuais.png' },
   { matches: ['recomendar melhorias', 'gerar recomendacoes', 'gate'], src: '/landing-courses/como-gerar-recomendacoes-baseado-em-dados-gate.png' },
 ];

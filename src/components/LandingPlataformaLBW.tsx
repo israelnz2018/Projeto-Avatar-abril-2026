@@ -132,7 +132,9 @@ const CURSOS_IMAGENS = [
   { src: '/landing-courses/gerenciamento-mudanca-adkar.png', alt: 'Gerenciamento de Mudança - ADKAR' },
   { src: '/landing-courses/gerenciamento-riscos-fmea-pmi.png', alt: 'Gerenciamento de Riscos - FMEA e PMI' },
   { src: '/landing-courses/gerenciamento-cultura-lean.png', alt: 'Gerenciamento e Cultura Lean' },
-  { src: '/landing-courses/formacao-profissional-gestao-projetos-melhoria.png', alt: 'Formação Profissional em Gestão de Projetos de Melhoria' },
+  { src: '/landing-courses/formacao-gestao-projetos-yellow-belt.png', alt: 'Formação em Gestão de Projetos de Melhoria - Nível Yellow Belt' },
+  { src: '/landing-courses/formacao-gestao-projetos-green-belt.png', alt: 'Formação em Gestão de Projetos de Melhoria - Nível Green Belt' },
+  { src: '/landing-courses/formacao-gestao-projetos-black-belt.png', alt: 'Formação em Gestão de Projetos de Melhoria - Nível Black Belt' },
   { src: '/landing-courses/software-estatistico-formacao-projetos.png', alt: 'Software Estatístico + Formação em Gestão de Projetos de Melhoria' },
   { src: '/landing-courses/plataforma-profissional-gestao-projetos.png', alt: 'Plataforma Profissional em Gestão de Projetos de Melhoria' },
 ];
