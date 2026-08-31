@@ -50,7 +50,7 @@ const CONFIG_LANDING: Record<LandingGratisVariante, {
     produto: 'yellow-belt-gratis',
     cursoGratis: 'Formação Profissional em Gestão de Projetos de Melhoria - Nível Yellow Belt',
     eyebrow: 'Pacote gratuito · Yellow Belt',
-    titulo: <>Conduza seu primeiro projeto de melhoria com <span className="grad">mais rapidez e segurança.</span></>,
+    titulo: <>Conduza seu projeto de melhoria com <span className="grad">mais rapidez e maior resultado.</span></>,
     descricao: 'Aprenda a transformar um problema real do trabalho em um projeto estruturado seguindo o DMAIC. Você terá curso completo, Software LBW, inteligência artificial e 18 templates prontos para aprender fazendo.',
     beneficio1: 'Curso Yellow Belt',
     beneficio1Descricao: 'Aprenda e aplique o DMAIC.',
