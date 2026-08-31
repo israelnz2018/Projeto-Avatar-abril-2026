@@ -6827,6 +6827,26 @@ Máximo 150 palavras. Seja direto.`;
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    // A landing Yellow Belt precisa de uma prÃ©via prÃ³pria quando o link Ã©
+    // compartilhado no WhatsApp/LinkedIn. Como o app Ã© uma SPA, os crawlers
+    // receberiam por padrÃ£o a foto do consultor definida no index.html.
+    app.get('/yellowbelt/gratis', async (_req, res, next) => {
+      try {
+        let html = await fs.readFile(path.join(distPath, 'index.html'), 'utf8');
+        const yellowImage = 'https://israel.educacaopelotrabalho.com/landing-courses/formacao-gestao-projetos-yellow-belt.png?v=20260901';
+        html = html
+          .replace(/<title>[\s\S]*?<\/title>/i, '<title>Formação Yellow Belt — LBW Educação pelo Trabalho</title>')
+          .replace(/<meta property="og:title"[^>]*>/i, '<meta property="og:title" content="Formação Yellow Belt — LBW Educação pelo Trabalho" />')
+          .replace(/<meta property="og:description"[^>]*>/i, '<meta property="og:description" content="Aprenda a conduzir projetos de melhoria com o método DMAIC, Software LBW e templates prontos." />')
+          .replace(/<meta property="og:image"[^>]*>/i, `<meta property="og:image" content="${yellowImage}" />`)
+          .replace(/<meta name="twitter:title"[^>]*>/i, '<meta name="twitter:title" content="Formação Yellow Belt — LBW Educação pelo Trabalho" />')
+          .replace(/<meta name="twitter:description"[^>]*>/i, '<meta name="twitter:description" content="Aprenda a conduzir projetos de melhoria com o método DMAIC, Software LBW e templates prontos." />')
+          .replace(/<meta name="twitter:image"[^>]*>/i, `<meta name="twitter:image" content="${yellowImage}" />`);
+        res.type('html').send(html);
+      } catch (error) {
+        next(error);
+      }
+    });
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
