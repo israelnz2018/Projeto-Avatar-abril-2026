@@ -100,6 +100,7 @@ function AreaGate({ area, children }: { area: 'consultor' | 'coordenador'; child
 
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [openMenuSections, setOpenMenuSections] = useState<Record<string, boolean>>({
     administrador: true,
@@ -293,6 +294,15 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     });
   }, [ehAdminHub, canSeeConsultorArea, isCoordenador]);
 
+  // Ao trocar de tela, a nova página precisa começar do topo. Sem isto o
+  // React Router mantém a rolagem da tela anterior e a pessoa cai no meio do
+  // conteúdo. Quem rola é o <main> (overflow-auto), não a janela — mas a
+  // janela também é zerada, pro caso de telas que rolam o body.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, left: 0 });
+    window.scrollTo({ top: 0, left: 0 });
+  }, [location.pathname, location.search]);
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] flex">
       {/* Sidebar */}
@@ -428,7 +438,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main ref={mainRef} className="flex-1 overflow-auto">
         <div className="p-8">
           {avisoBloqueio && !isAdmin && !isConsultor && !isCoordenador && (
             <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4 text-orange-950 shadow-sm">
