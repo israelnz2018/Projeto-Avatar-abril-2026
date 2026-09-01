@@ -16,6 +16,17 @@ import { auth } from '../lib/firebase';
 import { CSS_CONSULTORES } from './consultores/estilosLanding';
 import FormularioLead from './consultores/FormularioLead';
 
+/**
+ * Ajuste só desta aba: na landing o formulário fica ao lado do texto (duas
+ * colunas). Aqui o texto vem em cima e o formulário embaixo, centralizados.
+ */
+const CSS_NA_ABA = `
+.consultores-lp .form-empilhado{display:block}
+.consultores-lp .form-empilhado .form-copy{max-width:780px;margin:0 auto 36px;text-align:center}
+.consultores-lp .form-empilhado .form-copy h2{text-align:center}
+.consultores-lp .form-empilhado .form-card{width:min(100%,620px);margin:0 auto}
+`;
+
 const AMBIENTE_CLIENTE = [
   'Seus treinamentos',
   'Suas ferramentas',
@@ -59,7 +70,7 @@ export default function SejaConsultor() {
     // full-bleed (hero escuro, seções `soft`/`dark`), então a margem negativa
     // cancela exatamente esse padding e as faixas encostam nas bordas.
     <div className="consultores-lp" ref={rootRef} style={{ margin: '-2rem' }}>
-      <style>{CSS_CONSULTORES}</style>
+      <style>{CSS_CONSULTORES}{CSS_NA_ABA}</style>
 
       <header className="hero">
         <div className="container">
@@ -206,11 +217,11 @@ export default function SejaConsultor() {
       </section>
 
       <section className="form-section" id="consultor-formulario">
-        <div className="container form-shell">
+        <div className="container form-empilhado">
           <div className="form-copy">
-            <div className="accent-line" style={{ marginLeft: 0 }} />
+            <div className="accent-line" />
             <h2 className="section-title">Quer ter a sua própria plataforma?</h2>
-            <p>Preencha o formulário ao lado.</p>
+            <p>Preencha o formulário abaixo.</p>
             <p>
               Vou analisar pessoalmente quem já possui estrutura, conteúdo e potencial para utilizar
               a plataforma com empresas. Se fizer sentido, eu entro em contato para conversarmos.
