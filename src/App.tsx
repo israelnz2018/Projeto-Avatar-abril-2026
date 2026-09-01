@@ -267,9 +267,10 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Comunidade', path: '/comunidade-aluno', icon: Users },
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
         // Convite aberto a todo aluno — inclusive quem já é consultor por fora e
-        // entrou só pra conhecer. Some só pra quem JÁ é consultor/admin aqui
-        // dentro, que já tem a própria Área do Consultor no menu.
-        ...(!isConsultor && !isAdmin ? [
+        // entrou só pra conhecer. O admin também vê, pra conseguir revisar a
+        // página pelo menu. Some só pra quem JÁ é consultor aqui dentro, que já
+        // tem a própria Área do Consultor.
+        ...(!isConsultor ? [
           { name: 'Tenha sua própria plataforma como consultor', path: '/seja-consultor', icon: Store },
         ] : []),
       ],
