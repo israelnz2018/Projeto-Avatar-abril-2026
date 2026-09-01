@@ -16,31 +16,6 @@ import { auth } from '../lib/firebase';
 import { CSS_CONSULTORES } from './consultores/estilosLanding';
 import FormularioLead from './consultores/FormularioLead';
 
-/**
- * Ajustes só desta aba. A landing é full-viewport, então a escala de tipo dela
- * usa `vw` — dentro do app o texto divide a largura com a sidebar, e o mesmo
- * `12vw` do título fica grande demais pra coluna que sobra. Aqui a tipografia
- * volta a caber, e o endereço de exemplo ganha quebra (é uma palavra só, longa
- * demais pra tela estreita).
- */
-const CSS_NA_ABA = `
-.consultores-lp .next-date{overflow-wrap:anywhere}
-@media(max-width:1024px){
-  .consultores-lp .hero{padding:48px 0 44px}
-  .consultores-lp .hero h1{font-size:clamp(26px,4.6vw,38px)}
-  .consultores-lp .hero .sub{font-size:16px;margin-bottom:20px}
-  .consultores-lp section{padding:52px 0}
-  .consultores-lp .section-title{font-size:clamp(22px,3.8vw,32px)}
-  .consultores-lp .section-lead{font-size:16px;margin-bottom:30px}
-  .consultores-lp .statement{font-size:clamp(19px,3vw,26px)}
-  .consultores-lp .quote{font-size:16px;padding:22px}
-  .consultores-lp .paragraph-stack,.consultores-lp .note-stack{font-size:15px}
-  .consultores-lp .next-date{font-size:14px;padding:16px}
-  .consultores-lp .eyebrow{font-size:11px;letter-spacing:.08em}
-  .consultores-lp .consultancy-node{padding:22px 18px}
-}
-`;
-
 const AMBIENTE_CLIENTE = [
   'Seus treinamentos',
   'Suas ferramentas',
@@ -84,7 +59,7 @@ export default function SejaConsultor() {
     // full-bleed (hero escuro, seções `soft`/`dark`), então a margem negativa
     // cancela exatamente esse padding e as faixas encostam nas bordas.
     <div className="consultores-lp" ref={rootRef} style={{ margin: '-2rem' }}>
-      <style>{CSS_CONSULTORES}{CSS_NA_ABA}</style>
+      <style>{CSS_CONSULTORES}</style>
 
       <header className="hero">
         <div className="container">
