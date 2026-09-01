@@ -100,7 +100,13 @@ function AreaGate({ area, children }: { area: 'consultor' | 'coordenador'; child
 
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // No celular a sidebar aberta (w-64 = 256px) come quase toda a tela: num
+  // aparelho de 390px sobram 134px pro conteúdo. Recolhida ela vira uma barra
+  // de ícones (w-20) e sobram 310px. Por isso começa recolhida em tela
+  // estreita e aberta no desktop — o botão continua alternando as duas.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(
+    () => (typeof window === 'undefined' ? true : window.innerWidth >= 1024),
+  );
   const [openMenuSections, setOpenMenuSections] = useState<Record<string, boolean>>({
     administrador: true,
     consultor: true,
