@@ -66,6 +66,7 @@ const LandingGratisCapabilidade = lazy(() => import('./components/LandingGratisC
 const LandingTermosGratuitos = lazy(() => import('./components/LandingTermosGratuitos'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingConsultores = lazy(() => import('./components/LandingConsultores'));
+const SejaConsultor = lazy(() => import('./components/SejaConsultor'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
 const CoordenadorReport = lazy(() => import('./components/dashboard/CoordenadorReport'));
@@ -265,6 +266,12 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
         { name: 'Comunidade', path: '/comunidade-aluno', icon: Users },
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
+        // Convite aberto a todo aluno — inclusive quem já é consultor por fora e
+        // entrou só pra conhecer. Some só pra quem JÁ é consultor/admin aqui
+        // dentro, que já tem a própria Área do Consultor no menu.
+        ...(!isConsultor && !isAdmin ? [
+          { name: 'Use esta plataforma como consultor', path: '/seja-consultor', icon: Store },
+        ] : []),
       ],
     }] : []),
   ];
@@ -759,6 +766,7 @@ export default function App() {
               <Route path="/alunocomeceporqui" element={<LearningView />} />
               <Route path="/coordenadorcomeceporqui" element={<LearningView />} />
               <Route path="/recursos" element={<RecursosView />} />
+              <Route path="/seja-consultor" element={<SejaConsultor />} />
               <Route path="/comunidade" element={<Comunidade escopo="consultor" />} />
               <Route path="/comunidade-adm" element={<Comunidade escopo="rede" />} />
               <Route path="/comunidade-coordenador" element={<Comunidade escopo="time" />} />
