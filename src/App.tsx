@@ -270,7 +270,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         // entrou só pra conhecer. Some só pra quem JÁ é consultor/admin aqui
         // dentro, que já tem a própria Área do Consultor no menu.
         ...(!isConsultor && !isAdmin ? [
-          { name: 'Use esta plataforma como consultor', path: '/seja-consultor', icon: Store },
+          { name: 'Tenha sua própria plataforma como consultor', path: '/seja-consultor', icon: Store },
         ] : []),
       ],
     }] : []),

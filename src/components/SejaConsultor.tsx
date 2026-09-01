@@ -1,182 +1,237 @@
 /**
- * SejaConsultor — convite, dentro da área do aluno, para o aluno usar a própria
- * plataforma como consultor (white-label, com o subdomínio dele).
+ * SejaConsultor — a aba "Tenha sua própria plataforma como consultor", dentro
+ * da Área do Aluno.
  *
- * É uma PONTE, não uma landing nova: explica a oportunidade pra quem já está
- * logado e conhece a plataforma por dentro, e manda pro formulário que já existe
- * em /consultores (LandingConsultores), que alimenta /api/leads-consultor e a
- * aprovação do admin em SolicitacoesConsultores. Nada é duplicado aqui.
+ * O público aqui NÃO é o aluno que virou consultor: é o consultor que já é
+ * consultor e entrou na plataforma como aluno pra conhecê-la por dentro. Por
+ * isso o texto fala com quem já tem método, curso e cliente.
  *
- * O CTA é <a target="_blank"> de propósito, NÃO <Link>: /consultores é
- * interceptado no topo do App (antes do Router) pelo pathname da janela, então
- * navegação client-side cairia na rota interna da vitrine em vez da landing.
- * Um page load de verdade garante a landing certa — e em aba nova o aluno não
- * perde a sessão nem onde estava no curso.
+ * Usa o mesmo desenho da landing pública (CSS_CONSULTORES) e o mesmo
+ * formulário (FormularioLead), que posta no mesmo /api/leads-consultor e cai na
+ * mesma tela de aprovação do admin. Só o campo `origem` muda, pra separar quem
+ * veio de dentro da plataforma de quem veio da landing.
  */
-import React from 'react';
-import { Award, Check, Palette, Rocket, Store, TrendingUp, Users, Video } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { auth } from '../lib/firebase';
+import { CSS_CONSULTORES } from './consultores/estilosLanding';
+import FormularioLead from './consultores/FormularioLead';
 
-const URL_FORMULARIO = '/consultores#consultores-formulario';
-
-const RECURSOS = [
-  { icon: Palette, titulo: 'Sua marca', texto: 'Sua logo, suas cores e seu slogan no lugar dos nossos. Seus alunos veem você, não a LBW.' },
-  { icon: Video, titulo: 'Seus cursos', texto: 'Você sobe seus próprios vídeos e monta suas trilhas. O conteúdo é seu.' },
-  { icon: Users, titulo: 'Seus clientes', texto: 'Cadastre empresas, times e coordenadores. Cada cliente com o acesso que você liberar.' },
-  { icon: TrendingUp, titulo: 'Projetos e ferramentas', texto: 'A mesma metodologia de projetos que você usa hoje como aluno, agora rodando para os seus.' },
-  { icon: Award, titulo: 'Certificados seus', texto: 'Certificado emitido com a sua marca, verificável por link público.' },
-  { icon: Store, titulo: 'Vitrine pública', texto: 'Sua página aparece na vitrine onde empresas procuram consultores.' },
+const AMBIENTE_CLIENTE = [
+  'Seus treinamentos',
+  'Suas ferramentas',
+  'Seus materiais',
+  'Os projetos da equipe',
+  'Os participantes',
+  'Os certificados',
+  'A comunidade interna',
 ];
 
-const PRE_REQUISITOS = [
-  'Você atua com melhoria contínua, Lean, Six Sigma ou qualidade.',
-  'Você já tem um curso gravado — ou está pronto para gravar o seu.',
-  'Você já atende (ou quer começar a atender) empresas.',
-];
-
-const ETAPAS = [
-  { n: 1, titulo: 'Você envia a solicitação', texto: 'Um formulário curto com o seu perfil e o endereço que você quer usar.' },
-  { n: 2, titulo: 'A gente analisa pessoalmente', texto: 'As vagas iniciais são limitadas e cada solicitação é lida por uma pessoa.' },
-  { n: 3, titulo: 'Sua plataforma entra no ar', texto: 'Criamos o seu endereço e a sua marca. Você recebe o acesso de consultor.' },
-  { n: 4, titulo: 'Você sobe seus cursos', texto: 'Um checklist guiado leva você do zero até o primeiro cliente dentro da plataforma.' },
-];
+function irParaFormulario() {
+  document.getElementById('consultor-formulario')?.scrollIntoView({ behavior: 'smooth' });
+}
 
 export default function SejaConsultor() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const usuario = auth.currentUser;
+
+  // Mesma animação de entrada da landing.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const elements = Array.from(root.querySelectorAll('section > .container, .hero .container')) as HTMLElement[];
+    elements.forEach(element => element.classList.add('reveal'));
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    }), { threshold: 0.08 });
+    elements.forEach(element => observer.observe(element));
+    const fallback = window.setTimeout(() => elements.forEach(element => element.classList.add('visible')), 1500);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto">
-      {/* Cabeçalho */}
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-black text-gray-900 flex items-center gap-2">
-          <Store className="text-blue-600 shrink-0" size={30} />
-          Use esta plataforma como consultor
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Você já conhece a plataforma por dentro. Ela também pode ser sua — com a sua marca e o seu endereço.
-        </p>
-      </div>
+    // A Layout envolve as páginas num `p-8`. As faixas desta página são
+    // full-bleed (hero escuro, seções `soft`/`dark`), então a margem negativa
+    // cancela exatamente esse padding e as faixas encostam nas bordas.
+    <div className="consultores-lp" ref={rootRef} style={{ margin: '-2rem' }}>
+      <style>{CSS_CONSULTORES}</style>
 
-      {/* Hero + preview do subdomínio */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#0a1330] to-[#14295d] text-white p-6 md:p-10 mb-8">
-        <div className="max-w-3xl">
-          <h2 className="text-xl md:text-3xl font-black leading-tight mb-3">
-            Se você já atua com melhoria contínua e tem o seu curso pronto,
-            não precisa construir uma plataforma do zero.
-          </h2>
-          <p className="text-blue-100 text-sm md:text-base leading-relaxed">
-            Use esta mesma plataforma como consultor: seus cursos, seus clientes e seus projetos,
-            no seu próprio endereço. Você cuida do conteúdo e da consultoria — a tecnologia já está pronta.
+      <header className="hero">
+        <div className="container">
+          <span className="eyebrow">Programa de Consultores LBW</span>
+          <h1>Sua consultoria pode ter uma plataforma própria.</h1>
+          <p className="sub">
+            Você já conhece a LBW por dentro. Agora imagine a mesma estrutura com os seus vídeos,
+            a sua metodologia, a sua marca e os seus clientes.
           </p>
+          <p className="sub">
+            Em vez de entregar apenas treinamento, PowerPoint, planilhas e acompanhamento por WhatsApp,
+            você passa a entregar uma plataforma completa para cada empresa que atende. E essa plataforma
+            aparece para o cliente como parte da sua consultoria.
+          </p>
+          <button className="cta" onClick={irParaFormulario}>Quero ter minha própria plataforma →</button>
         </div>
+      </header>
 
-        {/* Mock da barra de endereço */}
-        <div className="mt-7 bg-white/10 border border-white/15 rounded-xl p-4 md:p-5">
-          <p className="text-[11px] uppercase tracking-wide font-bold text-blue-200 mb-2">
-            O seu endereço seria assim
+      <section className="soft">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Coloque seus cursos aqui.</h2>
+          <p className="section-lead">
+            Você grava uma vez. Depois pode usar o mesmo treinamento com diferentes clientes,
+            sem precisar montar toda a estrutura novamente.
           </p>
-          <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2.5 overflow-x-auto">
-            <div className="flex gap-1.5 shrink-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
+          <div className="narrow">
+            <div className="panel">
+              <ul className="clean-list">
+                <li>Seus vídeos ficam organizados dentro da sua plataforma</li>
+                <li>Seus materiais ficam juntos</li>
+                <li>Seus certificados saem com a sua identidade</li>
+                <li>Seus clientes acessam pelo seu endereço</li>
+              </ul>
             </div>
-            <span className="font-mono text-sm whitespace-nowrap">
-              <span className="font-black text-blue-700">seu-nome</span>
-              <span className="text-gray-500">.educacaopelotrabalho.com</span>
-            </span>
           </div>
-          <p className="text-xs text-blue-100 mt-2.5">
-            Pode ser o seu nome ou o da sua empresa. O Israel, por exemplo, usa
-            {' '}<b className="text-white">israel.educacaopelotrabalho.com</b>.
-          </p>
+          <div className="next-date">suaconsultoria.educacaopelotrabalho.com</div>
+          <h3 className="statement">Para o cliente, aquilo é parte da sua empresa.</h3>
         </div>
+      </section>
 
-        <a
-          href={URL_FORMULARIO}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 mt-7 bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold px-6 py-3.5 rounded-xl no-underline"
-        >
-          <Rocket size={18} />
-          Quero saber como ter a minha
-        </a>
-      </div>
-
-      {/* Já é consultor? */}
-      <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-5 md:p-6 mb-8">
-        <h3 className="font-black text-gray-900 mb-1">Já é consultor e entrou só para conhecer a plataforma?</h3>
-        <p className="text-sm text-gray-700 leading-relaxed">
-          Então esta página é exatamente para você. Continue explorando como aluno o quanto quiser —
-          é a melhor forma de entender a experiência que os seus clientes teriam. Quando fizer sentido,
-          o convite está aberto.
-        </p>
-      </div>
-
-      {/* O que vem junto */}
-      <h3 className="text-lg md:text-xl font-black text-gray-900 mb-4">O que vem junto</h3>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-10">
-        {RECURSOS.map(({ icon: Icone, titulo, texto }) => (
-          <div key={titulo} className="rounded-2xl border border-gray-200 bg-white p-5 hover:border-blue-400 hover:shadow-lg transition-all">
-            <Icone className="text-blue-600 mb-3" size={22} />
-            <p className="font-bold text-gray-900 mb-1">{titulo}</p>
-            <p className="text-sm text-gray-600 leading-relaxed">{texto}</p>
+      <section>
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Cada novo cliente pode receber uma plataforma própria.</h2>
+          <p className="section-lead">
+            Imagine fechar um contrato com uma empresa. Em vez de enviar links de vídeos, PDFs, planilhas,
+            arquivos por e-mail e apresentações separadas, você simplesmente cria o ambiente daquele cliente.
+          </p>
+          <div className="ecosystem">
+            <div>
+              <div className="consultancy-node">SUA CONSULTORIA</div>
+              <div className="arrow">↓</div>
+            </div>
+            <div className="companies">
+              {['EMPRESA A', 'EMPRESA B', 'EMPRESA C'].map(empresa => (
+                <div className="company" key={empresa}>
+                  <strong>{empresa}</strong>
+                  {AMBIENTE_CLIENTE.map(item => <span key={item}>{item}</span>)}
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-
-      {/* Pré-requisitos */}
-      <h3 className="text-lg md:text-xl font-black text-gray-900 mb-4">Para quem é</h3>
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 md:p-6 mb-10">
-        <ul className="space-y-3 mb-4">
-          {PRE_REQUISITOS.map((item) => (
-            <li key={item} className="flex items-start gap-3 text-sm text-gray-700">
-              <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center shrink-0 mt-0.5">
-                <Check size={13} strokeWidth={3} />
-              </span>
-              {item}
-            </li>
-          ))}
-        </ul>
-        <p className="text-xs text-gray-500 leading-relaxed border-t border-gray-100 pt-4">
-          Não precisa marcar nada aqui — essas perguntas fazem parte do formulário, e é lá que a gente
-          entende o seu momento. Ainda não ter o curso gravado não elimina você.
-        </p>
-      </div>
-
-      {/* Como funciona */}
-      <h3 className="text-lg md:text-xl font-black text-gray-900 mb-4">Como funciona</h3>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-10">
-        {ETAPAS.map(({ n, titulo, texto }) => (
-          <div key={n} className="rounded-2xl border border-gray-200 bg-white p-5">
-            <span className="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center mb-3">
-              {n}
-            </span>
-            <p className="font-bold text-gray-900 mb-1 text-sm">{titulo}</p>
-            <p className="text-sm text-gray-600 leading-relaxed">{texto}</p>
+          <div className="note-stack">
+            <p>E tudo fica separado dos seus outros clientes.</p>
+            <p>Você administra todos em um único lugar.</p>
           </div>
-        ))}
-      </div>
+        </div>
+      </section>
 
-      {/* CTA final */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 text-center">
-        <h3 className="text-lg md:text-xl font-black text-gray-900 mb-2">
-          Quer ver os detalhes e se candidatar?
-        </h3>
-        <p className="text-sm text-gray-600 mb-6 max-w-xl mx-auto leading-relaxed">
-          A página do Programa de Consultores explica o modelo por completo e tem o formulário
-          de solicitação. Abre em uma aba nova — você não perde o seu lugar aqui.
-        </p>
-        <a
-          href={URL_FORMULARIO}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold px-6 py-3.5 rounded-xl no-underline"
-        >
-          <Rocket size={18} />
-          Ver o programa e enviar solicitação
-        </a>
-        <p className="text-xs text-gray-400 mt-4">
-          Sem mensalidade inicial. As vagas iniciais são limitadas e analisadas pessoalmente.
-        </p>
-      </div>
+      <section className="dark">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Isso muda o que você consegue vender.</h2>
+          <p className="section-lead">Você deixa de vender somente:</p>
+          <div className="proposal">
+            <div className="quote"><strong>“Treinamento Lean Six Sigma.”</strong></div>
+            <div className="proposal-arrow">→</div>
+            <div className="quote">
+              <strong>
+                “Sua empresa terá acesso à minha metodologia dentro de uma plataforma exclusiva
+                para desenvolver pessoas e acompanhar projetos.”
+              </strong>
+            </div>
+          </div>
+          <div className="paragraph-stack" style={{ color: '#c6d2eb' }}>
+            <p>A percepção de valor muda. Sua consultoria parece mais estruturada e sua entrega fica mais profissional.</p>
+            <p>E você passa a ter algo que continua dentro do cliente depois que a aula termina.</p>
+            <p>
+              Hoje, grande parte do conhecimento de um consultor está na cabeça, em apresentações, arquivos,
+              vídeos, planilhas e templates. Aqui, isso vira uma estrutura que pode ser reutilizada com vários clientes.
+            </p>
+          </div>
+          <h3 className="statement" style={{ color: '#fff' }}>Você cria uma vez. Depois replica.</h3>
+        </div>
+      </section>
+
+      <section className="soft">
+        <div className="container">
+          <div className="accent-line" />
+          <h2 className="section-title">Para quem isso faz mais sentido?</h2>
+          <p className="section-lead">
+            Para consultores que já pensam: “eu quero atender mais empresas sem precisar reconstruir
+            tudo a cada novo contrato”.
+          </p>
+          <div className="narrow">
+            <div className="panel">
+              <h3>SE VOCÊ JÁ TEM</h3>
+              <ul className="clean-list">
+                <li>Cursos próprios</li>
+                <li>Metodologia própria</li>
+                <li>Clientes empresariais</li>
+                <li>Ou uma consultoria que quer escalar</li>
+              </ul>
+            </div>
+          </div>
+          <div className="note-stack">
+            <p>
+              Imagine daqui a um ano: você atende 8 empresas, cada uma com o próprio ambiente, com 4 treinamentos
+              cadastrados e centenas de participantes que já passaram pelos seus cursos. Os projetos continuam
+              registrados e os materiais continuam disponíveis.
+            </p>
+            <p>Quando você fecha um novo cliente, não começa do zero: cria o ambiente, escolhe os conteúdos e adiciona os participantes.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="container narrow">
+          <div className="accent-line" />
+          <h2 className="section-title">Você não será apenas um usuário da LBW.</h2>
+          <p className="section-lead">
+            Sua marca. Seus cursos. Seus clientes. Sua operação. A LBW fornece a tecnologia —
+            você constrói o negócio em cima dela.
+          </p>
+          <div className="paragraph-stack">
+            <p>
+              Consultores desta área têm contato direto comigo para ajudar a definir como ela deve evoluir.
+              Se você precisar de uma funcionalidade para atender melhor um cliente, eu quero entender essa necessidade.
+            </p>
+            <p>Porque esta parte da LBW está sendo construída justamente para consultores como você.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="form-section" id="consultor-formulario">
+        <div className="container form-shell">
+          <div className="form-copy">
+            <div className="accent-line" style={{ marginLeft: 0 }} />
+            <h2 className="section-title">Quer ter a sua própria plataforma?</h2>
+            <p>Preencha o formulário ao lado.</p>
+            <p>
+              Vou analisar pessoalmente quem já possui estrutura, conteúdo e potencial para utilizar
+              a plataforma com empresas. Se fizer sentido, eu entro em contato para conversarmos.
+            </p>
+          </div>
+          <div className="form-card">
+            <FormularioLead
+              origem="aba-consultor"
+              nomeInicial={usuario?.displayName || ''}
+              emailInicial={usuario?.email || ''}
+              textoBotao="QUERO TER MINHA PRÓPRIA PLATAFORMA"
+              micro="Sem mensalidade inicial. Quem responde é o Israel, pessoalmente."
+              textoNaoQualificado={
+                'O programa hoje está focado em quem já atende empresas e já tem o curso gravado. '
+                + 'Continue usando a plataforma como aluno — e quando o seu curso estiver pronto, '
+                + 'me procure que a conversa continua de onde parou.'
+              }
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
