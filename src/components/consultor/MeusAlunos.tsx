@@ -9,6 +9,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ChevronDown, Pencil, Plus, Trash2, LockKeyhole, CheckCircle2, Clock3 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -269,10 +270,22 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     setLoading(true);
     // Não entra no Promise.all abaixo de propósito: o progresso é informativo e não
     // pode atrasar nem derrubar o carregamento da lista de alunos.
-    authedFetch('/api/consultor/progresso-alunos')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.progresso) setProgresso(d.progresso); })
-      .catch(() => {});
+    // Espera o auth existir: abrindo a página direto nesta rota, o carregar() dispara
+    // antes de o Firebase popular o currentUser, e a chamada sairia sem token (401).
+    (async () => {
+      if (!auth.currentUser) {
+        await new Promise<void>((resolve) => {
+          const unsub = onAuthStateChanged(auth, (u) => { if (u) { unsub(); resolve(); } });
+          setTimeout(() => { unsub(); resolve(); }, 8000);
+        });
+      }
+      try {
+        const r = await authedFetch('/api/consultor/progresso-alunos');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d?.progresso) setProgresso(d.progresso);
+      } catch { /* progresso é opcional — a tela funciona sem ele */ }
+    })();
     try {
       const [userDocs, blockedSnap, inits, catalogoEducacional, todasIniciativas] = await Promise.all([
         getUserDocsByConsultor(consultorId),
@@ -993,7 +1006,14 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
         <div className={`grid grid-cols-[minmax(180px,1.45fr)_minmax(105px,.9fr)_minmax(110px,1fr)_minmax(125px,1.1fr)_minmax(105px,1fr)_minmax(120px,1fr)_auto_auto] gap-3 px-4 py-3 items-center ${a.inativo ? 'bg-gray-50/70' : ''}`}>
           <div className="min-w-0"><div className="font-bold text-gray-800 text-sm truncate">{a.nome}</div><div className="text-xs text-gray-400 truncate">{a.email}</div></div>
           <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">{dataBr(a.dataConvite)}</span>
-          <span className="text-xs font-semibold text-gray-700">{cursosLiberados === 0 ? 'Sem acesso' : `${cursosLiberados} de ${cursos.length} cursos`}</span>
+          <span className="text-xs font-semibold text-gray-700">
+            {cursosLiberados === 0 ? 'Sem acesso' : `${cursosLiberados} de ${cursos.length} cursos`}
+            {cursosLiberados > 0 && progresso[a.uid] && (
+              <span className={`ml-1 font-black tabular-nums ${progresso[a.uid].geral === 0 ? 'text-gray-300' : progresso[a.uid].geral >= 80 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                · {progresso[a.uid].geral}%
+              </span>
+            )}
+          </span>
           <span className="text-xs font-semibold text-gray-700">{analyticsLiberados === 0 ? 'Sem acesso' : `${analyticsLiberados} de ${ANALYTICS_MODULOS.length} módulos`}</span>
           <span className="text-xs font-semibold text-gray-700">{projetosLiberados === 0 ? 'Sem acesso' : `${projetosLiberados} projeto${projetosLiberados === 1 ? '' : 's'}`}</span>
           <div className="min-w-[88px]"><span className={`inline-flex text-[10px] font-black uppercase rounded-full px-2 py-1 whitespace-nowrap ${situacaoAluno(a) === 'Completo' ? 'bg-emerald-100 text-emerald-700' : situacaoAluno(a) === 'Limitado' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>{situacaoAluno(a)}</span><span className="block mt-1 text-[10px] text-gray-400 whitespace-nowrap">{a.ultimoAcesso ? `Último acesso: ${dataBr(a.ultimoAcesso)}` : 'Nunca acessou'}</span></div>
