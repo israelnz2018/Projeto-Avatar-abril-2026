@@ -3129,6 +3129,92 @@ async function startServer() {
     }
   });
 
+  // GET /api/consultor/progresso-alunos — % de vídeos assistidos por aluno, para a
+  // tela Meus Clientes. Fica no servidor por dois motivos: a regra do userProgress
+  // faz lookup documento a documento (mesmoConsultorUser), o que derruba qualquer
+  // query em lote no cliente; e assim o consultor recebe só o percentual, nunca o
+  // histórico bruto de navegação do aluno.
+  //
+  // O escopo vem do doc do PRÓPRIO chamador — não há parâmetro que permita pedir
+  // os alunos de outro consultor.
+  app.get("/api/consultor/progresso-alunos", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const token = String(req.headers.authorization || "").replace(/^Bearer\s+/, "");
+    let caller: any;
+    try { caller = await adminAuth().verifyIdToken(token); }
+    catch { return res.status(401).json({ error: "Autenticação obrigatória." }); }
+    try {
+      const db = adminFirestore();
+      const callerData = (await db.collection("users").doc(caller.uid).get()).data() || {};
+      if (callerData.tipoUsuario !== "consultor" && callerData.tipoUsuario !== "admin") {
+        return res.status(403).json({ error: "Sem permissão." });
+      }
+      const consultorId = String(callerData.consultorId || "israel");
+
+      // Vídeos de cada curso do tenant. Um mesmo sourceUrl aparece em vários cursos
+      // (modelo multi-placement), então cada curso tem seu próprio conjunto.
+      const kb = await db.collection("knowledge_base").where("consultorId", "==", consultorId).get();
+      const urlsPorCurso = new Map<string, Set<string>>();
+      kb.docs.forEach((d) => {
+        const { course, sourceUrl } = d.data() as any;
+        if (!course || !sourceUrl) return;
+        if (!urlsPorCurso.has(course)) urlsPorCurso.set(course, new Set());
+        urlsPorCurso.get(course)!.add(sourceUrl);
+      });
+
+      const alunosSnap = await db.collection("users").where("consultorId", "==", consultorId).get();
+      const uids = new Set(alunosSnap.docs.map((d) => d.id));
+
+      // userProgress inteiro numa leitura (Admin SDK ignora as regras), filtrado
+      // pelos uids do tenant. Hoje a coleção tem poucos documentos.
+      const progSnap = await db.collection("userProgress").get();
+      const assistidosPorUid = new Map<string, Set<string>>();
+      progSnap.docs.forEach((d) => {
+        if (!uids.has(d.id)) return;
+        assistidosPorUid.set(d.id, new Set(Object.keys((d.data() as any)?.watchedUrls || {})));
+      });
+
+      const semAcento = (v: unknown) =>
+        String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+      const cursoPorChave = new Map(Array.from(urlsPorCurso.keys()).map((c) => [semAcento(c), c]));
+
+      const resultado: Record<string, { geral: number; porCurso: Record<string, number> }> = {};
+      alunosSnap.docs.forEach((d) => {
+        const u = d.data() as any;
+        const assistidos = assistidosPorUid.get(d.id) || new Set<string>();
+        const porCurso: Record<string, number> = {};
+        urlsPorCurso.forEach((urls, curso) => {
+          if (urls.size === 0) return;
+          let vistos = 0;
+          urls.forEach((url) => { if (assistidos.has(url)) vistos++; });
+          porCurso[curso] = Math.round((vistos / urls.size) * 100);
+        });
+
+        // Geral: só os cursos que o aluno TEM acesso, contando vídeo único (um
+        // vídeo em dois cursos liberados não conta duas vezes).
+        const nomesLiberados = [
+          ...(Array.isArray(u.cursosLiberados) ? u.cursosLiberados : []),
+          ...((Array.isArray(u.cursosAcesso) ? u.cursosAcesso : []).map((c: any) => c?.curso)),
+        ].filter(Boolean);
+        const universo = new Set<string>();
+        nomesLiberados.forEach((nome: string) => {
+          const real = cursoPorChave.get(semAcento(nome));
+          if (real) urlsPorCurso.get(real)!.forEach((url) => universo.add(url));
+        });
+        let vistosGeral = 0;
+        universo.forEach((url) => { if (assistidos.has(url)) vistosGeral++; });
+        resultado[d.id] = {
+          geral: universo.size ? Math.round((vistosGeral / universo.size) * 100) : 0,
+          porCurso,
+        };
+      });
+      return res.json({ progresso: resultado });
+    } catch (err: any) {
+      console.error("[GET /api/consultor/progresso-alunos] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao calcular progresso." });
+    }
+  });
+
   // POST /api/leads-consultor — formulário público da landing /consultores.
   // As primeiras vagas são aprovadas manualmente pelo administrador antes que o
   // consultor receba a plataforma.

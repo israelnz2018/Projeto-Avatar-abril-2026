@@ -80,6 +80,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
   const [iniciativas, setIniciativas] = useState<Initiative[]>([]);
   const [tiposProjeto, setTiposProjeto] = useState<Initiative[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
+  // % de vídeos assistidos, vindo pronto do servidor (ver /api/consultor/progresso-alunos).
+  // Chega separado do resto porque é só informativo: se falhar, a tela funciona igual.
+  const [progresso, setProgresso] = useState<Record<string, { geral: number; porCurso: Record<string, number> }>>({});
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   type CampoOrdenacao = 'alfabetica' | 'convite' | 'ultimoAcesso' | 'projetos' | 'education' | 'analytics' | 'situacao';
@@ -264,6 +267,12 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
 
   const carregar = async () => {
     setLoading(true);
+    // Não entra no Promise.all abaixo de propósito: o progresso é informativo e não
+    // pode atrasar nem derrubar o carregamento da lista de alunos.
+    authedFetch('/api/consultor/progresso-alunos')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.progresso) setProgresso(d.progresso); })
+      .catch(() => {});
     try {
       const [userDocs, blockedSnap, inits, catalogoEducacional, todasIniciativas] = await Promise.all([
         getUserDocsByConsultor(consultorId),
@@ -777,13 +786,25 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     </button>
   );
 
-  const renderAcessoLinha = (nome: string, liberado: boolean, valor?: number, vencimento?: string | null, extra?: string, legado = false) => (
+  // `pct` só é passado pela seção Education — Data Analysis e Projects não têm vídeo,
+  // então lá a coluna continua exatamente como era.
+  const renderAcessoLinha = (nome: string, liberado: boolean, valor?: number, vencimento?: string | null, extra?: string, legado = false, pct?: number) => (
     <div className="grid grid-cols-[minmax(180px,1.6fr)_auto_100px_120px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
       <div className="min-w-0">
         <div className="font-semibold text-gray-800 truncate">{nome}</div>
         {extra && <div className="text-[11px] text-gray-400">{extra}</div>}
       </div>
-      {renderStatusAcesso(liberado, legado)}
+      <div className="flex items-center gap-2">
+        {typeof pct === 'number' && (
+          <span
+            title={`${pct}% dos vídeos deste curso assistidos`}
+            className={`text-[11px] font-black tabular-nums whitespace-nowrap ${pct === 0 ? 'text-gray-300' : pct >= 80 ? 'text-emerald-600' : 'text-gray-600'}`}
+          >
+            {pct}%
+          </span>
+        )}
+        {renderStatusAcesso(liberado, legado)}
+      </div>
       <span className="text-xs text-gray-600 whitespace-nowrap">{liberado && typeof valor === 'number' ? `R$ ${fmtValor(valor) || '0,00'}` : '—'}</span>
       <span className={`text-xs whitespace-nowrap ${vencimento && venceu(vencimento) ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
         {vencimento && venceu(vencimento) ? <><Clock3 size={12} className="inline mr-1" />Expirado</> : dataBr(vencimento)}
@@ -894,7 +915,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
 
         <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
-            <div><h3 className="text-sm font-black text-gray-800 m-0">Education</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{cursosLiberados} de {cursosExibidos.length} cursos</p></div>
+            <div><h3 className="text-sm font-black text-gray-800 m-0">Education</h3><p className="text-xs text-gray-400 m-0 mt-0.5">{cursosLiberados} de {cursosExibidos.length} cursos{progresso[a.uid] && cursosLiberados > 0 ? ` · ${progresso[a.uid].geral}% assistido` : ''}</p></div>
             <span className="text-[10px] font-black uppercase text-gray-400">Preço · expiração</span>
           </div>
           <div className="px-4">
@@ -903,7 +924,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
               ? cursosExibidos.map(renderCursoEditLinha)
               : cursosExibidos.map((curso) => {
                   const registro = registroCurso(a, curso);
-                  return <React.Fragment key={curso}>{renderAcessoLinha(curso, acessoCurso(a, curso), registro?.valor, registro?.vencimento || (a.plano === 'completo' ? a.acessoCompletoAte : null))}</React.Fragment>;
+                  return <React.Fragment key={curso}>{renderAcessoLinha(curso, acessoCurso(a, curso), registro?.valor, registro?.vencimento || (a.plano === 'completo' ? a.acessoCompletoAte : null), undefined, false, progresso[a.uid]?.porCurso?.[curso])}</React.Fragment>;
                 })}
           </div>
         </section>

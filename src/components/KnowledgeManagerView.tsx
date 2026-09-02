@@ -2528,9 +2528,42 @@ export default function KnowledgeManagerView() {
                 {modalConfig.type === 'deletePlaylist' && (
                   <p>Tem certeza que deseja excluir a playlist <strong>{modalConfig.targetPlaylist}</strong>? Isso excluirá <strong>todos os vídeos</strong> desta playlist. Esta ação não pode ser desfeita.</p>
                 )}
-                {modalConfig.type === 'deleteVideo' && (
-                  <p>Tem certeza que deseja excluir este vídeo? Esta ação não pode ser desfeita.</p>
-                )}
+                {/* Cada ocorrência de um vídeo em um curso é um documento próprio, e a
+                    exclusão apaga só esse documento — os irmãos (mesmo sourceUrl) não são
+                    tocados. O texto genérico anterior deixava dúvida se apagava de todos
+                    os cursos, então aqui mostramos de onde sai e onde continua. */}
+                {modalConfig.type === 'deleteVideo' && (() => {
+                  const alvo = items.find(i => i.id === modalConfig.targetId);
+                  const irmaos = alvo ? items.filter(i => i.sourceUrl === alvo.sourceUrl && i.id !== alvo.id) : [];
+                  return (
+                    <div className="space-y-3">
+                      <p>
+                        Remover <strong>{alvo?.title || 'este vídeo'}</strong> de{' '}
+                        <strong>{alvo?.course}</strong>
+                        {alvo?.playlist ? <> › {alvo.playlist}</> : null}?
+                      </p>
+                      {irmaos.length > 0 ? (
+                        <div className="p-3 rounded-md bg-blue-50 border border-blue-100 text-blue-900">
+                          <p>
+                            O vídeo sai <strong>apenas deste curso</strong>. Ele continua
+                            {irmaos.length === 1 ? ' em outro curso' : ` em outros ${irmaos.length} lugares`}:
+                          </p>
+                          <ul className="mt-2 list-disc list-inside">
+                            {irmaos.map(o => (
+                              <li key={o.id}>{o.course}{o.playlist ? ` › ${o.playlist}` : ''}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-900">
+                          <strong>Esta é a única ocorrência deste vídeo.</strong> Removendo
+                          aqui, ele deixa de aparecer na plataforma. O arquivo de vídeo não é
+                          apagado, mas você precisará importá-lo de novo para usá-lo.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 
                 {modalConfig.type === 'importTranscript' && (
                   <div className="space-y-4">
