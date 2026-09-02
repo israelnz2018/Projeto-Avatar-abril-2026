@@ -866,13 +866,30 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     );
   };
 
+  // % de vídeos assistidos de um curso por um aluno. Devolve undefined quando não há
+  // dado (aluno sem progresso, ou curso sem vídeo), e aí nada é desenhado.
+  const pctCurso = (uid: string | null | undefined, curso: string): number | undefined =>
+    uid ? progresso[uid]?.porCurso?.[curso] : undefined;
+
   const renderCursoEditLinha = (curso: string) => {
     const registro = eCursos.find((item) => courseNamesMatch(item.curso, curso));
     const liberado = !!registro;
     return (
       <div key={curso} className="grid grid-cols-[minmax(180px,1.6fr)_auto_130px_145px] gap-3 items-center border-b border-gray-100 last:border-0 py-2.5 text-sm">
         <div className="min-w-0 font-semibold text-gray-800 truncate">{curso}</div>
-        {renderToggleAcesso(liberado, (value) => alternarCursoEdit(curso, value))}
+        {/* Mesma % do modo de visualização. O aluno em edição é o editGeralUid,
+            já que esta linha é desenhada só quando ele está aberto para editar. */}
+        <div className="flex items-center gap-2">
+          {typeof pctCurso(editGeralUid, curso) === 'number' && (
+            <span
+              title={`${pctCurso(editGeralUid, curso)}% dos vídeos deste curso assistidos`}
+              className={`text-[11px] font-black tabular-nums whitespace-nowrap ${pctCurso(editGeralUid, curso) === 0 ? 'text-gray-300' : (pctCurso(editGeralUid, curso) as number) >= 80 ? 'text-emerald-600' : 'text-gray-600'}`}
+            >
+              {pctCurso(editGeralUid, curso)}%
+            </span>
+          )}
+          {renderToggleAcesso(liberado, (value) => alternarCursoEdit(curso, value))}
+        </div>
         <div className="flex items-center gap-1"><span className="text-[11px] text-gray-400">R$</span><input disabled={!liberado} value={liberado ? fmtValor(registro?.valor || 0) : ''} onChange={(e) => setValorCurso(curso, e.target.value)} placeholder="0,00" className={campo + ' w-24 disabled:bg-gray-100 disabled:text-gray-400'} /></div>
         <input disabled={!liberado} type="date" value={liberado ? (registro?.vencimento || '') : ''} onChange={(e) => setVenc(curso, e.target.value)} className={campo + ' disabled:bg-gray-100 disabled:text-gray-400'} />
       </div>
