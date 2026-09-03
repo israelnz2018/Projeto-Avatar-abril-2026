@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search, ArrowDownToLine } from 'lucide-react';
 import { generateToolData } from '@/src/services/aiService';
+import { resolveToolLink, TOOLS_WITH_AI_BLOCK, TOOLS_WITH_MIGRATE_BLOCK } from '@/src/services/toolLinks';
 import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
@@ -48,6 +49,8 @@ interface ToolWrapperProps {
   availableTools: any[];
   phases: any[];
   initiativeName?: string;
+  /** Iniciativa (tipo de projeto) — carrega `toolLinks`, as ligações declaradas deste projeto. */
+  initiative?: any;
   initiativeConfigs: any[];
   previousToolData?: any;
   previousToolName?: string | null;
@@ -612,115 +615,9 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
   );
 };
 
-// sourceToolId = a ferramenta-fonte cujos dados o bloco "Gerar com IA" consome.
-// O bloco só deve aparecer quando essa fonte já foi preenchida (ver render, ~L1903).
-// Fontes compostas usam a fonte PRINCIPAL (a que carrega o dado central).
-const TOOLS_WITH_AI_BLOCK: Record<string, { title: string; description: string; source: string; sourceToolId: string }> = {
-  // PRÉ-DEFINIR
-  // DEFINIR
-  brief: {
-    title: "Gerar Entendendo o Problema com IA",
-    description: "A IA vai estruturar o problema com base no projeto priorizado nas matrizes anteriores.",
-    source: "Matriz GUT e Matriz RAB",
-    sourceToolId: "gut" // brief tem fluxo próprio (excluído da condição), mantido por completude
-  },
-  charter: {
-    title: "Gerar Project Charter com IA",
-    description: "A IA vai gerar o contrato do projeto com meta SMART, escopo e stakeholders baseados no problema definido.",
-    source: "Entendendo o Problema",
-    sourceToolId: "brief"
-  },
-  sipoc: {
-    title: "Gerar SIPOC com IA",
-    description: "A IA vai mapear fornecedores, entradas, processo, saídas e clientes baseados no Charter.",
-    source: "Project Charter",
-    sourceToolId: "charter"
-  },
-  stakeholders: {
-    title: "Gerar Stakeholders com IA",
-    description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
-    source: "Project Charter",
-    sourceToolId: "charter"
-  },
-  projectCharterPMI: {
-    title: "Gerar Project Charter com IA",
-    description: "A IA vai gerar o contrato do projeto com meta SMART, escopo e stakeholders baseados no problema definido.",
-    source: "Entendendo o Problema",
-    sourceToolId: "brief"
-  },
-  stakeholderAnalysisPMI: {
-    title: "Gerar Stakeholders com IA",
-    description: "A IA vai organizar a equipe do projeto com papéis e responsabilidades baseados no Charter.",
-    source: "Project Charter",
-    sourceToolId: "charter"
-  },
-  stakeholderAdkar: {
-    title: "Mapear Stakeholders com IA",
-    description: "A IA vai identificar os principais stakeholders e sugerir o nível ADKAR inicial baseado no Charter.",
-    source: "Project Charter",
-    sourceToolId: "charter"
-  },
-  // MEDIR
-  brainstorming: {
-    title: "Gerar Brainstorming com IA",
-    description: "A IA vai levantar causas técnicas baseadas no problema, processo e SIPOC do projeto.",
-    source: "Entendendo o Problema e SIPOC",
-    sourceToolId: "brief"
-  },
-  brainstormingImprove: {
-    title: 'Gerar Brainstorming de Soluções',
-    description: 'Obter os dados de Observação Direta e Análise Gráfica e Estatística e gerar Brainstorming de Soluções.',
-    source: 'Observação Direta e Análise Gráfica e Estatística',
-    sourceToolId: "directObservation"
-  },
-  measureIshikawa: {
-    title: "Gerar Espinha de Peixe com IA",
-    description: "A IA vai distribuir automaticamente todas as causas do Brainstorming nos 6Ms.",
-    source: "Brainstorming",
-    sourceToolId: "brainstorming"
-  },
-  dataCollection: {
-    title: "Gerar Plano de Coleta com IA",
-    description: "A IA vai definir o plano de coleta baseado nas causas priorizadas na Matriz Causa e Efeito.",
-    source: "Matriz Causa e Efeito",
-    sourceToolId: "measureMatrix"
-  },
-  dataNature: {
-    title: 'Gerar Natureza dos Dados',
-    description: 'Obter os dados de Plano de Coleta de Dados e gerar a Natureza dos Dados.',
-    source: 'Plano de Coleta de Dados',
-    sourceToolId: "dataCollection"
-  },
-  // ANALISAR
-  measureMatrix: {
-    title: "Gerar Matriz Causa e Efeito com IA",
-    description: "A IA vai cruzar as causas da Espinha de Peixe com os KPIs definidos no Project Charter.",
-    source: "Espinha de Peixe e Project Charter",
-    sourceToolId: "measureIshikawa"
-  },
-  // MELHORAR
-  plan5w2h: {
-    title: "Gerar Plano de Ação 5W2H com IA",
-    description: "A IA vai criar as ações com responsáveis e prazos baseados nas causas confirmadas e no Charter.",
-    source: "FMEA e Project Charter",
-    sourceToolId: "fmea"
-  },
-  // CONTROLAR
-};
+// Os mapas TOOLS_WITH_AI_BLOCK / TOOLS_WITH_MIGRATE_BLOCK mudaram para
+// services/toolLinks.ts, onde servem de FALLBACK do resolvedor por projeto.
 
-const TOOLS_WITH_MIGRATE_BLOCK: Record<string, { source: string; sourceToolId: string }> = {
-  improvementPlan: { source: "Cronograma Macro", sourceToolId: "timeline" },
-  gut: { source: "Ideia de Projeto", sourceToolId: "improvementIdea" },
-  rab: { source: "Ideia de Projeto", sourceToolId: "improvementIdea" },
-  effortImpact: { source: "Brainstorming de Soluções", sourceToolId: "brainstormingImprove" },
-  measureAdkar: { source: "ADKAR Definir", sourceToolId: "stakeholderAdkar" },
-  analyzeAdkar: { source: "ADKAR Medir", sourceToolId: "measureAdkar" },
-  improveAdkar: { source: "ADKAR Analisar", sourceToolId: "analyzeAdkar" },
-  controlAdkar: { source: "ADKAR Melhorar", sourceToolId: "improveAdkar" },
-  directObservation: { source: "Plano de Coleta de Dados", sourceToolId: "dataCollection" },
-  statisticalAnalysis: { source: "Natureza dos Dados", sourceToolId: "dataNature" },
-  controlPlan: { source: "Plano de Ação 5W2H", sourceToolId: "plan5w2h" },
-};
 
 export default function ToolWrapper({
   toolId,
@@ -733,6 +630,7 @@ export default function ToolWrapper({
   availableTools,
   phases,
   initiativeName,
+  initiative,
   initiativeConfigs,
   previousToolData,
   previousToolName,
@@ -983,17 +881,38 @@ export default function ToolWrapper({
     toast.success("Dados limpos com sucesso!");
   };
 
-  // Handler do botao verde do Brief: puxa os titulos do improvementIdea (sem IA)
+  // Handler do botao verde do Brief: puxa os titulos das fontes DECLARADAS (sem IA).
+  // Antes lia só o improvementIdea. Agora percorre `toolLink.from`, porque um projeto
+  // pode declarar que o Brief vem da GUT e da RAB — que guardam `opportunities`, não
+  // `generatedProjects`. Titulo repetido entre fontes entra uma vez só.
   const handleBriefPullTitles = () => {
-    const ideaData = getToolDataByPrefix(allProjectData, 'improvementIdea');
-    const data = ideaData?.toolData || ideaData;
-    const projects = data?.generatedProjects || [];
-    
+    const projects: any[] = [];
+    const vistos = new Set<string>();
+
+    for (const sourceId of toolLink?.from || []) {
+      const raw = getToolDataByPrefix(allProjectData, sourceId);
+      const data = raw?.toolData || raw;
+
+      // Ideia de Projeto: generatedProjects, respeitando o que o aluno aprovou.
+      const ideias = (data?.generatedProjects || []).filter((p: any) => p?.aprovado !== false);
+      // GUT / RAB e afins: opportunities, onde o titulo é a descrição da linha.
+      const oportunidades = (data?.opportunities || [])
+        .filter((o: any) => (o?.description || '').trim())
+        .map((o: any) => ({ ...o, title: o.description }));
+
+      for (const p of [...ideias, ...oportunidades]) {
+        const titulo = (p?.title || '').trim();
+        if (!titulo || vistos.has(titulo)) continue;
+        vistos.add(titulo);
+        projects.push(p);
+      }
+    }
+
     if (projects.length === 0) {
-      toast.error("Nenhuma ideia de projeto encontrada. Preencha a ferramenta 'Ideia de Projeto' primeiro.");
+      toast.error(`Nenhum titulo encontrado. Preencha ${linkSourceLabel || 'a ferramenta de origem'} primeiro.`);
       return;
     }
-    
+
     setBriefTitlesPulled(projects);
     setBriefSelectedTitle('');
     toast.success(`${projects.length} titulo(s) carregado(s)!`);
@@ -1145,7 +1064,9 @@ export default function ToolWrapper({
       }
 
       if (toolId === 'gut' || toolId === 'rab') {
-        const projects = getField('generatedProjects') || [];
+        // Só as ideias que o aluno aprovou seguem pra GUT/RAB. Ideia salva antes do
+        // campo existir (sem `aprovado`) conta como aprovada.
+        const projects = (getField('generatedProjects') || []).filter((p: any) => p?.aprovado !== false);
         console.log('📋 Projetos encontrados:', projects.length);
         const opportunities = projects.map((p: any, idx: number) => ({
           id: String(idx + 1),
@@ -1611,6 +1532,29 @@ export default function ToolWrapper({
     });
   };
 
+  // Ligação efetiva desta ferramenta NESTE projeto. O que a iniciativa declara em
+  // `toolLinks` vence; sem declaração, cai no mapa global de sempre (services/toolLinks.ts),
+  // então projeto que não declarou nada se comporta exatamente como antes.
+  const toolLink = useMemo(
+    () => resolveToolLink(toolId, initiative, initiativeConfigs),
+    [toolId, initiative, initiativeConfigs]
+  );
+
+  const toolNameOf = (id: string) =>
+    (availableTools || []).find((t: any) => t.id === id)?.name || id;
+
+  // Rótulo da fonte: ligação declarada monta pelos nomes das ferramentas; no fallback
+  // preserva o texto original do mapa (que às vezes cita fontes compostas).
+  const linkSourceLabel = initiative?.toolLinks?.[toolId]
+    ? toolLink?.from.map(toolNameOf).join(' e ') || ''
+    : (TOOLS_WITH_AI_BLOCK[toolId]?.source || TOOLS_WITH_MIGRATE_BLOCK[toolId]?.source || '');
+
+  // Basta UMA fonte preenchida pro card aparecer — o aluno pode ter usado só a GUT
+  // e não a RAB, por exemplo.
+  const linkHasContent = !!toolLink && toolLink.from.some(
+    (id) => sourceHasContent(getToolDataByPrefix(allProjectData, id))
+  );
+
   const isToolEmpty = () => {
     if (!localData) return true;
     
@@ -1935,15 +1879,15 @@ export default function ToolWrapper({
           </div>
         </div>
 
-      {/* AI Block — só aparece se a ferramenta SOURCE REAL já existe e tem dados salvos.
+      {/* AI Block — só aparece se a ferramenta FONTE já existe e tem dados salvos.
           Antes checava previousToolData (a ferramenta anterior por ORDEM da fase, não a
           fonte declarada) — por isso o SIPOC mostrava o bloco mesmo sem Charter preenchido.
-          Agora checa o sourceToolId direto no allProjectData, igual ao Migrate block. */}
-      {isToolEmpty() && TOOLS_WITH_AI_BLOCK[toolId] && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && sourceHasContent(getToolDataByPrefix(allProjectData, TOOLS_WITH_AI_BLOCK[toolId].sourceToolId)) && (
+          Agora a fonte vem de `toolLink`, que respeita o que o projeto declarou. */}
+      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && linkHasContent && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}
-            previousToolName={TOOLS_WITH_AI_BLOCK[toolId].source}
+            previousToolName={linkSourceLabel}
             onAction={(customContext) => handleGenerateData(customContext)}
             isGenerating={isGeneratingData}
             hasPreviousData={!!previousToolData}
@@ -1951,33 +1895,33 @@ export default function ToolWrapper({
         />
       )}
 
-      {/* Migrate Block — só aparece se a ferramenta SOURCE existe E está preenchida. */}
-      {isToolEmpty() && TOOLS_WITH_MIGRATE_BLOCK[toolId] && showAIPrompt && sourceHasContent(getToolDataByPrefix(allProjectData, TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)) && (
+      {/* Migrate Block — só aparece se a ferramenta FONTE existe E está preenchida. */}
+      {isToolEmpty() && toolLink?.mode === 'migrate' && showAIPrompt && linkHasContent && (
         <MigratePromptCard
           toolId={toolId}
           toolName={toolName}
-          sourceName={TOOLS_WITH_MIGRATE_BLOCK[toolId].source}
-          onMigrate={() => handleMigrateData(TOOLS_WITH_MIGRATE_BLOCK[toolId].sourceToolId)}
+          sourceName={linkSourceLabel}
+          onMigrate={() => handleMigrateData(toolLink.from[0])}
           isMigrating={isGeneratingData}
           hasSourceData={true}
         />
       )}
 
-      {isToolEmpty() && toolId === 'brief' && showAIPrompt && sourceHasContent(getToolDataByPrefix(allProjectData, 'improvementIdea')) && (
+      {isToolEmpty() && toolId === 'brief' && showAIPrompt && linkHasContent && (
         <>
-          {/* Card 1 - VERDE: Puxar titulos — só aparece se a Ideia de Projeto (fonte)
-              existir E estiver preenchida, e o brief atual ainda estiver vazio. */}
+          {/* Card 1 - VERDE: Puxar titulos — só aparece se a(s) fonte(s) declarada(s)
+              existirem E estiverem preenchidas, e o brief atual ainda estiver vazio. */}
           <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-6 shadow-sm relative overflow-hidden">
             <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
             <div className="relative z-10 flex flex-col gap-5">
               <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
                 <ArrowDownToLine size={20} className="text-emerald-500" />
                 <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">
-                  Puxar Titulos da Ideia de Projeto
+                  Puxar Titulos de {linkSourceLabel}
                 </p>
               </div>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Obter os titulos de <strong>Ideia de Projeto</strong>.
+                Obter os titulos de <strong>{linkSourceLabel}</strong>.
               </p>
               {briefTitlesPulled.length > 0 && (
                 <select

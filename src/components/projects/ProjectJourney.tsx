@@ -571,6 +571,15 @@ useEffect(() => {
     return `${phaseId}_${toolId}`;
   };
 
+  // Acha o dado de uma ferramenta sem saber em que fase ela está. A chave é `toolId`
+  // quando a ferramenta está na fase padrão dela e `${phaseId}_${toolId}` fora dela —
+  // ler a chave crua falha em todo projeto com fases próprias (Yellow Belt, por ex.).
+  const findToolData = (toolId: string) => {
+    if (projectData[toolId]) return projectData[toolId];
+    const key = Object.keys(projectData).find((k) => k.endsWith(`_${toolId}`));
+    return key ? projectData[key] : undefined;
+  };
+
   const hasContent = (raw: any) => {
     if (!raw) return false;
     const d = raw.toolData ?? raw;
@@ -955,9 +964,9 @@ useEffect(() => {
     const previousToolData = (() => {
       if (activeTool?.id === 'brief') {
         // Para o Brief, monta objeto com dados das três fontes DO PROJETO ATUAL
-        const ideaData = projectData['improvementIdea'];
-        const gutData = projectData['gut'];
-        const rabData = projectData['rab'];
+        const ideaData = findToolData('improvementIdea');
+        const gutData = findToolData('gut');
+        const rabData = findToolData('rab');
         
         return {
           // Projetos da Ideia de Projetos de Melhoria — só os aprovados pelo aluno
@@ -975,8 +984,8 @@ useEffect(() => {
         };
       }
       
-      if ((activeTool?.id === 'rab' || activeTool?.id === 'gut') && projectData.improvementIdea) {
-        return projectData.improvementIdea;
+      if ((activeTool?.id === 'rab' || activeTool?.id === 'gut') && findToolData('improvementIdea')) {
+        return findToolData('improvementIdea');
       }
       
       return previousTool 
@@ -986,7 +995,7 @@ useEffect(() => {
 
     const previousToolName = activeTool?.id === 'brief'
       ? 'Ideia de Projetos, Matriz GUT e Matriz RAB'
-      : (activeTool?.id === 'rab' || activeTool?.id === 'gut') && projectData.improvementIdea
+      : (activeTool?.id === 'rab' || activeTool?.id === 'gut') && findToolData('improvementIdea')
       ? 'Ideia de Projeto de Melhoria'
       : (previousTool ? previousTool.name : null);
 
@@ -1264,15 +1273,18 @@ useEffect(() => {
             availableTools={AVAILABLE_TOOLS}
             phases={phases}
             initiativeName={initiative?.name}
+            initiative={initiative}
             initiativeConfigs={initiativeConfigs}
             previousToolData={previousToolData}
             previousToolName={previousToolName}
             allProjectData={enrichedProjectData}
-            showAIPrompt={
-              activeTool.id === 'processMap' ? false :
-              (['brief', 'rab', 'gut'].includes(activeTool.id) && isLeanSixSigma) ? !!projectData.improvementIdea : 
-              true
-            }
+            // O caso especial de brief/rab/gut saiu daqui. Ele testava
+            // `projectData.improvementIdea` — chave CRUA, que só existe quando a Ideia de
+            // Projeto está na fase padrão. No Yellow Belt ela fica numa fase de id próprio,
+            // a chave real vira `<fase>_improvementIdea` e o gate zerava, escondendo os
+            // botões de gerar/migrar. Quem decide agora é `linkHasContent` no ToolWrapper,
+            // que resolve a chave por prefixo e respeita as ligações declaradas do projeto.
+            showAIPrompt={activeTool.id !== 'processMap'}
           >
             {({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData: wrapperAllProjectData }) => {
               const Component = ActiveComponent as any;
@@ -1302,18 +1314,18 @@ useEffect(() => {
                       ideaProjects={
                         // Só as ideias que o aluno aprovou seguem para RAB/GUT.
                         // Sem o campo (ideias antigas) = aprovada.
-                        (projectData['improvementIdea']?.toolData?.generatedProjects ||
-                         projectData['improvementIdea']?.generatedProjects ||
+                        (findToolData('improvementIdea')?.toolData?.generatedProjects ||
+                         findToolData('improvementIdea')?.generatedProjects ||
                          []).filter((p: any) => p?.aprovado !== false)
                       }
                       gutProjects={
-                        projectData['gut']?.toolData?.opportunities || 
-                        projectData['gut']?.opportunities || 
+                        findToolData('gut')?.toolData?.opportunities || 
+                        findToolData('gut')?.opportunities || 
                         []
                       }
                       rabProjects={
-                        projectData['rab']?.toolData?.opportunities || 
-                        projectData['rab']?.opportunities || 
+                        findToolData('rab')?.toolData?.opportunities || 
+                        findToolData('rab')?.opportunities || 
                         []
                       }
                     />

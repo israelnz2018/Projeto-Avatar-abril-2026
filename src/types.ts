@@ -55,6 +55,9 @@ export interface Initiative {
   descricaoVenda?: string;
   /** Lista do que está incluído no pacote comercial. */
   itensInclusos?: string[];
+  /** Ligacoes entre ferramentas DESTE projeto (destino toolId -> fontes).
+   * Ausente = usa o mapa global de fallback em services/toolLinks.ts. */
+  toolLinks?: Record<string, ToolLink>;
 }
 
 // ===== Multi-tenant (white-label) =====
@@ -148,6 +151,16 @@ export interface Consultor {
   onboarding?: Record<string, boolean>;
   /** Texto de boas-vindas mostrado no topo da Comunidade dos Meus Clientes. */
   comunidadeBoasVindas?: string;
+}
+
+/** Como o destino consome a fonte: copia direta dos campos ou geracao por IA. */
+export type ToolLinkMode = 'migrate' | 'ai';
+
+/** Ligacao declarada por PROJETO: de quais ferramentas este destino se alimenta. */
+export interface ToolLink {
+  /** toolIds de origem. Devem vir ANTES do destino na sequencia do projeto. */
+  from: string[];
+  mode: ToolLinkMode;
 }
 
 export interface InitiativePhaseConfig {
