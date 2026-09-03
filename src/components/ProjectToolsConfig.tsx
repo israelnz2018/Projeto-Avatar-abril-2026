@@ -30,6 +30,7 @@ import {
   updateInitiative,
   getInitiativeConfigs,
   saveInitiativeConfig,
+  saveInitiativeToolLinks,
   seedDefaultInitiative,
   restoreDefaultMethodologies,
   getFerramentasRascunho,
@@ -42,9 +43,17 @@ import {
 import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { isSiteConsultor } from '../services/consultorService';
-import { Initiative, InitiativePhaseConfig } from '../types';
+import { Initiative, InitiativePhaseConfig, ToolLink } from '../types';
+import {
+  getToolSequence,
+  getEligibleSources,
+  getOrphanSources,
+  resolveToolLink,
+  LINKABLE_TARGETS,
+} from '../services/toolLinks';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
+import { Link2, ArrowRight } from 'lucide-react';
 import { ICON_CATALOG, COLOR_CATALOG, resolveInitiativeVisual } from '../services/initiativeVisual';
 import { uploadInitiativeIcon } from '../services/brandingUploadService';
 
@@ -238,6 +247,25 @@ export default function ProjectToolsConfig() {
   const [saving, setSaving] = useState(false);
   const [editedPhases, setEditedPhases] = useState<{id: string, name: string}[]>([]);
   const [activeConfigPhaseId, setActiveConfigPhaseId] = useState<string | null>(null);
+  const [savingLinks, setSavingLinks] = useState(false);
+
+  // Grava as ligações entre ferramentas no próprio doc da iniciativa.
+  const handleSaveToolLinks = async (toolLinks: Record<string, ToolLink>) => {
+    if (!selectedInitiative) return;
+    setSavingLinks(true);
+    try {
+      await saveInitiativeToolLinks(selectedInitiative.id, toolLinks);
+      const updated = { ...selectedInitiative, toolLinks };
+      setSelectedInitiative(updated);
+      setInitiatives(initiatives.map(i => i.id === updated.id ? updated : i));
+      toast.success('Ligações salvas.');
+    } catch (error) {
+      console.error('Erro ao salvar ligações:', error);
+      toast.error('Erro ao salvar as ligações.');
+    } finally {
+      setSavingLinks(false);
+    }
+  };
 
   const handleSavePhases = async () => {
     if (!selectedInitiative) return;
@@ -1169,6 +1197,16 @@ export default function ProjectToolsConfig() {
                 </div>
               )}
             </div>
+
+            {/* Ligações entre ferramentas — no rodapé, depois de fases e ferramentas,
+                porque depende de as ferramentas já estarem distribuídas nas fases. */}
+            <ToolLinksEditor
+              initiative={selectedInitiative}
+              configs={configs}
+              tools={AVAILABLE_TOOLS}
+              onSave={handleSaveToolLinks}
+              saving={savingLinks}
+            />
           </div>
         ) : (
           <div className="space-y-6">
@@ -1322,6 +1360,160 @@ function IconColorPicker({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Editor das ligações entre ferramentas DESTE projeto: de quais ferramentas cada
+ * destino se alimenta quando o aluno clica em "Gerar com IA" / "Migrar".
+ *
+ * As garantias que tornam impossível configurar uma ligação inválida:
+ *  - a lista de destinos sai da sequência REAL do projeto (fases × ferramentas da fase),
+ *    então ferramenta não habilitada aqui nem aparece;
+ *  - as fontes oferecidas são só as ANTERIORES ao destino nessa sequência — não dá pra
+ *    apontar pra frente nem pra si mesma, e portanto não dá pra criar ciclo;
+ *  - só entram como destino as ferramentas que têm transformador escrito
+ *    (LINKABLE_TARGETS); o resto criaria um botão que não faz nada;
+ *  - fonte que saiu do projeto depois de configurada aparece em vermelho — o runtime
+ *    já a ignora, isso aqui é só pra o consultor enxergar e corrigir.
+ */
+function ToolLinksEditor({
+  initiative, configs, tools, onSave, saving,
+}: {
+  initiative: Initiative;
+  configs: InitiativePhaseConfig[];
+  tools: { id: string; name: string }[];
+  onSave: (links: Record<string, ToolLink>) => void;
+  saving: boolean;
+}) {
+  const [links, setLinks] = useState<Record<string, ToolLink>>(initiative.toolLinks || {});
+
+  // Trocar de projeto no dropdown tem que recarregar as ligações daquele projeto.
+  useEffect(() => { setLinks(initiative.toolLinks || {}); }, [initiative.id, initiative.toolLinks]);
+
+  const nameOf = (id: string) => tools.find((t) => t.id === id)?.name || id;
+  const sequence = useMemo(() => getToolSequence(initiative, configs), [initiative, configs]);
+
+  // Destino candidato: está na jornada deste projeto, tem transformador, e tem
+  // pelo menos uma ferramenta antes dele pra servir de fonte.
+  const destinos = useMemo(
+    () => sequence.filter(
+      (id) => LINKABLE_TARGETS[id] && getEligibleSources(id, initiative, configs).length > 0
+    ),
+    [sequence, initiative, configs]
+  );
+
+  const toggleSource = (target: string, source: string) => {
+    setLinks((prev) => {
+      const atual = prev[target]?.from || [];
+      const novo = atual.includes(source) ? atual.filter((s) => s !== source) : [...atual, source];
+      const copia = { ...prev };
+      // Sem nenhuma fonte marcada a ligação some do projeto e volta a valer o padrão
+      // global — é o comportamento que o consultor espera ao "desmarcar tudo".
+      if (novo.length === 0) delete copia[target];
+      else copia[target] = { from: novo, mode: LINKABLE_TARGETS[target] };
+      return copia;
+    });
+  };
+
+  const alterado = JSON.stringify(links) !== JSON.stringify(initiative.toolLinks || {});
+
+  if (destinos.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+        <h4 className="flex items-center gap-2 text-sm font-black text-gray-800 uppercase tracking-tight">
+          <Link2 size={16} className="text-gray-400" /> Ligações entre ferramentas
+        </h4>
+        <p className="text-sm text-gray-500 mt-2">
+          Adicione ferramentas às fases acima pra poder ligar uma na outra.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 px-6 py-5">
+        <div>
+          <h4 className="flex items-center gap-2 text-sm font-black text-gray-800 uppercase tracking-tight">
+            <Link2 size={16} className="text-blue-500" /> Ligações entre ferramentas
+          </h4>
+          <p className="text-[13px] text-gray-500 mt-1">
+            De quais ferramentas cada uma se alimenta neste projeto. Só aparecem as que vêm
+            <strong> antes</strong> na jornada. Sem nada marcado, vale o padrão da plataforma.
+          </p>
+        </div>
+        <button
+          onClick={() => onSave(links)}
+          disabled={saving || !alterado}
+          className="flex items-center justify-center gap-2 whitespace-nowrap bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-all shadow-sm shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={16} />}
+          {saving ? 'Salvando…' : 'Salvar ligações'}
+        </button>
+      </div>
+
+      <div className="divide-y divide-gray-100">
+        {destinos.map((target) => {
+          const fontes = getEligibleSources(target, initiative, configs);
+          const marcadas = links[target]?.from || [];
+          const orfas = getOrphanSources(target, { ...initiative, toolLinks: links }, configs);
+          const padrao = resolveToolLink(target, { ...initiative, toolLinks: {} }, configs);
+          const modo = LINKABLE_TARGETS[target];
+
+          return (
+            <div key={target} className="px-6 py-5">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className={cn(
+                  'text-[9px] font-black uppercase tracking-wider rounded px-2 py-0.5 border',
+                  modo === 'migrate'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                )}>
+                  {modo === 'migrate' ? 'Migrar' : 'Gerar com IA'}
+                </span>
+                <ArrowRight size={13} className="text-gray-300" />
+                <span className="text-sm font-black text-gray-800">{nameOf(target)}</span>
+                {marcadas.length === 0 && (
+                  <span className="text-[11px] text-gray-400">
+                    {padrao
+                      ? `padrão da plataforma: ${padrao.from.map(nameOf).join(' e ')}`
+                      : 'sem ligação'}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {fontes.map((source) => {
+                  const ativa = marcadas.includes(source);
+                  return (
+                    <button
+                      key={source}
+                      onClick={() => toggleSource(target, source)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer',
+                        ativa
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                      )}
+                    >
+                      {nameOf(source)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {orfas.length > 0 && (
+                <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-red-600">
+                  <AlertCircle size={13} />
+                  {orfas.map(nameOf).join(', ')} não {orfas.length > 1 ? 'estão' : 'está'} mais neste projeto — a ligação é ignorada.
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

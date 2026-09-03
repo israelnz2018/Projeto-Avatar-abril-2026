@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   deleteDoc,
+  updateDoc,
   query,
   where,
   writeBatch,
@@ -128,6 +129,19 @@ export const createInitiative = async (
 export const updateInitiative = async (id: string, updates: Partial<Initiative>): Promise<void> => {
   const docRef = doc(db, INITIATIVES_COLLECTION, id);
   await setDoc(docRef, updates, { merge: true });
+};
+
+/**
+ * Grava as ligações entre ferramentas SUBSTITUINDO o mapa inteiro.
+ * Não dá pra usar `updateInitiative` aqui: ele é `setDoc(merge: true)`, e o Firestore
+ * funde mapas aninhados campo a campo — ligação removida pelo consultor sobreviveria
+ * ao salvamento. `updateDoc` troca o valor do campo por inteiro, que é o que queremos.
+ */
+export const saveInitiativeToolLinks = async (
+  id: string,
+  toolLinks: Record<string, { from: string[]; mode: 'migrate' | 'ai' }>
+): Promise<void> => {
+  await updateDoc(doc(db, INITIATIVES_COLLECTION, id), { toolLinks });
 };
 
 export const deleteInitiative = async (id: string): Promise<void> => {
