@@ -1,15 +1,14 @@
 /**
- * SequenciasEmail — gestão dos 4 estágios de e-mail por estágio do funil.
+ * SequenciasEmail — gestão das 3 jornadas de e-mail por comportamento de uso.
  * Plugado dentro da aba Marketing (MarketingView).
  *
- *  - Lead       : sequência pra quem cadastrou e NUNCA acessou
- *  - Grátis     : sequência pra quem já acessou (plano gratuito)
- *  - Pago·7dias : comprou há <7 dias — 3 e-mails anti-reembolso
- *  - Pago       : comprou há >7 dias — 7 e-mails de rotina + newsletter MANUAL
+ *  - Nunca entrou: recebeu acesso e ainda não fez o primeiro login
+ *  - Entrou      : fez login, mas ainda não usa ou deixou de usar
+ *  - Está usando : tem acesso recente e atividade real na plataforma
  *
  * Endpoints (server.ts):
  *  GET  /api/marketing/status        → contagem por estágio + última execução do motor
- *  GET  /api/marketing/sequencias    → { gratis:[], pago7:[], pago:[] }
+ *  GET  /api/marketing/sequencias    → { nuncaEntrou:[], entrou:[], usando:[] }
  *  PUT  /api/marketing/sequencias    → salva as sequências
  *  POST /api/marketing/rodar-agora   → dispara o motor na hora (teste)
  *  POST /api/newsletter/enviar       → { assunto, corpo, publico }
@@ -30,8 +29,9 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
 }
 
 interface SeqEmail { dia: number; assunto: string; corpo: string; ativo: boolean; }
-type Pacote = 'gratis' | 'gratisEngajado' | 'pago7' | 'pago';
-type Aba = Pacote | 'engajamento' | 'template';
+type Pacote = 'nuncaEntrou' | 'entrou' | 'usando';
+type Aba = Pacote | 'newsletter' | 'engajamento' | 'template';
+type EstagiosAtivos = Record<Pacote, boolean>;
 
 interface TemplateConfig {
   headerCor: string; headerTitulo: string; headerSubtitulo: string;
@@ -41,27 +41,27 @@ interface TemplateConfig {
 interface EngajItem {
   email: string; nome: string; estagio: string; plano: string;
   acessou: boolean; optOut: boolean; optOutEm: string | null; cortesia: boolean;
-  criadoEm: string | null; primeiroAcessoEm: string | null; score: number;
+  criadoEm: string | null; primeiroAcessoEm: string | null; ultimoAcessoEm: string | null;
+  videosAssistidos: number; projetos: number; score: number;
 }
 
 interface StatusResp {
-  contagem: { gratis: number; gratisEngajado: number; pago: number };
+  contagem: { nuncaEntrou: number; entrou: number; usando: number };
   ultimaExecucao: null | { rodadoEm: string; enviados: number; falhas: number; dryRun?: boolean };
 }
 interface VolumeResp {
   limiteDia: number; limiteMes: number; hoje: string;
   enviadosHoje: number; enviadosMes: number;
-  hojePorEstagio: { gratis: number; gratisEngajado: number; pago7: number; pago: number } | null;
+  hojePorEstagio: { nuncaEntrou: number; entrou: number; usando: number } | null;
   totalHistorico: number;
   porDia: { dia: string; total: number }[];
 }
 interface NewsletterItem { id: string; assunto: string; corpo: string; publico: string; total: number; enviados: number; falhas: number; enviadoEm: string; }
 
 const META: Record<Pacote, { nome: string; desc: string; cor: string; corBg: string }> = {
-  gratis: { nome: 'Trilha 1 · novo', desc: 'Tem a Trilha 1 e assistiu 2 vídeos ou menos. Objetivo: ATIVAR (fazer usar). Fala só da Trilha 1, sem venda.', cor: '#065F46', corBg: '#D1FAE5' },
-  gratisEngajado: { nome: 'Trilha 1 · engajado', desc: 'Tem a Trilha 1 e assistiu mais de 2 vídeos. Objetivo: VENDER o completo (8 trilhas).', cor: '#7C3AED', corBg: '#EDE9FE' },
-  pago7:  { nome: 'Pago7', desc: 'Comprou · primeiros 7 dias (anti-reembolso)', cor: '#9A3412', corBg: '#FFEDD5' },
-  pago:   { nome: 'Completo', desc: 'Comprou a formação completa · rotina (após 7 dias)', cor: '#1E2D6E', corBg: '#DBEAFE' },
+  nuncaEntrou: { nome: 'Nunca entrou', desc: 'Recebeu o acesso, mas ainda não fez o primeiro login. Objetivo: remover atrito e mostrar um primeiro ganho simples.', cor: '#B91C1C', corBg: '#FEE2E2' },
+  entrou: { nome: 'Entrou, mas não está usando', desc: 'Já fez login, porém ainda não realizou atividade ou está há mais de 14 dias sem usar. Objetivo: fazê-lo aplicar um recurso.', cor: '#B45309', corBg: '#FEF3C7' },
+  usando: { nome: 'Está usando', desc: 'Acessou recentemente e já realizou uma atividade. Objetivo: aprofundar o uso e conduzir ao próximo resultado.', cor: '#047857', corBg: '#D1FAE5' },
 };
 
 // Marcações disponíveis. 'insere' é o trecho colado ao clicar.
@@ -97,10 +97,10 @@ function AjudaMarcacoes({ onInserir }: { onInserir: (txt: string) => void }) {
 }
 
 export default function SequenciasEmail() {
-  const [aba, setAba] = useState<Aba>('gratis');
+  const [aba, setAba] = useState<Aba>('nuncaEntrou');
   const [engaj, setEngaj] = useState<EngajItem[]>([]);
   // filtros da aba engajamento
-  const [fEstagio, setFEstagio] = useState<'todos' | 'gratis' | 'pago7' | 'pago'>('todos');
+  const [fEstagio, setFEstagio] = useState<'todos' | Pacote>('todos');
   const [fAcesso, setFAcesso] = useState<'todos' | 'acessou' | 'naoAcessou'>('todos');
   const [fExtra, setFExtra] = useState<'todos' | 'optout' | 'cortesia' | 'ativos'>('todos');
   const [fBusca, setFBusca] = useState('');
@@ -132,29 +132,33 @@ export default function SequenciasEmail() {
     requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(pos, pos); });
   };
   const [status, setStatus] = useState<StatusResp | null>(null);
+  const [estagiosAtivos, setEstagiosAtivos] = useState<EstagiosAtivos>({ nuncaEntrou: false, entrou: false, usando: false });
+  const [salvandoEstagios, setSalvandoEstagios] = useState(false);
   const [volume, setVolume] = useState<VolumeResp | null>(null);
   const [volLoading, setVolLoading] = useState(false);
-  const [seqs, setSeqs] = useState<{ gratis: SeqEmail[]; gratisEngajado: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] } | null>(null);
+  const [seqs, setSeqs] = useState<Record<Pacote, SeqEmail[]> | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [rodando, setRodando] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // newsletter (pago)
+  // newsletter manual
   const [nlAssunto, setNlAssunto] = useState('');
   const [nlCorpo, setNlCorpo] = useState('');
-  const [nlPublico, setNlPublico] = useState<'pago' | 'gratis' | 'todos'>('pago');
+  const [nlPublico, setNlPublico] = useState<'todos' | Pacote>('todos');
   const [nlEnviando, setNlEnviando] = useState(false);
   const [nlResult, setNlResult] = useState<{ total: number; enviados: number; falhas: number } | null>(null);
   const [historico, setHistorico] = useState<NewsletterItem[]>([]);
 
   const carregar = async () => {
     try {
-      const [s, q] = await Promise.all([
+      const [s, q, a] = await Promise.all([
         authedFetch('/api/marketing/status').then((r) => r.json()),
         authedFetch('/api/marketing/sequencias').then((r) => r.json()),
+        authedFetch('/api/marketing/estagios-ativos').then((r) => r.json()),
       ]);
       setStatus(s);
-      setSeqs({ gratis: q.gratis || [], gratisEngajado: q.gratisEngajado || [], pago7: q.pago7 || [], pago: q.pago || [] });
+      setSeqs({ nuncaEntrou: q.nuncaEntrou || [], entrou: q.entrou || [], usando: q.usando || [] });
+      setEstagiosAtivos({ nuncaEntrou: a.nuncaEntrou === true, entrou: a.entrou === true, usando: a.usando === true });
     } catch (e: any) { setMsg(e?.message || 'Erro ao carregar.'); }
   };
   const carregarVolume = async () => {
@@ -231,6 +235,19 @@ export default function SequenciasEmail() {
     finally { setSalvando(false); }
   };
 
+  const alternarEstagio = async (pacote: Pacote) => {
+    const proximo = { ...estagiosAtivos, [pacote]: !estagiosAtivos[pacote] };
+    setSalvandoEstagios(true); setMsg('');
+    try {
+      const r = await authedFetch('/api/marketing/estagios-ativos', { method: 'PUT', body: JSON.stringify(proximo) });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b?.error || 'Erro ao alterar o estágio.');
+      setEstagiosAtivos(proximo);
+      setMsg(`Jornada “${META[pacote].nome}” ${proximo[pacote] ? 'ativada' : 'pausada'}.`);
+    } catch (e: any) { setMsg(e?.message || 'Erro ao alterar o estágio.'); }
+    finally { setSalvandoEstagios(false); }
+  };
+
   const rodarAgora = async (dry: boolean) => {
     if (!dry && !window.confirm('Disparar o motor AGORA de verdade? Os e-mails que estiverem devidos hoje serão enviados.')) return;
     setRodando(true); setMsg('');
@@ -259,7 +276,7 @@ export default function SequenciasEmail() {
 
   const reabrir = (n: NewsletterItem) => {
     setNlAssunto(n.assunto); setNlCorpo(n.corpo);
-    setNlPublico(['pago', 'gratis', 'todos'].includes(n.publico) ? (n.publico as any) : 'pago');
+    setNlPublico(['nuncaEntrou', 'entrou', 'usando', 'todos'].includes(n.publico) ? (n.publico as any) : 'todos');
     setNlResult(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setMsg('Newsletter carregada acima — revise e clique em Enviar pra reenviar.');
@@ -271,11 +288,11 @@ export default function SequenciasEmail() {
     <div className="bg-white rounded-2xl border border-gray-200 p-6 mt-5">
       <div className="flex items-center gap-3 mb-1">
         <Mail className="w-5 h-5 text-blue-700" />
-        <h2 className="font-semibold text-gray-900">5. Sequências de e-mail por estágio</h2>
+        <h2 className="font-semibold text-gray-900">5. Jornadas de e-mail por comportamento</h2>
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        E-mails automáticos por estágio do funil (via Resend). O motor roda 1x/dia e decide
-        sozinho quem recebe o quê pelo estado atual — para sozinho quando a pessoa avança de estágio.
+        Sete e-mails em 30 dias para cada momento de uso. O motor roda 1x/dia, identifica
+        o comportamento atual e interrompe a jornada anterior quando a pessoa muda de estágio.
       </p>
 
       {/* faixa de status do motor */}
@@ -331,10 +348,9 @@ export default function SequenciasEmail() {
                 </div>
                 {he && (
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500">
-                    <span>T1 novo: <b className="text-gray-700">{he.gratis || 0}</b></span>
-                    <span>T1 engaj.: <b className="text-gray-700">{he.gratisEngajado || 0}</b></span>
-                    <span>Pago·7d: <b className="text-gray-700">{he.pago7 || 0}</b></span>
-                    <span>Pago: <b className="text-gray-700">{he.pago || 0}</b></span>
+                    <span>Nunca entrou: <b className="text-gray-700">{he.nuncaEntrou || 0}</b></span>
+                    <span>Entrou: <b className="text-gray-700">{he.entrou || 0}</b></span>
+                    <span>Usando: <b className="text-gray-700">{he.usando || 0}</b></span>
                     <span className="text-gray-400">(só automáticos)</span>
                   </div>
                 )}
@@ -363,13 +379,17 @@ export default function SequenciasEmail() {
 
       {/* abas */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {(['gratis', 'gratisEngajado', 'pago'] as Pacote[]).map((p) => (
+        {(['nuncaEntrou', 'entrou', 'usando'] as Pacote[]).map((p) => (
           <button key={p} onClick={() => setAba(p)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === p ? 'border-transparent text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            style={aba === p ? { background: p === 'gratis' ? '#10B981' : p === 'gratisEngajado' ? '#7C3AED' : p === 'pago7' ? '#EA580C' : '#0033CC' } : {}}>
-            {META[p].nome} {status && (p === 'gratis' || p === 'gratisEngajado' || p === 'pago') ? `(${status.contagem[p]})` : ''}
+            style={aba === p ? { background: META[p].cor } : {}}>
+            {META[p].nome} {status ? `(${status.contagem[p] || 0})` : ''}
           </button>
         ))}
+        <button onClick={() => setAba('newsletter')}
+          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === 'newsletter' ? 'border-transparent bg-blue-700 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+          <Send className="w-4 h-4" /> Newsletter
+        </button>
         <button onClick={() => setAba('engajamento')}
           className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition ${aba === 'engajamento' ? 'border-transparent bg-gray-900 text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
           <BarChart3 className="w-4 h-4" /> Engajamento
@@ -382,21 +402,22 @@ export default function SequenciasEmail() {
 
       {msg && <div className="mb-4 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">{msg}</div>}
 
-      {/* sequência automática (gratis/gratisEngajado/pago7/pago) */}
-      {(aba === 'gratis' || aba === 'gratisEngajado' || aba === 'pago7' || aba === 'pago') && seqs && (
-        <div className={aba === 'pago' ? 'mb-8' : ''}>
-          {aba === 'pago' && (
-            <div className="flex items-center gap-2 mb-1">
-              <Play className="w-4 h-4 text-blue-700" />
-              <h3 className="text-sm font-bold text-gray-900">Sequência automática (rotina pós-compra)</h3>
+      {/* sequências automáticas por comportamento */}
+      {(aba === 'nuncaEntrou' || aba === 'entrou' || aba === 'usando') && seqs && (
+        <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <div className="flex items-center gap-2">
+              <Play className="w-4 h-4" style={{ color: META[aba].cor }} />
+              <h3 className="text-sm font-bold text-gray-900">Jornada automática: {META[aba].nome}</h3>
             </div>
-          )}
+            <button type="button" onClick={() => alternarEstagio(aba)} disabled={salvandoEstagios}
+              className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition disabled:opacity-60 ${estagiosAtivos[aba] ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
+              <Power className="w-3.5 h-3.5" /> {estagiosAtivos[aba] ? 'Envio automático ativo' : 'Envio automático pausado'}
+            </button>
+          </div>
           <p className="text-xs text-gray-500 mb-3">
-            {aba === 'pago7'
-              ? 'Comprou há menos de 7 dias. Objetivo ÚNICO: evitar reembolso, fazer a pessoa usar e sentir o valor. 3 e-mails (dias 0, 3 e 6, contados da compra). No 7º dia a pessoa passa pro estágio "Pago".'
-              : aba === 'pago'
-              ? 'Comprou há mais de 7 dias. E-mails de rotina (início do ritmo semanal). O dia é contado a partir da compra. Desligue um e-mail sem apagá-lo pelo botão à direita.'
-              : `${META[aba].desc} O dia é contado a partir da compra. Desligue um e-mail sem apagá-lo pelo botão à direita.`}
+            {META[aba].desc} O dia é contado desde a entrada neste estágio. Ao mudar de estágio,
+            a sequência anterior para automaticamente. Desligue um e-mail sem apagá-lo pelo botão à direita.
           </p>
           <div className="space-y-3">
             {seqs[aba].map((e, idx) => (
@@ -407,7 +428,7 @@ export default function SequenciasEmail() {
                     enviar
                     <input type="number" min={0} value={e.dia} onChange={(ev) => setEmail(aba, idx, { dia: Math.max(0, parseInt(ev.target.value, 10) || 0) })}
                       className="w-16 px-2 py-1 border border-gray-300 rounded-md text-center" />
-                    dias após a compra
+                    dias neste estágio
                   </label>
                   <button onClick={() => setEmail(aba, idx, { ativo: !e.ativo })}
                     className={`ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ${e.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}>
@@ -432,8 +453,8 @@ export default function SequenciasEmail() {
       )}
 
       {/* newsletter manual (broadcast avulso) */}
-      {aba === 'pago' && (
-        <div className="border-t border-gray-200 pt-6">
+      {aba === 'newsletter' && (
+        <div>
           <div className="flex items-center gap-2 mb-1">
             <Send className="w-4 h-4 text-blue-700" />
             <h3 className="text-sm font-bold text-gray-900">Newsletter manual (envio avulso)</h3>
@@ -445,9 +466,10 @@ export default function SequenciasEmail() {
             <label className="text-sm text-gray-700">Enviar para:</label>
             <select value={nlPublico} onChange={(e) => setNlPublico(e.target.value as any)}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-              <option value="pago">Pagos (completo)</option>
-              <option value="gratis">Introdutório (Kit 90 Dias)</option>
               <option value="todos">Todos</option>
+              <option value="nuncaEntrou">Nunca entraram</option>
+              <option value="entrou">Entraram, mas não estão usando</option>
+              <option value="usando">Estão usando</option>
             </select>
           </div>
           <input type="text" value={nlAssunto} onChange={(e) => setNlAssunto(e.target.value)}
@@ -500,19 +522,14 @@ export default function SequenciasEmail() {
       {/* engajamento / gestão de pessoas (por pessoa, com filtros) */}
       {aba === 'engajamento' && (() => {
         const corEstagio = (est: string) =>
-          est === 'gratis' ? { background: '#D1FAE5', color: '#065F46' }
-          : est === 'gratisEngajado' ? { background: '#EDE9FE', color: '#7C3AED' }
-          : est === 'pago7' ? { background: '#FFEDD5', color: '#9A3412' }
-          : { background: '#DBEAFE', color: '#1E2D6E' };
-        // Badge = estágio + QUAL produto. Trilha 1 se divide em novo (≤2 vídeos)
-        // e engajado (>2 vídeos). Completo mostra pago/pago7.
-        const nomeEstagio = (est: string, plano?: string) => {
-          if (est === 'gratis') return 'trilha 1 · novo';
-          if (est === 'gratisEngajado') return 'trilha 1 · engajado';
-          const produto = plano === 'completo' ? 'completo' : 'trilha 1';
-          if (est === 'pago7') return `pago7 · ${produto}`;
-          if (est === 'pago') return `pago · ${produto}`;
-          return est;
+          est === 'nuncaEntrou' ? { background: '#FEE2E2', color: '#B91C1C' }
+          : est === 'entrou' ? { background: '#FEF3C7', color: '#B45309' }
+          : { background: '#D1FAE5', color: '#047857' };
+        const nomeEstagio = (est: string) => {
+          if (est === 'nuncaEntrou') return 'nunca entrou';
+          if (est === 'entrou') return 'entrou, mas não usa';
+          if (est === 'usando') return 'está usando';
+          return est || '—';
         };
         const fmtData = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
         // aplica os filtros
@@ -550,10 +567,9 @@ export default function SequenciasEmail() {
                   <select value={fEstagio} onChange={(e) => setFEstagio(e.target.value as any)}
                     className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm">
                     <option value="todos">Todos</option>
-                    <option value="gratis">Trilha 1 · novo</option>
-                    <option value="gratisEngajado">Trilha 1 · engajado</option>
-                    <option value="pago7">Pago · 7 dias</option>
-                    <option value="pago">Pago</option>
+                    <option value="nuncaEntrou">Nunca entrou</option>
+                    <option value="entrou">Entrou, mas não está usando</option>
+                    <option value="usando">Está usando</option>
                   </select>
                 </div>
                 <div>
@@ -631,9 +647,8 @@ export default function SequenciasEmail() {
             </div>
 
             <p className="text-[11px] text-gray-400 mb-2 leading-relaxed">
-              <b>Engajamento (0-100):</b> baseado em sinais confiáveis, não em aberturas (que são imprecisas).
-              Acessou a plataforma (+40), comprou (+45), continua inscrito (+10), quem entrou há pouco ganha bônus de recência.
-              Quem descadastrou fica em 0. Verde ≥70 · laranja 40-69 · vermelho &lt;40.
+              <b>Engajamento (0-100):</b> baseado no uso real da plataforma, não em abertura de e-mail.
+              Nunca entrou = 10; entrou sem atividade recente = 45; está usando = 90. Quem descadastrou fica em 0.
             </p>
 
             {engaj.length === 0 ? (
@@ -647,7 +662,8 @@ export default function SequenciasEmail() {
                       <th className="py-2 px-3">Estágio</th>
                       <th className="py-2 px-3">Engajamento</th>
                       <th className="py-2 px-3 text-center">Cadastro</th>
-                      <th className="py-2 px-3 text-center">Já acessou</th>
+                      <th className="py-2 px-3 text-center">Último acesso</th>
+                      <th className="py-2 px-3 text-center">Uso</th>
                       <th className="py-2 px-3 text-center">Situação</th>
                     </tr>
                   </thead>
@@ -660,7 +676,7 @@ export default function SequenciasEmail() {
                         </td>
                         <td className="py-2 px-3">
                           <span className="text-xs font-semibold px-2 py-0.5 rounded-md whitespace-nowrap uppercase" style={corEstagio(u.estagio)}>
-                            {nomeEstagio(u.estagio, u.plano)}
+                            {nomeEstagio(u.estagio)}
                           </span>
                         </td>
                         <td className="py-2 px-3">
@@ -672,7 +688,10 @@ export default function SequenciasEmail() {
                           </div>
                         </td>
                         <td className="py-2 px-3 text-center text-gray-600 whitespace-nowrap">{fmtData(u.criadoEm)}</td>
-                        <td className="py-2 px-3 text-center">{u.acessou ? '✅' : '—'}</td>
+                        <td className="py-2 px-3 text-center text-gray-600 whitespace-nowrap">{fmtData(u.ultimoAcessoEm)}</td>
+                        <td className="py-2 px-3 text-center text-xs text-gray-600 whitespace-nowrap">
+                          {u.videosAssistidos || 0} vídeos · {u.projetos || 0} projetos
+                        </td>
                         <td className="py-2 px-3 text-center">
                           {u.optOut
                             ? <span className="text-xs font-semibold text-red-600 whitespace-nowrap" title={u.optOutEm ? `Saiu em ${fmtDataHora(u.optOutEm)}` : ''}>descadastrou{u.optOutEm ? ` · ${fmtDataHora(u.optOutEm)}` : ''}</span>

@@ -4226,18 +4226,18 @@ async function startServer() {
   //   gratis          = Trilha 1 "novo" (comprou/ganhou, assistiu ≤2 vídeos) → ATIVAÇÃO (fala só da Trilha 1)
   //   gratisEngajado  = Trilha 1 "engajado" (assistiu >2 vídeos)              → VENDA do completo
   //   pago7 + pago    = Completo (anti-reembolso 7 dias + rotina)             → RELACIONAMENTO
-  type Sequencias = { gratis: SeqEmail[]; gratisEngajado: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
+  type SequenciasLegadas = { gratis: SeqEmail[]; gratisEngajado: SeqEmail[]; pago7: SeqEmail[]; pago: SeqEmail[] };
 
   // Conteúdo inicial das sequências (editável pela tela). Tom "Carta do Israel":
   // 1ª pessoa, casos reais, dor antes da solução, sem hype.
   // GRÁTIS (7 e-mails, dias 0/3/7/11/15/19/24): um por trilha (trilhas 2 a 8 do app).
-  const APP_URL = "https://app.educacaopelotrabalho.com";
+  const APP_URL = "https://israel.educacaopelotrabalho.com";
   // Página de vendas (preço cheio R$ 597).
   const VENDAS_URL = "https://www.educacaopelotrabalho.com/formacao";
   // Link do desconto (R$ 400). Trocar pelo checkout/cupom da Hotmart quando existir.
   // Enquanto isso aponta pra página de vendas — ajuste no painel Marketing quando tiver o link.
   const DESCONTO_URL = "https://www.educacaopelotrabalho.com/formacao";
-  const SEQUENCIAS_DEFAULT: Sequencias = {
+  const SEQUENCIAS_LEGADAS: SequenciasLegadas = {
     // ── SEQUÊNCIA 1 · "Trilha 1 · novo" (ativação) ──────────────────────────
     // Quem: tem a Trilha 1 e assistiu ≤2 vídeos. Objetivo: fazer USAR. Sem venda.
     // REGRA: fala SÓ da Trilha 1 — 5 e-mails, um por FASE. Nada inventado
@@ -4591,16 +4591,134 @@ async function startServer() {
     ],
   };
 
+  type EstagioEngajamento = "nuncaEntrou" | "entrou" | "usando";
+  type Sequencias = Record<EstagioEngajamento, SeqEmail[]>;
+
+  function emailMarketing(
+    dia: number,
+    assunto: string,
+    titulo: string,
+    paragrafos: string[],
+    botao: string,
+  ): SeqEmail {
+    return {
+      dia,
+      assunto,
+      ativo: true,
+      corpo:
+        `[titulo: ${titulo}]\n\n` +
+        "Olá, {nome}!\n\n" +
+        paragrafos.join("\n\n") +
+        `\n\n[botao: ${botao} | ${APP_URL}]\n\n` +
+        "Israel Cavalcanti\nPlataforma LBW",
+    };
+  }
+
+  // O e-mail inicial com senha e liberação de acesso continua sendo enviado pelo
+  // fluxo de cadastro. Estas são apenas as sete mensagens seguintes, distribuídas
+  // pelos 30 dias posteriores à entrada da pessoa em cada estágio.
+  const SEQUENCIAS_DEFAULT: Sequencias = {
+    nuncaEntrou: [
+      emailMarketing(4, "Você não precisa aprender sozinho", "Você não precisa aprender sozinho", [
+        "Seu acesso à LBW já está disponível. Dentro da plataforma, a IA Digital ajuda a explicar conteúdos, ferramentas e resultados de forma simples.",
+        "Entre na plataforma e veja como ela pode acompanhar você desde o primeiro passo.",
+      ], "Conhecer a IA Digital"),
+      emailMarketing(8, "Conduza seu projeto passo a passo", "Um caminho claro para conduzir melhorias", [
+        "A LBW organiza o projeto em fases e mostra o que fazer em cada etapa, da definição do problema ao controle dos resultados.",
+        "Você não precisa decorar o método antes de começar: a própria plataforma orienta o caminho.",
+      ], "Ver as fases do projeto"),
+      emailMarketing(12, "As informações acompanham o seu projeto", "Menos retrabalho entre as ferramentas", [
+        "Na LBW, as informações registradas em uma ferramenta podem alimentar automaticamente as etapas seguintes.",
+        "Assim, você mantém o raciocínio do projeto conectado e evita preencher os mesmos dados várias vezes.",
+      ], "Conhecer a plataforma"),
+      emailMarketing(16, "Templates profissionais prontos para usar", "Comece com modelos prontos", [
+        "A área de Projetos reúne templates para priorização, definição, análise de causas, plano de ação, controle e outras etapas da melhoria.",
+        "Em vez de começar com uma página em branco, você adapta um modelo estruturado à sua realidade.",
+      ], "Ver os templates disponíveis"),
+      emailMarketing(20, "Faça análises estatísticas sem complicação", "Dados transformados em informação", [
+        "O Software LBW facilita a criação de gráficos e análises estatísticas e apresenta a interpretação junto com um relatório organizado.",
+        "Você usa seus dados e recebe uma base pronta para apoiar decisões e explicar os resultados.",
+      ], "Conhecer as análises estatísticas"),
+      emailMarketing(25, "Transforme seu trabalho em uma apresentação", "Sua apresentação em PowerPoint pronta", [
+        "A plataforma pode gerar uma apresentação em PowerPoint de uma ferramenta específica ou reunir as etapas do projeto em uma apresentação completa.",
+        "Isso reduz o tempo gasto organizando resultados e preparando a comunicação do trabalho.",
+      ], "Ver como funciona"),
+      emailMarketing(30, "Aprenda junto com outros profissionais", "Você também faz parte da Comunidade LBW", [
+        "Na Comunidade LBW, alunos podem compartilhar dúvidas, experiências e aplicações realizadas no trabalho.",
+        "Seu acesso continua esperando por você. Entre agora e comece a conhecer os recursos liberados.",
+      ], "Entrar na Plataforma LBW"),
+    ],
+    entrou: [
+      emailMarketing(4, "Peça ajuda para a IA Digital", "Faça sua primeira pergunta", [
+        "Você já entrou na LBW. Agora experimente pedir para a IA Digital explicar um conteúdo, uma ferramenta ou uma dúvida do seu projeto.",
+        "Começar com uma pergunta simples é uma forma rápida de entender como a plataforma pode ajudar.",
+      ], "Conversar com a IA Digital"),
+      emailMarketing(8, "Escolha uma fase e comece seu projeto", "A plataforma mostra o próximo passo", [
+        "As fases do projeto foram organizadas para orientar a sequência do trabalho, sem deixar você perdido entre tantas ferramentas.",
+        "Escolha uma etapa e faça hoje uma pequena atividade.",
+      ], "Começar uma atividade"),
+      emailMarketing(12, "Não preencha as mesmas informações novamente", "Seu projeto permanece conectado", [
+        "Quando as ferramentas são ligadas, as informações da etapa anterior podem chegar automaticamente à próxima.",
+        "Você economiza tempo, reduz retrabalho e mantém coerência entre as decisões do projeto.",
+      ], "Continuar na plataforma"),
+      emailMarketing(16, "Comece usando um template pronto", "Você não precisa partir do zero", [
+        "Use um dos templates disponíveis na área de Projetos para estruturar uma situação real do seu trabalho.",
+        "O modelo ajuda a organizar o raciocínio e transformar uma ideia em uma entrega profissional.",
+      ], "Abrir os templates"),
+      emailMarketing(20, "Faça sua primeira análise estatística", "Analisar dados pode ser mais simples", [
+        "Escolha uma análise disponível, envie seus dados e deixe a LBW organizar o gráfico, os resultados e o relatório.",
+        "Depois, use a IA Digital para entender o que os números significam.",
+      ], "Fazer uma análise"),
+      emailMarketing(25, "Gere sua primeira apresentação em PowerPoint", "Do trabalho realizado à apresentação", [
+        "A LBW transforma ferramentas e resultados em slides, seja para uma análise isolada ou para o projeto completo.",
+        "Faça uma atividade e veja como o PowerPoint pode reduzir o tempo de preparação da entrega.",
+      ], "Gerar uma entrega na LBW"),
+      emailMarketing(30, "Compartilhe uma dúvida na Comunidade LBW", "Não deixe sua dúvida interromper o aprendizado", [
+        "A comunidade existe para aproximar profissionais que estão aprendendo e aplicando melhoria contínua.",
+        "Entre, compartilhe uma dúvida ou conte o que está impedindo você de continuar.",
+      ], "Acessar a Comunidade LBW"),
+    ],
+    usando: [
+      emailMarketing(4, "Use a IA Digital durante seu projeto", "A IA pode acompanhar o seu raciocínio", [
+        "Você já começou a usar a LBW. Aproveite a IA Digital para interpretar resultados, esclarecer ferramentas e avaliar o próximo passo.",
+        "Quanto mais concreta for a sua pergunta, mais útil será a orientação recebida.",
+      ], "Continuar com a IA Digital"),
+      emailMarketing(8, "Avance pelas fases do seu projeto", "Continue seguindo o método", [
+        "Use as fases da plataforma como um roteiro para não pular diretamente do problema para a solução.",
+        "Avance uma etapa por vez e mantenha as evidências e decisões registradas.",
+      ], "Continuar meu trabalho"),
+      emailMarketing(12, "Conecte as ferramentas do seu projeto", "Faça as informações trabalharem por você", [
+        "As ligações entre ferramentas permitem aproveitar informações já construídas nas etapas anteriores.",
+        "Revise as conexões disponíveis e reduza o trabalho manual ao avançar no projeto.",
+      ], "Conectar minhas etapas"),
+      emailMarketing(16, "Aproveite os templates profissionais da LBW", "Amplie sua forma de aplicar", [
+        "Explore os templates liberados para estruturar análises, decisões e planos de ação com mais consistência.",
+        "Escolha o modelo mais próximo do desafio em que você está trabalhando agora.",
+      ], "Explorar os templates"),
+      emailMarketing(20, "Transforme dados em decisões", "Use análises e relatórios prontos", [
+        "As análises estatísticas da LBW entregam gráficos, indicadores e uma interpretação organizada para apoiar sua decisão.",
+        "Use o relatório gerado como ponto de partida e complemente com o conhecimento do processo.",
+      ], "Realizar uma nova análise"),
+      emailMarketing(25, "Gere o PowerPoint do seu trabalho", "Comunique seus resultados com mais rapidez", [
+        "Gere uma apresentação da ferramenta que acabou de usar ou reúna o projeto em uma apresentação completa.",
+        "Você economiza tempo de formatação e concentra sua energia na mensagem e nas decisões.",
+      ], "Gerar minha apresentação"),
+      emailMarketing(30, "Continue evoluindo com a Comunidade LBW", "Compartilhe sua experiência", [
+        "Conte na Comunidade LBW o que você aplicou, quais dificuldades encontrou e quais resultados começou a perceber.",
+        "Sua experiência ajuda outros profissionais e também orienta a evolução da plataforma.",
+      ], "Participar da Comunidade LBW"),
+    ],
+  };
+
   async function lerSequencias(): Promise<Sequencias> {
     try {
       const snap = await adminFirestore().collection("config").doc("marketingSequencias").get();
       if (snap.exists) {
         const d = snap.data() as any;
         return {
-          gratis: Array.isArray(d?.gratis) ? d.gratis : SEQUENCIAS_DEFAULT.gratis,
-          gratisEngajado: Array.isArray(d?.gratisEngajado) ? d.gratisEngajado : SEQUENCIAS_DEFAULT.gratisEngajado,
-          pago7: Array.isArray(d?.pago7) ? d.pago7 : SEQUENCIAS_DEFAULT.pago7,
-          pago: Array.isArray(d?.pago) ? d.pago : SEQUENCIAS_DEFAULT.pago,
+          nuncaEntrou: Array.isArray(d?.nuncaEntrou) ? d.nuncaEntrou : SEQUENCIAS_DEFAULT.nuncaEntrou,
+          entrou: Array.isArray(d?.entrou) ? d.entrou : SEQUENCIAS_DEFAULT.entrou,
+          usando: Array.isArray(d?.usando) ? d.usando : SEQUENCIAS_DEFAULT.usando,
         };
       }
     } catch (e) { /* cai no default */ }
@@ -4628,103 +4746,70 @@ async function startServer() {
     return diaCalendarioNZ(Date.now()) - diaCalendarioNZ(t);
   }
 
-  // Classificação "de negócio" — usada na tela (contagem/engajamento). Trata
-  // todo comprador como "pago" (uma coisa só), pra não quebrar quem já consome.
-  // Não existe mais "lead": a Trilha 1 virou paga, ninguém cadastra sem acessar.
-  // Quem tem conta e ainda não acessou é tratado como "gratis" (introdutório).
-  function classificarUsuario(u: any): "gratis" | "pago" | null {
+  type AtividadeUsuario = { videos: number; projetos: number };
+
+  // Nunca entrou: não há primeiro acesso. Está usando: acessou nos últimos 14
+  // dias e realizou uma ação real. Os demais ficam em "entrou".
+  function classificarSequencia(
+    u: any,
+    atividadePorUid: Record<string, AtividadeUsuario> = {},
+  ): EstagioEngajamento | null {
     if (!u || !u.email) return null;
-    if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null; // não recebem sequência
-    if (u.plano === "completo") return "pago";
-    // Comprador do Kit 90: o plano dele é "gratuito" (nível Trilha 1), mas ele PAGOU.
-    // Quem decide é a `origem`, não o `plano` — senão o comprador virava "lead".
-    if (isComprador(u)) return "pago";
-    return "gratis";
+    if (["admin", "coordenador", "consultor"].includes(String(u.tipoUsuario || ""))) return null;
+    if (!u.primeiroAcessoEm) return "nuncaEntrou";
+
+    const uid = String(u.uid || "");
+    const atividade = atividadePorUid[uid] || { videos: 0, projetos: 0 };
+    const ultimoAcesso = String(u.lastLogin || u.ultimoAcessoEm || u.ultimoAcesso || u.primeiroAcessoEm || "");
+    const diasSemAcesso = diasDesde(ultimoAcesso);
+    const primeiroMs = Date.parse(String(u.primeiroAcessoEm || ""));
+    const ultimoMs = Date.parse(ultimoAcesso);
+    const voltouEmOutroMomento = Number.isFinite(primeiroMs) && Number.isFinite(ultimoMs)
+      && ultimoMs - primeiroMs >= 6 * 60 * 60 * 1000;
+    const realizouAtividade = atividade.videos > 0 || atividade.projetos > 0 || voltouEmOutroMomento;
+
+    return diasSemAcesso >= 0 && diasSemAcesso <= 14 && realizouAtividade ? "usando" : "entrou";
   }
 
-  // Classificação "de sequência" — usada SÓ pelo motor de e-mails. Igual à de
-  // negócio, mas divide o comprador em duas fases pela idade da compra:
-  //   pago7 = primeiros 7 dias (0..6) — 3 e-mails anti-reembolso
-  //   pago  = do 7º dia em diante     — 7 e-mails de relacionamento
-  // IMPORTANTE: quem é CORTESIA (grátis completo, não pagou) NÃO entra no pago7,
-  // porque a fase anti-reembolso é irrelevante pra quem não tem o que reembolsar.
-  // Vai direto pro "pago" (relacionamento).
-  // Corte de engajamento da Trilha 1: assistiu MAIS de 2 vídeos = engajado.
-  const VIDEOS_ENGAJADO = 2;
-  // Nome do curso da Trilha 1 (mesma string do PACOTE_KIT90_NOME do webhook).
-  const CURSO_TRILHA1 = "Como Resolver Problemas no Trabalho - Kit 90 dias";
-  // A pessoa tem MESMO a Trilha 1? Olha a lista de cursos liberados, nos dois
-  // formatos que convivem hoje: cursosLiberados (nomes) e cursosAcesso (objetos).
-  // Normaliza porque o mesmo curso aparece com caixa diferente entre registros
-  // ("Estatística Aplicada..." e "Estatística aplicada...").
-  function temCursoTrilha1(u: any): boolean {
-    const semAcento = (v: unknown) =>
-      String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-    const alvo = semAcento(CURSO_TRILHA1);
-    const nomes = [
-      ...(Array.isArray(u?.cursosLiberados) ? u.cursosLiberados : []),
-      ...(Array.isArray(u?.cursosAcesso) ? u.cursosAcesso.map((c: any) => c?.curso) : []),
-    ];
-    return nomes.some((n) => semAcento(n) === alvo);
-  }
-  // videosPorUid: mapa uid → nº de vídeos assistidos (de userProgress). Opcional:
-  // se não vier, trata todo Trilha 1 como "gratis" (novo) — fallback seguro.
-  function classificarSequencia(u: any, videosPorUid?: Record<string, number>): "gratis" | "gratisEngajado" | "pago7" | "pago" | null {
-    if (!u || !u.email) return null;
-    if (u.tipoUsuario === "admin" || u.tipoUsuario === "coordenador") return null;
-    // A sequência é decidida pelo PRODUTO que a pessoa tem, não por ter pago:
-    //   - Tem só a Trilha 1 (comprou o Kit 90 OU ganhou de cortesia) → aba "Trilha 1"
-    //   - Tem o Completo (comprou OU ganhou de cortesia)             → aba "Completo"
-    if (u.plano !== "completo") {
-      // As sequências "gratis" e "gratisEngajado" falam SÓ da Trilha 1 (Kit 90
-      // Dias): citam as fases dela e mandam abrir aquele conteúdo. Antes bastava
-      // não ser "completo" pra cair aqui — o que fazia sentido quando só
-      // existiam dois produtos. Com os cursos avulsos e o modelo por_curso,
-      // isso passou a mandar a régua do Kit 90 para 102 de 110 usuários, sendo
-      // que só 1 tinha o curso. Quem entrou pelo grátis de Estatística Aplicada
-      // recebia e-mail mandando abrir fases que ele nem tem acesso.
-      // Agora só entra quem REALMENTE tem a Trilha 1. Os demais ficam sem
-      // sequência até existirem réguas por curso.
-      if (!temCursoTrilha1(u)) return null;
-      // Trilha 1 se divide por ENGAJAMENTO (vídeos assistidos):
-      //   >2 vídeos → "gratisEngajado" (vender o completo)
-      //   ≤2 vídeos → "gratis" (ativar; fala só da Trilha 1)
-      const nv = videosPorUid && u.uid ? (videosPorUid[u.uid] || 0) : 0;
-      return nv > VIDEOS_ENGAJADO ? "gratisEngajado" : "gratis";
-    }
-    // Completo: separa só os 7 primeiros dias do COMPRADOR (anti-reembolso).
-    // Quem é cortesia do completo não tem o que reembolsar → vai direto pro "pago".
-    if (isCortesia(u)) return "pago";
-    const dias = diasDesde(u.criadoEm || u.primeiroAcessoEm || "");
-    return dias >= 0 && dias < 7 ? "pago7" : "pago";
-  }
-
-  // Carrega o mapa uid → nº de vídeos assistidos (coleção userProgress).
-  async function carregarVideosPorUid(): Promise<Record<string, number>> {
-    const mapa: Record<string, number> = {};
+  // Carrega sinais de uso real uma única vez por ciclo do motor.
+  async function carregarAtividadePorUid(): Promise<Record<string, AtividadeUsuario>> {
+    const mapa: Record<string, AtividadeUsuario> = {};
     try {
-      const snap = await adminFirestore().collection("userProgress").get();
-      snap.forEach((d) => {
+      const [progressSnap, projectsSnap] = await Promise.all([
+        adminFirestore().collection("userProgress").get(),
+        adminFirestore().collection("projects").get(),
+      ]);
+      progressSnap.forEach((d) => {
         const w = (d.data() as any)?.watchedUrls;
-        mapa[d.id] = w && typeof w === "object" ? Object.keys(w).length : 0;
+        mapa[d.id] = {
+          videos: w && typeof w === "object" ? Object.keys(w).length : 0,
+          projetos: mapa[d.id]?.projetos || 0,
+        };
       });
-    } catch { /* mapa vazio = todos tratados como novos */ }
+      projectsSnap.forEach((d) => {
+        const uid = String((d.data() as any)?.ownerUid || "");
+        if (!uid) return;
+        mapa[uid] = {
+          videos: mapa[uid]?.videos || 0,
+          projetos: (mapa[uid]?.projetos || 0) + 1,
+        };
+      });
+    } catch { /* mapa vazio: a classificação ainda usa acesso e recência */ }
     return mapa;
   }
 
-  // Quais estágios estão LIGADos pra envio automático. Guardado em Firestore pra o Israel
-  // ligar/desligar pela tela sem deploy. Default: TODOS DESLIGADOS (posição segura).
-  type EstagiosAtivos = { gratis: boolean; gratisEngajado: boolean; pago7: boolean; pago: boolean };
+  // Quais estágios estão ligados para envio automático.
+  type EstagiosAtivos = Record<EstagioEngajamento, boolean>;
   async function lerEstagiosAtivos(): Promise<EstagiosAtivos> {
-    const off = { gratis: false, gratisEngajado: false, pago7: false, pago: false };
+    const off: EstagiosAtivos = { nuncaEntrou: false, entrou: false, usando: false };
     try {
       const snap = await adminFirestore().collection("config").doc("marketingEstagiosAtivos").get();
       if (!snap.exists) return off;
       const d = snap.data() as any;
       return {
-        gratis: d?.gratis === true,
-        gratisEngajado: d?.gratisEngajado === true,
-        pago7: d?.pago7 === true, pago: d?.pago === true,
+        nuncaEntrou: d?.nuncaEntrou === true || d?.gratis === true,
+        entrou: d?.entrou === true || d?.gratisEngajado === true,
+        usando: d?.usando === true || d?.pago === true || d?.pago7 === true,
       };
     } catch { return off; }
   }
@@ -4735,14 +4820,14 @@ async function startServer() {
     const dryRun = !!opts.dryRun;
     const seqs = await lerSequencias();
     const template = await lerTemplate();
-    const videosPorUid = await carregarVideosPorUid(); // pra separar Trilha 1 novo vs engajado
+    const atividadePorUid = await carregarAtividadePorUid();
     const ativos = opts.forcarEstagios
-      ? { gratis: false, gratisEngajado: false, pago7: false, pago: false, ...opts.forcarEstagios }
+      ? { nuncaEntrou: false, entrou: false, usando: false, ...opts.forcarEstagios }
       : await lerEstagiosAtivos();
     const resumo = {
       rodadoEm: new Date().toISOString(), dryRun,
       analisados: 0, enviados: 0, falhas: 0, pulados: 0,
-      porPacote: { gratis: 0, gratisEngajado: 0, pago7: 0, pago: 0 } as Record<string, number>,
+      porPacote: { nuncaEntrou: 0, entrou: 0, usando: 0 } as Record<string, number>,
       detalhes: [] as any[],
     };
 
@@ -4752,21 +4837,27 @@ async function startServer() {
       resumo.analisados++;
       // Opt-out (descadastro): quem cancelou a inscrição NÃO recebe mais nada. Lei.
       if (u.emailOptOut === true) { resumo.pulados++; continue; }
-      const estagio = classificarSequencia(u, videosPorUid);
-      if (estagio !== "gratis" && estagio !== "gratisEngajado" && estagio !== "pago7" && estagio !== "pago") { resumo.pulados++; continue; }
+      const estagio = classificarSequencia(u, atividadePorUid);
+      if (!estagio) { resumo.pulados++; continue; }
       if (!ativos[estagio]) { resumo.pulados++; continue; } // estágio desligado na config
 
       const seq = seqs[estagio];
-      // Data-base da régua de dias, por estágio:
-      //  - emailReguaInicioEm: se existir, TEM PRIORIDADE (usado pra "zerar" a régua de
-      //    quem já estava na base sem tocar em criadoEm/primeiroAcessoEm).
-      //  - gratis (Trilha 1 novo): conta do PRIMEIRO ACESSO (ou cadastro) — ativação.
-      //  - gratisEngajado/pago7/pago: conta do cadastro/compra (criadoEm).
-      //  - emailReguaInicioEm (zerado pra todos na virada) tem prioridade e alinha tudo.
-      const base = u.emailReguaInicioEm
-        || (estagio === "gratis"
-          ? (u.primeiroAcessoEm || u.criadoEm)
-          : (u.criadoEm || u.primeiroAcessoEm));
+      // Cada mudança de estágio inicia uma nova régua. Na primeira execução real,
+      // apenas registra o estágio; o primeiro e-mail vence quatro dias depois.
+      const estagioRegistrado = String(u.emailMarketingEstagio || "");
+      if (estagioRegistrado !== estagio || !u.emailMarketingEstagioInicioEm) {
+        const inicio = new Date().toISOString();
+        if (!dryRun) {
+          await doc.ref.set({
+            emailMarketingEstagio: estagio,
+            emailMarketingEstagioInicioEm: inicio,
+          }, { merge: true });
+        }
+        resumo.detalhes.push({ email: u.email, estagio, iniciariaEm: inicio });
+        resumo.pulados++;
+        continue;
+      }
+      const base = String(u.emailMarketingEstagioInicioEm || "");
       if (!base) { resumo.pulados++; continue; }
       const dias = diasDesde(base);
       if (dias < 0) { resumo.pulados++; continue; }
@@ -4826,7 +4917,11 @@ async function startServer() {
   // PUT /api/marketing/estagios-ativos — liga/desliga estágios (sem deploy)
   app.put("/api/marketing/estagios-ativos", requireAdmin, async (req: any, res) => {
     const b = req.body || {};
-    const limpo = { gratis: b.gratis === true, gratisEngajado: b.gratisEngajado === true, pago7: b.pago7 === true, pago: b.pago === true };
+    const limpo: EstagiosAtivos = {
+      nuncaEntrou: b.nuncaEntrou === true,
+      entrou: b.entrou === true,
+      usando: b.usando === true,
+    };
     try {
       await adminFirestore().collection("config").doc("marketingEstagiosAtivos").set(limpo);
       return res.json({ ok: true, ...limpo });
@@ -4844,7 +4939,7 @@ async function startServer() {
     const est = String(estagio || "");
     const i = Math.max(0, parseInt(idx, 10) || 0);
     if (!dest.includes("@")) return res.status(400).json({ error: "e-mail inválido." });
-    if (!["gratis", "gratisEngajado", "pago7", "pago"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
+    if (!["nuncaEntrou", "entrou", "usando"].includes(est)) return res.status(400).json({ error: "estágio inválido." });
     try {
       const seqs = await lerSequencias();
       const template = await lerTemplate();
@@ -4868,8 +4963,10 @@ async function startServer() {
 
   // PUT /api/marketing/sequencias — salva as sequências editadas (tela Fase 2)
   app.put("/api/marketing/sequencias", requireAdmin, async (req: any, res) => {
-    const { gratis, gratisEngajado, pago7, pago } = req.body || {};
-    if (!Array.isArray(gratis) || !Array.isArray(gratisEngajado) || !Array.isArray(pago7) || !Array.isArray(pago)) return res.status(400).json({ error: "gratis, gratisEngajado, pago7 e pago precisam ser arrays." });
+    const { nuncaEntrou, entrou, usando } = req.body || {};
+    if (!Array.isArray(nuncaEntrou) || !Array.isArray(entrou) || !Array.isArray(usando)) {
+      return res.status(400).json({ error: "nuncaEntrou, entrou e usando precisam ser arrays." });
+    }
     const limpa = (arr: any[]): SeqEmail[] => arr.map((e) => ({
       dia: Math.max(0, parseInt(e?.dia, 10) || 0),
       assunto: String(e?.assunto || ""),
@@ -4877,7 +4974,11 @@ async function startServer() {
       ativo: e?.ativo !== false,
     }));
     try {
-      await adminFirestore().collection("config").doc("marketingSequencias").set({ gratis: limpa(gratis), gratisEngajado: limpa(gratisEngajado), pago7: limpa(pago7), pago: limpa(pago) });
+      await adminFirestore().collection("config").doc("marketingSequencias").set({
+        nuncaEntrou: limpa(nuncaEntrou),
+        entrou: limpa(entrou),
+        usando: limpa(usando),
+      });
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err?.message || "Erro ao salvar." });
@@ -4973,19 +5074,15 @@ async function startServer() {
   // GET /api/marketing/status — resumo da última execução + contagem por estágio (faixa de status)
   app.get("/api/marketing/status", requireAdmin, async (_req: any, res) => {
     try {
-      const [statusSnap, usersSnap, videosPorUid] = await Promise.all([
+      const [statusSnap, usersSnap, atividadePorUid] = await Promise.all([
         adminFirestore().collection("config").doc("marketingMotorStatus").get(),
         adminFirestore().collection("users").get(),
-        carregarVideosPorUid(),
+        carregarAtividadePorUid(),
       ]);
-      // Contagem por ABA: "gratis" = Trilha 1 novo, "gratisEngajado" = Trilha 1
-      // engajado, "pago"/"pago7" = Completo (pago7 é sub-fase, soma no pago).
-      const contagem = { gratis: 0, gratisEngajado: 0, pago: 0 };
+      const contagem = { nuncaEntrou: 0, entrou: 0, usando: 0 };
       usersSnap.docs.forEach((d) => {
-        const c = classificarSequencia(d.data(), videosPorUid);
-        if (c === "gratis") contagem.gratis++;
-        else if (c === "gratisEngajado") contagem.gratisEngajado++;
-        else if (c === "pago7" || c === "pago") contagem.pago++;
+        const c = classificarSequencia(d.data(), atividadePorUid);
+        if (c) contagem[c]++;
       });
       return res.json({ ultimaExecucao: statusSnap.exists ? statusSnap.data() : null, contagem });
     } catch (err: any) {
@@ -5040,7 +5137,7 @@ async function startServer() {
         hoje: hojeStr,
         enviadosHoje: porDia[hojeStr] || 0,
         enviadosMes: porMes[mesStr] || 0,
-        hojePorEstagio,     // { gratis, pago7, pago } se o motor rodou hoje; senão null
+        hojePorEstagio,     // { nuncaEntrou, entrou, usando } se o motor rodou hoje; senão null
         totalHistorico: todos.length,
         porDia: dias,
       });
@@ -5073,8 +5170,7 @@ async function startServer() {
   // LIGADO POR PADRÃO (decisão do Israel, 17/jul/2026 — prevalece sobre a decisão
   // antiga de "OFF por padrão"): o motor roda sozinho às 23:59 NZ, sem depender de
   // env var. A segurança agora é POR ESTÁGIO: só dispara os estágios ligados em
-  // config/marketingEstagiosAtivos (hoje: só 'gratis' = Trilha 1 novo). Os grupos
-  // engajado/completo ficam OFF até o Israel liberar pela tela.
+  // config/marketingEstagiosAtivos. Cada público pode ser ativado ou pausado sem deploy.
   // FREIO DE EMERGÊNCIA: setar MOTOR_EMAIL_PAUSADO=true no Railway pausa TUDO na hora.
   const MOTOR_ATIVO = String(process.env.MOTOR_EMAIL_PAUSADO || "").toLowerCase() !== "true";
   if (!MOTOR_ATIVO) {
@@ -5110,19 +5206,22 @@ async function startServer() {
   }, 10 * 60 * 1000); // a cada 10 minutos
 
   // ===============================================================
-  // NEWSLETTER (pacote Pago) — envio manual + histórico pra reenviar
-  // Público-alvo por filtro: 'pago' (completo), 'gratis' ou 'todos'.
+  // NEWSLETTER — envio manual + histórico para os mesmos três estágios.
   // Cada envio é salvo em newsletters/{id} pra você reabrir e reenviar.
   // ===============================================================
 
-  function emailsPorPublico(docs: any[], publico: string): { email: string; nome: string }[] {
+  function emailsPorPublico(
+    docs: any[],
+    publico: string,
+    atividadePorUid: Record<string, AtividadeUsuario>,
+  ): { email: string; nome: string }[] {
     const vistos = new Set<string>();
     const lista: { email: string; nome: string }[] = [];
     docs.forEach((d) => {
       const u = d.data ? d.data() : d;
       if (!u?.email || String(u.email).indexOf("@") < 0) return;
       if (u.emailOptOut === true) return; // descadastrado: nunca recebe. Lei.
-      const estagio = classificarUsuario(u);
+      const estagio = classificarSequencia(u, atividadePorUid);
       if (publico === "todos" || estagio === publico) {
         const email = String(u.email).trim().toLowerCase();
         if (vistos.has(email)) return;
@@ -5138,11 +5237,14 @@ async function startServer() {
     if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "RESEND_API_KEY não configurada no Railway." });
     const { assunto, corpo, publico } = req.body || {};
     if (!assunto || !corpo) return res.status(400).json({ error: "assunto e corpo são obrigatórios." });
-    const alvo = ["pago", "gratis", "todos"].includes(publico) ? publico : "pago";
+    const alvo = ["nuncaEntrou", "entrou", "usando", "todos"].includes(publico) ? publico : "todos";
     try {
       const template = await lerTemplate();
-      const snap = await adminFirestore().collection("users").get();
-      const destinatarios = emailsPorPublico(snap.docs, alvo);
+      const [snap, atividadePorUid] = await Promise.all([
+        adminFirestore().collection("users").get(),
+        carregarAtividadePorUid(),
+      ]);
+      const destinatarios = emailsPorPublico(snap.docs, alvo, atividadePorUid);
       let enviados = 0, falhas = 0;
       const erros: any[] = [];
       for (const dest of destinatarios) {
@@ -5296,34 +5398,23 @@ async function startServer() {
     }
   });
 
-  // GET /api/marketing/engajamento — lista de pessoas do funil pra gestão (com filtros no front).
-  // Usa classificarSequencia (mostra os 4 estágios, incl. pago7). Sem foco em cliques.
+  // GET /api/marketing/engajamento — lista de pessoas nos três estágios de uso.
   app.get("/api/marketing/engajamento", requireAdmin, async (_req: any, res) => {
     try {
-      // Score de engajamento 0-100 — usa só sinais CONFIÁVEIS (não usa aberturas/cliques,
-      // que são imprecisos). Ideia: o quanto a pessoa demonstrou interesse real.
-      //  +40 acessou a plataforma · +45 comprou (pago/pago7) · +10 não descadastrou
-      //  ajuste por recência: lead novo (<7d) ainda "quente" ganha bônus; lead frio perde.
       function scoreEngajamento(u: any, estagio: string): number {
-        if (u.emailOptOut === true) return 0; // descadastrou = engajamento zero
-        let s = 10; // base (ainda está na lista, não saiu)
-        if (u.primeiroAcessoEm) s += 40; // acessou de verdade — sinal forte
-        if (estagio === "pago" || estagio === "pago7") s += 45; // comprou — sinal máximo
-        // recência do cadastro (lead que acabou de entrar está mais quente)
-        const diasCad = diasDesde(u.criadoEm || u.primeiroAcessoEm || "");
-        if (!u.primeiroAcessoEm) {
-          if (diasCad >= 0 && diasCad <= 7) s += 10;        // lead novo, quente
-          else if (diasCad > 30) s -= 10;                    // lead frio, esfriou
-        }
-        return Math.max(0, Math.min(100, s));
+        if (u.emailOptOut === true) return 0;
+        if (estagio === "usando") return 90;
+        if (estagio === "entrou") return 45;
+        return 10;
       }
-      const [snap, videosPorUid] = await Promise.all([
+      const [snap, atividadePorUid] = await Promise.all([
         adminFirestore().collection("users").get(),
-        carregarVideosPorUid(),
+        carregarAtividadePorUid(),
       ]);
       const lista = snap.docs.map((d) => {
         const u = d.data() as any;
-        const estagio = classificarSequencia(u, videosPorUid);
+        const atividade = atividadePorUid[String(u.uid || "")] || { videos: 0, projetos: 0 };
+        const estagio = classificarSequencia(u, atividadePorUid);
         return {
           email: u.email, nome: u.nome || "",
           estagio,
@@ -5334,6 +5425,9 @@ async function startServer() {
           cortesia: isCortesia(u),
           criadoEm: u.criadoEm || null,
           primeiroAcessoEm: u.primeiroAcessoEm || null,
+          ultimoAcessoEm: u.lastLogin || u.ultimoAcessoEm || u.ultimoAcesso || null,
+          videosAssistidos: atividade.videos,
+          projetos: atividade.projetos,
           score: scoreEngajamento(u, estagio || ""),
         };
       }).filter((x) => x.estagio); // só quem está num estágio do funil
