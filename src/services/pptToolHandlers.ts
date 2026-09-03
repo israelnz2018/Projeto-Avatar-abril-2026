@@ -32,6 +32,8 @@ import { exportBriefSlide } from './briefSlideExporter';
 import { exportBeforeAfterSlide } from './beforeAfterSlideExporter';
 import { exportActionPlanSlide } from './actionPlanSlideExporter';
 import { exportImprovementIdeaSlide } from './improvementIdeaSlideExporter';
+import { exportVsmSlide } from './vsmSlideExporter';
+import { exportBpmnSlide } from './bpmnSlideExporter';
 import { exportTangibleGainsSlide } from './tangibleGainsSlideExporter';
 
 export interface ToolHandler {
@@ -89,4 +91,6 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   beforeAfter: { exporter: exportBeforeAfterSlide, successMsg: 'Slide de Antes x Depois gerado!' },
   actionPlan: { exporter: exportActionPlanSlide, successMsg: 'Slide do Plano de Acao gerado!' },
   improvementIdea: { exporter: exportImprovementIdeaSlide, successMsg: 'Slide de Ideias de Projeto gerado!' },
+  vsm: { exporter: exportVsmSlide, successMsg: 'Slide do VSM gerado!' },
+  bpmnProcessMap: { exporter: exportBpmnSlide, successMsg: 'Slide do Mapa de Processo BPMN gerado!' },
 };
