@@ -37,6 +37,7 @@ import MeasureAdkar from './MeasureAdkar';
 import ProjectBrief from './ProjectBrief';
 import SIPOC from './SIPOC';
 import ProcessMapper from './ProcessMapper';
+import BpmnProcessMap from './BpmnProcessMap';
 import Brainstorming from './Brainstorming';
 import Ishikawa from './Ishikawa';
 import FiveWhys from './FiveWhys';
@@ -104,6 +105,7 @@ const AVAILABLE_TOOLS = [
   { id: 'improvementPlan', name: 'Plano do Projeto de Melhoria', component: ImprovementProjectPlan, defaultPhase: 'Define' },
   { id: 'stakeholders', name: 'Stakeholders', component: StakeholderManagement, defaultPhase: 'Define' },
   { id: 'processMap', name: 'Mapeamento de Processo', component: ProcessMapper, defaultPhase: 'Measure' },
+  { id: 'bpmnProcessMap', name: 'Mapa de Processo BPMN', component: BpmnProcessMap, defaultPhase: 'Measure' },
   { id: 'brainstorming', name: 'Brainstorming', component: Brainstorming, defaultPhase: 'Measure' },
   { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', component: Brainstorming, defaultPhase: 'Improve' },
   { id: 'measureIshikawa', name: 'Espinha de Peixe', component: Ishikawa, defaultPhase: 'Measure' },

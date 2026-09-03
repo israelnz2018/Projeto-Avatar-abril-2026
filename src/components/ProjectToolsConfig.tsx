@@ -108,6 +108,7 @@ const AVAILABLE_TOOLS = [
   { id: 'stakeholders', name: 'Stakeholders', phase: 'Define' },
   { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', phase: 'Define' },
   { id: 'processMap', name: 'Mapeamento de Processo', phase: 'Measure' },
+  { id: 'bpmnProcessMap', name: 'Mapa de Processo BPMN', phase: 'Measure' },
   { id: 'brainstorming', name: 'Brainstorming', phase: 'Measure' },
   { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', phase: 'Improve' },
   { id: 'measureIshikawa', name: 'Espinha de Peixe', phase: 'Measure' },
@@ -144,7 +145,7 @@ const TOOL_CATEGORIES = [
     icon: Wrench,
     accent: 'blue',
     toolIds: [
-      'brief', 'charter', 'sipoc', 'indicadores', 'processMap', 'brainstorming',
+      'brief', 'charter', 'sipoc', 'indicadores', 'processMap', 'bpmnProcessMap', 'brainstorming',
       'brainstormingImprove', 'measureIshikawa', 'measureMatrix', 'beforeAfter', 'rab',
       'gut', 'effortImpact', 'dataCollection', 'vsm', 'directObservation', 'fiveWhys',
       'fta', 'statisticalAnalysis', 'dataNature', 'fmea', 'plan5w2h', 'actionPlan',
