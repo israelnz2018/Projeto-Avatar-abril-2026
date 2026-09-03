@@ -25,7 +25,7 @@ export interface ApiSettings {
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_ANTHROPIC_HAIKU = 'claude-haiku-4-5-20251001';
-export const DEFAULT_ANTHROPIC_SONNET = 'claude-sonnet-4-6';
+export const DEFAULT_ANTHROPIC_SONNET = 'claude-sonnet-5';
 export const DEFAULT_ANTHROPIC_OPUS = 'claude-opus-4-7';
 
 const EMPTY_SETTINGS: ApiSettings = {
@@ -46,6 +46,14 @@ function ref() {
 }
 
 function merge(raw: any): ApiSettings {
+  // Migra automaticamente o modelo Sonnet padrão anterior para o Sonnet 5.
+  // Um valor diferente de Sonnet 4.6 continua sendo respeitado caso tenha
+  // sido escolhido explicitamente nas configurações.
+  const configuredSonnet = raw?.anthropic?.modelSonnet;
+  const modelSonnet = configuredSonnet === 'claude-sonnet-4-6'
+    ? DEFAULT_ANTHROPIC_SONNET
+    : (configuredSonnet || DEFAULT_ANTHROPIC_SONNET);
+
   return {
     gemini: {
       apiKey: raw?.gemini?.apiKey ?? '',
@@ -54,7 +62,7 @@ function merge(raw: any): ApiSettings {
     anthropic: {
       apiKey: raw?.anthropic?.apiKey ?? '',
       modelHaiku: raw?.anthropic?.modelHaiku || DEFAULT_ANTHROPIC_HAIKU,
-      modelSonnet: raw?.anthropic?.modelSonnet || DEFAULT_ANTHROPIC_SONNET,
+      modelSonnet,
       modelOpus: raw?.anthropic?.modelOpus || DEFAULT_ANTHROPIC_OPUS,
     },
     updatedBy: raw?.updatedBy,

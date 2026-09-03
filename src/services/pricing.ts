@@ -30,6 +30,7 @@ export const ANTHROPIC_PRICES: Record<string, ModelPrice> = {
   'claude-haiku-4-5': { inputPerMTok: 1.00, outputPerMTok: 5.00 },
   'claude-3-5-haiku-latest': { inputPerMTok: 0.80, outputPerMTok: 4.00 },
   // Sonnet family
+  'claude-sonnet-5': { inputPerMTok: 2.00, outputPerMTok: 10.00 },
   'claude-sonnet-4-6': { inputPerMTok: 3.00, outputPerMTok: 15.00 },
   'claude-sonnet-4-5': { inputPerMTok: 3.00, outputPerMTok: 15.00 },
   'claude-3-7-sonnet-latest': { inputPerMTok: 3.00, outputPerMTok: 15.00 },

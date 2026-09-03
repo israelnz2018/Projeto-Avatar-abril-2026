@@ -14,7 +14,7 @@ import { getUsageLastNDays, trackAnthropicUsage, UsageDoc } from '../services/ap
 import { getGeminiPrice, getAnthropicPrice, estimateCostUSD, formatUSD } from '../services/pricing';
 
 const ANTHROPIC_HAIKU_OPTIONS = ['claude-haiku-4-5-20251001', 'claude-haiku-4-5', 'claude-3-5-haiku-latest'];
-const ANTHROPIC_SONNET_OPTIONS = ['claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-3-7-sonnet-latest'];
+const ANTHROPIC_SONNET_OPTIONS = ['claude-sonnet-5', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-3-7-sonnet-latest'];
 const ANTHROPIC_OPUS_OPTIONS = ['claude-opus-4-7', 'claude-opus-4-1', 'claude-3-opus-latest'];
 
 // Lista atualizada em 2026-05-23. Só modelos STABLE (GA) — sem preview/experimental.
