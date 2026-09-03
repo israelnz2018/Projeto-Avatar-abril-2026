@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search, ArrowDownToLine } from 'lucide-react';
 import { generateToolData } from '@/src/services/aiService';
-import { resolveToolLink, TOOLS_WITH_AI_BLOCK, TOOLS_WITH_MIGRATE_BLOCK } from '@/src/services/toolLinks';
+import { resolveToolLink } from '@/src/services/toolLinks';
 import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
@@ -615,8 +615,8 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
   );
 };
 
-// Os mapas TOOLS_WITH_AI_BLOCK / TOOLS_WITH_MIGRATE_BLOCK mudaram para
-// services/toolLinks.ts, onde servem de FALLBACK do resolvedor por projeto.
+// As ligacoes entre ferramentas vivem em services/toolLinks.ts e so existem quando
+// o consultor as declara no painel — nao ha mais mapa global ligando por padrao.
 
 
 export default function ToolWrapper({
@@ -1543,14 +1543,10 @@ export default function ToolWrapper({
   const toolNameOf = (id: string) =>
     (availableTools || []).find((t: any) => t.id === id)?.name || id;
 
-  // Rótulo da fonte: ligação declarada monta pelos nomes das ferramentas; no fallback
-  // preserva o texto original do mapa (que às vezes cita fontes compostas).
-  const linkSourceLabel = initiative?.toolLinks?.[toolId]
-    ? toolLink?.from.map(toolNameOf).join(' e ') || ''
-    : (TOOLS_WITH_AI_BLOCK[toolId]?.source || TOOLS_WITH_MIGRATE_BLOCK[toolId]?.source || '');
+  // Rótulo da fonte, montado pelo nome da ferramenta que o consultor ligou nesta.
+  const linkSourceLabel = toolLink?.from.map(toolNameOf).join(' e ') || '';
 
-  // Basta UMA fonte preenchida pro card aparecer — o aluno pode ter usado só a GUT
-  // e não a RAB, por exemplo.
+  // Basta UMA fonte preenchida pro card aparecer.
   const linkHasContent = !!toolLink && toolLink.from.some(
     (id) => sourceHasContent(getToolDataByPrefix(allProjectData, id))
   );
