@@ -1286,7 +1286,11 @@ useEffect(() => {
             // a chave real vira `<fase>_improvementIdea` e o gate zerava, escondendo os
             // botões de gerar/migrar. Quem decide agora é `linkHasContent` no ToolWrapper,
             // que resolve a chave por prefixo e respeita as ligações declaradas do projeto.
-            showAIPrompt={activeTool.id !== 'processMap'}
+            //
+            // O Mapeamento de Processo também ficava bloqueado aqui, de quando não havia
+            // nada que soubesse alimentá-lo. Agora existe: o SIPOC entrega o esqueleto do
+            // fluxo. Sem ligação declarada nada aparece de qualquer forma.
+            showAIPrompt={true}
           >
             {({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData: wrapperAllProjectData }) => {
               const Component = ActiveComponent as any;

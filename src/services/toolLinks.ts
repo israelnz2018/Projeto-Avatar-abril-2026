@@ -15,6 +15,8 @@ export const MIGRATE_TARGETS = [
   'improvementPlan', 'gut', 'rab', 'effortImpact',
   'measureAdkar', 'analyzeAdkar', 'improveAdkar', 'controlAdkar',
   'directObservation', 'statisticalAnalysis', 'controlPlan',
+  // Recebem o esqueleto do fluxo a partir do SIPOC (services/sipocParaProcesso.ts).
+  'processMap', 'bpmnProcessMap',
 ];
 
 /** Destinos que sabem RECEBER dados via IA (prompt proprio em aiPrompts.ts). */

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X, Printer, Wand2, HelpCircle, Trash2, FileSpreadsheet, ListTodo, TrendingUp, AlertTriangle, Calendar, Settings, Search, ArrowDownToLine } from 'lucide-react';
 import { generateToolData } from '@/src/services/aiService';
 import { resolveToolLink } from '@/src/services/toolLinks';
+import { esqueletoDoSipoc, sipocParaProcessMap, sipocParaBpmn } from '@/src/services/sipocParaProcesso';
 import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
@@ -1061,6 +1062,27 @@ export default function ToolWrapper({
           return;
         }
         migratedData = { items };
+      }
+
+      // SIPOC -> mapa de processo, nos dois formatos. O "P" do SIPOC são as etapas
+      // macro; aqui elas viram o esqueleto do caminho normal, com a entrada virando
+      // evento inicial e a saída virando evento final. Decisões, retornos e exceções
+      // ficam para o aluno detalhar — o kit manda não completar fluxo por suposição.
+      if (toolId === 'processMap' || toolId === 'bpmnProcessMap') {
+        const esqueleto = esqueletoDoSipoc(sourceData);
+        if (!esqueleto) {
+          toast.error('O SIPOC não tem etapas de processo preenchidas. Preencha a coluna "Processo" primeiro.');
+          setIsGeneratingData(false);
+          return;
+        }
+
+        if (toolId === 'processMap') {
+          migratedData = sipocParaProcessMap(sourceData);
+        } else {
+          const xml = sipocParaBpmn(sourceData, projectName);
+          migratedData = { xml, nomeProcesso: projectName || '' };
+        }
+        console.log('🗺️ Etapas migradas do SIPOC:', esqueleto.atividades.length);
       }
 
       if (toolId === 'gut' || toolId === 'rab') {
