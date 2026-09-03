@@ -1054,12 +1054,29 @@ export default function ProjectToolsConfig() {
                                   // dados; nas outras o botão existiria sem fazer nada.
                                   const podeTransferir = !!proxima && !!LINKABLE_TARGETS[proxima];
                                   return (
-                                    <div key={toolId} className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm group">
-                                    <div className="flex items-center gap-3">
+                                    <div key={toolId} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-blue-100 shadow-sm group">
                                       <div className="w-6 h-6 rounded bg-blue-600 text-white flex items-center justify-center text-[10px] font-black">
                                         {index + 1}
                                       </div>
                                       <span className="flex-1 text-xs font-bold text-gray-700 uppercase">{tool.name}</span>
+
+                                      {/* Só aparece quando a ferramenta de baixo sabe receber dados.
+                                          Nas outras não existe transformador escrito, então marcar
+                                          não produziria botão nenhum na jornada do aluno. */}
+                                      {podeTransferir && (
+                                        <label className="flex items-center gap-2 shrink-0 cursor-pointer select-none">
+                                          <input
+                                            type="checkbox"
+                                            checked={transfereParaProxima(toolId)}
+                                            onChange={() => alternarTransferencia(toolId)}
+                                            className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
+                                          />
+                                          <span className="text-[11px] text-gray-500 whitespace-nowrap">
+                                            Transferir os dados para a ferramenta de baixo
+                                          </span>
+                                        </label>
+                                      )}
+
                                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button 
                                           onClick={() => moveToolInConfig(phase.id, toolId, 'up')}
@@ -1082,21 +1099,6 @@ export default function ProjectToolsConfig() {
                                           <X size={14} />
                                         </button>
                                       </div>
-                                    </div>
-
-                                    {podeTransferir && (
-                                      <label className="mt-2 ml-9 flex items-center gap-2 cursor-pointer select-none">
-                                        <input
-                                          type="checkbox"
-                                          checked={transfereParaProxima(toolId)}
-                                          onChange={() => alternarTransferencia(toolId)}
-                                          className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
-                                        />
-                                        <span className="text-[11px] text-gray-500">
-                                          Transferir os dados para a ferramenta de baixo
-                                        </span>
-                                      </label>
-                                    )}
                                     </div>
                                   );
                                 })}
