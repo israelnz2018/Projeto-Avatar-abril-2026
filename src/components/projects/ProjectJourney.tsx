@@ -960,10 +960,10 @@ useEffect(() => {
         const rabData = projectData['rab'];
         
         return {
-          // Projetos da Ideia de Projetos de Melhoria
-          generatedProjects: ideaData?.toolData?.generatedProjects 
-            || ideaData?.generatedProjects 
-            || [],
+          // Projetos da Ideia de Projetos de Melhoria — só os aprovados pelo aluno
+          generatedProjects: (ideaData?.toolData?.generatedProjects
+            || ideaData?.generatedProjects
+            || []).filter((p: any) => p?.aprovado !== false),
           // Projetos da GUT
           gutOpportunities: gutData?.toolData?.opportunities 
             || gutData?.opportunities 
@@ -1300,9 +1300,11 @@ useEffect(() => {
                       onGenerateAI={onGenerateAI}
                       isGeneratingAI={isGeneratingAI}
                       ideaProjects={
-                        projectData['improvementIdea']?.toolData?.generatedProjects || 
-                        projectData['improvementIdea']?.generatedProjects || 
-                        []
+                        // Só as ideias que o aluno aprovou seguem para RAB/GUT.
+                        // Sem o campo (ideias antigas) = aprovada.
+                        (projectData['improvementIdea']?.toolData?.generatedProjects ||
+                         projectData['improvementIdea']?.generatedProjects ||
+                         []).filter((p: any) => p?.aprovado !== false)
                       }
                       gutProjects={
                         projectData['gut']?.toolData?.opportunities || 

@@ -243,6 +243,9 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
       } else {
         p.nivel_projeto = 'Complexidade baixa'; // default seguro
       }
+      // Aprovada por padrão. Só desmarcação explícita (false) reprova — assim as
+      // ideias salvas antes deste campo existir continuam valendo pra próxima etapa.
+      p.aprovado = p.aprovado !== false;
       // Remove o campo antigo pra não vazar jargão em dados salvos
       delete p.belt_level;
       delete p.beltLevel;
@@ -459,7 +462,15 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
       const projects = jsonResponse.projects || [];
       const semProjeto = Array.isArray(jsonResponse.itens_sem_projeto) ? jsonResponse.itens_sem_projeto : [];
 
-      const normalized = normalizeProjects(projects);
+      // ACRESCENTA — nunca substitui. O aluno pode ter aprovado/reprovado ideias e
+      // editado texto; regerar preservava nada disso antes. Ideia repetida (mesmo
+      // título) é descartada pra não duplicar a lista a cada nova geração.
+      const chave = (v: any) => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+      const jaExistem = new Set(generatedProjects.map((p: any) => chave(p.title)));
+      const novos = normalizeProjects(projects)
+        .filter((p: any) => p.title && !jaExistem.has(chave(p.title)))
+        .map((p: any) => ({ ...p, aprovado: true }));   // nasce aprovado
+      const normalized = [...generatedProjects, ...novos];
       setGeneratedProjects(normalized);
       setItensSemProjeto(semProjeto);
       // Fecha o questionário e leva o aluno até as ideias: o formulário é longo
@@ -470,7 +481,7 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
       onSave({
         userProfile,
         formData,
-        generatedProjects: projects,
+        generatedProjects: normalized,   // lista mesclada, não só as novas
         itensSemProjeto: semProjeto,
       });
     } catch (error) {
@@ -990,6 +1001,12 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
               <p className="text-sm text-gray-400">
                 Projetos identificados com base na sua realidade. Clique para ver os detalhes.
               </p>
+              <p className="text-sm font-bold text-emerald-700 m-0">
+                {generatedProjects.filter((p: any) => p.aprovado !== false).length} de {generatedProjects.length} aprovadas para a próxima etapa
+              </p>
+              <p className="text-xs text-gray-400 m-0">
+                Desmarque a caixa das ideias que você não quer levar adiante.
+              </p>
             </div>
 
             {/* Filtros — 3 níveis sem jargão */}
@@ -1032,6 +1049,12 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
                     project={project}
                     index={originalIndex}
                     origemLabel={origemDoProjeto(project)}
+                    onToggleAprovado={(v) => {
+                      const lista = [...generatedProjects];
+                      lista[originalIndex] = { ...lista[originalIndex], aprovado: v };
+                      setGeneratedProjects(lista);
+                      onSave({ userProfile, formData, generatedProjects: lista, itensSemProjeto }, { silent: true });
+                    }}
                     onUpdateProject={(updatedProject) => {
                         const updatedProjects = [...generatedProjects];
                         updatedProjects[originalIndex] = updatedProject;
@@ -1178,7 +1201,7 @@ function Select({ value, onChange, options }: { value: string, onChange: (v: str
   );
 }
 
-function ProjectResultCard({ project, index, origemLabel, onUpdateProject, onRemoveProject }: { project: any, index: number, origemLabel?: string | null, onUpdateProject: (updatedProject: any) => void, onRemoveProject?: () => void }) {
+function ProjectResultCard({ project, index, origemLabel, onToggleAprovado, onUpdateProject, onRemoveProject }: { project: any, index: number, origemLabel?: string | null, onToggleAprovado?: (v: boolean) => void, onUpdateProject: (updatedProject: any) => void, onRemoveProject?: () => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -1255,9 +1278,20 @@ function ProjectResultCard({ project, index, origemLabel, onUpdateProject, onRem
       className={`bg-white border rounded-2xl overflow-hidden transition-all ${belt.border} hover:shadow-md`}
     >
       {/* Header — sempre visível */}
+      <div className="w-full flex items-center gap-3 px-5 py-4">
+        {/* Aprovação para a próxima etapa. Fica FORA do botão de expandir pra que
+            clicar na caixa não abra/feche o card. */}
+        <input
+          type="checkbox"
+          checked={project.aprovado !== false}
+          onChange={(e) => { e.stopPropagation(); onToggleAprovado?.(e.target.checked); }}
+          title={project.aprovado !== false ? 'Aprovada para a próxima etapa' : 'Não vai para a próxima etapa'}
+          aria-label={`Aprovar ideia ${index + 1} para a próxima etapa`}
+          className="w-5 h-5 shrink-0 cursor-pointer accent-emerald-600"
+        />
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors cursor-pointer bg-transparent border-none"
+        className="flex-1 min-w-0 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors cursor-pointer bg-transparent border-none p-0"
       >
         {/* Número */}
         <div className="w-7 h-7 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center font-black text-xs shrink-0">
@@ -1280,11 +1314,12 @@ function ProjectResultCard({ project, index, origemLabel, onUpdateProject, onRem
         </span>
 
         {/* Expand icon */}
-        <ChevronDown 
-          size={16} 
-          className={`text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} 
+        <ChevronDown
+          size={16}
+          className={`text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
         />
       </button>
+      </div>
 
       {/* Detalhes — colapsável */}
       <AnimatePresence>

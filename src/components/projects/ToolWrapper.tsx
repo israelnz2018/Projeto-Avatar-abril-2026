@@ -394,7 +394,7 @@ export const AIPromptCard = ({
       const rab = getToolDataByPrefix(allProjectData, 'rab');
 
       const fromImprovement = Array.isArray(improvementIdea?.generatedProjects)
-        ? improvementIdea.generatedProjects.map((p: any) => ({
+        ? improvementIdea.generatedProjects.filter((p: any) => p?.aprovado !== false).map((p: any) => ({
             title: p.title || '',
             description: p.problem || '',
             y_indicator: p.y_indicator || '',
