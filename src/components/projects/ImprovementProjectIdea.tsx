@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Lightbulb,
   Building2,
@@ -254,6 +254,12 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
 
   const [generatedProjects, setGeneratedProjects] = useState<any[]>(savedData?.generatedProjects ? normalizeProjects(savedData.generatedProjects) : []);
   const [nivelFilter, setNivelFilter] = useState<string>('Todos');
+  // Itens que a IA avaliou e concluiu que não rendem projeto — com o motivo.
+  // Sem isso, item ignorado e item descartado ficavam indistinguíveis (os dois sumiam).
+  const [itensSemProjeto, setItensSemProjeto] = useState<any[]>(savedData?.itensSemProjeto || []);
+  // Questionário fechado depois de gerar; o aluno reabre pra editar e regerar.
+  const [formColapsado, setFormColapsado] = useState<boolean>((savedData?.generatedProjects || []).length > 0);
+  const resultadosRef = useRef<HTMLDivElement>(null);
 
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
   const [showExemplo, setShowExemplo] = useState(false);
@@ -333,9 +339,28 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     });
   };
 
+  // "Atividade 2 · Conferência de notas" — de onde a ideia veio. A IA devolve o
+  // nome do item em item_nome; aqui traduzimos pro número que o aluno vê no form.
+  const origemDoProjeto = (project: any): string | null => {
+    const nome = String(project?.item_nome || '').trim();
+    if (!nome) return null;
+    const lista = (formData.itens || []);
+    const chave = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    const pos = lista.findIndex((it: any) => chave(String(it.nome || '')) === chave(nome));
+    const rotulo = userProfile === 'Area' ? 'Processo' : userProfile === 'Empresa' ? 'Frente' : 'Atividade';
+    return pos >= 0 ? `${rotulo} ${pos + 1} · ${lista[pos].nome}` : nome;
+  };
+
   const generateProjects = async () => {
     setLoading(true);
     try {
+      // Os itens vão para o prompt como lista numerada explícita — antes iam
+      // dentro do JSON.stringify(formData) e a IA acabava concentrando tudo no
+      // item com mais texto, ignorando os demais em silêncio.
+      const itensValidosPrompt = (formData.itens || []).filter((it: any) =>
+        !!it.nome && !!(it.voz1 || it.voz2 || it.voz3 || it.voz4 || it.oportunidade)
+      );
+      const vozLabels = (userProfile ? ITEM_CONFIG[userProfile].vozes : []).map((v) => v.label);
       const focoDescritivo =
         userProfile === 'Atividades' ? 'O aluno quer melhorar SUAS PRÓPRIAS ATIVIDADES no dia a dia. Foco em ações individuais — não propor projetos que dependam de várias áreas ou alto patrocínio. Quick wins, ideias acionáveis sem aprovação executiva.' :
         userProfile === 'Area' ? 'O aluno é coordenador/gerente de área e quer melhorar SUA ÁREA. Foco em projetos de escopo de área (1-3 processos), com possíveis interfaces com áreas vizinhas. Não propor projetos corporativos amplos.' :
@@ -362,12 +387,30 @@ CRUZE as vozes: problema citado por mais de uma voz tem mais lastro e vira proje
 Trate "oportunidade" como vetor de investigação (o aluno aponta a direção; você propõe o projeto
 que investiga a causa). Se o aluno cravou uma solução pronta (ex: "comprar máquina"), NÃO finja
 que é investigativo: classifique honestamente como Implementação.
-Gere projetos a partir dos itens — pode combinar itens relacionados num projeto, mas não invente itens.
 
-DADOS COLETADOS NA ENTREVISTA:
-${JSON.stringify(formData, null, 2)}
+LISTA DE ITENS INFORMADOS PELO ALUNO — leia um por um:
+${itensValidosPrompt.map((it: any, i: number) => `
+[ITEM ${i + 1}] ${it.nome}
+  - ${vozLabels[0]}: ${it.voz1 || '(não informado)'}
+  - ${vozLabels[1]}: ${it.voz2 || '(não informado)'}
+  - ${vozLabels[2]}: ${it.voz3 || '(não informado)'}
+  - ${vozLabels[3]}: ${it.voz4 || '(não informado)'}
+  - Oportunidade apontada: ${it.oportunidade || '(não informada)'}`).join('\n')}
 
-Gere entre 5 e 10 ideias de projetos ordenados por prioridade. RESPEITE o foco escolhido — não fuja do escopo.
+COBERTURA DOS ITENS — regra importante:
+Percorra TODOS os itens acima, um a um. Não concentre tudo no item que tem mais texto:
+item com pouca informação também pode conter um bom projeto.
+NÃO invente projeto só para preencher cota — qualidade acima de quantidade. É melhor
+devolver 3 ideias boas do que 8 fracas.
+Se algum item honestamente NÃO rende um projeto de melhoria, não force: em vez disso,
+explique o motivo no campo "itens_sem_projeto".
+Em cada projeto, informe em "item_nome" o nome EXATO do item que originou a ideia
+(copie o texto do item). Se a ideia nasceu de mais de um item, use o item principal.
+
+OUTROS DADOS DO CONTEXTO:
+${JSON.stringify({ ...formData, itens: undefined }, null, 2)}
+
+Ordene as ideias por prioridade (a melhor primeiro). RESPEITE o foco escolhido — não fuja do escopo.
 
 CLASSIFICAÇÃO — preencha o campo nivel_projeto com UM destes 3 (NÃO use jargão técnico,
 NÃO mencione Belt, Six Sigma, DMAIC):
@@ -388,7 +431,7 @@ REGRAS:
 2. y_indicator: APENAS o nome do indicador sem meta ou prazo. Ex: "Taxa de defeitos"
 3. priority_score: número de 0 a 100
 
-Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
+Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
 {
   "projects": [{
     "title": "...",
@@ -397,26 +440,38 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
     "financial_impact": "estimativa de impacto",
     "nivel_projeto": "Implementação | Complexidade baixa | Complexidade média",
     "priority_score": 85,
-    "justification": "Por que esse nível — com base no que precisa investigar, pessoas e prazo"
+    "justification": "Por que esse nível — com base no que precisa investigar, pessoas e prazo",
+    "item_nome": "nome exato do item que originou esta ideia"
+  }],
+  "itens_sem_projeto": [{
+    "item_nome": "nome exato do item",
+    "motivo": "por que este item não rendeu projeto (1 frase, honesta)"
   }]
 }
 `;
 
       const { callAIJSON } = await import('../../services/aiRouter');
-      const jsonResponse = await callAIJSON<{ projects?: any[] }>({
+      const jsonResponse = await callAIJSON<{ projects?: any[]; itens_sem_projeto?: any[] }>({
         location: 'fill-tool',
         messages: [{ role: 'user', content: prompt }],
         maxTokens: 4096,
       });
       const projects = jsonResponse.projects || [];
+      const semProjeto = Array.isArray(jsonResponse.itens_sem_projeto) ? jsonResponse.itens_sem_projeto : [];
 
       const normalized = normalizeProjects(projects);
       setGeneratedProjects(normalized);
-      
+      setItensSemProjeto(semProjeto);
+      // Fecha o questionário e leva o aluno até as ideias: o formulário é longo
+      // (várias atividades × 4 vozes) e antes as ideias nasciam fora do campo de visão.
+      setFormColapsado(true);
+      setTimeout(() => resultadosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+
       onSave({
         userProfile,
         formData,
-        generatedProjects: projects
+        generatedProjects: projects,
+        itensSemProjeto: semProjeto,
       });
     } catch (error) {
       console.error("Erro ao gerar projetos:", error);
@@ -651,6 +706,26 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
       </div>
 
       <div className="grid grid-cols-1 gap-10 pb-20">
+        {/* Cabeçalho do questionário colapsado — só aparece depois de gerar.
+            O formulário é longo (N itens × 4 vozes) e enterrava as ideias. */}
+        {formColapsado && (
+          <button
+            type="button"
+            onClick={() => setFormColapsado(false)}
+            className="w-full flex items-center justify-between gap-3 rounded-2xl border-2 border-gray-200 bg-white px-5 py-4 text-left cursor-pointer hover:border-blue-300 transition-colors"
+          >
+            <span>
+              <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400">Suas respostas</span>
+              <span className="block text-sm font-bold text-gray-800 mt-0.5">
+                {(formData.itens || []).filter((it: any) => !!it.nome).length}{' '}
+                {userProfile === 'Area' ? 'processo(s)' : userProfile === 'Empresa' ? 'frente(s)' : 'atividade(s)'} — clique para editar
+              </span>
+            </span>
+            <ChevronDown size={18} className="text-gray-400 shrink-0" />
+          </button>
+        )}
+
+        {!formColapsado && (<>
         {/* SEÇÃO 1 — Contexto (varia por foco) */}
         <SectionCard
           step={1}
@@ -844,6 +919,8 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           );
         })()}
 
+        </>)}
+
         {/* Action Section */}
         <div className="flex flex-col items-center gap-4 py-8 border-t-2 border-gray-100 border-dashed">
           <div className="relative group">
@@ -881,10 +958,29 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
           </button>
         </div>
 
-        {/* Results Section */}
+        {/* Results Section — sem 'order-first': ele jogava as ideias ACIMA do
+            formulário (order:-1 no flex), que é o motivo de elas nascerem fora
+            do campo de visão do aluno. Agora vêm depois do questionário. */}
         {generatedProjects.length > 0 && (
-          <div className="order-first space-y-4">
-            
+          <div ref={resultadosRef} className="space-y-4">
+
+            {/* Itens que a IA avaliou e não viraram projeto — com o motivo dela.
+                Aparece antes da lista pra que a ausência seja explícita, não silenciosa. */}
+            {itensSemProjeto.length > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 m-0 mb-2">
+                  Itens que não geraram projeto
+                </p>
+                <ul className="m-0 pl-4 space-y-1">
+                  {itensSemProjeto.map((it: any, i: number) => (
+                    <li key={i} className="text-sm text-amber-900">
+                      <strong>{it.item_nome}</strong> — {it.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Título da seção */}
             <div className="text-center space-y-2">
               <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-blue-100">
@@ -931,10 +1027,11 @@ Retorne APENAS um objeto JSON com uma chave "projects" contendo a lista:
                   // Precisamos do indice original para passar corretamente para o remove
                   const originalIndex = generatedProjects.indexOf(project);
                   return (
-                  <ProjectResultCard 
-                    key={originalIndex} 
-                    project={project} 
-                    index={originalIndex} 
+                  <ProjectResultCard
+                    key={originalIndex}
+                    project={project}
+                    index={originalIndex}
+                    origemLabel={origemDoProjeto(project)}
                     onUpdateProject={(updatedProject) => {
                         const updatedProjects = [...generatedProjects];
                         updatedProjects[originalIndex] = updatedProject;
@@ -1081,7 +1178,7 @@ function Select({ value, onChange, options }: { value: string, onChange: (v: str
   );
 }
 
-function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }: { project: any, index: number, onUpdateProject: (updatedProject: any) => void, onRemoveProject?: () => void }) {
+function ProjectResultCard({ project, index, origemLabel, onUpdateProject, onRemoveProject }: { project: any, index: number, origemLabel?: string | null, onUpdateProject: (updatedProject: any) => void, onRemoveProject?: () => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -1172,9 +1269,14 @@ function ProjectResultCard({ project, index, onUpdateProject, onRemoveProject }:
           {belt.label}
         </span>
 
-        {/* Título */}
-        <span className="flex-1 text-sm font-bold text-gray-900 text-left leading-tight">
-          {title}
+        {/* Título + de qual atividade a ideia nasceu */}
+        <span className="flex-1 text-left leading-tight">
+          <span className="block text-sm font-bold text-gray-900">{title}</span>
+          {origemLabel && (
+            <span className="block text-[10px] font-black uppercase tracking-widest text-blue-500 mt-1 truncate">
+              {origemLabel}
+            </span>
+          )}
         </span>
 
         {/* Expand icon */}
