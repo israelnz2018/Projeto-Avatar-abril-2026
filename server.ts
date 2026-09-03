@@ -4617,35 +4617,37 @@ async function startServer() {
   // O e-mail inicial com senha e liberação de acesso continua sendo enviado pelo
   // fluxo de cadastro. Estas são apenas as sete mensagens seguintes, distribuídas
   // pelos 30 dias posteriores à entrada da pessoa em cada estágio.
-  const MARKETING_SEQUENCE_VERSION = 2;
+  const MARKETING_SEQUENCE_VERSION = 3;
+  const MARKETING_ROLLOUT_AT = Date.parse("2026-09-03T21:00:00.000Z");
+  const MARKETING_ROLLOUT_MARKER = "emailMarketingInicioAjustado20260904";
   const SEQUENCIAS_DEFAULT: Sequencias = {
     nuncaEntrou: [
-      emailMarketing(4, "Você não precisa aprender sozinho", "Você não precisa aprender sozinho", [
+      emailMarketing(2, "Você não precisa aprender sozinho", "Você não precisa aprender sozinho", [
         "Aprender melhoria contínua pode aumentar sua capacidade de resolver problemas reais, participar de projetos importantes e tomar decisões com mais segurança.",
         "Você não precisa dominar tudo antes de começar. A IA Digital pode esclarecer dúvidas, explicar ferramentas e mostrar exemplos enquanto você pratica.",
         "Reserve alguns minutos para conhecer seu acesso e dê o primeiro passo para transformar conhecimento em uma competência profissional.",
       ], "Conhecer a IA Digital"),
-      emailMarketing(8, "Conduza seu projeto passo a passo", "Um caminho claro para conduzir melhorias", [
+      emailMarketing(5, "Conduza seu projeto passo a passo", "Um caminho claro para conduzir melhorias", [
         "Resolver um problema de forma estruturada ajuda você a evitar soluções apressadas, reduzir retrabalho e demonstrar resultados que podem ser comprovados.",
         "Você será conduzido da definição do problema ao controle dos resultados, usando ferramentas adequadas para investigar causas, escolher ações e acompanhar os ganhos.",
         "Comece com um desafio pequeno do seu trabalho. O importante agora é aprender a seguir o método e construir sua primeira melhoria passo a passo.",
       ], "Ver as fases do projeto"),
-      emailMarketing(12, "As informações acompanham o seu projeto", "Menos retrabalho entre as ferramentas", [
+      emailMarketing(9, "As informações acompanham o seu projeto", "Menos retrabalho entre as ferramentas", [
         "Um bom profissional não deve perder tempo copiando as mesmas informações entre planilhas, documentos e apresentações.",
         "Ao desenvolver seu projeto, os dados das ferramentas anteriores podem seguir para as próximas etapas. Isso preserva o raciocínio, reduz erros e acelera a execução.",
         "O benefício é simples: mais tempo para analisar o problema e tomar decisões, menos tempo preenchendo novamente o que você já produziu.",
       ], "Conhecer a plataforma"),
-      emailMarketing(16, "Templates profissionais prontos para usar", "Comece com modelos prontos", [
+      emailMarketing(13, "Templates profissionais prontos para usar", "Comece com modelos prontos", [
         "Usar um modelo estruturado melhora a qualidade do seu trabalho e diminui o risco de esquecer informações importantes durante um projeto.",
         "Você encontra templates para priorizar problemas, mapear processos, investigar causas, planejar ações, controlar riscos e acompanhar resultados.",
         "Em vez de começar do zero, adapte um modelo à sua realidade e transforme informações dispersas em uma entrega clara e profissional.",
       ], "Ver os templates disponíveis"),
-      emailMarketing(20, "Faça análises estatísticas sem complicação", "Dados transformados em informação", [
+      emailMarketing(18, "Faça análises estatísticas sem complicação", "Dados transformados em informação", [
         "Saber analisar dados ajuda você a defender uma recomendação com evidências, identificar padrões e evitar decisões baseadas apenas em opinião.",
         "Com as análises liberadas no Software LBW, você cria gráficos, encontra variações e relações e recebe uma interpretação organizada dos resultados.",
         "Assim, mesmo sem ser um estatístico, você começa a usar seus próprios dados para compreender problemas e propor melhorias com mais confiança.",
       ], "Conhecer as análises estatísticas"),
-      emailMarketing(25, "Transforme seu trabalho em uma apresentação", "Sua apresentação em PowerPoint pronta", [
+      emailMarketing(24, "Transforme seu trabalho em uma apresentação", "Sua apresentação em PowerPoint pronta", [
         "Um projeto só gera reconhecimento quando outras pessoas conseguem entender o problema, as decisões tomadas e os resultados alcançados.",
         "Você pode transformar uma análise isolada ou o projeto completo em uma apresentação PowerPoint com gráficos, tabelas e informações já organizadas.",
         "Isso reduz o tempo de formatação e permite que você concentre sua energia na mensagem, nas recomendações e na conversa com a liderança.",
@@ -4657,32 +4659,32 @@ async function startServer() {
       ], "Entrar na Plataforma LBW"),
     ],
     entrou: [
-      emailMarketing(4, "Peça ajuda para a IA Digital", "Faça sua primeira pergunta", [
+      emailMarketing(2, "Peça ajuda para a IA Digital", "Faça sua primeira pergunta", [
         "Você já deu o primeiro passo. Agora use seu acesso para transformar uma dúvida concreta em aprendizado e ação.",
         "Pergunte à IA Digital qual ferramenta utilizar, como interpretar um resultado ou qual deveria ser o próximo passo diante de um problema real.",
         "O objetivo não é receber uma resposta pronta, mas compreender melhor a situação e ganhar autonomia para tomar decisões mais seguras.",
       ], "Conversar com a IA Digital"),
-      emailMarketing(8, "Escolha uma fase e comece seu projeto", "A plataforma mostra o próximo passo", [
+      emailMarketing(5, "Escolha uma fase e comece seu projeto", "A plataforma mostra o próximo passo", [
         "A melhor maneira de aprender melhoria contínua é aplicar o método em um problema que realmente incomoda você, sua equipe ou seus clientes.",
         "Comece pequeno: registre o problema, organize o que já sabe e avance pelas fases para descobrir quais evidências e causas ainda precisam ser investigadas.",
         "Ao final, você não terá apenas assistido a aulas. Terá construído uma experiência prática que pode ser apresentada profissionalmente.",
       ], "Começar uma atividade"),
-      emailMarketing(12, "Não preencha as mesmas informações novamente", "Seu projeto permanece conectado", [
+      emailMarketing(9, "Não preencha as mesmas informações novamente", "Seu projeto permanece conectado", [
         "Conduzir projetos com produtividade significa dedicar esforço ao raciocínio e não à repetição de tarefas administrativas.",
         "As informações construídas em uma ferramenta podem alimentar as etapas seguintes, mantendo a história do projeto e a coerência entre problema, causas e ações.",
         "Com menos preenchimento repetido, você avança mais rápido e reduz a possibilidade de apresentar informações contraditórias.",
       ], "Continuar na plataforma"),
-      emailMarketing(16, "Comece usando um template pronto", "Você não precisa partir do zero", [
+      emailMarketing(13, "Comece usando um template pronto", "Você não precisa partir do zero", [
         "Templates prontos ajudam você a trabalhar com mais rapidez e, ao mesmo tempo, manter um padrão profissional de análise e documentação.",
         "Escolha um modelo para priorização, processo, causas, riscos, ações ou controle e aplique-o a uma situação real do seu trabalho.",
         "Além de economizar tempo, você desenvolve uma forma mais organizada de pensar, registrar decisões e explicar seu projeto para outras pessoas.",
       ], "Abrir os templates"),
-      emailMarketing(20, "Faça sua primeira análise estatística", "Analisar dados pode ser mais simples", [
+      emailMarketing(18, "Faça sua primeira análise estatística", "Analisar dados pode ser mais simples", [
         "Quando você transforma dados em evidências, suas conclusões ganham força e suas recomendações deixam de depender apenas de percepção.",
         "Escolha uma análise disponível, envie seus dados e obtenha o gráfico, os resultados e um relatório organizado sem montar fórmulas manualmente.",
         "Depois, converse com a IA Digital para interpretar os números e relacioná-los ao problema que você está tentando resolver.",
       ], "Fazer uma análise"),
-      emailMarketing(25, "Gere sua primeira apresentação em PowerPoint", "Do trabalho realizado à apresentação", [
+      emailMarketing(24, "Gere sua primeira apresentação em PowerPoint", "Do trabalho realizado à apresentação", [
         "Apresentar bem uma análise aumenta a chance de suas recomendações serem compreendidas, aprovadas e colocadas em prática.",
         "Transforme uma ferramenta ou o projeto completo em slides editáveis, acrescente o contexto da empresa e destaque as conclusões mais importantes.",
         "Você economiza tempo na preparação e desenvolve uma entrega que pode fortalecer sua credibilidade diante da equipe e da liderança.",
@@ -4694,32 +4696,32 @@ async function startServer() {
       ], "Acessar a Comunidade LBW"),
     ],
     usando: [
-      emailMarketing(4, "Use a IA Digital durante seu projeto", "A IA pode acompanhar o seu raciocínio", [
+      emailMarketing(2, "Use a IA Digital durante seu projeto", "A IA pode acompanhar o seu raciocínio", [
         "Você já começou a aplicar. Agora pode usar a IA Digital para aprofundar seu raciocínio e aumentar a qualidade das decisões do projeto.",
         "Peça uma avaliação crítica do que produziu, identifique pontos sem evidências, explore alternativas e esclareça como interpretar os resultados.",
         "Esse diálogo ajuda você a enxergar lacunas antes da apresentação e a desenvolver mais autonomia para conduzir futuros projetos.",
       ], "Continuar com a IA Digital"),
-      emailMarketing(8, "Avance pelas fases do seu projeto", "Continue seguindo o método", [
+      emailMarketing(5, "Avance pelas fases do seu projeto", "Continue seguindo o método", [
         "Resultados sustentáveis surgem quando você resiste à pressa de escolher uma solução antes de compreender o problema.",
         "Continue avançando pelas fases: defina com clareza, confirme os dados, investigue causas, selecione ações e estabeleça como os resultados serão controlados.",
         "Ao seguir o método, você reduz retrabalho e aumenta a confiança das pessoas que precisam apoiar ou aprovar a melhoria.",
       ], "Continuar meu trabalho"),
-      emailMarketing(12, "Conecte as ferramentas do seu projeto", "Faça as informações trabalharem por você", [
+      emailMarketing(9, "Conecte as ferramentas do seu projeto", "Faça as informações trabalharem por você", [
         "Quanto menos tempo você gastar repetindo informações, mais rápido poderá chegar à análise, às ações e aos resultados do projeto.",
         "Aproveite os dados trazidos das ferramentas anteriores, revise o que mudou e mantenha conectadas as decisões tomadas em cada fase.",
         "Essa continuidade melhora sua produtividade e torna o projeto mais coerente, rastreável e fácil de explicar.",
       ], "Conectar minhas etapas"),
-      emailMarketing(16, "Aproveite os templates profissionais da LBW", "Amplie sua forma de aplicar", [
+      emailMarketing(13, "Aproveite os templates profissionais da LBW", "Amplie sua forma de aplicar", [
         "Um projeto bem documentado transmite organização, facilita o acompanhamento e aumenta a credibilidade do profissional que o conduz.",
         "Use os templates liberados para padronizar análises, registrar decisões e evitar que informações importantes sejam esquecidas.",
         "Escolha o modelo mais útil para seu desafio atual e transforme o trabalho realizado em uma entrega que outras pessoas consigam compreender e continuar.",
       ], "Explorar os templates"),
-      emailMarketing(20, "Transforme dados em decisões", "Use análises e relatórios prontos", [
+      emailMarketing(18, "Transforme dados em decisões", "Use análises e relatórios prontos", [
         "O valor de uma análise não está apenas no cálculo, mas na capacidade de transformar o resultado em uma decisão melhor.",
         "Use gráficos, indicadores e relatórios para identificar padrões e depois confronte os achados com o conhecimento de quem realmente vive o processo.",
         "Essa combinação entre evidência e experiência ajuda você a fazer perguntas melhores, reduzir suposições e recomendar ações mais consistentes.",
       ], "Realizar uma nova análise"),
-      emailMarketing(25, "Gere o PowerPoint do seu trabalho", "Comunique seus resultados com mais rapidez", [
+      emailMarketing(24, "Gere o PowerPoint do seu trabalho", "Comunique seus resultados com mais rapidez", [
         "Saber comunicar um projeto é essencial para conquistar apoio, demonstrar valor e transformar uma boa análise em ação.",
         "Gere o PowerPoint da ferramenta ou do projeto completo e organize a narrativa: problema, evidências, causas, ações e resultados.",
         "Você economiza tempo de formatação e pode se concentrar em explicar as decisões e mostrar claramente o impacto alcançado.",
@@ -4867,18 +4869,29 @@ async function startServer() {
       if (!ativos[estagio]) { resumo.pulados++; continue; } // estágio desligado na config
 
       const seq = seqs[estagio];
-      // Cada mudança de estágio inicia uma nova régua. Na primeira execução real,
-      // apenas registra o estágio; o primeiro e-mail vence quatro dias depois.
+      // Cada mudança de estágio inicia uma nova régua. Para a migração aprovada em
+      // 04/09/2026, usuários que já existiam começam excepcionalmente em "ontem".
+      // O marcador garante que isso aconteça uma única vez; mudanças futuras usam hoje.
       const estagioRegistrado = String(u.emailMarketingEstagio || "");
-      if (estagioRegistrado !== estagio || !u.emailMarketingEstagioInicioEm) {
-        const inicio = new Date().toISOString();
+      const rolloutJaAplicado = u[MARKETING_ROLLOUT_MARKER] === true;
+      if (estagioRegistrado !== estagio || !u.emailMarketingEstagioInicioEm || !rolloutJaAplicado) {
+        const criadoMs = Date.parse(String(u.criadoEm || u.createdAt || ""));
+        const usuarioAnteriorAoRollout = !rolloutJaAplicado
+          && (!Number.isFinite(criadoMs) || criadoMs < MARKETING_ROLLOUT_AT);
+        const inicio = new Date(Date.now() - (usuarioAnteriorAoRollout ? 24 * 60 * 60 * 1000 : 0)).toISOString();
         if (!dryRun) {
           await doc.ref.set({
             emailMarketingEstagio: estagio,
             emailMarketingEstagioInicioEm: inicio,
+            [MARKETING_ROLLOUT_MARKER]: true,
           }, { merge: true });
         }
-        resumo.detalhes.push({ email: u.email, estagio, iniciariaEm: inicio });
+        resumo.detalhes.push({
+          email: u.email,
+          estagio,
+          iniciariaEm: inicio,
+          diaZeroConsideradoOntem: usuarioAnteriorAoRollout,
+        });
         resumo.pulados++;
         continue;
       }
