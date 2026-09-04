@@ -8,6 +8,61 @@
 
 import { callAIJSON } from './aiRouter';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Enxugar o payload ANTES de virar prompt.
+//
+// Foto anexada, imagem de gráfico, XML de diagrama e dataset gigante não ajudam a
+// IA a preencher campo nenhum — e estouram o limite da API. Uma única foto no
+// Entendendo o Problema levou o prompt a 264.065 tokens (o teto é 200.000), e ela
+// ainda ia duas vezes: no contexto da ferramenta e dentro de allProjectData.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LIMITE_STRING = 1500;      // caracteres por campo de texto
+const LIMITE_ITENS = 200;        // itens por lista
+const LIMITE_PAYLOAD = 120000;   // caracteres no JSON final (~30k tokens)
+
+/** Texto longo que só tem alfabeto base64 é imagem/binário, não conteúdo. */
+const pareceBinario = (s: string) =>
+  s.length > 500 && /^[A-Za-z0-9+/=\s]+$/.test(s);
+
+const enxugarValor = (valor: any, profundidade = 0): any => {
+  if (valor === null || valor === undefined) return valor;
+  if (profundidade > 10) return '[...]';
+
+  if (typeof valor === 'string') {
+    if (valor.startsWith('data:') || pareceBinario(valor)) return '[imagem removida]';
+    if (valor.trimStart().startsWith('<?xml')) return '[diagrama removido]';
+    return valor.length > LIMITE_STRING
+      ? `${valor.slice(0, LIMITE_STRING)}…[truncado]`
+      : valor;
+  }
+
+  if (Array.isArray(valor)) {
+    const cortada = valor.slice(0, LIMITE_ITENS).map((v) => enxugarValor(v, profundidade + 1));
+    if (valor.length > LIMITE_ITENS) cortada.push(`…[+${valor.length - LIMITE_ITENS} itens]`);
+    return cortada;
+  }
+
+  if (typeof valor === 'object') {
+    const saida: Record<string, any> = {};
+    for (const [chave, v] of Object.entries(valor)) saida[chave] = enxugarValor(v, profundidade + 1);
+    return saida;
+  }
+
+  return valor;
+};
+
+/** Serializa já enxuto, com teto final de tamanho. Nunca lança. */
+export const enxugarParaPrompt = (dados: any): string => {
+  let json: string;
+  try {
+    json = JSON.stringify(enxugarValor(dados) ?? {}) ?? '{}';
+  } catch {
+    return '{}';
+  }
+  return json.length > LIMITE_PAYLOAD ? `${json.slice(0, LIMITE_PAYLOAD)}…[truncado]` : json;
+};
+
 export const sanitizeToolData = (toolId: string, data: any): any => {
   if (!data) return {};
 
@@ -71,7 +126,7 @@ Sua tarefa é gerar dados estruturados para a ferramenta "${toolName}" (ID: ${to
 
 ${projectInfo ? `Projeto: ${projectInfo.name}\nDescrição: ${projectInfo.description || 'Não informada'}` : ''}
 
-${previousToolName ? `Contexto anterior (${previousToolName}): ${JSON.stringify(previousToolData)}` : ''}
+${previousToolName ? `Contexto anterior (${previousToolName}): ${enxugarParaPrompt(previousToolData)}` : ''}
 
 Diretrizes:
 1. Gere dados realistas, técnicos e úteis para um projeto de melhoria real.
@@ -80,7 +135,7 @@ Diretrizes:
 4. Responda APENAS com o objeto JSON puro, sem explicações ou blocos de código markdown.`;
 
   const userPrompt = `Gere os dados para a ferramenta ${toolName}.
-Dados de todas as ferramentas disponíveis: ${JSON.stringify(allProjectData || {})}`;
+Dados de todas as ferramentas disponíveis: ${enxugarParaPrompt(allProjectData || {})}`;
 
   try {
     const result = await callAIJSON({
