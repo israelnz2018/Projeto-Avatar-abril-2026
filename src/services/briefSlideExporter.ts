@@ -85,55 +85,90 @@ export async function exportBriefSlide(
     valign: 'middle', shrinkText: true,
   });
 
-  // ── FOTOS (se o aluno anexou) — reserva uma faixa embaixo do grid de cards ──
-  const IMG_H = images.length > 0 ? 1.55 : 0;
-  const IMG_GAP = images.length > 0 ? 0.16 : 0;
-
-  // ── GRID DE CARDS (2 colunas) ──
   const gridY = TY + BANNER_H + 0.16;
-  const gridH = TH - BANNER_H - 0.16 - IMG_H - IMG_GAP;
-  const COLS = 2;
+  const gridBottom = TY + TH;          // fim da área da ferramenta; abaixo disso é a
+                                       // faixa da ANÁLISE EXECUTIVA, que é padrão de
+                                       // todos os PPTs e não pode ser tocada aqui.
   const COL_GAP = 0.24;
   const ROW_GAP = 0.14;
-  const CARD_W = (TW - (COLS - 1) * COL_GAP) / COLS;
+  const CARD_W = (TW - COL_GAP) / 2;
+  const RIGHT_X = TX + CARD_W + COL_GAP;
 
-  if (cards.length > 0) {
-    const rows = Math.ceil(cards.length / COLS);
-    const CARD_H = (gridH - (rows - 1) * ROW_GAP) / rows;
-
-    cards.forEach((card, idx) => {
-      const col = idx % COLS;
-      const row = Math.floor(idx / COLS);
-      const cx = TX + col * (CARD_W + COL_GAP);
-      const cy = gridY + row * (CARD_H + ROW_GAP);
-
-      slide.addShape('rect', {
-        x: cx, y: cy, w: CARD_W, h: CARD_H,
-        fill: { color: 'F0F2FA' }, line: { color: THEME.CHIP_BD, width: 0.5 }, rectRadius: 0.04,
-      });
-
-      const labelH = 0.20;
-      slide.addText(card.label.toUpperCase(), {
-        x: cx + 0.12, y: cy + 0.06, w: CARD_W - 0.24, h: labelH,
-        fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY,
-        charSpacing: 0.5, valign: 'middle',
-      });
-      slide.addText(card.value, {
-        x: cx + 0.12, y: cy + 0.06 + labelH, w: CARD_W - 0.24, h: CARD_H - labelH - 0.14,
-        fontFace: 'Calibri', fontSize: 8.5, color: THEME.INK,
-        valign: 'top', shrinkText: true,
-      });
+  // Desenha um card de resposta na posição/altura pedidas.
+  const drawCard = (card: { label: string; value: string }, cx: number, cy: number, ch: number) => {
+    slide.addShape('rect', {
+      x: cx, y: cy, w: CARD_W, h: ch,
+      fill: { color: 'F0F2FA' }, line: { color: THEME.CHIP_BD, width: 0.5 }, rectRadius: 0.04,
     });
-  }
+    const labelH = 0.20;
+    slide.addText(card.label.toUpperCase(), {
+      x: cx + 0.12, y: cy + 0.06, w: CARD_W - 0.24, h: labelH,
+      fontFace: 'Calibri', fontSize: 7.5, bold: true, color: THEME.NAVY,
+      charSpacing: 0.5, valign: 'middle',
+    });
+    slide.addText(card.value, {
+      x: cx + 0.12, y: cy + 0.06 + labelH, w: CARD_W - 0.24, h: ch - labelH - 0.14,
+      fontFace: 'Calibri', fontSize: 8.5, color: THEME.INK,
+      valign: 'top', shrinkText: true,
+    });
+  };
 
-  if (images.length > 0) {
-    const imgY = gridY + gridH + IMG_GAP;
-    const imgCols = Math.min(images.length, 2);
-    const imgGapX = 0.16;
-    const imgW = (TW - (imgCols - 1) * imgGapX) / imgCols;
+  // Empilha uma lista de cards numa coluna, dividindo a altura disponível por igual.
+  // O teto evita que uma coluna com 1 ou 2 respostas vire uma caixa gigante e vazia:
+  // nesse caso os cards ficam no topo, com o tamanho natural.
+  const MAX_CARD_H = 1.30;
+  const drawColumn = (lista: typeof cards, cx: number, topY: number, altura: number) => {
+    if (lista.length === 0) return;
+    const ch = Math.min((altura - (lista.length - 1) * ROW_GAP) / lista.length, MAX_CARD_H);
+    lista.forEach((card, i) => drawCard(card, cx, topY + i * (ch + ROW_GAP), ch));
+  };
 
-    images.slice(0, 2).forEach((img, idx) => {
-      const ix = TX + idx * (imgW + imgGapX);
+  if (images.length === 0) {
+    // ── SEM FOTO: layout de sempre, intocado — 2 colunas preenchidas por linha ──
+    const gridH = TH - BANNER_H - 0.16;
+    if (cards.length > 0) {
+      const rows = Math.ceil(cards.length / 2);
+      const CARD_H = (gridH - (rows - 1) * ROW_GAP) / rows;
+      cards.forEach((card, idx) => {
+        const cx = TX + (idx % 2) * (CARD_W + COL_GAP);
+        const cy = gridY + Math.floor(idx / 2) * (CARD_H + ROW_GAP);
+        drawCard(card, cx, cy, CARD_H);
+      });
+    }
+  } else {
+    // ── COM FOTO: a coluna da direita cede a parte de baixo para as imagens ──
+    // As fotos descem até o fim da área da ferramenta (logo acima da análise
+    // executiva), ganhando bem mais altura do que numa faixa horizontal.
+    const IMG_H = 2.45;
+    const imgY = gridBottom - IMG_H;
+
+    const alturaEsq = gridBottom - gridY;
+    const alturaDir = imgY - 0.16 - gridY;
+
+    // Divide os cards na proporção da altura de cada coluna, para as duas ficarem
+    // cheias e com cards de altura parecida — a direita naturalmente leva menos.
+    const nDir = Math.max(
+      0,
+      Math.min(cards.length - 1, Math.round((cards.length * alturaDir) / (alturaEsq + alturaDir)))
+    );
+
+    const esq: typeof cards = [];
+    const dir: typeof cards = [];
+    cards.forEach((card) => {
+      if (dir.length < nDir && esq.length > dir.length) dir.push(card);
+      else esq.push(card);
+    });
+
+    drawColumn(esq, TX, gridY, alturaEsq);
+    drawColumn(dir, RIGHT_X, gridY, alturaDir);
+
+    // 1 foto ocupa a área inteira; 2 fotos dividem essa mesma área, lado a lado.
+    const imgGapX = 0.14;
+    const usadas = images.slice(0, 2);
+    const imgW = (CARD_W - (usadas.length - 1) * imgGapX) / usadas.length;
+
+    usadas.forEach((img, idx) => {
+      const ix = RIGHT_X + idx * (imgW + imgGapX);
       try {
         // Garante o prefixo data:image/png;base64, (sem ele o PPT quebra).
         const imgData = img.startsWith('data:') ? img : `data:image/png;base64,${img}`;
