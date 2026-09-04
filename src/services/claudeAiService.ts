@@ -6,7 +6,9 @@
  * generateAIToolReport (todas eram código morto na UI).
  */
 
+import { listaDeTextos } from '../lib/textoDeValor';
 import { callAIJSON } from './aiRouter';
+import { AI_PROMPTS } from './aiPrompts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enxugar o payload ANTES de virar prompt.
@@ -63,25 +65,6 @@ export const enxugarParaPrompt = (dados: any): string => {
   return json.length > LIMITE_PAYLOAD ? `${json.slice(0, LIMITE_PAYLOAD)}…[truncado]` : json;
 };
 
-/**
- * Converte para texto legível o que a ferramenta espera como string.
- *
- * A IA às vezes devolve `[{name:"Fornecedor"}]` onde o SIPOC quer `["Fornecedor"]`.
- * Sem isto a tela imprime "[object Object]" em cada célula — foi o que aconteceu.
- * De objeto, aproveita o primeiro campo de texto preenchido.
- */
-const paraTexto = (valor: any): string => {
-  if (valor === null || valor === undefined) return '';
-  if (typeof valor === 'string') return valor.trim();
-  if (typeof valor === 'number' || typeof valor === 'boolean') return String(valor);
-  if (Array.isArray(valor)) return valor.map(paraTexto).filter(Boolean).join(' — ');
-  if (typeof valor === 'object') {
-    const primeiro = Object.values(valor).find((v) => typeof v === 'string' && v.trim());
-    return typeof primeiro === 'string' ? primeiro.trim() : '';
-  }
-  return '';
-};
-
 export const sanitizeToolData = (toolId: string, data: any): any => {
   if (!data) return {};
 
@@ -119,9 +102,7 @@ export const sanitizeToolData = (toolId: string, data: any): any => {
   // sobrar vazio sai fora — coluna sem informação fica vazia em vez de inventada.
   if (toolId === 'sipoc') {
     (['suppliers', 'inputs', 'process', 'outputs', 'customers'] as const).forEach((campo) => {
-      data[campo] = (Array.isArray(data[campo]) ? data[campo] : [])
-        .map(paraTexto)
-        .filter((texto: string) => texto.length > 0);
+      data[campo] = listaDeTextos(data[campo]);
     });
   }
 
@@ -150,6 +131,14 @@ export const generateToolData = async (
   projectInfo?: { name: string; description?: string },
   allProjectData?: any
 ): Promise<any> => {
+  // A diretriz 2 mandava "siga rigorosamente a estrutura esperada" — mas a estrutura
+  // NUNCA era enviada: este serviço não lia aiPrompts.ts. A função que injeta
+  // (buildPrompt) ficou em claudeService.ts, que virou código morto na migração de
+  // 2026-05-17. Resultado: a IA adivinhava o schema de cada ferramenta e às vezes
+  // acertava, às vezes devolvia objeto onde a tela esperava texto ([object Object]
+  // no SIPOC). Aqui a estrutura e as regras de cada ferramenta finalmente chegam.
+  const promptDaFerramenta = AI_PROMPTS[toolId];
+
   const systemPrompt = `Você é o Mentor LBW, um consultor sênior Master Black Belt especializado em Lean Six Sigma e Gestão de Projetos.
 Sua tarefa é gerar dados estruturados para a ferramenta "${toolName}" (ID: ${toolId}) de um projeto DMAIC.
 
@@ -161,7 +150,12 @@ Diretrizes:
 1. Gere dados realistas, técnicos e úteis para um projeto de melhoria real.
 2. Siga rigorosamente a estrutura esperada para este toolId.
 3. Se houver dados de outras ferramentas (allProjectData), use-os para garantir consistência.
-4. Responda APENAS com o objeto JSON puro, sem explicações ou blocos de código markdown.`;
+4. Responda APENAS com o objeto JSON puro, sem explicações ou blocos de código markdown.
+${promptDaFerramenta ? `
+ESTRUTURA JSON ESPERADA — use EXATAMENTE estas chaves e estes tipos:
+${promptDaFerramenta.structure}
+
+${promptDaFerramenta.instructions}` : ''}`;
 
   const userPrompt = `Gere os dados para a ferramenta ${toolName}.
 Dados de todas as ferramentas disponíveis: ${enxugarParaPrompt(allProjectData || {})}`;

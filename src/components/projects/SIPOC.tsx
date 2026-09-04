@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { listaDeTextos } from '@/src/lib/textoDeValor';
 import { Truck, Package, Settings, PackageCheck, UserCheck, Plus, Trash2, CheckCircle2, Info, Sparkles, Loader2, BookOpen, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -107,15 +108,19 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
     customers: []
   };
 
+  // As 5 colunas são listas de TEXTO. Dado já salvo por uma geração antiga pode ter
+  // objeto no lugar do texto — sem converter, a célula imprime "[object Object]".
+  const comoLista = listaDeTextos;
+
   const [data, setData] = useState(() => {
     if (!initialData) return defaultData;
     const d = initialData.toolData || initialData;
     return {
-      suppliers: Array.isArray(d.suppliers) ? d.suppliers : [],
-      inputs: Array.isArray(d.inputs) ? d.inputs : [],
-      process: Array.isArray(d.process) ? d.process : [],
-      outputs: Array.isArray(d.outputs) ? d.outputs : [],
-      customers: Array.isArray(d.customers) ? d.customers : [],
+      suppliers: comoLista(d.suppliers),
+      inputs: comoLista(d.inputs),
+      process: comoLista(d.process),
+      outputs: comoLista(d.outputs),
+      customers: comoLista(d.customers),
     };
   });
 
@@ -133,11 +138,11 @@ export default function SIPOC({ onSave, initialData, onGenerateAI, isGeneratingA
     if (initialData) {
       const d = initialData.toolData || initialData;
       setData({
-        suppliers: Array.isArray(d.suppliers) ? d.suppliers : defaultData.suppliers,
-        inputs: Array.isArray(d.inputs) ? d.inputs : defaultData.inputs,
-        process: Array.isArray(d.process) ? d.process : defaultData.process,
-        outputs: Array.isArray(d.outputs) ? d.outputs : defaultData.outputs,
-        customers: Array.isArray(d.customers) ? d.customers : defaultData.customers,
+        suppliers: comoLista(d.suppliers),
+        inputs: comoLista(d.inputs),
+        process: comoLista(d.process),
+        outputs: comoLista(d.outputs),
+        customers: comoLista(d.customers),
       });
     } else {
       setData(defaultData);
