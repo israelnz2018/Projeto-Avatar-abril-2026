@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
-import { Download, Upload, CheckCircle2, AlertTriangle, XCircle, BookOpen, X, Loader2 } from 'lucide-react';
+import { Download, Upload, CheckCircle2, AlertTriangle, XCircle, BookOpen, X, Loader2, Maximize2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { BPMN_TEMPLATE_AS_IS } from '@/src/services/bpmnTemplate';
 import { validarBpmn, type BpmnValidationResult } from '@/src/services/bpmnValidator';
+import { traducaoPtBr } from '@/src/services/bpmnTraducao';
 
 /**
  * Mapa de Processo BPMN — editor BPMN 2.0 real.
@@ -30,6 +31,20 @@ interface BpmnProcessMapProps {
 
 /** Largura da paleta do bpmn-js (2 colunas) + folga, em pixels. */
 const PALETA_PX = 140;
+
+/**
+ * Cores oferecidas ao aluno. Preenchimento claro com borda mais forte da mesma
+ * familia — o texto preto do BPMN continua legivel por cima, coisa que fundo
+ * saturado estraga. Sao as cores que o Bizagi tambem entende ao abrir o arquivo.
+ */
+const CORES = [
+  { nome: 'Azul', fill: '#DBEAFE', stroke: '#1E40AF' },
+  { nome: 'Verde', fill: '#DCFCE7', stroke: '#166534' },
+  { nome: 'Amarelo', fill: '#FEF9C3', stroke: '#854D0E' },
+  { nome: 'Vermelho', fill: '#FEE2E2', stroke: '#991B1B' },
+  { nome: 'Roxo', fill: '#EDE9FE', stroke: '#5B21B6' },
+  { nome: 'Cinza', fill: '#E5E7EB', stroke: '#374151' },
+];
 
 /** Regras de modelagem do kit, mostradas no modal "Ver regras". */
 const REGRAS = [
@@ -79,13 +94,22 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
   const [validando, setValidando] = useState(false);
   const [showRegras, setShowRegras] = useState(false);
   const [nomeProcesso, setNomeProcesso] = useState<string>(initialData?.nomeProcesso || '');
+  const [selecionados, setSelecionados] = useState<any[]>([]);
 
   // Monta o modelador uma vez. O XML salvo vence; sem nada salvo, entra o template do kit.
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const modeler = new BpmnModeler({ container: containerRef.current });
+    // `additionalModules` com o módulo `translate` substitui o padrão da biblioteca,
+    // então toda a interface (paleta, menu de contexto, menu de troca) sai em português.
+    const modeler = new BpmnModeler({
+      container: containerRef.current,
+      additionalModules: [traducaoPtBr],
+    });
     modelerRef.current = modeler;
+
+    // Guarda o que está selecionado pra saber onde aplicar a cor.
+    modeler.on('selection.changed', (e: any) => setSelecionados(e?.newSelection || []));
 
     const xmlInicial = initialData?.xml || BPMN_TEMPLATE_AS_IS;
     modeler
@@ -137,6 +161,20 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     } finally {
       setValidando(false);
     }
+  };
+
+  /**
+   * Pinta os elementos selecionados.
+   *
+   * `modeling.setColor` grava a cor no PRÓPRIO arquivo .bpmn (como background-color e
+   * border-color na camada gráfica), então a cor sobrevive ao salvar, ao baixar e
+   * reabrir, e viaja junto pro Bizagi — não é enfeite só de tela.
+   */
+  const aplicarCor = (cor: { fill: string; stroke: string } | null) => {
+    if (!modelerRef.current || selecionados.length === 0) return;
+    const modeling: any = modelerRef.current.get('modeling');
+    // null = "sem cor": volta ao padrão do BPMN em vez de pintar de branco.
+    modeling.setColor(selecionados, cor ? { fill: cor.fill, stroke: cor.stroke } : { fill: undefined, stroke: undefined });
   };
 
   /** Baixa o .bpmn — o arquivo que abre no Bizagi e no BPMN.io. */
@@ -218,6 +256,13 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
           <button onClick={() => fileInputRef.current?.click()} className={cn(btn, "bg-white border-gray-200 text-gray-700 hover:border-blue-300")}>
             <Upload size={14} /> Abrir .bpmn
           </button>
+          <button
+            onClick={ajustarZoom}
+            title="Encaixa o diagrama inteiro na tela"
+            className={cn(btn, "bg-white border-gray-200 text-gray-700 hover:border-blue-300")}
+          >
+            <Maximize2 size={14} /> Centralizar
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -226,6 +271,31 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportar(f); e.target.value = ''; }}
           />
         </div>
+
+        {/* Cores — só aparece com algo selecionado, senão não haveria onde aplicar. */}
+        {selecionados.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 bg-[#F0F2FA] border border-blue-100 rounded-lg">
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+              Cor {selecionados.length > 1 ? `(${selecionados.length} selecionados)` : 'do selecionado'}
+            </span>
+            {CORES.map((c) => (
+              <button
+                key={c.nome}
+                onClick={() => aplicarCor(c)}
+                title={c.nome}
+                className="w-6 h-6 rounded border-2 cursor-pointer transition-transform hover:scale-110"
+                style={{ background: c.fill, borderColor: c.stroke }}
+              />
+            ))}
+            <button
+              onClick={() => aplicarCor(null)}
+              title="Voltar à cor padrão do BPMN"
+              className="px-2.5 py-1 text-[11px] font-bold text-gray-500 bg-white border border-gray-200 rounded hover:border-blue-300 cursor-pointer"
+            >
+              Sem cor
+            </button>
+          </div>
+        )}
 
         {erroCarga && (
           <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
