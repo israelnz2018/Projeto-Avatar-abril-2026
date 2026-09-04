@@ -259,9 +259,12 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     set([...rows, mkRow('', `${prefix}${Date.now()}`)]);
   const delRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, id: string) => set(rows.filter((r) => r.id !== id));
 
-  const inp = 'w-full bg-transparent border-none outline-none text-sm font-medium text-gray-800 text-right focus:ring-2 focus:ring-blue-300 focus:bg-white rounded px-1 py-1';
-  const inpTxt = 'w-full bg-transparent border-none outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:bg-white rounded px-1 py-1';
-  const modeSel = 'bg-transparent border-none outline-none text-xs font-semibold text-[#0033CC] cursor-pointer';
+  // Campo era bg-transparent + border-none: sem foco, ficava indistinguível do
+  // fundo da célula — o aluno via a tabela vazia e não sabia onde clicar. Passa a
+  // ter fundo e borda visíveis sempre, como em todas as outras ferramentas do app.
+  const inp = 'w-full bg-white border border-gray-200 outline-none text-sm font-medium text-gray-800 text-right focus:ring-2 focus:ring-blue-300 focus:border-blue-400 rounded px-1.5 py-1';
+  const inpTxt = 'w-full bg-white border border-gray-200 outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 rounded px-1.5 py-1';
+  const modeSel = 'bg-white border border-gray-200 outline-none text-xs font-semibold text-[#0033CC] cursor-pointer rounded px-1.5 py-1';
   const off = 'opacity-25';
 
   const modeOptions = (
