@@ -38,6 +38,9 @@ export async function exportBriefSlide(
   const answers = (data.answers && typeof data.answers === 'object') ? data.answers : {};
 
   const projectTitle: string = (answers.q6 || '').toString().trim();
+  // O aluno pode anexar até 2 fotos direto na ferramenta (independente das
+  // respostas). O exportador nunca lia esse campo — o slide saía sem elas.
+  const images: string[] = Array.isArray(data.images) ? data.images.filter((img: any) => typeof img === 'string' && img.length > 100) : [];
 
   const cards = CARD_ORDER
     .map((key) => ({ key, label: QUESTION_LABELS[key], value: (answers[key] || '').toString().trim() }))
@@ -53,7 +56,9 @@ export async function exportBriefSlide(
   const TW = TOOL_AREA.w;
   const TH = TOOL_AREA.h;
 
-  if (!projectTitle && cards.length === 0) {
+  // Vazio de verdade = sem respostas E sem foto. Só foto já é conteúdo — não pode
+  // cair no branch "(não preenchido)" e perder a única coisa que o aluno anexou.
+  if (!projectTitle && cards.length === 0 && images.length === 0) {
     slide.addText('(não preenchido)', {
       x: TX, y: TY + TH / 2 - 0.20, w: TW, h: 0.40,
       fontFace: 'Calibri', fontSize: 11, color: THEME.MUTED, italic: true,
@@ -80,9 +85,13 @@ export async function exportBriefSlide(
     valign: 'middle', shrinkText: true,
   });
 
+  // ── FOTOS (se o aluno anexou) — reserva uma faixa embaixo do grid de cards ──
+  const IMG_H = images.length > 0 ? 1.55 : 0;
+  const IMG_GAP = images.length > 0 ? 0.16 : 0;
+
   // ── GRID DE CARDS (2 colunas) ──
   const gridY = TY + BANNER_H + 0.16;
-  const gridH = TH - BANNER_H - 0.16;
+  const gridH = TH - BANNER_H - 0.16 - IMG_H - IMG_GAP;
   const COLS = 2;
   const COL_GAP = 0.24;
   const ROW_GAP = 0.14;
@@ -114,6 +123,37 @@ export async function exportBriefSlide(
         fontFace: 'Calibri', fontSize: 8.5, color: THEME.INK,
         valign: 'top', shrinkText: true,
       });
+    });
+  }
+
+  if (images.length > 0) {
+    const imgY = gridY + gridH + IMG_GAP;
+    const imgCols = Math.min(images.length, 2);
+    const imgGapX = 0.16;
+    const imgW = (TW - (imgCols - 1) * imgGapX) / imgCols;
+
+    images.slice(0, 2).forEach((img, idx) => {
+      const ix = TX + idx * (imgW + imgGapX);
+      try {
+        // Garante o prefixo data:image/png;base64, (sem ele o PPT quebra).
+        const imgData = img.startsWith('data:') ? img : `data:image/png;base64,${img}`;
+        slide.addImage({
+          data: imgData,
+          x: ix, y: imgY, w: imgW, h: IMG_H,
+          sizing: { type: 'contain', w: imgW, h: IMG_H },
+        });
+      } catch (err) {
+        console.error('[briefSlideExporter] erro ao adicionar imagem:', err);
+        slide.addShape('rect', {
+          x: ix, y: imgY, w: imgW, h: IMG_H,
+          fill: { color: 'F0F2FA' }, line: { color: THEME.CHIP_BD, width: 0.5 }, rectRadius: 0.04,
+        });
+        slide.addText('(erro ao carregar imagem)', {
+          x: ix, y: imgY, w: imgW, h: IMG_H,
+          fontFace: 'Calibri', fontSize: 8, color: THEME.MUTED, italic: true,
+          align: 'center', valign: 'middle',
+        });
+      }
     });
   }
 
