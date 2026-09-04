@@ -658,7 +658,8 @@ export default function ToolWrapper({
   const [showInlinePresentation, setShowInlinePresentation] = useState(false);
 
   // Estados especificos do Brief (Entendendo o Problema)
-  const [briefTitlesPulled, setBriefTitlesPulled] = useState<Array<{ title: string; problem?: string; y_indicator?: string; financial_impact?: string; belt_level?: string; justification?: string }>>([]);
+  // _fonte e _pontos são só rótulo da lista; o resto vai pra IA.
+  const [briefTitlesPulled, setBriefTitlesPulled] = useState<Array<{ title: string; problem?: string; y_indicator?: string; financial_impact?: string; belt_level?: string; justification?: string; _fonte?: string; _pontos?: number | null }>>([]);
   const [briefSelectedTitle, setBriefSelectedTitle] = useState<string>('');
 
   const normalizeInitialData = (toolId: string, raw: any): any => {
@@ -890,9 +891,20 @@ export default function ToolWrapper({
     const projects: any[] = [];
     const vistos = new Set<string>();
 
+    // GUT = gravidade x urgencia x tendencia (produto). RAB = rapidez + autonomia
+    // + beneficio (soma). Serve so pro aluno escolher com o numero na frente.
+    const pontuacao = (p: any): number | null => {
+      const g = Number(p?.gravidade), u = Number(p?.urgencia), t = Number(p?.tendencia);
+      if (![g, u, t].some(isNaN)) return g * u * t;
+      const r = Number(p?.rapidez), a = Number(p?.autonomia), b = Number(p?.beneficio);
+      if (![r, a, b].some(isNaN)) return r + a + b;
+      return null;
+    };
+
     for (const sourceId of toolLink?.from || []) {
       const raw = getToolDataByPrefix(allProjectData, sourceId);
       const data = raw?.toolData || raw;
+      const nomeFonte = toolNameOf(sourceId);
 
       // Ideia de Projeto: generatedProjects, respeitando o que o aluno aprovou.
       const ideias = (data?.generatedProjects || []).filter((p: any) => p?.aprovado !== false);
@@ -905,7 +917,9 @@ export default function ToolWrapper({
         const titulo = (p?.title || '').trim();
         if (!titulo || vistos.has(titulo)) continue;
         vistos.add(titulo);
-        projects.push(p);
+        // _fonte e _pontos existem só pra montar o rótulo da lista; saem antes de
+        // qualquer coisa ir pra IA.
+        projects.push({ ...p, _fonte: nomeFonte, _pontos: pontuacao(p) });
       }
     }
 
@@ -926,11 +940,12 @@ export default function ToolWrapper({
       return;
     }
     
-    const selectedProject = briefTitlesPulled.find(p => p.title === briefSelectedTitle);
-    if (!selectedProject) {
+    const escolhido = briefTitlesPulled.find(p => p.title === briefSelectedTitle);
+    if (!escolhido) {
       toast.error("Projeto selecionado nao encontrado.");
       return;
     }
+    const { _fonte, _pontos, ...selectedProject } = escolhido;
     
     setIsGeneratingData(true);
     try {
@@ -1925,88 +1940,69 @@ export default function ToolWrapper({
         />
       )}
 
+      {/* Brief: um card só, em duas etapas. O Brief precisa de um passo a mais que as
+          outras ferramentas — escolher QUAL projeto da fonte virar brief — mas isso não
+          justifica dois cards competindo na tela. Etapa 1 puxa os títulos, etapa 2 gera.
+          O rótulo sai de `linkSourceLabel`, ou seja, da ligação que o consultor declarou. */}
       {isToolEmpty() && toolId === 'brief' && showAIPrompt && linkHasContent && (
-        <>
-          {/* Card 1 - VERDE: Puxar titulos — só aparece se a(s) fonte(s) declarada(s)
-              existirem E estiverem preenchidas, e o brief atual ainda estiver vazio. */}
-          <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-6 shadow-sm relative overflow-hidden">
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
-            <div className="relative z-10 flex flex-col gap-5">
-              <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
-                <ArrowDownToLine size={20} className="text-emerald-500" />
-                <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">
-                  Puxar Titulos de {linkSourceLabel}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Obter os titulos de <strong>{linkSourceLabel}</strong>.
+        <div className="bg-blue-50 p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-100/50 rounded-full blur-3xl"></div>
+          <div className="relative z-10 flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <Sparkles size={20} className="text-blue-500" />
+              <p className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                Gerar {toolName} a partir de {linkSourceLabel}
               </p>
-              {briefTitlesPulled.length > 0 && (
+            </div>
+
+            {briefTitlesPulled.length === 0 ? (
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <p className="text-sm text-gray-600 leading-relaxed flex-1">
+                  Puxe os projetos de <strong>{linkSourceLabel}</strong> e escolha qual deles
+                  vira o {toolName.toLowerCase()}.
+                </p>
+                <button
+                  onClick={handleBriefPullTitles}
+                  className="min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95 bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+                >
+                  <ArrowDownToLine size={20} />
+                  <span>Puxar Projetos</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <select
                   value={briefSelectedTitle}
                   onChange={(e) => setBriefSelectedTitle(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="flex-1 px-4 py-4 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">-- Escolha um projeto --</option>
+                  <option value="">-- Escolha um projeto da lista --</option>
                   {briefTitlesPulled.map((p, idx) => (
-                    <option key={idx} value={p.title}>{p.title}</option>
+                    <option key={idx} value={p.title}>
+                      {p._pontos != null ? `${p.title}  ·  ${p._fonte}: ${p._pontos}` : p.title}
+                    </option>
                   ))}
                 </select>
-              )}
-              <div className="flex justify-end">
-                <button
-                  onClick={handleBriefPullTitles}
-                  className="min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200"
-                >
-                  <ArrowDownToLine size={20} />
-                  <span>Puxar Titulos</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2 - AZUL: Gerar */}
-          <div className="bg-blue-50 p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden">
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-100/50 rounded-full blur-3xl"></div>
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="space-y-3 flex-1">
-                <div className="flex items-center gap-3 text-blue-700 font-black uppercase tracking-[0.2em] text-xs">
-                  <Sparkles size={20} className="text-blue-500" />
-                  <p className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                    Gerar Entendendo o Problema
-                  </p>
-                </div>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Obter os dados de <strong>Ideia de Projeto</strong> e gerar Entendendo o Problema.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
                 <button
                   onClick={handleBriefGenerate}
                   disabled={isGeneratingData || !briefSelectedTitle}
                   className={cn(
-                    "min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
+                    "min-w-[200px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none active:scale-95",
                     isGeneratingData || !briefSelectedTitle
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                      : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+                      : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200 cursor-pointer"
                   )}
                 >
                   {isGeneratingData ? (
-                    <>
-                      <Loader2 className="animate-spin" size={20} />
-                      <span>Gerando...</span>
-                    </>
+                    <><Loader2 className="animate-spin" size={20} /><span>Gerando...</span></>
                   ) : (
-                    <>
-                      <Sparkles size={20} />
-                      <span>Gerar</span>
-                    </>
+                    <><Sparkles size={20} /><span>Gerar</span></>
                   )}
                 </button>
               </div>
-            </div>
+            )}
           </div>
-        </>
+        </div>
       )}
 
         <div className="p-8" key={`${toolId}-${clearKey}`}>

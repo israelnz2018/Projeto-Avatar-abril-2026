@@ -47,12 +47,8 @@ interface ProjectBriefProps {
   initialData?: any;
   previousToolData?: any;
   project?: any;
-  isLeanSixSigma?: boolean;
   onGenerateAI?: (customContext?: any) => Promise<void>;
   isGeneratingAI?: boolean;
-  ideaProjects?: any[];
-  gutProjects?: any[];
-  rabProjects?: any[];
   onClearAIData?: () => void;
 }
 
@@ -61,12 +57,8 @@ export default function ProjectBrief({
   initialData, 
   previousToolData, 
   project,
-  isLeanSixSigma,
   onGenerateAI,
   isGeneratingAI,
-  ideaProjects = [],
-  gutProjects = [],
-  rabProjects = [],
   onClearAIData
 }: ProjectBriefProps) {
   const [answers, setAnswers] = useState(initialData?.answers || {
@@ -76,64 +68,11 @@ export default function ProjectBrief({
   
   const [images, setImages] = useState<string[]>(initialData?.images || []);
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(
-    initialData?.selectedProject || ''
-  );
-
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
   const [showExemplo, setShowExemplo] = useState(false);
   const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
 
   const isToolEmpty = Object.values(answers).every(val => !val) && images.length === 0;
-
-  // GUT = gravidade × urgência × tendência (produto). RAB = rapidez + autonomia
-  // + benefício (soma). Lê os campos reais; se faltar algum, ignora no cálculo.
-  const calcGut = (p: any): number | null => {
-    const g = Number(p?.gravidade), u = Number(p?.urgencia), t = Number(p?.tendencia);
-    if ([g, u, t].some(n => isNaN(n))) return null;
-    return g * u * t;
-  };
-  const calcRab = (p: any): number | null => {
-    const r = Number(p?.rapidez), a = Number(p?.autonomia), b = Number(p?.beneficio);
-    if ([r, a, b].some(n => isNaN(n))) return null;
-    return r + a + b;
-  };
-
-  const getUniqueProjects = () => {
-    const allTitles = new Set<string>();
-    const combined: { title: string; score: number | null; fonte: string }[] = [];
-
-    // Fonte 1 — Ideia de Projetos (sem pontuação)
-    ideaProjects.forEach((p: any) => {
-      const title = p?.title?.trim();
-      if (title && !allTitles.has(title)) {
-        allTitles.add(title);
-        combined.push({ title, score: null, fonte: 'Ideia' });
-      }
-    });
-
-    // Fonte 2 — GUT (mostra o valor G×U×T na mesma linha)
-    gutProjects.forEach((p: any) => {
-      const title = p?.description?.trim();
-      if (title && !allTitles.has(title)) {
-        allTitles.add(title);
-        combined.push({ title, score: calcGut(p), fonte: 'GUT' });
-      }
-    });
-
-    // Fonte 3 — RAB (mostra o valor R+A+B na mesma linha)
-    rabProjects.forEach((p: any) => {
-      const title = p?.description?.trim();
-      if (title && !allTitles.has(title)) {
-        allTitles.add(title);
-        combined.push({ title, score: calcRab(p), fonte: 'RAB' });
-      }
-    });
-
-    return combined;
-  };
-
-  const projectIdeas = getUniqueProjects();
 
   useEffect(() => {
     if (initialData) {
@@ -212,72 +151,6 @@ export default function ProjectBrief({
 
   return (
     <div className="space-y-8">
-      {isLeanSixSigma && (
-        <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 space-y-3 mb-4">
-          <div className="flex items-center gap-2 text-blue-700">
-            <Sparkles size={16} className="text-blue-500" />
-            <h3 className="text-xs font-black uppercase tracking-wider">
-              Selecione um Projeto Para Trabalhar
-            </h3>
-          </div>
-          <p className="text-xs text-blue-600">
-            Projetos disponíveis das ferramentas anteriores deste projeto.
-          </p>
-          <div className="flex gap-3 items-center">
-            <select
-              value={selectedProjectId}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedProjectId(val);
-                if (val) {
-                  const newAnswers = { ...answers, q6: val };
-                  setAnswers(newAnswers);
-                  onSave({ answers: newAnswers, images }, { silent: true });
-                }
-              }}
-              className="flex-1 px-4 py-3 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">-- Escolha um projeto da lista --</option>
-              {projectIdeas.length === 0 && (
-                <option disabled value="">
-                  Nenhum projeto encontrado — preencha Ideia de Projetos, GUT ou RAB primeiro
-                </option>
-              )}
-              {projectIdeas.map((p, idx) => (
-                <option key={idx} value={p.title}>
-                  {p.score != null ? `${p.title}  ·  ${p.fonte}: ${p.score}` : p.title}
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={async () => {
-                if (!selectedProjectId || !onGenerateAI) return;
-                await onGenerateAI({
-                  selectedProject: selectedProjectId,
-                  title: selectedProjectId,
-                  generatedProjects: previousToolData?.generatedProjects || [],
-                  gutOpportunities: previousToolData?.gutOpportunities || [],
-                  rabOpportunities: previousToolData?.rabOpportunities || [],
-                });
-              }}
-              disabled={isGeneratingAI || !selectedProjectId}
-              className={cn(
-                "px-5 py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2",
-                isGeneratingAI || !selectedProjectId
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 className="animate-spin" size={14} /> Gerando...</>
-                : <><Sparkles size={14} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Indicador de IA */}
       {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
         <div className="flex items-center justify-between mb-4 px-1">

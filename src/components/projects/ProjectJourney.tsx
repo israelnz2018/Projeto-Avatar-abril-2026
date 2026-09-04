@@ -993,7 +993,6 @@ useEffect(() => {
       ? 'Ideia de Projeto de Melhoria'
       : (previousTool ? previousTool.name : null);
 
-    const isLeanSixSigma = initiative?.name?.toLowerCase().includes('lean six sigma');
     const ActiveComponent = activeTool?.component;
 
     return (
@@ -1306,26 +1305,8 @@ useEffect(() => {
                     <Component 
                       {...commonProps}
                       project={project}
-                      isLeanSixSigma={isLeanSixSigma}
                       onGenerateAI={onGenerateAI}
                       isGeneratingAI={isGeneratingAI}
-                      ideaProjects={
-                        // Só as ideias que o aluno aprovou seguem para RAB/GUT.
-                        // Sem o campo (ideias antigas) = aprovada.
-                        (findToolData('improvementIdea')?.toolData?.generatedProjects ||
-                         findToolData('improvementIdea')?.generatedProjects ||
-                         []).filter((p: any) => p?.aprovado !== false)
-                      }
-                      gutProjects={
-                        findToolData('gut')?.toolData?.opportunities || 
-                        findToolData('gut')?.opportunities || 
-                        []
-                      }
-                      rabProjects={
-                        findToolData('rab')?.toolData?.opportunities || 
-                        findToolData('rab')?.opportunities || 
-                        []
-                      }
                     />
                   );
                 case 'charter':
