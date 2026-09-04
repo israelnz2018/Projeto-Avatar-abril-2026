@@ -59,7 +59,7 @@ export async function exportBriefSlide(
       fontFace: 'Calibri', fontSize: 11, color: THEME.MUTED, italic: true,
       align: 'center', valign: 'middle',
     });
-    const fileName = `Brief_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+    const fileName = `Entendendo_o_Problema_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
     if (!options.pres) await pres.writeFile({ fileName });
     return;
   }
@@ -117,6 +117,6 @@ export async function exportBriefSlide(
     });
   }
 
-  const fileName = `Brief_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Entendendo_o_Problema_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }
