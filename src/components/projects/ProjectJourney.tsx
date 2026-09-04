@@ -82,58 +82,56 @@ import ToolWrapper from './ToolWrapper';
 import { getUserProfile } from '../UserProfile';
 
 const AVAILABLE_TOOLS = [
-  { id: 'mapa90dias', name: 'Mapa dos 90 Dias', component: Mapa90Dias, defaultPhase: 'Define' },
-  { id: 'brief', name: 'Entendendo o Problema', component: ProjectBrief, defaultPhase: 'Define' },
-  { id: 'charter', name: 'Project Charter', component: ProjectCharter, defaultPhase: 'Define' },
-  { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)', component: StakeholderAdkar, defaultPhase: 'Define' },
-  { id: 'projectCharterPMI', name: 'Project Charter - PMI', component: ProjectCharterPMI, defaultPhase: 'Define' },
-  { id: 'measureAdkar', name: 'ADKAR — Medir (Desire)', component: MeasureAdkar, defaultPhase: 'Measure' },
-  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)', component: AnalyzeAdkar, defaultPhase: 'Analyze' },
-  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)', component: ImproveAdkar, defaultPhase: 'Improve' },
-  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)', component: ControlAdkar, defaultPhase: 'Control' },
-  { id: 'sipoc', name: 'SIPOC', component: SIPOC, defaultPhase: 'Define' },
-  { id: 'timeline', name: 'Cronograma Macro', component: ProjectTimeline, defaultPhase: 'Define' },
-  { id: 'wbs', name: 'WBS (EAP)', component: WBSTool, defaultPhase: 'Planejamento' },
-  { id: 'gpPlanPMI', name: 'Plano do GP - PMI', component: GPPlanPMI, defaultPhase: 'Iniciação' },
-  { id: 'raci', name: 'Matriz RACI', component: RaciTool, defaultPhase: 'Define' },
-  { id: 'organograma', name: 'Organograma', component: Organograma, defaultPhase: 'Define' },
-  { id: 'indicadores', name: 'Indicadores', component: Indicadores, defaultPhase: 'Define' },
-  { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', component: StakeholderAnalysisPMI, defaultPhase: 'Iniciação' },
-  { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', component: RiskManagementPMI, defaultPhase: 'Planejamento' },
-  { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', component: RiskMonitoringPMI, defaultPhase: 'Monitoramento' },
-  { id: 'detailedTimeline', name: 'Atividades Detalhadas', component: DetailedTimeline, defaultPhase: 'Define' },
-  { id: 'improvementPlan', name: 'Plano do Projeto de Melhoria', component: ImprovementProjectPlan, defaultPhase: 'Define' },
-  { id: 'stakeholders', name: 'Stakeholders', component: StakeholderManagement, defaultPhase: 'Define' },
-  { id: 'processMap', name: 'Mapeamento de Processo', component: ProcessMapper, defaultPhase: 'Measure' },
-  { id: 'bpmnProcessMap', name: 'Mapa de Processo BPMN', component: BpmnProcessMap, defaultPhase: 'Measure' },
-  { id: 'brainstorming', name: 'Brainstorming', component: Brainstorming, defaultPhase: 'Measure' },
-  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', component: Brainstorming, defaultPhase: 'Improve' },
-  { id: 'measureIshikawa', name: 'Espinha de Peixe', component: Ishikawa, defaultPhase: 'Measure' },
-  { id: 'measureMatrix', name: 'Matriz Causa e Efeito', component: CauseEffectMatrix, defaultPhase: 'Measure' },
-  { id: 'beforeAfter', name: 'Antes x Depois', component: BeforeAfterTool, defaultPhase: 'Measure' },
-  { id: 'rab', name: 'Matriz RAB', component: RABTool, defaultPhase: 'Measure' },
-  { id: 'gut', name: 'Matriz GUT', component: GUTTool, defaultPhase: 'Measure' },
-  { id: 'effortImpact', name: 'Esforço x Benefício', component: EffortImpactTool, defaultPhase: 'Measure' },
-  { id: 'dataCollection', name: 'Plano de Coleta de Dados', component: DataCollectionPlan, defaultPhase: 'Measure' },
-  { id: 'vsm', name: 'VSM (Value Stream Map)', component: ValueStreamMapping, defaultPhase: 'Analyze' },
-  { id: 'directObservation', name: 'Observação Direta (Gemba)', component: DirectObservationForm, defaultPhase: 'Analyze' },
-  { id: 'fiveWhys', name: '5 Porquês', component: FiveWhys, defaultPhase: 'Analyze' },
-  { id: 'fta', name: 'Árvore de Falhas (FTA)', component: FaultTreeAnalysis, defaultPhase: 'Analyze' },
-  { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística', component: StatisticalAnalysisForm, defaultPhase: 'Analyze' },
-  { id: 'dataNature', name: 'Natureza dos Dados', component: DataNatureAssistant, defaultPhase: 'Analyze' },
-  { id: 'fmea', name: 'FMEA', component: ProcessFMEA, defaultPhase: 'Improve' },
-  { id: 'plan5w2h', name: 'Plano de Ação 5W2H', component: ActionPlan5W2H, defaultPhase: 'Improve' },
-  { id: 'actionPlan', name: 'Plano de Ação', component: ActionPlan, defaultPhase: 'Improve' },
-  { id: 'sop', name: 'POP (Procedimento Operacional Padrão)', component: StandardOperatingProcedure, defaultPhase: 'Control' },
-  { id: 'processCanva', name: 'Canva', component: ProcessCanva, defaultPhase: 'Measure' },
-  { id: 'processModeling', name: 'Modelagem de Processo', component: ProcessModeling, defaultPhase: 'Measure' },
-  { id: 'processValidation', name: 'Validação de Processo', component: ProcessValidation, defaultPhase: 'Measure' },
-  { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', component: ImprovementProjectIdea, defaultPhase: 'PreDefinir' },
-  { id: 'controlPlan', name: 'Plano de Controle', component: ControlPlan, defaultPhase: 'Control' },
-  // Sem fase padrão de propósito: quem decide em que fase(s) ela entra é o usuário.
-  // defaultPhase vazio => nunca é auto-selecionada por fase e nunca gera chave composta.
-  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', component: TangibleGainsTool, defaultPhase: '' },
-  { id: 'projectClose', name: 'Termo de Encerramento do Projeto', component: ProjectClose, defaultPhase: '' },
+  { id: 'mapa90dias', name: 'Mapa dos 90 Dias', component: Mapa90Dias },
+  { id: 'brief', name: 'Entendendo o Problema', component: ProjectBrief },
+  { id: 'charter', name: 'Project Charter', component: ProjectCharter },
+  { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)', component: StakeholderAdkar },
+  { id: 'projectCharterPMI', name: 'Project Charter - PMI', component: ProjectCharterPMI },
+  { id: 'measureAdkar', name: 'ADKAR — Medir (Desire)', component: MeasureAdkar },
+  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)', component: AnalyzeAdkar },
+  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)', component: ImproveAdkar },
+  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)', component: ControlAdkar },
+  { id: 'sipoc', name: 'SIPOC', component: SIPOC },
+  { id: 'timeline', name: 'Cronograma Macro', component: ProjectTimeline },
+  { id: 'wbs', name: 'WBS (EAP)', component: WBSTool },
+  { id: 'gpPlanPMI', name: 'Plano do GP - PMI', component: GPPlanPMI },
+  { id: 'raci', name: 'Matriz RACI', component: RaciTool },
+  { id: 'organograma', name: 'Organograma', component: Organograma },
+  { id: 'indicadores', name: 'Indicadores', component: Indicadores },
+  { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', component: StakeholderAnalysisPMI },
+  { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', component: RiskManagementPMI },
+  { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', component: RiskMonitoringPMI },
+  { id: 'detailedTimeline', name: 'Atividades Detalhadas', component: DetailedTimeline },
+  { id: 'improvementPlan', name: 'Plano do Projeto de Melhoria', component: ImprovementProjectPlan },
+  { id: 'stakeholders', name: 'Stakeholders', component: StakeholderManagement },
+  { id: 'processMap', name: 'Mapeamento de Processo', component: ProcessMapper },
+  { id: 'bpmnProcessMap', name: 'Mapa de Processo BPMN', component: BpmnProcessMap },
+  { id: 'brainstorming', name: 'Brainstorming', component: Brainstorming },
+  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', component: Brainstorming },
+  { id: 'measureIshikawa', name: 'Espinha de Peixe', component: Ishikawa },
+  { id: 'measureMatrix', name: 'Matriz Causa e Efeito', component: CauseEffectMatrix },
+  { id: 'beforeAfter', name: 'Antes x Depois', component: BeforeAfterTool },
+  { id: 'rab', name: 'Matriz RAB', component: RABTool },
+  { id: 'gut', name: 'Matriz GUT', component: GUTTool },
+  { id: 'effortImpact', name: 'Esforço x Benefício', component: EffortImpactTool },
+  { id: 'dataCollection', name: 'Plano de Coleta de Dados', component: DataCollectionPlan },
+  { id: 'vsm', name: 'VSM (Value Stream Map)', component: ValueStreamMapping },
+  { id: 'directObservation', name: 'Observação Direta (Gemba)', component: DirectObservationForm },
+  { id: 'fiveWhys', name: '5 Porquês', component: FiveWhys },
+  { id: 'fta', name: 'Árvore de Falhas (FTA)', component: FaultTreeAnalysis },
+  { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística', component: StatisticalAnalysisForm },
+  { id: 'dataNature', name: 'Natureza dos Dados', component: DataNatureAssistant },
+  { id: 'fmea', name: 'FMEA', component: ProcessFMEA },
+  { id: 'plan5w2h', name: 'Plano de Ação 5W2H', component: ActionPlan5W2H },
+  { id: 'actionPlan', name: 'Plano de Ação', component: ActionPlan },
+  { id: 'sop', name: 'POP (Procedimento Operacional Padrão)', component: StandardOperatingProcedure },
+  { id: 'processCanva', name: 'Canva', component: ProcessCanva },
+  { id: 'processModeling', name: 'Modelagem de Processo', component: ProcessModeling },
+  { id: 'processValidation', name: 'Validação de Processo', component: ProcessValidation },
+  { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', component: ImprovementProjectIdea },
+  { id: 'controlPlan', name: 'Plano de Controle', component: ControlPlan },
+  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', component: TangibleGainsTool },
+  { id: 'projectClose', name: 'Termo de Encerramento do Projeto', component: ProjectClose },
 ];
 
 import { toast } from 'sonner';
@@ -494,13 +492,10 @@ useEffect(() => {
         setActiveToolId(firstId);
       }
     } else {
-      // Fallback: select first default tool for this phase
-      const defaultTools = AVAILABLE_TOOLS.filter(t => t.defaultPhase === phaseId);
-      if (defaultTools.length > 0) {
-        setActiveToolId(defaultTools[0].id);
-      } else {
-        setActiveToolId(null);
-      }
+      // Fase sem configuração não tem ferramenta nenhuma — e é isso mesmo. O que
+      // aparece em cada fase é decisão do consultor (initiative_configs), nunca uma
+      // "fase padrão" embutida na ferramenta.
+      setActiveToolId(null);
     }
   };
 
@@ -553,34 +548,14 @@ useEffect(() => {
     }
   };
 
-  // Ferramentas cujos dados são ÚNICOS por projeto (compartilhados entre fases).
-  // A mesma ferramenta pode ser habilitada em mais de uma fase e lê/grava SEMPRE o
-  // mesmo documento — sem chave composta por fase. Ex.: Ganhos Tangíveis, onde a aba
-  // "Antes" é preenchida numa fase e a aba "Depois" em outra, no mesmo projeto.
-  const PHASE_SHARED_TOOLS = ['tangibleGains'];
-
-  const getToolStorageKey = (toolId: string, phaseId: string) => {
-    // Dados compartilhados: mesma chave em qualquer fase.
-    if (PHASE_SHARED_TOOLS.includes(toolId)) return toolId;
-
-    const toolDef = AVAILABLE_TOOLS.find(t => t.id === toolId);
-    if (!toolDef) return toolId;
-
-    // Maintain backward compatibility for the default phase
-    if (toolDef.defaultPhase === phaseId) return toolId;
-
-    // Use composite key if tool is used in a non-default phase
-    return `${phaseId}_${toolId}`;
-  };
-
-  // Acha o dado de uma ferramenta sem saber em que fase ela está. A chave é `toolId`
-  // quando a ferramenta está na fase padrão dela e `${phaseId}_${toolId}` fora dela —
-  // ler a chave crua falha em todo projeto com fases próprias (Yellow Belt, por ex.).
-  const findToolData = (toolId: string) => {
-    if (projectData[toolId]) return projectData[toolId];
-    const key = Object.keys(projectData).find((k) => k.endsWith(`_${toolId}`));
-    return key ? projectData[key] : undefined;
-  };
+  // FERRAMENTA NÃO TEM FASE. Quem decide em que fase(s) ela aparece é o consultor,
+  // e isso não pode mudar ONDE o dado é gravado. A chave é sempre o toolId puro.
+  //
+  // Antes, uma ferramenta usada fora da "fase padrão" dela gravava em
+  // `${phaseId}_${toolId}`. Como as fases de trilhas próprias têm id-UUID, a mesma
+  // ferramenta acabava com dois endereços possíveis — origem dos bugs em que o botão
+  // de transferência (GUT, RAB, Brief) simplesmente não aparecia. A fase saiu da conta.
+  const getToolStorageKey = (toolId: string, _phaseId?: string) => toolId;
 
   const hasContent = (raw: any) => {
     if (!raw) return false;
@@ -591,18 +566,36 @@ useEffect(() => {
     return true;
   };
 
-  // Ferramentas compartilhadas entre fases leem a chave simples (toolId). Mas dados
-  // salvos ANTES dessa mudança podem estar na chave composta `${fase}_${toolId}`.
-  // Aqui recuperamos esse dado legado quando a chave simples está vazia — nada se perde.
-  // No próximo Salvar o dado migra sozinho pra chave simples.
+  // Todas as chaves onde o dado de uma ferramenta pode estar: a atual (`toolId`) e as
+  // compostas legadas (`${phaseId}_${toolId}`), gravadas quando a ferramenta ainda
+  // "pertencia" a uma fase.
+  const chavesDaFerramenta = (toolId: string) =>
+    [toolId, ...Object.keys(projectData).filter((k) => k !== toolId && k.endsWith(`_${toolId}`))];
+
+  // Quando há dado em mais de uma chave, vence o MAIS RECENTE — nunca a chave.
+  // Preferir a chave simples faria um projeto real (Projeto Master 2026, ferramenta
+  // Ideia de Projeto) voltar a exibir a versão antiga do trabalho do aluno.
+  const chaveMaisRecente = (toolId: string) => {
+    const meta: Record<string, number> = (projectData as any).__metadata || {};
+    const comDado = chavesDaFerramenta(toolId).filter((k) => hasContent(projectData[k]));
+    if (comDado.length === 0) return null;
+    return comDado.reduce((melhor, k) => ((meta[k] || 0) > (meta[melhor] || 0) ? k : melhor));
+  };
+
+  // Acha o dado de uma ferramenta sem saber em que fase ela está.
+  const findToolData = (toolId: string) => {
+    const chave = chaveMaisRecente(toolId);
+    return chave ? projectData[chave] : undefined;
+  };
+
+  const chavesLegado = (toolId: string) => chavesDaFerramenta(toolId).slice(1);
+
+  // Dados salvos ANTES dessa mudança estão na chave composta `${fase}_${toolId}`.
+  // Nada se perde: lê-se sempre a versão mais recente, esteja onde estiver. No
+  // próximo Salvar o dado migra sozinho para a chave simples.
   const resolveToolData = (toolId: string, key: string) => {
-    const direct = projectData[key];
-    if (!PHASE_SHARED_TOOLS.includes(toolId)) return direct;
-    if (hasContent(direct)) return direct;
-    const legacyKey = Object.keys(projectData).find(
-      (k) => k.endsWith(`_${toolId}`) && hasContent(projectData[k])
-    );
-    return legacyKey ? projectData[legacyKey] : direct;
+    const chave = chaveMaisRecente(toolId);
+    return chave ? projectData[chave] : projectData[key];
   };
 
   // Progresso por FERRAMENTA SALVA (não por fase): conta quantas das ferramentas
@@ -618,10 +611,9 @@ useEffect(() => {
       if (typeof d === 'object') return Object.keys(d).length > 0;
       return true;
     };
-    const saved = allEnabledTools.filter(({ toolId, phaseId }) => {
-      const key = getToolStorageKey(toolId, phaseId);
-      return hasData(projectData[key]) || hasData(projectData[toolId]);
-    }).length;
+    const saved = allEnabledTools.filter(({ toolId }) =>
+      hasData(projectData[toolId]) || chavesLegado(toolId).some((k) => hasData(projectData[k]))
+    ).length;
     return { saved, total, percent: Math.round((saved / total) * 100) };
   }, [allEnabledTools, projectData]);
 
@@ -631,15 +623,17 @@ useEffect(() => {
     setIsDeleting(true);
     try {
       const tool = AVAILABLE_TOOLS.find(t => t.id === activeToolId);
-      const phaseId = filteredPhases[currentPhaseIndex].id;
-      const storageKey = getToolStorageKey(activeToolId, phaseId);
-      
-      await deleteProjectToolData(projectId, storageKey, activeToolId);
-      
+      // Apaga a chave atual E as compostas antigas: se sobrasse uma composta, o
+      // fallback de leitura traria o dado de volta e a exclusão pareceria não funcionar.
+      const chaves = Array.from(new Set([activeToolId, ...chavesLegado(activeToolId)]));
+
+      for (const chave of chaves) {
+        await deleteProjectToolData(projectId, chave, activeToolId);
+      }
+
       setProjectData(prev => {
         const updated = { ...prev };
-        delete updated[storageKey];
-        delete updated[activeToolId];
+        chaves.forEach((chave) => delete updated[chave]);
         return updated;
       });
       
@@ -664,11 +658,13 @@ useEffect(() => {
       // acabado de ficar vazia (o "box" ficava verde depois de limpar/excluir).
       // Trata como exclusão: mesma limpeza que o botão de excluir já faz certo.
       if (!hasContent(data)) {
-        await deleteProjectToolData(projectId, storageKey, toolId);
+        const chaves = Array.from(new Set([storageKey, toolId, ...chavesLegado(toolId)]));
+        for (const chave of chaves) {
+          await deleteProjectToolData(projectId, chave, toolId);
+        }
         setProjectData(prev => {
           const updated = { ...prev };
-          delete updated[storageKey];
-          delete updated[toolId];
+          chaves.forEach((chave) => delete updated[chave]);
           return updated;
         });
         setCompletedTools(prev => prev.filter(id => id !== toolId));
@@ -961,8 +957,6 @@ useEffect(() => {
       }
     }
 
-    const prevToolPhaseId = activeToolIndex > 0 ? phaseId : (filteredPhases[currentPhaseIndex - 1]?.id || phaseId);
-    
     const previousToolData = (() => {
       if (activeTool?.id === 'brief') {
         // Para o Brief, monta objeto com dados das três fontes DO PROJETO ATUAL
@@ -990,9 +984,7 @@ useEffect(() => {
         return findToolData('improvementIdea');
       }
       
-      return previousTool 
-        ? projectData[getToolStorageKey(previousTool.id, prevToolPhaseId)] || projectData[previousTool.id] 
-        : null;
+      return previousTool ? findToolData(previousTool.id) ?? null : null;
     })();
 
     const previousToolName = activeTool?.id === 'brief'

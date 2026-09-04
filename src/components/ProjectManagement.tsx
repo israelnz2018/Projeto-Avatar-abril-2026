@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ehTipoDeProjeto } from '../lib/tipoIniciativa';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Plus, Briefcase, Folder, Edit2, Trash2, X, User as UserIcon, CheckCircle2, Sparkles, Zap, Target, BarChart3, Settings, AlertTriangle, ChevronRight, ChevronDown, ArrowRight, FolderOpen, Presentation, Loader2, HelpCircle, MessageSquare } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
@@ -299,7 +300,7 @@ export default function ProjectManagement() {
   // A lista continua mostrando todos os tipos de projeto. Apenas agrupamos
   // visualmente pela disponibilidade e ordenamos cada grupo alfabeticamente.
   const tiposDeProjeto = useMemo(() => initiatives
-    .filter(i => !i.parentId && i.temProjeto !== false), [initiatives]);
+    .filter(i => !i.parentId && ehTipoDeProjeto(i)), [initiatives]);
   const tiposDeProjetoLiberados = useMemo(() => tiposDeProjeto
     .filter(i => canUseInitiative(i.id, initiatives))
     .sort(ordenarProjetosAlfabeticamente), [tiposDeProjeto, initiatives, canUseInitiative]);
@@ -351,7 +352,7 @@ export default function ProjectManagement() {
     if (!selectedParentInitiativeId) return [];
     return initiatives
       .filter(i => i.parentId === selectedParentInitiativeId)
-      .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
+      .filter(ehTipoDeProjeto) // curso "só conteúdo" não vira projeto
       .sort((ca, cb) => {
         const numA = ca.ordem ?? (parseInt(ca.name.split('.')[1] || ca.name) || 0);
         const numB = cb.ordem ?? (parseInt(cb.name.split('.')[1] || cb.name) || 0);
@@ -887,7 +888,7 @@ export default function ProjectManagement() {
                     )}
                     {tiposDeProjetoOrdenados
                       .filter(i => !i.parentId)
-                      .filter(i => i.temProjeto !== false) // curso "só conteúdo" não vira projeto
+                      .filter(ehTipoDeProjeto) // curso "só conteúdo" não vira projeto
                       .sort(() => 0)
                       .map((initiative, index) => {
                         const numeroVisual = initiative.ordem ?? (index + 1);

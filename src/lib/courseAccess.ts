@@ -1,14 +1,20 @@
-/** Normaliza nomes legados que ainda carregam prefixos como "8 - ". */
-export function normalizeCourseName(value: unknown): string {
-  return String(value || '')
-    .trim()
-    .replace(/^\d+\s*[-–—.]\s*/, '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-BR');
-}
+import { canonicalCourseRef, normalizeCourseName } from './courseRegistry';
 
+export { normalizeCourseName };
+
+/**
+ * Duas referências apontam para o mesmo curso/tipo de projeto?
+ *
+ * Compara pela IDENTIDADE (id canônico) sempre que os dois lados são conhecidos —
+ * é o que faz renomear não quebrar nada. Quando um dos lados não está no registro
+ * (curso apagado, referência órfã, registro ainda não carregado), cai na comparação
+ * de nomes normalizados, que é como isto funcionava antes.
+ */
 export function courseNamesMatch(a: unknown, b: unknown): boolean {
+  const refA = canonicalCourseRef(a);
+  const refB = canonicalCourseRef(b);
+  if (refA && refB) return refA === refB;
+
   const left = normalizeCourseName(a);
   const right = normalizeCourseName(b);
   return Boolean(left && right && left === right);

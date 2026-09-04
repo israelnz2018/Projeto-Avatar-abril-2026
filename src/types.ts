@@ -32,6 +32,9 @@ export interface Initiative {
   cursoAssociadoId?: string;
   /** Registro usado apenas como tipo de projeto; não aparece como curso em Educação. */
   somenteProjeto?: boolean;
+  /** Nomes que esta iniciativa já teve. Mantém válido tudo que foi gravado por nome
+   *  antes da renomeação — ver lib/courseRegistry.ts. */
+  nomesAnteriores?: string[];
   createdAt: string;
   consultorId?: string; // Multi-tenant: dono do conteúdo (default 'israel' na Fase 0)
   /** Número de exibição (ordem + cor/ícone da trilha) — INDEPENDENTE do nome.
@@ -170,10 +173,10 @@ export interface InitiativePhaseConfig {
   consultorId?: string;
 }
 
+/** Ferramenta do catálogo. Sem fase: em que fase ela entra é decisão do consultor. */
 export interface ToolDefinition {
   id: string;
   name: string;
-  defaultPhase: string;
 }
 
 export interface Dataset {

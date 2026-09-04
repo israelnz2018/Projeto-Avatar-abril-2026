@@ -1,4 +1,5 @@
 import type { Initiative } from '../types';
+import { ehCursoRaiz } from '../lib/tipoIniciativa';
 import { courseNamesMatch } from '../lib/courseAccess';
 import { getInitiatives } from './configService';
 import { getAllKnowledge, isIntroCourse } from './knowledgeService';
@@ -39,7 +40,7 @@ export async function getEducationCourses(consultorId = resolveConsultorId()): P
   ]);
 
   const registeredCourses = initiatives.filter((item) =>
-    !item.somenteProjeto && (!item.cursoAssociadoId || item.cursoAssociadoId === item.id));
+    ehCursoRaiz(item));
 
   const names: string[] = registeredCourses
     .map((course) => String(course.name || '').trim())

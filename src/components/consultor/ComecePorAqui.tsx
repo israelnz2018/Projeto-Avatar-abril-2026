@@ -5,6 +5,7 @@
  * O item "Comunidade" é diferente: edita e publica o texto de boas-vindas ali
  * mesmo, sem precisar navegar pra outro lugar.
  */
+import { ehTipoDeProjeto } from '../../lib/tipoIniciativa';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
@@ -133,7 +134,7 @@ export default function ComecePorAqui() {
           getDocs(query(collection(db, 'users'), where('consultorId', '==', consultorId))).catch(() => null),
         ]);
 
-        const cursosComProjeto = cursos.filter((curso: any) => curso.temProjeto !== false);
+        const cursosComProjeto = cursos.filter(ehTipoDeProjeto);
         const fases = await Promise.all(
           cursosComProjeto.map((curso: any) =>
             getDocs(query(collection(db, 'initiative_configs'), where('initiativeId', '==', curso.id))).catch(() => null)

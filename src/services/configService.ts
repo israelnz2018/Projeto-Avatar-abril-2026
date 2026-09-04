@@ -9,11 +9,14 @@ import {
   query,
   where,
   writeBatch,
+  arrayUnion,
   Timestamp
 } from 'firebase/firestore';
+import { ehCurso, ehTipoDeProjeto } from '../lib/tipoIniciativa';
 import { db } from '../lib/firebase';
 import { Initiative, InitiativePhaseConfig } from '../types';
 import { resolveConsultorId } from './consultorService';
+import { setCourseRegistry } from '../lib/courseRegistry';
 
 const INITIATIVES_COLLECTION = 'initiatives';
 const CONFIG_COLLECTION = 'initiative_configs';
@@ -23,21 +26,26 @@ export const getInitiatives = async (): Promise<Initiative[]> => {
   // Multi-tenant: cada consultor vê só as metodologias dele. Trilhas antigas sem
   // consultorId contam como 'israel' (não somem no app. atual).
   const cid = resolveConsultorId();
-  return snapshot.docs
+  const initiatives = snapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() } as Initiative))
     .filter(i => ((i as any).consultorId || 'israel') === cid);
+  // Reindexa o registro canônico: é o que permite que qualquer referência gravada
+  // por NOME (acessos do aluno, vídeos, materiais) continue apontando para o curso
+  // certo mesmo depois de renomeado. Ver lib/courseRegistry.ts.
+  setCourseRegistry(initiatives);
+  return initiatives;
 };
 
 /** Catálogo de cursos: tipos marcados somente como projeto ficam fora. */
 export const getCourses = async (): Promise<Initiative[]> => {
   const initiatives = await getInitiatives();
-  return initiatives.filter((initiative) => !initiative.somenteProjeto);
+  return initiatives.filter(ehCurso);
 };
 
 /** Catálogo de tipos de projeto, incluindo tipos que não são cursos. */
 export const getProjectTypes = async (): Promise<Initiative[]> => {
   const initiatives = await getInitiatives();
-  return initiatives.filter((initiative) => initiative.temProjeto !== false);
+  return initiatives.filter(ehTipoDeProjeto);
 };
 
 /**
@@ -124,6 +132,25 @@ export const createInitiative = async (
   }
   await setDoc(doc(db, INITIATIVES_COLLECTION, id), initiative);
   return initiative;
+};
+
+/**
+ * Guarda o nome anterior da iniciativa antes de uma renomeação.
+ *
+ * É o que torna a renomeação inofensiva: tudo que ficou gravado com o nome antigo
+ * (acessos do aluno, vídeos, materiais de apoio) continua resolvendo para esta
+ * iniciativa através do registro canônico, sem precisar reescrever dado nenhum.
+ */
+export const registrarNomeAnterior = async (id: string, nomeAntigo: string): Promise<void> => {
+  const nome = (nomeAntigo || '').trim();
+  if (!id || !nome) return;
+  try {
+    await updateDoc(doc(db, INITIATIVES_COLLECTION, id), { nomesAnteriores: arrayUnion(nome) });
+  } catch (error) {
+    // Histórico é rede de segurança, não pré-requisito: se falhar, a renomeação
+    // segue e a propagação por nome ainda cobre o caso comum.
+    console.error('Não foi possível registrar o nome anterior da iniciativa', error);
+  }
 };
 
 export const updateInitiative = async (id: string, updates: Partial<Initiative>): Promise<void> => {

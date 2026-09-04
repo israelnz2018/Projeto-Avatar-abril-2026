@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ehCursoRaiz } from '../lib/tipoIniciativa';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus,
@@ -68,6 +69,7 @@ import {
   createInitiative,
   deleteInitiative,
   propagarRenomeacaoParaAcessos,
+  registrarNomeAnterior,
 } from '../services/configService';
 import { isSiteConsultor } from '../services/consultorService';
 import { ICON_CATALOG, COLOR_CATALOG } from '../services/initiativeVisual';
@@ -845,7 +847,7 @@ export default function KnowledgeManagerView() {
       // PROJETO liberado por aquele curso (ex: "LEAN SIX SIGMA BLACK BELT" aponta pra
       // "Como Se Tornar um Especialista..."), e não deve aparecer como curso aqui.
       const cursos = list.filter((i: any) =>
-        !i.somenteProjeto && (!i.cursoAssociadoId || i.cursoAssociadoId === i.id));
+        ehCursoRaiz(i));
       const names = cursos.map(i => i.name).filter(Boolean);
       setInitiativeNames(names);
       setInitiatives(cursos);
@@ -1711,9 +1713,12 @@ export default function KnowledgeManagerView() {
           // Mesma propagação do /config: o curso é referenciado por NOME nos vídeos
           // e nos acessos (users.cursosAcesso / cursosLiberados). Renomear só um dos
           // três desliga o aluno do curso. Ou propaga tudo, ou nada.
+          const ini = initiatives.find((i) => i.name === nomeAntigo);
+          // Guarda o nome antigo na iniciativa antes de propagar: cobre o que a
+          // propagação não alcança (materiais de apoio, quizzes, órfãos antigos).
+          if (ini) await registrarNomeAnterior(ini.id, nomeAntigo);
           await updateCourseName(nomeAntigo, nomeNovo);
           await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo);
-          const ini = initiatives.find((i) => i.name === nomeAntigo);
           if (ini) {
             await updateInitiative(ini.id, { name: nomeNovo });
             setInitiatives((prev) => prev.map((i) => (i.id === ini.id ? { ...i, name: nomeNovo } : i)));

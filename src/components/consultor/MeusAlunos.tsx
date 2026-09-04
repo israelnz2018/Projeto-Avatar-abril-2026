@@ -6,6 +6,7 @@
  *
  * A lista literal `cursosAcesso` é a fonte de verdade das permissões.
  */
+import { ehTipoDeProjeto } from '../../lib/tipoIniciativa';
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
@@ -343,7 +344,7 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       setCursos(nomesCursos);
       setFreeCursos(gratis);
       setIniciativas(todasIniciativas);
-      setTiposProjeto(todasIniciativas.filter((initiative) => initiative.temProjeto !== false));
+      setTiposProjeto(todasIniciativas.filter(ehTipoDeProjeto));
       // "Alunos diretos" sempre disponível no topo — um único grupo fixo, sem coordenador,
       // pro consultor atender aluno avulso sem precisar de uma conta de coordenador fake.
       const equipesReais = Array.from(equipesMap.values()).sort((a, b) => a.nome.localeCompare(b.nome));

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ehCurso, ehTipoDeProjeto } from '../lib/tipoIniciativa';
 import { 
   Plus, 
   Trash2, 
@@ -39,6 +40,7 @@ import {
   saveToolCategories,
   ToolCategoryId,
   propagarRenomeacaoParaAcessos,
+  registrarNomeAnterior,
 } from '../services/configService';
 import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
@@ -69,7 +71,8 @@ const DEFAULT_PHASES = [
  *
  * 2. src/components/projects/ProjectJourney.tsx — array de routing onde
  *    cada toolId é mapeado pro seu componente React.
- *    Exemplo: { id: 'raci', name: 'Matriz RACI', component: RaciTool, defaultPhase: 'Define' }
+ *    Exemplo: { id: 'raci', name: 'Matriz RACI', component: RaciTool }
+ *    Sem fase: em que fase a ferramenta entra é decisão do consultor.
  *
  * 3. src/services/configService.ts — função `seedDefaultInitiative`. Adicione
  *    o toolId ao array `toolIds` da fase apropriada nas iniciativas DMAIC,
@@ -84,57 +87,60 @@ const DEFAULT_PHASES = [
  * Sem os 4 passos, a ferramenta pode existir no código mas não aparecer
  * no app — exatamente o sintoma que sempre te frustrou.
  */
+// FERRAMENTA NÃO TEM FASE. Este catálogo é só id + nome: em que fase (e em que
+// ordem) cada ferramenta entra é decisão exclusiva do consultor, gravada em
+// initiative_configs. Nada aqui pode voltar a amarrar ferramenta a fase.
 const AVAILABLE_TOOLS = [
-  { id: 'mapa90dias', name: 'Mapa dos 90 Dias', phase: 'Define' },
-  { id: 'brief', name: 'Entendendo o Problema', phase: 'Define' },
-  { id: 'charter', name: 'Project Charter', phase: 'Define' },
-  { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)', phase: 'Define' },
-  { id: 'projectCharterPMI', name: 'Project Charter - PMI', phase: 'Define' },
-  { id: 'measureAdkar', name: 'ADKAR — Medir (Desire)', phase: 'Measure' },
-  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)', phase: 'Analyze' },
-  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)', phase: 'Improve' },
-  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)', phase: 'Control' },
-  { id: 'sipoc', name: 'SIPOC', phase: 'Define' },
-  { id: 'timeline', name: 'Cronograma Macro', phase: 'Define' },
-  { id: 'wbs', name: 'WBS (EAP)', phase: 'Define' },
-  { id: 'gpPlanPMI', name: 'Plano do GP - PMI', phase: 'Define' },
-  { id: 'raci', name: 'Matriz RACI', phase: 'Define' },
-  { id: 'organograma', name: 'Organograma', phase: 'Define' },
-  { id: 'indicadores', name: 'Indicadores', phase: 'Define' },
-  { id: 'detailedTimeline', name: 'Atividades Detalhadas', phase: 'Define' },
-  { id: 'riskManagementPMI', name: 'Plano de Riscos PMI', phase: 'Measure' },
-  { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI', phase: 'Monitor' },
-  { id: 'improvementPlan', name: 'Plano do Projeto de Melhoria', phase: 'Define' },
-  { id: 'stakeholders', name: 'Stakeholders', phase: 'Define' },
-  { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI', phase: 'Define' },
-  { id: 'processMap', name: 'Mapeamento de Processo', phase: 'Measure' },
-  { id: 'bpmnProcessMap', name: 'Mapa de Processo BPMN', phase: 'Measure' },
-  { id: 'brainstorming', name: 'Brainstorming', phase: 'Measure' },
-  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções', phase: 'Improve' },
-  { id: 'measureIshikawa', name: 'Espinha de Peixe', phase: 'Measure' },
-  { id: 'measureMatrix', name: 'Matriz Causa e Efeito', phase: 'Measure' },
-  { id: 'beforeAfter', name: 'Antes x Depois', phase: 'Measure' },
-  { id: 'rab', name: 'Matriz RAB', phase: 'Measure' },
-  { id: 'gut', name: 'Matriz GUT', phase: 'Measure' },
-  { id: 'effortImpact', name: 'Esforço x Benefício', phase: 'Measure' },
-  { id: 'dataCollection', name: 'Plano de Coleta de Dados', phase: 'Measure' },
-  { id: 'vsm', name: 'VSM (Value Stream Map)', phase: 'Analyze' },
-  { id: 'directObservation', name: 'Observação Direta (Gemba)', phase: 'Analyze' },
-  { id: 'fiveWhys', name: '5 Porquês', phase: 'Analyze' },
-  { id: 'fta', name: 'Árvore de Falhas (FTA)', phase: 'Analyze' },
-  { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística', phase: 'Analyze' },
-  { id: 'dataNature', name: 'Natureza dos Dados', phase: 'Analyze' },
-  { id: 'fmea', name: 'FMEA', phase: 'Improve' },
-  { id: 'plan5w2h', name: 'Plano de Ação 5W2H', phase: 'Improve' },
-  { id: 'actionPlan', name: 'Plano de Ação', phase: 'Improve' },
-  { id: 'sop', name: 'POP (Procedimento Operacional Padrão)', phase: 'Improve' },
-  { id: 'controlPlan', name: 'Plano de Controle', phase: 'Control' },
-  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto', phase: '' },
-  { id: 'projectClose', name: 'Termo de Encerramento do Projeto', phase: '' },
-  { id: 'processCanva', name: 'Canva', phase: 'Measure' },
-  { id: 'processModeling', name: 'Modelagem de Processo', phase: 'Measure' },
-  { id: 'processValidation', name: 'Validação de Processo', phase: 'Measure' },
-  { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria', phase: 'Pre-Definir' },
+  { id: 'mapa90dias', name: 'Mapa dos 90 Dias' },
+  { id: 'brief', name: 'Entendendo o Problema' },
+  { id: 'charter', name: 'Project Charter' },
+  { id: 'stakeholderAdkar', name: 'ADKAR — Definir (Awareness)' },
+  { id: 'projectCharterPMI', name: 'Project Charter - PMI' },
+  { id: 'measureAdkar', name: 'ADKAR — Medir (Desire)' },
+  { id: 'analyzeAdkar', name: 'ADKAR — Analisar (Knowledge)' },
+  { id: 'improveAdkar', name: 'ADKAR — Melhorar (Ability)' },
+  { id: 'controlAdkar', name: 'ADKAR — Controlar (Reinforcement)' },
+  { id: 'sipoc', name: 'SIPOC' },
+  { id: 'timeline', name: 'Cronograma Macro' },
+  { id: 'wbs', name: 'WBS (EAP)' },
+  { id: 'gpPlanPMI', name: 'Plano do GP - PMI' },
+  { id: 'raci', name: 'Matriz RACI' },
+  { id: 'organograma', name: 'Organograma' },
+  { id: 'indicadores', name: 'Indicadores' },
+  { id: 'detailedTimeline', name: 'Atividades Detalhadas' },
+  { id: 'riskManagementPMI', name: 'Plano de Riscos PMI' },
+  { id: 'riskMonitoringPMI', name: 'Monitoramento de Riscos - PMI' },
+  { id: 'improvementPlan', name: 'Plano do Projeto de Melhoria' },
+  { id: 'stakeholders', name: 'Stakeholders' },
+  { id: 'stakeholderAnalysisPMI', name: 'Análise de Stakeholders - PMI' },
+  { id: 'processMap', name: 'Mapeamento de Processo' },
+  { id: 'bpmnProcessMap', name: 'Mapa de Processo BPMN' },
+  { id: 'brainstorming', name: 'Brainstorming' },
+  { id: 'brainstormingImprove', name: 'Brainstorming de Soluções' },
+  { id: 'measureIshikawa', name: 'Espinha de Peixe' },
+  { id: 'measureMatrix', name: 'Matriz Causa e Efeito' },
+  { id: 'beforeAfter', name: 'Antes x Depois' },
+  { id: 'rab', name: 'Matriz RAB' },
+  { id: 'gut', name: 'Matriz GUT' },
+  { id: 'effortImpact', name: 'Esforço x Benefício' },
+  { id: 'dataCollection', name: 'Plano de Coleta de Dados' },
+  { id: 'vsm', name: 'VSM (Value Stream Map)' },
+  { id: 'directObservation', name: 'Observação Direta (Gemba)' },
+  { id: 'fiveWhys', name: '5 Porquês' },
+  { id: 'fta', name: 'Árvore de Falhas (FTA)' },
+  { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística' },
+  { id: 'dataNature', name: 'Natureza dos Dados' },
+  { id: 'fmea', name: 'FMEA' },
+  { id: 'plan5w2h', name: 'Plano de Ação 5W2H' },
+  { id: 'actionPlan', name: 'Plano de Ação' },
+  { id: 'sop', name: 'POP (Procedimento Operacional Padrão)' },
+  { id: 'controlPlan', name: 'Plano de Controle' },
+  { id: 'tangibleGains', name: 'Ganhos Tangíveis do Projeto' },
+  { id: 'projectClose', name: 'Termo de Encerramento do Projeto' },
+  { id: 'processCanva', name: 'Canva' },
+  { id: 'processModeling', name: 'Modelagem de Processo' },
+  { id: 'processValidation', name: 'Validação de Processo' },
+  { id: 'improvementIdea', name: 'Ideia de Projeto de Melhoria' },
 ];
 
 const TOOL_CATEGORIES = [
@@ -299,8 +305,8 @@ export default function ProjectToolsConfig() {
     setLoading(true);
     try {
       const data = await getInitiatives();
-      setAllCourses(data.filter(i => !i.somenteProjeto));
-      const projectTypes = data.filter(i => i.temProjeto !== false);
+      setAllCourses(data.filter(ehCurso));
+      const projectTypes = data.filter(ehTipoDeProjeto);
       if (data.length === 0) {
         // Auto-seed if empty
         try {
@@ -310,8 +316,8 @@ export default function ProjectToolsConfig() {
           // Don't fail the whole fetch if seeding fails, just show empty
         }
         const seededData = await getInitiatives();
-        setAllCourses(seededData.filter(i => !i.somenteProjeto));
-        const seededProjectTypes = seededData.filter(i => i.temProjeto !== false);
+        setAllCourses(seededData.filter(ehCurso));
+        const seededProjectTypes = seededData.filter(ehTipoDeProjeto);
         setInitiatives(seededProjectTypes);
         if (seededProjectTypes.length > 0) handleSelectInitiative(seededProjectTypes[0]);
       } else {
@@ -413,6 +419,10 @@ export default function ProjectToolsConfig() {
       if (renomeou) {
         // Propagação silenciosa: usuário renomeou de propósito, não precisa confirmar.
         // Ambas são no-op se não houver nada vinculado ao nome antigo.
+        // Antes de qualquer propagação: guarda o nome antigo na própria iniciativa.
+        // É o que garante que nada quebre mesmo onde a propagação não alcança
+        // (materiais de apoio, quizzes, referências antigas).
+        await registrarNomeAnterior(selectedInitiative.id, nomeAntigo);
         await updateCourseName(nomeAntigo, nomeNovo);
         await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo);
       }
