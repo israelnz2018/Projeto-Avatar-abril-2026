@@ -462,7 +462,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>Método</b> (<b>coef×vol</b>, <b>quantidade</b> × custo ou <b>R$ direto</b>) é escolhido uma vez, lá em cima — vale pra todos os meses das duas abas. A média de <b>custo</b> desta aba vira o <b>indicador congelado</b> usado no ganho teórico — fixado automaticamente, não é editável.</span>
+            <span><b>Método</b> (<b>coef×vol</b>, <b>quantidade</b> × custo ou <b>R$ direto</b>) é escolhido uma vez, lá em cima — vale pra todos os meses das duas abas. A média de <b>custo</b> desta aba vira o <b>indicador congelado</b> usado no ganho devido ao projeto — fixado automaticamente, não é editável.</span>
           </div>
         </div>
       )}
@@ -493,8 +493,8 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Volume/Qtd</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Custo real (R$)</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Valor mensal (R$)</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-[#0033CC]">Ganho teórico (R$)</th>
-                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-600">Ganho real (R$)</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-[#0033CC]">Ganho devido ao projeto (R$)</th>
+                  <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-600">Ganho que entrou no caixa (R$)</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider bg-emerald-700">Acum. real (R$)</th>
                 </tr>
               </thead>
@@ -544,14 +544,14 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
               <div className="text-[11px] text-gray-500">{baseline.coefAvg != null && after.afterCoefAvg != null ? `${fmt(baseline.coefAvg, 2)}→${fmt(after.afterCoefAvg, 2)}` : 'no indicador'}</div>
             </div>
             <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#1E2D6E,#2a3d8f)' }}>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho teórico acum.</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho devido ao projeto acum.</div>
               <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
               <div className="text-[11px] text-[#c9d1f2]">mérito do projeto</div>
             </div>
             <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho real acum.</div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho que entrou no caixa acum.</div>
               <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accReal)}</div>
-              <div className="text-[11px] text-emerald-100">o que entrou no caixa</div>
+              <div className="text-[11px] text-emerald-100">custo real do mês</div>
             </div>
             <div className="border border-gray-200 rounded-lg p-3.5">
               <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Efeito preço</div>
@@ -562,7 +562,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>Teórico</b> = variação de eficiência × <b>indicador congelado</b> — isola o que o time entregou, sem ruído de preço. <b>Real</b> = variação × <b>custo do mês</b> — o que de fato entrou no caixa. <b>Efeito preço</b> = real − teórico, movimento de mercado que não é mérito (nem culpa) do projeto. No modo <b>R$ direto</b> não dá pra separar preço de quantidade, então teórico = real.</span>
+            <span><b>Ganho devido ao projeto</b> = variação de eficiência × <b>indicador congelado</b> — isola o que o time entregou, sem ruído de preço. <b>Ganho que entrou no caixa</b> = variação × <b>custo do mês</b> — o que de fato aconteceu no caixa. <b>Efeito preço</b> = caixa − projeto, movimento de mercado que não é mérito (nem culpa) do projeto. No modo <b>R$ direto</b> não dá pra separar preço de quantidade, então os dois ficam iguais.</span>
           </div>
         </div>
       )}
@@ -654,12 +654,12 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                 <div className="text-[11px] text-gray-500">distância entre as médias</div>
               </div>
               <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#1E2D6E,#2a3d8f)' }}>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho teórico acum.</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho devido ao projeto acum.</div>
                 <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
                 <div className="text-[11px] text-[#c9d1f2]">indicador congelado</div>
               </div>
               <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho real acum.</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho que entrou no caixa acum.</div>
                 <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accReal)}</div>
                 <div className="text-[11px] text-emerald-100">preço do mês</div>
               </div>
