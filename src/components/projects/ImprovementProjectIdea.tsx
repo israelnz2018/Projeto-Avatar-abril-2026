@@ -14,7 +14,6 @@ import {
   Search,
   Sparkles,
   PlayCircle,
-  UserCircle,
   ClipboardList,
   Target,
   TrendingDown,
@@ -27,7 +26,6 @@ import {
   Trash2,
   X,
   Map,
-  Globe2,
   ArrowRight,
 } from 'lucide-react';
 import { BookOpen } from 'lucide-react';
@@ -98,6 +96,20 @@ function normalizeProfile(p: any): UserProfile {
 
 function genItemId(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function getActivitiesFingerprint(data: any): string {
+  const itens = Array.isArray(data?.itens) ? data.itens : [];
+  return JSON.stringify(itens
+    .map((item: any) => ({
+      nome: String(item?.nome || '').trim(),
+      voz1: String(item?.voz1 || '').trim(),
+      voz2: String(item?.voz2 || '').trim(),
+      voz3: String(item?.voz3 || '').trim(),
+      voz4: String(item?.voz4 || '').trim(),
+      oportunidade: String(item?.oportunidade || '').trim(),
+    }))
+    .filter((item: any) => Object.values(item).some(Boolean)));
 }
 
 function unwrapIdeaData(raw: any): any {
@@ -256,6 +268,14 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
   };
 
   const [generatedProjects, setGeneratedProjects] = useState<any[]>(savedData?.generatedProjects ? normalizeProjects(savedData.generatedProjects) : []);
+  const [lastGeneratedActivitiesFingerprint, setLastGeneratedActivitiesFingerprint] = useState<string>(() => {
+    if (typeof savedData?.lastGeneratedActivitiesFingerprint === 'string') {
+      return savedData.lastGeneratedActivitiesFingerprint;
+    }
+    return (savedData?.generatedProjects || []).length > 0
+      ? getActivitiesFingerprint(savedData?.formData || savedData)
+      : '';
+  });
   const [nivelFilter, setNivelFilter] = useState<string>('Todos');
   // Itens que a IA avaliou e concluiu que não rendem projeto — com o motivo.
   // Sem isso, item ignorado e item descartado ficavam indistinguíveis (os dois sumiam).
@@ -275,6 +295,9 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
       if (nextProfile) setUserProfile(nextProfile);
       if (nextData.formData || Object.keys(nextData).length > 0) setFormData(nextData.formData || nextData);
       if (nextData.generatedProjects) setGeneratedProjects(normalizeProjects(nextData.generatedProjects));
+      if (typeof nextData.lastGeneratedActivitiesFingerprint === 'string') {
+        setLastGeneratedActivitiesFingerprint(nextData.lastGeneratedActivitiesFingerprint);
+      }
     }
   }, [initialData]);
 
@@ -284,7 +307,8 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     onSave({
       userProfile,
       formData: newFormData,
-      generatedProjects
+      generatedProjects,
+      lastGeneratedActivitiesFingerprint,
     }, { silent: true });
   };
 
@@ -293,7 +317,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
   const persistItens = (novosItens: any[]) => {
     const newFormData = { ...formData, itens: novosItens };
     setFormData(newFormData);
-    onSave({ userProfile, formData: newFormData, generatedProjects }, { silent: true });
+    onSave({ userProfile, formData: newFormData, generatedProjects, lastGeneratedActivitiesFingerprint }, { silent: true });
   };
   const addItem = () => {
     persistItens([...(formData.itens || []), { id: genItemId(), nome: '', voz1: '', voz2: '', voz3: '', voz4: '', oportunidade: '' }]);
@@ -320,15 +344,7 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
       userProfile: profile,
       formData,
       generatedProjects,
-    }, { silent: true });
-  };
-
-  const handleProfileSelect = (profile: UserProfile) => {
-    setUserProfile(profile);
-    onSave({
-      userProfile: profile,
-      formData,
-      generatedProjects
+      lastGeneratedActivitiesFingerprint,
     }, { silent: true });
   };
 
@@ -338,7 +354,8 @@ export default function ImprovementProjectIdea({ onSave, initialData }: Improvem
     onSave({
       userProfile,
       formData,
-      generatedProjects
+      generatedProjects,
+      lastGeneratedActivitiesFingerprint,
     });
   };
 
@@ -471,8 +488,10 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
         .filter((p: any) => p.title && !jaExistem.has(chave(p.title)))
         .map((p: any) => ({ ...p, aprovado: true }));   // nasce aprovado
       const normalized = [...generatedProjects, ...novos];
+      const generatedFingerprint = getActivitiesFingerprint(formData);
       setGeneratedProjects(normalized);
       setItensSemProjeto(semProjeto);
+      setLastGeneratedActivitiesFingerprint(generatedFingerprint);
       // Fecha o questionário e leva o aluno até as ideias: o formulário é longo
       // (várias atividades × 4 vozes) e antes as ideias nasciam fora do campo de visão.
       setFormColapsado(true);
@@ -483,6 +502,7 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
         formData,
         generatedProjects: normalized,   // lista mesclada, não só as novas
         itensSemProjeto: semProjeto,
+        lastGeneratedActivitiesFingerprint: generatedFingerprint,
       });
     } catch (error) {
       console.error("Erro ao gerar projetos:", error);
@@ -511,7 +531,10 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
     { id: 2, filled: temItemValido },
   ];
 
-  const canGenerate = sec1Filled && temItemValido;
+  const activitiesChangedSinceGeneration = getActivitiesFingerprint(formData) !== lastGeneratedActivitiesFingerprint;
+  const canGenerate = sec1Filled && temItemValido && (
+    generatedProjects.length === 0 || activitiesChangedSinceGeneration
+  );
   const progressPercent = (sectionsStatus.filter(s => s.filled).length / 2) * 100;
 
   // Modal "Ver exemplo" — definido uma vez, reusado nos dois returns (seleção + form).
@@ -622,26 +645,13 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
           <p className="text-gray-500 font-medium italic">Vou fazer perguntas diferentes pra cada caso. Escolhe o que descreve melhor a sua situação.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 max-w-xl mx-auto">
           {[
             {
               id: 'Atividades' as Exclude<UserProfile, null>,
-              title: 'Quero melhorar MINHAS ATIVIDADES',
+              title: 'Quero gerar ideias de projetos',
               description: 'O que EU faço no dia a dia — re-trabalho, ferramenta ruim, espera, reclamação que recebo.',
               icon: ClipboardList,
-            },
-            {
-              id: 'Area' as Exclude<UserProfile, null>,
-              title: 'Quero melhorar MINHA ÁREA',
-              description: 'Sou coordenador/gerente — onde minha área está fraca, queixas internas, conflito com outras áreas.',
-              icon: Building2,
-              hint: '',
-            },
-            {
-              id: 'Empresa' as Exclude<UserProfile, null>,
-              title: 'Quero melhorar MINHA EMPRESA',
-              description: 'Sou especialista/consultor — visão sistêmica, dores executivas, conexões entre áreas, programa OpEx.',
-              icon: Globe2,
             },
           ].map((profile) => (
             <button
@@ -705,13 +715,6 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
           >
             <BookOpen size={14} /> Ver exemplo
-          </button>
-          <button
-            onClick={() => setUserProfile(null)}
-            className="text-xs font-black text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 uppercase tracking-widest"
-          >
-            <UserCircle size={14} />
-            Trocar Foco
           </button>
         </div>
       </div>
@@ -955,7 +958,9 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
             
             {!canGenerate && (
               <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] font-bold px-4 py-2 rounded-xl whitespace-nowrap z-10 pointer-events-none shadow-xl">
-                Preencha seu contexto e adicione pelo menos 1 item com problema/oportunidade
+                {generatedProjects.length > 0 && !activitiesChangedSinceGeneration
+                  ? 'Adicione ou altere uma atividade para regenerar as ideias'
+                  : 'Preencha seu contexto e adicione pelo menos 1 item com problema/oportunidade'}
               </div>
             )}
           </div>
@@ -1053,18 +1058,18 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
                       const lista = [...generatedProjects];
                       lista[originalIndex] = { ...lista[originalIndex], aprovado: v };
                       setGeneratedProjects(lista);
-                      onSave({ userProfile, formData, generatedProjects: lista, itensSemProjeto }, { silent: true });
+                      onSave({ userProfile, formData, generatedProjects: lista, itensSemProjeto, lastGeneratedActivitiesFingerprint }, { silent: true });
                     }}
                     onUpdateProject={(updatedProject) => {
                         const updatedProjects = [...generatedProjects];
                         updatedProjects[originalIndex] = updatedProject;
                         setGeneratedProjects(updatedProjects);
-                        onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
+                        onSave({ userProfile, formData, generatedProjects: updatedProjects, lastGeneratedActivitiesFingerprint }, { silent: true });
                     }}
                     onRemoveProject={() => {
                         const updatedProjects = generatedProjects.filter((_, i) => i !== originalIndex);
                         setGeneratedProjects(updatedProjects);
-                        onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
+                        onSave({ userProfile, formData, generatedProjects: updatedProjects, lastGeneratedActivitiesFingerprint }, { silent: true });
                     }}
                   />
                   );
@@ -1089,7 +1094,7 @@ Retorne APENAS um objeto JSON com as chaves "projects" e "itens_sem_projeto":
                     const updatedProjects = [...generatedProjects, newProject];
                     setGeneratedProjects(updatedProjects);
                     setNivelFilter('Todos');
-                    onSave({ userProfile, formData, generatedProjects: updatedProjects }, { silent: true });
+                    onSave({ userProfile, formData, generatedProjects: updatedProjects, lastGeneratedActivitiesFingerprint }, { silent: true });
                   }}
                   className="flex items-center gap-2 px-6 py-3 bg-white text-blue-600 border-2 border-blue-100 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-50 transition-all cursor-pointer"
                 >
