@@ -63,6 +63,25 @@ export const enxugarParaPrompt = (dados: any): string => {
   return json.length > LIMITE_PAYLOAD ? `${json.slice(0, LIMITE_PAYLOAD)}…[truncado]` : json;
 };
 
+/**
+ * Converte para texto legível o que a ferramenta espera como string.
+ *
+ * A IA às vezes devolve `[{name:"Fornecedor"}]` onde o SIPOC quer `["Fornecedor"]`.
+ * Sem isto a tela imprime "[object Object]" em cada célula — foi o que aconteceu.
+ * De objeto, aproveita o primeiro campo de texto preenchido.
+ */
+const paraTexto = (valor: any): string => {
+  if (valor === null || valor === undefined) return '';
+  if (typeof valor === 'string') return valor.trim();
+  if (typeof valor === 'number' || typeof valor === 'boolean') return String(valor);
+  if (Array.isArray(valor)) return valor.map(paraTexto).filter(Boolean).join(' — ');
+  if (typeof valor === 'object') {
+    const primeiro = Object.values(valor).find((v) => typeof v === 'string' && v.trim());
+    return typeof primeiro === 'string' ? primeiro.trim() : '';
+  }
+  return '';
+};
+
 export const sanitizeToolData = (toolId: string, data: any): any => {
   if (!data) return {};
 
@@ -95,6 +114,16 @@ export const sanitizeToolData = (toolId: string, data: any): any => {
       data[field] = data[field] ? [data[field]] : [];
     }
   });
+
+  // SIPOC: as 5 colunas são listas de TEXTO. Objeto vindo da IA vira texto, e o que
+  // sobrar vazio sai fora — coluna sem informação fica vazia em vez de inventada.
+  if (toolId === 'sipoc') {
+    (['suppliers', 'inputs', 'process', 'outputs', 'customers'] as const).forEach((campo) => {
+      data[campo] = (Array.isArray(data[campo]) ? data[campo] : [])
+        .map(paraTexto)
+        .filter((texto: string) => texto.length > 0);
+    });
+  }
 
   if (toolId === 'stakeholders' || toolId === 'stakeholderAdkar') {
     if (Array.isArray(data.stakeholders)) {

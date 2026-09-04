@@ -149,16 +149,16 @@ REGRAS:
   sipoc: {
     toolName: "SIPOC",
     structure: `{
-  "suppliers": ["Fornecedor 1", "Fornecedor 2"],
-  "inputs": ["Entrada 1", "Entrada 2"],
-  "process": ["Passo 1", "Passo 2", "Passo 3", "Passo 4", "Passo 5"],
-  "outputs": ["Saida principal", "Saida secundaria"],
-  "customers": ["Cliente interno/externo"]
+  "suppliers": ["Area requisitante", "Fornecedor X"],
+  "inputs": ["Pedido de compra", "Dados do cliente"],
+  "process": ["Receber a solicitacao", "Conferir os dados", "Aprovar", "Emitir", "Arquivar"],
+  "outputs": ["Nota fiscal emitida", "Registro no sistema"],
+  "customers": ["Cliente X", "Area fiscal"]
 }`,
     instructions: `ATENCAO - SIPOC:
 - suppliers: quem fornece entradas para o processo
 - inputs: materiais, informacoes ou recursos que entram
-- process: exatamente 5 passos principais do processo
+- process: os passos principais do processo, na ORDEM real de execucao
 - outputs: resultados ou produtos do processo
 - customers: quem recebe as saidas
 
@@ -168,14 +168,27 @@ SIPOC DELE, sem inventar um processo diferente:
 - brief.answers.q3 = principais envolvidos (areas/fornecedores) -> use como base
   de suppliers, e para deduzir customers (quem recebe o resultado)
 - brief.answers.q2 e q4 = problema e o que da errado -> indicam onde estao os
-  passos criticos; os 5 passos devem cobrir o fluxo onde o problema acontece
+  passos criticos; os passos devem cobrir o fluxo onde o problema acontece
 - brief.answers.q8 = o que vai melhorar -> ajuda a nomear os outputs
+- Se o brief estiver vazio, use o contexto do projeto que houver
 
-REGRAS:
-- process: 5 passos na ORDEM real de execucao, cada um comecando com verbo no
-  infinitivo (Receber, Conferir, Aprovar, Registrar, Entregar...)
-- NAO invente nomes de pessoas nem de empresas que nao estejam no contexto
-- Se o brief estiver vazio, use o contexto do projeto que houver`
+FORMATO (critico):
+- as 5 chaves sao listas de TEXTO SIMPLES: ["Fornecedor", "Area fiscal"]
+- NUNCA devolva objeto dentro da lista, tipo [{"name":"..."}]. A tela imprime
+  isso como [object Object]
+- cada passo de process comeca com verbo no infinitivo (Receber, Conferir,
+  Aprovar, Registrar, Entregar...)
+
+NAO INVENTAR (regra dura, vale mais que qualquer quantidade):
+- so escreva o que da pra sustentar no contexto recebido
+- nome proprio (empresa, sistema, pessoa) que NAO esteja no contexto: use termo
+  generico - "Empresa X", "Fornecedor X", "Cliente X", "Sistema X"
+- coluna sem informacao no contexto: devolva lista VAZIA []. Vazio e uma
+  resposta correta; encher com invencao nao e
+- proibido item de enfeite: nada de "Passo 1", "Entrada 1", "Saida secundaria",
+  item repetido ou generico so pra alongar a lista
+- o ideal sao 5 passos em process, mas isso e ALVO, nao obrigacao: se o contexto
+  so sustenta 3 passos reais, devolva 3`
   },
  
   // ======================================================================
