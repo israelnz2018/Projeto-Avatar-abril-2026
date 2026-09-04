@@ -1445,6 +1445,16 @@ export default function ToolWrapper({
         };
       }
 
+      // SIPOC — era a única ferramenta de IA sem bloco de contexto: o botão gerava
+      // sem receber nada do projeto. Puxa o Entendendo o Problema (é dele que saem
+      // processo, envolvidos e problema) e o Charter quando existir.
+      if (toolId === 'sipoc' && allProjectData) {
+        targetContext = {
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          charter: getToolDataByPrefix(allProjectData, 'charter'),
+        };
+      }
+
       // Special handling for brainstorming to pull exclusively from requested sources
       if (toolId === 'brainstorming' && allProjectData) {
         targetContext = {

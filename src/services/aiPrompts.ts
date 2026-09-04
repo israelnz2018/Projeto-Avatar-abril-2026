@@ -161,7 +161,21 @@ REGRAS:
 - process: exatamente 5 passos principais do processo
 - outputs: resultados ou produtos do processo
 - customers: quem recebe as saidas
-Use dados reais do contexto do projeto.`
+
+O contexto traz "brief" (Entendendo o Problema), preenchido pelo aluno. Derive o
+SIPOC DELE, sem inventar um processo diferente:
+- brief.answers.q1 = nome do processo -> e ESTE o processo a mapear
+- brief.answers.q3 = principais envolvidos (areas/fornecedores) -> use como base
+  de suppliers, e para deduzir customers (quem recebe o resultado)
+- brief.answers.q2 e q4 = problema e o que da errado -> indicam onde estao os
+  passos criticos; os 5 passos devem cobrir o fluxo onde o problema acontece
+- brief.answers.q8 = o que vai melhorar -> ajuda a nomear os outputs
+
+REGRAS:
+- process: 5 passos na ORDEM real de execucao, cada um comecando com verbo no
+  infinitivo (Receber, Conferir, Aprovar, Registrar, Entregar...)
+- NAO invente nomes de pessoas nem de empresas que nao estejam no contexto
+- Se o brief estiver vazio, use o contexto do projeto que houver`
   },
  
   // ======================================================================
