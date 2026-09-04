@@ -19,6 +19,13 @@ const MAPA = {
   'Análise Preditiva - Regressões, Correlações e Séries Temporais': ['Regressões e Correlações', 'Análise Preditiva - Regressões e Correlações'],
   'Análise Inferencial - Testes de Hipóteses': ['Testes de Hipótese'],
   'Estatística aplicada e ferramentas da qualidade': ['Introdução a Análises Estatísticas Aplicadas a Negócios'],
+  // Nome do curso unico antes de ser dividido em niveis. As descricoes dos materiais
+  // apontam para a Trilha 8 (prefixo "8 - " e "(Trilha 8)"); o Israel confirmou que
+  // hoje isso e o Black Belt.
+  'Formação Profissional em Gestão de Projetos de Melhoria - Nível Black Belt': [
+    'Formação Profissional em Gestão de Projetos de Melhoria',
+    '8 - Formação Profissional em Gestão de Projetos de Melhoria',
+  ],
 };
 
 const snap = await db.collection('initiatives').get();
