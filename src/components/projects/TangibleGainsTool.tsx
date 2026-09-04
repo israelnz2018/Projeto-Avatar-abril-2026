@@ -114,6 +114,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   const baseline = useMemo(() => {
     const qtys: number[] = [];
     const coefs: number[] = [];
+    const volumes: number[] = [];
     const valores: number[] = [];
     const custos: number[] = [];
     baselineRows.forEach((r) => {
@@ -122,14 +123,21 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
         qtys.push(qtyOf(r));
         custos.push(effCusto(r));
       }
-      if (r.mode === 'coef') coefs.push(num(r.coef));
+      if (r.mode === 'coef') {
+        coefs.push(num(r.coef));
+        volumes.push(num(r.volume));
+      }
       valores.push(valorMensal(r));
     });
-    const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
+    const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
+    const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
     return {
       qtyAvg: avg(qtys),
+      qtySum: sum(qtys),
       coefAvg: coefs.length ? avg(coefs) : null,
+      volumeSum: volumes.length ? sum(volumes) : null,
       valorAvg: avg(valores),
+      valorSum: sum(valores),
       custoAvg: custos.length ? avg(custos) : padrao,
       filledCount: valores.length,
     };
@@ -431,6 +439,18 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                   <td className="px-3 py-2.5 text-right text-sm">{baseline.qtyAvg ? fmt(baseline.qtyAvg, 0) : '—'}</td>
                   <td className="px-3 py-2.5 text-right text-sm">{baseline.custoAvg ? fmt(baseline.custoAvg, 2) : '—'}</td>
                   <td className="px-3 py-2.5 text-right text-sm bg-[#0033CC]">{fmtBRL(baseline.valorAvg)}</td>
+                </tr>
+                {/* Somatório dos 12 meses — Coef. e Custo são taxas (não fazem sentido
+                    somados); Volume, Qtd e Valor mensal são quantidades reais do
+                    período, por isso aparecem somadas. */}
+                <tr style={{ background: '#15224f' }} className="text-white/90 font-semibold">
+                  <td></td>
+                  <td className="px-3 py-2 text-left text-xs">Total (soma {baseline.filledCount}m)</td>
+                  <td className="px-3 py-2 text-right text-sm text-white/40">—</td>
+                  <td className="px-3 py-2 text-right text-sm">{baseline.volumeSum != null ? fmt(baseline.volumeSum, 2) : '—'}</td>
+                  <td className="px-3 py-2 text-right text-sm">{baseline.qtySum ? fmt(baseline.qtySum, 0) : '—'}</td>
+                  <td className="px-3 py-2 text-right text-sm text-white/40">—</td>
+                  <td className="px-3 py-2 text-right text-sm bg-[#002999]">{fmtBRL(baseline.valorSum)}</td>
                 </tr>
               </tfoot>
             </table>
