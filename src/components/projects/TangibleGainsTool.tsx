@@ -6,7 +6,8 @@ import {
 
 // ============================================================================
 // Ganhos Tangíveis do Projeto (toolId: tangibleGains)
-// Duas abas. 3 modos por linha:
+// Duas abas. 3 métodos possíveis, escolhidos UMA VEZ pro indicador inteiro
+// (não mês a mês — o aluno não muda de método no meio do histórico):
 //   coef×vol   — coef × volume = quantidade → × custo/unid = valor mensal (R$)
 //   quantidade — digita a quantidade → × custo/unid = valor mensal (R$)
 //   R$ direto  — digita o valor mensal em R$ (cliente calculou por fora)
@@ -46,14 +47,18 @@ const fmt = (n: number, dec = 0): string =>
   n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtBRL = (n: number): string => `R$ ${fmt(n, 0)}`;
 
+const MESES_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
 const monthLabel = (offset: number): string => {
   const d = new Date();
   d.setDate(1);
   d.setMonth(d.getMonth() + offset);
-  return d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', '');
+  return `${MESES_PT[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-const mkRow = (label: string, id: string): MonthRow => ({ id, label, mode: 'coef', coef: '', volume: '', value: '', custo: '', valorRS: '' });
+const mkRow = (label: string, id: string, mode: Mode = 'coef'): MonthRow => ({ id, label, mode, coef: '', volume: '', value: '', custo: '', valorRS: '' });
 const defaultBaseline = (): MonthRow[] => Array.from({ length: 12 }, (_, i) => mkRow(monthLabel(i - 12), `b${i}`));
 const defaultAfter = (): MonthRow[] => Array.from({ length: 6 }, (_, i) => mkRow(monthLabel(i), `a${i}`));
 
@@ -64,8 +69,23 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   const [unit, setUnit] = useState<string>(d?.unit || '');
   const [direction, setDirection] = useState<Direction>(d?.direction || 'lower');
   const [custoPadrao, setCustoPadrao] = useState<string>(d?.custoPadrao ?? d?.unitValue ?? '');
-  const [baselineRows, setBaselineRows] = useState<MonthRow[]>(d?.baselineRows?.length ? d.baselineRows : defaultBaseline());
-  const [afterRows, setAfterRows] = useState<MonthRow[]>(d?.afterRows?.length ? d.afterRows : defaultAfter());
+  // O método (coef×vol / quantidade / R$ direto) é do INDICADOR, não do mês — o
+  // aluno escolhe uma vez e vale pra todas as linhas das duas abas. Dado salvo
+  // antes dessa mudança não tem `metodo`; nesse caso herda o modo da primeira
+  // linha que existir, senão cai no padrão 'coef'.
+  const metodoInicial: Mode = d?.metodo || d?.baselineRows?.[0]?.mode || d?.afterRows?.[0]?.mode || 'coef';
+  // Normaliza qualquer linha antiga que porventura tenha ficado com modo
+  // diferente do resto (não deveria existir, mas dado legado é dado legado) —
+  // garante que a tabela nasce coerente com o método único, sem exceção.
+  const comMetodo = (rows: MonthRow[], m: Mode) => rows.map((r) => ({ ...r, mode: m }));
+
+  const [metodo, setMetodo] = useState<Mode>(metodoInicial);
+  const [baselineRows, setBaselineRows] = useState<MonthRow[]>(
+    comMetodo(d?.baselineRows?.length ? d.baselineRows : defaultBaseline(), metodoInicial)
+  );
+  const [afterRows, setAfterRows] = useState<MonthRow[]>(
+    comMetodo(d?.afterRows?.length ? d.afterRows : defaultAfter(), metodoInicial)
+  );
   const [tab, setTab] = useState<'antes' | 'depois' | 'resultado'>('antes');
   const [barMetric, setBarMetric] = useState<'coef' | 'qty' | 'valor'>('coef');
 
@@ -76,8 +96,10 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     if (typeof nd.unit === 'string') setUnit(nd.unit);
     if (nd.direction) setDirection(nd.direction);
     if (nd.custoPadrao !== undefined || nd.unitValue !== undefined) setCustoPadrao(String(nd.custoPadrao ?? nd.unitValue ?? ''));
-    if (Array.isArray(nd.baselineRows) && nd.baselineRows.length) setBaselineRows(nd.baselineRows);
-    if (Array.isArray(nd.afterRows) && nd.afterRows.length) setAfterRows(nd.afterRows);
+    const m: Mode | undefined = nd.metodo || nd.baselineRows?.[0]?.mode || nd.afterRows?.[0]?.mode;
+    if (m) setMetodo(m);
+    if (Array.isArray(nd.baselineRows) && nd.baselineRows.length) setBaselineRows(comMetodo(nd.baselineRows, m || metodo));
+    if (Array.isArray(nd.afterRows) && nd.afterRows.length) setAfterRows(comMetodo(nd.afterRows, m || metodo));
   }, [initialData]);
 
   const dir = direction === 'lower' ? 1 : -1;
@@ -253,20 +275,28 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   // barMetric vai junto pro save: o slide do PPT desenha a mesma métrica que você
   // está vendo na aba Resultado.
   const save = () =>
-    onSave({ indicator, unit, direction, custoPadrao, precoCongelado, barMetric: metric, baselineRows, afterRows });
+    onSave({ indicator, unit, direction, custoPadrao, precoCongelado, metodo, barMetric: metric, baselineRows, afterRows });
 
   const updRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, id: string, patch: Partial<MonthRow>) =>
     set(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const addRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, prefix: string) =>
-    set([...rows, mkRow('', `${prefix}${Date.now()}`)]);
+    set([...rows, mkRow('', `${prefix}${Date.now()}`, metodo)]);
   const delRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, id: string) => set(rows.filter((r) => r.id !== id));
+
+  // Troca o método em TODAS as linhas de uma vez — o aluno escolhe uma vez só,
+  // pro indicador inteiro, em vez de mês a mês. Os valores já digitados (coef,
+  // volume, custo...) não são apagados: só o modo de leitura deles muda.
+  const handleMetodoChange = (novo: Mode) => {
+    setMetodo(novo);
+    setBaselineRows((prev) => prev.map((r) => ({ ...r, mode: novo })));
+    setAfterRows((prev) => prev.map((r) => ({ ...r, mode: novo })));
+  };
 
   // Campo era bg-transparent + border-none: sem foco, ficava indistinguível do
   // fundo da célula — o aluno via a tabela vazia e não sabia onde clicar. Passa a
   // ter fundo e borda visíveis sempre, como em todas as outras ferramentas do app.
   const inp = 'w-full bg-white border border-gray-200 outline-none text-sm font-medium text-gray-800 text-right focus:ring-2 focus:ring-blue-300 focus:border-blue-400 rounded px-1.5 py-1';
   const inpTxt = 'w-full bg-white border border-gray-200 outline-none text-sm font-medium text-gray-800 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 rounded px-1.5 py-1';
-  const modeSel = 'bg-white border border-gray-200 outline-none text-xs font-semibold text-[#0033CC] cursor-pointer rounded px-1.5 py-1';
   const off = 'opacity-25';
 
   const modeOptions = (
@@ -288,7 +318,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
       </div>
 
       {/* Config */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Indicador</label>
           <input value={indicator} onChange={(e) => setIndicator(e.target.value)} placeholder="Ex.: Consumo de energia"
@@ -305,6 +335,13 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#F0F2FA] focus:ring-2 focus:ring-blue-300 outline-none cursor-pointer">
             <option value="lower">Menor é melhor ↓</option>
             <option value="higher">Maior é melhor ↑</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1" title="Vale pro indicador inteiro — escolhido uma vez, não mês a mês.">Método</label>
+          <select value={metodo} onChange={(e) => handleMetodoChange(e.target.value as Mode)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#F0F2FA] focus:ring-2 focus:ring-blue-300 outline-none cursor-pointer">
+            {modeOptions}
           </select>
         </div>
         <div>
@@ -343,7 +380,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                 <tr style={{ background: '#1E2D6E' }} className="text-[#C7D2FF]">
                   <th style={{ width: 30 }}></th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">Mês (últimos 12)</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider" style={{ width: 116 }}>Modo</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Coef.</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Volume</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Qtd ({unit || 'un'})</th>
@@ -363,7 +399,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                         <button onClick={() => delRow(baselineRows, setBaselineRows, r.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1 border-none bg-transparent cursor-pointer" title="Excluir mês"><Trash2 size={13} /></button>
                       </td>
                       <td className="p-1 border border-[#eee]"><input value={r.label} onChange={(e) => set({ label: e.target.value })} className={inpTxt} /></td>
-                      <td className="p-1 border border-[#eee] text-center"><select value={r.mode} onChange={(e) => set({ mode: e.target.value as Mode })} className={modeSel}>{modeOptions}</select></td>
                       <td className="p-1 border border-[#eee]"><input value={r.coef} disabled={!isCoef} inputMode="decimal" onChange={(e) => set({ coef: e.target.value })} className={`${inp} ${!isCoef ? off : ''}`} /></td>
                       <td className="p-1 border border-[#eee]"><input value={r.volume} disabled={!isCoef} inputMode="decimal" onChange={(e) => set({ volume: e.target.value })} className={`${inp} ${!isCoef ? off : ''}`} /></td>
                       <td className="p-1 border border-[#eee]">
@@ -391,7 +426,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                 <tr style={{ background: '#1E2D6E' }} className="text-white font-bold">
                   <td></td>
                   <td className="px-3 py-2.5 text-left text-xs">Baseline (média {baseline.filledCount}m)</td>
-                  <td></td>
                   <td className="px-3 py-2.5 text-right text-sm">{baseline.coefAvg != null ? fmt(baseline.coefAvg, 2) : '—'}</td>
                   <td></td>
                   <td className="px-3 py-2.5 text-right text-sm">{baseline.qtyAvg ? fmt(baseline.qtyAvg, 0) : '—'}</td>
@@ -408,7 +442,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>3 modos por mês:</b> <b>coef×vol</b>, <b>quantidade</b> (× custo) ou <b>R$ direto</b>. A média de <b>custo</b> desta aba vira o <b>indicador congelado</b> usado no ganho teórico — fixado automaticamente, não é editável.</span>
+            <span><b>Método</b> (<b>coef×vol</b>, <b>quantidade</b> × custo ou <b>R$ direto</b>) é escolhido uma vez, lá em cima — vale pra todos os meses das duas abas. A média de <b>custo</b> desta aba vira o <b>indicador congelado</b> usado no ganho teórico — fixado automaticamente, não é editável.</span>
           </div>
         </div>
       )}
@@ -435,7 +469,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                 <tr style={{ background: '#1E2D6E' }} className="text-[#C7D2FF]">
                   <th style={{ width: 30 }}></th>
                   <th className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">Mês (pós-projeto)</th>
-                  <th className="px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider" style={{ width: 116 }}>Modo</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Coef.</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Volume/Qtd</th>
                   <th className="px-3 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider">Custo real (R$)</th>
@@ -456,7 +489,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                         <button onClick={() => delRow(afterRows, setAfterRows, r.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1 border-none bg-transparent cursor-pointer" title="Excluir mês"><Trash2 size={13} /></button>
                       </td>
                       <td className="p-1 border border-[#eee]"><input value={r.label} onChange={(e) => set({ label: e.target.value })} className={inpTxt} /></td>
-                      <td className="p-1 border border-[#eee] text-center"><select value={r.mode} onChange={(e) => set({ mode: e.target.value as Mode })} className={modeSel}>{modeOptions}</select></td>
                       <td className="p-1 border border-[#eee]"><input value={r.coef} disabled={!isCoef} inputMode="decimal" onChange={(e) => set({ coef: e.target.value })} className={`${inp} ${!isCoef ? off : ''}`} /></td>
                       <td className="p-1 border border-[#eee]">
                         {isMoney ? (<div className="text-right text-sm text-gray-300 px-1 py-1">—</div>) : (
