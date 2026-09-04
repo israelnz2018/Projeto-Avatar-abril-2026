@@ -891,13 +891,20 @@ export default function ToolWrapper({
     const projects: any[] = [];
     const vistos = new Set<string>();
 
-    // GUT = gravidade x urgencia x tendencia (produto). RAB = rapidez + autonomia
-    // + beneficio (soma). Serve so pro aluno escolher com o numero na frente.
-    const pontuacao = (p: any): number | null => {
-      const g = Number(p?.gravidade), u = Number(p?.urgencia), t = Number(p?.tendencia);
-      if (![g, u, t].some(isNaN)) return g * u * t;
-      const r = Number(p?.rapidez), a = Number(p?.autonomia), b = Number(p?.beneficio);
-      if (![r, a, b].some(isNaN)) return r + a + b;
+    // Mesma conta que a própria GUTTool/RABTool já mostra na coluna "Resultado" —
+    // campo que o aluno nunca tocou entra com o valor neutro de cada fórmula (GUT é
+    // produto: neutro 1: RAB é soma: neutro 0). Migrar da Ideia de Projeto cria a
+    // linha só com a descrição, sem nenhum campo de nota — por isso aparecia em
+    // branco aqui mesmo a linha já tendo uma nota (a mesma que a GUT/RAB exibe).
+    const pontuacao = (p: any, sourceId: string): number | null => {
+      if (sourceId === 'gut') {
+        return ['gravidade', 'urgencia', 'tendencia']
+          .reduce((prod, campo) => prod * (Number(p?.[campo]) || 1), 1);
+      }
+      if (sourceId === 'rab') {
+        return ['rapidez', 'autonomia', 'beneficio']
+          .reduce((soma, campo) => soma + (Number(p?.[campo]) || 0), 0);
+      }
       return null;
     };
 
@@ -919,7 +926,7 @@ export default function ToolWrapper({
         vistos.add(titulo);
         // _fonte e _pontos existem só pra montar o rótulo da lista; saem antes de
         // qualquer coisa ir pra IA.
-        projects.push({ ...p, _fonte: nomeFonte, _pontos: pontuacao(p) });
+        projects.push({ ...p, _fonte: nomeFonte, _pontos: pontuacao(p, sourceId) });
       }
     }
 
