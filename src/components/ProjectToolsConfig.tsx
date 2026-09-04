@@ -46,7 +46,7 @@ import { updateCourseName } from '../services/knowledgeService';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { isSiteConsultor } from '../services/consultorService';
 import { Initiative, InitiativePhaseConfig, ToolLink } from '../types';
-import { getToolSequence, LINKABLE_TARGETS } from '../services/toolLinks';
+import { getToolPositions, saoVizinhas, LINKABLE_TARGETS } from '../services/toolLinks';
 import MentorContextEditor from './projects/MentorContextEditor';
 import { getAllToolContexts, MentorToolContext } from '../services/mentorContextService';
 import { Link2, ArrowRight } from 'lucide-react';
@@ -260,25 +260,40 @@ export default function ProjectToolsConfig() {
   // Sequência global das ferramentas: fases na ordem × ferramentas dentro de cada fase.
   // É ela que define quem é a "de baixo" — e ela ATRAVESSA a fase, então a última
   // ferramenta de uma fase transfere pra primeira da fase seguinte.
-  const sequencia = useMemo(
-    () => getToolSequence(selectedInitiative, configs),
+  // Posições COM repetição: ferramenta usada em duas fases ocupa duas posições, e
+  // cada uma tem a sua própria "de baixo". Sem isso, a segunda aparição não
+  // conseguia transferir pra ninguém (ver getToolPositions em services/toolLinks).
+  const posicoes = useMemo(
+    () => getToolPositions(selectedInitiative, configs),
     [selectedInitiative, configs]
   );
 
-  /** Ferramenta que recebe os dados desta, ou null se esta for a última de todas. */
-  const proximaDe = (toolId: string) => sequencia[sequencia.indexOf(toolId) + 1] || null;
+  /** Índice absoluto onde cada fase começa dentro de `posicoes`. */
+  const inicioDaFase = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    let n = 0;
+    for (const phase of selectedInitiative?.phases || []) {
+      mapa[phase.id] = n;
+      n += (configs.find((c) => c.phaseId === phase.id)?.toolIds || []).length;
+    }
+    return mapa;
+  }, [selectedInitiative, configs]);
 
-  const transfereParaProxima = (toolId: string) => {
-    const proxima = proximaDe(toolId);
+  /** Ferramenta que recebe os dados DESTA ocorrência, ou null se for a última de todas. */
+  const proximaDe = (phaseId: string, indice: number) =>
+    posicoes[(inicioDaFase[phaseId] ?? 0) + indice + 1]?.toolId || null;
+
+  const transfereParaProxima = (toolId: string, phaseId: string, indice: number) => {
+    const proxima = proximaDe(phaseId, indice);
     return !!proxima && (toolLinks[proxima]?.from || []).includes(toolId);
   };
 
-  const alternarTransferencia = (toolId: string) => {
-    const proxima = proximaDe(toolId);
+  const alternarTransferencia = (toolId: string, phaseId: string, indice: number) => {
+    const proxima = proximaDe(phaseId, indice);
     if (!proxima || !LINKABLE_TARGETS[proxima]) return;
     setToolLinks((prev) => {
       const copia = { ...prev };
-      if (transfereParaProxima(toolId)) delete copia[proxima];
+      if (transfereParaProxima(toolId, phaseId, indice)) delete copia[proxima];
       else copia[proxima] = { from: [toolId], mode: LINKABLE_TARGETS[proxima] };
       return copia;
     });
@@ -585,10 +600,7 @@ export default function ProjectToolsConfig() {
       // par que era vizinho pode ter deixado de ser — essas ligações caem aqui, pra o
       // que fica salvo bater exatamente com os checkboxes que ele está vendo.
       const somenteVizinhas = Object.fromEntries(
-        Object.entries(toolLinks).filter(([destino, link]) => {
-          const idx = sequencia.indexOf(destino);
-          return idx > 0 && link.from?.[0] === sequencia[idx - 1];
-        })
+        Object.entries(toolLinks).filter(([destino, link]) => saoVizinhas(link.from?.[0], destino, posicoes))
       );
       await saveInitiativeToolLinks(selectedInitiative.id, somenteVizinhas);
       const atualizada = { ...selectedInitiative, toolLinks: somenteVizinhas };
@@ -1060,7 +1072,7 @@ export default function ProjectToolsConfig() {
                                   if (!tool) return null;
                                   // A "de baixo" vem da sequência global, então a última
                                   // ferramenta de uma fase aponta pra primeira da seguinte.
-                                  const proxima = proximaDe(toolId);
+                                  const proxima = proximaDe(phase.id, index);
                                   // Só dá pra transferir pra ferramenta que sabe receber
                                   // dados; nas outras o botão existiria sem fazer nada.
                                   const podeTransferir = !!proxima && !!LINKABLE_TARGETS[proxima];
@@ -1078,8 +1090,8 @@ export default function ProjectToolsConfig() {
                                         <label className="flex items-center gap-2 shrink-0 cursor-pointer select-none">
                                           <input
                                             type="checkbox"
-                                            checked={transfereParaProxima(toolId)}
-                                            onChange={() => alternarTransferencia(toolId)}
+                                            checked={transfereParaProxima(toolId, phase.id, index)}
+                                            onChange={() => alternarTransferencia(toolId, phase.id, index)}
                                             className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
                                           />
                                           <span className="text-[11px] text-gray-500 whitespace-nowrap">

@@ -108,7 +108,7 @@ export const BPMN_TEMPLATE_AS_IS = `<?xml version="1.0" encoding="UTF-8"?>
         <bpmndi:BPMNLabel><dc:Bounds x="635" y="425" width="28" height="18" /></bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
-        <di:waypoint x="785" y="420" /><di:waypoint x="785" y="205" /><di:waypoint x="670" y="205" />
+        <di:waypoint x="730" y="420" /><di:waypoint x="730" y="205" /><di:waypoint x="670" y="205" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
         <di:waypoint x="540" y="205" /><di:waypoint x="500" y="205" /><di:waypoint x="500" y="335" />

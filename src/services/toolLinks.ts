@@ -59,6 +59,37 @@ export const getToolSequence = (
 };
 
 /**
+ * Mesma ordem da sequencia, mas COM REPETICAO: cada aparicao da ferramenta numa
+ * fase e uma posicao propria.
+ *
+ * `getToolSequence` deduplica, e isso quebra a adjacencia de quem entra duas vezes
+ * na trilha: com SIPOC em Definir e de novo em Medir, a segunda aparicao sumia da
+ * conta e a "de baixo" do SIPOC continuava sendo a vizinha da PRIMEIRA aparicao.
+ * Resultado: o consultor colocava o SIPOC logo acima do BPMN de proposito e o
+ * checkbox de transferencia nem aparecia. A vizinhanca precisa ser por POSICAO.
+ */
+export const getToolPositions = (
+  initiative: Initiative | null | undefined,
+  configs: InitiativePhaseConfig[] = []
+): { toolId: string; phaseId: string }[] => {
+  if (!initiative?.phases) return [];
+  const posicoes: { toolId: string; phaseId: string }[] = [];
+  for (const phase of initiative.phases) {
+    const config = configs.find((c) => c.phaseId === phase.id);
+    for (const toolId of config?.toolIds || []) posicoes.push({ toolId, phaseId: phase.id });
+  }
+  return posicoes;
+};
+
+/** Existe ALGUMA posicao em que `origem` e seguida imediatamente por `destino`? */
+export const saoVizinhas = (
+  origem: string | undefined,
+  destino: string,
+  posicoes: { toolId: string }[]
+): boolean =>
+  !!origem && posicoes.some((p, i) => p.toolId === origem && posicoes[i + 1]?.toolId === destino);
+
+/**
  * Ligacao efetiva de uma ferramenta neste projeto — so o que o consultor declarou.
  * Sem declaracao, retorna null e a ferramenta nao mostra botao de gerar/migrar.
  * Fonte que saiu do projeto tambem devolve null, em vez de quebrar.

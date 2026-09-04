@@ -28,6 +28,9 @@ interface BpmnProcessMapProps {
   onClearAIData?: () => void;
 }
 
+/** Largura da paleta do bpmn-js (2 colunas) + folga, em pixels. */
+const PALETA_PX = 140;
+
 /** Regras de modelagem do kit, mostradas no modal "Ver regras". */
 const REGRAS = [
   ['Atividade', 'Verbo no infinitivo + objeto. Ex: "Registrar solicitacao".'],
@@ -46,8 +49,28 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
   const containerRef = useRef<HTMLDivElement>(null);
   const modelerRef = useRef<any>(null);
 
-  /** bpmn-js tipa `get()` como unknown; concentra o cast num lugar so. */
-  const ajustarZoom = () => modelerRef.current?.get('canvas')?.zoom('fit-viewport');
+  /**
+   * Enquadra o diagrama SEM deixar nada embaixo da paleta.
+   *
+   * `fit-viewport` sozinho encosta o desenho na borda esquerda — e a paleta do
+   * bpmn-js flutua exatamente ali, escondendo o inicio do fluxo e os nomes das
+   * raias. Aqui o desenho e reduzido pra caber na largura que sobra e depois
+   * empurrado pra direita da paleta, entao nada fica coberto nem sai da tela.
+   *
+   * bpmn-js tipa `get()` como unknown; o cast fica concentrado neste lugar so.
+   */
+  const ajustarZoom = () => {
+    const canvas: any = modelerRef.current?.get('canvas');
+    if (!canvas) return;
+    canvas.zoom('fit-viewport');
+    const vb = canvas.viewbox();
+    const largura = vb?.outer?.width || 0;
+    // Guarda: em container muito estreito, encolher mais atrapalharia em vez de ajudar.
+    if (largura > PALETA_PX * 2) {
+      canvas.zoom(vb.scale * ((largura - PALETA_PX) / largura));
+      canvas.scroll({ dx: PALETA_PX, dy: 0 });
+    }
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [carregando, setCarregando] = useState(true);
