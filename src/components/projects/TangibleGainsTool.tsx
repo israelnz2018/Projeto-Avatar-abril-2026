@@ -64,7 +64,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   const [unit, setUnit] = useState<string>(d?.unit || '');
   const [direction, setDirection] = useState<Direction>(d?.direction || 'lower');
   const [custoPadrao, setCustoPadrao] = useState<string>(d?.custoPadrao ?? d?.unitValue ?? '');
-  const [precoCongeladoManual, setPrecoCongeladoManual] = useState<string>(d?.precoCongelado ?? '');
   const [baselineRows, setBaselineRows] = useState<MonthRow[]>(d?.baselineRows?.length ? d.baselineRows : defaultBaseline());
   const [afterRows, setAfterRows] = useState<MonthRow[]>(d?.afterRows?.length ? d.afterRows : defaultAfter());
   const [tab, setTab] = useState<'antes' | 'depois' | 'resultado'>('antes');
@@ -77,7 +76,6 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     if (typeof nd.unit === 'string') setUnit(nd.unit);
     if (nd.direction) setDirection(nd.direction);
     if (nd.custoPadrao !== undefined || nd.unitValue !== undefined) setCustoPadrao(String(nd.custoPadrao ?? nd.unitValue ?? ''));
-    if (nd.precoCongelado !== undefined) setPrecoCongeladoManual(String(nd.precoCongelado ?? ''));
     if (Array.isArray(nd.baselineRows) && nd.baselineRows.length) setBaselineRows(nd.baselineRows);
     if (Array.isArray(nd.afterRows) && nd.afterRows.length) setAfterRows(nd.afterRows);
   }, [initialData]);
@@ -115,8 +113,12 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     };
   }, [baselineRows, custoPadrao]);
 
-  // Preço congelado: o informado manualmente, senão a média de custo da baseline.
-  const precoCongelado = precoCongeladoManual !== '' ? num(precoCongeladoManual) : baseline.custoAvg;
+  // Preço congelado: SEMPRE a média de custo da baseline (Antes) — nunca digitado
+  // à mão. "Congelado" quer dizer fixado num marco (o início do projeto, quando a
+  // linha de base é fechada), não um número livre que o Belt possa inventar sem
+  // base nenhuma. Editar a mão também quebraria o propósito: um preço que muda
+  // toda vez que alguém mexe no histórico não está congelado, é só recalculado.
+  const precoCongelado = baseline.custoAvg;
 
   // ---- Depois ----
   const after = useMemo(() => {
@@ -251,7 +253,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
   // barMetric vai junto pro save: o slide do PPT desenha a mesma métrica que você
   // está vendo na aba Resultado.
   const save = () =>
-    onSave({ indicator, unit, direction, custoPadrao, precoCongelado: precoCongeladoManual, barMetric: metric, baselineRows, afterRows });
+    onSave({ indicator, unit, direction, custoPadrao, precoCongelado, barMetric: metric, baselineRows, afterRows });
 
   const updRow = (rows: MonthRow[], set: (r: MonthRow[]) => void, id: string, patch: Partial<MonthRow>) =>
     set(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -311,10 +313,12 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#F0F2FA] focus:ring-2 focus:ring-blue-300 outline-none text-right" />
         </div>
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-[#0033CC] mb-1">Preço congelado</label>
-          <input value={precoCongeladoManual} onChange={(e) => setPrecoCongeladoManual(e.target.value)} inputMode="decimal"
-            placeholder={baseline.custoAvg ? fmt(baseline.custoAvg, 2) : 'média baseline'}
-            className="w-full border-2 border-blue-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 bg-[#EAF0FF] focus:ring-2 focus:ring-blue-300 outline-none text-right" />
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-[#0033CC] mb-1" title="Fixado no início do projeto: é sempre a média de Custo da aba Antes. Não é editável — um preço que muda quando o histórico é editado não está 'congelado'.">
+            Indicador congelado
+          </label>
+          <div className="w-full border-2 border-blue-100 rounded-lg px-3 py-2 text-sm font-semibold text-[#1E2D6E] bg-[#EAF0FF]/60 text-right cursor-default" title="Vem da média de Custo da aba Antes. Não é editável.">
+            {baseline.custoAvg ? `R$ ${fmt(baseline.custoAvg, 2)}` : '—'}
+          </div>
         </div>
       </div>
 
@@ -404,7 +408,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>3 modos por mês:</b> <b>coef×vol</b>, <b>quantidade</b> (× custo) ou <b>R$ direto</b>. A média de <b>custo</b> desta aba vira o <b>preço congelado</b> usado no ganho teórico (você pode sobrescrever no campo azul acima).</span>
+            <span><b>3 modos por mês:</b> <b>coef×vol</b>, <b>quantidade</b> (× custo) ou <b>R$ direto</b>. A média de <b>custo</b> desta aba vira o <b>indicador congelado</b> usado no ganho teórico — fixado automaticamente, não é editável.</span>
           </div>
         </div>
       )}
@@ -415,7 +419,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
           <div className="flex flex-wrap gap-x-8 gap-y-2 p-3 rounded-lg bg-[#EEF0F8] border border-dashed border-[#c3cbe6]">
             <div><div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Baseline · coef.</div><div className="text-base font-extrabold text-[#1E2D6E]">{baseline.coefAvg != null ? `${fmt(baseline.coefAvg, 2)} ${unit}/vol` : '—'}</div></div>
             <div><div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Baseline · valor mensal</div><div className="text-base font-extrabold text-[#1E2D6E]">{fmtBRL(baseline.valorAvg)}/mês</div></div>
-            <div><div className="text-[10px] font-bold uppercase tracking-wider text-[#0033CC]">Preço congelado</div><div className="text-base font-extrabold text-[#0033CC]">R$ {fmt(precoCongelado, 2)}/{unit || 'un'}</div></div>
+            <div><div className="text-[10px] font-bold uppercase tracking-wider text-[#0033CC]">Indicador congelado</div><div className="text-base font-extrabold text-[#0033CC]">R$ {fmt(precoCongelado, 2)}/{unit || 'un'}</div></div>
             <div><div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Sentido</div><div className="text-base font-extrabold text-[#1E2D6E]">{direction === 'lower' ? 'menor é melhor ↓' : 'maior é melhor ↑'}</div></div>
           </div>
 
@@ -506,7 +510,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
 
           <div className="flex gap-2 items-start p-3 rounded-lg bg-[#F0F2FA] text-[12px] text-gray-600">
             <Info size={15} className="text-[#0033CC] shrink-0 mt-0.5" />
-            <span><b>Teórico</b> = variação de eficiência × <b>preço congelado</b> — isola o que o time entregou, sem ruído de preço. <b>Real</b> = variação × <b>custo do mês</b> — o que de fato entrou no caixa. <b>Efeito preço</b> = real − teórico, movimento de mercado que não é mérito (nem culpa) do projeto. No modo <b>R$ direto</b> não dá pra separar preço de quantidade, então teórico = real.</span>
+            <span><b>Teórico</b> = variação de eficiência × <b>indicador congelado</b> — isola o que o time entregou, sem ruído de preço. <b>Real</b> = variação × <b>custo do mês</b> — o que de fato entrou no caixa. <b>Efeito preço</b> = real − teórico, movimento de mercado que não é mérito (nem culpa) do projeto. No modo <b>R$ direto</b> não dá pra separar preço de quantidade, então teórico = real.</span>
           </div>
         </div>
       )}
@@ -600,7 +604,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
               <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#1E2D6E,#2a3d8f)' }}>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho teórico acum.</div>
                 <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
-                <div className="text-[11px] text-[#c9d1f2]">preço congelado</div>
+                <div className="text-[11px] text-[#c9d1f2]">indicador congelado</div>
               </div>
               <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho real acum.</div>
