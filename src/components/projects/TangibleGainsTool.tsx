@@ -158,10 +158,12 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     const afterCoefs: number[] = [];
     const afterValores: number[] = [];
     const afterQtys: number[] = [];
+    const afterCustos: number[] = [];
     const rows = afterRows.map((r) => {
       const ok = hasData(r);
       const vm = valorMensal(r);
       const c = effCusto(r);
+      if (ok && r.mode !== 'money') afterCustos.push(c);
       let gFis = 0;
       let gTeo = 0;
       let gReal = 0;
@@ -197,7 +199,12 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
     else if (afterValorAvg != null && baseline.valorAvg !== 0)
       pct = (dir * (baseline.valorAvg - afterValorAvg) / baseline.valorAvg) * 100;
     const afterQtyAvg = afterQtys.length ? afterQtys.reduce((s, x) => s + x, 0) / afterQtys.length : null;
-    return { rows, filled, afterCoefAvg, afterQtyAvg, afterValorAvg, accTeo, accReal, accFis, efeitoPreco: accReal - accTeo, pct };
+    const afterCustoAvg = afterCustos.length ? afterCustos.reduce((s, x) => s + x, 0) / afterCustos.length : null;
+    // Ganho médio por mês — accTeo/accReal já são o acumulado; dividido pelos
+    // meses preenchidos dá o valor médio mensal, pedido pro card e pro rodapé.
+    const teoAvg = filled ? accTeo / filled : null;
+    const realAvg = filled ? accReal / filled : null;
+    return { rows, filled, afterCoefAvg, afterQtyAvg, afterValorAvg, afterCustoAvg, teoAvg, realAvg, accTeo, accReal, accFis, efeitoPreco: accReal - accTeo, pct };
   }, [afterRows, baseline, dir, custoPadrao, precoCongelado]);
 
   // ---- Dados do gráfico (aba Resultado) ----
@@ -530,6 +537,21 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                   );
                 })}
               </tbody>
+              <tfoot>
+                {/* Acum. real não tem média — é um total corrente; ver o valor
+                    final na última linha preenchida acima. */}
+                <tr style={{ background: '#1E2D6E' }} className="text-white font-bold">
+                  <td></td>
+                  <td className="px-3 py-2.5 text-left text-xs">Média ({after.filled}m)</td>
+                  <td className="px-3 py-2.5 text-right text-sm">{after.afterCoefAvg != null ? fmt(after.afterCoefAvg, 2) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-sm">{after.afterQtyAvg ? fmt(after.afterQtyAvg, 0) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-sm">{after.afterCustoAvg ? fmt(after.afterCustoAvg, 2) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-sm">{after.afterValorAvg ? fmtBRL(after.afterValorAvg) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-sm" style={{ background: '#002999' }}>{after.teoAvg != null ? fmtBRL(after.teoAvg) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-sm bg-emerald-700">{after.realAvg != null ? fmtBRL(after.realAvg) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-sm text-white/40">—</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
@@ -547,6 +569,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
               <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho devido ao projeto acum.</div>
               <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
               <div className="text-[11px] text-[#c9d1f2]">mérito do projeto</div>
+              <div className="text-[11px] text-[#c9d1f2] mt-1 pt-1 border-t border-white/10">média {after.teoAvg != null ? fmtBRL(after.teoAvg) : '—'}/mês</div>
             </div>
             <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
               <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho que entrou no caixa acum.</div>
@@ -657,6 +680,7 @@ export default function TangibleGainsTool({ onSave, initialData }: TangibleGains
                 <div className="text-[10px] font-bold uppercase tracking-wider text-[#b9c4ef]">Ganho devido ao projeto acum.</div>
                 <div className="text-xl font-extrabold mt-1">{fmtBRL(after.accTeo)}</div>
                 <div className="text-[11px] text-[#c9d1f2]">indicador congelado</div>
+                <div className="text-[11px] text-[#c9d1f2] mt-1 pt-1 border-t border-white/10">média {after.teoAvg != null ? fmtBRL(after.teoAvg) : '—'}/mês</div>
               </div>
               <div className="rounded-lg p-3.5 text-white" style={{ background: 'linear-gradient(135deg,#12805C,#16a06f)' }}>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-100">Ganho que entrou no caixa acum.</div>
