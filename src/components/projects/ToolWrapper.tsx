@@ -1048,7 +1048,7 @@ export default function ToolWrapper({
           analyses: dnAnalyses.map((a: any) => ({
             id: crypto.randomUUID(),
             variable: a.variableX?.name || '',
-            analysisType: (a.recommendedTools && a.recommendedTools[0]) || 'Histograma / Boxplot',
+            analysisType: a.recommendations?.[0]?.tool || (a.recommendedTools && a.recommendedTools[0]) || 'Histograma / Boxplot',
             graphImage: '',
             interpretation: '',
           }))

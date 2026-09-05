@@ -1,5 +1,11 @@
 export type DataNatureType = 'Contínuo' | 'Discreto';
 
+export type DataNatureRecommendation = {
+  rank: number;
+  tool: string;
+  reason: string;
+};
+
 export const DATA_NATURE_TOOL_MATRIX: Record<string, string[]> = {
   'Contínuo-Contínuo': [
     'Diagrama de Dispersão',
@@ -49,6 +55,42 @@ const normalizarVariavel = (variavel: any, origem: string) => {
   };
 };
 
+const normalizarNomeFerramenta = (valor: unknown, permitidas: string[]) => {
+  const alvo = semAcentos(valor);
+  return permitidas.find((ferramenta) => semAcentos(ferramenta) === alvo) || '';
+};
+
+const normalizarRecomendacoes = (analysis: any, permitidas: string[]) => {
+  const estruturadas = Array.isArray(analysis?.recommendations) ? analysis.recommendations : [];
+  // Dados antigos só possuem recommendedTools na ordem fixa da matriz. Isso não
+  // representa uma priorização feita pela IA, portanto não inventamos destaques.
+  if (estruturadas.length === 0) return [];
+
+  const listaLegada = Array.isArray(analysis?.recommendedTools) ? analysis.recommendedTools : [];
+  const vistas = new Set<string>();
+  const recommendations: DataNatureRecommendation[] = [];
+
+  const adicionar = (toolValue: unknown, reasonValue: unknown) => {
+    const tool = normalizarNomeFerramenta(toolValue, permitidas);
+    if (!tool || vistas.has(tool) || recommendations.length >= Math.min(2, permitidas.length)) return;
+    vistas.add(tool);
+    recommendations.push({
+      rank: recommendations.length + 1,
+      tool,
+      reason: String(reasonValue || '').trim(),
+    });
+  };
+
+  estruturadas
+    .slice()
+    .sort((a: any, b: any) => Number(a?.rank || 99) - Number(b?.rank || 99))
+    .forEach((item: any) => adicionar(item?.tool, item?.reason));
+  listaLegada.forEach((tool: unknown) => adicionar(tool, ''));
+  permitidas.forEach((tool) => adicionar(tool, ''));
+
+  return recommendations;
+};
+
 /**
  * Valida apenas o contrato da resposta da IA. A interpretação semântica de
  * cada X e Y permanece geral e orientada pelas transcrições no prompt; não há
@@ -64,6 +106,8 @@ export const normalizeDataNatureData = (data: any, context: DataNatureContext = 
     const variableY = normalizarVariavel(analysis?.variableY, rawY);
     const variableX = normalizarVariavel(analysis?.variableX, rawX);
     const key = `${variableY.type}-${variableX.type}`;
+    const permitidas = DATA_NATURE_TOOL_MATRIX[key] || [];
+    const recommendations = normalizarRecomendacoes(analysis, permitidas);
 
     return {
       ...analysis,
@@ -71,7 +115,10 @@ export const normalizeDataNatureData = (data: any, context: DataNatureContext = 
       variableY,
       variableX,
       quadrant: `Y ${variableY.type} / X ${variableX.type}`,
-      recommendedTools: [...(DATA_NATURE_TOOL_MATRIX[key] || [])],
+      // A matriz inteira do quadrante permanece visível; recommendations apenas
+      // define quais ferramentas recebem destaque como 1ª e 2ª opções.
+      recommendedTools: [...permitidas],
+      recommendations,
       explanation: String(analysis?.explanation || '').trim(),
     };
   });

@@ -539,7 +539,11 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
       "variableX": {"sourceName": "Texto exato do X recebido", "name": "Grandeza mensuravel do X", "measurement": "O que registrar e em qual unidade ou categorias", "type": "Contínuo", "description": "Por que esta operacionalizacao e classificacao explicam o Y"},
       "quadrant": "Y Contínuo / X Contínuo",
       "recommendedTools": ["Diagrama de Dispersão", "Gráfico de tendência", "Regressão simples", "Regressão múltipla"],
-      "explanation": "Por que essas ferramentas servem pra esse par, em linguagem simples"
+      "recommendations": [
+        {"rank": 1, "tool": "Diagrama de Dispersão", "reason": "Por que deve ser usada primeiro neste caso"},
+        {"rank": 2, "tool": "Regressão simples", "reason": "Quando e por que usar como segunda opção"}
+      ],
+      "explanation": "Resumo da sequencia recomendada, em linguagem simples"
     }
   ]
 }`,
@@ -624,9 +628,38 @@ RECOMENDE APENAS destas listas, conforme o cruzamento. NAO use nenhum outro nome
 - Y Discreto  + X Contínuo -> "Regressão Logística (Binária/Ordinal/Nominal)"
 - Y Discreto  + X Discreto -> "Histograma", "Pareto", "Chi Quadrado"
 
+ORDEM DAS FERRAMENTAS DENTRO DO QUADRANTE:
+- Escolha e ordene no maximo DUAS ferramentas, sempre retiradas exclusivamente
+  da celula correta da matriz acima. Nao recomende ferramentas de outra celula.
+- recommendations[0] e a 1a opcao: a ferramenta que o aluno deve usar primeiro.
+- recommendations[1] e a 2a opcao: a proxima ferramenta mais util para confirmar,
+  aprofundar ou quantificar o resultado. Se a celula tiver somente uma ferramenta,
+  retorne somente a 1a opcao.
+- recommendedTools deve conter TODAS as ferramentas da celula correta da matriz.
+  Nenhuma ferramenta do quadrante pode ser escondida. Somente recommendations
+  deve indicar quais recebem destaque como 1a e 2a opcoes.
+
+CRITERIOS PARA ESCOLHER A ORDEM:
+- Y Continuo / X Continuo: "Diagrama de Dispersao" e a primeira exploracao geral.
+  Use "Grafico de tendencia" primeiro somente quando X representar tempo, data ou
+  ordem cronologica. Use "Regressao simples" para quantificar ou prever depois de
+  verificar a relacao. "Regressao multipla" so cabe quando houver varios X medidos;
+  nao a priorize para a analise isolada de um unico X.
+- Y Continuo / X Discreto: comece por "Box Plot" para enxergar os grupos. Como
+  segunda opcao, use "Teste de Hipotese" quando houver dois grupos e "ANOVA"
+  quando houver tres ou mais grupos.
+- Y Discreto / X Continuo: a unica ferramenta permitida nesta matriz e
+  "Regressao Logistica (Binaria/Ordinal/Nominal)". Nao invente segunda opcao.
+- Y Discreto / X Discreto: use "Chi Quadrado" primeiro quando a pergunta for se
+  existe associacao entre X e Y; use "Pareto" primeiro quando o objetivo for
+  priorizar categorias; use "Histograma" quando o foco for a distribuicao de uma
+  contagem discreta. Escolha a segunda opcao entre as restantes, se agregar valor.
+- Cada reason deve citar o objetivo ou a estrutura dos dados deste par especifico,
+  sem repetir apenas definicoes genericas da ferramenta.
+
 quadrant deve ser exatamente "Y <tipo> / X <tipo>".
-explanation: 2 a 3 frases, sem jargao, dizendo o que o aluno vai ENXERGAR com
-essa ferramenta e por que ela responde a pergunta dele.`
+explanation: 2 a 3 frases, sem jargao, resumindo por que a sequencia destacada
+responde a pergunta do aluno.`
   },
  
   // ======================================================================

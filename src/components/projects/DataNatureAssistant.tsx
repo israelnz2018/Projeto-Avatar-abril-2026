@@ -20,7 +20,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { acharDadoDaFerramenta } from '@/src/services/variaveisDoProjeto';
-import { DATA_NATURE_TOOL_MATRIX } from '@/src/services/dataNatureRules';
+import { DATA_NATURE_TOOL_MATRIX, type DataNatureRecommendation } from '@/src/services/dataNatureRules';
 import SeletorDeVariavelX from './SeletorDeVariavelX';
 
 interface DataNatureAssistantProps {
@@ -51,6 +51,7 @@ interface AnalysisResult {
   };
   quadrant: string;
   recommendedTools: string[];
+  recommendations?: DataNatureRecommendation[];
   explanation: string;
 }
 
@@ -157,6 +158,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       }
 
       updated.recommendedTools = getDynamicTools(updated.variableY.type, updated.variableX.type);
+      updated.recommendations = [];
       updated.quadrant = `Y ${updated.variableY.type} / X ${updated.variableX.type}`;
       return updated;
     }));
@@ -170,6 +172,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       updated.variableY.type = updated.variableY.originalType;
       updated.variableX.type = updated.variableX.originalType;
       updated.recommendedTools = getDynamicTools(updated.variableY.type, updated.variableX.type);
+      updated.recommendations = [];
       updated.quadrant = `Y ${updated.variableY.type} / X ${updated.variableX.type}`;
       return updated;
     }));
@@ -461,12 +464,40 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {analysis.recommendedTools.map((tool, idx) => (
-                          <div key={idx} className="flex items-center gap-3 bg-white/10 p-4 rounded-[4px] border border-white/10 hover:bg-white/20 transition-all">
-                            <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                            <span className="font-bold text-sm text-white">{tool}</span>
-                          </div>
-                        ))}
+                        {analysis.recommendedTools.map((tool, idx) => {
+                          const recommendation = analysis.recommendations?.find((item) => item.tool === tool);
+                          const rank = recommendation?.rank;
+                          return (
+                            <div
+                              key={`${tool}-${idx}`}
+                              className={cn(
+                                "p-4 rounded-[6px] border transition-all",
+                                rank === 1 && "bg-blue-600/40 border-blue-300/60 shadow-lg",
+                                rank === 2 && "bg-white/15 border-blue-300/30",
+                                !rank && "bg-white/5 border-white/10 opacity-65 hover:opacity-90",
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                {rank ? (
+                                  <span className={cn(
+                                    "min-w-7 h-7 px-2 rounded-full flex items-center justify-center text-[10px] font-black",
+                                    rank === 1 ? "bg-blue-400 text-slate-950" : "bg-white/20 text-white",
+                                  )}>
+                                    {rank}ª
+                                  </span>
+                                ) : (
+                                  <span className="w-2 h-2 ml-2 mr-3 bg-slate-400 rounded-full" />
+                                )}
+                                <span className={cn("font-bold text-sm", rank ? "text-white" : "text-slate-300")}>{tool}</span>
+                              </div>
+                              {recommendation?.reason && (
+                                <p className="mt-3 pl-10 text-xs leading-relaxed text-blue-100">
+                                  {recommendation.reason}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
 
                       <div className="p-4 bg-white/5 rounded-[4px] border border-white/5">
