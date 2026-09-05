@@ -124,12 +124,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
 
     // Texto pré-preenchido: já entrega a pergunta de análise montada, em vez de
     // deixar o aluno com a folha em branco. Ele edita por cima se quiser.
-    const linhas = [
-      `Variável (X): ${selectedObservation.variable}`,
-      selectedObservation.origem && selectedObservation.origem !== 'Observação Direta'
-        ? `Origem: causa levantada na Espinha de Peixe, categoria "${selectedObservation.origem}".`
-        : 'Origem: Observação Direta.',
-    ];
+    const linhas = [`Variável (X): ${selectedObservation.variable}`];
 
     if (selectedObservation.observada) {
       linhas.push(
@@ -289,7 +284,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                   <option value="">Selecione uma variável...</option>
                   {observedVariables.map((observation: any) => (
                     <option key={observation.id} value={observation.id}>
-                      {observation.observada ? '✓ ' : '○ '}{observation.origem} — {observation.variable}
+                      {observation.observada ? '✓ ' : '○ '}{observation.variable}
                     </option>
                   ))}
                 </select>

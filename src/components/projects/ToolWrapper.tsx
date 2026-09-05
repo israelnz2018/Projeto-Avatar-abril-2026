@@ -1023,14 +1023,15 @@ export default function ToolWrapper({
           return;
         }
 
+        // Traz a LISTA, nao 18 linhas preenchidas de uma vez. O aluno escolhe
+        // uma por vez no dropdown que aparece depois — que e justamente o motivo
+        // de nao existirem dois blocos verdes competindo na tela.
         migratedData = {
-          observations: variaveis.map((v: any) => ({
-            id: crypto.randomUUID(),
+          observations: [],
+          variaveisDisponiveis: variaveis.map((v: any) => ({
             variable: v.variable,
-            operationalDefinition: v.definition || '',
-            identifiedCause: false,
-            observationDescription: '',
-            images: [],
+            definition: v.definition || '',
+            origem: v.origem || '',
           })),
         };
       }
@@ -1679,6 +1680,9 @@ export default function ToolWrapper({
         }
 
         if (toolId === 'directObservation') {
+          // Lista ja trazida da ferramenta de origem conta como conteudo: e o que
+          // faz o card de migrar sumir e dar lugar ao dropdown.
+          if ((data.variaveisDisponiveis || []).length > 0) return false;
           const observations = data.observations || [];
           if (observations.length === 0) return true;
           return observations.every((o: any) => !o.variable && !o.observationDescription);
