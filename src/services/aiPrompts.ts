@@ -535,10 +535,10 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
   "analyses": [
     {
       "id": "1",
-      "variableY": {"name": "Nome exato do Y recebido", "type": "Continuo", "description": "Por que e continuo ou discreto"},
-      "variableX": {"name": "Nome exato do X recebido", "type": "Discreto", "description": "Por que e continuo ou discreto"},
-      "quadrant": "Y Continuo / X Discreto",
-      "recommendedTools": ["Box Plot", "Teste de Hipotese", "ANOVA"],
+      "variableY": {"sourceName": "Texto exato do Y recebido", "name": "Grandeza mensuravel do Y", "measurement": "O que registrar e em qual unidade ou categorias", "type": "Contínuo", "description": "Por que esta operacionalizacao e classificacao respondem ao problema"},
+      "variableX": {"sourceName": "Texto exato do X recebido", "name": "Grandeza mensuravel do X", "measurement": "O que registrar e em qual unidade ou categorias", "type": "Contínuo", "description": "Por que esta operacionalizacao e classificacao explicam o Y"},
+      "quadrant": "Y Contínuo / X Contínuo",
+      "recommendedTools": ["Diagrama de Dispersão", "Gráfico de tendência", "Regressão simples", "Regressão múltipla"],
       "explanation": "Por que essas ferramentas servem pra esse par, em linguagem simples"
     }
   ]
@@ -549,24 +549,79 @@ PROPOSITO: ajudar o aluno a descobrir QUAL FERRAMENTA GRAFICA OU ESTATISTICA usa
 pra investigar a relacao entre UMA causa (X) e o efeito do projeto (Y). O aluno
 leva essa recomendacao pra aba de Analise de Dados.
 
-O contexto traz 'variavelX' e 'variavelY'. Gere EXATAMENTE 1 analise, para esse
-par. Nao invente outras variaveis e nao gere uma lista.
-- variableX.name = exatamente o texto de 'variavelX'
-- variableY.name = exatamente o texto de 'variavelY'
+O contexto traz 'variavelX' e 'variavelY'. Gere EXATAMENTE 1 analise para esse
+par. Nao invente outros fatores e nao gere uma lista.
 
-CLASSIFIQUE CADA UMA como "Continuo" ou "Discreto":
-- Continuo: medida numerica que aceita fracao (tempo, custo, peso, temperatura,
-  percentual)
-- Discreto: contagem ou atributo/categoria (turno, operador, fornecedor, tipo,
-  sim/nao, aprovado/reprovado, numero de ocorrencias)
-Se o contexto trouxer definicao operacional ou metodo de coleta do X, use isso
-pra decidir  e mais confiavel que o nome da variavel.
+CONHECIMENTO OBRIGATORIO DOS VIDEOS "MAPA DE ANALISE ESTATISTICA" PARTES 1 E 2:
+1. Primeiro defina a DIRECAO da relacao. Y e a resposta, saida, efeito ou
+   consequencia do problema. X e a entrada, causa ou fonte de variacao que pode
+   explicar a mudanca em Y.
+2. Uma frase de causa nao e automaticamente uma variavel estatistica. Antes de
+   classificar, traduza a frase para a GRANDEZA OBSERVAVEL que sera medida ou
+   registrada. Preserve a frase original em sourceName e escreva a grandeza
+   operacionalizada em name.
+3. Classifique pela forma como o dado sera TRATADO/MEDIDO, e nao apenas pelas
+   palavras da frase. O mesmo conceito pode ser discreto ou continuo: cafe em
+   numero de xicaras e discreto; cafe em quilogramas e continuo.
+4. Adjetivos como lento, demorado, alto, baixo ou instavel NAO tornam a variavel
+   discreta. Exemplo obrigatorio:
+   - Y: "Tempo elevado de emissao de notas fiscais"
+   - causa X: "Sistema ERP lento e instavel"
+   - variableX.sourceName: "Sistema ERP lento e instavel"
+   - variableX.name: "Tempo de resposta/processamento do Sistema ERP"
+   - X = Contínuo e Y = Contínuo, pois ambos serao medidos em tempo.
+   O "Sistema ERP" so seria X Discreto se a comparacao fosse por categorias,
+   como ERP A/B, versao, fornecedor ou estavel/instavel.
+5. Se uma frase reunir mais de um conceito, escolha a medida primaria mais
+   diretamente relacionada ao Y. Nao crie mais de uma analise.
+6. A letra X ou Y indica o PAPEL na relacao, nao a natureza do dado. Tanto X
+   quanto Y podem ser continuos ou discretos.
+7. Pense sempre na coluna que seria criada numa planilha: qual valor seria
+   registrado em cada linha? Esse valor observado, e nao a frase abstrata, e o
+   que determina a natureza da variavel.
+
+EXEMPLOS DE RACIOCINIO GERAL (nao sao regras especiais):
+- "Treinamento insuficiente" pode virar "horas de treinamento" (Continuo) ou
+  "treinamento concluido: sim/nao" (Discreto), conforme a definicao operacional.
+- "Falta de padronizacao" pode virar "% de aderencia ao procedimento" (Continuo)
+  ou "procedimento padronizado: sim/nao" (Discreto).
+- "Experiencia do operador" pode ser medida em meses/anos (Continuo); ja
+  "operador A/B/C" e uma categoria (Discreto).
+- "Empresa A ou B" e X Discreto e "desempenho em pontos" pode ser Y Continuo.
+
+PREENCHIMENTO:
+- variableX.sourceName = exatamente o texto de 'variavelX'.
+- variableY.sourceName = exatamente o texto de 'variavelY'.
+- variableX.name e variableY.name = nomes claros das grandezas que realmente
+  serao medidas. Se o texto recebido ja for mensuravel, mantenha-o.
+- measurement deve dizer exatamente o que entra em cada linha da planilha e em
+  qual unidade ou conjunto de categorias.
+- description deve justificar a operacionalizacao, a direcao X -> Y e a
+  classificacao. Nao afirme que uma variavel e discreta apenas porque o texto
+  original e um atributo escrito em palavras.
+
+CLASSIFIQUE CADA GRANDEZA como "Contínuo" ou "Discreto":
+- Contínuo: medida numerica que aceita fracao, como tempo, custo, peso, altura,
+  temperatura, velocidade, percentual, renda ou salario.
+- Discreto: contagem inteira ou atributo/categoria, como numero de ocorrencias,
+  turno, operador, fornecedor, empresa A/B, tipo, sim/nao, aprovado/reprovado.
+Se houver definicao operacional ou metodo de coleta, use-os como fonte
+prioritaria para decidir como a variavel e tratada.
+
+ANTES DE RESPONDER, FACA ESTA CHECAGEM PARA QUALQUER TEMA OU SETOR:
+- X descreve uma entrada/causa e Y descreve a resposta/efeito?
+- name e uma grandeza observavel, e nao apenas a repeticao de uma causa abstrata?
+- measurement deixa claro o que seria registrado em cada linha da planilha?
+- "Contínuo" foi usado quando a medida aceita valores fracionados?
+- "Discreto" foi usado somente para contagem inteira ou categoria/atributo?
+Se faltar definicao operacional, proponha a forma de medicao mais direta para
+investigar a relacao X -> Y e deixe essa escolha explicita em measurement.
 
 RECOMENDE APENAS destas listas, conforme o cruzamento. NAO use nenhum outro nome
 (nada de "Regressao Linear", "Teste T" ou "Qui-quadrado" fora do que esta aqui):
-- Y Continuo  + X Continuo -> "Diagrama de Dispersao", "Grafico de tendencia", "Regressao simples", "Regressao multipla"
-- Y Continuo  + X Discreto -> "Box Plot", "Teste de Hipotese", "ANOVA"
-- Y Discreto  + X Continuo -> "Regressao Logistica (Binaria/Ordinal/Nominal)"
+- Y Contínuo  + X Contínuo -> "Diagrama de Dispersão", "Gráfico de tendência", "Regressão simples", "Regressão múltipla"
+- Y Contínuo  + X Discreto -> "Box Plot", "Teste de Hipótese", "ANOVA"
+- Y Discreto  + X Contínuo -> "Regressão Logística (Binária/Ordinal/Nominal)"
 - Y Discreto  + X Discreto -> "Histograma", "Pareto", "Chi Quadrado"
 
 quadrant deve ser exatamente "Y <tipo> / X <tipo>".

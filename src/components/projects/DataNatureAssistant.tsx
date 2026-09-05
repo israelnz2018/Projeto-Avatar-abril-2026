@@ -20,6 +20,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { acharDadoDaFerramenta } from '@/src/services/variaveisDoProjeto';
+import { DATA_NATURE_TOOL_MATRIX } from '@/src/services/dataNatureRules';
 import SeletorDeVariavelX from './SeletorDeVariavelX';
 
 interface DataNatureAssistantProps {
@@ -33,28 +34,25 @@ interface DataNatureAssistantProps {
 interface AnalysisResult {
   id: string;
   variableY: {
+    sourceName?: string;
     name: string;
     type: 'Contínuo' | 'Discreto';
     originalType: 'Contínuo' | 'Discreto';
+    measurement?: string;
     description: string;
   };
   variableX: {
+    sourceName?: string;
     name: string;
     type: 'Contínuo' | 'Discreto';
     originalType: 'Contínuo' | 'Discreto';
+    measurement?: string;
     description: string;
   };
   quadrant: string;
   recommendedTools: string[];
   explanation: string;
 }
-
-const TOOL_MATRIX: Record<string, string[]> = {
-  'Contínuo-Contínuo': ['Diagrama de Dispersão', 'Gráfico de tendência', 'Regressão simples', 'Regressão múltipla'],
-  'Contínuo-Discreto': ['Box Plot', 'Teste de Hipótese', 'ANOVA'],
-  'Discreto-Contínuo': ['Regressão Logística (Binária/Ordinal/Nominal)'],
-  'Discreto-Discreto': ['Histograma', 'Pareto', 'Chi Quadrado'],
-};
 
 export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: DataNatureAssistantProps & { onClearAIData?: () => void }) {
   const d = initialData?.toolData || initialData;
@@ -144,7 +142,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   };
   // Helper to get tools based on current types
   const getDynamicTools = (yType: string, xType: string) => {
-    return TOOL_MATRIX[`${yType}-${xType}`] || [];
+    return DATA_NATURE_TOOL_MATRIX[`${yType}-${xType}`] || [];
   };
 
   const handleTypeChange = (analysisId: string, variable: 'X' | 'Y', newType: 'Contínuo' | 'Discreto') => {
@@ -295,7 +293,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
 
           <SeletorDeVariavelX
             disponiveis={listaMigrada}
-            jaUsadas={analyses.map((a) => a.variableX?.name).filter(Boolean) as string[]}
+            jaUsadas={analyses.map((a) => a.variableX?.sourceName || a.variableX?.name).filter(Boolean) as string[]}
             onAdicionar={trazerVariavel}
             titulo="Trazer variável para a análise"
             descricao="Escolha um X e aperte o botão. A IA relaciona esse X com o Y acima, classifica os dois e recomenda a ferramenta estatística certa — que você leva para a aba de Análise de Dados."
@@ -390,6 +388,12 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                         )}
                       </div>
                       <h4 className="font-bold text-[#1f2937] text-lg mb-2">{analysis.variableY.name}</h4>
+                      {analysis.variableY.sourceName && analysis.variableY.sourceName !== analysis.variableY.name && (
+                        <p className="text-xs text-blue-700 mb-2"><strong>Origem:</strong> {analysis.variableY.sourceName}</p>
+                      )}
+                      {analysis.variableY.measurement && (
+                        <p className="text-xs text-slate-700 mb-2"><strong>Como medir:</strong> {analysis.variableY.measurement}</p>
+                      )}
                       <p className="text-sm text-[#666] leading-relaxed">{analysis.variableY.description}</p>
                     </div>
 
@@ -418,6 +422,12 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                         )}
                       </div>
                       <h4 className="font-bold text-[#1f2937] text-lg mb-2">{analysis.variableX.name}</h4>
+                      {analysis.variableX.sourceName && analysis.variableX.sourceName !== analysis.variableX.name && (
+                        <p className="text-xs text-indigo-700 mb-2"><strong>Causa original:</strong> {analysis.variableX.sourceName}</p>
+                      )}
+                      {analysis.variableX.measurement && (
+                        <p className="text-xs text-slate-700 mb-2"><strong>Como medir:</strong> {analysis.variableX.measurement}</p>
+                      )}
                       <p className="text-sm text-[#666] leading-relaxed">{analysis.variableX.description}</p>
                     </div>
                   </div>

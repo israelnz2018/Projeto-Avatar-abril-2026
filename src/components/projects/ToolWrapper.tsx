@@ -32,6 +32,7 @@ import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
 import { cn } from '@/src/lib/utils';
 import { logToolOpened } from '@/src/services/eventLogger';
+import { normalizeDataNatureData } from '@/src/services/dataNatureRules';
 
 interface ToolWrapperProps {
   toolId: string;
@@ -773,6 +774,10 @@ export default function ToolWrapper({
         whys: Array.isArray(chain.whys) ? chain.whys : ['', '', '', '', ''],
         rootCause: chain.rootCause || '',
       }));
+    }
+
+    if (toolId === 'dataNature') {
+      return normalizeDataNatureData(normalized);
     }
 
     if (toolId === 'gut' || toolId === 'rab') {
@@ -1565,7 +1570,7 @@ export default function ToolWrapper({
         const anterior = localData?.toolData || localData || {};
         const jaFeitas = Array.isArray(anterior.analyses) ? anterior.analyses : [];
         const novas = Array.isArray(normalized.analyses) ? normalized.analyses : [];
-        const chave = (a: any) => `${a?.variableX?.name || ''}|${a?.variableY?.name || ''}`;
+        const chave = (a: any) => `${a?.variableX?.sourceName || a?.variableX?.name || ''}|${a?.variableY?.sourceName || a?.variableY?.name || ''}`;
         const substituidas = new Set(novas.map(chave));
         normalized = {
           ...anterior,

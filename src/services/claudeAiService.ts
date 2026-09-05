@@ -9,6 +9,7 @@
 import { listaDeTextos } from '../lib/textoDeValor';
 import { callAIJSON } from './aiRouter';
 import { AI_PROMPTS } from './aiPrompts';
+import { normalizeDataNatureData } from './dataNatureRules';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enxugar o payload ANTES de virar prompt.
@@ -65,7 +66,7 @@ export const enxugarParaPrompt = (dados: any): string => {
   return json.length > LIMITE_PAYLOAD ? `${json.slice(0, LIMITE_PAYLOAD)}…[truncado]` : json;
 };
 
-export const sanitizeToolData = (toolId: string, data: any): any => {
+export const sanitizeToolData = (toolId: string, data: any, context?: any): any => {
   if (!data) return {};
 
   const arrayFields: Record<string, string[]> = {
@@ -120,6 +121,10 @@ export const sanitizeToolData = (toolId: string, data: any): any => {
     data.department = '';
   }
 
+  if (toolId === 'dataNature') {
+    return normalizeDataNatureData(data, context);
+  }
+
   return data;
 };
 
@@ -167,7 +172,7 @@ Dados de todas as ferramentas disponíveis: ${enxugarParaPrompt(allProjectData |
       messages: [{ role: 'user', content: userPrompt }],
       maxTokens: 4096,
     });
-    return sanitizeToolData(toolId, result);
+    return sanitizeToolData(toolId, result, previousToolData);
   } catch (error: any) {
     console.error('[generateToolData] erro:', error);
     throw new Error(error.message || 'Erro ao gerar dados com IA. Tente novamente.');
