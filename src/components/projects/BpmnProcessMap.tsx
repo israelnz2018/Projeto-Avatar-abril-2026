@@ -46,6 +46,37 @@ const CORES = [
   { nome: 'Cinza', fill: '#E5E7EB', stroke: '#374151' },
 ];
 
+/**
+ * Remove o menu redondo que aparecia grudado no elemento ao clicar nele.
+ *
+ * Ele trazia ~9 icones espremidos por cima do desenho e confundia mais do que
+ * ajudava. Substituimos o provedor de entradas do bpmn-js por um que nao devolve
+ * nada — o que MANTEM intactos os modulos de que ele depende: edicao de texto por
+ * duplo clique, selecao, conexao e criacao continuam funcionando normalmente.
+ *
+ * O que era feito por ali agora se faz assim:
+ *   excluir  -> tecla Delete ou Backspace (ja vem ligada ao canvas pelo bpmn-js)
+ *   ligar    -> ferramenta "Conectar elementos" na paleta
+ *   criar    -> arrastar da paleta
+ */
+class ProviderSemMenu {
+  static $inject = ['contextPad'];
+  constructor(contextPad: any) {
+    contextPad.registerProvider(this);
+  }
+  getContextPadEntries() {
+    return {};
+  }
+  getMultiElementContextPadEntries() {
+    return {};
+  }
+}
+
+const semMenuDeContexto = {
+  __init__: ['contextPadProvider'],
+  contextPadProvider: ['type', ProviderSemMenu],
+};
+
 /** Regras de modelagem do kit, mostradas no modal "Ver regras". */
 const REGRAS = [
   ['Atividade', 'Verbo no infinitivo + objeto. Ex: "Registrar solicitacao".'],
@@ -87,6 +118,9 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     }
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Elemento selecionado agora (1 só) e o que estava selecionado quando o arraste começou. */
+  const selecaoRef = useRef<any>(null);
+  const origemRef = useRef<any>(null);
 
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -104,12 +138,54 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     // então toda a interface (paleta, menu de contexto, menu de troca) sai em português.
     const modeler = new BpmnModeler({
       container: containerRef.current,
-      additionalModules: [traducaoPtBr],
+      additionalModules: [traducaoPtBr, semMenuDeContexto],
     });
     modelerRef.current = modeler;
 
-    // Guarda o que está selecionado pra saber onde aplicar a cor.
-    modeler.on('selection.changed', (e: any) => setSelecionados(e?.newSelection || []));
+    // Guarda o que está selecionado — serve pra aplicar cor e pra saber de onde
+    // sai a seta na ligação automática logo abaixo.
+    modeler.on('selection.changed', (e: any) => {
+      const sel = e?.newSelection || [];
+      setSelecionados(sel);
+      selecaoRef.current = sel.length === 1 ? sel[0] : null;
+    });
+
+    // ---- Ligação automática ao arrastar da paleta ----
+    // Fluxo que o consultor pediu: clicar numa caixa, pegar o tipo na paleta,
+    // soltar onde quiser e JÁ SAIR LIGADO. O bpmn-js sozinho cria solto; aqui a
+    // seta é criada depois, da caixa que estava selecionada para a nova.
+    const eventBus: any = modeler.get('eventBus');
+    const modeling: any = modeler.get('modeling');
+    const rules: any = modeler.get('rules');
+
+    // Congela a origem no instante em que o arraste começa: ao soltar, o bpmn-js
+    // já selecionou o elemento novo, e aí a origem original estaria perdida.
+    eventBus.on('create.init', () => {
+      origemRef.current = selecaoRef.current;
+    });
+
+    eventBus.on('commandStack.shape.create.postExecuted', (e: any) => {
+      const novo = e?.context?.shape;
+      const origem = origemRef.current;
+      origemRef.current = null;
+      if (!novo || !origem || novo === origem) return;
+      // Já tem seta: acontece ao soltar em cima de um fluxo, que insere o
+      // elemento no meio dele. Nesse caso o bpmn-js já ligou — não duplicar.
+      if ((novo.incoming || []).length || (novo.outgoing || []).length) return;
+      // Só liga o que o BPMN permite: evita seta saindo de raia, de piscina ou
+      // chegando num evento inicial. A própria regra da biblioteca decide.
+      if (!rules.allowed('connection.create', { source: origem, target: novo })) return;
+      try {
+        modeling.connect(origem, novo);
+      } catch (err) {
+        // Ligação recusada em runtime não pode derrubar o desenho do aluno.
+        console.error('Nao foi possivel ligar automaticamente os elementos:', err);
+      }
+    });
+
+    eventBus.on('create.cancel', () => {
+      origemRef.current = null;
+    });
 
     const xmlInicial = initialData?.xml || BPMN_TEMPLATE_AS_IS;
     modeler
@@ -303,6 +379,11 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
           </div>
         )}
       </div>
+
+      {/* O provedor vazio já não gera ícone nenhum, mas o bpmn-js ainda cria o
+          contêiner do menu e marca como aberto — sem isto sobraria uma caixinha
+          vazia grudada no elemento. */}
+      <style>{`.djs-context-pad { display: none !important; }`}</style>
 
       {/* Canvas — a marca d'agua do bpmn.io fica visivel por exigencia da licenca */}
       <div className="relative border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ height: 560 }}>
