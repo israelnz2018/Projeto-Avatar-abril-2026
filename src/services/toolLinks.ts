@@ -106,5 +106,13 @@ export const resolveToolLink = (
 
   const seq = getToolSequence(initiative, configs);
   const from = (declared.from || []).filter((id) => seq.includes(id));
-  return from.length > 0 ? { ...declared, from } : null;
+  if (from.length === 0) return null;
+
+  // O modo e uma propriedade do TOOLID (migrate ou ai), fixada em LINKABLE_TARGETS.
+  // Ligacoes declaradas antes de uma ferramenta mudar de grupo (ex.: dataNature
+  // saiu de AI_TARGETS pra MIGRATE_TARGETS) ficam com o mode antigo gravado no
+  // Firestore. Usar sempre o mode atual do codigo evita que esses documentos
+  // antigos fiquem travados sem o botao aparecer.
+  const mode = LINKABLE_TARGETS[toolId] ?? declared.mode;
+  return { ...declared, from, mode };
 };
