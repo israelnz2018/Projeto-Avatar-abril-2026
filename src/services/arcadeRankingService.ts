@@ -6,13 +6,13 @@ const ARCADE_RANKING_COLLECTION = 'arcade_rankings';
 export interface ArcadeRankingEntry {
   uid: string;
   nome: string;
-  fase: 1 | 2 | 3;
+  fase: 1 | 2 | 3 | 4;
   pontos: number;
   distancia: number;
 }
 
 export interface ArcadeScore {
-  fase: 1 | 2 | 3;
+  fase: 1 | 2 | 3 | 4;
   pontos: number;
   distancia: number;
 }
@@ -26,7 +26,7 @@ function normalizarEntrada(id: string, data: any): ArcadeRankingEntry | null {
   const fase = Number(data?.fase);
   const pontos = Number(data?.pontos);
   const distancia = Number(data?.distancia || 0);
-  if (!id || ![1, 2, 3].includes(fase) || !Number.isFinite(pontos)) return null;
+  if (!id || ![1, 2, 3, 4].includes(fase) || !Number.isFinite(pontos)) return null;
   return {
     uid: id,
     nome: String(data?.nome || 'Aluno LBW'),

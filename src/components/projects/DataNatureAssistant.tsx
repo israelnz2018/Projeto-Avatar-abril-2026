@@ -25,6 +25,7 @@ interface DataNatureAssistantProps {
   initialData?: any;
   onGenerateAI?: (prompt?: string) => void;
   isGeneratingAI?: boolean;
+  allProjectData?: any;
 }
 
 interface AnalysisResult {
@@ -53,12 +54,49 @@ const TOOL_MATRIX: Record<string, string[]> = {
   'Discreto-Discreto': ['Histograma', 'Pareto', 'Chi Quadrado'],
 };
 
-export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: DataNatureAssistantProps & { onClearAIData?: () => void }) {
+export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: DataNatureAssistantProps & { onClearAIData?: () => void }) {
   const d = initialData?.toolData || initialData;
   const [description, setDescription] = useState(d?.description || '');
   const [analyses, setAnalyses] = useState<AnalysisResult[]>(d?.analyses || []);
+  const [selectedObservationId, setSelectedObservationId] = useState<string>(d?.selectedObservationId || '');
   const isToolEmpty = analyses.length === 0;
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const observedVariables = React.useMemo(() => {
+    const sourceKey = Object.keys(allProjectData || {})
+      .filter((key) => key === 'directObservation' || key.endsWith('_directObservation'))
+      .sort((left, right) => {
+        const metadata = allProjectData?.__metadata || {};
+        return (metadata[right] || 0) - (metadata[left] || 0);
+      })[0];
+    const sourceRaw = sourceKey ? allProjectData[sourceKey] : null;
+    const source = sourceRaw?.toolData || sourceRaw;
+    const observations = Array.isArray(source?.observations) ? source.observations : [];
+    return observations
+      .map((observation: any, index: number) => ({
+        id: String(observation?.id || `observacao-${index}`),
+        variable: String(observation?.variable || '').trim(),
+        evidence: String(observation?.observationDescription || '').trim(),
+        identifiedCause: Boolean(observation?.identifiedCause),
+        imageCount: Array.isArray(observation?.images) ? observation.images.length : 0,
+      }))
+      .filter((observation: any) => observation.variable);
+  }, [allProjectData]);
+
+  const selectedObservation = observedVariables.find((observation: any) => observation.id === selectedObservationId);
+
+  const handlePullObservation = () => {
+    if (!selectedObservation) {
+      toast.error('Selecione uma variável da Observação Direta.');
+      return;
+    }
+
+    const evidenceText = selectedObservation.evidence || (selectedObservation.imageCount > 0
+      ? `Há ${selectedObservation.imageCount} registro(s) fotográfico(s), mas falta descrever a evidência.`
+      : 'Nenhuma evidência foi registrada até o momento.');
+    setDescription(`Variável observada: ${selectedObservation.variable}\nEvidência encontrada: ${evidenceText}`);
+    toast.success('Variável e evidência trazidas para o contexto da análise.');
+  };
 
   // Helper to get tools based on current types
   const getDynamicTools = (yType: string, xType: string) => {
@@ -100,6 +138,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       const toolData = initialData.toolData || initialData;
       setDescription(toolData.description || '');
       setAnalyses(toolData.analyses || []);
+      setSelectedObservationId(toolData.selectedObservationId || '');
     }
   }, [initialData]);
 
@@ -115,7 +154,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   };
 
   const handleSave = () => {
-    onSave({ description, analyses });
+    onSave({ description, analyses, selectedObservationId });
   };
 
   const removeAnalysis = (id: string) => {
@@ -172,6 +211,62 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
               <span className="text-sm font-medium text-blue-700">
                 A IA está buscando variáveis quantitativas e recomendando ferramentas estatísticas...
               </span>
+            </div>
+          )}
+
+          {observedVariables.length > 0 && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                  <Search size={18} />
+                </div>
+                <div>
+                  <h4 className="font-black text-emerald-900 m-0">Puxar variável da Observação Direta</h4>
+                  <p className="text-sm text-emerald-800/80 mt-1 mb-0">
+                    Escolha qualquer variável observada, qualitativa ou quantitativa, e verifique se existe evidência registrada.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col lg:flex-row gap-3">
+                <select
+                  value={selectedObservationId}
+                  onChange={(event) => setSelectedObservationId(event.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400"
+                >
+                  <option value="">Selecione uma variável observada...</option>
+                  {observedVariables.map((observation: any) => (
+                    <option key={observation.id} value={observation.id}>{observation.variable}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handlePullObservation}
+                  disabled={!selectedObservation}
+                  className="px-5 py-3 rounded-xl border-0 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
+                >
+                  Puxar para a análise
+                </button>
+              </div>
+
+              {selectedObservation && (
+                <div className={`rounded-xl border p-4 ${selectedObservation.evidence || selectedObservation.imageCount > 0 ? 'border-green-200 bg-white' : 'border-amber-200 bg-amber-50'}`}>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Verificação da evidência</span>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${selectedObservation.evidence || selectedObservation.imageCount > 0 ? 'text-green-700' : 'text-amber-700'}`}>
+                      {selectedObservation.evidence || selectedObservation.imageCount > 0 ? 'Evidência encontrada' : 'Sem evidência registrada'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-700 m-0 leading-relaxed">
+                    {selectedObservation.evidence || (selectedObservation.imageCount > 0
+                      ? `${selectedObservation.imageCount} registro(s) fotográfico(s) encontrado(s), mas a descrição ainda está vazia.`
+                      : 'A variável existe na Observação Direta, mas ainda não há descrição nem registro fotográfico.')}
+                  </p>
+                  {selectedObservation.identifiedCause && (
+                    <p className="text-xs font-bold text-green-700 mt-2 mb-0">Esta variável foi marcada como causa raiz na Observação Direta.</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -29,7 +29,7 @@ export default function LbwArcade() {
     return () => unsubscribe();
   }, []);
 
-  const registrarPontuacao = useCallback((score: { fase: 1 | 2 | 3; pontos: number; distancia: number }) => {
+  const registrarPontuacao = useCallback((score: { fase: 1 | 2 | 3 | 4; pontos: number; distancia: number }) => {
     salvarMelhorResultadoArcade(score).catch((error) => {
       console.error('Não foi possível salvar a pontuação do Arcade:', error);
     });

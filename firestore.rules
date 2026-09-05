@@ -255,7 +255,7 @@ service cloud.firestore {
           'uid', 'nome', 'fase', 'pontos', 'distancia', 'atualizadoEm'
         ]) &&
         request.resource.data.uid == request.auth.uid &&
-        request.resource.data.fase in [1, 2, 3] &&
+        request.resource.data.fase in [1, 2, 3, 4] &&
         request.resource.data.pontos is number &&
         request.resource.data.distancia is number;
       allow delete: if isAdmin() || isOwner(userId);

@@ -1933,7 +1933,7 @@ export default function ToolWrapper({
           Antes checava previousToolData (a ferramenta anterior por ORDEM da fase, não a
           fonte declarada) — por isso o SIPOC mostrava o bloco mesmo sem Charter preenchido.
           Agora a fonte vem de `toolLink`, que respeita o que o projeto declarou. */}
-      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && showAIPrompt && linkHasContent && (
+      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && showAIPrompt && linkHasContent && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}
