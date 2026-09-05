@@ -19,6 +19,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { variaveisDaEspinhaDePeixe, variaveisQualitativasDoPlano } from '@/src/services/variaveisDoProjeto';
 
 interface ObservationEntry {
   id: string;
@@ -188,24 +189,47 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
     }
   }, [initialData, qualitativeOptions]);
 
-  const handleImportQualitative = () => {
-    if (qualitativeOptions.length === 0) return;
+  /**
+   * Variáveis que o aluno pode trazer pra observar: as causas da Espinha de Peixe
+   * (o X de cada categoria do 6M) mais as qualitativas do Plano de Coleta.
+   *
+   * Não entram todas de uma vez: entram no dropdown, e o aluno traz UMA por vez,
+   * analisa, salva, e volta pra próxima. É a lista de X's percorrendo a cadeia
+   * Espinha de Peixe → Observação Direta → Natureza dos Dados.
+   */
+  const variaveisDisponiveis = React.useMemo(() => {
+    const jaNaTela = new Set(observations.map((o) => o.variable.trim()).filter(Boolean));
+    return [
+      ...variaveisDaEspinhaDePeixe(allProjectData),
+      ...variaveisQualitativasDoPlano(allProjectData),
+    ].filter((v, i, arr) => arr.findIndex((o) => o.variable === v.variable) === i)
+      .map((v) => ({ ...v, jaAdicionada: jaNaTela.has(v.variable) }));
+  }, [allProjectData, observations]);
 
-    const newObservations: ObservationEntry[] = qualitativeOptions.map((opt: any) => ({
-      id: `import-${crypto.randomUUID()}`,
-      variable: opt.variable || 'Variável sem nome',
-      operationalDefinition: opt.definition || '',
+  const [variavelEscolhida, setVariavelEscolhida] = useState('');
+
+  const adicionarVariavelEscolhida = () => {
+    const escolhida = variaveisDisponiveis.find((v) => v.variable === variavelEscolhida);
+    if (!escolhida) return;
+    if (escolhida.jaAdicionada) {
+      toast.error('Essa variável já está na lista abaixo.');
+      return;
+    }
+    const nova: ObservationEntry = {
+      id: crypto.randomUUID(),
+      variable: escolhida.variable,
+      operationalDefinition: escolhida.definition || '',
       identifiedCause: false,
       observationDescription: '',
-      images: []
-    }));
-
-    // If current observations only has the default empty one, replace it
-    setObservations(prev => {
-      const isDefaultOnly = prev.length === 1 && !prev[0].variable && !prev[0].observationDescription;
-      return isDefaultOnly ? newObservations : [...prev, ...newObservations];
+      images: [],
+    };
+    // Substitui a linha vazia inicial em vez de deixar um card em branco sobrando.
+    setObservations((prev) => {
+      const soAVazia = prev.length === 1 && !prev[0].variable && !prev[0].observationDescription;
+      return soAVazia ? [nova] : [...prev, nova];
     });
-    toast.success(`${newObservations.length} variáveis qualitativas importadas!`);
+    setVariavelEscolhida('');
+    toast.success(`"${escolhida.variable}" adicionada para observação.`);
   };
 
   const addObservation = () => {
@@ -306,6 +330,51 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
         <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center gap-3 animate-pulse">
           <Sparkles className="text-blue-500 animate-spin" size={20} />
           <span className="text-sm font-medium text-blue-700">A IA está gerando hipóteses realistas para validação de causa raiz...</span>
+        </div>
+      )}
+
+      {/* Traz UMA variável por vez da Espinha de Peixe / Plano de Coleta. */}
+      {variaveisDisponiveis.length > 0 && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+              <Search size={18} />
+            </div>
+            <div>
+              <h4 className="font-black text-emerald-900 m-0">Trazer variável para observar</h4>
+              <p className="text-sm text-emerald-800/80 mt-1 mb-0">
+                As causas levantadas na Espinha de Peixe. Traga uma, faça a observação, salve — e volte aqui para a próxima.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-3">
+            <select
+              value={variavelEscolhida}
+              onChange={(e) => setVariavelEscolhida(e.target.value)}
+              className="flex-1 px-4 py-3 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400"
+            >
+              <option value="">Selecione uma variável...</option>
+              {variaveisDisponiveis.map((v) => (
+                <option key={v.variable} value={v.variable} disabled={v.jaAdicionada}>
+                  {v.jaAdicionada ? '✓ ' : ''}{v.origem} — {v.variable}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={adicionarVariavelEscolhida}
+              disabled={!variavelEscolhida}
+              className="px-5 py-3 rounded-xl border-0 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors cursor-pointer"
+            >
+              Adicionar à análise
+            </button>
+          </div>
+
+          <p className="text-[11px] text-emerald-800/70 m-0">
+            {variaveisDisponiveis.filter((v) => v.jaAdicionada).length} de {variaveisDisponiveis.length} já trazidas.
+            As já trazidas aparecem com ✓ e ficam bloqueadas na lista.
+          </p>
         </div>
       )}
 

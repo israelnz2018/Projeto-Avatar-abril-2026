@@ -4,6 +4,7 @@ import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X
 import { generateToolData } from '@/src/services/aiService';
 import { resolveToolLink } from '@/src/services/toolLinks';
 import { esqueletoDoSipoc, sipocParaProcessMap, sipocParaBpmn } from '@/src/services/sipocParaProcesso';
+import { causasDoIshikawa } from '@/src/services/variaveisDoProjeto';
 import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
@@ -996,43 +997,45 @@ export default function ToolWrapper({
         return;
       }
 
+      // Traz as variaveis da ferramenta que o CONSULTOR ligou nesta — nao existe
+      // ordem obrigatoria aqui. Aceita as duas formas de origem que sabemos ler:
+      // as causas da Espinha de Peixe (cada causa de cada categoria vira um X) e
+      // as variaveis marcadas como Qualitativa no Plano de Coleta.
+      //
+      // Antes o codigo so entendia o Plano de Coleta, entao ligar a Espinha de
+      // Peixe aqui dava "Nenhuma variavel qualitativa encontrada" — a mensagem
+      // falava de uma ferramenta que nem era a origem declarada.
       if (toolId === 'directObservation') {
-        const items = getField('items') || [];
-        const qualitative = items.filter((item: any) =>
-          item.data?.method?.toLowerCase().includes('qualitativa')
-        );
-        console.log('🔬 Variaveis qualitativas encontradas:', qualitative.length);
-        migratedData = { observations: qualitative.map((item: any, idx: number) => ({
-          id: crypto.randomUUID(),
-          variable: item.data?.variable || '',
-          observationDescription: '',
-          shiftObservations: [],
-        }))};
-        if (qualitative.length === 0) {
-          toast.error('Nenhuma variavel qualitativa encontrada no Plano de Coleta. Verifique se o metodo esta marcado como "Qualitativa".');
+        const causasDaEspinha = causasDoIshikawa(sourceData);
+        const qualitativasDoPlano = (getField('items') || [])
+          .filter((item: any) => String(item?.data?.method || '').toLowerCase().includes('qualitativa'))
+          .map((item: any) => ({
+            variable: String(item?.data?.variable || '').trim(),
+            definition: String(item?.data?.operationalDefinition || ''),
+          }))
+          .filter((v: any) => v.variable);
+
+        const variaveis = causasDaEspinha.length > 0 ? causasDaEspinha : qualitativasDoPlano;
+
+        if (variaveis.length === 0) {
+          toast.error('A ferramenta de origem nao tem variaveis para trazer. Preencha as causas na Espinha de Peixe (ou marque variaveis como "Qualitativa" no Plano de Coleta).');
           setIsGeneratingData(false);
           return;
         }
+
+        migratedData = {
+          observations: variaveis.map((v: any) => ({
+            id: crypto.randomUUID(),
+            variable: v.variable,
+            operationalDefinition: v.definition || '',
+            identifiedCause: false,
+            observationDescription: '',
+            images: [],
+          })),
+        };
       }
       
-      if (toolId === 'directObservation') {
-        const items = getField('items') || [];
-        const qualitative = items.filter((item: any) =>
-          item.data?.method?.toLowerCase().includes('qualitativa')
-        );
-        console.log('🔬 Variaveis qualitativas encontradas:', qualitative.length);
-        migratedData = { observations: qualitative.map((item: any, idx: number) => ({
-          id: crypto.randomUUID(),
-          variable: item.data?.variable || '',
-          observationDescription: '',
-          shiftObservations: [],
-        }))};
-        if (qualitative.length === 0) {
-          toast.error('Nenhuma variavel qualitativa encontrada no Plano de Coleta. Verifique se o metodo esta marcado como "Qualitativa".');
-          setIsGeneratingData(false);
-          return;
-        }
-      }
+
 
       if (toolId === 'statisticalAnalysis') {
         const dnAnalyses = getField('analyses') || [];

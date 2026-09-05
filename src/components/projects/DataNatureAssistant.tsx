@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
+import { acharDadoDaFerramenta, todasAsVariaveis } from '@/src/services/variaveisDoProjeto';
 
 interface DataNatureAssistantProps {
   onSave: (data: any) => void;
@@ -62,25 +63,55 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   const isToolEmpty = analyses.length === 0;
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  /**
+   * A lista de X's do projeto inteira — não só o que já passou pela Observação
+   * Direta.
+   *
+   * Antes esta tela só enxergava `directObservation`, então uma causa levantada
+   * na Espinha de Peixe que o aluno ainda não tivesse observado simplesmente não
+   * aparecia aqui, e a lista morria no meio do caminho. Agora a MESMA lista
+   * percorre as três: Espinha de Peixe → Observação Direta → Natureza dos Dados.
+   * Quem já foi observado vem com a evidência junto; quem não foi, vem marcado.
+   */
   const observedVariables = React.useMemo(() => {
-    const sourceKey = Object.keys(allProjectData || {})
-      .filter((key) => key === 'directObservation' || key.endsWith('_directObservation'))
-      .sort((left, right) => {
-        const metadata = allProjectData?.__metadata || {};
-        return (metadata[right] || 0) - (metadata[left] || 0);
-      })[0];
-    const sourceRaw = sourceKey ? allProjectData[sourceKey] : null;
-    const source = sourceRaw?.toolData || sourceRaw;
-    const observations = Array.isArray(source?.observations) ? source.observations : [];
-    return observations
-      .map((observation: any, index: number) => ({
-        id: String(observation?.id || `observacao-${index}`),
-        variable: String(observation?.variable || '').trim(),
-        evidence: String(observation?.observationDescription || '').trim(),
-        identifiedCause: Boolean(observation?.identifiedCause),
-        imageCount: Array.isArray(observation?.images) ? observation.images.length : 0,
-      }))
-      .filter((observation: any) => observation.variable);
+    const observacoes = acharDadoDaFerramenta(allProjectData, 'directObservation');
+    const lista = Array.isArray(observacoes?.observations) ? observacoes.observations : [];
+    const porVariavel = new Map<string, any>();
+
+    lista.forEach((o: any, index: number) => {
+      const nome = String(o?.variable || '').trim();
+      if (!nome) return;
+      porVariavel.set(nome, {
+        id: String(o?.id || `observacao-${index}`),
+        variable: nome,
+        evidence: String(o?.observationDescription || '').trim(),
+        identifiedCause: Boolean(o?.identifiedCause),
+        imageCount: Array.isArray(o?.images) ? o.images.length : 0,
+        origem: 'Observação Direta',
+        observada: true,
+      });
+    });
+
+    // Causas da Espinha de Peixe que ainda não foram observadas entram na lista
+    // assim mesmo, marcadas — senão o aluno não teria como chegar nelas por aqui.
+    todasAsVariaveis(allProjectData).forEach((v) => {
+      if (porVariavel.has(v.variable)) {
+        const atual = porVariavel.get(v.variable);
+        if (v.origem !== 'Observacao Direta') atual.origem = v.origem;
+        return;
+      }
+      porVariavel.set(v.variable, {
+        id: `causa-${v.variable}`,
+        variable: v.variable,
+        evidence: '',
+        identifiedCause: false,
+        imageCount: 0,
+        origem: v.origem,
+        observada: false,
+      });
+    });
+
+    return [...porVariavel.values()];
   }, [allProjectData]);
 
   const selectedObservation = observedVariables.find((observation: any) => observation.id === selectedObservationId);
@@ -91,11 +122,32 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       return;
     }
 
-    const evidenceText = selectedObservation.evidence || (selectedObservation.imageCount > 0
-      ? `Há ${selectedObservation.imageCount} registro(s) fotográfico(s), mas falta descrever a evidência.`
-      : 'Nenhuma evidência foi registrada até o momento.');
-    setDescription(`Variável observada: ${selectedObservation.variable}\nEvidência encontrada: ${evidenceText}`);
-    toast.success('Variável e evidência trazidas para o contexto da análise.');
+    // Texto pré-preenchido: já entrega a pergunta de análise montada, em vez de
+    // deixar o aluno com a folha em branco. Ele edita por cima se quiser.
+    const linhas = [
+      `Variável (X): ${selectedObservation.variable}`,
+      selectedObservation.origem && selectedObservation.origem !== 'Observação Direta'
+        ? `Origem: causa levantada na Espinha de Peixe, categoria "${selectedObservation.origem}".`
+        : 'Origem: Observação Direta.',
+    ];
+
+    if (selectedObservation.observada) {
+      linhas.push(
+        `Evidência: ${selectedObservation.evidence || (selectedObservation.imageCount > 0
+          ? `${selectedObservation.imageCount} registro(s) fotográfico(s), mas sem descrição escrita.`
+          : 'nenhuma evidência registrada até o momento.')}`,
+      );
+      if (selectedObservation.identifiedCause) {
+        linhas.push('Foi marcada como causa raiz na Observação Direta.');
+      }
+    } else {
+      linhas.push('Ainda não passou pela Observação Direta — não há evidência de campo registrada.');
+    }
+
+    linhas.push('', `Quero entender se "${selectedObservation.variable}" (X) influencia o resultado do processo (Y).`);
+
+    setDescription(linhas.join('\n'));
+    toast.success('Variável trazida para o contexto da análise.');
   };
 
   // Helper to get tools based on current types
@@ -221,9 +273,9 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                   <Search size={18} />
                 </div>
                 <div>
-                  <h4 className="font-black text-emerald-900 m-0">Puxar variável da Observação Direta</h4>
+                  <h4 className="font-black text-emerald-900 m-0">Puxar variável do projeto</h4>
                   <p className="text-sm text-emerald-800/80 mt-1 mb-0">
-                    Escolha qualquer variável observada, qualitativa ou quantitativa, e verifique se existe evidência registrada.
+                    Todas as variáveis já levantadas no projeto. ✓ = já tem observação registrada (a evidência vem junto); ○ = ainda sem observação.
                   </p>
                 </div>
               </div>
@@ -234,9 +286,11 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                   onChange={(event) => setSelectedObservationId(event.target.value)}
                   className="flex-1 px-4 py-3 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400"
                 >
-                  <option value="">Selecione uma variável observada...</option>
+                  <option value="">Selecione uma variável...</option>
                   {observedVariables.map((observation: any) => (
-                    <option key={observation.id} value={observation.id}>{observation.variable}</option>
+                    <option key={observation.id} value={observation.id}>
+                      {observation.observada ? '✓ ' : '○ '}{observation.origem} — {observation.variable}
+                    </option>
                   ))}
                 </select>
                 <button
