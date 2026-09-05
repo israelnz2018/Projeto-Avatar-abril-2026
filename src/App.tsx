@@ -100,6 +100,13 @@ function AreaGate({ area, children }: { area: 'consultor' | 'coordenador'; child
   return <>{children}</>;
 }
 
+function ConsultorOnlyGate({ children }: { children: React.ReactNode }) {
+  const { isConsultor, loading } = useUserAccess();
+  if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
+  if (!isConsultor) return <Navigate to="/education" replace />;
+  return <>{children}</>;
+}
+
 function Layout({ children, user, onLogout }: { children: React.ReactNode, user: User | null, onLogout: () => void }) {
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
@@ -787,7 +794,7 @@ export default function App() {
               <Route path="/comunidade-adm" element={<Comunidade escopo="rede" />} />
               <Route path="/comunidade-coordenador" element={<Comunidade escopo="time" />} />
               <Route path="/comunidade-aluno" element={<Comunidade escopo="time" />} />
-              <Route path="/arcade" element={<LbwArcade />} />
+              <Route path="/arcade" element={<ConsultorOnlyGate><LbwArcade /></ConsultorOnlyGate>} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />
