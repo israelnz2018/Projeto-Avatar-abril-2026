@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Rocket,
-  FolderOpen
+  FolderOpen,
+  Gamepad2
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -49,6 +50,7 @@ const ProjectManagement = lazy(() => import('./components/ProjectManagement'));
 const LearningView = lazy(() => import('./components/LearningView'));
 const RecursosView = lazy(() => import('./components/RecursosView'));
 const Comunidade = lazy(() => import('./components/Comunidade'));
+const LbwArcade = lazy(() => import('./components/LbwArcade'));
 const KnowledgeManagerView = lazy(() => import('./components/KnowledgeManagerView'));
 const ProjectToolsConfig = lazy(() => import('./components/ProjectToolsConfig'));
 const UserManagementView = lazy(() => import('./components/UserManagementView'));
@@ -266,6 +268,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
         { name: 'Comunidade', path: '/comunidade-aluno', icon: Users },
+        { name: 'LBW Arcade', path: '/arcade', icon: Gamepad2 },
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
         // Convite aberto a todo aluno — inclusive quem já é consultor por fora e
         // entrou só pra conhecer. O admin também vê, pra conseguir revisar a
@@ -782,6 +785,7 @@ export default function App() {
               <Route path="/comunidade-adm" element={<Comunidade escopo="rede" />} />
               <Route path="/comunidade-coordenador" element={<Comunidade escopo="time" />} />
               <Route path="/comunidade-aluno" element={<Comunidade escopo="time" />} />
+              <Route path="/arcade" element={<LbwArcade />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/users" element={<UserManagementView />} />
               <Route path="/marketing" element={<MarketingView />} />
