@@ -105,10 +105,46 @@ export const validarBpmn = (xml: string): BpmnValidationResult => {
     }
   }
 
-  for (const noId of [...nosDeFluxo.keys()].sort()) {
-    if (!conectados.has(noId)) {
-      erros.push(`Elemento solto, sem nenhuma conexao: ${rotulo(nosDeFluxo.get(noId), noId)}.`);
+  // Quem esta ligado apenas por linha TRACEJADA (fluxo de mensagem ou associacao).
+  //
+  // Isso separa dois problemas que antes viravam a mesma mensagem confusa: o
+  // elemento realmente esquecido no canto e o elemento que TEM linha na tela, mas
+  // uma linha que nao define ordem de execucao. O segundo caso acontece quando o
+  // aluno cria duas PISCINAS e liga uma na outra: o bpmn-js gera messageFlow, nao
+  // sequenceFlow. Dizer "sem nenhuma conexao" ali contradiz o que ele esta vendo.
+  const ligadosPorTracejada = new Set<string>();
+  for (const tag of ['messageFlow', 'association']) {
+    for (const conexao of porTag(tag)) {
+      for (const attr of ['sourceRef', 'targetRef']) {
+        const ref = conexao.getAttribute(attr);
+        if (ref) ligadosPorTracejada.add(ref);
+      }
     }
+  }
+
+  for (const noId of [...nosDeFluxo.keys()].sort()) {
+    if (conectados.has(noId)) continue;
+    const nome = rotulo(nosDeFluxo.get(noId), noId);
+    if (ligadosPorTracejada.has(noId)) {
+      erros.push(
+        `${nome} esta ligado so por linha TRACEJADA (fluxo de mensagem), que nao define a ordem do processo. ` +
+        'Linha tracejada e so pra conversa entre piscinas diferentes. Se as areas sao da mesma empresa, ' +
+        'use RAIAS dentro da MESMA piscina — assim as setas saem solidas e o fluxo passa a existir.'
+      );
+    } else {
+      erros.push(`Elemento solto, sem nenhuma conexao: ${nome}.`);
+    }
+  }
+
+  // Duas piscinas com fluxo de mensagem entre elas e valido em BPMN, mas quase
+  // sempre e engano de quem queria duas AREAS da mesma empresa. Aviso, nao erro.
+  const piscinas = porTag('participant');
+  if (piscinas.length > 1 && porTag('messageFlow').length > 0) {
+    avisos.push(
+      `O diagrama tem ${piscinas.length} piscinas conversando por fluxo de mensagem. ` +
+      'Isso so se justifica entre participantes independentes (ex.: sua empresa e o cliente). ' +
+      'Areas internas da mesma empresa devem ser RAIAS dentro de uma piscina so.'
+    );
   }
 
   // Camada grafica (BPMN DI) — e o que faz o arquivo abrir ja desenhado.

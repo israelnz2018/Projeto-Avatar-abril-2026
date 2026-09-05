@@ -65,6 +65,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
   /** bpmn-js tipa `get()` como unknown; concentra o cast num lugar so. */
   const ajustarZoom = () => modelerRef.current?.get('canvas')?.zoom('fit-viewport');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const painelValidacaoRef = useRef<HTMLDivElement>(null);
 
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -146,6 +147,14 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
       });
     } finally {
       setValidando(false);
+      // A validacao e instantanea, entao o spinner do botao nunca chega a ser
+      // visto — e o painel de resultado nasce ABAIXO do canvas de 560px, muitas
+      // vezes fora da area visivel. Sem isto, clicar em "Validar" parece nao
+      // fazer nada. Rola ate o resultado pra deixar claro que rodou.
+      window.setTimeout(
+        () => painelValidacaoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }),
+        60,
+      );
     }
   };
 
@@ -281,7 +290,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
 
       {/* Resultado da validacao */}
       {validacao && (
-        <div className={cn(
+        <div ref={painelValidacaoRef} className={cn(
           "p-5 rounded-lg border",
           validacao.aprovado ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
         )}>
