@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
-import { Download, Upload, CheckCircle2, AlertTriangle, XCircle, BookOpen, X, Loader2, Maximize2 } from 'lucide-react';
+import { ArrowRight, Download, Upload, CheckCircle2, AlertTriangle, XCircle, BookOpen, X, Loader2, Maximize2, Replace as ReplaceIcon, Type } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { BPMN_TEMPLATE_AS_IS } from '@/src/services/bpmnTemplate';
 import { validarBpmn, type BpmnValidationResult } from '@/src/services/bpmnValidator';
@@ -45,6 +45,52 @@ const CORES = [
   { nome: 'Roxo', fill: '#EDE9FE', stroke: '#5B21B6' },
   { nome: 'Cinza', fill: '#E5E7EB', stroke: '#374151' },
 ];
+
+const FORMATOS_ELEMENTO = [
+  { tipo: 'bpmn:Task', nome: 'Atividade (box)' },
+  { tipo: 'bpmn:ExclusiveGateway', nome: 'Decisão (losango)' },
+  { tipo: 'bpmn:ParallelGateway', nome: 'Paralelo (losango +)' },
+  { tipo: 'bpmn:InclusiveGateway', nome: 'Inclusivo (losango ○)' },
+  { tipo: 'bpmn:SubProcess', nome: 'Subprocesso (box)' },
+];
+
+const tipoDoElemento = (elemento: any): string => String(elemento?.businessObject?.$type || elemento?.type || '');
+const ehGateway = (elemento: any): boolean => tipoDoElemento(elemento).endsWith('Gateway');
+const podeMudarFormato = (elemento: any): boolean => {
+  const tipo = tipoDoElemento(elemento);
+  return Boolean(elemento && !elemento.waypoints && (tipo.includes('Task') || tipo.includes('Activity') || tipo.includes('Gateway') || tipo === 'bpmn:SubProcess'));
+};
+
+const limitesDoRotuloNoGateway = (gateway: any) => ({
+  x: gateway.x + 4,
+  y: gateway.y + 4,
+  width: Math.max(20, gateway.width - 8),
+  height: Math.max(20, gateway.height - 8),
+});
+
+/**
+ * O BPMN posiciona o nome de gateways abaixo do losango. Para a experiência
+ * simplificada da LBW, colocamos e dimensionamos o rótulo dentro do elemento.
+ * Como a alteração usa o `modeling`, os limites também ficam gravados no XML.
+ */
+const centralizarRotuloDoGateway = (modeler: any, gateway: any) => {
+  if (!modeler || !gateway || !ehGateway(gateway)) return;
+  const registry: any = modeler.get('elementRegistry');
+  const modeling: any = modeler.get('modeling');
+  const rotulo = registry.filter((elemento: any) => elemento?.labelTarget === gateway)[0];
+  if (!rotulo) return;
+  const limites = limitesDoRotuloNoGateway(gateway);
+  const jaCentralizado = Math.abs(rotulo.x - limites.x) < 0.5
+    && Math.abs(rotulo.y - limites.y) < 0.5
+    && Math.abs(rotulo.width - limites.width) < 0.5
+    && Math.abs(rotulo.height - limites.height) < 0.5;
+  if (jaCentralizado) return;
+  try {
+    modeling.resizeShape(rotulo, limites);
+  } catch (err) {
+    console.error('Não foi possível centralizar o texto no losango:', err);
+  }
+};
 
 /**
  * Remove o menu redondo que aparecia grudado no elemento ao clicar nele.
@@ -129,6 +175,10 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
   const [showRegras, setShowRegras] = useState(false);
   const [nomeProcesso, setNomeProcesso] = useState<string>(initialData?.nomeProcesso || '');
   const [selecionados, setSelecionados] = useState<any[]>([]);
+  const [textoSelecionado, setTextoSelecionado] = useState('');
+  const [showMudarFormato, setShowMudarFormato] = useState(false);
+  const [modoConexao, setModoConexao] = useState<'inativo' | 'origem' | 'destino'>('inativo');
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   // Monta o modelador uma vez. O XML salvo vence; sem nada salvo, entra o template do kit.
   useEffect(() => {
@@ -148,6 +198,10 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
       const sel = e?.newSelection || [];
       setSelecionados(sel);
       selecaoRef.current = sel.length === 1 ? sel[0] : null;
+      const businessObject = sel.length === 1 ? sel[0]?.businessObject : null;
+      setTextoSelecionado(String(businessObject?.name || businessObject?.text || ''));
+      setShowMudarFormato(false);
+      setErroAcao(null);
     });
 
     // ---- Ligação automática ao arrastar da paleta ----
@@ -157,6 +211,22 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     const eventBus: any = modeler.get('eventBus');
     const modeling: any = modeler.get('modeling');
     const rules: any = modeler.get('rules');
+
+    // A ferramenta de seta da paleta já respeita o ponto exato clicado na origem
+    // e no destino. Estes eventos transformam o comportamento técnico em uma
+    // sequência visível: primeiro origem, depois destino.
+    eventBus.on('global-connect.init', () => setModoConexao('origem'));
+    eventBus.on('connect.init', () => setModoConexao('destino'));
+    eventBus.on(['connect.ended', 'connect.canceled', 'global-connect.canceled'], () => setModoConexao('inativo'));
+
+    // Depois de editar um gateway por duplo clique, o bpmn-js cria/atualiza seu
+    // rótulo externo. Reposicionamos no próximo ciclo para que apareça dentro.
+    eventBus.on('commandStack.element.updateLabel.postExecuted', (e: any) => {
+      const elemento = e?.context?.element;
+      if (ehGateway(elemento)) {
+        window.setTimeout(() => centralizarRotuloDoGateway(modeler, elemento), 0);
+      }
+    });
 
     // Congela a origem no instante em que o arraste começa: ao soltar, o bpmn-js
     // já selecionou o elemento novo, e aí a origem original estaria perdida.
@@ -193,6 +263,11 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
       .then(() => {
         ajustarZoom();
         setCarregando(false);
+        window.setTimeout(() => {
+          const registry: any = modeler.get('elementRegistry');
+          registry.filter((elemento: any) => ehGateway(elemento) && !elemento.labelTarget)
+            .forEach((gateway: any) => centralizarRotuloDoGateway(modeler, gateway));
+        }, 0);
       })
       .catch((err: any) => {
         console.error('Erro ao abrir o diagrama BPMN:', err);
@@ -251,6 +326,70 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     const modeling: any = modelerRef.current.get('modeling');
     // null = "sem cor": volta ao padrão do BPMN em vez de pintar de branco.
     modeling.setColor(selecionados, cor ? { fill: cor.fill, stroke: cor.stroke } : { fill: undefined, stroke: undefined });
+  };
+
+  const salvarTextoDoElemento = () => {
+    const elemento = selecaoRef.current;
+    if (!modelerRef.current || !elemento || elemento.waypoints || elemento.labelTarget) return;
+    try {
+      const modeling: any = modelerRef.current.get('modeling');
+      modeling.updateLabel(
+        elemento,
+        textoSelecionado.trim(),
+        ehGateway(elemento) ? limitesDoRotuloNoGateway(elemento) : undefined,
+      );
+      if (ehGateway(elemento)) {
+        window.setTimeout(() => centralizarRotuloDoGateway(modelerRef.current, elemento), 0);
+      }
+      setErroAcao(null);
+    } catch (err) {
+      console.error('Não foi possível alterar o texto do elemento:', err);
+      setErroAcao('Não foi possível alterar o texto deste elemento.');
+    }
+  };
+
+  const ativarConexao = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!modelerRef.current) return;
+    const globalConnect: any = modelerRef.current.get('globalConnect');
+    if (globalConnect.isActive()) {
+      globalConnect.toggle();
+      setModoConexao('inativo');
+      return;
+    }
+    globalConnect.start(event.nativeEvent);
+    setModoConexao('origem');
+  };
+
+  const mudarFormato = (novoTipo: string) => {
+    const elemento = selecaoRef.current;
+    if (!modelerRef.current || !podeMudarFormato(elemento)) return;
+    try {
+      const bpmnReplace: any = modelerRef.current.get('bpmnReplace');
+      const modeling: any = modelerRef.current.get('modeling');
+      const selection: any = modelerRef.current.get('selection');
+      const textoAtual = String(elemento?.businessObject?.name || textoSelecionado || '');
+      const novoElemento = bpmnReplace.replaceElement(elemento, {
+        type: novoTipo,
+        ...(novoTipo === 'bpmn:SubProcess' ? { isExpanded: false } : {}),
+      });
+      if (textoAtual) {
+        modeling.updateLabel(
+          novoElemento,
+          textoAtual,
+          ehGateway(novoElemento) ? limitesDoRotuloNoGateway(novoElemento) : undefined,
+        );
+      }
+      selection.select(novoElemento);
+      setTextoSelecionado(textoAtual);
+      setShowMudarFormato(false);
+      setErroAcao(null);
+      if (ehGateway(novoElemento)) {
+        window.setTimeout(() => centralizarRotuloDoGateway(modelerRef.current, novoElemento), 0);
+      }
+    } catch (err) {
+      console.error('Não foi possível mudar o formato do elemento:', err);
+      setErroAcao('Este formato não pode substituir o elemento selecionado sem invalidar o BPMN.');
+    }
   };
 
   /** Baixa o .bpmn — o arquivo que abre no Bizagi e no BPMN.io. */
@@ -339,6 +478,17 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
           >
             <Maximize2 size={14} /> Centralizar
           </button>
+          <button
+            onClick={ativarConexao}
+            className={cn(
+              btn,
+              modoConexao !== 'inativo'
+                ? "bg-emerald-600 border-emerald-600 text-white"
+                : "bg-white border-gray-200 text-gray-700 hover:border-emerald-400"
+            )}
+          >
+            <ArrowRight size={15} /> {modoConexao === 'inativo' ? 'Conectar com seta' : 'Cancelar seta'}
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -347,6 +497,66 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportar(f); e.target.value = ''; }}
           />
         </div>
+
+        {modoConexao !== 'inativo' && (
+          <div className="flex items-center gap-3 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs text-white">
+              {modoConexao === 'origem' ? '1' : '2'}
+            </span>
+            {modoConexao === 'origem'
+              ? 'Clique exatamente no lado do elemento onde a seta deve começar.'
+              : 'Agora clique exatamente no lado do elemento onde a seta deve chegar.'}
+          </div>
+        )}
+
+        {selecionados.length === 1 && !selecionados[0]?.waypoints && !selecionados[0]?.labelTarget && (
+          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="min-w-[240px] flex-1">
+                <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-800">
+                  <Type size={13} /> Texto do elemento
+                </span>
+                <input
+                  value={textoSelecionado}
+                  onChange={(e) => setTextoSelecionado(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') salvarTextoDoElemento(); }}
+                  placeholder={ehGateway(selecionados[0]) ? 'Ex: Solicitação aprovada?' : 'Digite o texto'}
+                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </label>
+              <button onClick={salvarTextoDoElemento} className={cn(btn, "bg-blue-600 border-blue-600 text-white hover:bg-blue-700")}>
+                Aplicar texto
+              </button>
+              {podeMudarFormato(selecionados[0]) && (
+                <button
+                  onClick={() => setShowMudarFormato((atual) => !atual)}
+                  className={cn(btn, "bg-white border-blue-200 text-blue-800 hover:border-blue-500")}
+                >
+                  <ReplaceIcon size={14} /> Mudar formato
+                </button>
+              )}
+            </div>
+
+            {showMudarFormato && (
+              <div className="grid grid-cols-1 gap-2 border-t border-blue-100 pt-3 sm:grid-cols-2 lg:grid-cols-5">
+                {FORMATOS_ELEMENTO.map((formato) => (
+                  <button
+                    key={formato.tipo}
+                    onClick={() => mudarFormato(formato.tipo)}
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer",
+                      tipoDoElemento(selecionados[0]) === formato.tipo
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-blue-200 bg-white text-slate-700 hover:border-blue-500"
+                    )}
+                  >
+                    {formato.nome}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Cores — só aparece com algo selecionado, senão não haveria onde aplicar. */}
         {selecionados.length > 0 && (
@@ -376,6 +586,11 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
         {erroCarga && (
           <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             <XCircle size={16} /> {erroCarga}
+          </div>
+        )}
+        {erroAcao && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            <AlertTriangle size={16} /> {erroAcao}
           </div>
         )}
       </div>
