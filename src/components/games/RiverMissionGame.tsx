@@ -5,14 +5,14 @@ const WORLD_WIDTH = 480;
 const WORLD_HEIGHT = 720;
 const BEST_SCORE_KEY = 'lbw-arcade-river-mission-best';
 const UNLOCKED_STAGE_KEY = 'lbw-arcade-river-mission-stage';
-const STAGE_ONE_DURATION_SECONDS = 5 * 60;
+const STAGE_DURATION_SECONDS = 5 * 60;
 
 type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
 type GameSound = 'start' | 'fire' | 'explosion' | 'energy' | 'hit' | 'gameover';
-type GameStage = 1 | 2;
+type GameStage = 1 | 2 | 3;
 
 type Bullet = { x: number; y: number; speed: number };
-type Enemy = { x: number; y: number; width: number; height: number; speed: number; kind: 'boat' | 'drone' };
+type Enemy = { x: number; y: number; width: number; height: number; speed: number; vx: number; kind: 'boat' | 'drone' };
 type EnergyCell = { x: number; y: number; radius: number; speed: number };
 
 interface RuntimeGame {
@@ -57,7 +57,10 @@ function readBestScore(): number {
 
 function readUnlockedStage(): GameStage {
   try {
-    return window.localStorage.getItem(UNLOCKED_STAGE_KEY) === '2' ? 2 : 1;
+    const storedStage = window.localStorage.getItem(UNLOCKED_STAGE_KEY);
+    if (storedStage === '3') return 3;
+    if (storedStage === '2') return 2;
+    return 1;
   } catch {
     return 1;
   }
@@ -356,6 +359,7 @@ export default function RiverMissionGame() {
     game.enemies.forEach((enemy) => {
       ctx.save();
       ctx.translate(enemy.x, enemy.y);
+      if (enemy.vx) ctx.rotate(enemy.vx * 0.0035);
       ctx.shadowColor = enemy.kind === 'boat' ? '#ff9d3d' : '#fb5bd8';
       ctx.shadowBlur = 10;
       ctx.fillStyle = enemy.kind === 'boat' ? '#ff8b2c' : '#eb4bc8';
@@ -434,16 +438,24 @@ export default function RiverMissionGame() {
       ctx.save();
       ctx.fillStyle = 'rgba(2, 10, 24, 0.78)';
       ctx.fillRect(78, WORLD_HEIGHT / 2 - 62, WORLD_WIDTH - 156, 124);
-      ctx.strokeStyle = game.stage === 1 ? '#60a5fa' : '#fb923c';
+      ctx.strokeStyle = game.stage === 1 ? '#60a5fa' : game.stage === 2 ? '#fb923c' : '#e879f9';
       ctx.lineWidth = 4;
       ctx.strokeRect(78, WORLD_HEIGHT / 2 - 62, WORLD_WIDTH - 156, 124);
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
       ctx.font = '900 34px system-ui';
       ctx.fillText(`FASE ${game.stage}`, WORLD_WIDTH / 2, WORLD_HEIGHT / 2 - 8);
-      ctx.fillStyle = game.stage === 1 ? '#8ddcff' : '#fdba74';
+      ctx.fillStyle = game.stage === 1 ? '#8ddcff' : game.stage === 2 ? '#fdba74' : '#f0abfc';
       ctx.font = '800 14px system-ui';
-      ctx.fillText(game.stage === 1 ? 'SOBREVIVA POR 5 MINUTOS' : 'CHECKPOINT DESBLOQUEADO', WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 28);
+      ctx.fillText(
+        game.stage === 1
+          ? 'SOBREVIVA POR 5 MINUTOS'
+          : game.stage === 2
+            ? 'SOBREVIVA MAIS 5 MINUTOS'
+            : 'CUIDADO COM AS DIAGONAIS',
+        WORLD_WIDTH / 2,
+        WORLD_HEIGHT / 2 + 28,
+      );
       ctx.restore();
     }
   }, []);
@@ -476,7 +488,7 @@ export default function RiverMissionGame() {
       const dt = Math.min((now - game.lastFrame) / 1000, 0.035);
       game.lastFrame = now;
       const controls = controlsRef.current;
-      const stageSpeed = game.stage === 2 ? 1.22 : 1;
+      const stageSpeed = game.stage === 3 ? 1.38 : game.stage === 2 ? 1.22 : 1;
       const scrollSpeed = (controls.boost ? 215 : controls.brake ? 92 : 145) * stageSpeed;
       const horizontalSpeed = controls.boost ? 205 : 235;
 
@@ -488,7 +500,8 @@ export default function RiverMissionGame() {
       game.score += scrollSpeed * dt * 0.12;
       game.stageElapsed += dt;
       game.stageIntroFor = Math.max(0, game.stageIntroFor - dt);
-      game.energy -= (controls.boost ? 4.7 : controls.brake ? 1.2 : 2.6) * (game.stage === 2 ? 1.12 : 1) * dt;
+      const stageEnergyDrain = game.stage === 3 ? 1.22 : game.stage === 2 ? 1.12 : 1;
+      game.energy -= (controls.boost ? 4.7 : controls.brake ? 1.2 : 2.6) * stageEnergyDrain * dt;
       game.enemyTimer -= dt;
       game.energyTimer -= dt;
       game.shotCooldown -= dt;
@@ -504,16 +517,19 @@ export default function RiverMissionGame() {
         const bounds = riverBounds(-40, game.riverOffset);
         const kind = Math.random() > 0.55 ? 'boat' : 'drone';
         const width = kind === 'boat' ? 28 : 42;
+        const movesDiagonally = game.stage === 3 && Math.random() < 0.62;
         game.enemies.push({
           x: bounds.left + 35 + Math.random() * Math.max(20, bounds.right - bounds.left - 70),
           y: -42,
           width,
           height: kind === 'boat' ? 36 : 25,
           speed: scrollSpeed * (kind === 'boat' ? 0.83 : 1.08),
+          vx: movesDiagonally ? (Math.random() > 0.5 ? 1 : -1) * (48 + Math.random() * 52) : 0,
           kind,
         });
         const difficulty = Math.min(0.55, game.distance / 2200);
-        game.enemyTimer = Math.max(0.28, 1.05 - difficulty - (game.stage === 2 ? 0.16 : 0) + Math.random() * 0.45);
+        const stageSpawnBonus = game.stage === 3 ? 0.25 : game.stage === 2 ? 0.16 : 0;
+        game.enemyTimer = Math.max(0.25, 1.05 - difficulty - stageSpawnBonus + Math.random() * 0.45);
       }
 
       if (game.energyTimer <= 0) {
@@ -528,7 +544,21 @@ export default function RiverMissionGame() {
       }
 
       game.bullets.forEach((bullet) => { bullet.y -= bullet.speed * dt; });
-      game.enemies.forEach((enemy) => { enemy.y += enemy.speed * dt; });
+      game.enemies.forEach((enemy) => {
+        enemy.y += enemy.speed * dt;
+        enemy.x += enemy.vx * dt;
+        if (enemy.vx !== 0) {
+          const bounds = riverBounds(enemy.y, game.riverOffset);
+          const margin = enemy.width / 2 + 8;
+          if (enemy.x < bounds.left + margin) {
+            enemy.x = bounds.left + margin;
+            enemy.vx = Math.abs(enemy.vx);
+          } else if (enemy.x > bounds.right - margin) {
+            enemy.x = bounds.right - margin;
+            enemy.vx = -Math.abs(enemy.vx);
+          }
+        }
+      });
       game.energyCells.forEach((cell) => { cell.y += cell.speed * dt; });
 
       for (let bulletIndex = game.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
@@ -578,8 +608,8 @@ export default function RiverMissionGame() {
       if (game.playerX - 14 < playerRiver.left || game.playerX + 14 > playerRiver.right) hitPlayer();
       if (game.energy <= 0) finishGame(game);
 
-      if (game.stage === 1 && game.stageElapsed >= STAGE_ONE_DURATION_SECONDS && statusRef.current === 'playing') {
-        game.stage = 2;
+      if (game.stage < 3 && game.stageElapsed >= STAGE_DURATION_SECONDS && statusRef.current === 'playing') {
+        game.stage = (game.stage + 1) as GameStage;
         game.stageElapsed = 0;
         game.stageIntroFor = 3;
         game.energy = 100;
@@ -591,7 +621,7 @@ export default function RiverMissionGame() {
         game.enemyTimer = 1;
         game.energyTimer = 4;
         try {
-          window.localStorage.setItem(UNLOCKED_STAGE_KEY, '2');
+          window.localStorage.setItem(UNLOCKED_STAGE_KEY, String(game.stage));
         } catch {
           // Mantém a transição na sessão mesmo se o armazenamento local estiver bloqueado.
         }
@@ -631,19 +661,21 @@ export default function RiverMissionGame() {
         title: `LBW River Mission — Fase ${hud.stage}`,
         text: hud.stage === 1
           ? 'Sobreviva por 5 minutos para desbloquear a Fase 2.'
-          : 'Checkpoint salvo: você começará diretamente na Fase 2.',
+          : hud.stage === 2
+            ? 'Sobreviva por mais 5 minutos para desbloquear a Fase 3.'
+            : 'Checkpoint salvo: você começará diretamente na Fase 3.',
       }
     : status === 'paused'
       ? { title: 'Jogo pausado', text: 'Sua missão está preservada.' }
       : {
           title: `Fim da tentativa — Fase ${hud.stage}`,
-          text: hud.stage === 2
-            ? `Você marcou ${hud.score} pontos. A Fase 2 continua desbloqueada.`
+          text: hud.stage > 1
+            ? `Você marcou ${hud.score} pontos. A Fase ${hud.stage} continua desbloqueada.`
             : `Você percorreu ${hud.distance} metros. Tente novamente sobreviver aos 5 minutos.`,
         };
 
-  const displayedTime = hud.stage === 1
-    ? formatTime(STAGE_ONE_DURATION_SECONDS - hud.stageElapsed)
+  const displayedTime = hud.stage < 3
+    ? formatTime(STAGE_DURATION_SECONDS - hud.stageElapsed)
     : formatTime(hud.stageElapsed);
 
   return (
@@ -653,7 +685,7 @@ export default function RiverMissionGame() {
           <div className="grid grid-cols-5 gap-px bg-white/10 border-b border-white/10">
             <HudItem label="Pontos" value={hud.score.toLocaleString('pt-BR')} />
             <HudItem label="Fase" value={String(hud.stage)} />
-            <HudItem label={hud.stage === 1 ? 'Restante' : 'Tempo'} value={displayedTime} />
+            <HudItem label={hud.stage < 3 ? 'Restante' : 'Tempo'} value={displayedTime} />
             <HudItem label="Vidas" value={'●'.repeat(Math.max(0, hud.lives)) || '—'} />
             <HudItem label="Recorde" value={hud.best.toLocaleString('pt-BR')} />
           </div>
@@ -778,7 +810,9 @@ export default function RiverMissionGame() {
             <p className="text-sm text-cyan-950 leading-relaxed m-0">
               {hud.stage === 1
                 ? 'Sobreviva por 5 minutos, destrua obstáculos e administre sua energia para desbloquear a Fase 2.'
-                : 'A Fase 2 é mais rápida e tem mais inimigos. Se perder, você recomeçará desta fase.'}
+                : hud.stage === 2
+                  ? 'A Fase 2 é mais rápida. Sobreviva por mais 5 minutos para desbloquear a Fase 3.'
+                  : 'Na Fase 3, parte dos inimigos desce em diagonal e muda de direção. Se perder, você recomeçará desta fase.'}
             </p>
           </div>
         </aside>
