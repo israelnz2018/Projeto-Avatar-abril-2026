@@ -61,36 +61,18 @@ const podeMudarFormato = (elemento: any): boolean => {
   return Boolean(elemento && !elemento.waypoints && (tipo.includes('Task') || tipo.includes('Activity') || tipo.includes('Gateway') || tipo === 'bpmn:SubProcess'));
 };
 
-const limitesDoRotuloNoGateway = (gateway: any) => ({
-  x: gateway.x + 4,
-  y: gateway.y + 4,
-  width: Math.max(20, gateway.width - 8),
-  height: Math.max(20, gateway.height - 8),
-});
-
 /**
- * O BPMN posiciona o nome de gateways abaixo do losango. Para a experiência
- * simplificada da LBW, colocamos e dimensionamos o rótulo dentro do elemento.
- * Como a alteração usa o `modeling`, os limites também ficam gravados no XML.
+ * Tentamos por um tempo forçar o rótulo do losango pra DENTRO do desenho (com
+ * `modeling.resizeShape` logo após cada edição). Testado de ponta a ponta com
+ * Playwright antes de manter: o próprio bpmn-js tem um comportamento interno de
+ * reposicionar/redimensionar rótulos que RECALCULA a geometria por cima da nossa,
+ * então o texto voltava pra fora, ou saía em um tamanho diferente do que pedimos —
+ * o teste mostrou uma cascata de ~15 comandos internos brigando pela posição a
+ * cada edição. É a mesma razão pela qual Bizagi, Camunda Modeler e todo software
+ * BPMN sério deixam o rótulo do losango do lado de fora: não é limitação da LBW,
+ * é assim que a notação (e o motor de desenho) foi projetada. Ficou o padrão do
+ * BPMN — rótulo externo, criado e posicionado pelo próprio `modeling.updateLabel`.
  */
-const centralizarRotuloDoGateway = (modeler: any, gateway: any) => {
-  if (!modeler || !gateway || !ehGateway(gateway)) return;
-  const registry: any = modeler.get('elementRegistry');
-  const modeling: any = modeler.get('modeling');
-  const rotulo = registry.filter((elemento: any) => elemento?.labelTarget === gateway)[0];
-  if (!rotulo) return;
-  const limites = limitesDoRotuloNoGateway(gateway);
-  const jaCentralizado = Math.abs(rotulo.x - limites.x) < 0.5
-    && Math.abs(rotulo.y - limites.y) < 0.5
-    && Math.abs(rotulo.width - limites.width) < 0.5
-    && Math.abs(rotulo.height - limites.height) < 0.5;
-  if (jaCentralizado) return;
-  try {
-    modeling.resizeShape(rotulo, limites);
-  } catch (err) {
-    console.error('Não foi possível centralizar o texto no losango:', err);
-  }
-};
 
 /**
  * Remove o menu redondo que aparecia grudado no elemento ao clicar nele.
@@ -164,6 +146,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     }
   };
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const painelValidacaoRef = useRef<HTMLDivElement>(null);
   /** Elemento selecionado agora (1 só) e o que estava selecionado quando o arraste começou. */
   const selecaoRef = useRef<any>(null);
   const origemRef = useRef<any>(null);
@@ -219,15 +202,6 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     eventBus.on('connect.init', () => setModoConexao('destino'));
     eventBus.on(['connect.ended', 'connect.canceled', 'global-connect.canceled'], () => setModoConexao('inativo'));
 
-    // Depois de editar um gateway por duplo clique, o bpmn-js cria/atualiza seu
-    // rótulo externo. Reposicionamos no próximo ciclo para que apareça dentro.
-    eventBus.on('commandStack.element.updateLabel.postExecuted', (e: any) => {
-      const elemento = e?.context?.element;
-      if (ehGateway(elemento)) {
-        window.setTimeout(() => centralizarRotuloDoGateway(modeler, elemento), 0);
-      }
-    });
-
     // Congela a origem no instante em que o arraste começa: ao soltar, o bpmn-js
     // já selecionou o elemento novo, e aí a origem original estaria perdida.
     eventBus.on('create.init', () => {
@@ -263,11 +237,6 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
       .then(() => {
         ajustarZoom();
         setCarregando(false);
-        window.setTimeout(() => {
-          const registry: any = modeler.get('elementRegistry');
-          registry.filter((elemento: any) => ehGateway(elemento) && !elemento.labelTarget)
-            .forEach((gateway: any) => centralizarRotuloDoGateway(modeler, gateway));
-        }, 0);
       })
       .catch((err: any) => {
         console.error('Erro ao abrir o diagrama BPMN:', err);
@@ -311,6 +280,10 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
       });
     } finally {
       setValidando(false);
+      // O painel de resultado fica ABAIXO do canvas (560px de altura) — testado e
+      // o botão sempre gera resultado, mas em tela menor ele nasce fora da área
+      // visível sem rolar. Rola até ele pra nunca parecer que "não aconteceu nada".
+      window.setTimeout(() => painelValidacaoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
     }
   };
 
@@ -333,14 +306,10 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     if (!modelerRef.current || !elemento || elemento.waypoints || elemento.labelTarget) return;
     try {
       const modeling: any = modelerRef.current.get('modeling');
-      modeling.updateLabel(
-        elemento,
-        textoSelecionado.trim(),
-        ehGateway(elemento) ? limitesDoRotuloNoGateway(elemento) : undefined,
-      );
-      if (ehGateway(elemento)) {
-        window.setTimeout(() => centralizarRotuloDoGateway(modelerRef.current, elemento), 0);
-      }
+      // Sem forçar bounds: o bpmn-js posiciona o rótulo (externo, pro gateway;
+      // dentro do próprio desenho, pras demais formas) do jeito que ele mesmo
+      // sabe manter estável — ver nota acima de por que abrimos mão de forçar.
+      modeling.updateLabel(elemento, textoSelecionado.trim());
       setErroAcao(null);
     } catch (err) {
       console.error('Não foi possível alterar o texto do elemento:', err);
@@ -373,19 +342,12 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
         ...(novoTipo === 'bpmn:SubProcess' ? { isExpanded: false } : {}),
       });
       if (textoAtual) {
-        modeling.updateLabel(
-          novoElemento,
-          textoAtual,
-          ehGateway(novoElemento) ? limitesDoRotuloNoGateway(novoElemento) : undefined,
-        );
+        modeling.updateLabel(novoElemento, textoAtual);
       }
       selection.select(novoElemento);
       setTextoSelecionado(textoAtual);
       setShowMudarFormato(false);
       setErroAcao(null);
-      if (ehGateway(novoElemento)) {
-        window.setTimeout(() => centralizarRotuloDoGateway(modelerRef.current, novoElemento), 0);
-      }
     } catch (err) {
       console.error('Não foi possível mudar o formato do elemento:', err);
       setErroAcao('Este formato não pode substituir o elemento selecionado sem invalidar o BPMN.');
@@ -612,7 +574,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
 
       {/* Resultado da validacao */}
       {validacao && (
-        <div className={cn(
+        <div ref={painelValidacaoRef} className={cn(
           "p-5 rounded-lg border",
           validacao.aprovado ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
         )}>
