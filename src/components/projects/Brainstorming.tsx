@@ -39,6 +39,7 @@ const BRAINSTORMING_EXEMPLOS = [
 ];
 
 interface BrainstormingProps {
+  toolId?: string;
   onSave: (data: any) => void;
   initialData?: any;
   onGenerateAI?: (customContext?: any) => Promise<void>;
@@ -87,9 +88,12 @@ const BRAINSTORMING_TYPES = [
   'Identificação de riscos'
 ];
 
-export default function Brainstorming({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: BrainstormingProps) {
+export default function Brainstorming({ toolId, onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: BrainstormingProps) {
+  const isSolutionBrainstorming = toolId === 'brainstormingImprove';
   const defaultData = initialData?.toolData || initialData;
-  const [brainstormingType, setBrainstormingType] = useState(defaultData?.brainstormingType || BRAINSTORMING_TYPES[0]);
+  const [brainstormingType, setBrainstormingType] = useState(
+    defaultData?.brainstormingType || (isSolutionBrainstorming ? 'Identificar melhor solução' : BRAINSTORMING_TYPES[0])
+  );
   const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || '');
   const [ideas, setIdeas] = useState<Idea[]>(defaultData?.ideas || []);
   const isToolEmpty = ideas.length === 0;
@@ -106,10 +110,10 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
     } else {
       // Reset to defaults if initialData is null/undefined
       setIdeas([]);
-      setBrainstormingType(BRAINSTORMING_TYPES[0]);
+      setBrainstormingType(isSolutionBrainstorming ? 'Identificar melhor solução' : BRAINSTORMING_TYPES[0]);
       setBrainstormingTopic('');
     }
-  }, [initialData]);
+  }, [initialData, isSolutionBrainstorming]);
 
   const [newIdea, setNewIdea] = useState('');
   const [author, setAuthor] = useState('');
@@ -126,6 +130,19 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
   // Bloco de IA só aparece se o Brainstorming AINDA está vazio (nao sobrescreve
   // ideias já registradas). 3 condições: Brainstorming vazio + Mapa existe + preenchido.
   const brainstormingVazio = !Array.isArray(ideas) || ideas.every((i: any) => !i?.text || !i.text.trim());
+
+  const handleGenerateSolutions = async () => {
+    const improvementGoal = brainstormingTopic.trim();
+    if (improvementGoal.length < 10) {
+      toast.error('Descreva com um pouco mais de detalhe o que você quer melhorar.');
+      return;
+    }
+    if (!onGenerateAI) {
+      toast.error('A geração com IA não está disponível neste momento.');
+      return;
+    }
+    await onGenerateAI({ improvementGoal });
+  };
 
   const handleGenerateFromMap = async () => {
     if (!temMapa) {
@@ -162,7 +179,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
     const idea: Idea = {
       id: Date.now().toString(),
       text: newIdea,
-      category: 'Mão de Obra',
+      category: isSolutionBrainstorming ? 'Adicionada manualmente' : 'Mão de Obra',
       author: author || '',
       votes: 0
     };
@@ -210,7 +227,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
     <div className="space-y-8">
       {/* Box de IA — gera causas potenciais a partir das etapas do Mapa de Processo.
           Só aparece se o Mapa existe/está preenchido E o Brainstorming ainda está vazio. */}
-      {temMapa && brainstormingVazio && (
+      {!isSolutionBrainstorming && temMapa && brainstormingVazio && (
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
@@ -274,20 +291,61 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
           <div className="flex items-center gap-3">
             <Lightbulb className="text-yellow-500" size={24} />
             <div>
-              <h2 className="text-[1.25rem] font-bold text-[#333]">Brainstorming</h2>
-              <p className="text-[12px] text-[#666]">Colete opiniões e ideias sobre possíveis causas e variáveis do processo.</p>
+              <h2 className="text-[1.25rem] font-bold text-[#333]">
+                {isSolutionBrainstorming ? 'Brainstorming de Soluções' : 'Brainstorming'}
+              </h2>
+              <p className="text-[12px] text-[#666]">
+                {isSolutionBrainstorming
+                  ? 'Gere soluções conectadas ao objetivo e às evidências já registradas no projeto.'
+                  : 'Colete opiniões e ideias sobre possíveis causas e variáveis do processo.'}
+              </p>
             </div>
           </div>
-          <button
+          {!isSolutionBrainstorming && <button
             onClick={() => setShowExemplo(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0 shrink-0"
           >
             <BookOpen size={14} /> Ver exemplo
-          </button>
+          </button>}
         </div>
 
         {/* Configuration Area */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {isSolutionBrainstorming ? (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-5 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-blue-700 uppercase tracking-widest flex items-center gap-2">
+                <Target size={15} /> O que você quer melhorar?
+              </label>
+              <textarea
+                value={brainstormingTopic}
+                onChange={(e) => setBrainstormingTopic(e.target.value)}
+                placeholder="Ex.: Reduzir o tempo de aprovação de pagamentos sem aumentar o risco de erros."
+                rows={3}
+                className="w-full p-4 border border-blue-200 rounded-lg text-[14px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm resize-y"
+              />
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <p className="text-xs text-blue-700 leading-relaxed m-0">
+                A IA combinará este objetivo com as causas e análises já registradas no projeto.
+                Revise as sugestões e acrescente novas ideias manualmente quando quiser.
+              </p>
+              <button
+                type="button"
+                onClick={handleGenerateSolutions}
+                disabled={!!isGeneratingAI || brainstormingTopic.trim().length < 10}
+                className={cn(
+                  'min-w-[220px] h-12 px-5 rounded-lg flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest border-none transition-all',
+                  isGeneratingAI || brainstormingTopic.trim().length < 10
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer shadow-lg shadow-blue-100 active:scale-95'
+                )}
+              >
+                {isGeneratingAI ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
+                {isGeneratingAI ? 'Gerando soluções...' : ideas.length ? 'Gerar novas soluções' : 'Gerar ideias com IA'}
+              </button>
+            </div>
+          </div>
+        ) : <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
               <HelpCircle size={14} className="text-blue-500" />
@@ -314,7 +372,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
               className="w-full p-3 border border-[#ccc] rounded-[4px] text-[13px] focus:outline-none focus:border-blue-500 shadow-sm"
             />
           </div>
-        </div>
+        </div>}
 
         {/* Input Area */}
         <div className="bg-[#f9fafb] p-6 rounded-[8px] border border-[#eee] space-y-4">
@@ -322,13 +380,13 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
             <div className="md:col-span-2 space-y-1">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                 <MessageSquare size={14} className="text-blue-500" />
-                Ideia
+                {isSolutionBrainstorming ? 'Adicionar outra solução' : 'Ideia'}
               </label>
               <input 
                 type="text"
                 value={newIdea}
                 onChange={(e) => setNewIdea(e.target.value)}
-                placeholder="Digite sua ideia aqui..."
+                placeholder={isSolutionBrainstorming ? 'Digite uma solução adicional...' : 'Digite sua ideia aqui...'}
                 className="w-full p-3 border border-[#ccc] rounded-[4px] text-[13px] focus:outline-none focus:border-blue-500 shadow-sm"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -365,7 +423,9 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
         {/* Ideas Table */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-[14px] font-black text-[#333] uppercase tracking-widest">Ideias Coletadas ({ideas.length})</h3>
+            <h3 className="text-[14px] font-black text-[#333] uppercase tracking-widest">
+              {isSolutionBrainstorming ? 'Ideias de solução' : 'Ideias coletadas'} ({ideas.length})
+            </h3>
           </div>
           
           <div className="overflow-x-auto border border-[#eee] rounded-[8px] shadow-sm">
@@ -383,7 +443,7 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
                   <tr key={idea.id} className="border-b border-[#f5f5f5] hover:bg-gray-50 transition-colors">
                     <td className="p-4 text-center">
                       <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-[11px] font-black rounded border border-blue-100">
-                        X{index + 1}
+                        {isSolutionBrainstorming ? 'S' : 'X'}{index + 1}
                       </span>
                     </td>
                     <td className="p-4 text-[13px] text-[#333] font-medium">
@@ -456,7 +516,11 @@ export default function Brainstorming({ onSave, initialData, onGenerateAI, isGen
                   <tr>
                     <td colSpan={4} className="p-12 text-center">
                       <Lightbulb className="mx-auto text-[#ccc] mb-2" size={32} />
-                      <p className="text-[#999] text-[13px]">Nenhuma ideia coletada ainda. Comece a brainstormar!</p>
+                      <p className="text-[#999] text-[13px]">
+                        {isSolutionBrainstorming
+                          ? 'Informe acima o que deseja melhorar e gere as primeiras ideias.'
+                          : 'Nenhuma ideia coletada ainda. Comece a brainstormar!'}
+                      </p>
                     </td>
                   </tr>
                 )}

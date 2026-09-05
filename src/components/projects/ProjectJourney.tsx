@@ -1286,6 +1286,7 @@ useEffect(() => {
             {({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData: wrapperAllProjectData }) => {
               const Component = ActiveComponent as any;
               const commonProps = {
+                toolId: activeTool.id,
                 onSave,
                 initialData: initialData && typeof initialData === 'object' && 'toolData' in initialData
                   ? initialData.toolData

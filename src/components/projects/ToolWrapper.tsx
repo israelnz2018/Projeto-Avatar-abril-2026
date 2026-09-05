@@ -1506,9 +1506,14 @@ export default function ToolWrapper({
 
       if (toolId === 'brainstormingImprove' && allProjectData) {
         targetContext = {
+          improvementGoal: customContext?.improvementGoal || '',
           brief: getToolDataByPrefix(allProjectData, 'brief'),
           directObservation: getToolDataByPrefix(allProjectData, 'directObservation'),
-          statisticalAnalysis: getToolDataByPrefix(allProjectData, 'statisticalAnalysis')
+          fiveWhys: getToolDataByPrefix(allProjectData, 'fiveWhys'),
+          measureIshikawa: getToolDataByPrefix(allProjectData, 'measureIshikawa'),
+          measureMatrix: getToolDataByPrefix(allProjectData, 'measureMatrix'),
+          statisticalAnalysis: getToolDataByPrefix(allProjectData, 'statisticalAnalysis'),
+          dataNature: getToolDataByPrefix(allProjectData, 'dataNature'),
         };
       }
 
@@ -1558,9 +1563,27 @@ export default function ToolWrapper({
         previousToolName || null,
         targetContext,
         { name: projectName, description: project.description },
-        allProjectData
+        // Para soluções, enviamos somente as evidências selecionadas acima. Isso
+        // reduz ruído e impede que informações sem relação contaminem as ideias.
+        toolId === 'brainstormingImprove' ? targetContext : allProjectData
       );
       let normalized = normalizeInitialData(toolId, generatedData);
+
+      if (toolId === 'brainstormingImprove') {
+        const anterior = localData?.toolData || localData || {};
+        const manuais = Array.isArray(anterior.ideas)
+          ? anterior.ideas.filter((idea: any) => idea?.author !== 'IA LBW')
+          : [];
+        const geradas = Array.isArray(normalized.ideas) ? normalized.ideas : [];
+        normalized = {
+          ...normalized,
+          brainstormingType: 'Identificar melhor solução',
+          brainstormingTopic: customContext?.improvementGoal || normalized.brainstormingTopic || anterior.brainstormingTopic || '',
+          // Uma nova geração substitui apenas as sugestões antigas da IA; ideias
+          // acrescentadas manualmente pelo aluno são preservadas.
+          ideas: [...manuais, ...geradas],
+        };
+      }
 
       // Natureza dos Dados analisa um X por vez, entao cada geracao ACUMULA em
       // vez de substituir — senao a analise anterior seria perdida a cada X novo.
@@ -1964,7 +1987,7 @@ export default function ToolWrapper({
           Antes checava previousToolData (a ferramenta anterior por ORDEM da fase, não a
           fonte declarada) — por isso o SIPOC mostrava o bloco mesmo sem Charter preenchido.
           Agora a fonte vem de `toolLink`, que respeita o que o projeto declarou. */}
-      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && showAIPrompt && linkHasContent && (
+      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && toolId !== 'brainstormingImprove' && showAIPrompt && linkHasContent && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}

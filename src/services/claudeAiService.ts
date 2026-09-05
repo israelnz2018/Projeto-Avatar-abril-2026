@@ -74,6 +74,7 @@ export const sanitizeToolData = (toolId: string, data: any, context?: any): any 
     measureAdkar: ['stakeholders'],
     sipoc: ['suppliers', 'inputs', 'process', 'outputs', 'customers'],
     brainstorming: ['ideas'],
+    brainstormingImprove: ['ideas'],
     measureIshikawa: [],
     gut: ['opportunities'],
     rab: ['opportunities'],

@@ -383,12 +383,14 @@ REGRA #9 - CHANNEL e FREQUENCY
   brainstormingImprove: {
     toolName: "Brainstorming de Soluções",
     structure: `{
+  "brainstormingType": "Identificar melhor solução",
+  "brainstormingTopic": "Texto exato de improvementGoal",
   "ideas": [
     {
       "id": "1",
       "text": "Descricao da solucao proposta",
       "category": "Causa associada",
-      "author": "",
+      "author": "IA LBW",
       "votes": 0
     }
   ]
@@ -397,19 +399,31 @@ REGRA #9 - CHANNEL e FREQUENCY
 Voce esta gerando solucoes (acoes de melhoria) para as causas identificadas no projeto.
 
 CONTEXTO RECEBIDO:
-Voce vai receber:
-- brief: contexto do projeto (problema, indicador Y, meta)
-- directObservation: analises qualitativas feitas no Gemba
-- statisticalAnalysis: analises estatisticas das variaveis quantitativas
+Voce vai receber somente estas fontes quando estiverem preenchidas:
+- improvementGoal: o que o aluno declarou que quer melhorar
+- brief: problema, indicador Y, meta e escopo
+- directObservation: evidencias observadas no Gemba
+- fiveWhys e measureIshikawa: causas investigadas
+- measureMatrix: causas avaliadas e priorizadas
+- statisticalAnalysis e dataNature: evidencias quantitativas e relacoes entre X e Y
 
 REGRAS:
-1. Para CADA observacao em directObservation.observations, gere 1 ou 2 solucoes especificas.
-2. Para CADA analise em statisticalAnalysis.analyses, gere 1 ou 2 solucoes especificas.
-3. As solucoes devem ser concretas, executaveis e relacionadas a causa observada.
-4. No campo "category", coloque a variavel/causa relacionada (ex: o nome da variavel X).
-5. Use linguagem tecnica de Lean Six Sigma.
-6. Priorize solucoes que atacam a causa raiz, nao sintomas.
-7. Sugira pelo menos 6 a 10 solucoes no total.
+1. improvementGoal e obrigatorio e delimita o foco. Nao gere nenhuma ideia fora dele.
+2. Use apenas fatos, causas, variaveis e restricoes presentes no contexto recebido.
+   Nao invente maquinas, sistemas, departamentos, tecnologias, cargos ou problemas.
+3. Cada solucao deve atacar uma causa ou evidencia identificavel no contexto. No campo
+   "category", escreva de forma curta essa causa/evidencia. Nunca use categoria generica.
+4. Se uma informacao nao estiver comprovada, trate-a como hipotese a validar, nunca como fato.
+5. Escreva solucoes concretas no formato acao + objeto + local/condicao quando aplicavel.
+   Evite frases vagas como "melhorar processo", "treinar equipe" ou "acompanhar melhor".
+6. Nao confunda solucao com sintoma, meta ou analise. Priorize atuar na causa raiz.
+7. Varie os mecanismos quando forem sustentados pelo contexto: eliminar etapa, simplificar,
+   padronizar, prevenir erro, automatizar, balancear carga, controlar parametro ou criar alerta.
+8. Elimine duplicidades e ideias que sejam apenas reformulacoes umas das outras.
+9. Gere de 6 a 10 solucoes. Se o contexto nao sustentar seis ideias relevantes, gere menos;
+   qualidade e aderencia ao projeto sao mais importantes que quantidade.
+10. "brainstormingTopic" deve repetir exatamente improvementGoal e
+    "brainstormingType" deve ser exatamente "Identificar melhor solução".
 
 Retorne APENAS o JSON no formato especificado.`
   },
