@@ -98,7 +98,14 @@ export const qualitativasDoPlano = (plano: any): VariavelDoProjeto[] => {
  * A regra da adjacencia continua valendo: quem decide qual ferramenta alimenta
  * qual e o consultor, e so a vizinha imediata transfere. O que esta funcao faz e
  * garantir que a lista NAO MORRA no caminho — cada ferramenta repassa adiante o
- * que RECEBEU (`variaveisDisponiveis`) somado ao que ela mesma PRODUZIU.
+ * que RECEBEU (`variaveisDisponiveis`) mais o que estiver preenchido nela.
+ *
+ * ATENCAO ao conceito: quem LEVANTA X sao as ferramentas de causa (Espinha de
+ * Peixe, Matriz Causa e Efeito). Observacao Direta, Natureza dos Dados e 5
+ * Porques nao geram X — elas INVESTIGAM o X que receberam. Por isso a ordem de
+ * leitura abaixo poe `recebidas` primeiro: o X mantem a origem de quem o
+ * levantou, e o que essas tres acrescentam so entra quando o aluno digitou uma
+ * variavel nova a mao (todas as tres permitem, como a Espinha de Peixe permite).
  *
  * Assim a mesma lista de X atravessa a cadeia, um passo de cada vez:
  *   Espinha de Peixe -> Observacao Direta -> Natureza dos Dados -> 5 Porques
