@@ -2,11 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
-import { ArrowRight, Download, Upload, CheckCircle2, AlertTriangle, XCircle, BookOpen, X, Loader2, Maximize2, Replace as ReplaceIcon, Type } from 'lucide-react';
+import { Download, Upload, CheckCircle2, AlertTriangle, XCircle, BookOpen, X, Loader2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { BPMN_TEMPLATE_AS_IS } from '@/src/services/bpmnTemplate';
 import { validarBpmn, type BpmnValidationResult } from '@/src/services/bpmnValidator';
-import { traducaoPtBr } from '@/src/services/bpmnTraducao';
 
 /**
  * Mapa de Processo BPMN — editor BPMN 2.0 real.
@@ -29,13 +28,12 @@ interface BpmnProcessMapProps {
   onClearAIData?: () => void;
 }
 
-/** Largura da paleta do bpmn-js (2 colunas) + folga, em pixels. */
-const PALETA_PX = 140;
-
 /**
- * Cores oferecidas ao aluno. Preenchimento claro com borda mais forte da mesma
- * familia — o texto preto do BPMN continua legivel por cima, coisa que fundo
- * saturado estraga. Sao as cores que o Bizagi tambem entende ao abrir o arquivo.
+ * Cores oferecidas ao aluno — a UNICA adicao da LBW sobre o editor padrao.
+ *
+ * Preenchimento claro com borda mais forte da mesma familia: o BPMN escreve o
+ * texto em preto, e fundo saturado deixa ilegivel. Sao cores que o Bizagi tambem
+ * entende ao abrir o arquivo.
  */
 const CORES = [
   { nome: 'Azul', fill: '#DBEAFE', stroke: '#1E40AF' },
@@ -45,65 +43,6 @@ const CORES = [
   { nome: 'Roxo', fill: '#EDE9FE', stroke: '#5B21B6' },
   { nome: 'Cinza', fill: '#E5E7EB', stroke: '#374151' },
 ];
-
-const FORMATOS_ELEMENTO = [
-  { tipo: 'bpmn:Task', nome: 'Atividade (box)' },
-  { tipo: 'bpmn:ExclusiveGateway', nome: 'Decisão (losango)' },
-  { tipo: 'bpmn:ParallelGateway', nome: 'Paralelo (losango +)' },
-  { tipo: 'bpmn:InclusiveGateway', nome: 'Inclusivo (losango ○)' },
-  { tipo: 'bpmn:SubProcess', nome: 'Subprocesso (box)' },
-];
-
-const tipoDoElemento = (elemento: any): string => String(elemento?.businessObject?.$type || elemento?.type || '');
-const ehGateway = (elemento: any): boolean => tipoDoElemento(elemento).endsWith('Gateway');
-const podeMudarFormato = (elemento: any): boolean => {
-  const tipo = tipoDoElemento(elemento);
-  return Boolean(elemento && !elemento.waypoints && (tipo.includes('Task') || tipo.includes('Activity') || tipo.includes('Gateway') || tipo === 'bpmn:SubProcess'));
-};
-
-/**
- * Tentamos por um tempo forçar o rótulo do losango pra DENTRO do desenho (com
- * `modeling.resizeShape` logo após cada edição). Testado de ponta a ponta com
- * Playwright antes de manter: o próprio bpmn-js tem um comportamento interno de
- * reposicionar/redimensionar rótulos que RECALCULA a geometria por cima da nossa,
- * então o texto voltava pra fora, ou saía em um tamanho diferente do que pedimos —
- * o teste mostrou uma cascata de ~15 comandos internos brigando pela posição a
- * cada edição. É a mesma razão pela qual Bizagi, Camunda Modeler e todo software
- * BPMN sério deixam o rótulo do losango do lado de fora: não é limitação da LBW,
- * é assim que a notação (e o motor de desenho) foi projetada. Ficou o padrão do
- * BPMN — rótulo externo, criado e posicionado pelo próprio `modeling.updateLabel`.
- */
-
-/**
- * Remove o menu redondo que aparecia grudado no elemento ao clicar nele.
- *
- * Ele trazia ~9 icones espremidos por cima do desenho e confundia mais do que
- * ajudava. Substituimos o provedor de entradas do bpmn-js por um que nao devolve
- * nada — o que MANTEM intactos os modulos de que ele depende: edicao de texto por
- * duplo clique, selecao, conexao e criacao continuam funcionando normalmente.
- *
- * O que era feito por ali agora se faz assim:
- *   excluir  -> tecla Delete ou Backspace (ja vem ligada ao canvas pelo bpmn-js)
- *   ligar    -> ferramenta "Conectar elementos" na paleta
- *   criar    -> arrastar da paleta
- */
-class ProviderSemMenu {
-  static $inject = ['contextPad'];
-  constructor(contextPad: any) {
-    contextPad.registerProvider(this);
-  }
-  getContextPadEntries() {
-    return {};
-  }
-  getMultiElementContextPadEntries() {
-    return {};
-  }
-}
-
-const semMenuDeContexto = {
-  __init__: ['contextPadProvider'],
-  contextPadProvider: ['type', ProviderSemMenu],
-};
 
 /** Regras de modelagem do kit, mostradas no modal "Ver regras". */
 const REGRAS = [
@@ -123,33 +62,9 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
   const containerRef = useRef<HTMLDivElement>(null);
   const modelerRef = useRef<any>(null);
 
-  /**
-   * Enquadra o diagrama SEM deixar nada embaixo da paleta.
-   *
-   * `fit-viewport` sozinho encosta o desenho na borda esquerda — e a paleta do
-   * bpmn-js flutua exatamente ali, escondendo o inicio do fluxo e os nomes das
-   * raias. Aqui o desenho e reduzido pra caber na largura que sobra e depois
-   * empurrado pra direita da paleta, entao nada fica coberto nem sai da tela.
-   *
-   * bpmn-js tipa `get()` como unknown; o cast fica concentrado neste lugar so.
-   */
-  const ajustarZoom = () => {
-    const canvas: any = modelerRef.current?.get('canvas');
-    if (!canvas) return;
-    canvas.zoom('fit-viewport');
-    const vb = canvas.viewbox();
-    const largura = vb?.outer?.width || 0;
-    // Guarda: em container muito estreito, encolher mais atrapalharia em vez de ajudar.
-    if (largura > PALETA_PX * 2) {
-      canvas.zoom(vb.scale * ((largura - PALETA_PX) / largura));
-      canvas.scroll({ dx: PALETA_PX, dy: 0 });
-    }
-  };
+  /** bpmn-js tipa `get()` como unknown; concentra o cast num lugar so. */
+  const ajustarZoom = () => modelerRef.current?.get('canvas')?.zoom('fit-viewport');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const painelValidacaoRef = useRef<HTMLDivElement>(null);
-  /** Elemento selecionado agora (1 só) e o que estava selecionado quando o arraste começou. */
-  const selecaoRef = useRef<any>(null);
-  const origemRef = useRef<any>(null);
 
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -157,79 +72,17 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
   const [validando, setValidando] = useState(false);
   const [showRegras, setShowRegras] = useState(false);
   const [nomeProcesso, setNomeProcesso] = useState<string>(initialData?.nomeProcesso || '');
+  /** O que esta selecionado no canvas — so pra saber onde aplicar a cor. */
   const [selecionados, setSelecionados] = useState<any[]>([]);
-  const [textoSelecionado, setTextoSelecionado] = useState('');
-  const [showMudarFormato, setShowMudarFormato] = useState(false);
-  const [modoConexao, setModoConexao] = useState<'inativo' | 'origem' | 'destino'>('inativo');
-  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   // Monta o modelador uma vez. O XML salvo vence; sem nada salvo, entra o template do kit.
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // `additionalModules` com o módulo `translate` substitui o padrão da biblioteca,
-    // então toda a interface (paleta, menu de contexto, menu de troca) sai em português.
-    const modeler = new BpmnModeler({
-      container: containerRef.current,
-      additionalModules: [traducaoPtBr, semMenuDeContexto],
-    });
+    const modeler = new BpmnModeler({ container: containerRef.current });
     modelerRef.current = modeler;
 
-    // Guarda o que está selecionado — serve pra aplicar cor e pra saber de onde
-    // sai a seta na ligação automática logo abaixo.
-    modeler.on('selection.changed', (e: any) => {
-      const sel = e?.newSelection || [];
-      setSelecionados(sel);
-      selecaoRef.current = sel.length === 1 ? sel[0] : null;
-      const businessObject = sel.length === 1 ? sel[0]?.businessObject : null;
-      setTextoSelecionado(String(businessObject?.name || businessObject?.text || ''));
-      setShowMudarFormato(false);
-      setErroAcao(null);
-    });
-
-    // ---- Ligação automática ao arrastar da paleta ----
-    // Fluxo que o consultor pediu: clicar numa caixa, pegar o tipo na paleta,
-    // soltar onde quiser e JÁ SAIR LIGADO. O bpmn-js sozinho cria solto; aqui a
-    // seta é criada depois, da caixa que estava selecionada para a nova.
-    const eventBus: any = modeler.get('eventBus');
-    const modeling: any = modeler.get('modeling');
-    const rules: any = modeler.get('rules');
-
-    // A ferramenta de seta da paleta já respeita o ponto exato clicado na origem
-    // e no destino. Estes eventos transformam o comportamento técnico em uma
-    // sequência visível: primeiro origem, depois destino.
-    eventBus.on('global-connect.init', () => setModoConexao('origem'));
-    eventBus.on('connect.init', () => setModoConexao('destino'));
-    eventBus.on(['connect.ended', 'connect.canceled', 'global-connect.canceled'], () => setModoConexao('inativo'));
-
-    // Congela a origem no instante em que o arraste começa: ao soltar, o bpmn-js
-    // já selecionou o elemento novo, e aí a origem original estaria perdida.
-    eventBus.on('create.init', () => {
-      origemRef.current = selecaoRef.current;
-    });
-
-    eventBus.on('commandStack.shape.create.postExecuted', (e: any) => {
-      const novo = e?.context?.shape;
-      const origem = origemRef.current;
-      origemRef.current = null;
-      if (!novo || !origem || novo === origem) return;
-      // Já tem seta: acontece ao soltar em cima de um fluxo, que insere o
-      // elemento no meio dele. Nesse caso o bpmn-js já ligou — não duplicar.
-      if ((novo.incoming || []).length || (novo.outgoing || []).length) return;
-      // Só liga o que o BPMN permite: evita seta saindo de raia, de piscina ou
-      // chegando num evento inicial. A própria regra da biblioteca decide.
-      if (!rules.allowed('connection.create', { source: origem, target: novo })) return;
-      try {
-        modeling.connect(origem, novo);
-      } catch (err) {
-        // Ligação recusada em runtime não pode derrubar o desenho do aluno.
-        console.error('Nao foi possivel ligar automaticamente os elementos:', err);
-      }
-    });
-
-    eventBus.on('create.cancel', () => {
-      origemRef.current = null;
-    });
+    modeler.on('selection.changed', (e: any) => setSelecionados(e?.newSelection || []));
 
     const xmlInicial = initialData?.xml || BPMN_TEMPLATE_AS_IS;
     modeler
@@ -266,6 +119,19 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
     }
   }, [obterXml, onSave, nomeProcesso]);
 
+  /**
+   * Pinta os elementos selecionados.
+   *
+   * `modeling.setColor` grava a cor no PROPRIO arquivo .bpmn (background-color e
+   * border-color na camada grafica), entao ela sobrevive ao salvar, ao baixar e
+   * reabrir, e viaja junto pro Bizagi — nao e enfeite so de tela.
+   */
+  const aplicarCor = (cor: { fill: string; stroke: string } | null) => {
+    if (!modelerRef.current || selecionados.length === 0) return;
+    const modeling: any = modelerRef.current.get('modeling');
+    modeling.setColor(selecionados, cor ? { fill: cor.fill, stroke: cor.stroke } : { fill: undefined, stroke: undefined });
+  };
+
   const handleValidar = async () => {
     setValidando(true);
     try {
@@ -280,77 +146,6 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
       });
     } finally {
       setValidando(false);
-      // O painel de resultado fica ABAIXO do canvas (560px de altura) — testado e
-      // o botão sempre gera resultado, mas em tela menor ele nasce fora da área
-      // visível sem rolar. Rola até ele pra nunca parecer que "não aconteceu nada".
-      window.setTimeout(() => painelValidacaoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-    }
-  };
-
-  /**
-   * Pinta os elementos selecionados.
-   *
-   * `modeling.setColor` grava a cor no PRÓPRIO arquivo .bpmn (como background-color e
-   * border-color na camada gráfica), então a cor sobrevive ao salvar, ao baixar e
-   * reabrir, e viaja junto pro Bizagi — não é enfeite só de tela.
-   */
-  const aplicarCor = (cor: { fill: string; stroke: string } | null) => {
-    if (!modelerRef.current || selecionados.length === 0) return;
-    const modeling: any = modelerRef.current.get('modeling');
-    // null = "sem cor": volta ao padrão do BPMN em vez de pintar de branco.
-    modeling.setColor(selecionados, cor ? { fill: cor.fill, stroke: cor.stroke } : { fill: undefined, stroke: undefined });
-  };
-
-  const salvarTextoDoElemento = () => {
-    const elemento = selecaoRef.current;
-    if (!modelerRef.current || !elemento || elemento.waypoints || elemento.labelTarget) return;
-    try {
-      const modeling: any = modelerRef.current.get('modeling');
-      // Sem forçar bounds: o bpmn-js posiciona o rótulo (externo, pro gateway;
-      // dentro do próprio desenho, pras demais formas) do jeito que ele mesmo
-      // sabe manter estável — ver nota acima de por que abrimos mão de forçar.
-      modeling.updateLabel(elemento, textoSelecionado.trim());
-      setErroAcao(null);
-    } catch (err) {
-      console.error('Não foi possível alterar o texto do elemento:', err);
-      setErroAcao('Não foi possível alterar o texto deste elemento.');
-    }
-  };
-
-  const ativarConexao = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (!modelerRef.current) return;
-    const globalConnect: any = modelerRef.current.get('globalConnect');
-    if (globalConnect.isActive()) {
-      globalConnect.toggle();
-      setModoConexao('inativo');
-      return;
-    }
-    globalConnect.start(event.nativeEvent);
-    setModoConexao('origem');
-  };
-
-  const mudarFormato = (novoTipo: string) => {
-    const elemento = selecaoRef.current;
-    if (!modelerRef.current || !podeMudarFormato(elemento)) return;
-    try {
-      const bpmnReplace: any = modelerRef.current.get('bpmnReplace');
-      const modeling: any = modelerRef.current.get('modeling');
-      const selection: any = modelerRef.current.get('selection');
-      const textoAtual = String(elemento?.businessObject?.name || textoSelecionado || '');
-      const novoElemento = bpmnReplace.replaceElement(elemento, {
-        type: novoTipo,
-        ...(novoTipo === 'bpmn:SubProcess' ? { isExpanded: false } : {}),
-      });
-      if (textoAtual) {
-        modeling.updateLabel(novoElemento, textoAtual);
-      }
-      selection.select(novoElemento);
-      setTextoSelecionado(textoAtual);
-      setShowMudarFormato(false);
-      setErroAcao(null);
-    } catch (err) {
-      console.error('Não foi possível mudar o formato do elemento:', err);
-      setErroAcao('Este formato não pode substituir o elemento selecionado sem invalidar o BPMN.');
     }
   };
 
@@ -433,24 +228,6 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
           <button onClick={() => fileInputRef.current?.click()} className={cn(btn, "bg-white border-gray-200 text-gray-700 hover:border-blue-300")}>
             <Upload size={14} /> Abrir .bpmn
           </button>
-          <button
-            onClick={ajustarZoom}
-            title="Encaixa o diagrama inteiro na tela"
-            className={cn(btn, "bg-white border-gray-200 text-gray-700 hover:border-blue-300")}
-          >
-            <Maximize2 size={14} /> Centralizar
-          </button>
-          <button
-            onClick={ativarConexao}
-            className={cn(
-              btn,
-              modoConexao !== 'inativo'
-                ? "bg-emerald-600 border-emerald-600 text-white"
-                : "bg-white border-gray-200 text-gray-700 hover:border-emerald-400"
-            )}
-          >
-            <ArrowRight size={15} /> {modoConexao === 'inativo' ? 'Conectar com seta' : 'Cancelar seta'}
-          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -460,67 +237,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
           />
         </div>
 
-        {modoConexao !== 'inativo' && (
-          <div className="flex items-center gap-3 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs text-white">
-              {modoConexao === 'origem' ? '1' : '2'}
-            </span>
-            {modoConexao === 'origem'
-              ? 'Clique exatamente no lado do elemento onde a seta deve começar.'
-              : 'Agora clique exatamente no lado do elemento onde a seta deve chegar.'}
-          </div>
-        )}
-
-        {selecionados.length === 1 && !selecionados[0]?.waypoints && !selecionados[0]?.labelTarget && (
-          <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="min-w-[240px] flex-1">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-800">
-                  <Type size={13} /> Texto do elemento
-                </span>
-                <input
-                  value={textoSelecionado}
-                  onChange={(e) => setTextoSelecionado(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') salvarTextoDoElemento(); }}
-                  placeholder={ehGateway(selecionados[0]) ? 'Ex: Solicitação aprovada?' : 'Digite o texto'}
-                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </label>
-              <button onClick={salvarTextoDoElemento} className={cn(btn, "bg-blue-600 border-blue-600 text-white hover:bg-blue-700")}>
-                Aplicar texto
-              </button>
-              {podeMudarFormato(selecionados[0]) && (
-                <button
-                  onClick={() => setShowMudarFormato((atual) => !atual)}
-                  className={cn(btn, "bg-white border-blue-200 text-blue-800 hover:border-blue-500")}
-                >
-                  <ReplaceIcon size={14} /> Mudar formato
-                </button>
-              )}
-            </div>
-
-            {showMudarFormato && (
-              <div className="grid grid-cols-1 gap-2 border-t border-blue-100 pt-3 sm:grid-cols-2 lg:grid-cols-5">
-                {FORMATOS_ELEMENTO.map((formato) => (
-                  <button
-                    key={formato.tipo}
-                    onClick={() => mudarFormato(formato.tipo)}
-                    className={cn(
-                      "rounded-lg border px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer",
-                      tipoDoElemento(selecionados[0]) === formato.tipo
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-blue-200 bg-white text-slate-700 hover:border-blue-500"
-                    )}
-                  >
-                    {formato.nome}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Cores — só aparece com algo selecionado, senão não haveria onde aplicar. */}
+        {/* Cores — so aparece com algo selecionado, senao nao haveria onde aplicar. */}
         {selecionados.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 bg-[#F0F2FA] border border-blue-100 rounded-lg">
             <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
@@ -537,7 +254,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
             ))}
             <button
               onClick={() => aplicarCor(null)}
-              title="Voltar à cor padrão do BPMN"
+              title="Voltar a cor padrao do BPMN"
               className="px-2.5 py-1 text-[11px] font-bold text-gray-500 bg-white border border-gray-200 rounded hover:border-blue-300 cursor-pointer"
             >
               Sem cor
@@ -550,17 +267,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
             <XCircle size={16} /> {erroCarga}
           </div>
         )}
-        {erroAcao && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            <AlertTriangle size={16} /> {erroAcao}
-          </div>
-        )}
       </div>
-
-      {/* O provedor vazio já não gera ícone nenhum, mas o bpmn-js ainda cria o
-          contêiner do menu e marca como aberto — sem isto sobraria uma caixinha
-          vazia grudada no elemento. */}
-      <style>{`.djs-context-pad { display: none !important; }`}</style>
 
       {/* Canvas — a marca d'agua do bpmn.io fica visivel por exigencia da licenca */}
       <div className="relative border border-[#ccc] rounded-lg overflow-hidden bg-white" style={{ height: 560 }}>
@@ -574,7 +281,7 @@ export default function BpmnProcessMap({ onSave, initialData, onClearAIData }: B
 
       {/* Resultado da validacao */}
       {validacao && (
-        <div ref={painelValidacaoRef} className={cn(
+        <div className={cn(
           "p-5 rounded-lg border",
           validacao.aprovado ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"
         )}>
