@@ -246,6 +246,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Ranking do LBW Arcade: cada aluno grava somente o próprio melhor resultado;
+    // usuários autenticados podem ler a classificação.
+    match /arcade_rankings/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId) &&
+        request.resource.data.keys().hasOnly([
+          'uid', 'nome', 'fase', 'pontos', 'distancia', 'atualizadoEm'
+        ]) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.fase in [1, 2, 3] &&
+        request.resource.data.pontos is number &&
+        request.resource.data.distancia is number;
+      allow delete: if isAdmin() || isOwner(userId);
+    }
+
     // Marca do TIME (PPT) — o coordenador escolhe usar o PPT do consultor ou o dele
     // (sigla + 3 cores). Guarda SÓ sigla + cores (sem dado sensível), então a leitura
     // é aberta a autenticados: o coordenador E os alunos do time leem o MESMO doc pra

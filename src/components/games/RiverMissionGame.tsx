@@ -47,6 +47,10 @@ interface HudState {
   stageElapsed: number;
 }
 
+interface RiverMissionGameProps {
+  onScore?: (score: { fase: GameStage; pontos: number; distancia: number }) => void;
+}
+
 function readBestScore(): number {
   try {
     return Number(window.localStorage.getItem(BEST_SCORE_KEY) || 0);
@@ -118,7 +122,7 @@ function overlaps(
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
-export default function RiverMissionGame() {
+export default function RiverMissionGame({ onScore }: RiverMissionGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const runtimeRef = useRef<RuntimeGame>(createRuntime());
@@ -211,9 +215,10 @@ export default function RiverMissionGame() {
     }
     syncHud(game);
     setHud((previous) => ({ ...previous, best }));
+    onScore?.({ fase: game.stage, pontos: finalScore, distancia: Math.floor(game.distance) });
     playSound('gameover');
     changeStatus('gameover');
-  }, [changeStatus, playSound, syncHud]);
+  }, [changeStatus, onScore, playSound, syncHud]);
 
   const startGame = useCallback(() => {
     const unlockedStage = readUnlockedStage();
@@ -620,6 +625,7 @@ export default function RiverMissionGame() {
         game.energyCells = [];
         game.enemyTimer = 1;
         game.energyTimer = 4;
+        onScore?.({ fase: game.stage, pontos: Math.floor(game.score), distancia: Math.floor(game.distance) });
         try {
           window.localStorage.setItem(UNLOCKED_STAGE_KEY, String(game.stage));
         } catch {
@@ -640,7 +646,7 @@ export default function RiverMissionGame() {
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, [drawGame, finishGame, playSound, status, syncHud]);
+  }, [drawGame, finishGame, onScore, playSound, status, syncHud]);
 
   const pointerControlProps = (control: keyof typeof controlsRef.current) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {

@@ -1,9 +1,39 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Car, Gamepad2, Lock, Plane, Sparkles } from 'lucide-react';
 import RiverMissionGame from './games/RiverMissionGame';
+import {
+  assinarRankingArcade,
+  ordenarRanking,
+  salvarMelhorResultadoArcade,
+  type ArcadeRankingEntry,
+} from '../services/arcadeRankingService';
 
 export default function LbwArcade() {
   const [activeGame, setActiveGame] = useState<'river' | null>(null);
+  const [ranking, setRanking] = useState<ArcadeRankingEntry[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(true);
+  const [rankingError, setRankingError] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = assinarRankingArcade(
+      (entries) => {
+        setRanking(ordenarRanking(entries));
+        setRankingLoading(false);
+        setRankingError(false);
+      },
+      () => {
+        setRankingLoading(false);
+        setRankingError(true);
+      },
+    );
+    return () => unsubscribe();
+  }, []);
+
+  const registrarPontuacao = useCallback((score: { fase: 1 | 2 | 3; pontos: number; distancia: number }) => {
+    salvarMelhorResultadoArcade(score).catch((error) => {
+      console.error('Não foi possível salvar a pontuação do Arcade:', error);
+    });
+  }, []);
 
   if (activeGame === 'river') {
     return (
@@ -20,7 +50,8 @@ export default function LbwArcade() {
             Jogo executado dentro da LBW
           </span>
         </div>
-        <RiverMissionGame />
+        <RiverMissionGame onScore={registrarPontuacao} />
+        <ArcadeRanking entries={ranking} loading={rankingLoading} error={rankingError} />
       </div>
     );
   }
@@ -77,6 +108,55 @@ export default function LbwArcade() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ArcadeRanking({
+  entries,
+  loading,
+  error,
+}: {
+  entries: ArcadeRankingEntry[];
+  loading: boolean;
+  error: boolean;
+}) {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-600 mb-1">Desafio LBW</p>
+          <h2 className="text-2xl font-black text-slate-900 m-0">Ranking dos alunos</h2>
+          <p className="text-sm text-slate-500 mt-1 mb-0">Maior fase vencida primeiro; em caso de empate, vence quem tem mais pontos.</p>
+        </div>
+        <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-blue-700">Fase · Pontos</span>
+      </div>
+
+      {loading && <p className="text-sm text-slate-500 m-0">Carregando ranking...</p>}
+      {!loading && error && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 m-0">O ranking não pôde ser carregado agora. O jogo continua funcionando normalmente.</p>}
+      {!loading && !error && entries.length === 0 && <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 m-0">O ranking aparecerá depois que os primeiros alunos concluírem uma tentativa.</p>}
+      {!loading && !error && entries.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <th className="px-3 py-2">Posição</th><th className="px-3 py-2">Aluno</th><th className="px-3 py-2 text-center">Fase vencida</th><th className="px-3 py-2 text-right">Pontos</th><th className="px-3 py-2 text-right">Distância</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.slice(0, 50).map((entry, index) => (
+                <tr key={entry.uid} className="border-b border-slate-100 last:border-0 hover:bg-blue-50/40">
+                  <td className="px-3 py-3 font-black text-blue-700">{index + 1}º</td>
+                  <td className="px-3 py-3 font-bold text-slate-800">{entry.nome}</td>
+                  <td className="px-3 py-3 text-center"><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-800">Fase {entry.fase}</span></td>
+                  <td className="px-3 py-3 text-right font-black text-slate-800">{entry.pontos.toLocaleString('pt-BR')}</td>
+                  <td className="px-3 py-3 text-right text-slate-500">{entry.distancia.toLocaleString('pt-BR')} m</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
