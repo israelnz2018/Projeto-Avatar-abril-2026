@@ -1571,17 +1571,30 @@ export default function ToolWrapper({
 
       if (toolId === 'brainstormingImprove') {
         const anterior = localData?.toolData || localData || {};
-        const manuais = Array.isArray(anterior.ideas)
-          ? anterior.ideas.filter((idea: any) => idea?.author !== 'IA LBW')
-          : [];
-        const geradas = Array.isArray(normalized.ideas) ? normalized.ideas : [];
+        const anteriores = Array.isArray(anterior.ideas) ? anterior.ideas : [];
+        const topicoAtual = customContext?.improvementGoal || normalized.brainstormingTopic || anterior.brainstormingTopic || '';
+        const chaveDaIdeia = (idea: any) => `${String(idea?.topic || '').trim().toLocaleLowerCase('pt-BR')}|${String(idea?.text || '').trim().toLocaleLowerCase('pt-BR')}`;
+        const chavesExistentes = new Set(anteriores.map(chaveDaIdeia));
+        const geradas = (Array.isArray(normalized.ideas) ? normalized.ideas : [])
+          .map((idea: any, index: number) => ({
+            ...idea,
+            id: `${Date.now()}-ai-${index}`,
+            author: 'IA LBW',
+            topic: topicoAtual,
+          }))
+          .filter((idea: any) => {
+            const chave = chaveDaIdeia(idea);
+            if (chavesExistentes.has(chave)) return false;
+            chavesExistentes.add(chave);
+            return true;
+          });
         normalized = {
           ...normalized,
           brainstormingType: 'Identificar melhor solução',
-          brainstormingTopic: customContext?.improvementGoal || normalized.brainstormingTopic || anterior.brainstormingTopic || '',
-          // Uma nova geração substitui apenas as sugestões antigas da IA; ideias
-          // acrescentadas manualmente pelo aluno são preservadas.
-          ideas: [...manuais, ...geradas],
+          brainstormingTopic: topicoAtual,
+          // Cada novo tema acrescenta sugestões sem apagar as ideias dos temas
+          // anteriores nem as inclusões manuais do aluno.
+          ideas: [...anteriores, ...geradas],
         };
       }
 

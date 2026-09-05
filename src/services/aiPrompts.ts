@@ -391,7 +391,8 @@ REGRA #9 - CHANNEL e FREQUENCY
       "text": "Descricao da solucao proposta",
       "category": "Causa associada",
       "author": "IA LBW",
-      "votes": 0
+      "votes": 0,
+      "topic": "Texto exato de improvementGoal"
     }
   ]
 }`,

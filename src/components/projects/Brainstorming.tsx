@@ -78,6 +78,7 @@ interface Idea {
   category: string;
   author: string;
   votes: number;
+  topic?: string;
 }
 
 const CATEGORIES = ['Mão de Obra', 'Método', 'Material', 'Máquina', 'Meio Ambiente', 'Medição', 'Não colocar na espinha de peixe'];
@@ -181,7 +182,8 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
       text: newIdea,
       category: isSolutionBrainstorming ? 'Adicionada manualmente' : 'Mão de Obra',
       author: author || '',
-      votes: 0
+      votes: 0,
+      topic: isSolutionBrainstorming ? brainstormingTopic.trim() : undefined,
     };
     
     setIdeas(prev => [...prev, idea]);
@@ -222,6 +224,27 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   };
 
   const showCategories = brainstormingType !== 'Ideias de projetos de melhoria' && brainstormingType !== 'Identificar melhor solução';
+
+  type IdeaDisplayRow =
+    | { kind: 'topic'; topic: string }
+    | { kind: 'idea'; idea: Idea; index: number };
+
+  const ideaDisplayRows: IdeaDisplayRow[] = [];
+  if (isSolutionBrainstorming) {
+    const grupos = new Map<string, Array<{ idea: Idea; index: number }>>();
+    ideas.forEach((idea, index) => {
+      const topic = idea.topic?.trim() || 'Ideias anteriores';
+      const grupo = grupos.get(topic) || [];
+      grupo.push({ idea, index });
+      grupos.set(topic, grupo);
+    });
+    grupos.forEach((itens, topic) => {
+      ideaDisplayRows.push({ kind: 'topic', topic });
+      itens.forEach(({ idea, index }) => ideaDisplayRows.push({ kind: 'idea', idea, index }));
+    });
+  } else {
+    ideas.forEach((idea, index) => ideaDisplayRows.push({ kind: 'idea', idea, index }));
+  }
 
   return (
     <div className="space-y-8">
@@ -439,7 +462,19 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 </tr>
               </thead>
               <tbody>
-                {ideas.map((idea, index) => (
+                {ideaDisplayRows.map((row) => {
+                  if (row.kind === 'topic') {
+                    return (
+                      <tr key={`topic-${row.topic}`} className="border-y border-blue-100 bg-blue-50">
+                        <td colSpan={4} className="px-4 py-3 text-[12px] font-black text-blue-800">
+                          <span className="text-[10px] uppercase tracking-widest text-blue-500 mr-2">Tópico</span>
+                          {row.topic}
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const { idea, index } = row;
+                  return (
                   <tr key={idea.id} className="border-b border-[#f5f5f5] hover:bg-gray-50 transition-colors">
                     <td className="p-4 text-center">
                       <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-[11px] font-black rounded border border-blue-100">
@@ -511,7 +546,8 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {ideas.length === 0 && (
                   <tr>
                     <td colSpan={4} className="p-12 text-center">
