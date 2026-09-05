@@ -65,11 +65,17 @@ export const causasDoIshikawa = (ishikawa: any): VariavelDoProjeto[] => {
 export const variaveisDaEspinhaDePeixe = (allProjectData: any): VariavelDoProjeto[] =>
   causasDoIshikawa(acharDadoDaFerramenta(allProjectData, 'measureIshikawa'));
 
-/** Causas da Matriz Causa e Efeito ja em maos: cada linha da matriz e um X. */
+/**
+ * Causas da Matriz Causa e Efeito ja em maos: SO as marcadas com o checkbox
+ * "selected" — e o proprio texto da ferramenta que diz o que ele significa:
+ * "Selecione os itens que serao levados para a etapa de Analise de Causa Raiz".
+ * Nao filtrar aqui seria levar adiante causa que o aluno decidiu NAO priorizar.
+ */
 export const causasDaMatriz = (matriz: any): VariavelDoProjeto[] => {
   const dados = matriz?.toolData || matriz;
   const causas = Array.isArray(dados?.causes) ? dados.causes : [];
   return causas
+    .filter((c: any) => c?.selected === true)
     .map((c: any) => ({
       variable: String(c?.name || '').trim(),
       definition: '',
