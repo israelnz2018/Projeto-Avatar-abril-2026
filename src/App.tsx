@@ -268,7 +268,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
         { name: 'Comunidade', path: '/comunidade-aluno', icon: Users },
-        { name: 'LBW Arcade', path: '/arcade', icon: Gamepad2 },
+        ...(isConsultor ? [
+          { name: 'LBW Arcade', path: '/arcade', icon: Gamepad2 },
+        ] : []),
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
         // Convite aberto a todo aluno — inclusive quem já é consultor por fora e
         // entrou só pra conhecer. O admin também vê, pra conseguir revisar a
