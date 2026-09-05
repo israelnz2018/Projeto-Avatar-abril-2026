@@ -535,28 +535,43 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
   "analyses": [
     {
       "id": "1",
-      "variableY": {"name": "Nome Y", "type": "Continuo", "description": "Por que e Y"},
-      "variableX": {"name": "Nome X", "type": "Discreto", "description": "Por que e X"},
+      "variableY": {"name": "Nome exato do Y recebido", "type": "Continuo", "description": "Por que e continuo ou discreto"},
+      "variableX": {"name": "Nome exato do X recebido", "type": "Discreto", "description": "Por que e continuo ou discreto"},
       "quadrant": "Y Continuo / X Discreto",
-      "recommendedTools": ["Box Plot", "ANOVA"],
-      "explanation": "Explicacao tecnica da recomendacao"
+      "recommendedTools": ["Box Plot", "Teste de Hipotese", "ANOVA"],
+      "explanation": "Por que essas ferramentas servem pra esse par, em linguagem simples"
     }
   ]
 }`,
-    instructions: `REGRA CRITICA — VARIAVEIS X:
-As variaveis X ja estao definidas em dataCollection.items.
-Para cada item em dataCollection.items, use o campo item.data.variable como nome da variavel X.
-NUNCA invente variaveis X que nao estejam em dataCollection.items.
-Gere exatamente 1 analise por item em dataCollection.items.
-O campo variableX.name deve ser exatamente igual ao valor de item.data.variable.
+    instructions: `ATENCAO - NATUREZA DOS DADOS:
 
-ATENCAO - NATUREZA DOS DADOS:
-- Y Continuo + X Continuo: Regressao Linear, Dispersao
-- Y Continuo + X Discreto: Box Plot, ANOVA, Teste T
-- Y Discreto + X Continuo: Regressao Logistica
-- Y Discreto + X Discreto: Qui-quadrado, Pareto
-- Use as variaveis do Plano de Coleta como base para classificar cada X
-- O Y deve ser o indicador principal do projeto (do Brief)`
+PROPOSITO: ajudar o aluno a descobrir QUAL FERRAMENTA GRAFICA OU ESTATISTICA usar
+pra investigar a relacao entre UMA causa (X) e o efeito do projeto (Y). O aluno
+leva essa recomendacao pra aba de Analise de Dados.
+
+O contexto traz 'variavelX' e 'variavelY'. Gere EXATAMENTE 1 analise, para esse
+par. Nao invente outras variaveis e nao gere uma lista.
+- variableX.name = exatamente o texto de 'variavelX'
+- variableY.name = exatamente o texto de 'variavelY'
+
+CLASSIFIQUE CADA UMA como "Continuo" ou "Discreto":
+- Continuo: medida numerica que aceita fracao (tempo, custo, peso, temperatura,
+  percentual)
+- Discreto: contagem ou atributo/categoria (turno, operador, fornecedor, tipo,
+  sim/nao, aprovado/reprovado, numero de ocorrencias)
+Se o contexto trouxer definicao operacional ou metodo de coleta do X, use isso
+pra decidir  e mais confiavel que o nome da variavel.
+
+RECOMENDE APENAS destas listas, conforme o cruzamento. NAO use nenhum outro nome
+(nada de "Regressao Linear", "Teste T" ou "Qui-quadrado" fora do que esta aqui):
+- Y Continuo  + X Continuo -> "Diagrama de Dispersao", "Grafico de tendencia", "Regressao simples", "Regressao multipla"
+- Y Continuo  + X Discreto -> "Box Plot", "Teste de Hipotese", "ANOVA"
+- Y Discreto  + X Continuo -> "Regressao Logistica (Binaria/Ordinal/Nominal)"
+- Y Discreto  + X Discreto -> "Histograma", "Pareto", "Chi Quadrado"
+
+quadrant deve ser exatamente "Y <tipo> / X <tipo>".
+explanation: 2 a 3 frases, sem jargao, dizendo o que o aluno vai ENXERGAR com
+essa ferramenta e por que ela responde a pergunta dele.`
   },
  
   // ======================================================================

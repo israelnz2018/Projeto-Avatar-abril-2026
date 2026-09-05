@@ -161,6 +161,9 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
       if (Array.isArray(toolData.variaveisDisponiveis)) {
         setListaMigrada(toolData.variaveisDisponiveis);
       }
+      if (Array.isArray(toolData.variaveisY)) {
+        setListaY(toolData.variaveisY);
+      }
       if (toolData.observations && toolData.observations.length > 0) {
         setObservations(toolData.observations);
       } else if (toolData === null || (toolData.observations && toolData.observations.length === 0)) {
@@ -201,6 +204,8 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string }[]>(
     Array.isArray(d?.variaveisDisponiveis) ? d.variaveisDisponiveis : [],
   );
+  /** O Y viaja junto: esta ferramenta nao usa, mas repassa pra proxima da cadeia. */
+  const [listaY, setListaY] = useState<any[]>(Array.isArray(d?.variaveisY) ? d.variaveisY : []);
 
   /** Traz UMA variável: só aí aparece o campo pra preencher sobre ela. */
   const trazerVariavel = (escolhida: { variable: string; definition?: string }) => {
@@ -274,7 +279,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   const handleSave = () => {
     // A lista migrada vai junto: sem isso ela sumiria no recarregar e o aluno
     // ficaria sem o dropdown (e sem o card de migrar, que ja tinha sumido).
-    onSave({ observations, variaveisDisponiveis: listaMigrada });
+    onSave({ observations, variaveisDisponiveis: listaMigrada, variaveisY: listaY });
     toast.success("Dados de observação salvos com sucesso!");
   };
 

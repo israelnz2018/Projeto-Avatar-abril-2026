@@ -65,22 +65,24 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   /**
-   * A lista de X's do projeto inteira — não só o que já passou pela Observação
-   * Direta.
-   *
-   * Antes esta tela só enxergava `directObservation`, então uma causa levantada
-   * na Espinha de Peixe que o aluno ainda não tivesse observado simplesmente não
-   * aparecia aqui, e a lista morria no meio do caminho. Agora a MESMA lista
-   * percorre as três: Espinha de Peixe → Observação Direta → Natureza dos Dados.
-   * Quem já foi observado vem com a evidência junto; quem não foi, vem marcado.
-   */
-  /**
    * Lista de X trazida pelo botão verde de migrar. O dropdown só aparece depois
    * que o aluno aperta o botão; antes disso, nem existe.
    */
-  const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string }[]>(
+  const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string; metodo?: string }[]>(
     Array.isArray(d?.variaveisDisponiveis) ? d.variaveisDisponiveis : [],
   );
+
+  /**
+   * Os Y do projeto — o EFEITO. Vêm da mesma migração dos X: a cabeça do peixe
+   * (Espinha) ou as saídas com peso (Matriz Causa e Efeito).
+   *
+   * É aqui que o Y é usado de verdade: esta ferramenta existe pra relacionar
+   * UM X com UM Y e recomendar a ferramenta estatística certa pra esse par.
+   */
+  const [listaY, setListaY] = useState<{ variable: string; importancia?: number }[]>(
+    Array.isArray(d?.variaveisY) ? d.variaveisY : [],
+  );
+  const [yEscolhido, setYEscolhido] = useState<string>(d?.yEscolhido || '');
 
   /** Evidência já registrada na Observação Direta, por variável. */
   const evidenciaPorVariavel = React.useMemo(() => {
@@ -103,23 +105,42 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
    * preenchido, aproveitando a evidência se a variável tiver passado pela
    * Observação Direta. O aluno edita por cima se quiser.
    */
-  const trazerVariavel = (escolhida: { variable: string }) => {
-    const registro = evidenciaPorVariavel.get(escolhida.variable);
-    const linhas = [`Variável (X): ${escolhida.variable}`];
+  /** O Y contra o qual o X vai ser analisado. Com um Y só, não há o que escolher. */
+  const yAtivo = listaY.length === 1 ? listaY[0].variable : yEscolhido;
 
-    if (registro) {
-      linhas.push(
-        `Evidência: ${registro.evidencia || (registro.imagens > 0
-          ? `${registro.imagens} registro(s) fotográfico(s), mas sem descrição escrita.`
-          : 'nenhuma evidência registrada até o momento.')}`,
-      );
-      if (registro.causaRaiz) linhas.push('Foi marcada como causa raiz na Observação Direta.');
+  /**
+   * Traz UM X e JÁ MANDA PRA IA analisar o par X × Y.
+   *
+   * É o propósito da ferramenta: a IA interpreta a variável, monta a relação
+   * entre X e Y, classifica os dois como Contínuo ou Discreto e recomenda qual
+   * ferramenta gráfica/estatística usar — o que o aluno leva para a aba de
+   * Análise de Dados.
+   */
+  const trazerVariavel = (escolhida: { variable: string; definition?: string; metodo?: string }) => {
+    if (!yAtivo) {
+      toast.error('Escolha primeiro o Y (o efeito) que você quer relacionar com esta variável.');
+      return;
     }
 
-    linhas.push('', `Quero entender se "${escolhida.variable}" (X) influencia o resultado do processo (Y).`);
-    setDescription(linhas.join(String.fromCharCode(10)));
+    const registro = evidenciaPorVariavel.get(escolhida.variable);
+    const linhas = [
+      `Variável X: ${escolhida.variable}`,
+      `Variável Y (efeito): ${yAtivo}`,
+    ];
+    if (escolhida.definition) linhas.push(`Definição operacional do X: ${escolhida.definition}`);
+    if (escolhida.metodo) linhas.push(`Método de coleta do X: ${escolhida.metodo}`);
+    if (registro?.evidencia) linhas.push(`Evidência observada no gemba: ${registro.evidencia}`);
+    if (registro?.causaRaiz) linhas.push('Foi marcada como causa raiz na Observação Direta.');
+    linhas.push('', `Analise a relação entre X e Y e recomende a ferramenta estatística adequada.`);
+
+    const texto = linhas.join(String.fromCharCode(10));
+    setDescription(texto);
     setSelectedObservationId(escolhida.variable);
-    toast.success('Variável trazida para o contexto da análise.');
+
+    if (onGenerateAI) {
+      onGenerateAI({ variavelX: escolhida.variable, variavelY: yAtivo, contexto: texto } as any);
+      toast.success('Analisando a relação com a IA...');
+    }
   };
   // Helper to get tools based on current types
   const getDynamicTools = (yType: string, xType: string) => {
@@ -163,12 +184,15 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       setAnalyses(toolData.analyses || []);
       setSelectedObservationId(toolData.selectedObservationId || '');
       if (Array.isArray(toolData.variaveisDisponiveis)) setListaMigrada(toolData.variaveisDisponiveis);
+      if (Array.isArray(toolData.variaveisY)) setListaY(toolData.variaveisY);
+      if (typeof toolData.yEscolhido === 'string') setYEscolhido(toolData.yEscolhido);
     }
   }, [initialData]);
 
   const handleAnalyze = async () => {
     if (onGenerateAI) {
-      onGenerateAI(description);
+      // Analise manual: o aluno escreveu o contexto por conta propria.
+      onGenerateAI({ contexto: description, variavelY: yAtivo } as any);
       return;
     }
     if (!description.trim()) {
@@ -178,7 +202,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   };
 
   const handleSave = () => {
-    onSave({ description, analyses, selectedObservationId, variaveisDisponiveis: listaMigrada });
+    onSave({ description, analyses, selectedObservationId, variaveisDisponiveis: listaMigrada, variaveisY: listaY, yEscolhido });
   };
 
   const removeAnalysis = (id: string) => {
@@ -238,13 +262,44 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
             </div>
           )}
 
+          {listaY.length > 0 && (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 space-y-3">
+              <div>
+                <h4 className="font-black text-indigo-900 m-0">Y — o efeito que você quer mudar</h4>
+                <p className="text-sm text-indigo-800/80 mt-1 mb-0">
+                  {listaY.length === 1
+                    ? 'Veio junto com as variáveis. Toda análise abaixo relaciona um X com este Y.'
+                    : 'Escolha contra qual efeito você quer analisar as variáveis.'}
+                </p>
+              </div>
+              {listaY.length === 1 ? (
+                <p className="text-sm font-bold text-indigo-900 bg-white rounded-xl border border-indigo-200 px-4 py-3 m-0">
+                  {listaY[0].variable}
+                </p>
+              ) : (
+                <select
+                  value={yEscolhido}
+                  onChange={(e) => setYEscolhido(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-indigo-200 bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-400"
+                >
+                  <option value="">Selecione o Y...</option>
+                  {listaY.map((y) => (
+                    <option key={y.variable} value={y.variable}>
+                      {y.variable}{typeof y.importancia === 'number' ? ` (importância ${y.importancia})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
           <SeletorDeVariavelX
             disponiveis={listaMigrada}
             jaUsadas={analyses.map((a) => a.variableX?.name).filter(Boolean) as string[]}
             onAdicionar={trazerVariavel}
             titulo="Trazer variável para a análise"
-            descricao="Escolha um X e aperte o botão. O campo de análise abaixo já vem preenchido com ele (e com a evidência, se a variável passou pela Observação Direta)."
-            rotuloBotao="Trazer para a análise"
+            descricao="Escolha um X e aperte o botão. A IA relaciona esse X com o Y acima, classifica os dois e recomenda a ferramenta estatística certa — que você leva para a aba de Análise de Dados."
+            rotuloBotao="Analisar este X"
           />
           <div className="space-y-4">
             <label className="block text-sm font-bold text-[#1f2937]">

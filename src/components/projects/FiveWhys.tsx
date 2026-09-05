@@ -62,6 +62,8 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
   const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string }[]>(
     Array.isArray(d?.variaveisDisponiveis) ? d.variaveisDisponiveis : [],
   );
+  /** O Y viaja junto: esta ferramenta nao usa, mas repassa pra proxima da cadeia. */
+  const [listaY, setListaY] = useState<any[]>(Array.isArray(d?.variaveisY) ? d.variaveisY : []);
 
   /** Traz UM X: vira o "Problema / Efeito" de uma nova cadeia de porquês. */
   const trazerVariavel = (escolhida: { variable: string }) => {
@@ -87,6 +89,9 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
       const data = initialData.toolData || initialData;
       if (Array.isArray(data.variaveisDisponiveis)) {
         setListaMigrada(data.variaveisDisponiveis);
+      }
+      if (Array.isArray(data.variaveisY)) {
+        setListaY(data.variaveisY);
       }
       if (data.chains && data.chains.length > 0) {
         setChains(data.chains);
@@ -338,7 +343,7 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
         </button>
       </div>
 
-      <button data-save-trigger onClick={() => onSave({ chains, variaveisDisponiveis: listaMigrada })} className="hidden" />
+      <button data-save-trigger onClick={() => onSave({ chains, variaveisDisponiveis: listaMigrada, variaveisY: listaY })} className="hidden" />
     </div>
 
     {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}

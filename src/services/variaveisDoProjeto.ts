@@ -22,6 +22,26 @@ export interface VariavelDoProjeto {
   observada?: boolean;
   /** Evidencia registrada na Observacao Direta, quando houver. */
   evidencia?: string;
+  /** Metodo de coleta (Quantitativa/Qualitativa), quando vem do Plano de Coleta. */
+  metodo?: string;
+}
+
+/**
+ * O Y — o EFEITO que o projeto quer mudar.
+ *
+ * Viaja junto dos X pela cadeia, mas em lista SEPARADA de proposito: se o Y
+ * entrasse no mesmo dropdown, o aluno acabaria investigando o efeito como se
+ * fosse causa. Aqui ele e contexto, nao item de trabalho.
+ *
+ * Cada ferramenta guarda o Y em um lugar diferente:
+ *   Espinha de Peixe        -> `problem`, a cabeca do peixe (sempre 1)
+ *   Matriz Causa e Efeito   -> `outputs[]`, com peso de importancia (varios)
+ */
+export interface VariavelY {
+  variable: string;
+  /** Peso do Y na Matriz Causa e Efeito. Ausente na Espinha de Peixe. */
+  importancia?: number;
+  origem: string;
 }
 
 /**
@@ -99,6 +119,67 @@ export const qualitativasDoPlano = (plano: any): VariavelDoProjeto[] => {
 };
 
 /**
+ * TODAS as variaveis do Plano de Coleta, com definicao operacional e metodo.
+ *
+ * Diferente de `qualitativasDoPlano`, que filtra so as qualitativas pra
+ * Observacao Direta: quando o Plano e um ELO da cadeia, ele repassa tudo.
+ */
+export const variaveisDoPlanoDeColeta = (plano: any): VariavelDoProjeto[] => {
+  const dados = plano?.toolData || plano;
+  const itens = Array.isArray(dados?.items) ? dados.items : [];
+  return itens
+    .map((item: any) => ({
+      variable: String(item?.data?.variable || '').trim(),
+      definition: String(item?.data?.operationalDefinition || ''),
+      origem: 'Plano de Coleta',
+      metodo: String(item?.data?.method || ''),
+    }))
+    .filter((v: VariavelDoProjeto) => v.variable);
+};
+
+/**
+ * Le a lista de Y de QUALQUER ferramenta de origem — o efeito que o projeto
+ * quer mudar. Anda junto dos X pela cadeia, pelo mesmo mecanismo: o que a
+ * ferramenta RECEBEU (`variaveisY`) mais o que ela mesma define.
+ *
+ * Sem isso, a Natureza dos Dados teria que adivinhar o Y do Brief a cada
+ * analise — e como o Brief e texto corrido, sairia uma variacao diferente do Y
+ * toda vez. Vindo da origem, o Y e o mesmo na cadeia inteira.
+ */
+export const variaveisYDaOrigem = (origem: any): VariavelY[] => {
+  const dados = origem?.toolData || origem;
+  if (!dados) return [];
+
+  const recebidos: VariavelY[] = (Array.isArray(dados.variaveisY) ? dados.variaveisY : [])
+    .map((y: any) => ({
+      variable: String(y?.variable ?? '').trim(),
+      importancia: typeof y?.importancia === 'number' ? y.importancia : undefined,
+      origem: String(y?.origem ?? ''),
+    }));
+
+  // Espinha de Peixe: a cabeca do peixe e o Y, e e sempre um so.
+  const cabecaDoPeixe: VariavelY[] = String(dados.problem ?? '').trim()
+    ? [{ variable: String(dados.problem).trim(), origem: 'Espinha de Peixe' }]
+    : [];
+
+  // Matriz Causa e Efeito: varios Y, cada um com seu peso de importancia.
+  const saidasDaMatriz: VariavelY[] = (Array.isArray(dados.outputs) ? dados.outputs : [])
+    .map((o: any) => ({
+      variable: String(o?.name ?? '').trim(),
+      importancia: typeof o?.importance === 'number' ? o.importance : undefined,
+      origem: 'Matriz Causa e Efeito',
+    }));
+
+  const tudo = [...recebidos, ...cabecaDoPeixe, ...saidasDaMatriz].filter((y) => y.variable);
+  const vistos = new Set<string>();
+  return tudo.filter((y) => {
+    if (vistos.has(y.variable)) return false;
+    vistos.add(y.variable);
+    return true;
+  });
+};
+
+/**
  * Le a lista de X de QUALQUER ferramenta de origem, sem exigir ordem nenhuma.
  *
  * A regra da adjacencia continua valendo: quem decide qual ferramenta alimenta
@@ -151,7 +232,11 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
     ...recebidas,
     ...causasDoIshikawa(dados),
     ...causasDaMatriz(dados),
-    ...qualitativasDoPlano(dados),
+    // Plano de Coleta como ELO DA CADEIA repassa TODAS as variaveis, nao so as
+    // qualitativas: se ele vem depois da Matriz, e dele que sai a lista pras
+    // proximas, e ele ainda acrescenta a definicao operacional e o metodo de
+    // cada uma — que e o que ajuda a classificar Continuo/Discreto la na frente.
+    ...variaveisDoPlanoDeColeta(dados),
     ...observadas,
     ...dosPorques,
     ...dasAnalises,

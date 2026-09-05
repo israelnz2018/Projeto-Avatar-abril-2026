@@ -4,7 +4,7 @@ import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X
 import { generateToolData } from '@/src/services/aiService';
 import { resolveToolLink } from '@/src/services/toolLinks';
 import { esqueletoDoSipoc, sipocParaProcessMap, sipocParaBpmn } from '@/src/services/sipocParaProcesso';
-import { variaveisDaOrigem } from '@/src/services/variaveisDoProjeto';
+import { variaveisDaOrigem, variaveisYDaOrigem } from '@/src/services/variaveisDoProjeto';
 import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
@@ -1018,12 +1018,18 @@ export default function ToolWrapper({
           variable: v.variable,
           definition: v.definition || '',
           origem: v.origem || '',
+          metodo: v.metodo || '',
         }));
 
+        // O Y viaja junto dos X — sem ele a Natureza dos Dados teria que adivinhar
+        // o efeito a cada analise. Lista separada de proposito: o Y e contexto,
+        // nao item pro aluno escolher no dropdown de causas.
+        const listaY = variaveisYDaOrigem(sourceData);
+
         migratedData =
-          toolId === 'directObservation' ? { observations: [], variaveisDisponiveis: lista }
-          : toolId === 'fiveWhys' ? { chains: [], variaveisDisponiveis: lista }
-          : { analyses: [], description: '', variaveisDisponiveis: lista };
+          toolId === 'directObservation' ? { observations: [], variaveisDisponiveis: lista, variaveisY: listaY }
+          : toolId === 'fiveWhys' ? { chains: [], variaveisDisponiveis: lista, variaveisY: listaY }
+          : { analyses: [], description: '', variaveisDisponiveis: lista, variaveisY: listaY };
       }
 
       if (toolId === 'statisticalAnalysis') {
@@ -1501,17 +1507,16 @@ export default function ToolWrapper({
         };
       }
 
+      // Natureza dos Dados analisa UM par X x Y por vez — nao a lista inteira.
+      // O X e o Y vem do que o aluno escolheu na tela (customContext); antes o
+      // codigo mandava todos os itens do Plano de Coleta e pedia uma analise por
+      // item, o que nao e o proposito da ferramenta.
       if (toolId === 'dataNature' && allProjectData) {
-        const dcData = getToolDataByPrefix(allProjectData, 'dataCollection');
-        const dcItems = dcData?.items || dcData?.toolData?.items || [];
-        const quantitativeOnly = dcItems.filter((item: any) =>
-          item.data?.method === 'Quantitativa'
-        );
         targetContext = {
+          variavelX: customContext?.variavelX || '',
+          variavelY: customContext?.variavelY || '',
+          contexto: customContext?.contexto || '',
           brief: getToolDataByPrefix(allProjectData, 'brief'),
-          dataCollection: {
-            items: quantitativeOnly
-          }
         };
       }
 
@@ -1550,7 +1555,29 @@ export default function ToolWrapper({
         { name: projectName, description: project.description },
         allProjectData
       );
-      const normalized = normalizeInitialData(toolId, generatedData);
+      let normalized = normalizeInitialData(toolId, generatedData);
+
+      // Natureza dos Dados analisa um X por vez, entao cada geracao ACUMULA em
+      // vez de substituir — senao a analise anterior seria perdida a cada X novo.
+      // E a IA devolve so `analyses`: sem preservar as listas, o dropdown de X
+      // (e o Y) sumiriam depois da primeira analise.
+      if (toolId === 'dataNature') {
+        const anterior = localData?.toolData || localData || {};
+        const jaFeitas = Array.isArray(anterior.analyses) ? anterior.analyses : [];
+        const novas = Array.isArray(normalized.analyses) ? normalized.analyses : [];
+        const chave = (a: any) => `${a?.variableX?.name || ''}|${a?.variableY?.name || ''}`;
+        const substituidas = new Set(novas.map(chave));
+        normalized = {
+          ...anterior,
+          ...normalized,
+          // Reanalisar o mesmo par X x Y troca o resultado em vez de duplicar.
+          analyses: [...jaFeitas.filter((a: any) => !substituidas.has(chave(a))), ...novas],
+          variaveisDisponiveis: anterior.variaveisDisponiveis || [],
+          variaveisY: anterior.variaveisY || [],
+          yEscolhido: anterior.yEscolhido || '',
+        };
+      }
+
       setLocalData(normalized);
       setClearKey(prev => prev + 1); // Force remount to pass down new generated data to internal useState
       onSave({
