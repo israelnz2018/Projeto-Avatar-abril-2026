@@ -19,7 +19,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
-import { variaveisDaEspinhaDePeixe, variaveisQualitativasDoPlano } from '@/src/services/variaveisDoProjeto';
+import SeletorDeVariavelX from './SeletorDeVariavelX';
 
 interface ObservationEntry {
   id: string;
@@ -193,42 +193,17 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
   }, [initialData, qualitativeOptions]);
 
   /**
-   * Lista de variáveis trazida pelo botão MIGRAR, guardada junto com os dados.
+   * Lista de X trazida pelo botão verde de migrar, guardada junto com os dados.
    *
-   * O dropdown só existe DEPOIS que o aluno aperta o botão verde de migrar —
-   * antes disso ele nem aparece. Era isso que deixava a tela com dois blocos
-   * verdes ao mesmo tempo: o card de migrar e o dropdown competindo.
+   * O dropdown só existe DEPOIS que o aluno aperta o botão — antes disso ele nem
+   * aparece. Era isso que deixava dois blocos verdes na tela ao mesmo tempo.
    */
-  const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition: string; origem: string }[]>(
+  const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string }[]>(
     Array.isArray(d?.variaveisDisponiveis) ? d.variaveisDisponiveis : [],
   );
 
-  /**
-   * As opções do dropdown. Parte da lista migrada e junta o que estiver na
-   * ferramenta de origem agora — assim, causa criada na Espinha de Peixe depois
-   * da migração também aparece, sem precisar migrar de novo.
-   */
-  const variaveisDisponiveis = React.useMemo(() => {
-    if (listaMigrada.length === 0) return [];
-    const jaNaTela = new Set(observations.map((o) => o.variable.trim()).filter(Boolean));
-    return [
-      ...listaMigrada,
-      ...variaveisDaEspinhaDePeixe(allProjectData),
-      ...variaveisQualitativasDoPlano(allProjectData),
-    ]
-      .filter((v) => v.variable)
-      .filter((v, i, arr) => arr.findIndex((o) => o.variable === v.variable) === i)
-      .map((v) => ({ ...v, jaAdicionada: jaNaTela.has(v.variable) }));
-  }, [listaMigrada, allProjectData, observations]);
-
-  /**
-   * Escolher no dropdown JA traz o X pro campo "Identifique a variável" — sem
-   * botao intermediario. Uma acao so: escolheu, apareceu.
-   */
-  const escolherVariavel = (texto: string) => {
-    if (!texto) return;
-    const escolhida = variaveisDisponiveis.find((v) => v.variable === texto);
-    if (!escolhida || escolhida.jaAdicionada) return;
+  /** Traz UMA variável: só aí aparece o campo pra preencher sobre ela. */
+  const trazerVariavel = (escolhida: { variable: string; definition?: string }) => {
     const nova: ObservationEntry = {
       id: crypto.randomUUID(),
       variable: escolhida.variable,
@@ -237,7 +212,6 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
       observationDescription: '',
       images: [],
     };
-    // Substitui a linha vazia inicial em vez de deixar um card em branco sobrando.
     setObservations((prev) => {
       const soAVazia = prev.length === 1 && !prev[0].variable && !prev[0].observationDescription;
       return soAVazia ? [nova] : [...prev, nova];
@@ -348,40 +322,14 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
         </div>
       )}
 
-      {/* Traz UMA variável por vez da Espinha de Peixe / Plano de Coleta. */}
-      {variaveisDisponiveis.length > 0 && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <Search size={18} />
-            </div>
-            <div>
-              <h4 className="font-black text-emerald-900 m-0">Trazer variável para observar</h4>
-              <p className="text-sm text-emerald-800/80 mt-1 mb-0">
-                Escolha uma variável: ela já entra na lista abaixo pronta pra você observar. Faça a observação, salve — e volte aqui para a próxima.
-              </p>
-            </div>
-          </div>
-
-          <select
-            value=""
-            onChange={(e) => escolherVariavel(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400"
-          >
-            <option value="">Selecione uma variável...</option>
-            {variaveisDisponiveis.map((v) => (
-              <option key={v.variable} value={v.variable} disabled={v.jaAdicionada}>
-                {v.jaAdicionada ? '✓ ' : ''}{v.variable}
-              </option>
-            ))}
-          </select>
-
-          <p className="text-[11px] text-emerald-800/70 m-0">
-            {variaveisDisponiveis.filter((v) => v.jaAdicionada).length} de {variaveisDisponiveis.length} já trazidas.
-            As já trazidas aparecem com ✓ e ficam bloqueadas na lista.
-          </p>
-        </div>
-      )}
+      <SeletorDeVariavelX
+        disponiveis={listaMigrada}
+        jaUsadas={observations.map((o) => o.variable)}
+        onAdicionar={trazerVariavel}
+        titulo="Trazer variável para observar"
+        descricao="Escolha um X e aperte o botão. O campo para preencher sobre ele aparece logo abaixo. Terminou? Volte aqui e escolha o próximo."
+        rotuloBotao="Trazer para observação"
+      />
 
       <div className="space-y-8">
         {observations.map((obs, idx) => (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, HelpCircle, Sparkles, X, Loader2, BookOpen, Info } from 'lucide-react';
+import SeletorDeVariavelX from './SeletorDeVariavelX';
 import { cn } from '@/src/lib/utils';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
@@ -54,6 +55,28 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
     { id: '1', problem: '', whys: ['', '', '', '', ''], rootCause: '' }
   ]);
 
+  /**
+   * Lista de X trazida pelo botão verde de migrar. O dropdown só aparece depois
+   * que o aluno aperta esse botão; antes disso, nem existe.
+   */
+  const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string }[]>(
+    Array.isArray(d?.variaveisDisponiveis) ? d.variaveisDisponiveis : [],
+  );
+
+  /** Traz UM X: vira o "Problema / Efeito" de uma nova cadeia de porquês. */
+  const trazerVariavel = (escolhida: { variable: string }) => {
+    const nova: WhyChain = {
+      id: crypto.randomUUID(),
+      problem: escolhida.variable,
+      whys: ['', '', '', '', ''],
+      rootCause: '',
+    };
+    setChains((prev) => {
+      const soAVazia = prev.length === 1 && !prev[0].problem && prev[0].whys.every((w) => !w);
+      return soAVazia ? [nova] : [...prev, nova];
+    });
+  };
+
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
   const [showExemplo, setShowExemplo] = useState(false);
   const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
@@ -62,7 +85,10 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
   useEffect(() => {
     if (initialData) {
       const data = initialData.toolData || initialData;
-      if (data.chains) {
+      if (Array.isArray(data.variaveisDisponiveis)) {
+        setListaMigrada(data.variaveisDisponiveis);
+      }
+      if (data.chains && data.chains.length > 0) {
         setChains(data.chains);
       }
     } else {
@@ -168,6 +194,15 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
           <span className="text-sm font-medium text-blue-700">A IA está gerando uma recomendação técnica para o seu problema...</span>
         </div>
       )}
+
+      <SeletorDeVariavelX
+        disponiveis={listaMigrada}
+        jaUsadas={chains.map((c) => c.problem)}
+        onAdicionar={trazerVariavel}
+        titulo="Trazer variável para investigar"
+        descricao="Escolha um X e aperte o botão. A cadeia de porquês para ele aparece logo abaixo. Terminou? Volte aqui e escolha o próximo."
+        rotuloBotao="Investigar este X"
+      />
 
       <div className="space-y-12">
         {chains.map((chain, idx) => (
@@ -303,7 +338,7 @@ export default function FiveWhys({ onSave, initialData, onGenerateAI, isGenerati
         </button>
       </div>
 
-      <button data-save-trigger onClick={() => onSave({ chains })} className="hidden" />
+      <button data-save-trigger onClick={() => onSave({ chains, variaveisDisponiveis: listaMigrada })} className="hidden" />
     </div>
 
     {/* MODAL "Ver exemplo" — read-only, não toca nos dados do aluno */}

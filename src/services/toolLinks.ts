@@ -15,6 +15,8 @@ export const MIGRATE_TARGETS = [
   'improvementPlan', 'gut', 'rab', 'effortImpact',
   'measureAdkar', 'analyzeAdkar', 'improveAdkar', 'controlAdkar',
   'directObservation', 'statisticalAnalysis', 'controlPlan',
+  // Trabalham em cima da LISTA DE X: recebem a lista e o aluno escolhe uma por vez.
+  'dataNature', 'fiveWhys',
   // Recebem o esqueleto do fluxo a partir do SIPOC (services/sipocParaProcesso.ts).
   'processMap', 'bpmnProcessMap',
 ];
@@ -23,7 +25,7 @@ export const MIGRATE_TARGETS = [
 export const AI_TARGETS = [
   'brief', 'charter', 'sipoc', 'stakeholderAdkar', 'stakeholders', 'projectCharterPMI',
   'stakeholderAnalysisPMI', 'brainstorming', 'brainstormingImprove', 'measureIshikawa',
-  'measureMatrix', 'dataCollection', 'dataNature', 'plan5w2h',
+  'measureMatrix', 'dataCollection', 'plan5w2h',
 ];
 
 /**

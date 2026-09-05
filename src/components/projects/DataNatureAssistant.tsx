@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
-import { acharDadoDaFerramenta, todasAsVariaveis } from '@/src/services/variaveisDoProjeto';
+import { acharDadoDaFerramenta } from '@/src/services/variaveisDoProjeto';
+import SeletorDeVariavelX from './SeletorDeVariavelX';
 
 interface DataNatureAssistantProps {
   onSave: (data: any) => void;
@@ -73,78 +74,53 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
    * percorre as três: Espinha de Peixe → Observação Direta → Natureza dos Dados.
    * Quem já foi observado vem com a evidência junto; quem não foi, vem marcado.
    */
-  const observedVariables = React.useMemo(() => {
-    const observacoes = acharDadoDaFerramenta(allProjectData, 'directObservation');
-    const lista = Array.isArray(observacoes?.observations) ? observacoes.observations : [];
-    const porVariavel = new Map<string, any>();
+  /**
+   * Lista de X trazida pelo botão verde de migrar. O dropdown só aparece depois
+   * que o aluno aperta o botão; antes disso, nem existe.
+   */
+  const [listaMigrada, setListaMigrada] = useState<{ variable: string; definition?: string }[]>(
+    Array.isArray(d?.variaveisDisponiveis) ? d.variaveisDisponiveis : [],
+  );
 
-    lista.forEach((o: any, index: number) => {
+  /** Evidência já registrada na Observação Direta, por variável. */
+  const evidenciaPorVariavel = React.useMemo(() => {
+    const obs = acharDadoDaFerramenta(allProjectData, 'directObservation');
+    const lista = Array.isArray(obs?.observations) ? obs.observations : [];
+    const mapa = new Map<string, { evidencia: string; imagens: number; causaRaiz: boolean }>();
+    lista.forEach((o: any) => {
       const nome = String(o?.variable || '').trim();
       if (!nome) return;
-      porVariavel.set(nome, {
-        id: String(o?.id || `observacao-${index}`),
-        variable: nome,
-        evidence: String(o?.observationDescription || '').trim(),
-        identifiedCause: Boolean(o?.identifiedCause),
-        imageCount: Array.isArray(o?.images) ? o.images.length : 0,
-        origem: 'Observação Direta',
-        observada: true,
+      mapa.set(nome, {
+        evidencia: String(o?.observationDescription || '').trim(),
+        imagens: Array.isArray(o?.images) ? o.images.length : 0,
+        causaRaiz: Boolean(o?.identifiedCause),
       });
     });
-
-    // Causas da Espinha de Peixe que ainda não foram observadas entram na lista
-    // assim mesmo, marcadas — senão o aluno não teria como chegar nelas por aqui.
-    todasAsVariaveis(allProjectData).forEach((v) => {
-      if (porVariavel.has(v.variable)) {
-        const atual = porVariavel.get(v.variable);
-        if (v.origem !== 'Observacao Direta') atual.origem = v.origem;
-        return;
-      }
-      porVariavel.set(v.variable, {
-        id: `causa-${v.variable}`,
-        variable: v.variable,
-        evidence: '',
-        identifiedCause: false,
-        imageCount: 0,
-        origem: v.origem,
-        observada: false,
-      });
-    });
-
-    return [...porVariavel.values()];
+    return mapa;
   }, [allProjectData]);
+  /**
+   * Traz UM X pra análise: monta o texto de "O que você deseja analisar?" já
+   * preenchido, aproveitando a evidência se a variável tiver passado pela
+   * Observação Direta. O aluno edita por cima se quiser.
+   */
+  const trazerVariavel = (escolhida: { variable: string }) => {
+    const registro = evidenciaPorVariavel.get(escolhida.variable);
+    const linhas = [`Variável (X): ${escolhida.variable}`];
 
-  const selectedObservation = observedVariables.find((observation: any) => observation.id === selectedObservationId);
-
-  const handlePullObservation = () => {
-    if (!selectedObservation) {
-      toast.error('Selecione uma variável da Observação Direta.');
-      return;
-    }
-
-    // Texto pré-preenchido: já entrega a pergunta de análise montada, em vez de
-    // deixar o aluno com a folha em branco. Ele edita por cima se quiser.
-    const linhas = [`Variável (X): ${selectedObservation.variable}`];
-
-    if (selectedObservation.observada) {
+    if (registro) {
       linhas.push(
-        `Evidência: ${selectedObservation.evidence || (selectedObservation.imageCount > 0
-          ? `${selectedObservation.imageCount} registro(s) fotográfico(s), mas sem descrição escrita.`
+        `Evidência: ${registro.evidencia || (registro.imagens > 0
+          ? `${registro.imagens} registro(s) fotográfico(s), mas sem descrição escrita.`
           : 'nenhuma evidência registrada até o momento.')}`,
       );
-      if (selectedObservation.identifiedCause) {
-        linhas.push('Foi marcada como causa raiz na Observação Direta.');
-      }
-    } else {
-      linhas.push('Ainda não passou pela Observação Direta — não há evidência de campo registrada.');
+      if (registro.causaRaiz) linhas.push('Foi marcada como causa raiz na Observação Direta.');
     }
 
-    linhas.push('', `Quero entender se "${selectedObservation.variable}" (X) influencia o resultado do processo (Y).`);
-
-    setDescription(linhas.join('\n'));
+    linhas.push('', `Quero entender se "${escolhida.variable}" (X) influencia o resultado do processo (Y).`);
+    setDescription(linhas.join(String.fromCharCode(10)));
+    setSelectedObservationId(escolhida.variable);
     toast.success('Variável trazida para o contexto da análise.');
   };
-
   // Helper to get tools based on current types
   const getDynamicTools = (yType: string, xType: string) => {
     return TOOL_MATRIX[`${yType}-${xType}`] || [];
@@ -186,6 +162,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       setDescription(toolData.description || '');
       setAnalyses(toolData.analyses || []);
       setSelectedObservationId(toolData.selectedObservationId || '');
+      if (Array.isArray(toolData.variaveisDisponiveis)) setListaMigrada(toolData.variaveisDisponiveis);
     }
   }, [initialData]);
 
@@ -201,7 +178,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   };
 
   const handleSave = () => {
-    onSave({ description, analyses, selectedObservationId });
+    onSave({ description, analyses, selectedObservationId, variaveisDisponiveis: listaMigrada });
   };
 
   const removeAnalysis = (id: string) => {
@@ -261,64 +238,14 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
             </div>
           )}
 
-          {observedVariables.length > 0 && (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                  <Search size={18} />
-                </div>
-                <div>
-                  <h4 className="font-black text-emerald-900 m-0">Puxar variável do projeto</h4>
-                  <p className="text-sm text-emerald-800/80 mt-1 mb-0">
-                    Todas as variáveis já levantadas no projeto. ✓ = já tem observação registrada (a evidência vem junto); ○ = ainda sem observação.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col lg:flex-row gap-3">
-                <select
-                  value={selectedObservationId}
-                  onChange={(event) => setSelectedObservationId(event.target.value)}
-                  className="flex-1 px-4 py-3 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-400"
-                >
-                  <option value="">Selecione uma variável...</option>
-                  {observedVariables.map((observation: any) => (
-                    <option key={observation.id} value={observation.id}>
-                      {observation.observada ? '✓ ' : '○ '}{observation.variable}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handlePullObservation}
-                  disabled={!selectedObservation}
-                  className="px-5 py-3 rounded-xl border-0 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-emerald-700 transition-colors"
-                >
-                  Puxar para a análise
-                </button>
-              </div>
-
-              {selectedObservation && (
-                <div className={`rounded-xl border p-4 ${selectedObservation.evidence || selectedObservation.imageCount > 0 ? 'border-green-200 bg-white' : 'border-amber-200 bg-amber-50'}`}>
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Verificação da evidência</span>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${selectedObservation.evidence || selectedObservation.imageCount > 0 ? 'text-green-700' : 'text-amber-700'}`}>
-                      {selectedObservation.evidence || selectedObservation.imageCount > 0 ? 'Evidência encontrada' : 'Sem evidência registrada'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-700 m-0 leading-relaxed">
-                    {selectedObservation.evidence || (selectedObservation.imageCount > 0
-                      ? `${selectedObservation.imageCount} registro(s) fotográfico(s) encontrado(s), mas a descrição ainda está vazia.`
-                      : 'A variável existe na Observação Direta, mas ainda não há descrição nem registro fotográfico.')}
-                  </p>
-                  {selectedObservation.identifiedCause && (
-                    <p className="text-xs font-bold text-green-700 mt-2 mb-0">Esta variável foi marcada como causa raiz na Observação Direta.</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
+          <SeletorDeVariavelX
+            disponiveis={listaMigrada}
+            jaUsadas={analyses.map((a) => a.variableX?.name).filter(Boolean) as string[]}
+            onAdicionar={trazerVariavel}
+            titulo="Trazer variável para a análise"
+            descricao="Escolha um X e aperte o botão. O campo de análise abaixo já vem preenchido com ele (e com a evidência, se a variável passou pela Observação Direta)."
+            rotuloBotao="Trazer para a análise"
+          />
           <div className="space-y-4">
             <label className="block text-sm font-bold text-[#1f2937]">
               O que você deseja analisar? (Contexto Alternativo)

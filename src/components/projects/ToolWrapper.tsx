@@ -4,7 +4,7 @@ import { Sparkles, Loader2, Edit2, Save, FileDown, Presentation, CheckCircle2, X
 import { generateToolData } from '@/src/services/aiService';
 import { resolveToolLink } from '@/src/services/toolLinks';
 import { esqueletoDoSipoc, sipocParaProcessMap, sipocParaBpmn } from '@/src/services/sipocParaProcesso';
-import { causasDoIshikawa } from '@/src/services/variaveisDoProjeto';
+import { variaveisDaOrigem } from '@/src/services/variaveisDoProjeto';
 import { generateBriefData } from '@/src/services/claudeAiService';
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
@@ -997,46 +997,34 @@ export default function ToolWrapper({
         return;
       }
 
-      // Traz as variaveis da ferramenta que o CONSULTOR ligou nesta — nao existe
-      // ordem obrigatoria aqui. Aceita as duas formas de origem que sabemos ler:
-      // as causas da Espinha de Peixe (cada causa de cada categoria vira um X) e
-      // as variaveis marcadas como Qualitativa no Plano de Coleta.
+      // Ferramentas que trabalham em cima da LISTA DE X do projeto. O botao verde
+      // traz a lista da ferramenta que o consultor ligou nesta — nao importa qual
+      // seja (Espinha de Peixe, Matriz Causa e Efeito, Plano de Coleta, ou a
+      // propria ferramenta anterior da cadeia, que repassa o que recebeu).
       //
-      // Antes o codigo so entendia o Plano de Coleta, entao ligar a Espinha de
-      // Peixe aqui dava "Nenhuma variavel qualitativa encontrada" — a mensagem
-      // falava de uma ferramenta que nem era a origem declarada.
-      if (toolId === 'directObservation') {
-        const causasDaEspinha = causasDoIshikawa(sourceData);
-        const qualitativasDoPlano = (getField('items') || [])
-          .filter((item: any) => String(item?.data?.method || '').toLowerCase().includes('qualitativa'))
-          .map((item: any) => ({
-            variable: String(item?.data?.variable || '').trim(),
-            definition: String(item?.data?.operationalDefinition || ''),
-          }))
-          .filter((v: any) => v.variable);
-
-        const variaveis = causasDaEspinha.length > 0 ? causasDaEspinha : qualitativasDoPlano;
+      // Traz a LISTA, nao os campos preenchidos: o aluno escolhe um X por vez no
+      // dropdown que aparece depois. E por isso que o card verde some aqui — sem
+      // isso os dois blocos verdes ficavam na tela ao mesmo tempo.
+      if (toolId === 'directObservation' || toolId === 'dataNature' || toolId === 'fiveWhys') {
+        const variaveis = variaveisDaOrigem(sourceData);
 
         if (variaveis.length === 0) {
-          toast.error('A ferramenta de origem nao tem variaveis para trazer. Preencha as causas na Espinha de Peixe (ou marque variaveis como "Qualitativa" no Plano de Coleta).');
+          toast.error('A ferramenta de origem ainda nao tem variaveis para trazer. Preencha-a primeiro.');
           setIsGeneratingData(false);
           return;
         }
 
-        // Traz a LISTA, nao 18 linhas preenchidas de uma vez. O aluno escolhe
-        // uma por vez no dropdown que aparece depois — que e justamente o motivo
-        // de nao existirem dois blocos verdes competindo na tela.
-        migratedData = {
-          observations: [],
-          variaveisDisponiveis: variaveis.map((v: any) => ({
-            variable: v.variable,
-            definition: v.definition || '',
-            origem: v.origem || '',
-          })),
-        };
-      }
-      
+        const lista = variaveis.map((v) => ({
+          variable: v.variable,
+          definition: v.definition || '',
+          origem: v.origem || '',
+        }));
 
+        migratedData =
+          toolId === 'directObservation' ? { observations: [], variaveisDisponiveis: lista }
+          : toolId === 'fiveWhys' ? { chains: [], variaveisDisponiveis: lista }
+          : { analyses: [], description: '', variaveisDisponiveis: lista };
+      }
 
       if (toolId === 'statisticalAnalysis') {
         const dnAnalyses = getField('analyses') || [];
@@ -1644,6 +1632,9 @@ export default function ToolWrapper({
         }
 
         if (toolId === 'dataNature') {
+          // Lista ja trazida conta como conteudo: faz o card verde de migrar sumir
+          // e dar lugar ao dropdown de escolher um X por vez.
+          if ((data.variaveisDisponiveis || []).length > 0) return false;
           return !data.analyses || !Array.isArray(data.analyses) || data.analyses.length === 0;
         }
         
@@ -1666,6 +1657,7 @@ export default function ToolWrapper({
         }
 
         if (toolId === 'fiveWhys') {
+          if ((data.variaveisDisponiveis || []).length > 0) return false;
           const chains = data.chains || [];
           if (chains.length === 0) return true;
           return chains.every((c: any) => 

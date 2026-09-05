@@ -65,6 +65,95 @@ export const causasDoIshikawa = (ishikawa: any): VariavelDoProjeto[] => {
 export const variaveisDaEspinhaDePeixe = (allProjectData: any): VariavelDoProjeto[] =>
   causasDoIshikawa(acharDadoDaFerramenta(allProjectData, 'measureIshikawa'));
 
+/** Causas da Matriz Causa e Efeito ja em maos: cada linha da matriz e um X. */
+export const causasDaMatriz = (matriz: any): VariavelDoProjeto[] => {
+  const dados = matriz?.toolData || matriz;
+  const causas = Array.isArray(dados?.causes) ? dados.causes : [];
+  return causas
+    .map((c: any) => ({
+      variable: String(c?.name || '').trim(),
+      definition: '',
+      origem: 'Matriz Causa e Efeito',
+    }))
+    .filter((v: VariavelDoProjeto) => v.variable);
+};
+
+/** Qualitativas de um Plano de Coleta ja em maos. */
+export const qualitativasDoPlano = (plano: any): VariavelDoProjeto[] => {
+  const dados = plano?.toolData || plano;
+  const itens = Array.isArray(dados?.items) ? dados.items : [];
+  return itens
+    .filter((item: any) => String(item?.data?.method || '').toLowerCase().includes('qualitativa'))
+    .map((item: any) => ({
+      variable: String(item?.data?.variable || '').trim(),
+      definition: String(item?.data?.operationalDefinition || ''),
+      origem: 'Plano de Coleta',
+    }))
+    .filter((v: VariavelDoProjeto) => v.variable);
+};
+
+/**
+ * Le a lista de X de QUALQUER ferramenta de origem, sem exigir ordem nenhuma.
+ *
+ * A regra da adjacencia continua valendo: quem decide qual ferramenta alimenta
+ * qual e o consultor, e so a vizinha imediata transfere. O que esta funcao faz e
+ * garantir que a lista NAO MORRA no caminho — cada ferramenta repassa adiante o
+ * que RECEBEU (`variaveisDisponiveis`) somado ao que ela mesma PRODUZIU.
+ *
+ * Assim a mesma lista de X atravessa a cadeia, um passo de cada vez:
+ *   Espinha de Peixe -> Observacao Direta -> Natureza dos Dados -> 5 Porques
+ * sem pular ferramenta e sem sequencia fixa no codigo.
+ */
+export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
+  const dados = origem?.toolData || origem;
+  if (!dados) return [];
+
+  const recebidas: VariavelDoProjeto[] = (Array.isArray(dados.variaveisDisponiveis) ? dados.variaveisDisponiveis : [])
+    .map((v: any) => ({
+      variable: String(v?.variable ?? '').trim(),
+      definition: String(v?.definition ?? ''),
+      origem: String(v?.origem ?? ''),
+    }));
+
+  const observadas: VariavelDoProjeto[] = (Array.isArray(dados.observations) ? dados.observations : [])
+    .map((o: any) => ({
+      variable: String(o?.variable ?? '').trim(),
+      definition: String(o?.operationalDefinition ?? ''),
+      origem: 'Observacao Direta',
+      observada: true,
+      evidencia: String(o?.observationDescription ?? '').trim(),
+    }));
+
+  const dosPorques: VariavelDoProjeto[] = (Array.isArray(dados.chains) ? dados.chains : [])
+    .map((c: any) => ({ variable: String(c?.problem ?? '').trim(), definition: '', origem: '5 Porques' }));
+
+  const dasAnalises: VariavelDoProjeto[] = (Array.isArray(dados.analyses) ? dados.analyses : [])
+    .map((a: any) => ({
+      variable: String(a?.variableX?.name ?? a?.variable ?? '').trim(),
+      definition: '',
+      origem: 'Natureza dos Dados',
+    }));
+
+  const tudo = [
+    ...recebidas,
+    ...causasDoIshikawa(dados),
+    ...causasDaMatriz(dados),
+    ...qualitativasDoPlano(dados),
+    ...observadas,
+    ...dosPorques,
+    ...dasAnalises,
+  ].filter((v) => v.variable);
+
+  // Sem repetir: a primeira aparicao vence, entao o que veio recebido mantem a
+  // origem original em vez de virar "Observacao Direta" no meio do caminho.
+  const vistas = new Set<string>();
+  return tudo.filter((v) => {
+    if (vistas.has(v.variable)) return false;
+    vistas.add(v.variable);
+    return true;
+  });
+};
+
 /** Variaveis marcadas como Qualitativa no Plano de Coleta. */
 export const variaveisQualitativasDoPlano = (allProjectData: any): VariavelDoProjeto[] => {
   const plano = acharDadoDaFerramenta(allProjectData, 'dataCollection');
