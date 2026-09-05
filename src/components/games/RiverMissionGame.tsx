@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Gauge, Pause, Play, RotateCcw, Trophy, Zap } from 'lucide-react';
+import { Gauge, Pause, Play, RotateCcw, Trophy, Volume2, VolumeX, Zap } from 'lucide-react';
 
 const WORLD_WIDTH = 480;
 const WORLD_HEIGHT = 720;
 const BEST_SCORE_KEY = 'lbw-arcade-river-mission-best';
 
 type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
+type GameSound = 'start' | 'fire' | 'explosion' | 'energy' | 'hit' | 'gameover';
 
 type Bullet = { x: number; y: number; speed: number };
 type Enemy = { x: number; y: number; width: number; height: number; speed: number; kind: 'boat' | 'drone' };
@@ -91,11 +92,14 @@ function overlaps(
 
 export default function RiverMissionGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<AudioContext | null>(null);
   const runtimeRef = useRef<RuntimeGame>(createRuntime());
   const frameRef = useRef<number | null>(null);
   const statusRef = useRef<GameStatus>('ready');
   const controlsRef = useRef({ left: false, right: false, boost: false, brake: false, fire: false });
+  const soundEnabledRef = useRef(true);
   const [status, setStatus] = useState<GameStatus>('ready');
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [hud, setHud] = useState<HudState>(() => ({
     score: 0,
     distance: 0,
@@ -108,6 +112,52 @@ export default function RiverMissionGame() {
     statusRef.current = next;
     setStatus(next);
   }, []);
+
+  const playSound = useCallback((sound: GameSound) => {
+    if (!soundEnabledRef.current) return;
+    try {
+      const AudioContextClass = window.AudioContext
+        || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const audio = audioRef.current || new AudioContextClass();
+      audioRef.current = audio;
+      if (audio.state === 'suspended') void audio.resume();
+
+      const now = audio.currentTime;
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.connect(gain);
+      gain.connect(audio.destination);
+
+      const settings: Record<GameSound, { from: number; to: number; duration: number; volume: number; wave: OscillatorType }> = {
+        start: { from: 180, to: 520, duration: 0.22, volume: 0.08, wave: 'square' },
+        fire: { from: 650, to: 180, duration: 0.075, volume: 0.045, wave: 'square' },
+        explosion: { from: 150, to: 42, duration: 0.2, volume: 0.095, wave: 'sawtooth' },
+        energy: { from: 360, to: 920, duration: 0.18, volume: 0.075, wave: 'square' },
+        hit: { from: 95, to: 38, duration: 0.32, volume: 0.12, wave: 'sawtooth' },
+        gameover: { from: 210, to: 55, duration: 0.65, volume: 0.09, wave: 'square' },
+      };
+      const selected = settings[sound];
+      oscillator.type = selected.wave;
+      oscillator.frequency.setValueAtTime(selected.from, now);
+      oscillator.frequency.exponentialRampToValueAtTime(selected.to, now + selected.duration);
+      gain.gain.setValueAtTime(selected.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + selected.duration);
+      oscillator.start(now);
+      oscillator.stop(now + selected.duration);
+    } catch {
+      // Alguns navegadores bloqueiam áudio até a primeira interação; o jogo segue normalmente.
+    }
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabled((current) => {
+      const next = !current;
+      soundEnabledRef.current = next;
+      if (next) playSound('start');
+      return next;
+    });
+  }, [playSound]);
 
   const syncHud = useCallback((game: RuntimeGame) => {
     setHud((previous) => ({
@@ -129,15 +179,21 @@ export default function RiverMissionGame() {
     }
     syncHud(game);
     setHud((previous) => ({ ...previous, best }));
+    playSound('gameover');
     changeStatus('gameover');
-  }, [changeStatus, syncHud]);
+  }, [changeStatus, playSound, syncHud]);
 
   const startGame = useCallback(() => {
     runtimeRef.current = createRuntime();
     controlsRef.current = { left: false, right: false, boost: false, brake: false, fire: false };
     setHud((previous) => ({ score: 0, distance: 0, energy: 100, lives: 3, best: previous.best }));
+    playSound('start');
     changeStatus('playing');
-  }, [changeStatus]);
+  }, [changeStatus, playSound]);
+
+  useEffect(() => () => {
+    void audioRef.current?.close();
+  }, []);
 
   const setControl = useCallback((control: keyof typeof controlsRef.current, active: boolean) => {
     controlsRef.current[control] = active;
@@ -200,6 +256,16 @@ export default function RiverMissionGame() {
     ctx.closePath();
     ctx.fillStyle = water;
     ctx.fill();
+
+    // Faixas horizontais discretas reforçam a estética de videogame 8-bit.
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#d5f6ff';
+    for (let y = ((game.riverOffset * 0.65) % 32) - 32; y < WORLD_HEIGHT; y += 32) {
+      const bounds = riverBounds(y, game.riverOffset);
+      ctx.fillRect(bounds.left + 8, y, Math.max(0, bounds.right - bounds.left - 16), 3);
+    }
+    ctx.restore();
 
     ctx.lineWidth = 5;
     ctx.strokeStyle = '#71d36b';
@@ -346,6 +412,7 @@ export default function RiverMissionGame() {
       game.energy = Math.max(game.energy, 45);
       game.playerX = WORLD_WIDTH / 2;
       game.invulnerableFor = 1.8;
+      playSound('hit');
       if (game.lives <= 0) finishGame(game);
     };
 
@@ -372,6 +439,7 @@ export default function RiverMissionGame() {
       if (controls.fire && game.shotCooldown <= 0) {
         game.bullets.push({ x: game.playerX, y: game.playerY - 25, speed: 430 });
         game.shotCooldown = 0.2;
+        playSound('fire');
       }
 
       if (game.enemyTimer <= 0) {
@@ -414,6 +482,7 @@ export default function RiverMissionGame() {
             game.enemies.splice(enemyIndex, 1);
             game.bullets.splice(bulletIndex, 1);
             game.score += enemy.kind === 'drone' ? 180 : 120;
+            playSound('explosion');
             consumed = true;
             break;
           }
@@ -443,6 +512,7 @@ export default function RiverMissionGame() {
           game.energyCells.splice(cellIndex, 1);
           game.energy = Math.min(100, game.energy + 34);
           game.score += 80;
+          playSound('energy');
         }
       }
 
@@ -462,7 +532,7 @@ export default function RiverMissionGame() {
     return () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
-  }, [drawGame, finishGame, status, syncHud]);
+  }, [drawGame, finishGame, playSound, status, syncHud]);
 
   const pointerControlProps = (control: keyof typeof controlsRef.current) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -501,8 +571,18 @@ export default function RiverMissionGame() {
               width={WORLD_WIDTH}
               height={WORLD_HEIGHT}
               aria-label="Jogo LBW River Mission"
-              className="block w-full h-auto aspect-[2/3]"
+              className="block w-full h-auto aspect-[2/3] [image-rendering:pixelated]"
             />
+
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-label={soundEnabled ? 'Desativar som' : 'Ativar som'}
+              className="absolute right-3 top-3 z-30 inline-flex h-11 items-center gap-2 rounded-full border border-white/30 bg-slate-950/75 px-3 text-[10px] font-black uppercase tracking-wider text-white shadow-xl backdrop-blur active:scale-95"
+            >
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              <span>{soundEnabled ? 'Som ligado' : 'Som desligado'}</span>
+            </button>
 
             {status !== 'playing' && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#04101f]/75 backdrop-blur-[2px] p-6">
@@ -512,6 +592,9 @@ export default function RiverMissionGame() {
                   </div>
                   <h2 className="text-2xl font-black m-0">{statusCopy.title}</h2>
                   <p className="text-sm text-blue-100/80 leading-relaxed mt-3 mb-6">{statusCopy.text}</p>
+                  <p className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-cyan-200 mb-4">
+                    Celular: botão TIRO · Teclado: Espaço
+                  </p>
                   <button
                     type="button"
                     onClick={status === 'paused' ? () => changeStatus('playing') : startGame}
@@ -531,7 +614,7 @@ export default function RiverMissionGame() {
                   <MobileControlButton label="Direita" symbol="→" {...pointerControlProps('right')} />
                 </div>
                 <div className="flex gap-2">
-                  <MobileControlButton label="Atirar" symbol="●" featured {...pointerControlProps('fire')} />
+                  <MobileControlButton label="Atirar" symbol="TIRO" featured {...pointerControlProps('fire')} />
                   <MobileControlButton label="Acelerar" symbol="▲" {...pointerControlProps('boost')} />
                   <button
                     type="button"
@@ -574,7 +657,7 @@ export default function RiverMissionGame() {
             </p>
             <div className="grid grid-cols-3 gap-3" style={{ touchAction: 'none' }}>
               <ControlButton label="Esquerda" symbol="←" {...pointerControlProps('left')} />
-              <ControlButton label="Atirar" symbol="●" featured {...pointerControlProps('fire')} />
+              <ControlButton label="Atirar" symbol="TIRO" featured {...pointerControlProps('fire')} />
               <ControlButton label="Direita" symbol="→" {...pointerControlProps('right')} />
               <ControlButton label="Frear" symbol="▼" {...pointerControlProps('brake')} />
               <button
@@ -648,7 +731,7 @@ function MobileControlButton({
       type="button"
       aria-label={label}
       {...props}
-      className={`w-14 h-14 rounded-full border text-xl font-black backdrop-blur shadow-xl active:scale-90 select-none ${
+      className={`${featured ? 'w-[72px]' : 'w-14'} h-14 rounded-full border text-sm font-black backdrop-blur shadow-xl active:scale-90 select-none ${
         featured
           ? 'bg-blue-600/90 border-blue-300/70 text-white'
           : 'bg-slate-950/75 border-white/30 text-white'
