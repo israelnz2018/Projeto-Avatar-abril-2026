@@ -101,9 +101,11 @@ function AreaGate({ area, children }: { area: 'consultor' | 'coordenador'; child
 }
 
 function ConsultorOnlyGate({ children }: { children: React.ReactNode }) {
-  const { isConsultor, loading } = useUserAccess();
+  const { isAdmin, isConsultor, loading } = useUserAccess();
+  const adminEmails = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
+  const ehProprietario = Boolean(auth.currentUser?.email && adminEmails.includes(auth.currentUser.email.toLowerCase().trim()));
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
-  if (!isConsultor) return <Navigate to="/education" replace />;
+  if (!isAdmin && !isConsultor && !ehProprietario) return <Navigate to="/education" replace />;
   return <>{children}</>;
 }
 
@@ -146,6 +148,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const isAdmin = tipoUsuario === 'admin' || (user?.email ? adminEmails.includes(user.email.toLowerCase().trim()) : false);
   const isCoordenador = tipoUsuario === 'coordenador';
   const isConsultor = tipoUsuario === 'consultor';
+  const podeVerArcade = isAdmin || isConsultor;
 
   useEffect(() => {
     if (!user?.uid) {
@@ -275,7 +278,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Data & Analysis', path: '/analysis', icon: Database },
         { name: 'Material de Apoio', path: '/recursos', icon: FolderCheck },
         { name: 'Comunidade', path: '/comunidade-aluno', icon: Users },
-        ...(isConsultor ? [
+        ...(podeVerArcade ? [
           { name: 'LBW Arcade', path: '/arcade', icon: Gamepad2 },
         ] : []),
         { name: 'Avaliação e Certificado', path: '/avaliacao', icon: Award },
