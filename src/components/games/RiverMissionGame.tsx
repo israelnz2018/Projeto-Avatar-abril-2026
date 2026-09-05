@@ -4,9 +4,12 @@ import { Gauge, Pause, Play, RotateCcw, Trophy, Volume2, VolumeX, Zap } from 'lu
 const WORLD_WIDTH = 480;
 const WORLD_HEIGHT = 720;
 const BEST_SCORE_KEY = 'lbw-arcade-river-mission-best';
+const UNLOCKED_STAGE_KEY = 'lbw-arcade-river-mission-stage';
+const STAGE_ONE_DURATION_SECONDS = 5 * 60;
 
 type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
 type GameSound = 'start' | 'fire' | 'explosion' | 'energy' | 'hit' | 'gameover';
+type GameStage = 1 | 2;
 
 type Bullet = { x: number; y: number; speed: number };
 type Enemy = { x: number; y: number; width: number; height: number; speed: number; kind: 'boat' | 'drone' };
@@ -27,6 +30,9 @@ interface RuntimeGame {
   energyTimer: number;
   shotCooldown: number;
   invulnerableFor: number;
+  stage: GameStage;
+  stageElapsed: number;
+  stageIntroFor: number;
   lastFrame: number;
   lastHudUpdate: number;
 }
@@ -37,6 +43,8 @@ interface HudState {
   energy: number;
   lives: number;
   best: number;
+  stage: GameStage;
+  stageElapsed: number;
 }
 
 function readBestScore(): number {
@@ -47,7 +55,21 @@ function readBestScore(): number {
   }
 }
 
-function createRuntime(): RuntimeGame {
+function readUnlockedStage(): GameStage {
+  try {
+    return window.localStorage.getItem(UNLOCKED_STAGE_KEY) === '2' ? 2 : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function formatTime(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  return `${minutes}:${String(safeSeconds % 60).padStart(2, '0')}`;
+}
+
+function createRuntime(stage: GameStage = readUnlockedStage()): RuntimeGame {
   return {
     playerX: WORLD_WIDTH / 2,
     playerY: WORLD_HEIGHT - 112,
@@ -63,6 +85,9 @@ function createRuntime(): RuntimeGame {
     energyTimer: 5,
     shotCooldown: 0,
     invulnerableFor: 0,
+    stage,
+    stageElapsed: 0,
+    stageIntroFor: 2.2,
     lastFrame: 0,
     lastHudUpdate: 0,
   };
@@ -106,6 +131,8 @@ export default function RiverMissionGame() {
     energy: 100,
     lives: 3,
     best: readBestScore(),
+    stage: readUnlockedStage(),
+    stageElapsed: 0,
   }));
 
   const changeStatus = useCallback((next: GameStatus) => {
@@ -166,6 +193,8 @@ export default function RiverMissionGame() {
       energy: Math.max(0, Math.round(game.energy)),
       lives: game.lives,
       best: Math.max(previous.best, Math.floor(game.score)),
+      stage: game.stage,
+      stageElapsed: game.stageElapsed,
     }));
   }, []);
 
@@ -184,9 +213,18 @@ export default function RiverMissionGame() {
   }, [changeStatus, playSound, syncHud]);
 
   const startGame = useCallback(() => {
-    runtimeRef.current = createRuntime();
+    const unlockedStage = readUnlockedStage();
+    runtimeRef.current = createRuntime(unlockedStage);
     controlsRef.current = { left: false, right: false, boost: false, brake: false, fire: false };
-    setHud((previous) => ({ score: 0, distance: 0, energy: 100, lives: 3, best: previous.best }));
+    setHud((previous) => ({
+      score: 0,
+      distance: 0,
+      energy: 100,
+      lives: 3,
+      best: previous.best,
+      stage: unlockedStage,
+      stageElapsed: 0,
+    }));
     playSound('start');
     changeStatus('playing');
   }, [changeStatus, playSound]);
@@ -390,7 +428,24 @@ export default function RiverMissionGame() {
     ctx.fillText(`PONTOS ${Math.floor(game.score).toString().padStart(6, '0')}`, 24, 35);
     ctx.fillStyle = '#8ddcff';
     ctx.font = '700 12px system-ui';
-    ctx.fillText(`MISSÃO ${Math.floor(game.distance)} m`, 24, 56);
+    ctx.fillText(`FASE ${game.stage} · ${Math.floor(game.distance)} m`, 24, 56);
+
+    if (game.stageIntroFor > 0) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(2, 10, 24, 0.78)';
+      ctx.fillRect(78, WORLD_HEIGHT / 2 - 62, WORLD_WIDTH - 156, 124);
+      ctx.strokeStyle = game.stage === 1 ? '#60a5fa' : '#fb923c';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(78, WORLD_HEIGHT / 2 - 62, WORLD_WIDTH - 156, 124);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = '900 34px system-ui';
+      ctx.fillText(`FASE ${game.stage}`, WORLD_WIDTH / 2, WORLD_HEIGHT / 2 - 8);
+      ctx.fillStyle = game.stage === 1 ? '#8ddcff' : '#fdba74';
+      ctx.font = '800 14px system-ui';
+      ctx.fillText(game.stage === 1 ? 'SOBREVIVA POR 5 MINUTOS' : 'CHECKPOINT DESBLOQUEADO', WORLD_WIDTH / 2, WORLD_HEIGHT / 2 + 28);
+      ctx.restore();
+    }
   }, []);
 
   useEffect(() => {
@@ -421,7 +476,8 @@ export default function RiverMissionGame() {
       const dt = Math.min((now - game.lastFrame) / 1000, 0.035);
       game.lastFrame = now;
       const controls = controlsRef.current;
-      const scrollSpeed = controls.boost ? 215 : controls.brake ? 92 : 145;
+      const stageSpeed = game.stage === 2 ? 1.22 : 1;
+      const scrollSpeed = (controls.boost ? 215 : controls.brake ? 92 : 145) * stageSpeed;
       const horizontalSpeed = controls.boost ? 205 : 235;
 
       if (controls.left) game.playerX -= horizontalSpeed * dt;
@@ -430,7 +486,9 @@ export default function RiverMissionGame() {
       game.riverOffset += scrollSpeed * dt;
       game.distance += scrollSpeed * dt * 0.08;
       game.score += scrollSpeed * dt * 0.12;
-      game.energy -= (controls.boost ? 4.7 : controls.brake ? 1.2 : 2.6) * dt;
+      game.stageElapsed += dt;
+      game.stageIntroFor = Math.max(0, game.stageIntroFor - dt);
+      game.energy -= (controls.boost ? 4.7 : controls.brake ? 1.2 : 2.6) * (game.stage === 2 ? 1.12 : 1) * dt;
       game.enemyTimer -= dt;
       game.energyTimer -= dt;
       game.shotCooldown -= dt;
@@ -455,7 +513,7 @@ export default function RiverMissionGame() {
           kind,
         });
         const difficulty = Math.min(0.55, game.distance / 2200);
-        game.enemyTimer = 1.05 - difficulty + Math.random() * 0.45;
+        game.enemyTimer = Math.max(0.28, 1.05 - difficulty - (game.stage === 2 ? 0.16 : 0) + Math.random() * 0.45);
       }
 
       if (game.energyTimer <= 0) {
@@ -520,6 +578,26 @@ export default function RiverMissionGame() {
       if (game.playerX - 14 < playerRiver.left || game.playerX + 14 > playerRiver.right) hitPlayer();
       if (game.energy <= 0) finishGame(game);
 
+      if (game.stage === 1 && game.stageElapsed >= STAGE_ONE_DURATION_SECONDS && statusRef.current === 'playing') {
+        game.stage = 2;
+        game.stageElapsed = 0;
+        game.stageIntroFor = 3;
+        game.energy = 100;
+        game.lives = 3;
+        game.invulnerableFor = 2.5;
+        game.bullets = [];
+        game.enemies = [];
+        game.energyCells = [];
+        game.enemyTimer = 1;
+        game.energyTimer = 4;
+        try {
+          window.localStorage.setItem(UNLOCKED_STAGE_KEY, '2');
+        } catch {
+          // Mantém a transição na sessão mesmo se o armazenamento local estiver bloqueado.
+        }
+        playSound('start');
+      }
+
       if (now - game.lastHudUpdate > 100) {
         game.lastHudUpdate = now;
         syncHud(game);
@@ -549,18 +627,33 @@ export default function RiverMissionGame() {
   });
 
   const statusCopy = status === 'ready'
-    ? { title: 'LBW River Mission', text: 'Mantenha-se no rio, recarregue energia e abra caminho pela missão.' }
+    ? {
+        title: `LBW River Mission — Fase ${hud.stage}`,
+        text: hud.stage === 1
+          ? 'Sobreviva por 5 minutos para desbloquear a Fase 2.'
+          : 'Checkpoint salvo: você começará diretamente na Fase 2.',
+      }
     : status === 'paused'
       ? { title: 'Jogo pausado', text: 'Sua missão está preservada.' }
-      : { title: 'Missão encerrada', text: `Você percorreu ${hud.distance} metros e marcou ${hud.score} pontos.` };
+      : {
+          title: `Fim da tentativa — Fase ${hud.stage}`,
+          text: hud.stage === 2
+            ? `Você marcou ${hud.score} pontos. A Fase 2 continua desbloqueada.`
+            : `Você percorreu ${hud.distance} metros. Tente novamente sobreviver aos 5 minutos.`,
+        };
+
+  const displayedTime = hud.stage === 1
+    ? formatTime(STAGE_ONE_DURATION_SECONDS - hud.stageElapsed)
+    : formatTime(hud.stageElapsed);
 
   return (
     <div className="w-full max-w-5xl mx-auto">
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,560px)_1fr] gap-6 items-start">
         <section className="rounded-[28px] overflow-hidden border border-blue-200 bg-[#071528] shadow-2xl shadow-blue-950/20">
-          <div className="grid grid-cols-4 gap-px bg-white/10 border-b border-white/10">
+          <div className="grid grid-cols-5 gap-px bg-white/10 border-b border-white/10">
             <HudItem label="Pontos" value={hud.score.toLocaleString('pt-BR')} />
-            <HudItem label="Distância" value={`${hud.distance} m`} />
+            <HudItem label="Fase" value={String(hud.stage)} />
+            <HudItem label={hud.stage === 1 ? 'Restante' : 'Tempo'} value={displayedTime} />
             <HudItem label="Vidas" value={'●'.repeat(Math.max(0, hud.lives)) || '—'} />
             <HudItem label="Recorde" value={hud.best.toLocaleString('pt-BR')} />
           </div>
@@ -601,7 +694,11 @@ export default function RiverMissionGame() {
                     className="w-full rounded-2xl border-0 bg-blue-600 hover:bg-blue-500 text-white py-4 px-5 font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
                     {status === 'paused' ? <Play size={20} /> : status === 'gameover' ? <RotateCcw size={20} /> : <Play size={20} />}
-                    {status === 'paused' ? 'Continuar missão' : status === 'gameover' ? 'Jogar novamente' : 'Iniciar missão'}
+                    {status === 'paused'
+                      ? 'Continuar missão'
+                      : status === 'gameover'
+                        ? `Recomeçar fase ${hud.stage}`
+                        : `Iniciar fase ${hud.stage}`}
                   </button>
                 </div>
               </div>
@@ -679,7 +776,9 @@ export default function RiverMissionGame() {
           <div className="rounded-3xl border border-cyan-200 bg-cyan-50 p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-800 mb-2">Objetivo da missão</p>
             <p className="text-sm text-cyan-950 leading-relaxed m-0">
-              Sobreviva pelo maior tempo possível, destrua obstáculos e administre sua energia. Quanto mais longe você chegar, maior será a dificuldade.
+              {hud.stage === 1
+                ? 'Sobreviva por 5 minutos, destrua obstáculos e administre sua energia para desbloquear a Fase 2.'
+                : 'A Fase 2 é mais rápida e tem mais inimigos. Se perder, você recomeçará desta fase.'}
             </p>
           </div>
         </aside>
