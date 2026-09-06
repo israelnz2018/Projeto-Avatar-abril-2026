@@ -553,6 +553,10 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
   "analyses": [
     {
       "id": "1",
+      "analysisRole": "principal",
+      "sourceCause": "Texto exato do X recebido",
+      "projectY": "Texto exato do Y principal recebido",
+      "question": "Pergunta simples que esta analise responde",
       "variableY": {"sourceName": "Texto exato do Y recebido", "name": "Grandeza mensuravel do Y", "measurement": "O que registrar e em qual unidade ou categorias", "type": "Contínuo", "description": "Por que esta operacionalizacao e classificacao respondem ao problema"},
       "variableX": {"sourceName": "Texto exato do X recebido", "name": "Grandeza mensuravel do X", "measurement": "O que registrar e em qual unidade ou categorias", "type": "Contínuo", "description": "Por que esta operacionalizacao e classificacao explicam o Y"},
       "quadrant": "Y Contínuo / X Contínuo",
@@ -561,7 +565,8 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
         {"rank": 1, "tool": "Diagrama de Dispersão", "reason": "Por que deve ser usada primeiro neste caso"},
         {"rank": 2, "tool": "Regressão simples", "reason": "Quando e por que usar como segunda opção"}
       ],
-      "explanation": "Resumo da sequencia recomendada, em linguagem simples"
+      "explanation": "Resumo da sequencia recomendada, em linguagem simples",
+      "rootCauseConfirmed": false
     }
   ]
 }`,
@@ -571,8 +576,19 @@ PROPOSITO: ajudar o aluno a descobrir QUAL FERRAMENTA GRAFICA OU ESTATISTICA usa
 pra investigar a relacao entre UMA causa (X) e o efeito do projeto (Y). O aluno
 leva essa recomendacao pra aba de Analise de Dados.
 
-O contexto traz 'variavelX' e 'variavelY'. Gere EXATAMENTE 1 analise para esse
-par. Nao invente outros fatores e nao gere uma lista.
+O contexto traz 'variavelX' e 'variavelY'. A variavelX pode ser uma grandeza
+simples ou uma causa composta que gruda uma MEDIDA a um FATOR DE AGRUPAMENTO,
+como "volume de notas por analista". Decomponha antes de classificar:
+- Sempre gere 1 analise PRINCIPAL ligando a medida observavel da causa ao Y do
+  projeto.
+- Gere tambem 1 analise de ESTRATIFICACAO somente quando o texto ou a definicao
+  operacional trouxer claramente uma medida comparada por grupos, categorias,
+  pessoas, turnos, maquinas, fornecedores ou equivalentes.
+- Portanto, retorne 1 ou no maximo 2 itens em analyses. Nunca mais de 2.
+- Quando houver duas, analyses[0] deve ser a principal e analyses[1] a
+  estratificacao.
+- Nao pergunte nada ao aluno. Entregue a decomposicao pronta para ele apenas
+  conferir e, se necessario, corrigir na tela.
 
 CONHECIMENTO OBRIGATORIO DOS VIDEOS "MAPA DE ANALISE ESTATISTICA" PARTES 1 E 2:
 1. Primeiro defina a DIRECAO da relacao. Y e a resposta, saida, efeito ou
@@ -594,8 +610,13 @@ CONHECIMENTO OBRIGATORIO DOS VIDEOS "MAPA DE ANALISE ESTATISTICA" PARTES 1 E 2:
    - X = Contínuo e Y = Contínuo, pois ambos serao medidos em tempo.
    O "Sistema ERP" so seria X Discreto se a comparacao fosse por categorias,
    como ERP A/B, versao, fornecedor ou estavel/instavel.
-5. Se uma frase reunir mais de um conceito, escolha a medida primaria mais
-   diretamente relacionada ao Y. Nao crie mais de uma analise.
+5. Se uma frase reunir MEDIDA + AGRUPAMENTO, nao descarte nenhum dos dois:
+   - analise principal: X = medida da causa e Y = efeito principal do projeto;
+   - analise de estratificacao: X = fator de agrupamento e Y = medida da causa.
+   Exemplo: "volume de notas fiscais por analista" gera:
+   a) principal: X volume de notas / Y tempo de emissao;
+   b) estratificacao: X analista / Y volume de notas.
+   Se nao houver fator de agrupamento claro, gere somente a principal.
 6. A letra X ou Y indica o PAPEL na relacao, nao a natureza do dado. Tanto X
    quanto Y podem ser continuos ou discretos.
 7. Pense sempre na coluna que seria criada numa planilha: qual valor seria
@@ -612,8 +633,15 @@ EXEMPLOS DE RACIOCINIO GERAL (nao sao regras especiais):
 - "Empresa A ou B" e X Discreto e "desempenho em pontos" pode ser Y Continuo.
 
 PREENCHIMENTO:
-- variableX.sourceName = exatamente o texto de 'variavelX'.
-- variableY.sourceName = exatamente o texto de 'variavelY'.
+- sourceCause = exatamente o texto de 'variavelX' em todos os itens.
+- projectY = exatamente o texto de 'variavelY' em todos os itens.
+- analysisRole = "principal" na ligacao com o Y do projeto e
+  "estratificacao" na comparacao entre grupos.
+- question = pergunta curta que a analise responde, sem afirmar o resultado.
+- Na principal, variableX.sourceName = exatamente o texto de 'variavelX' e
+  variableY.sourceName = exatamente o texto de 'variavelY'.
+- Na estratificacao, variableX.name = fator de agrupamento e variableY.name =
+  medida comparada; os sourceName devem indicar claramente suas origens.
 - variableX.name e variableY.name = nomes claros das grandezas que realmente
   serao medidas. Se o texto recebido ja for mensuravel, mantenha-o.
 - measurement deve dizer exatamente o que entra em cada linha da planilha e em
@@ -621,12 +649,16 @@ PREENCHIMENTO:
 - description deve justificar a operacionalizacao, a direcao X -> Y e a
   classificacao. Nao afirme que uma variavel e discreta apenas porque o texto
   original e um atributo escrito em palavras.
+- rootCauseConfirmed deve ser sempre false. Somente o aluno pode confirmar.
 
 CLASSIFIQUE CADA GRANDEZA como "Contínuo" ou "Discreto":
-- Contínuo: medida numerica que aceita fracao, como tempo, custo, peso, altura,
-  temperatura, velocidade, percentual, renda ou salario.
-- Discreto: contagem inteira ou atributo/categoria, como numero de ocorrencias,
-  turno, operador, fornecedor, empresa A/B, tipo, sim/nao, aprovado/reprovado.
+- Contínuo: medida numerica analisada como magnitude, como tempo, custo, peso,
+  temperatura, percentual e tambem volume/quantidade quando seus valores serao
+  usados numericamente para estudar aumento, reducao ou relacao com outra medida.
+- Discreto: atributo, categoria ou classificacao, como turno, operador,
+  fornecedor, empresa A/B, tipo, sim/nao e aprovado/reprovado. Uma contagem so
+  deve ficar como Discreto quando for tratada como ocorrencia ou classe, e nao
+  como intensidade numerica da causa.
 Se houver definicao operacional ou metodo de coleta, use-os como fonte
 prioritaria para decidir como a variavel e tratada.
 
@@ -634,8 +666,8 @@ ANTES DE RESPONDER, FACA ESTA CHECAGEM PARA QUALQUER TEMA OU SETOR:
 - X descreve uma entrada/causa e Y descreve a resposta/efeito?
 - name e uma grandeza observavel, e nao apenas a repeticao de uma causa abstrata?
 - measurement deixa claro o que seria registrado em cada linha da planilha?
-- "Contínuo" foi usado quando a medida aceita valores fracionados?
-- "Discreto" foi usado somente para contagem inteira ou categoria/atributo?
+- "Contínuo" foi usado para medidas e quantidades analisadas numericamente?
+- "Discreto" foi usado para categoria/atributo ou contagem tratada como ocorrencia?
 Se faltar definicao operacional, proponha a forma de medicao mais direta para
 investigar a relacao X -> Y e deixe essa escolha explicita em measurement.
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Sparkles, 
@@ -33,6 +34,11 @@ interface DataNatureAssistantProps {
 
 interface AnalysisResult {
   id: string;
+  analysisRole?: 'principal' | 'estratificacao';
+  sourceCause?: string;
+  projectY?: string;
+  question?: string;
+  rootCauseConfirmed?: boolean;
   variableY: {
     sourceName?: string;
     name: string;
@@ -56,6 +62,7 @@ interface AnalysisResult {
 }
 
 export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: DataNatureAssistantProps & { onClearAIData?: () => void }) {
+  const navigate = useNavigate();
   const d = initialData?.toolData || initialData;
   const [description, setDescription] = useState(d?.description || '');
   const [analyses, setAnalyses] = useState<AnalysisResult[]>(d?.analyses || []);
@@ -178,6 +185,28 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
     }));
   };
 
+  const toggleRootCause = (analysisId: string) => {
+    setAnalyses(prev => prev.map(analysis => analysis.id === analysisId
+      ? { ...analysis, rootCauseConfirmed: !analysis.rootCauseConfirmed }
+      : analysis));
+  };
+
+  const openDataAnalysis = (analysis: AnalysisResult) => {
+    onSave({ description, analyses, selectedObservationId, variaveisDisponiveis: listaMigrada, variaveisY: listaY, yEscolhido });
+    // Mantém a recomendação disponível durante a troca de aba. A Data Analysis
+    // continua exigindo que o aluno selecione as colunas reais da planilha.
+    sessionStorage.setItem('lbw-data-nature-recommendation', JSON.stringify({
+      projectId: allProjectData?.id || '',
+      analysisId: analysis.id,
+      question: analysis.question || '',
+      variableX: analysis.variableX,
+      variableY: analysis.variableY,
+      recommendations: analysis.recommendations || [],
+      recommendedTools: analysis.recommendedTools || [],
+    }));
+    navigate('/analysis');
+  };
+
   useEffect(() => {
     if (initialData) {
       const toolData = initialData.toolData || initialData;
@@ -296,7 +325,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
 
           <SeletorDeVariavelX
             disponiveis={listaMigrada}
-            jaUsadas={analyses.map((a) => a.variableX?.sourceName || a.variableX?.name).filter(Boolean) as string[]}
+            jaUsadas={analyses.map((a) => a.sourceCause || a.variableX?.sourceName || a.variableX?.name).filter(Boolean) as string[]}
             onAdicionar={trazerVariavel}
             titulo="Trazer variável para a análise"
             descricao="Escolha um X e aperte o botão. A IA relaciona esse X com o Y acima, classifica os dois e recomenda a ferramenta estatística certa — que você leva para a aba de Análise de Dados."
@@ -340,6 +369,14 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
             </button>
           </div>
 
+          {analyses.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold text-blue-800">
+              <span>{new Set(analyses.map((a) => a.variableX?.name).filter(Boolean)).size} variável(is) X identificada(s)</span>
+              <span className="text-blue-300">•</span>
+              <span>{analyses.filter((a) => a.rootCauseConfirmed).length} causa(s) raiz confirmada(s)</span>
+            </div>
+          )}
+
           <div className="space-y-12">
             <AnimatePresence mode="popLayout">
               {analyses.map((analysis, index) => (
@@ -350,20 +387,57 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                   exit={{ opacity: 0, scale: 0.95 }}
                   className="space-y-6 pt-10 border-t border-[#eee] relative group"
                 >
-                  <button
-                    onClick={() => removeAnalysis(analysis.id)}
-                    className="absolute top-4 right-0 p-2 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Remover Análise"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                      {index + 1}
-                    </span>
-                    <h4 className="font-bold text-gray-800">Análise de Relacionamento</h4>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-gray-800 m-0">
+                          {analysis.analysisRole === 'estratificacao'
+                            ? 'O fator está relacionado com a medida da causa?'
+                            : 'A causa está relacionada com o problema?'}
+                        </h4>
+                        <p className="m-0 mt-0.5 text-xs text-slate-500">
+                          {analysis.analysisRole === 'estratificacao' ? 'Análise complementar de estratificação' : 'Análise principal'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleRootCause(analysis.id)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none",
+                          analysis.rootCauseConfirmed
+                            ? "bg-green-600 text-white shadow-lg shadow-green-100"
+                            : "bg-slate-200 text-slate-500 hover:bg-green-100 hover:text-green-600"
+                        )}
+                      >
+                        <CheckCircle2 size={14} />
+                        {analysis.rootCauseConfirmed ? 'É Causa Raiz' : 'Confirmar Causa'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeAnalysis(analysis.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors border-none bg-transparent cursor-pointer"
+                        title="Remover Análise"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
+
+                  {(analysis.sourceCause || analysis.question) && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      {analysis.sourceCause && (
+                        <p className="m-0 text-xs text-slate-600"><strong>Causa selecionada:</strong> {analysis.sourceCause}</p>
+                      )}
+                      {analysis.question && (
+                        <p className="m-0 mt-1 text-sm font-bold text-slate-900">{analysis.question}</p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Variable Y */}
@@ -507,6 +581,16 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                             {analysis.explanation}
                           </p>
                         </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openDataAnalysis(analysis)}
+                          className="flex items-center gap-2 rounded-lg border border-blue-300/40 bg-blue-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition hover:bg-blue-500 cursor-pointer"
+                        >
+                          <BarChart3 size={16} /> Realizar análise <ArrowRight size={15} />
+                        </button>
                       </div>
                     </div>
                   </div>

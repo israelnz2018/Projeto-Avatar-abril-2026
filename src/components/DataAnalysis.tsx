@@ -436,6 +436,19 @@ export default function DataAnalysis() {
   const [novoProjetoTitulo, setNovoProjetoTitulo] = useState('');
   const [projetoDestinoSalvar, setProjetoDestinoSalvar] = useState<Project | null>(null);
   const [planilhaDestinoSalvar, setPlanilhaDestinoSalvar] = useState<PlanilhaInfo | null>(null);
+  const [recomendacaoNatureza, setRecomendacaoNatureza] = useState<any>(() => {
+    try {
+      const salva = sessionStorage.getItem('lbw-data-nature-recommendation');
+      return salva ? JSON.parse(salva) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const fecharRecomendacaoNatureza = () => {
+    sessionStorage.removeItem('lbw-data-nature-recommendation');
+    setRecomendacaoNatureza(null);
+  };
 
   useEffect(() => {
     getCourses().then(setCursosOferta).catch(() => setCursosOferta([]));
@@ -1785,6 +1798,38 @@ export default function DataAnalysis() {
           </nav>
         </div>
       </header>
+
+      {recomendacaoNatureza && (
+        <div className="mx-[20px] mb-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="m-0 text-[10px] font-black uppercase tracking-widest text-blue-600">Recomendação da Natureza dos Dados</p>
+              {recomendacaoNatureza.question && (
+                <p className="m-0 mt-1 text-sm font-bold text-slate-900">{recomendacaoNatureza.question}</p>
+              )}
+              <p className="m-0 mt-2 text-xs text-slate-700">
+                <strong>X:</strong> {recomendacaoNatureza.variableX?.name || 'Não informado'}
+                <span className="mx-2 text-slate-300">•</span>
+                <strong>Y:</strong> {recomendacaoNatureza.variableY?.name || 'Não informado'}
+              </p>
+              <p className="m-0 mt-1 text-xs text-blue-800">
+                <strong>Comece por:</strong> {recomendacaoNatureza.recommendations?.[0]?.tool || recomendacaoNatureza.recommendedTools?.[0] || 'Consulte o menu de análises'}
+                {(recomendacaoNatureza.recommendations?.[1]?.tool || recomendacaoNatureza.recommendedTools?.[1]) && (
+                  <> · <strong>Segunda opção:</strong> {recomendacaoNatureza.recommendations?.[1]?.tool || recomendacaoNatureza.recommendedTools?.[1]}</>
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fecharRecomendacaoNatureza}
+              className="rounded-full border-none bg-white p-2 text-slate-500 shadow-sm hover:text-slate-900 cursor-pointer"
+              aria-label="Fechar recomendação"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* pt reduzido e space-y menor: o objetivo desta tela é chegar rápido ao botão
           de gerar a análise — cada folga vertical aqui empurra o botão pra fora da

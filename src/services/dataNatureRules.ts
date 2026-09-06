@@ -6,6 +6,8 @@ export type DataNatureRecommendation = {
   reason: string;
 };
 
+export type DataNatureAnalysisRole = 'principal' | 'estratificacao';
+
 export const DATA_NATURE_TOOL_MATRIX: Record<string, string[]> = {
   'Contínuo-Contínuo': [
     'Diagrama de Dispersão',
@@ -91,6 +93,13 @@ const normalizarRecomendacoes = (analysis: any, permitidas: string[]) => {
   return recommendations;
 };
 
+const normalizarPapelDaAnalise = (valor: unknown): DataNatureAnalysisRole => {
+  const normalizado = semAcentos(valor);
+  return normalizado.includes('estrat') || normalizado.includes('complement')
+    ? 'estratificacao'
+    : 'principal';
+};
+
 /**
  * Valida apenas o contrato da resposta da IA. A interpretação semântica de
  * cada X e Y permanece geral e orientada pelas transcrições no prompt; não há
@@ -101,17 +110,26 @@ export const normalizeDataNatureData = (data: any, context: DataNatureContext = 
   const analyses = Array.isArray(normalized.analyses) ? normalized.analyses : [];
 
   normalized.analyses = analyses.map((analysis: any, index: number) => {
-    const rawY = String(context.variavelY || analysis?.variableY?.sourceName || analysis?.variableY?.name || '').trim();
-    const rawX = String(context.variavelX || analysis?.variableX?.sourceName || analysis?.variableX?.name || '').trim();
+    // A análise principal usa o Y do projeto. Uma análise complementar pode ter
+    // um Y local derivado da própria causa (ex.: volume por analista), por isso a
+    // resposta da IA vence e o contexto entra somente como fallback.
+    const rawY = String(analysis?.variableY?.sourceName || context.variavelY || analysis?.variableY?.name || '').trim();
+    const rawX = String(analysis?.variableX?.sourceName || context.variavelX || analysis?.variableX?.name || '').trim();
     const variableY = normalizarVariavel(analysis?.variableY, rawY);
     const variableX = normalizarVariavel(analysis?.variableX, rawX);
     const key = `${variableY.type}-${variableX.type}`;
     const permitidas = DATA_NATURE_TOOL_MATRIX[key] || [];
     const recommendations = normalizarRecomendacoes(analysis, permitidas);
+    const analysisRole = normalizarPapelDaAnalise(analysis?.analysisRole);
 
     return {
       ...analysis,
       id: String(analysis?.id || index + 1),
+      analysisRole,
+      sourceCause: String(analysis?.sourceCause || context.variavelX || variableX.sourceName || '').trim(),
+      projectY: String(analysis?.projectY || context.variavelY || '').trim(),
+      question: String(analysis?.question || '').trim(),
+      rootCauseConfirmed: analysis?.rootCauseConfirmed === true,
       variableY,
       variableX,
       quadrant: `Y ${variableY.type} / X ${variableX.type}`,

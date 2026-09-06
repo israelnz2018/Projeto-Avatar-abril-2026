@@ -1655,13 +1655,26 @@ export default function ToolWrapper({
         const anterior = localData?.toolData || localData || {};
         const jaFeitas = Array.isArray(anterior.analyses) ? anterior.analyses : [];
         const novas = Array.isArray(normalized.analyses) ? normalized.analyses : [];
-        const chave = (a: any) => `${a?.variableX?.sourceName || a?.variableX?.name || ''}|${a?.variableY?.sourceName || a?.variableY?.name || ''}`;
-        const substituidas = new Set(novas.map(chave));
+        // Uma causa composta pode gerar duas relações: a principal contra o Y
+        // do projeto e a estratificação medida por grupo. A função da análise,
+        // e não apenas o nome bruto das variáveis, identifica cada resultado.
+        const chave = (a: any) => `${a?.sourceCause || a?.variableX?.sourceName || a?.variableX?.name || ''}|${a?.projectY || a?.variableY?.sourceName || a?.variableY?.name || ''}|${a?.analysisRole || 'principal'}`;
+        const anterioresPorChave = new Map<string, any>(jaFeitas.map((a: any) => [chave(a), a] as [string, any]));
+        const novasComDecisaoHumana = novas.map((a: any, index: number) => {
+          const existente = anterioresPorChave.get(chave(a));
+          return {
+            ...a,
+            id: existente?.id || `${Date.now()}-${index}-${a?.analysisRole || 'principal'}`,
+            // Regerar a recomendação não apaga uma confirmação feita pelo aluno.
+            rootCauseConfirmed: existente?.rootCauseConfirmed === true,
+          };
+        });
+        const substituidas = new Set(novasComDecisaoHumana.map(chave));
         normalized = {
           ...anterior,
           ...normalized,
           // Reanalisar o mesmo par X x Y troca o resultado em vez de duplicar.
-          analyses: [...jaFeitas.filter((a: any) => !substituidas.has(chave(a))), ...novas],
+          analyses: [...jaFeitas.filter((a: any) => !substituidas.has(chave(a))), ...novasComDecisaoHumana],
           variaveisDisponiveis: anterior.variaveisDisponiveis || [],
           variaveisY: anterior.variaveisY || [],
           yEscolhido: anterior.yEscolhido || '',

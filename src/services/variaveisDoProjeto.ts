@@ -24,6 +24,8 @@ export interface VariavelDoProjeto {
   evidencia?: string;
   /** Metodo de coleta (Quantitativa/Qualitativa), quando vem do Plano de Coleta. */
   metodo?: string;
+  /** Confirmação humana feita na ferramenta que investigou esta variável. */
+  causaRaiz?: boolean;
 }
 
 /**
@@ -216,6 +218,7 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
       origem: 'Observacao Direta',
       observada: true,
       evidencia: String(o?.observationDescription ?? '').trim(),
+      causaRaiz: o?.identifiedCause === true,
     }));
 
   const dosPorques: VariavelDoProjeto[] = (Array.isArray(dados.chains) ? dados.chains : [])
@@ -224,8 +227,9 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
   const dasAnalises: VariavelDoProjeto[] = (Array.isArray(dados.analyses) ? dados.analyses : [])
     .map((a: any) => ({
       variable: String(a?.variableX?.name ?? a?.variable ?? '').trim(),
-      definition: '',
+      definition: String(a?.variableX?.measurement ?? ''),
       origem: 'Natureza dos Dados',
+      causaRaiz: a?.rootCauseConfirmed === true,
     }));
 
   const tudo = [
@@ -277,6 +281,7 @@ export const variaveisObservadas = (allProjectData: any): VariavelDoProjeto[] =>
       origem: 'Observacao Direta',
       observada: true,
       evidencia: String(o?.observationDescription || '').trim(),
+      causaRaiz: o?.identifiedCause === true,
     }))
     .filter((v: VariavelDoProjeto) => v.variable);
 };
