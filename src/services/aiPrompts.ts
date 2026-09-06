@@ -732,7 +732,7 @@ responde a pergunta do aluno.`
     {
       "sourceId": "ID EXATO de uma evidência recebida",
       "aiDecision": "contribui",
-      "aiReason": "Justificativa curta baseada somente na evidência",
+      "aiReason": "Ate 10 palavras, direto",
       "confidence": "media"
     }
   ]
@@ -759,7 +759,12 @@ REGRAS TECNICAS:
    isolada ou planejamento normalmente recebe "baixa" ou "media".
 6. A IA sugere; o aluno fará a confirmação humana depois. Nunca preencha campos de
    confirmação humana e nunca marque uso no Brainstorming.
-7. Retorne APENAS JSON no formato especificado.`
+7. aiReason = NO MAXIMO 10 palavras, em linguagem simples. Nada de frases de
+   manual como "hipotese que precisa de evidencia empirica" ou "sem validacao
+   por dados". Quando nao houver analise feita, escreva exatamente
+   "Nenhuma análise foi realizada." e pare por ai. Quando houver, diga o que o
+   resultado mostrou, nao o que falta.
+8. Retorne APENAS JSON no formato especificado.`
   },
 
   // ======================================================================

@@ -83,7 +83,7 @@ const pushCandidate = (
     x,
     y: cleanText(item.y),
     analysis: cleanText(item.analysis) || 'Análise registrada',
-    evidence: cleanText(item.evidence) || 'Sem interpretação textual registrada.',
+    evidence: cleanText(item.evidence) || 'Sem interpretação escrita.',
     origin: item.origin,
   });
 };
@@ -109,7 +109,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       x: x || y,
       y,
       analysis: analysis?.tool || 'Análise estatística',
-      evidence: analysis?.interpretacao || analysis?.analise || 'Resultado gráfico/estatístico salvo no projeto.',
+      evidence: analysis?.interpretacao || analysis?.analise || 'Resultado salvo, sem interpretação escrita.',
     });
   });
 
@@ -124,7 +124,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       x: analysis?.variable || analysis?.x || '',
       y: analysis?.y || yProjeto,
       analysis: analysis?.analysisType || 'Análise estatística',
-      evidence: analysis?.interpretation || 'Análise registrada no projeto, sem interpretação textual.',
+      evidence: analysis?.interpretation || 'Análise sem interpretação escrita.',
     });
   });
 
@@ -146,7 +146,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       x,
       y,
       analysis: 'Planejamento da análise',
-      evidence: `Recomendação de ferramentas: ${tools || 'não informada'}. Ainda não é evidência de contribuição.`,
+      evidence: `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
     });
   });
 
@@ -188,7 +188,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
         x: text || '',
         y: ishikawa?.problem || yProjeto,
         analysis: 'Causa potencial',
-        evidence: 'Causa levantada na Espinha de Peixe; precisa ser validada por dados.',
+        evidence: 'Ainda sem análise.',
       });
     });
   });
@@ -202,7 +202,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       x: cause?.name || cause?.description || '',
       y: (matrix?.outputs || []).map((output: any) => output?.name).filter(Boolean).join(', ') || yProjeto,
       analysis: 'Priorização causa e efeito',
-      evidence: `Pontuações registradas: ${Array.isArray(cause?.scores) ? cause.scores.join(', ') : 'não informadas'}.`,
+      evidence: `Pontuações: ${Array.isArray(cause?.scores) ? cause.scores.join(', ') : 'não informadas'}.`,
     });
   });
 
