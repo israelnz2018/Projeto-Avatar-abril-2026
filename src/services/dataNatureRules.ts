@@ -132,9 +132,6 @@ export const normalizeDataNatureData = (data: any, context: DataNatureContext = 
       sourceCause: String(analysis?.sourceCause || context.variavelX || variableX.sourceName || '').trim(),
       projectY: String(analysis?.projectY || context.variavelY || '').trim(),
       question: String(analysis?.question || '').trim(),
-      // O que representa UMA linha da planilha. X e Y precisam ser medidos
-      // nessa mesma granularidade, senao a correlacao encontrada e falsa.
-      observationUnit: String(analysis?.observationUnit || '').trim(),
       rootCauseConfirmed: analysis?.rootCauseConfirmed === true,
       variableY,
       variableX,

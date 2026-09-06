@@ -37,7 +37,6 @@ interface AnalysisResult {
   sourceCause?: string;
   projectY?: string;
   question?: string;
-  observationUnit?: string;
   rootCauseConfirmed?: boolean;
   variableY: {
     sourceName?: string;
@@ -195,6 +194,34 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
       return updated;
     }));
   };
+
+  /**
+   * Rotulo de cada analise. Uma causa que se desdobra em duas relacoes vira
+   * X4.1 e X4.2, deixando visivel que as duas investigam a MESMA causa. Causa
+   * que gera uma analise so continua sendo X4.
+   *
+   * O numero sai do proprio texto da causa ("x4: Analistas sobrecarregados").
+   * Sem numero no texto, cai numa contagem sequencial.
+   */
+  const rotulosDasAnalises = React.useMemo(() => {
+    const porCausa = new Map<string, AnalysisResult[]>();
+    analyses.forEach((a) => {
+      const causa = String(a.sourceCause || a.variableX?.sourceName || a.id).trim();
+      if (!porCausa.has(causa)) porCausa.set(causa, []);
+      porCausa.get(causa)!.push(a);
+    });
+
+    const rotulos = new Map<string, string>();
+    let sequencial = 1;
+    porCausa.forEach((grupo, causa) => {
+      const achado = causa.match(/x\s*(\d+)/i);
+      const base = achado ? achado[1] : String(sequencial++);
+      grupo.forEach((a, i) => {
+        rotulos.set(a.id, grupo.length > 1 ? `X${base}.${i + 1}` : `X${base}`);
+      });
+    });
+    return rotulos;
+  }, [analyses]);
 
   const toggleRootCause = (analysisId: string) => {
     setAnalyses(prev => prev.map(analysis => analysis.id === analysisId
@@ -400,8 +427,8 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                        {index + 1}
+                      <span className="h-8 min-w-8 px-2.5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xs whitespace-nowrap">
+                        {rotulosDasAnalises.get(analysis.id) || `X${index + 1}`}
                       </span>
                       <div>
                         <h4 className="font-bold text-gray-800 m-0">
@@ -479,9 +506,9 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                       {analysis.variableY.sourceName && analysis.variableY.sourceName !== analysis.variableY.name && (
                         <p className="text-xs text-blue-700 mb-2"><strong>Origem:</strong> {analysis.variableY.sourceName}</p>
                       )}
-                      {analysis.variableY.measurement && (
-                        <p className="text-xs text-slate-700 mb-2"><strong>Como medir:</strong> {analysis.variableY.measurement}</p>
-                      )}
+                      {/* measurement continua sendo gerado: e ele que vira a
+                          definicao operacional da variavel na proxima ferramenta
+                          da cadeia (variaveisDoProjeto). So nao ocupa a tela. */}
                       <p className="text-sm text-[#666] leading-relaxed">{analysis.variableY.description}</p>
                     </div>
 
@@ -513,20 +540,9 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                       {analysis.variableX.sourceName && analysis.variableX.sourceName !== analysis.variableX.name && (
                         <p className="text-xs text-indigo-700 mb-2"><strong>Causa original:</strong> {analysis.variableX.sourceName}</p>
                       )}
-                      {analysis.variableX.measurement && (
-                        <p className="text-xs text-slate-700 mb-2"><strong>Como medir:</strong> {analysis.variableX.measurement}</p>
-                      )}
                       <p className="text-sm text-[#666] leading-relaxed">{analysis.variableX.description}</p>
                     </div>
                   </div>
-
-                  {analysis.observationUnit && (
-                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-2.5">
-                      <p className="m-0 text-xs text-amber-900">
-                        <strong>Uma linha da planilha =</strong> {analysis.observationUnit}
-                      </p>
-                    </div>
-                  )}
 
                   {/* A recomendação É a matriz: a célula do quadrante fica destacada
                       e a ferramenta escolhida vem marcada dentro dela. Uma só — as

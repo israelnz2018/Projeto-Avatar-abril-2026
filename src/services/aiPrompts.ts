@@ -564,7 +564,6 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
       "recommendations": [
         {"rank": 1, "tool": "Diagrama de Dispersão", "reason": "Ate 15 palavras: o que o aluno vai enxergar"}
       ],
-      "observationUnit": "O que e UMA linha da planilha, ex: uma nota fiscal emitida",
       "explanation": "Ate 15 palavras",
       "rootCauseConfirmed": false
     }
@@ -654,10 +653,9 @@ PREENCHIMENTO:
   classificacao. O aluno nao le paragrafo: se passar de 20 palavras, corte.
   Nao afirme que uma variavel e discreta apenas porque o texto original e um
   atributo escrito em palavras.
-- observationUnit = o que representa UMA linha da planilha (ex: "uma nota
-  fiscal emitida", "um analista por dia"). X e Y da MESMA analise precisam ser
-  medidos nessa mesma linha. Nunca cruze medida mensal com medida por evento:
-  granularidade diferente cria correlacao falsa.
+- X e Y da MESMA analise precisam ser medidos na mesma linha da planilha.
+  Nunca cruze medida mensal com medida por evento: granularidade diferente
+  cria correlacao falsa e leva a ferramenta errada.
 - recommendations deve trazer EXATAMENTE 1 item, rank 1. Nunca sugira segunda
   ou terceira opcao: o aluno veio aqui pra receber uma decisao, nao um menu.
 - rootCauseConfirmed deve ser sempre false. Somente o aluno pode confirmar.
