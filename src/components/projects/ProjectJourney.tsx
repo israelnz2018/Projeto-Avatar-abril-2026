@@ -50,6 +50,7 @@ import ActionPlan5W2H from './ActionPlan5W2H';
 import ActionPlan from './ActionPlan';
 import IdeationTree from './IdeationTree';
 import DataNatureAssistant from './DataNatureAssistant';
+import CauseValidationMatrix from './CauseValidationMatrix';
 import DataCollectionPlan from './DataCollectionPlan';
 import ProjectTimeline from './ProjectTimeline';
 import DetailedTimeline from './DetailedTimeline';
@@ -121,6 +122,7 @@ const AVAILABLE_TOOLS = [
   { id: 'fta', name: 'Árvore de Falhas (FTA)', component: FaultTreeAnalysis },
   { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística', component: StatisticalAnalysisForm },
   { id: 'dataNature', name: 'Natureza dos Dados', component: DataNatureAssistant },
+  { id: 'causeValidation', name: 'Validação das Causas — X → Y', component: CauseValidationMatrix },
   { id: 'fmea', name: 'FMEA', component: ProcessFMEA },
   { id: 'plan5w2h', name: 'Plano de Ação 5W2H', component: ActionPlan5W2H },
   { id: 'actionPlan', name: 'Plano de Ação', component: ActionPlan },
@@ -714,6 +716,7 @@ useEffect(() => {
     'statisticalAnalysis': 'statisticalAnalysis',
     'fiveWhys': 'fiveWhys',
     'dataNature': 'dataNature',
+    'causeValidation': 'causeValidation',
     'dataCollection': 'dataCollection',
     'fmea': 'fmea',
     'plan5w2h': 'plan5w2h',
@@ -1297,7 +1300,8 @@ useEffect(() => {
                 isGeneratingAI,
                 onClearAIData,
                 onDirtyChange: setIsToolDirty,
-                allProjectData: wrapperAllProjectData
+                allProjectData: wrapperAllProjectData,
+                causeValidationRequired: allEnabledTools.some((tool) => tool.toolId === 'causeValidation')
               };
 
               switch (activeTool.id) {
@@ -1347,6 +1351,7 @@ useEffect(() => {
                 case 'vsm':
                 case 'directObservation':
                 case 'statisticalAnalysis':
+                case 'causeValidation':
                   return (
                     <Component 
                       {...commonProps}

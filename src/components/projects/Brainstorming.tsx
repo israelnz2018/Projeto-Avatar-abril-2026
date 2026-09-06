@@ -3,6 +3,7 @@ import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpC
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
+import { getConfirmedCauseRows } from '@/src/services/causeValidationService';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
 // Cada exemplo traz ideias agrupadas pelas categorias 6M reais da ferramenta.
@@ -46,6 +47,7 @@ interface BrainstormingProps {
   isGeneratingAI?: boolean;
   onClearAIData?: () => void;
   allProjectData?: any;
+  causeValidationRequired?: boolean;
 }
 
 // Acha os dados de uma ferramenta no allProjectData, ignorando o prefixo de fase.
@@ -89,7 +91,7 @@ const BRAINSTORMING_TYPES = [
   'Identificação de riscos'
 ];
 
-export default function Brainstorming({ toolId, onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: BrainstormingProps) {
+export default function Brainstorming({ toolId, onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData, causeValidationRequired }: BrainstormingProps) {
   const isSolutionBrainstorming = toolId === 'brainstormingImprove';
   const defaultData = initialData?.toolData || initialData;
   const [brainstormingType, setBrainstormingType] = useState(
@@ -131,6 +133,9 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   // Bloco de IA só aparece se o Brainstorming AINDA está vazio (nao sobrescreve
   // ideias já registradas). 3 condições: Brainstorming vazio + Mapa existe + preenchido.
   const brainstormingVazio = !Array.isArray(ideas) || ideas.every((i: any) => !i?.text || !i.text.trim());
+  const causeValidation = findToolData(allProjectData, 'causeValidation');
+  const confirmedCauses = getConfirmedCauseRows(causeValidation);
+  const needsCauseValidation = isSolutionBrainstorming && Boolean(causeValidationRequired);
 
   const handleGenerateSolutions = async () => {
     const improvementGoal = brainstormingTopic.trim();
@@ -140,6 +145,10 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
     }
     if (!onGenerateAI) {
       toast.error('A geração com IA não está disponível neste momento.');
+      return;
+    }
+    if (needsCauseValidation && confirmedCauses.length === 0) {
+      toast.error('Valide pelo menos uma causa como contribuinte e marque-a para o Brainstorming antes de gerar solucoes.');
       return;
     }
     await onGenerateAI({ improvementGoal });
@@ -367,6 +376,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 {isGeneratingAI ? 'Gerando soluções...' : ideas.length ? 'Gerar novas soluções' : 'Gerar ideias com IA'}
               </button>
             </div>
+            {needsCauseValidation && confirmedCauses.length === 0 && (
+              <p className="m-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                Antes de gerar soluÃ§Ãµes, valide na matriz pelo menos uma causa como contribuinte e marque-a para o Brainstorming.
+              </p>
+            )}
           </div>
         ) : <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">

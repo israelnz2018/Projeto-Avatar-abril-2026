@@ -33,6 +33,7 @@ import { toPng } from 'html-to-image';
 import { cn } from '@/src/lib/utils';
 import { logToolOpened } from '@/src/services/eventLogger';
 import { normalizeDataNatureData } from '@/src/services/dataNatureRules';
+import { buildCauseEvidenceCandidates, getConfirmedCauseRows } from '@/src/services/causeValidationService';
 
 interface ToolWrapperProps {
   toolId: string;
@@ -689,6 +690,7 @@ export default function ToolWrapper({
       measureMatrix: ['outputs', 'causes'],
       directObservation: ['observations'],
       dataNature: ['analyses'],
+      causeValidation: ['rows'],
       improvementPlan: ['phases'],
       sop: ['revisions', 'definitions', 'responsibilities', 'processSteps', 'flowchart', 'controlPoints', 'risks', 'records'],
       charter: ['team', 'stakeholders', 'milestones'],
@@ -1505,7 +1507,13 @@ export default function ToolWrapper({
       }
 
       if (toolId === 'brainstormingImprove' && allProjectData) {
-        targetContext = {
+        const validationData = getToolDataByPrefix(allProjectData, 'causeValidation');
+        const hasValidationTable = Array.isArray(validationData?.rows);
+        targetContext = hasValidationTable ? {
+          improvementGoal: customContext?.improvementGoal || '',
+          brief: getToolDataByPrefix(allProjectData, 'brief'),
+          validatedCauses: getConfirmedCauseRows(validationData),
+        } : {
           improvementGoal: customContext?.improvementGoal || '',
           brief: getToolDataByPrefix(allProjectData, 'brief'),
           directObservation: getToolDataByPrefix(allProjectData, 'directObservation'),
@@ -1514,6 +1522,16 @@ export default function ToolWrapper({
           measureMatrix: getToolDataByPrefix(allProjectData, 'measureMatrix'),
           statisticalAnalysis: getToolDataByPrefix(allProjectData, 'statisticalAnalysis'),
           dataNature: getToolDataByPrefix(allProjectData, 'dataNature'),
+        };
+      }
+
+      // Matriz de validação: reúne as evidências de todas as fontes sem mandar
+      // imagens, planilhas ou o projeto inteiro para a IA. A matriz é derivada;
+      // os dados originais permanecem intocados.
+      if (toolId === 'causeValidation' && allProjectData) {
+        targetContext = {
+          projectIndicatorY: getToolDataByPrefix(allProjectData, 'brief'),
+          candidates: buildCauseEvidenceCandidates(allProjectData),
         };
       }
 
@@ -1565,9 +1583,40 @@ export default function ToolWrapper({
         { name: projectName, description: project.description },
         // Para soluções, enviamos somente as evidências selecionadas acima. Isso
         // reduz ruído e impede que informações sem relação contaminem as ideias.
-        toolId === 'brainstormingImprove' ? targetContext : allProjectData
+        (toolId === 'brainstormingImprove' || toolId === 'causeValidation') ? targetContext : allProjectData
       );
       let normalized = normalizeInitialData(toolId, generatedData);
+
+      if (toolId === 'causeValidation') {
+        const anterior = localData?.toolData || localData || {};
+        const anteriores = Array.isArray(anterior.rows) ? anterior.rows : [];
+        const anterioresPorId = new Map<string, any>(anteriores.map((row: any) => [String(row.sourceId), row] as [string, any]));
+        const candidatos = Array.isArray(targetContext?.candidates)
+          ? targetContext.candidates
+          : buildCauseEvidenceCandidates(allProjectData);
+        const geradasPorId = new Map<string, any>((Array.isArray(normalized?.rows) ? normalized.rows : [])
+          .filter((row: any) => row?.sourceId)
+          .map((row: any) => [String(row.sourceId), row] as [string, any]));
+
+        normalized = {
+          version: 1,
+          updatedAt: new Date().toISOString(),
+          projectIndicatorY: normalized?.projectIndicatorY || targetContext?.projectIndicatorY || '',
+          rows: candidatos.map((candidate: any) => {
+            const ai = geradasPorId.get(String(candidate.sourceId)) || {};
+            const anteriorRow = anterioresPorId.get(String(candidate.sourceId)) || {};
+            return {
+              ...candidate,
+              aiDecision: ai.aiDecision,
+              aiReason: ai.aiReason,
+              confidence: ai.confidence,
+              humanDecision: anteriorRow.humanDecision || null,
+              confirmed: anteriorRow.confirmed === true,
+              includeInBrainstorming: anteriorRow.includeInBrainstorming === true,
+            };
+          }),
+        };
+      }
 
       if (toolId === 'brainstormingImprove') {
         const anterior = localData?.toolData || localData || {};
@@ -2000,7 +2049,7 @@ export default function ToolWrapper({
           Antes checava previousToolData (a ferramenta anterior por ORDEM da fase, não a
           fonte declarada) — por isso o SIPOC mostrava o bloco mesmo sem Charter preenchido.
           Agora a fonte vem de `toolLink`, que respeita o que o projeto declarou. */}
-      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && toolId !== 'brainstormingImprove' && showAIPrompt && linkHasContent && (
+      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && toolId !== 'brainstormingImprove' && toolId !== 'causeValidation' && showAIPrompt && linkHasContent && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}

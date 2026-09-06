@@ -130,6 +130,7 @@ const AVAILABLE_TOOLS = [
   { id: 'fta', name: 'Árvore de Falhas (FTA)' },
   { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística' },
   { id: 'dataNature', name: 'Natureza dos Dados' },
+  { id: 'causeValidation', name: 'Validação das Causas — X → Y' },
   { id: 'fmea', name: 'FMEA' },
   { id: 'plan5w2h', name: 'Plano de Ação 5W2H' },
   { id: 'actionPlan', name: 'Plano de Ação' },
@@ -154,7 +155,7 @@ const TOOL_CATEGORIES = [
       'brief', 'charter', 'sipoc', 'indicadores', 'processMap', 'bpmnProcessMap', 'brainstorming',
       'brainstormingImprove', 'measureIshikawa', 'measureMatrix', 'beforeAfter', 'rab',
       'gut', 'effortImpact', 'dataCollection', 'vsm', 'directObservation', 'fiveWhys',
-      'fta', 'statisticalAnalysis', 'dataNature', 'fmea', 'plan5w2h', 'actionPlan',
+      'fta', 'statisticalAnalysis', 'dataNature', 'causeValidation', 'fmea', 'plan5w2h', 'actionPlan',
       'sop', 'controlPlan', 'processCanva', 'processModeling', 'processValidation',
     ],
   },
@@ -1426,4 +1427,4 @@ function IconColorPicker({
     </div>
   );
 }
-
+

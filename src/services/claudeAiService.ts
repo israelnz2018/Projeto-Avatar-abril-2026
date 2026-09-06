@@ -87,6 +87,7 @@ export const sanitizeToolData = (toolId: string, data: any, context?: any): any 
     measureMatrix: ['outputs', 'causes'],
     directObservation: ['observations'],
     dataNature: ['analyses'],
+    causeValidation: ['rows'],
     sop: ['revisions', 'definitions', 'responsibilities', 'processSteps', 'flowchart', 'controlPoints', 'risks', 'records'],
     charter: ['team', 'stakeholders', 'milestones'],
     projectCharterPMI: ['team', 'stakeholders', 'milestones'],

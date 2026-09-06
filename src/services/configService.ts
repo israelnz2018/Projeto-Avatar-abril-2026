@@ -292,7 +292,7 @@ export const seedDefaultInitiative = async (availableTools: any[]): Promise<void
     { phaseId: 'PreDefinir', toolIds: ['improvementIdea'] },
     { phaseId: 'Define', toolIds: ['brief', 'charter', 'stakeholderAdkar', 'sipoc', 'timeline', 'detailedTimeline', 'stakeholders', 'improvementPlan'] },
     { phaseId: 'Measure', toolIds: ['processMap', 'brainstorming', 'measureIshikawa', 'measureMatrix', 'beforeAfter', 'rab', 'gut', 'effortImpact', 'dataCollection', 'processCanva', 'processModeling', 'processValidation', 'riskManagementPMI'] },
-    { phaseId: 'Analyze', toolIds: ['vsm', 'directObservation', 'fiveWhys', 'fta', 'statisticalAnalysis', 'dataNature'] },
+    { phaseId: 'Analyze', toolIds: ['vsm', 'directObservation', 'fiveWhys', 'fta', 'statisticalAnalysis', 'dataNature', 'causeValidation'] },
     { phaseId: 'Improve', toolIds: ['fmea', 'plan5w2h', 'actionPlan'] },
     { phaseId: 'Control', toolIds: ['sop', 'riskMonitoringPMI'] }
   ];

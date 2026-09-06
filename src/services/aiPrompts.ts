@@ -407,9 +407,12 @@ Voce vai receber somente estas fontes quando estiverem preenchidas:
 - fiveWhys e measureIshikawa: causas investigadas
 - measureMatrix: causas avaliadas e priorizadas
 - statisticalAnalysis e dataNature: evidencias quantitativas e relacoes entre X e Y
+- validatedCauses: causas que foram revisadas e confirmadas pelo usuario para uso no Brainstorming
 
 REGRAS:
 1. improvementGoal e obrigatorio e delimita o foco. Nao gere nenhuma ideia fora dele.
+1.1. Se validatedCauses estiver presente, use SOMENTE essas causas confirmadas como
+base das solucoes. Nao use uma causa de outra fonte que nao esteja nessa lista.
 2. Use apenas fatos, causas, variaveis e restricoes presentes no contexto recebido.
    Nao invente maquinas, sistemas, departamentos, tecnologias, cargos ou problemas.
 3. Cada solucao deve atacar uma causa ou evidencia identificavel no contexto. No campo
@@ -677,6 +680,47 @@ explanation: 2 a 3 frases, sem jargao, resumindo por que a sequencia destacada
 responde a pergunta do aluno.`
   },
  
+  // ======================================================================
+  // VALIDACAO DAS CAUSAS X -> Y
+  // ======================================================================
+  causeValidation: {
+    toolName: "Validação das Causas — X → Y",
+    structure: `{
+  "projectIndicatorY": "Indicador Y do projeto",
+  "rows": [
+    {
+      "sourceId": "ID EXATO de uma evidência recebida",
+      "aiDecision": "contribui",
+      "aiReason": "Justificativa curta baseada somente na evidência",
+      "confidence": "media"
+    }
+  ]
+}`,
+    instructions: `ATENCAO - VALIDACAO DAS CAUSAS X -> Y:
+Voce recebera uma lista fechada de candidatos em 'candidates'. Gere EXATAMENTE
+UMA linha para cada candidato recebido, preservando o sourceId exatamente como veio.
+Nao crie candidatos, nao altere o texto de X ou Y e nao invente resultados.
+
+Para cada candidato, classifique somente:
+- "contribui": a evidência registrada sustenta uma relação relevante de X com Y;
+- "nao_contribui": a evidência registrada não sustenta contribuição de X para Y;
+- "inconclusivo": há planejamento, evidência insuficiente, resultado neutro ou não
+  existe informação suficiente para afirmar contribuição.
+
+REGRAS TECNICAS:
+1. Associação estatística não é prova de causalidade. Use linguagem de evidência,
+   não afirme causalidade definitiva.
+2. Natureza dos Dados, Espinha de Peixe, 5 Porquês e Matriz Causa e Efeito são
+   hipóteses ou priorizações; sem resultado medido, prefira "inconclusivo".
+3. Uma análise sem interpretação ou sem resultado suficiente deve ser inconclusiva.
+4. A decisão deve considerar o indicador Y do projeto e a direção X -> Y.
+5. confidence deve ser exatamente "alta", "media" ou "baixa". Evidência qualitativa
+   isolada ou planejamento normalmente recebe "baixa" ou "media".
+6. A IA sugere; o aluno fará a confirmação humana depois. Nunca preencha campos de
+   confirmação humana e nunca marque uso no Brainstorming.
+7. Retorne APENAS JSON no formato especificado.`
+  },
+
   // ======================================================================
   // PLANO DE ACAO 5W2H
   // ======================================================================
