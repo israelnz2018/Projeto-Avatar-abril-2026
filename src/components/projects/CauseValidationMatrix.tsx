@@ -180,8 +180,9 @@ export default function CauseValidationMatrix({
               <thead className="bg-slate-900 text-xs uppercase tracking-wider text-white">
                 <tr>
                   <th className="px-4 py-4">X investigado</th>
-                  <th className="px-4 py-4">Y / indicador</th>
-                  <th className="px-4 py-4">Análise e origem</th>
+                  {/* O Y e o mesmo em todas as linhas — e o indicador do projeto.
+                      Repeti-lo 24 vezes so ocupava a tela. */}
+                  <th className="px-4 py-4">Análise</th>
                   <th className="px-4 py-4">Resultado / evidência</th>
                   <th className="px-4 py-4">Sugestão da IA</th>
                   <th className="px-4 py-4">Sua confirmação</th>
@@ -194,11 +195,7 @@ export default function CauseValidationMatrix({
                   return (
                     <tr key={row.sourceId} className="align-top hover:bg-slate-50/70">
                       <td className="px-4 py-5 font-bold text-slate-900">{row.x}</td>
-                      <td className="px-4 py-5 text-slate-700">{row.y || 'Indicador Y do projeto'}</td>
-                      <td className="px-4 py-5">
-                        <div className="font-semibold text-slate-800">{row.analysis}</div>
-                        <div className="mt-1 text-xs text-slate-500">{row.sourceLabel}</div>
-                      </td>
+                      <td className="px-4 py-5 font-semibold text-slate-800">{row.analysis}</td>
                       <td className="max-w-[270px] px-4 py-5 text-slate-600">{row.evidence}</td>
                       <td className="px-4 py-5">
                         {row.aiDecision ? (
@@ -207,7 +204,6 @@ export default function CauseValidationMatrix({
                               {decisionLabel[row.aiDecision]}
                             </span>
                             <p className="max-w-[210px] text-xs leading-5 text-slate-500">{row.aiReason || 'Sem justificativa registrada.'}</p>
-                            {row.confidence && <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Confiança: {row.confidence}</p>}
                           </div>
                         ) : <span className="text-xs italic text-slate-400">Clique em “Avaliar com IA”.</span>}
                       </td>

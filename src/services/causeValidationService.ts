@@ -21,7 +21,6 @@ export interface CauseEvidenceCandidate {
 export interface CauseValidationRow extends CauseEvidenceCandidate {
   aiDecision?: Exclude<CauseDecision, null>;
   aiReason?: string;
-  confidence?: 'alta' | 'media' | 'baixa';
   humanDecision?: CauseDecision;
   confirmed?: boolean;
   includeInBrainstorming?: boolean;
@@ -147,10 +146,10 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
   natureRows.forEach((analysis: any, index: number) => {
     const x = analysis?.variableX?.name || analysis?.variableX?.sourceName || '';
     const y = analysis?.variableY?.name || analysis?.variableY?.sourceName || yProjeto;
-    const tools = (analysis?.recommendations || analysis?.recommendedTools || [])
+    const listaFerramentas = (analysis?.recommendations || analysis?.recommendedTools || [])
       .map((tool: any) => typeof tool === 'string' ? tool : tool?.tool)
-      .filter(Boolean)
-      .join(', ');
+      .filter(Boolean);
+    const tools = listaFerramentas.join(', ');
     // A Natureza dos Dados TRADUZ a causa numa grandeza mensuravel: "x3: Equipe
     // sem treinamento" vira "Carga horaria de treinamento em ERP". Sem mostrar a
     // causa de origem, essas linhas aparecem aqui soltas, sem o x3, e o aluno nao
@@ -176,7 +175,9 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       origin: 'Projetos',
       x: xRotulado,
       y,
-      analysis: ehEstratificacao ? 'Estratificação planejada' : 'Análise planejada',
+      analysis: listaFerramentas[0]
+        ? `${listaFerramentas[0]}${ehEstratificacao ? ' (estratificação)' : ''}`
+        : 'Análise planejada',
       evidence: `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
     });
   });
@@ -190,7 +191,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       origin: 'Projetos',
       x: item?.variable || item?.variavel || '',
       y: item?.variableY || yProjeto,
-      analysis: 'Evidência observada no processo',
+      analysis: 'Observação Direta (Gemba)',
       evidence: item?.observationDescription || item?.observation || item?.evidence || '',
     });
   });
@@ -203,7 +204,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       origin: 'Projetos',
       x: item?.rootCause || item?.cause || '',
       y: item?.problem || yProjeto,
-      analysis: 'Investigação de causa raiz',
+      analysis: '5 Porquês',
       evidence: Array.isArray(item?.whys) ? item.whys.filter(Boolean).join(' → ') : item?.rootCause || '',
     });
   });
@@ -218,7 +219,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
         origin: 'Projetos',
         x: text || '',
         y: ishikawa?.problem || yProjeto,
-        analysis: 'Causa potencial',
+        analysis: 'Espinha de Peixe',
         evidence: 'Ainda sem análise.',
       });
     });
@@ -232,7 +233,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       origin: 'Projetos',
       x: cause?.name || cause?.description || '',
       y: (matrix?.outputs || []).map((output: any) => output?.name).filter(Boolean).join(', ') || yProjeto,
-      analysis: 'Priorização causa e efeito',
+      analysis: 'Matriz Causa e Efeito',
       evidence: `Pontuações: ${Array.isArray(cause?.scores) ? cause.scores.join(', ') : 'não informadas'}.`,
     });
   });

@@ -732,8 +732,7 @@ responde a pergunta do aluno.`
     {
       "sourceId": "ID EXATO de uma evidência recebida",
       "aiDecision": "contribui",
-      "aiReason": "Ate 10 palavras, direto",
-      "confidence": "media"
+      "aiReason": "Ate 10 palavras, direto"
     }
   ]
 }`,
@@ -755,16 +754,14 @@ REGRAS TECNICAS:
    hipóteses ou priorizações; sem resultado medido, prefira "inconclusivo".
 3. Uma análise sem interpretação ou sem resultado suficiente deve ser inconclusiva.
 4. A decisão deve considerar o indicador Y do projeto e a direção X -> Y.
-5. confidence deve ser exatamente "alta", "media" ou "baixa". Evidência qualitativa
-   isolada ou planejamento normalmente recebe "baixa" ou "media".
-6. A IA sugere; o aluno fará a confirmação humana depois. Nunca preencha campos de
+5. A IA sugere; o aluno fará a confirmação humana depois. Nunca preencha campos de
    confirmação humana e nunca marque uso no Brainstorming.
-7. aiReason = NO MAXIMO 10 palavras, em linguagem simples. Nada de frases de
+6. aiReason = NO MAXIMO 10 palavras, em linguagem simples. Nada de frases de
    manual como "hipotese que precisa de evidencia empirica" ou "sem validacao
    por dados". Quando nao houver analise feita, escreva exatamente
    "Nenhuma análise foi realizada." e pare por ai. Quando houver, diga o que o
    resultado mostrou, nao o que falta.
-8. Retorne APENAS JSON no formato especificado.`
+7. Retorne APENAS JSON no formato especificado.`
   },
 
   // ======================================================================
