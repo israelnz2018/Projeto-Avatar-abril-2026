@@ -132,6 +132,18 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
   // prova estatística. A IA deve marcar como inconclusivo se não houver evidência.
   const nature = sourceData(allData, 'dataNature');
   const natureRows = Array.isArray(nature?.analyses) ? nature.analyses : [];
+
+  // Quantas analises cada causa gerou. Duas viram x3.1 e x3.2 — a MESMA
+  // numeracao usada na Natureza dos Dados, pra variavel traduzida nao aparecer
+  // aqui como se tivesse surgido do nada.
+  const causaDaAnalise = (a: any) => String(a?.sourceCause || a?.variableX?.sourceName || '').trim();
+  const totalPorCausa = new Map<string, number>();
+  natureRows.forEach((a: any) => {
+    const causa = causaDaAnalise(a);
+    totalPorCausa.set(causa, (totalPorCausa.get(causa) || 0) + 1);
+  });
+  const jaVistas = new Map<string, number>();
+
   natureRows.forEach((analysis: any, index: number) => {
     const x = analysis?.variableX?.name || analysis?.variableX?.sourceName || '';
     const y = analysis?.variableY?.name || analysis?.variableY?.sourceName || yProjeto;
@@ -143,15 +155,26 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
     // sem treinamento" vira "Carga horaria de treinamento em ERP". Sem mostrar a
     // causa de origem, essas linhas aparecem aqui soltas, sem o x3, e o aluno nao
     // liga uma coisa na outra.
-    const causaOriginal = String(analysis?.sourceCause || analysis?.variableX?.sourceName || '').trim();
+    const causaOriginal = causaDaAnalise(analysis);
     const ehEstratificacao = analysis?.analysisRole === 'estratificacao';
+
+    const numero = causaOriginal.match(/x\s*(\d+)/i)?.[1] || '';
+    const posicao = (jaVistas.get(causaOriginal) || 0) + 1;
+    jaVistas.set(causaOriginal, posicao);
+    const rotulo = numero
+      ? ((totalPorCausa.get(causaOriginal) || 1) > 1 ? `x${numero}.${posicao}` : `x${numero}`)
+      : '';
+    const xRotulado = rotulo && !x.toLowerCase().startsWith(rotulo.toLowerCase())
+      ? `${rotulo}: ${x}`
+      : x;
+
     pushCandidate(rows, {
       id: makeId('data-nature', analysis?.id || `${x}-${y}-${index}`),
       sourceLabel: causaOriginal && causaOriginal !== x
         ? `Natureza dos Dados — vem de ${causaOriginal}`
         : 'Natureza dos Dados',
       origin: 'Projetos',
-      x,
+      x: xRotulado,
       y,
       analysis: ehEstratificacao ? 'Estratificação planejada' : 'Análise planejada',
       evidence: `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,

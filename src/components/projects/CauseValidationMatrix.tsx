@@ -42,10 +42,22 @@ const unwrap = (data: any) => data?.toolData || data || {};
 const mergeRows = (candidates: ReturnType<typeof buildCauseEvidenceCandidates>, saved: any): CauseValidationRow[] => {
   const savedRows: CauseValidationRow[] = Array.isArray(unwrap(saved)?.rows) ? unwrap(saved).rows : [];
   const savedById = new Map(savedRows.map((row) => [row.sourceId, row]));
-  return candidates.map((candidate) => ({
-    ...candidate,
-    ...(savedById.get(candidate.sourceId) || {}),
-  }));
+  return candidates.map((candidate) => {
+    const linha: CauseValidationRow = {
+      ...candidate,
+      ...(savedById.get(candidate.sourceId) || {}),
+    };
+
+    // A IA disse que contribui: ja deixa a linha marcada em vez de exigir dois
+    // cliques por causa. So vale enquanto o aluno nao tiver decidido nada — a
+    // escolha dele nunca e sobrescrita, e ele pode desmarcar.
+    if (linha.aiDecision === 'contribui' && !linha.humanDecision) {
+      linha.humanDecision = 'contribui';
+      linha.confirmed = true;
+      linha.includeInBrainstorming = true;
+    }
+    return linha;
+  });
 };
 
 export default function CauseValidationMatrix({
@@ -145,13 +157,13 @@ export default function CauseValidationMatrix({
         <div className="mt-5 flex flex-wrap gap-3 text-xs font-bold text-slate-600">
           <span className="rounded-full bg-white px-3 py-2">{rows.length} evidência(s) encontradas</span>
           <span className="rounded-full bg-white px-3 py-2">{confirmedCount} decisão(ões) confirmada(s)</span>
-          <span className="rounded-full bg-emerald-100 px-3 py-2 text-emerald-800">{includedCount} no Brainstorming</span>
+          <span className="rounded-full bg-emerald-100 px-3 py-2 text-emerald-800">{includedCount} no Brainstorming de Soluções</span>
         </div>
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <div className="flex gap-2"><CircleAlert size={18} className="mt-0.5 shrink-0" />
-          <span><strong>Atenção:</strong> associação estatística não prova causalidade. Revise cada linha e escolha uma decisão. Somente as linhas marcadas como <strong>Contribui</strong> e incluídas no Brainstorming serão enviadas para a próxima ferramenta.</span>
+          <span><strong>Atenção:</strong> associação estatística não prova causalidade. As linhas que a IA leu como <strong>Contribui</strong> já vêm marcadas — revise e desmarque o que não fizer sentido. Só o que ficar marcado segue para o Brainstorming de Soluções.</span>
         </div>
       </div>
 
@@ -173,7 +185,7 @@ export default function CauseValidationMatrix({
                   <th className="px-4 py-4">Resultado / evidência</th>
                   <th className="px-4 py-4">Sugestão da IA</th>
                   <th className="px-4 py-4">Sua confirmação</th>
-                  <th className="px-4 py-4">Brainstorming</th>
+                  <th className="px-4 py-4">Brainstorming de Soluções</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -223,7 +235,7 @@ export default function CauseValidationMatrix({
                             onChange={(event) => setInclude(row.sourceId, event.target.checked)}
                             className="mt-0.5 h-4 w-4 accent-emerald-600"
                           />
-                          Usar no Brainstorming
+                          Usar no Brainstorming de Soluções
                         </label>
                         {decision === 'contribui' && row.includeInBrainstorming && <CheckCircle2 size={16} className="mt-2 text-emerald-600" />}
                         {decision === 'nao_contribui' && <X size={16} className="mt-2 text-red-500" />}
