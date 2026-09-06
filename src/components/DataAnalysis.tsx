@@ -168,6 +168,27 @@ const configuracoesFerramentas: Record<string, any[]> = {
   ],
 };
 
+/**
+ * Ferramenta recomendada na Natureza dos Dados -> item real deste menu.
+ *
+ * O nome que aparece na matriz e didatico ("Diagrama de Dispersao"); o menu usa
+ * o nome curto ("Dispersao"). Sem esta ponte, o aluno chega aqui com a
+ * recomendacao na mao e ainda precisa adivinhar onde ela esta.
+ */
+const FERRAMENTA_RECOMENDADA_NO_MENU: Record<string, { ferramenta: string; grupo: string }> = {
+  'Diagrama de Dispersão': { ferramenta: 'Dispersão', grupo: 'Análise Descritiva (Gráficos)' },
+  'Gráfico de tendência': { ferramenta: 'Tendência', grupo: 'Análise Descritiva (Gráficos)' },
+  'Box Plot': { ferramenta: 'BoxPlot', grupo: 'Análise Descritiva (Gráficos)' },
+  'Histograma': { ferramenta: 'Histograma', grupo: 'Análise Descritiva (Gráficos)' },
+  'Pareto': { ferramenta: 'Pareto', grupo: 'Análise Descritiva (Gráficos)' },
+  'Regressão simples': { ferramenta: 'Regressão Linear', grupo: 'Análise Preditiva' },
+  'Regressão múltipla': { ferramenta: 'Regressão Linear Múltipla', grupo: 'Análise Preditiva' },
+  'Regressão Logística (Binária/Ordinal/Nominal)': { ferramenta: 'Regressão Binária', grupo: 'Análise Preditiva' },
+  'Teste de Hipótese': { ferramenta: '2 Sample T', grupo: 'Análise Inferencial' },
+  'ANOVA': { ferramenta: 'One way ANOVA', grupo: 'Análise Inferencial' },
+  'Chi Quadrado': { ferramenta: 'Qui-quadrado de Associação', grupo: 'Análise Inferencial' },
+};
+
 // --- CONFIGURATIONS FROM menu.js ---
 const configuracoesAnalises = {
   "Análise Exploratória": [
@@ -562,6 +583,31 @@ export default function DataAnalysis() {
   // pertencem a outro módulo liberado) e outros travados — parecia aleatório.
   // Agora cada item obedece só o módulo do menu em que está sendo mostrado.
   const isAnalysisLocked = (grupo: string) => !grupoLiberado(grupo);
+
+  /**
+   * Chegou da Natureza dos Dados: ja deixa a ferramenta recomendada selecionada.
+   *
+   * Aplica UMA vez por recomendacao — depois disso o aluno manda no menu e a
+   * troca dele nao pode ser desfeita. Ferramenta bloqueada no plano dele nao e
+   * selecionada: cairia num paywall sem ele ter pedido nada.
+   */
+  const recomendacaoAplicada = useRef('');
+  useEffect(() => {
+    if (!recomendacaoNatureza || recomendacaoNatureza.projectId !== projetoAtivo?.id) return;
+    const assinatura = `${recomendacaoNatureza.projectId}|${recomendacaoNatureza.analysisId}`;
+    if (recomendacaoAplicada.current === assinatura) return;
+
+    const nome = recomendacaoNatureza.recommendations?.[0]?.tool
+      || recomendacaoNatureza.recommendedTools?.[0]
+      || '';
+    const alvo = FERRAMENTA_RECOMENDADA_NO_MENU[nome];
+    if (!alvo || isAnalysisLocked(alvo.grupo)) return;
+
+    recomendacaoAplicada.current = assinatura;
+    setFerramentaAtual(alvo.ferramenta);
+    setGrupoAtual(alvo.grupo);
+    setToolParams({});
+  }, [recomendacaoNatureza, projetoAtivo]);
 
   const abrirAnaliseBloqueada = (grupo: string) => {
     const modulo = ANALYTICS_MODULOS.find((item) => item.grupo === grupo);
@@ -1815,10 +1861,14 @@ export default function DataAnalysis() {
                 <strong>Y:</strong> {recomendacaoNatureza.variableY?.name || 'Não informado'}
               </p>
               <p className="m-0 mt-1 text-xs text-blue-800">
-                <strong>Comece por:</strong> {recomendacaoNatureza.recommendations?.[0]?.tool || recomendacaoNatureza.recommendedTools?.[0] || 'Consulte o menu de análises'}
-                {(recomendacaoNatureza.recommendations?.[1]?.tool || recomendacaoNatureza.recommendedTools?.[1]) && (
-                  <> · <strong>Segunda opção:</strong> {recomendacaoNatureza.recommendations?.[1]?.tool || recomendacaoNatureza.recommendedTools?.[1]}</>
-                )}
+                {/* Uma ferramenta so, e com o nome do MENU — nao o nome didatico
+                    da matriz — pra bater com a caixa "Análise selecionada". */}
+                <strong>Ferramenta:</strong> {(() => {
+                  const nome = recomendacaoNatureza.recommendations?.[0]?.tool
+                    || recomendacaoNatureza.recommendedTools?.[0]
+                    || '';
+                  return FERRAMENTA_RECOMENDADA_NO_MENU[nome]?.ferramenta || nome || 'Consulte o menu de análises';
+                })()}
               </p>
             </div>
             <button
@@ -2052,7 +2102,20 @@ export default function DataAnalysis() {
           {/* Tool Selection Box */}
           <div className="lg:col-span-1">
             <div id="boxAnalise" data-tour-id="variables" className="border border-[#ccc] bg-white p-[15px] shadow-sm h-[300px] overflow-y-auto">
-              <p className="text-[12px] text-gray-500 mb-3">Análise selecionada: <span className="font-bold text-gray-700">{ferramentaAtual || 'Nenhuma'}</span></p>
+              {/* Caixa destacada: o aviso discreto passava batido e o aluno nao
+                  percebia que a ferramenta tinha sido selecionada. */}
+              <div className={cn(
+                "mb-3 rounded-lg border-2 px-4 py-2.5 transition-colors",
+                ferramentaAtual ? "border-blue-600 bg-blue-50" : "border-dashed border-gray-300 bg-gray-50"
+              )}>
+                <p className="m-0 text-[10px] font-black uppercase tracking-widest text-gray-500">Análise selecionada</p>
+                <p className={cn(
+                  "m-0 mt-0.5 text-[17px] font-black leading-tight",
+                  ferramentaAtual ? "text-blue-700" : "text-gray-400"
+                )}>
+                  {ferramentaAtual || 'Nenhuma'}
+                </p>
+              </div>
               
               {ferramentaAtual && (
                 <div className="space-y-4">
