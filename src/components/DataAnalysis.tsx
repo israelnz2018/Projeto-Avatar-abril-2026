@@ -446,6 +446,10 @@ export default function DataAnalysis() {
   const [temTrabalhoNaoSalvo, setTemTrabalhoNaoSalvo] = useState(false);
   const [modalSairSemSalvar, setModalSairSemSalvar] = useState(false);
   const destinoNavegacao = useRef<string | null>(null);
+  // Libera imediatamente o beforeunload quando o aluno já confirmou a saída.
+  // Atualizar apenas o state não basta: o React pode limpar o listener somente
+  // depois que window.location.assign já disparou o aviso nativo do navegador.
+  const saidaConfirmadaRef = useRef(false);
   const [planilhaProjeto, setPlanilhaProjeto] = useState<PlanilhaInfo | null>(null);
   const [salvandoTudo, setSalvandoTudo] = useState(false);
   const [modalSubstituirPlanilha, setModalSubstituirPlanilha] = useState(false);
@@ -769,6 +773,7 @@ export default function DataAnalysis() {
     if (!temTrabalhoNaoSalvo) return;
 
     const aoFechar = (evento: BeforeUnloadEvent) => {
+      if (saidaConfirmadaRef.current) return;
       evento.preventDefault();
       evento.returnValue = '';
     };
@@ -816,6 +821,7 @@ export default function DataAnalysis() {
     const destino = destinoNavegacao.current;
     destinoNavegacao.current = null;
     setModalSairSemSalvar(false);
+    saidaConfirmadaRef.current = true;
     setTemTrabalhoNaoSalvo(false); // libera a guarda antes de navegar
     if (destino) window.location.assign(destino);
   };
