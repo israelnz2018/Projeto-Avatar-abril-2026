@@ -139,13 +139,21 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       .map((tool: any) => typeof tool === 'string' ? tool : tool?.tool)
       .filter(Boolean)
       .join(', ');
+    // A Natureza dos Dados TRADUZ a causa numa grandeza mensuravel: "x3: Equipe
+    // sem treinamento" vira "Carga horaria de treinamento em ERP". Sem mostrar a
+    // causa de origem, essas linhas aparecem aqui soltas, sem o x3, e o aluno nao
+    // liga uma coisa na outra.
+    const causaOriginal = String(analysis?.sourceCause || analysis?.variableX?.sourceName || '').trim();
+    const ehEstratificacao = analysis?.analysisRole === 'estratificacao';
     pushCandidate(rows, {
       id: makeId('data-nature', analysis?.id || `${x}-${y}-${index}`),
-      sourceLabel: 'Natureza dos Dados',
+      sourceLabel: causaOriginal && causaOriginal !== x
+        ? `Natureza dos Dados — vem de ${causaOriginal}`
+        : 'Natureza dos Dados',
       origin: 'Projetos',
       x,
       y,
-      analysis: 'Planejamento da análise',
+      analysis: ehEstratificacao ? 'Estratificação planejada' : 'Análise planejada',
       evidence: `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
     });
   });
