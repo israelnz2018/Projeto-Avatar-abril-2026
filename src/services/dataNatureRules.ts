@@ -74,7 +74,10 @@ const normalizarRecomendacoes = (analysis: any, permitidas: string[]) => {
 
   const adicionar = (toolValue: unknown, reasonValue: unknown) => {
     const tool = normalizarNomeFerramenta(toolValue, permitidas);
-    if (!tool || vistas.has(tool) || recommendations.length >= Math.min(2, permitidas.length)) return;
+    // Uma recomendacao so. Oferecer 2ª e 3ª opcao devolve a decisao pro aluno,
+    // que e justamente o que ele veio aqui resolver. As demais ferramentas do
+    // quadrante seguem visiveis na matriz, sem destaque.
+    if (!tool || vistas.has(tool) || recommendations.length >= 1) return;
     vistas.add(tool);
     recommendations.push({
       rank: recommendations.length + 1,
@@ -129,6 +132,9 @@ export const normalizeDataNatureData = (data: any, context: DataNatureContext = 
       sourceCause: String(analysis?.sourceCause || context.variavelX || variableX.sourceName || '').trim(),
       projectY: String(analysis?.projectY || context.variavelY || '').trim(),
       question: String(analysis?.question || '').trim(),
+      // O que representa UMA linha da planilha. X e Y precisam ser medidos
+      // nessa mesma granularidade, senao a correlacao encontrada e falsa.
+      observationUnit: String(analysis?.observationUnit || '').trim(),
       rootCauseConfirmed: analysis?.rootCauseConfirmed === true,
       variableY,
       variableX,

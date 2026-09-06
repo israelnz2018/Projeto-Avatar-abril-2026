@@ -275,13 +275,16 @@ useEffect(() => {
   const userProfile = getUserProfile();
   const enrichedProjectData = useMemo(() => ({
     ...projectData,
+    // Prefixado para nunca colidir com um toolId: as ferramentas varrem as
+    // chaves deste mapa procurando dados salvos.
+    __projectId: project.id,
     userProfile: {
       name: userProfile.name,
       email: userProfile.email,
       company: userProfile.company,
       role: userProfile.role
     }
-  }), [projectData, userProfile]);
+  }), [projectData, userProfile, project.id]);
 
   const handleGenerateReport = async () => {
     if (!reportType) return;

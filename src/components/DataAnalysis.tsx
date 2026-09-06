@@ -1799,7 +1799,9 @@ export default function DataAnalysis() {
         </div>
       </header>
 
-      {recomendacaoNatureza && (
+      {/* So aparece no projeto que gerou a recomendacao: sem esta checagem, o
+          aluno troca de projeto aqui dentro e continua vendo a dica do anterior. */}
+      {recomendacaoNatureza && recomendacaoNatureza.projectId === projetoAtivo?.id && (
         <div className="mx-[20px] mb-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">

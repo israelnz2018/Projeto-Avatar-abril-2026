@@ -562,10 +562,10 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
       "quadrant": "Y Contínuo / X Contínuo",
       "recommendedTools": ["Diagrama de Dispersão", "Gráfico de tendência", "Regressão simples", "Regressão múltipla"],
       "recommendations": [
-        {"rank": 1, "tool": "Diagrama de Dispersão", "reason": "Por que deve ser usada primeiro neste caso"},
-        {"rank": 2, "tool": "Regressão simples", "reason": "Quando e por que usar como segunda opção"}
+        {"rank": 1, "tool": "Diagrama de Dispersão", "reason": "Ate 15 palavras: o que o aluno vai enxergar"}
       ],
-      "explanation": "Resumo da sequencia recomendada, em linguagem simples",
+      "observationUnit": "O que e UMA linha da planilha, ex: uma nota fiscal emitida",
+      "explanation": "Ate 15 palavras",
       "rootCauseConfirmed": false
     }
   ]
@@ -640,15 +640,26 @@ PREENCHIMENTO:
 - question = pergunta curta que a analise responde, sem afirmar o resultado.
 - Na principal, variableX.sourceName = exatamente o texto de 'variavelX' e
   variableY.sourceName = exatamente o texto de 'variavelY'.
+- Na analise principal, variableX.name deve conter SOMENTE a medida, sem o
+  fator de agrupamento. Escreva "Volume de notas fiscais", e NUNCA "Volume de
+  notas fiscais por analista": o fator "analista" pertence exclusivamente a
+  analise de estratificacao, nunca a principal.
 - Na estratificacao, variableX.name = fator de agrupamento e variableY.name =
   medida comparada; os sourceName devem indicar claramente suas origens.
 - variableX.name e variableY.name = nomes claros das grandezas que realmente
   serao medidas. Se o texto recebido ja for mensuravel, mantenha-o.
-- measurement deve dizer exatamente o que entra em cada linha da planilha e em
-  qual unidade ou conjunto de categorias.
-- description deve justificar a operacionalizacao, a direcao X -> Y e a
-  classificacao. Nao afirme que uma variavel e discreta apenas porque o texto
-  original e um atributo escrito em palavras.
+- measurement = o que entra em cada linha da planilha, em NO MAXIMO 12
+  palavras. Sem exemplo entre parenteses e sem repetir o nome da variavel.
+- description = NO MAXIMO 20 palavras, uma frase so, justificando a
+  classificacao. O aluno nao le paragrafo: se passar de 20 palavras, corte.
+  Nao afirme que uma variavel e discreta apenas porque o texto original e um
+  atributo escrito em palavras.
+- observationUnit = o que representa UMA linha da planilha (ex: "uma nota
+  fiscal emitida", "um analista por dia"). X e Y da MESMA analise precisam ser
+  medidos nessa mesma linha. Nunca cruze medida mensal com medida por evento:
+  granularidade diferente cria correlacao falsa.
+- recommendations deve trazer EXATAMENTE 1 item, rank 1. Nunca sugira segunda
+  ou terceira opcao: o aluno veio aqui pra receber uma decisao, nao um menu.
 - rootCauseConfirmed deve ser sempre false. Somente o aluno pode confirmar.
 
 CLASSIFIQUE CADA GRANDEZA como "Contínuo" ou "Discreto":

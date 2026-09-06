@@ -11,7 +11,6 @@ import {
   Activity,
   BarChart3,
   Layers,
-  Info,
   Save,
   Brain,
   ChevronRight,
@@ -38,6 +37,7 @@ interface AnalysisResult {
   sourceCause?: string;
   projectY?: string;
   question?: string;
+  observationUnit?: string;
   rootCauseConfirmed?: boolean;
   variableY: {
     sourceName?: string;
@@ -60,6 +60,17 @@ interface AnalysisResult {
   recommendations?: DataNatureRecommendation[];
   explanation: string;
 }
+
+/** Eixos da matriz. A recomendacao e mostrada destacando a celula certa,
+ *  em vez de um painel separado listando 1a, 2a e 3a opcao. */
+const LINHAS_MATRIZ = [
+  { tipo: 'Contínuo' as const, rotulo: 'Y CONTÍNUO' },
+  { tipo: 'Discreto' as const, rotulo: 'Y DISCRETO' },
+];
+const COLUNAS_MATRIZ = [
+  { tipo: 'Contínuo' as const, rotulo: 'X CONTÍNUO' },
+  { tipo: 'Discreto' as const, rotulo: 'X DISCRETO (ATRIBUTO)' },
+];
 
 export default function DataNatureAssistant({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData, allProjectData }: DataNatureAssistantProps & { onClearAIData?: () => void }) {
   const navigate = useNavigate();
@@ -196,7 +207,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
     // Mantém a recomendação disponível durante a troca de aba. A Data Analysis
     // continua exigindo que o aluno selecione as colunas reais da planilha.
     sessionStorage.setItem('lbw-data-nature-recommendation', JSON.stringify({
-      projectId: allProjectData?.id || '',
+      projectId: allProjectData?.__projectId || '',
       analysisId: analysis.id,
       question: analysis.question || '',
       variableX: analysis.variableX,
@@ -509,89 +520,112 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                     </div>
                   </div>
 
-                  {/* Recommendation */}
-                  <div className="p-8 bg-[#1f2937] text-white rounded-[8px] shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-10">
-                      <BarChart3 size={120} />
+                  {analysis.observationUnit && (
+                    <div className="rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-2.5">
+                      <p className="m-0 text-xs text-amber-900">
+                        <strong>Uma linha da planilha =</strong> {analysis.observationUnit}
+                      </p>
                     </div>
-                    
-                    <div className="relative z-10 space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <CheckCircle2 size={24} />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-xl text-white">Recomendação de Ferramentas</h4>
-                            <p className="text-blue-200 text-sm">{analysis.quadrant}</p>
-                          </div>
-                        </div>
+                  )}
 
-                        {(analysis.variableX.type !== analysis.variableX.originalType || analysis.variableY.type !== analysis.variableY.originalType) && (
-                          <button 
-                            onClick={() => resetToAI(analysis.id)}
-                            className="px-3 py-1 bg-white/10 hover:bg-white/20 border border-white/20 rounded text-[10px] font-bold transition-all flex items-center gap-2"
-                          >
-                            <Sparkles size={12} /> Resetar para Recomendação da IA
-                          </button>
-                        )}
+                  {/* A recomendação É a matriz: a célula do quadrante fica destacada
+                      e a ferramenta escolhida vem marcada dentro dela. Uma só — as
+                      outras do quadrante seguem visíveis, sem destaque. */}
+                  <div className="rounded-[8px] border border-[#e5e7eb] bg-white p-5 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Database size={16} className="text-blue-600" />
+                        <h4 className="m-0 text-sm font-bold text-[#1f2937]">Ferramenta recomendada</h4>
+                        <span className="text-xs text-slate-500">{analysis.quadrant}</span>
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {analysis.recommendedTools.map((tool, idx) => {
-                          const recommendation = analysis.recommendations?.find((item) => item.tool === tool);
-                          const rank = recommendation?.rank;
-                          return (
-                            <div
-                              key={`${tool}-${idx}`}
-                              className={cn(
-                                "p-4 rounded-[6px] border transition-all",
-                                rank === 1 && "bg-blue-600/40 border-blue-300/60 shadow-lg",
-                                rank === 2 && "bg-white/15 border-blue-300/30",
-                                !rank && "bg-white/5 border-white/10 opacity-65 hover:opacity-90",
-                              )}
-                            >
-                              <div className="flex items-center gap-3">
-                                {rank ? (
-                                  <span className={cn(
-                                    "min-w-7 h-7 px-2 rounded-full flex items-center justify-center text-[10px] font-black",
-                                    rank === 1 ? "bg-blue-400 text-slate-950" : "bg-white/20 text-white",
-                                  )}>
-                                    {rank}ª
-                                  </span>
-                                ) : (
-                                  <span className="w-2 h-2 ml-2 mr-3 bg-slate-400 rounded-full" />
-                                )}
-                                <span className={cn("font-bold text-sm", rank ? "text-white" : "text-slate-300")}>{tool}</span>
-                              </div>
-                              {recommendation?.reason && (
-                                <p className="mt-3 pl-10 text-xs leading-relaxed text-blue-100">
-                                  {recommendation.reason}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="p-4 bg-white/5 rounded-[4px] border border-white/5">
-                        <div className="flex items-start gap-3">
-                          <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
-                          <p className="text-sm text-gray-300 leading-relaxed italic">
-                            {analysis.explanation}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end">
+                      {(analysis.variableX.type !== analysis.variableX.originalType || analysis.variableY.type !== analysis.variableY.originalType) && (
                         <button
                           type="button"
-                          onClick={() => openDataAnalysis(analysis)}
-                          className="flex items-center gap-2 rounded-lg border border-blue-300/40 bg-blue-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition hover:bg-blue-500 cursor-pointer"
+                          onClick={() => resetToAI(analysis.id)}
+                          className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold text-slate-600 transition hover:border-blue-300 hover:text-blue-700 cursor-pointer"
                         >
-                          <BarChart3 size={16} /> Realizar análise <ArrowRight size={15} />
+                          <Sparkles size={12} /> Voltar à classificação da IA
                         </button>
-                      </div>
+                      )}
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-xs">
+                        <thead>
+                          <tr>
+                            <th className="border border-[#eee] bg-gray-50 p-2"></th>
+                            {COLUNAS_MATRIZ.map((col) => (
+                              <th
+                                key={col.tipo}
+                                className={cn(
+                                  "border border-[#eee] p-2 font-bold",
+                                  analysis.variableX.type === col.tipo ? "bg-blue-100 text-blue-900" : "bg-gray-50 text-slate-400"
+                                )}
+                              >
+                                {col.rotulo}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {LINHAS_MATRIZ.map((lin) => (
+                            <tr key={lin.tipo}>
+                              <th
+                                className={cn(
+                                  "border border-[#eee] p-2 text-center font-bold",
+                                  analysis.variableY.type === lin.tipo ? "bg-blue-100 text-blue-900" : "bg-gray-50 text-slate-400"
+                                )}
+                              >
+                                {lin.rotulo}
+                              </th>
+                              {COLUNAS_MATRIZ.map((col) => {
+                                const ativa = analysis.variableY.type === lin.tipo && analysis.variableX.type === col.tipo;
+                                const escolhida = analysis.recommendations?.[0]?.tool || '';
+                                return (
+                                  <td
+                                    key={col.tipo}
+                                    className={cn(
+                                      "p-3 align-top",
+                                      ativa ? "border-2 border-blue-600 bg-blue-50" : "border border-[#eee] opacity-40"
+                                    )}
+                                  >
+                                    <ul className="m-0 list-none space-y-1 p-0">
+                                      {(DATA_NATURE_TOOL_MATRIX[`${lin.tipo}-${col.tipo}`] || []).map((tool) => (
+                                        <li
+                                          key={tool}
+                                          className={cn(
+                                            "flex items-center gap-1.5",
+                                            ativa && tool === escolhida ? "font-black text-blue-700" : "text-slate-500"
+                                          )}
+                                        >
+                                          {ativa && tool === escolhida
+                                            ? <CheckCircle2 size={13} className="shrink-0" />
+                                            : <span className="ml-1 mr-0.5 h-1 w-1 shrink-0 rounded-full bg-slate-300" />}
+                                          {tool}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {analysis.recommendations?.[0]?.reason && (
+                      <p className="m-0 text-xs leading-relaxed text-slate-600">{analysis.recommendations[0].reason}</p>
+                    )}
+
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => openDataAnalysis(analysis)}
+                        className="flex items-center gap-2 rounded-lg border-none bg-blue-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition hover:bg-blue-500 cursor-pointer"
+                      >
+                        <BarChart3 size={16} /> Realizar análise <ArrowRight size={15} />
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -608,60 +642,6 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Reference Matrix */}
-      <div className="bg-white border border-[#ccc] rounded-[8px] p-6">
-        <h4 className="font-bold text-[#1f2937] mb-6 flex items-center gap-2">
-          <Database size={18} className="text-blue-600" />
-          Matriz de Natureza dos Dados
-        </h4>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                <th className="border border-[#eee] p-4 bg-gray-50"></th>
-                <th className="border border-[#eee] p-4 bg-blue-50 text-blue-800 font-bold">X CONTÍNUO</th>
-                <th className="border border-[#eee] p-4 bg-purple-50 text-purple-800 font-bold">X DISCRETO (ATRIBUTO)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="border border-[#eee] p-4 bg-blue-50 text-blue-800 font-bold text-center">Y CONTÍNUO</td>
-                <td className="border border-[#eee] p-4 text-[#666]">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Diagrama de Dispersão</li>
-                    <li>Gráfico de tendência</li>
-                    <li>Regressão simples</li>
-                    <li>Regressão múltipla</li>
-                  </ul>
-                </td>
-                <td className="border border-[#eee] p-4 text-[#666]">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Box Plot</li>
-                    <li>Teste de Hipótese</li>
-                    <li>ANOVA</li>
-                  </ul>
-                </td>
-              </tr>
-              <tr>
-                <td className="border border-[#eee] p-4 bg-purple-50 text-purple-800 font-bold text-center">Y DISCRETO</td>
-                <td className="border border-[#eee] p-4 text-[#666]">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Regressão Logística</li>
-                  </ul>
-                </td>
-                <td className="border border-[#eee] p-4 text-[#666]">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Histograma</li>
-                    <li>Pareto</li>
-                    <li>Chi Quadrado</li>
-                  </ul>
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
