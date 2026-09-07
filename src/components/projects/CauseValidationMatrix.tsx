@@ -39,19 +39,34 @@ const decisionClass: Record<Exclude<CauseDecision, null>, string> = {
 
 const unwrap = (data: any) => data?.toolData || data || {};
 
+/**
+ * Monta as linhas da tela a partir do que JA FOI GERADO E SALVO — nunca a
+ * partir das ferramentas anteriores.
+ *
+ * Regra da plataforma: nada da etapa anterior aparece sozinho. Enquanto o aluno
+ * nao apertar "Gerar com IA", esta ferramenta fica em branco. Antes disto a
+ * tabela era montada percorrendo `candidates` (Observacao Direta, Mapa
+ * Estatistico, Espinha...), entao ela ja abria cheia de linhas que o aluno
+ * nunca pediu.
+ *
+ * Os candidatos continuam entrando de duas formas legitimas: no clique do botao
+ * (ToolWrapper reconstroi as linhas a partir deles) e aqui, apenas para manter
+ * ATUAIS os campos que pertencem a origem numa linha que ja existe — sem isso,
+ * desmarcar/marcar a causa raiz na Observacao Direta nao se refletia aqui.
+ */
 const mergeRows = (candidates: ReturnType<typeof buildCauseEvidenceCandidates>, saved: any): CauseValidationRow[] => {
   const savedRows: CauseValidationRow[] = Array.isArray(unwrap(saved)?.rows) ? unwrap(saved).rows : [];
-  const savedById = new Map(savedRows.map((row) => [row.sourceId, row]));
-  return candidates.map((candidate) => {
-    const savedRow = savedById.get(candidate.sourceId) || {};
+  const candidatePorId = new Map(candidates.map((candidate) => [candidate.sourceId, candidate]));
+  return savedRows.map((savedRow) => {
+    const candidate: any = candidatePorId.get(savedRow.sourceId) || {};
     const linha: CauseValidationRow = {
       ...candidate,
       ...savedRow,
       // Estes campos pertencem à ferramenta de origem e precisam ser sempre
       // os atuais. Uma Validação salva anteriormente podia conter uma cópia
       // antiga com `false`, apagando o verde atual de X6 e X10.
-      sourceConfirmed: candidate.sourceConfirmed,
-      sourceConfirmationLabel: candidate.sourceConfirmationLabel,
+      sourceConfirmed: candidate.sourceConfirmed ?? savedRow.sourceConfirmed,
+      sourceConfirmationLabel: candidate.sourceConfirmationLabel ?? savedRow.sourceConfirmationLabel,
     };
 
     // A IA disse que contribui: ja deixa a linha marcada em vez de exigir dois
@@ -173,7 +188,7 @@ export default function CauseValidationMatrix({
           </button>
         </div>
         <div className="mt-5 flex flex-wrap gap-3 text-xs font-bold text-slate-600">
-          <span className="rounded-full bg-white px-3 py-2">{rows.length} evidência(s) encontradas</span>
+          <span className="rounded-full bg-white px-3 py-2">{rows.length} evidência(s) na tabela</span>
           <span className="rounded-full bg-white px-3 py-2">{confirmedCount} decisão(ões) confirmada(s)</span>
           <span className="rounded-full bg-emerald-100 px-3 py-2 text-emerald-800">{includedCount} no Brainstorming de Soluções</span>
         </div>
@@ -188,8 +203,21 @@ export default function CauseValidationMatrix({
       {!rows.length ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
           <HelpCircle className="mx-auto mb-3 text-slate-400" size={32} />
-          <p className="font-bold">Nenhuma análise ou evidência encontrada.</p>
-          <p className="mt-1 text-sm">Salve uma análise na Data Analysis ou preencha as ferramentas do projeto primeiro.</p>
+          {candidates.length > 0 ? (
+            <>
+              <p className="font-bold">
+                {candidates.length} evidência(s) esperando em outras ferramentas.
+              </p>
+              <p className="mt-1 text-sm">
+                Clique em <strong>Avaliar com IA</strong> para trazer para cá. Nada entra sozinho.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold">Nenhuma análise ou evidência encontrada.</p>
+              <p className="mt-1 text-sm">Salve uma análise na Data Analysis ou preencha as ferramentas do projeto primeiro.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
