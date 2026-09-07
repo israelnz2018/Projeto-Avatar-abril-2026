@@ -35,6 +35,7 @@ import { logToolOpened } from '@/src/services/eventLogger';
 import { normalizeDataNatureData } from '@/src/services/dataNatureRules';
 import { buildCauseEvidenceCandidates, getConfirmedCauseRows } from '@/src/services/causeValidationService';
 import { alinharIdeiasAsCausas, causasSemIdeia } from '@/src/services/brainstormingSolutionCoverage';
+import { prioritizationItemsFromSource } from '@/src/services/prioritizationMigration';
 
 interface ToolWrapperProps {
   toolId: string;
@@ -1117,14 +1118,17 @@ export default function ToolWrapper({
       }
 
       if (toolId === 'gut' || toolId === 'rab') {
-        // Só as ideias que o aluno aprovou seguem pra GUT/RAB. Ideia salva antes do
-        // campo existir (sem `aprovado`) conta como aprovada.
-        const projects = (getField('generatedProjects') || []).filter((p: any) => p?.aprovado !== false);
-        console.log('📋 Projetos encontrados:', projects.length);
-        const opportunities = projects.map((p: any, idx: number) => ({
-          id: String(idx + 1),
-          description: p.title || p.description || '',
-        }));
+        // A origem pode ser Ideias de Projetos (`generatedProjects`) ou um
+        // Brainstorming (`ideas`). Antes a RAB procurava apenas o primeiro
+        // formato e criava uma tabela vazia quando vinha do Brainstorming.
+        const opportunities = prioritizationItemsFromSource(sourceData);
+        console.log('📋 Itens encontrados para priorização:', opportunities.length);
+
+        if (opportunities.length === 0) {
+          toast.error('A ferramenta de origem ainda não tem ideias para trazer. Preencha e salve o Brainstorming primeiro.');
+          setIsGeneratingData(false);
+          return;
+        }
         
         // Colunas padrao por ferramenta (sem isso a tabela nao renderiza)
         const defaultColumns = toolId === 'gut' ? [
