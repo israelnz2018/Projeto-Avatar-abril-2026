@@ -141,6 +141,17 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   const confirmedCauses = getConfirmedCauseRows(causeValidation);
   const needsCauseValidation = isSolutionBrainstorming && Boolean(causeValidationRequired);
 
+  // O Brainstorming de Solucoes so pode refletir a Validacao das Causas OU
+  // entrada manual do aluno — nunca uma foto congelada de uma confirmacao
+  // que ja mudou. Sem isso, desmarcar uma causa la deixava a ideia gerada
+  // pra ela pendurada aqui pra sempre, porque a geracao so ACRESCENTA
+  // (ToolWrapper.tsx) e nunca reavalia o que ja foi salvo antes.
+  const causasConfirmadasX = new Set(confirmedCauses.map((c: any) => c.x));
+  const ideiaEhManual = (idea: Idea) => idea.author !== 'IA LBW' && idea.author !== 'IA';
+  const ideasValidas = isSolutionBrainstorming
+    ? ideas.filter((idea) => ideiaEhManual(idea) || causasConfirmadasX.has(idea.category))
+    : ideas;
+
   const handleGenerateSolutions = async () => {
     const improvementGoal = brainstormingTopic.trim();
     if (improvementGoal.length < 10) {
@@ -232,7 +243,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
     onSave({
       brainstormingType,
       brainstormingTopic,
-      ideas
+      // Salva ja sem as ideias orfas — uma causa desmarcada na Validacao nao
+      // deve voltar a aparecer aqui se for reconfirmada depois por acidente
+      // de estado antigo; a proxima geracao ou entrada manual recria o que
+      // for preciso.
+      ideas: ideasValidas,
     });
   };
 
@@ -242,7 +257,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   // objetivo) em todas as linhas do Brainstorming de Solucoes, entao virava
   // sempre um grupo so. A causa raiz de cada ideia ja mora em category — o
   // "X relacionado" que o aluno pediu como primeira coluna.
-  const ideaDisplayRows = ideas.map((idea, index) => ({ idea, index }));
+  const ideaDisplayRows = ideasValidas.map((idea, index) => ({ idea, index }));
 
   return (
     <div className="space-y-8">
@@ -362,7 +377,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 )}
               >
                 {isGeneratingAI ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
-                {isGeneratingAI ? 'Gerando soluções...' : ideas.length ? 'Gerar novas soluções' : 'Gerar ideias com IA'}
+                {isGeneratingAI ? 'Gerando soluções...' : ideasValidas.length ? 'Gerar novas soluções' : 'Gerar ideias com IA'}
               </button>
             </div>
             {needsCauseValidation && confirmedCauses.length === 0 && (
@@ -450,7 +465,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-[14px] font-black text-[#333] uppercase tracking-widest">
-              {isSolutionBrainstorming ? 'Ideias de solução' : 'Ideias coletadas'} ({ideas.length})
+              {isSolutionBrainstorming ? 'Ideias de solução' : 'Ideias coletadas'} ({ideasValidas.length})
             </h3>
           </div>
           
@@ -550,7 +565,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                   </tr>
                   );
                 })}
-                {ideas.length === 0 && (
+                {ideasValidas.length === 0 && (
                   <tr>
                     <td colSpan={4} className="p-12 text-center">
                       <Lightbulb className="mx-auto text-[#ccc] mb-2" size={32} />
