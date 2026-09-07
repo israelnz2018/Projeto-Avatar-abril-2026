@@ -223,6 +223,9 @@ useEffect(() => {
   const [completedTools, setCompletedTools] = useState<string[]>(project.completedTools || []);
   const [completedPhases, setCompletedPhases] = useState<string[]>(project.completedPhases || []);
   const [savingPhaseCompletion, setSavingPhaseCompletion] = useState(false);
+  // Mantém a ordem dos salvamentos quando o aluno confirma várias causas
+  // rapidamente dentro da mesma ferramenta.
+  const saveQueueByTool = useRef<Map<string, Promise<void>>>(new Map());
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   // Ferramenta bloqueada abre a oferta do curso DESTE projeto — é ele que
   // destrava estas ferramentas. No tenant de um consultor não há checkout
@@ -692,7 +695,15 @@ useEffect(() => {
         configurable: true,
       });
       setProjectData(updatedProjectData);
-      await saveProjectToolData(projectId, storageKey, data);
+      const previousSave = saveQueueByTool.current.get(storageKey) || Promise.resolve();
+      const queuedSave = previousSave
+        .catch(() => undefined)
+        .then(() => saveProjectToolData(projectId, storageKey, data));
+      saveQueueByTool.current.set(storageKey, queuedSave);
+      await queuedSave;
+      if (saveQueueByTool.current.get(storageKey) === queuedSave) {
+        saveQueueByTool.current.delete(storageKey);
+      }
 
       // Mark original tool ID as completed regardless of storage key
       await markToolAsCompleted(projectId, toolId);

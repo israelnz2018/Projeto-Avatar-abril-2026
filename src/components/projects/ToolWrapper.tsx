@@ -1026,6 +1026,9 @@ export default function ToolWrapper({
           definition: v.definition || '',
           origem: v.origem || '',
           metodo: v.metodo || '',
+          observada: v.observada === true,
+          evidencia: v.evidencia || '',
+          causaRaiz: v.causaRaiz === true,
         }));
 
         // O Y viaja junto dos X — sem ele a Natureza dos Dados teria que adivinhar

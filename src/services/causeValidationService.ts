@@ -31,6 +31,9 @@ export interface CauseValidationRow extends CauseEvidenceCandidate {
 
 const unwrap = (value: any): any => value?.toolData || value || {};
 
+const isConfirmed = (value: any): boolean =>
+  value === true || value === 1 || ['true', '1', 'sim', 'yes'].includes(String(value ?? '').trim().toLowerCase());
+
 const cleanText = (value: any): string => String(value ?? '')
   .replace(/<[^>]*>/g, ' ')
   .replace(/&nbsp;/gi, ' ')
@@ -128,7 +131,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       y: causeLink.projectY || y,
       analysis: analysis?.tool || 'Análise estatística',
       evidence: analysis?.interpretacao || analysis?.analise || 'Resultado salvo, sem interpretação escrita.',
-      sourceConfirmed: linkedNatureAnalysis?.rootCauseConfirmed === true,
+      sourceConfirmed: isConfirmed(linkedNatureAnalysis?.rootCauseConfirmed),
       sourceConfirmationLabel: 'Natureza dos Dados',
     });
   });
@@ -145,7 +148,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       y: analysis?.y || yProjeto,
       analysis: analysis?.analysisType || 'Análise estatística',
       evidence: analysis?.interpretation || 'Análise sem interpretação escrita.',
-      sourceConfirmed: analysis?.rootCauseConfirmed === true || analysis?.identifiedCause === true,
+      sourceConfirmed: isConfirmed(analysis?.rootCauseConfirmed) || isConfirmed(analysis?.identifiedCause),
       sourceConfirmationLabel: 'Análise Gráfica e Estatística',
     });
   });
@@ -198,10 +201,10 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       analysis: listaFerramentas[0]
         ? `${listaFerramentas[0]}${ehEstratificacao ? ' (estratificação)' : ''}`
         : 'Análise planejada',
-      evidence: analysis?.rootCauseConfirmed === true
+      evidence: isConfirmed(analysis?.rootCauseConfirmed)
         ? `Relação confirmada pelo aluno na Natureza dos Dados. Ferramenta indicada: ${tools || 'não informada'}.`
         : `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
-      sourceConfirmed: analysis?.rootCauseConfirmed === true,
+      sourceConfirmed: isConfirmed(analysis?.rootCauseConfirmed),
       sourceConfirmationLabel: 'Natureza dos Dados',
     });
   });
@@ -217,7 +220,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       y: item?.variableY || yProjeto,
       analysis: 'Observação Direta (Gemba)',
       evidence: item?.observationDescription || item?.observation || item?.evidence || '',
-      sourceConfirmed: item?.identifiedCause === true,
+      sourceConfirmed: isConfirmed(item?.identifiedCause),
       sourceConfirmationLabel: 'Observação Direta',
     });
   });

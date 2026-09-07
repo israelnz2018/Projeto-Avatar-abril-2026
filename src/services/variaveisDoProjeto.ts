@@ -28,6 +28,9 @@ export interface VariavelDoProjeto {
   causaRaiz?: boolean;
 }
 
+const valorConfirmado = (value: any): boolean =>
+  value === true || value === 1 || ['true', '1', 'sim', 'yes'].includes(String(value ?? '').trim().toLowerCase());
+
 /**
  * O Y — o EFEITO que o projeto quer mudar.
  *
@@ -209,6 +212,10 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
       variable: String(v?.variable ?? '').trim(),
       definition: String(v?.definition ?? ''),
       origem: String(v?.origem ?? ''),
+      observada: v?.observada === true,
+      evidencia: String(v?.evidencia ?? ''),
+      metodo: String(v?.metodo ?? ''),
+      causaRaiz: valorConfirmado(v?.causaRaiz),
     }));
 
   const observadas: VariavelDoProjeto[] = (Array.isArray(dados.observations) ? dados.observations : [])
@@ -218,7 +225,7 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
       origem: 'Observacao Direta',
       observada: true,
       evidencia: String(o?.observationDescription ?? '').trim(),
-      causaRaiz: o?.identifiedCause === true,
+      causaRaiz: valorConfirmado(o?.identifiedCause),
     }));
 
   const dosPorques: VariavelDoProjeto[] = (Array.isArray(dados.chains) ? dados.chains : [])
@@ -229,7 +236,7 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
       variable: String(a?.variableX?.name ?? a?.variable ?? '').trim(),
       definition: String(a?.variableX?.measurement ?? ''),
       origem: 'Natureza dos Dados',
-      causaRaiz: a?.rootCauseConfirmed === true,
+      causaRaiz: valorConfirmado(a?.rootCauseConfirmed),
     }));
 
   const tudo = [
@@ -248,12 +255,26 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
 
   // Sem repetir: a primeira aparicao vence, entao o que veio recebido mantem a
   // origem original em vez de virar "Observacao Direta" no meio do caminho.
-  const vistas = new Set<string>();
-  return tudo.filter((v) => {
-    if (vistas.has(v.variable)) return false;
-    vistas.add(v.variable);
-    return true;
+  const consolidadas = new Map<string, VariavelDoProjeto>();
+  tudo.forEach((variavel) => {
+    const chave = variavel.variable.toLocaleLowerCase('pt-BR');
+    const anterior = consolidadas.get(chave);
+    if (!anterior) {
+      consolidadas.set(chave, variavel);
+      return;
+    }
+    // A variável recebida preserva a origem. A observação posterior acrescenta
+    // a evidência e a confirmação em vez de ser eliminada como duplicata.
+    consolidadas.set(chave, {
+      ...anterior,
+      definition: variavel.definition || anterior.definition,
+      observada: Boolean(anterior.observada || variavel.observada),
+      evidencia: variavel.evidencia || anterior.evidencia,
+      metodo: variavel.metodo || anterior.metodo,
+      causaRaiz: Boolean(anterior.causaRaiz || variavel.causaRaiz),
+    });
   });
+  return Array.from(consolidadas.values());
 };
 
 /** Variaveis marcadas como Qualitativa no Plano de Coleta. */
@@ -281,7 +302,7 @@ export const variaveisObservadas = (allProjectData: any): VariavelDoProjeto[] =>
       origem: 'Observacao Direta',
       observada: true,
       evidencia: String(o?.observationDescription || '').trim(),
-      causaRaiz: o?.identifiedCause === true,
+      causaRaiz: valorConfirmado(o?.identifiedCause),
     }))
     .filter((v: VariavelDoProjeto) => v.variable);
 };
