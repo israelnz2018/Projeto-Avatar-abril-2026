@@ -132,7 +132,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       analysis: analysis?.tool || 'Análise estatística',
       evidence: analysis?.interpretacao || analysis?.analise || 'Resultado salvo, sem interpretação escrita.',
       sourceConfirmed: isConfirmed(linkedNatureAnalysis?.rootCauseConfirmed),
-      sourceConfirmationLabel: 'Natureza dos Dados',
+      sourceConfirmationLabel: 'Mapa Estatístico',
     });
   });
 
@@ -153,10 +153,10 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
     });
   });
 
-  // 3) Natureza dos Dados: entra como planejamento/recomendação, nunca como
+  // 3) Mapa Estatístico: entra como planejamento/recomendação, nunca como
   // prova estatística. A IA deve marcar como inconclusivo se não houver evidência.
   // Quantas analises cada causa gerou. Duas viram x3.1 e x3.2 — a MESMA
-  // numeracao usada na Natureza dos Dados, pra variavel traduzida nao aparecer
+  // numeracao usada no Mapa Estatístico, pra variavel traduzida nao aparecer
   // aqui como se tivesse surgido do nada.
   const causaDaAnalise = (a: any) => String(a?.sourceCause || a?.variableX?.sourceName || '').trim();
   const totalPorCausa = new Map<string, number>();
@@ -173,7 +173,7 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       .map((tool: any) => typeof tool === 'string' ? tool : tool?.tool)
       .filter(Boolean);
     const tools = listaFerramentas.join(', ');
-    // A Natureza dos Dados TRADUZ a causa numa grandeza mensuravel: "x3: Equipe
+    // O Mapa Estatístico TRADUZ a causa numa grandeza mensuravel: "x3: Equipe
     // sem treinamento" vira "Carga horaria de treinamento em ERP". Sem mostrar a
     // causa de origem, essas linhas aparecem aqui soltas, sem o x3, e o aluno nao
     // liga uma coisa na outra.
@@ -193,8 +193,8 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
     pushCandidate(rows, {
       id: makeId('data-nature', analysis?.id || `${x}-${y}-${index}`),
       sourceLabel: causaOriginal && causaOriginal !== x
-        ? `Natureza dos Dados — vem de ${causaOriginal}`
-        : 'Natureza dos Dados',
+        ? `Mapa Estatístico — vem de ${causaOriginal}`
+        : 'Mapa Estatístico',
       origin: 'Projetos',
       x: xRotulado,
       y,
@@ -202,10 +202,10 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
         ? `${listaFerramentas[0]}${ehEstratificacao ? ' (estratificação)' : ''}`
         : 'Análise planejada',
       evidence: isConfirmed(analysis?.rootCauseConfirmed)
-        ? `Relação confirmada pelo aluno na Natureza dos Dados. Ferramenta indicada: ${tools || 'não informada'}.`
+        ? `Relação confirmada pelo aluno no Mapa Estatístico. Ferramenta indicada: ${tools || 'não informada'}.`
         : `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
       sourceConfirmed: isConfirmed(analysis?.rootCauseConfirmed),
-      sourceConfirmationLabel: 'Natureza dos Dados',
+      sourceConfirmationLabel: 'Mapa Estatístico',
     });
   });
 

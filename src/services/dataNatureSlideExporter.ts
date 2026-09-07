@@ -264,7 +264,7 @@ export async function exportDataNatureSlide(
 
   const pres = options.pres || new pptxgen();
   if (!options.pres) pres.layout = 'LAYOUT_WIDE';
-  const slide = createSlide(pres, project, 'Natureza dos Dados', 'Analyze', aiAnalysis);
+  const slide = createSlide(pres, project, 'Mapa Estatístico', 'Analyze', aiAnalysis);
 
   const TX = TOOL_AREA.x;
   const TY = TOOL_AREA.y;

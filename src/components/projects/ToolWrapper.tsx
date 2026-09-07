@@ -1031,7 +1031,7 @@ export default function ToolWrapper({
           causaRaiz: v.causaRaiz === true,
         }));
 
-        // O Y viaja junto dos X — sem ele a Natureza dos Dados teria que adivinhar
+        // O Y viaja junto dos X — sem ele o Mapa Estatístico teria que adivinhar
         // o efeito a cada analise. Lista separada de proposito: o Y e contexto,
         // nao item pro aluno escolher no dropdown de causas.
         const listaY = variaveisYDaOrigem(sourceData);
@@ -1045,7 +1045,7 @@ export default function ToolWrapper({
       if (toolId === 'statisticalAnalysis') {
         const dnAnalyses = getField('analyses') || [];
         if (dnAnalyses.length === 0) {
-          toast.error('Nenhuma analise encontrada na Natureza dos Dados. Preencha aquela ferramenta primeiro.');
+          toast.error('Nenhuma analise encontrada no Mapa Estatístico. Preencha aquela ferramenta primeiro.');
           setIsGeneratingData(false);
           return;
         }
@@ -1538,7 +1538,7 @@ export default function ToolWrapper({
         };
       }
 
-      // Natureza dos Dados analisa UM par X x Y por vez — nao a lista inteira.
+      // Mapa Estatístico analisa UM par X x Y por vez — nao a lista inteira.
       // O X e o Y vem do que o aluno escolheu na tela (customContext); antes o
       // codigo mandava todos os itens do Plano de Coleta e pedia uma analise por
       // item, o que nao e o proposito da ferramenta.
@@ -1654,7 +1654,7 @@ export default function ToolWrapper({
         };
       }
 
-      // Natureza dos Dados analisa um X por vez, entao cada geracao ACUMULA em
+      // Mapa Estatístico analisa um X por vez, entao cada geracao ACUMULA em
       // vez de substituir — senao a analise anterior seria perdida a cada X novo.
       // E a IA devolve so `analyses`: sem preservar as listas, o dropdown de X
       // (e o Y) sumiriam depois da primeira analise.

@@ -545,10 +545,10 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
   },
  
   // ======================================================================
-  // NATUREZA DOS DADOS
+  // MAPA ESTATÍSTICO
   // ======================================================================
   dataNature: {
-    toolName: "Natureza dos Dados",
+    toolName: "Mapa Estatístico",
     structure: `{
   "analyses": [
     {
@@ -569,7 +569,7 @@ Nunca use outro texto neste campo. Nunca deixe vazio.`
     }
   ]
 }`,
-    instructions: `ATENCAO - NATUREZA DOS DADOS:
+    instructions: `ATENCAO - MAPA ESTATÍSTICO:
 
 PROPOSITO: ajudar o aluno a descobrir QUAL FERRAMENTA GRAFICA OU ESTATISTICA usar
 pra investigar a relacao entre UMA causa (X) e o efeito do projeto (Y). O aluno
@@ -750,7 +750,7 @@ Para cada candidato, classifique somente:
 REGRAS TECNICAS:
 1. Associação estatística não é prova de causalidade. Use linguagem de evidência,
    não afirme causalidade definitiva.
-2. Natureza dos Dados, Espinha de Peixe, 5 Porquês e Matriz Causa e Efeito são
+2. Mapa Estatístico, Espinha de Peixe, 5 Porquês e Matriz Causa e Efeito são
    hipóteses ou priorizações; sem resultado medido, prefira "inconclusivo".
 3. Uma análise sem interpretação ou sem resultado suficiente deve ser inconclusiva.
 4. A decisão deve considerar o indicador Y do projeto e a direção X -> Y.

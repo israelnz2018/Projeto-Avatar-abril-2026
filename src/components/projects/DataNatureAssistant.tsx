@@ -411,7 +411,7 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
                   >
                     <Activity size={18} />
                   </motion.div>
-                  Analisando Natureza dos Dados...
+                  Analisando Mapa Estatístico...
                 </>
               ) : (
                 <>

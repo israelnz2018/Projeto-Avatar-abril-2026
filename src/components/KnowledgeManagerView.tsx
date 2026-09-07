@@ -113,7 +113,7 @@ const AVAILABLE_TOOLS = [
   { id: 'fiveWhys', name: '5 Porquês' },
   { id: 'fta', name: 'Árvore de Falhas (FTA)' },
   { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística' },
-  { id: 'dataNature', name: 'Natureza dos Dados' },
+  { id: 'dataNature', name: 'Mapa Estatístico' },
   { id: 'fmea', name: 'FMEA' },
   { id: 'plan5w2h', name: 'Plano de Ação 5W2H' },
   { id: 'actionPlan', name: 'Plano de Ação' },

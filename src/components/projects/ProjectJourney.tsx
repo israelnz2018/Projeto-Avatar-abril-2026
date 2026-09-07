@@ -121,7 +121,7 @@ const AVAILABLE_TOOLS = [
   { id: 'fiveWhys', name: '5 Porquês', component: FiveWhys },
   { id: 'fta', name: 'Árvore de Falhas (FTA)', component: FaultTreeAnalysis },
   { id: 'statisticalAnalysis', name: 'Análise Gráfica e Estatística', component: StatisticalAnalysisForm },
-  { id: 'dataNature', name: 'Natureza dos Dados', component: DataNatureAssistant },
+  { id: 'dataNature', name: 'Mapa Estatístico', component: DataNatureAssistant },
   { id: 'causeValidation', name: 'Validação das Causas — X → Y', component: CauseValidationMatrix },
   { id: 'fmea', name: 'FMEA', component: ProcessFMEA },
   { id: 'plan5w2h', name: 'Plano de Ação 5W2H', component: ActionPlan5W2H },

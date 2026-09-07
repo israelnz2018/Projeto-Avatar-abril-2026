@@ -169,7 +169,7 @@ const configuracoesFerramentas: Record<string, any[]> = {
 };
 
 /**
- * Ferramenta recomendada na Natureza dos Dados -> item real deste menu.
+ * Ferramenta recomendada no Mapa Estatístico -> item real deste menu.
  *
  * O nome que aparece na matriz e didatico ("Diagrama de Dispersao"); o menu usa
  * o nome curto ("Dispersao"). Sem esta ponte, o aluno chega aqui com a
@@ -596,7 +596,7 @@ export default function DataAnalysis() {
   const isAnalysisLocked = (grupo: string) => !grupoLiberado(grupo);
 
   /**
-   * Chegou da Natureza dos Dados: ja deixa a ferramenta recomendada selecionada.
+   * Chegou do Mapa Estatístico: ja deixa a ferramenta recomendada selecionada.
    *
    * Aplica UMA vez por recomendacao — depois disso o aluno manda no menu e a
    * troca dele nao pode ser desfeita. Ferramenta bloqueada no plano dele nao e
@@ -1881,7 +1881,7 @@ export default function DataAnalysis() {
         <div className="mx-[20px] mb-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="m-0 text-[10px] font-black uppercase tracking-widest text-blue-600">Recomendação da Natureza dos Dados</p>
+              <p className="m-0 text-[10px] font-black uppercase tracking-widest text-blue-600">Recomendação do Mapa Estatístico</p>
               {recomendacaoNatureza.question && (
                 <p className="m-0 mt-1 text-sm font-bold text-slate-900">{recomendacaoNatureza.question}</p>
               )}

@@ -1,11 +1,11 @@
 /**
  * A lista de X's do projeto, compartilhada pela cadeia:
  *
- *   Espinha de Peixe  ->  Observacao Direta  ->  Natureza dos Dados
+ *   Espinha de Peixe  ->  Observacao Direta  ->  Mapa Estatístico
  *
  * As tres ferramentas trabalham sobre a MESMA lista de variaveis (as causas
  * levantadas no Ishikawa). Antes cada uma lia de um lugar diferente: a Observacao
- * Direta so enxergava o Plano de Coleta e a Natureza dos Dados so enxergava o que
+ * Direta so enxergava o Plano de Coleta e o Mapa Estatístico so enxergava o que
  * ja tinha sido observado. Resultado: a lista morria no primeiro passo.
  *
  * Aqui a leitura fica num lugar so, entao a mesma lista percorre as tres.
@@ -147,7 +147,7 @@ export const variaveisDoPlanoDeColeta = (plano: any): VariavelDoProjeto[] => {
  * quer mudar. Anda junto dos X pela cadeia, pelo mesmo mecanismo: o que a
  * ferramenta RECEBEU (`variaveisY`) mais o que ela mesma define.
  *
- * Sem isso, a Natureza dos Dados teria que adivinhar o Y do Brief a cada
+ * Sem isso, o Mapa Estatístico teria que adivinhar o Y do Brief a cada
  * analise — e como o Brief e texto corrido, sairia uma variacao diferente do Y
  * toda vez. Vindo da origem, o Y e o mesmo na cadeia inteira.
  */
@@ -193,14 +193,14 @@ export const variaveisYDaOrigem = (origem: any): VariavelY[] => {
  * que RECEBEU (`variaveisDisponiveis`) mais o que estiver preenchido nela.
  *
  * ATENCAO ao conceito: quem LEVANTA X sao as ferramentas de causa (Espinha de
- * Peixe, Matriz Causa e Efeito). Observacao Direta, Natureza dos Dados e 5
+ * Peixe, Matriz Causa e Efeito). Observacao Direta, Mapa Estatístico e 5
  * Porques nao geram X — elas INVESTIGAM o X que receberam. Por isso a ordem de
  * leitura abaixo poe `recebidas` primeiro: o X mantem a origem de quem o
  * levantou, e o que essas tres acrescentam so entra quando o aluno digitou uma
  * variavel nova a mao (todas as tres permitem, como a Espinha de Peixe permite).
  *
  * Assim a mesma lista de X atravessa a cadeia, um passo de cada vez:
- *   Espinha de Peixe -> Observacao Direta -> Natureza dos Dados -> 5 Porques
+ *   Espinha de Peixe -> Observacao Direta -> Mapa Estatístico -> 5 Porques
  * sem pular ferramenta e sem sequencia fixa no codigo.
  */
 export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
@@ -235,7 +235,7 @@ export const variaveisDaOrigem = (origem: any): VariavelDoProjeto[] => {
     .map((a: any) => ({
       variable: String(a?.variableX?.name ?? a?.variable ?? '').trim(),
       definition: String(a?.variableX?.measurement ?? ''),
-      origem: 'Natureza dos Dados',
+      origem: 'Mapa Estatístico',
       causaRaiz: valorConfirmado(a?.rootCauseConfirmed),
     }));
 

@@ -65,7 +65,7 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
   dataCollection: { exporter: exportDataCollectionPlanSlide, successMsg: 'Slide do Plano de Coleta gerado!' },
   directObservation: { exporter: exportDirectObservationSlide, successMsg: 'Slide da Observacao Gemba gerado!' },
   fiveWhys: { exporter: exportFiveWhysSlide, successMsg: 'Slide dos 5 Porques gerado!' },
-  dataNature: { exporter: exportDataNatureSlide, successMsg: 'Slide da Natureza dos Dados gerado!' },
+  dataNature: { exporter: exportDataNatureSlide, successMsg: 'Slide do Mapa Estatístico gerado!' },
   brainstormingImprove: {
     exporter: exportBrainstormingSlide,
     successMsg: 'Slide do Brainstorming de Solucoes gerado!',

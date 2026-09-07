@@ -43,7 +43,7 @@ export interface AnaliseSalva {
   timestamp: number;
   planilhaVersao: number | null;
   graficoInterativo?: any;
-  /** Só existe quando a análise foi iniciada pela Natureza dos Dados. */
+  /** Só existe quando a análise foi iniciada pelo Mapa Estatístico. */
   projectCauseLink?: {
     natureAnalysisId: string;
     sourceCause: string;

@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
  * Escolher UM X por vez, a partir da lista trazida da ferramenta de origem.
  *
  * Existe compartilhado porque as tres ferramentas que trabalham em cima da lista
- * de X — Observacao Direta, Natureza dos Dados e 5 Porques — seguem o mesmo
+ * de X — Observacao Direta, Mapa Estatístico e 5 Porques — seguem o mesmo
  * caminho: o aluno escolhe uma variavel, aperta o botao, e SO ENTAO aparece o
  * campo pra preencher sobre aquela. Nunca as 18 de uma vez.
  *
