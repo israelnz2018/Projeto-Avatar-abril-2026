@@ -3,7 +3,7 @@ import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpC
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
-import { getConfirmedCauseRows, projectY } from '@/src/services/causeValidationService';
+import { getConfirmedCauseRows } from '@/src/services/causeValidationService';
 import { alinharIdeiasAsCausas } from '@/src/services/brainstormingSolutionCoverage';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
@@ -99,11 +99,10 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   const [brainstormingType, setBrainstormingType] = useState(
     defaultData?.brainstormingType || (isSolutionBrainstorming ? 'Identificar melhor solução' : BRAINSTORMING_TYPES[0])
   );
-  // "O que voce quer melhorar?" e o inverso da cabeca da espinha de peixe: o
-  // Ishikawa guarda o problema, o Brief ja guarda a mesma coisa escrita como
-  // meta de melhoria. Pre-preenche na primeira abertura; o aluno edita livre.
-  const objetivoDoBrief = () => (isSolutionBrainstorming ? projectY(allProjectData, '') : '');
-  const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || objetivoDoBrief());
+  // Regra geral da plataforma: nada da etapa anterior aparece sozinho. "O que
+  // voce quer melhorar?" comeca em branco ate o aluno escrever — antes vinha
+  // pre-preenchido com o Y do Brief na primeira abertura.
+  const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || '');
   const [ideas, setIdeas] = useState<Idea[]>(defaultData?.ideas || []);
   const isToolEmpty = ideas.length === 0;
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -120,7 +119,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
       // Reset to defaults if initialData is null/undefined
       setIdeas([]);
       setBrainstormingType(isSolutionBrainstorming ? 'Identificar melhor solução' : BRAINSTORMING_TYPES[0]);
-      setBrainstormingTopic(objetivoDoBrief());
+      setBrainstormingTopic('');
     }
   }, [initialData, isSolutionBrainstorming]);
 
