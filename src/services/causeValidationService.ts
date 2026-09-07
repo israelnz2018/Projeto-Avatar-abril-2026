@@ -90,6 +90,12 @@ const pushCandidate = (
     analysis: cleanText(item.analysis) || 'Análise registrada',
     evidence: cleanText(item.evidence) || 'Sem interpretação escrita.',
     origin: item.origin,
+    // A confirmacao feita na ferramenta de origem (o verde da Observacao Direta
+    // e do Mapa Estatistico) precisa atravessar ate aqui. Sem repassar estes
+    // dois campos, todo chamador marcava a causa raiz e ela se perdia no meio
+    // do caminho — a linha chegava na Validacao das Causas sem o verde.
+    sourceConfirmed: item.sourceConfirmed === true,
+    sourceConfirmationLabel: item.sourceConfirmationLabel,
   });
 };
 
