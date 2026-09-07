@@ -43,6 +43,13 @@ export interface AnaliseSalva {
   timestamp: number;
   planilhaVersao: number | null;
   graficoInterativo?: any;
+  /** Só existe quando a análise foi iniciada pela Natureza dos Dados. */
+  projectCauseLink?: {
+    natureAnalysisId: string;
+    sourceCause: string;
+    analysisRole: string;
+    projectY: string;
+  };
 }
 
 // ============== PLANILHA ==============

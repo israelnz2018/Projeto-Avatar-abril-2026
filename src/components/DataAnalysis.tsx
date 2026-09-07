@@ -390,6 +390,13 @@ interface AnalysisResult {
   toolParams?: Record<string, any>;        // ← NOVO
   selectedSheet?: string;                  // ← NOVO
   graficoInterativo?: any;
+  /** Vínculo com o X do projeto. Ausente em análises estatísticas avulsas. */
+  projectCauseLink?: {
+    natureAnalysisId: string;
+    sourceCause: string;
+    analysisRole: string;
+    projectY: string;
+  };
 }
 
 function getYoutubeId(url: string): string | null {
@@ -1087,6 +1094,22 @@ export default function DataAnalysis() {
         selectedSheet: selectedSheet,           // ← NOVO
         graficoInterativo: dadosInterativos,
         configGrafico: dadosInterativos ? defaultPlotlyConfig(dadosInterativos) : undefined,
+        projectCauseLink: (() => {
+          if (!recomendacaoNatureza || recomendacaoNatureza.projectId !== projetoAtivo?.id) return undefined;
+          const nomeRecomendado = recomendacaoNatureza.recommendations?.[0]?.tool
+            || recomendacaoNatureza.recommendedTools?.[0]
+            || '';
+          const alvoRecomendado = FERRAMENTA_RECOMENDADA_NO_MENU[nomeRecomendado];
+          // Se o aluno escolheu outra análise qualquer, ela é avulsa e não pode
+          // aparecer como evidência de uma causa do projeto.
+          if (!alvoRecomendado || alvoRecomendado.ferramenta !== ferramentaAtual) return undefined;
+          return {
+            natureAnalysisId: String(recomendacaoNatureza.analysisId || ''),
+            sourceCause: String(recomendacaoNatureza.sourceCause || recomendacaoNatureza.variableX?.sourceName || ''),
+            analysisRole: String(recomendacaoNatureza.analysisRole || 'principal'),
+            projectY: String(recomendacaoNatureza.projectY || recomendacaoNatureza.variableY?.sourceName || recomendacaoNatureza.variableY?.name || ''),
+          };
+        })(),
       };
 
       setResults([newResult, ...results]);
@@ -1247,6 +1270,7 @@ export default function DataAnalysis() {
           timestamp: r.timestamp instanceof Date ? r.timestamp.getTime() : (r.timestamp as any),
           planilhaVersao: planilhaTimestamp,
           graficoInterativo: r.graficoInterativo || null,
+          projectCauseLink: r.projectCauseLink,
         }));
         const porId = new Map((dadosExistentes?.analises || []).map((analise) => [analise.id, analise]));
         analisesAtuais.forEach((analise) => porId.set(analise.id, analise));

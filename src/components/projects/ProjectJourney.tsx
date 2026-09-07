@@ -275,6 +275,10 @@ useEffect(() => {
   const userProfile = getUserProfile();
   const enrichedProjectData = useMemo(() => ({
     ...projectData,
+    // O mapa de datas não é enumerável no retorno do Firestore e se perdia
+    // no spread acima. Sem ele, leitores consolidados podiam escolher um
+    // documento legado da ferramenta em vez da versão mais recente.
+    __metadata: (projectData as any).__metadata || {},
     // Prefixado para nunca colidir com um toolId: as ferramentas varrem as
     // chaves deste mapa procurando dados salvos.
     __projectId: project.id,
@@ -677,7 +681,16 @@ useEffect(() => {
         return;
       }
 
+      const updatedMetadata = {
+        ...((projectData as any).__metadata || {}),
+        [storageKey]: Date.now(),
+      };
       let updatedProjectData = { ...projectData, [storageKey]: data };
+      Object.defineProperty(updatedProjectData, '__metadata', {
+        value: updatedMetadata,
+        enumerable: false,
+        configurable: true,
+      });
       setProjectData(updatedProjectData);
       await saveProjectToolData(projectId, storageKey, data);
 

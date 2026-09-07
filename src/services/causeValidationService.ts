@@ -96,11 +96,20 @@ const extractAnalysisColumn = (params: any, names: string[]): string => getField
 export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandidate[] => {
   const rows: CauseEvidenceCandidate[] = [];
   const yProjeto = projectY(allData);
+  const nature = sourceData(allData, 'dataNature');
+  const natureRows = Array.isArray(nature?.analyses) ? nature.analyses : [];
 
   // 1) Análises feitas na aba Data Analysis.
   const dataAnalysis = sourceData(allData, 'dataAnalysis');
   const analises = Array.isArray(dataAnalysis?.analises) ? dataAnalysis.analises : [];
   analises.forEach((analysis: any, index: number) => {
+    // A aba Data & Analysis também aceita explorações avulsas. Somente uma
+    // análise aberta a partir da recomendação de um X do projeto pertence à
+    // Validação das Causas.
+    const causeLink = analysis?.projectCauseLink;
+    if (!causeLink?.natureAnalysisId || !causeLink?.sourceCause) return;
+    const linkedNatureAnalysis = natureRows.find((item: any) =>
+      String(item?.id || '') === String(causeLink.natureAnalysisId));
     const params = analysis?.toolParams || {};
     // Em Box Plot/ANOVA e outros comparativos, o fator X fica em `subgrupo`.
     // Em Tendência/Série Temporal, o X fica em `Data`. Antes essas análises
@@ -115,12 +124,12 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       id: makeId('data-analysis', analysis?.id || index),
       sourceLabel: 'Data Analysis',
       origin: 'Data Analysis',
-      x: x || y,
-      y,
+      x: causeLink.sourceCause || x || y,
+      y: causeLink.projectY || y,
       analysis: analysis?.tool || 'Análise estatística',
       evidence: analysis?.interpretacao || analysis?.analise || 'Resultado salvo, sem interpretação escrita.',
-      sourceConfirmed: analysis?.rootCauseConfirmed === true || analysis?.identifiedCause === true,
-      sourceConfirmationLabel: 'Data Analysis',
+      sourceConfirmed: linkedNatureAnalysis?.rootCauseConfirmed === true,
+      sourceConfirmationLabel: 'Natureza dos Dados',
     });
   });
 
@@ -143,9 +152,6 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
 
   // 3) Natureza dos Dados: entra como planejamento/recomendação, nunca como
   // prova estatística. A IA deve marcar como inconclusivo se não houver evidência.
-  const nature = sourceData(allData, 'dataNature');
-  const natureRows = Array.isArray(nature?.analyses) ? nature.analyses : [];
-
   // Quantas analises cada causa gerou. Duas viram x3.1 e x3.2 — a MESMA
   // numeracao usada na Natureza dos Dados, pra variavel traduzida nao aparecer
   // aqui como se tivesse surgido do nada.

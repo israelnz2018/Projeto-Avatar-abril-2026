@@ -24,7 +24,7 @@ import { DATA_NATURE_TOOL_MATRIX, type DataNatureRecommendation } from '@/src/se
 import SeletorDeVariavelX from './SeletorDeVariavelX';
 
 interface DataNatureAssistantProps {
-  onSave: (data: any) => void;
+  onSave: (data: any, options?: { silent?: boolean }) => void;
   initialData?: any;
   onGenerateAI?: (prompt?: string) => void;
   isGeneratingAI?: boolean;
@@ -224,9 +224,20 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
   }, [analyses]);
 
   const toggleRootCause = (analysisId: string) => {
-    setAnalyses(prev => prev.map(analysis => analysis.id === analysisId
+    const atualizadas = analyses.map(analysis => analysis.id === analysisId
       ? { ...analysis, rootCauseConfirmed: !analysis.rootCauseConfirmed }
-      : analysis));
+      : analysis);
+    setAnalyses(atualizadas);
+    // Confirmar causa é uma decisão, não apenas uma edição visual. Grava
+    // imediatamente para ela não se perder ao trocar de ferramenta.
+    onSave({
+      description,
+      analyses: atualizadas,
+      selectedObservationId,
+      variaveisDisponiveis: listaMigrada,
+      variaveisY: listaY,
+      yEscolhido,
+    });
   };
 
   const openDataAnalysis = (analysis: AnalysisResult) => {
@@ -236,6 +247,9 @@ export default function DataNatureAssistant({ onSave, initialData, onGenerateAI,
     sessionStorage.setItem('lbw-data-nature-recommendation', JSON.stringify({
       projectId: allProjectData?.__projectId || '',
       analysisId: analysis.id,
+      sourceCause: analysis.sourceCause || analysis.variableX?.sourceName || '',
+      analysisRole: analysis.analysisRole || 'principal',
+      projectY: analysis.projectY || analysis.variableY?.sourceName || analysis.variableY?.name || '',
       question: analysis.question || '',
       variableX: analysis.variableX,
       variableY: analysis.variableY,

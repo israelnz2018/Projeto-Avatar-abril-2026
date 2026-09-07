@@ -35,7 +35,7 @@ interface ObservationEntry {
 }
 
 interface DirectObservationFormProps {
-  onSave: (data: any) => void;
+  onSave: (data: any, options?: { silent?: boolean }) => void;
   initialData?: any;
   allProjectData?: any;
   onGenerateAI?: (prompt?: string) => void;
@@ -246,6 +246,16 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
     setObservations(prev => prev.map(obs => obs.id === id ? { ...obs, ...updates } : obs));
   };
 
+  const toggleConfirmedCause = (id: string) => {
+    const atualizadas = observations.map((obs) => obs.id === id
+      ? { ...obs, identifiedCause: !obs.identifiedCause }
+      : obs);
+    setObservations(atualizadas);
+    // A confirmação precisa sobreviver mesmo que o aluno abra imediatamente
+    // a próxima ferramenta. Por isso este clique já persiste a lista completa.
+    onSave({ observations: atualizadas, variaveisDisponiveis: listaMigrada, variaveisY: listaY });
+  };
+
   const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
@@ -366,7 +376,7 @@ export default function DirectObservationForm({ onSave, initialData, allProjectD
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => updateObservation(obs.id, { identifiedCause: !obs.identifiedCause })}
+                  onClick={() => toggleConfirmedCause(obs.id)}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none",
                     obs.identifiedCause 
