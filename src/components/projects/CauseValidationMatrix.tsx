@@ -43,9 +43,15 @@ const mergeRows = (candidates: ReturnType<typeof buildCauseEvidenceCandidates>, 
   const savedRows: CauseValidationRow[] = Array.isArray(unwrap(saved)?.rows) ? unwrap(saved).rows : [];
   const savedById = new Map(savedRows.map((row) => [row.sourceId, row]));
   return candidates.map((candidate) => {
+    const savedRow = savedById.get(candidate.sourceId) || {};
     const linha: CauseValidationRow = {
       ...candidate,
-      ...(savedById.get(candidate.sourceId) || {}),
+      ...savedRow,
+      // Estes campos pertencem à ferramenta de origem e precisam ser sempre
+      // os atuais. Uma Validação salva anteriormente podia conter uma cópia
+      // antiga com `false`, apagando o verde atual de X6 e X10.
+      sourceConfirmed: candidate.sourceConfirmed,
+      sourceConfirmationLabel: candidate.sourceConfirmationLabel,
     };
 
     // A IA disse que contribui: ja deixa a linha marcada em vez de exigir dois
