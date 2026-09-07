@@ -3,7 +3,7 @@ import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpC
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
-import { getConfirmedCauseRows } from '@/src/services/causeValidationService';
+import { getConfirmedCauseRows, projectY } from '@/src/services/causeValidationService';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
 // Cada exemplo traz ideias agrupadas pelas categorias 6M reais da ferramenta.
@@ -97,7 +97,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   const [brainstormingType, setBrainstormingType] = useState(
     defaultData?.brainstormingType || (isSolutionBrainstorming ? 'Identificar melhor solução' : BRAINSTORMING_TYPES[0])
   );
-  const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || '');
+  // "O que voce quer melhorar?" e o inverso da cabeca da espinha de peixe: o
+  // Ishikawa guarda o problema, o Brief ja guarda a mesma coisa escrita como
+  // meta de melhoria. Pre-preenche na primeira abertura; o aluno edita livre.
+  const objetivoDoBrief = () => (isSolutionBrainstorming ? projectY(allProjectData, '') : '');
+  const [brainstormingTopic, setBrainstormingTopic] = useState(defaultData?.brainstormingTopic || objetivoDoBrief());
   const [ideas, setIdeas] = useState<Idea[]>(defaultData?.ideas || []);
   const isToolEmpty = ideas.length === 0;
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -114,7 +118,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
       // Reset to defaults if initialData is null/undefined
       setIdeas([]);
       setBrainstormingType(isSolutionBrainstorming ? 'Identificar melhor solução' : BRAINSTORMING_TYPES[0]);
-      setBrainstormingTopic('');
+      setBrainstormingTopic(objetivoDoBrief());
     }
   }, [initialData, isSolutionBrainstorming]);
 
@@ -234,26 +238,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
 
   const showCategories = brainstormingType !== 'Ideias de projetos de melhoria' && brainstormingType !== 'Identificar melhor solução';
 
-  type IdeaDisplayRow =
-    | { kind: 'topic'; topic: string }
-    | { kind: 'idea'; idea: Idea; index: number };
-
-  const ideaDisplayRows: IdeaDisplayRow[] = [];
-  if (isSolutionBrainstorming) {
-    const grupos = new Map<string, Array<{ idea: Idea; index: number }>>();
-    ideas.forEach((idea, index) => {
-      const topic = idea.topic?.trim() || 'Ideias anteriores';
-      const grupo = grupos.get(topic) || [];
-      grupo.push({ idea, index });
-      grupos.set(topic, grupo);
-    });
-    grupos.forEach((itens, topic) => {
-      ideaDisplayRows.push({ kind: 'topic', topic });
-      itens.forEach(({ idea, index }) => ideaDisplayRows.push({ kind: 'idea', idea, index }));
-    });
-  } else {
-    ideas.forEach((idea, index) => ideaDisplayRows.push({ kind: 'idea', idea, index }));
-  }
+  // Agrupar por topic nao ajudava aqui: topic e sempre o mesmo texto (o
+  // objetivo) em todas as linhas do Brainstorming de Solucoes, entao virava
+  // sempre um grupo so. A causa raiz de cada ideia ja mora em category — o
+  // "X relacionado" que o aluno pediu como primeira coluna.
+  const ideaDisplayRows = ideas.map((idea, index) => ({ idea, index }));
 
   return (
     <div className="space-y-8">
@@ -469,32 +458,31 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-[#eee]">
-                  <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] text-center">ID</th>
-                  <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[62%]">Ideia</th>
+                  {isSolutionBrainstorming ? (
+                    <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[24%]">X relacionado</th>
+                  ) : (
+                    <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%] text-center">ID</th>
+                  )}
+                  <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[58%]">Ideia</th>
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%]">Autor</th>
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[10%] text-center">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {ideaDisplayRows.map((row) => {
-                  if (row.kind === 'topic') {
-                    return (
-                      <tr key={`topic-${row.topic}`} className="border-y border-blue-100 bg-blue-50">
-                        <td colSpan={4} className="px-4 py-3 text-[12px] font-black text-blue-800">
-                          <span className="text-[10px] uppercase tracking-widest text-blue-500 mr-2">Tópico</span>
-                          {row.topic}
-                        </td>
-                      </tr>
-                    );
-                  }
-                  const { idea, index } = row;
+                {ideaDisplayRows.map(({ idea, index }) => {
                   return (
                   <tr key={idea.id} className="border-b border-[#f5f5f5] hover:bg-gray-50 transition-colors">
-                    <td className="p-4 text-center">
-                      <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-[11px] font-black rounded border border-blue-100">
-                        {isSolutionBrainstorming ? 'S' : 'X'}{index + 1}
-                      </span>
-                    </td>
+                    {isSolutionBrainstorming ? (
+                      <td className="p-4 text-[12px] font-bold text-blue-800">
+                        {idea.category || 'Sem causa associada'}
+                      </td>
+                    ) : (
+                      <td className="p-4 text-center">
+                        <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-[11px] font-black rounded border border-blue-100">
+                          X{index + 1}
+                        </span>
+                      </td>
+                    )}
                     <td className="p-4 text-[13px] text-[#333] font-medium">
                       {editingId === idea.id ? (
                         <input 

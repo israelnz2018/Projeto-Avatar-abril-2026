@@ -64,11 +64,17 @@ const sourceData = (allData: any, toolKey: string): any => {
   return unwrap(allData[chosen]);
 };
 
-const projectY = (allData: any): string => {
+/**
+ * O Brief ja guarda a meta escrita como melhoria (ex.: "Reduzir o tempo medio
+ * de emissao em 50%"), o inverso da cabeca da espinha de peixe (que guarda o
+ * problema). Exportado para o Brainstorming de Solucoes pre-preencher "o que
+ * voce quer melhorar?" sem duplicar essa busca.
+ */
+export const projectY = (allData: any, fallback = 'Indicador Y do projeto'): string => {
   const brief = sourceData(allData, 'brief');
   return getField(brief, ['y_indicator', 'indicatorY', 'indicadorY', 'y', 'problemIndicator'])
     || getField(brief?.answers, ['q7', 'q8', 'q2'])
-    || 'Indicador Y do projeto';
+    || fallback;
 };
 
 const makeId = (source: string, id: any): string => {
