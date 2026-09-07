@@ -373,10 +373,10 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
               <button
                 type="button"
                 onClick={handleGenerateSolutions}
-                disabled={!!isGeneratingAI || brainstormingTopic.trim().length < 10}
+                disabled={!!isGeneratingAI || brainstormingTopic.trim().length < 10 || (needsCauseValidation && confirmedCauses.length === 0)}
                 className={cn(
                   'min-w-[220px] h-12 px-5 rounded-lg flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest border-none transition-all',
-                  isGeneratingAI || brainstormingTopic.trim().length < 10
+                  isGeneratingAI || brainstormingTopic.trim().length < 10 || (needsCauseValidation && confirmedCauses.length === 0)
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer shadow-lg shadow-blue-100 active:scale-95'
                 )}
