@@ -1605,14 +1605,18 @@ export default function ToolWrapper({
           rows: candidatos.map((candidate: any) => {
             const ai = geradasPorId.get(String(candidate.sourceId)) || {};
             const anteriorRow = anterioresPorId.get(String(candidate.sourceId)) || {};
+            const confirmadaNaOrigem = candidate.sourceConfirmed === true;
+            const humanDecision = anteriorRow.humanDecision || (confirmadaNaOrigem ? 'contribui' : null);
             return {
               ...candidate,
               aiDecision: ai.aiDecision,
               aiReason: ai.aiReason,
               confidence: ai.confidence,
-              humanDecision: anteriorRow.humanDecision || null,
-              confirmed: anteriorRow.confirmed === true,
-              includeInBrainstorming: anteriorRow.includeInBrainstorming === true,
+              humanDecision,
+              confirmed: anteriorRow.confirmed === true || confirmadaNaOrigem,
+              includeInBrainstorming: anteriorRow.humanDecision
+                ? anteriorRow.includeInBrainstorming === true
+                : confirmadaNaOrigem,
             };
           }),
         };

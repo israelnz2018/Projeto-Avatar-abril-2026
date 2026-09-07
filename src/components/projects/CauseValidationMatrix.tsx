@@ -56,6 +56,13 @@ const mergeRows = (candidates: ReturnType<typeof buildCauseEvidenceCandidates>, 
       linha.confirmed = true;
       linha.includeInBrainstorming = true;
     }
+    // Uma confirmação humana feita na ferramenta de origem não pode sumir
+    // ao chegar à consolidação. Ela entra marcada, mas continua editável aqui.
+    if (linha.sourceConfirmed && !linha.humanDecision) {
+      linha.humanDecision = 'contribui';
+      linha.confirmed = true;
+      linha.includeInBrainstorming = true;
+    }
     return linha;
   });
 };
@@ -78,7 +85,12 @@ export default function CauseValidationMatrix({
     // fosse atualizado. Só recarregamos quando candidatos ou dados persistidos
     // realmente mudam.
     const key = JSON.stringify({
-      candidates: candidates.map((candidate) => candidate.sourceId),
+      candidates: candidates.map((candidate) => ({
+        sourceId: candidate.sourceId,
+        evidence: candidate.evidence,
+        sourceConfirmed: candidate.sourceConfirmed,
+        sourceConfirmationLabel: candidate.sourceConfirmationLabel,
+      })),
       saved: unwrap(initialData)?.rows || [],
     });
     if (lastSyncedKey.current === key) return;
@@ -208,6 +220,11 @@ export default function CauseValidationMatrix({
                         ) : <span className="text-xs italic text-slate-400">Clique em “Avaliar com IA”.</span>}
                       </td>
                       <td className="min-w-[230px] px-4 py-5">
+                        {row.sourceConfirmed && (
+                          <p className="mb-2 text-xs font-bold text-emerald-700">
+                            Confirmação importada de {row.sourceConfirmationLabel || 'outra ferramenta'}
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-2">
                           {(['contribui', 'nao_contribui', 'inconclusivo'] as const).map((option) => (
                             <button

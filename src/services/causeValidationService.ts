@@ -16,6 +16,9 @@ export interface CauseEvidenceCandidate {
   analysis: string;
   evidence: string;
   origin: 'Data Analysis' | 'Projetos';
+  /** Decisão humana já registrada na ferramenta que originou a linha. */
+  sourceConfirmed?: boolean;
+  sourceConfirmationLabel?: string;
 }
 
 export interface CauseValidationRow extends CauseEvidenceCandidate {
@@ -99,7 +102,14 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
   const analises = Array.isArray(dataAnalysis?.analises) ? dataAnalysis.analises : [];
   analises.forEach((analysis: any, index: number) => {
     const params = analysis?.toolParams || {};
-    const x = extractAnalysisColumn(params, ['coluna_x', 'lista_x', 'x', 'X', 'variavelX', 'variableX']);
+    // Em Box Plot/ANOVA e outros comparativos, o fator X fica em `subgrupo`.
+    // Em Tendência/Série Temporal, o X fica em `Data`. Antes essas análises
+    // eram lidas como se o próprio Y fosse o X e não eram vinculadas corretamente.
+    const xExplicito = extractAnalysisColumn(params, ['coluna_x', 'lista_x', 'x', 'X', 'variavelX', 'variableX']);
+    const eixoTemporal = extractAnalysisColumn(params, ['Data', 'data']);
+    const subgrupo = extractAnalysisColumn(params, ['subgrupo', 'Subgrupo']);
+    const ehTemporal = /tendência|série temporal/i.test(String(analysis?.tool || ''));
+    const x = xExplicito || (ehTemporal ? eixoTemporal || subgrupo : subgrupo || eixoTemporal);
     const y = extractAnalysisColumn(params, ['coluna_y', 'lista_y', 'y', 'Y', 'variavelY', 'variableY']) || yProjeto;
     pushCandidate(rows, {
       id: makeId('data-analysis', analysis?.id || index),
@@ -109,6 +119,8 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       y,
       analysis: analysis?.tool || 'Análise estatística',
       evidence: analysis?.interpretacao || analysis?.analise || 'Resultado salvo, sem interpretação escrita.',
+      sourceConfirmed: analysis?.rootCauseConfirmed === true || analysis?.identifiedCause === true,
+      sourceConfirmationLabel: 'Data Analysis',
     });
   });
 
@@ -124,6 +136,8 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       y: analysis?.y || yProjeto,
       analysis: analysis?.analysisType || 'Análise estatística',
       evidence: analysis?.interpretation || 'Análise sem interpretação escrita.',
+      sourceConfirmed: analysis?.rootCauseConfirmed === true || analysis?.identifiedCause === true,
+      sourceConfirmationLabel: 'Análise Gráfica e Estatística',
     });
   });
 
@@ -178,7 +192,11 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       analysis: listaFerramentas[0]
         ? `${listaFerramentas[0]}${ehEstratificacao ? ' (estratificação)' : ''}`
         : 'Análise planejada',
-      evidence: `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
+      evidence: analysis?.rootCauseConfirmed === true
+        ? `Relação confirmada pelo aluno na Natureza dos Dados. Ferramenta indicada: ${tools || 'não informada'}.`
+        : `Ferramenta indicada: ${tools || 'não informada'}. Análise ainda não feita.`,
+      sourceConfirmed: analysis?.rootCauseConfirmed === true,
+      sourceConfirmationLabel: 'Natureza dos Dados',
     });
   });
 
@@ -193,6 +211,8 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
       y: item?.variableY || yProjeto,
       analysis: 'Observação Direta (Gemba)',
       evidence: item?.observationDescription || item?.observation || item?.evidence || '',
+      sourceConfirmed: item?.identifiedCause === true,
+      sourceConfirmationLabel: 'Observação Direta',
     });
   });
 
@@ -245,8 +265,16 @@ export const buildCauseEvidenceCandidates = (allData: any): CauseEvidenceCandida
     const key = `${row.x.toLocaleLowerCase('pt-BR')}|${row.y.toLocaleLowerCase('pt-BR')}|${row.analysis.toLocaleLowerCase('pt-BR')}`;
     const previous = unique.get(key);
     if (!previous) unique.set(key, row);
-    else if (!previous.evidence.includes(row.sourceLabel)) {
-      previous.evidence = `${previous.evidence} Fonte adicional: ${row.sourceLabel}.`;
+    else {
+      if (!previous.evidence.includes(row.sourceLabel)) {
+        previous.evidence = `${previous.evidence} Fonte adicional: ${row.sourceLabel}.`;
+      }
+      // Se qualquer uma das fontes duplicadas foi confirmada pelo aluno, a
+      // consolidação precisa preservar essa decisão.
+      if (row.sourceConfirmed) {
+        previous.sourceConfirmed = true;
+        previous.sourceConfirmationLabel = row.sourceConfirmationLabel || previous.sourceConfirmationLabel;
+      }
     }
   });
   return Array.from(unique.values());
