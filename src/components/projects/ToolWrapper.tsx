@@ -1864,6 +1864,69 @@ export default function ToolWrapper({
           statisticalAnalysis: getToolDataByPrefix(allProjectData, 'statisticalAnalysis'),
           dataNature: getToolDataByPrefix(allProjectData, 'dataNature'),
         };
+
+        // Uma causa confirmada, uma chamada de IA. Antes disto a IA recebia as
+        // 5 causas de uma vez e tinha que devolver sourceId e X certos pra cada
+        // uma; quando errava uma, o realinhamento por texto/codigo nao sempre
+        // corrigia, e a causa ficava sem solucao na tela. Pedindo uma causa por
+        // vez a confusao nao pode acontecer — so ha uma causa no contexto.
+        const causasConfirmadasAgora: any[] = hasValidationTable && Array.isArray(targetContext.validatedCauses)
+          ? targetContext.validatedCauses
+          : [];
+        if (causasConfirmadasAgora.length > 0) {
+          const anterior = localData?.toolData || localData || {};
+          const ideiasAtuais = alinharIdeiasAsCausas(
+            Array.isArray(anterior.ideas) ? anterior.ideas : [],
+            causasConfirmadasAgora,
+          );
+          const faltantes = causasSemIdeia(ideiasAtuais, causasConfirmadasAgora);
+
+          if (faltantes.length === 0) {
+            toast.info('Todas as causas confirmadas já têm pelo menos uma solução.');
+            return;
+          }
+
+          const geradas = await Promise.all(faltantes.map(async (cause: any) => {
+            const contextoIsolado = { ...targetContext, validatedCauses: [cause] };
+            const resposta = await generateToolData(
+              toolId,
+              toolName,
+              previousToolName || null,
+              contextoIsolado,
+              { name: projectName, description: project.description },
+              contextoIsolado,
+            );
+            const respostaNormalizada = normalizeInitialData(toolId, resposta);
+            const primeira = (respostaNormalizada?.ideas || []).find((idea: any) => String(idea?.text || '').trim());
+            return primeira ? {
+              ...primeira,
+              id: primeira.id || `${Date.now()}-${cause.sourceId}`,
+              causeSourceId: cause.sourceId,
+              category: cause.x,
+            } : null;
+          }));
+
+          const novasIdeias = geradas.filter(Boolean);
+          const combinadas = [...ideiasAtuais, ...novasIdeias];
+          const aindaFaltantes = causasSemIdeia(combinadas, causasConfirmadasAgora);
+          if (aindaFaltantes.length > 0) {
+            throw new Error(`A IA não conseguiu gerar uma solução válida para: ${aindaFaltantes.map((c: any) => c.x).join(', ')}. Tente novamente.`);
+          }
+
+          // Preserva tudo que ja existia — inclusive ideia de causa que hoje
+          // nao esta mais confirmada — e so acrescenta a que faltava.
+          const normalizedFinal = {
+            ...anterior,
+            brainstormingTopic: targetContext.improvementGoal || anterior.brainstormingTopic || '',
+            brainstormingType: 'Identificar melhor solução',
+            ideas: combinadas,
+          };
+          setLocalData(normalizedFinal);
+          setClearKey(prev => prev + 1);
+          onSave({ toolData: normalizedFinal, aiReport: aiReport, isGenerated: true });
+          toast.success(`${novasIdeias.length} ${novasIdeias.length === 1 ? 'solução nova gerada' : 'soluções novas geradas'}. As causas já cobertas não mudaram.`);
+          return;
+        }
       }
 
       // Matriz de validação: reúne as evidências de todas as fontes sem mandar
