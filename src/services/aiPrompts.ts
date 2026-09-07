@@ -800,7 +800,7 @@ REGRAS TECNICAS:
       "who": "Responsavel",
       "how": "Como executar",
       "howMuch": "Custo estimado",
-      "status": {"state": "green", "progress": "0%"}
+      "status": {"state": "blue", "progress": "0%"}
     }
   ]
 }`,
@@ -840,7 +840,7 @@ REGRAS DE PREENCHIMENTO:
 - who: cargo/funcao (para acoes ADKAR, usar o nome do stakeholder)
 - how: passo a passo curto
 - howMuch: estimativa de custo em reais (R$)
-- status: sempre comecar com {"state": "green", "progress": "0%"}
+- status: sempre comecar com {"state": "blue", "progress": "0%"} (em andamento - a acao acabou de ser proposta, ainda nao foi concluida)
 
 Quantidade de acoes: gere apenas o necessario com base nos dados reais. Nao force quantidade minima.
 

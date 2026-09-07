@@ -984,7 +984,12 @@ export default function ToolWrapper({
     if (toolId === 'plan5w2h') {
       normalized.actions = (normalized.actions || []).map((action: any, idx: number) => ({
         id: action.id || String(idx + 1),
-        variable: action.variable || '',
+        // "description" era o nome antigo do campo, antes de padronizar em
+        // "variable" (igual ao resto da plataforma). Sem o fallback, uma linha
+        // salva antes da mudanca perderia o texto aqui — este mapa reconstroi
+        // o objeto so com os campos listados, entao o "description" antigo
+        // nunca chegaria ate o componente se nao for copiado agora.
+        variable: action.variable || action.description || '',
         what: action.what || '',
         why: action.why || '',
         where: action.where || '',

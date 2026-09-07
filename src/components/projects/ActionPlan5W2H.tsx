@@ -13,7 +13,7 @@ const ACTION5W2H_EXEMPLOS = [
     titulo: 'Reduzir atraso na emissão de notas fiscais',
     linhas: [
       {
-        description: 'Padronizar conferência de pedidos',
+        variable: 'Padronizar conferência de pedidos',
         what: 'Criar checklist de validação antes do faturamento',
         why: 'Erros de cadastro causam retrabalho e atraso na NF',
         where: 'Setor de Faturamento',
@@ -24,7 +24,7 @@ const ACTION5W2H_EXEMPLOS = [
         status: { state: 'green', progress: '100%' },
       },
       {
-        description: 'Treinar equipe no novo fluxo',
+        variable: 'Treinar equipe no novo fluxo',
         what: 'Treinamento sobre o checklist e prazos',
         why: 'Garantir adesão e reduzir dúvidas recorrentes',
         where: 'Sala de reunião / online',
@@ -35,7 +35,7 @@ const ACTION5W2H_EXEMPLOS = [
         status: { state: 'blue', progress: '60%' },
       },
       {
-        description: 'Monitorar tempo médio de emissão',
+        variable: 'Monitorar tempo médio de emissão',
         what: 'Acompanhar indicador semanal de prazo',
         why: 'Validar se a melhoria reduziu o atraso',
         where: 'Painel de indicadores',
@@ -53,7 +53,7 @@ const ACTION5W2H_EXEMPLOS = [
     titulo: 'Reduzir refugo na linha de injeção plástica',
     linhas: [
       {
-        description: 'Ajustar parâmetros da injetora',
+        variable: 'Ajustar parâmetros da injetora',
         what: 'Revisar temperatura e pressão de injeção',
         why: 'Parâmetros fora da faixa geram peças com rebarba',
         where: 'Injetora 03 — Setor de Injeção',
@@ -64,7 +64,7 @@ const ACTION5W2H_EXEMPLOS = [
         status: { state: 'green', progress: '100%' },
       },
       {
-        description: 'Implantar inspeção na primeira peça',
+        variable: 'Implantar inspeção na primeira peça',
         what: 'Aprovar setup antes de liberar o lote',
         why: 'Detectar desvio de molde antes da produção em massa',
         where: 'Posto de inspeção da Injeção',
@@ -75,7 +75,7 @@ const ACTION5W2H_EXEMPLOS = [
         status: { state: 'blue', progress: '50%' },
       },
       {
-        description: 'Manutenção preventiva do molde',
+        variable: 'Manutenção preventiva do molde',
         what: 'Limpeza e revisão dos canais do molde',
         why: 'Molde sujo aumenta a taxa de refugo',
         where: 'Ferramentaria',
@@ -90,7 +90,7 @@ const ACTION5W2H_EXEMPLOS = [
 ];
 
 const EX5W2H_COLS: { id: string; title: string }[] = [
-  { id: 'description', title: 'Ação / Variável' },
+  { id: 'variable', title: 'Variável (X)' },
   { id: 'what', title: 'O que? (What)' },
   { id: 'why', title: 'Por que? (Why)' },
   { id: 'where', title: 'Onde? (Where)' },
@@ -134,7 +134,7 @@ interface ActionPlan5W2HProps {
 export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGeneratingAI, onClearAIData }: ActionPlan5W2HProps) {
   const d = initialData?.toolData || initialData;
   const defaultColumns: Column[] = [
-    { id: 'description', title: 'Ação / Variável', type: 'text', isDefault: true },
+    { id: 'variable', title: 'Variável (X)', type: 'text', isDefault: true },
     { id: 'what', title: 'O que? (What)', type: 'text' },
     { id: 'why', title: 'Por que? (Why)', type: 'text' },
     { id: 'where', title: 'Onde? (Where)', type: 'text' },
@@ -146,21 +146,28 @@ export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGe
   ];
 
   const [columns, setColumns] = useState<Column[]>(d?.columns || defaultColumns);
-  const [actions, setActions] = useState<Action[]>(d?.actions || [{ id: crypto.randomUUID(), description: '', what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: { state: 'green', progress: '0%' } }]);
+  // "description" e o nome antigo do campo (antes de padronizar em "variable",
+  // igual ao resto da plataforma). Linha salva antes da mudanca continua
+  // aparecendo: cai no fallback e o aluno nao perde o que ja tinha escrito.
+  const comFallbackDeVariavel = (lista: Action[]) =>
+    lista.map((a) => ('variable' in a ? a : { ...a, variable: a.description || '' }));
+  const [actions, setActions] = useState<Action[]>(
+    d?.actions ? comFallbackDeVariavel(d.actions) : [{ id: crypto.randomUUID(), variable: '', what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: { state: 'blue', progress: '0%' } }]
+  );
 
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
   const [showExemplo, setShowExemplo] = useState(false);
   const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
-  const isToolEmpty = actions.length === 0 || (actions.length === 1 && !actions[0].description && !actions[0].what);
+  const isToolEmpty = actions.length === 0 || (actions.length === 1 && !actions[0].variable && !actions[0].what);
 
   useEffect(() => {
     if (initialData) {
       const data = initialData.toolData || initialData;
       if (data.columns) setColumns(data.columns);
-      if (data.actions) setActions(data.actions);
+      if (data.actions) setActions(comFallbackDeVariavel(data.actions));
     } else {
       setColumns(defaultColumns);
-      setActions([{ id: crypto.randomUUID(), description: '', what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: { state: 'green', progress: '0%' } }]);
+      setActions([{ id: crypto.randomUUID(), variable: '', what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: { state: 'blue', progress: '0%' } }]);
     }
   }, [initialData]);
 
@@ -182,10 +189,10 @@ export default function ActionPlan5W2H({ onSave, initialData, onGenerateAI, isGe
   } = useResizableTable(Object.fromEntries(columns.map(c => [c.id, 160])));
 
   const addAction = () => {
-    const newAction: Action = { id: crypto.randomUUID(), description: '' };
+    const newAction: Action = { id: crypto.randomUUID(), variable: '' };
     columns.forEach(col => {
       if (col.type === 'status') {
-        newAction[col.id] = { state: 'green', progress: '0%' };
+        newAction[col.id] = { state: 'blue', progress: '0%' };
       } else {
         newAction[col.id] = '';
       }
