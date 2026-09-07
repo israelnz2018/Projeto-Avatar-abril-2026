@@ -571,9 +571,45 @@ interface MigratePromptCardProps {
   onMigrate: () => void;
   isMigrating: boolean;
   hasSourceData: boolean;
+  /** A ferramenta ja tem a lista: vira uma barra fina em vez do card grande.
+   *  Sem isto o card verde competiria com o seletor verde de X na mesma tela. */
+  compacto?: boolean;
 }
 
-const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigrating, hasSourceData }: MigratePromptCardProps) => {
+/**
+ * Ferramentas que trabalham em cima da LISTA DE X do projeto e ja sabem
+ * sincronizar: o botao ACRESCENTA o que falta e nunca sobrescreve o que o aluno
+ * escreveu. Por isso ele fica disponivel a jornada inteira nelas, em vez de
+ * sumir depois do primeiro uso — que era o que congelava a lista e impedia uma
+ * causa criada depois na Espinha de Peixe de chegar ate aqui.
+ */
+const TOOLS_QUE_SINCRONIZAM_LISTA = ['directObservation', 'dataNature', 'fiveWhys'];
+
+const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigrating, hasSourceData, compacto }: MigratePromptCardProps) => {
+  if (compacto) {
+    return (
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+        <p className="m-0 text-xs text-emerald-900">
+          Criou variável nova em <strong>{sourceName}</strong> depois? Traga o que falta — o que você já preencheu aqui não muda.
+        </p>
+        <button
+          onClick={onMigrate}
+          disabled={isMigrating || !hasSourceData}
+          className={cn(
+            'flex shrink-0 items-center gap-2 rounded-lg border-none px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-all',
+            isMigrating || !hasSourceData
+              ? 'cursor-not-allowed bg-gray-200 text-gray-400'
+              : 'cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+          )}
+        >
+          {isMigrating
+            ? <><Loader2 className="animate-spin" size={14} /> Sincronizando...</>
+            : <><ArrowDownToLine size={14} /> Sincronizar</>}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-10 shadow-sm relative overflow-hidden">
       <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
@@ -582,13 +618,15 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
           <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
             <ArrowDownToLine size={20} className="text-emerald-500" />
             <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">
-              Migrar dados de {sourceName}
+              Sincronizar com {sourceName}
             </p>
           </div>
           <p className="text-sm text-gray-600 leading-relaxed">
             {toolId === 'improvementPlan'
               ? <>Obter as datas de <strong>Cronograma Macro</strong> e carregar as atividades sugeridas por fase.</>
-              : <>Obter os dados de <strong>{sourceName}</strong> e migrar para {toolName}.</>
+              : TOOLS_QUE_SINCRONIZAM_LISTA.includes(toolId)
+                ? <>Buscar em <strong>{sourceName}</strong> as variáveis que ainda não estão aqui. Só acrescenta o que falta — nada do que você já preencheu é alterado.</>
+                : <>Obter os dados de <strong>{sourceName}</strong> e carregar em {toolName}.</>
             }
           </p>
         </div>
@@ -606,12 +644,12 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
             {isMigrating ? (
               <>
                 <Loader2 className="animate-spin" size={20} />
-                <span>Migrando...</span>
+                <span>Sincronizando...</span>
               </>
             ) : (
               <>
                 <ArrowDownToLine size={20} />
-                <span>Migrar</span>
+                <span>Sincronizar</span>
               </>
             )}
           </button>
@@ -994,6 +1032,9 @@ export default function ToolWrapper({
       }
 
       let migratedData: any = {};
+      // Cada ferramenta pode dizer exatamente o que trouxe. O aluno precisa
+      // saber que sincronizar acrescenta, e nao sobrescreve.
+      let mensagemSucesso = 'Dados sincronizados com sucesso!';
 
       console.log('🔄 handleMigrateData:', { sourceToolId, sourceData, toolId });
       
@@ -1038,10 +1079,37 @@ export default function ToolWrapper({
         // nao item pro aluno escolher no dropdown de causas.
         const listaY = variaveisYDaOrigem(sourceData);
 
-        migratedData =
-          toolId === 'directObservation' ? { observations: [], variaveisDisponiveis: lista, variaveisY: listaY }
-          : toolId === 'fiveWhys' ? { chains: [], variaveisDisponiveis: lista, variaveisY: listaY }
-          : { analyses: [], description: '', variaveisDisponiveis: lista, variaveisY: listaY };
+        // SINCRONIZAR, nao substituir. Antes isto zerava observations/chains/
+        // analyses, e por isso o botao so podia aparecer com a ferramenta vazia
+        // — o que congelava a lista: a causa criada depois na Espinha de Peixe
+        // nunca mais chegava aqui. Agora o botao fica a jornada inteira e so
+        // ACRESCENTA o que falta, sem encostar no que o aluno ja escreveu.
+        const atual = localData?.toolData || localData || {};
+        const chaveVar = (v: any) => String(v?.variable ?? '').trim().toLocaleLowerCase('pt-BR');
+
+        const xAtuais = Array.isArray(atual.variaveisDisponiveis) ? atual.variaveisDisponiveis : [];
+        const xConhecidos = new Set(xAtuais.map(chaveVar));
+        const xNovos = lista.filter((v) => chaveVar(v) && !xConhecidos.has(chaveVar(v)));
+
+        const yAtuais = Array.isArray(atual.variaveisY) ? atual.variaveisY : [];
+        const yConhecidos = new Set(yAtuais.map(chaveVar));
+        const yNovos = listaY.filter((v: any) => chaveVar(v) && !yConhecidos.has(chaveVar(v)));
+
+        if (xNovos.length === 0 && yNovos.length === 0 && xAtuais.length > 0) {
+          toast.info('Nada novo para trazer. O que você já preencheu continua intacto.');
+          setIsGeneratingData(false);
+          return;
+        }
+
+        mensagemSucesso = xNovos.length > 0
+          ? `${xNovos.length} ${xNovos.length === 1 ? 'variável nova trazida' : 'variáveis novas trazidas'}. Nada do que você já preencheu foi alterado.`
+          : 'Lista de efeitos (Y) atualizada. Nada do que você já preencheu foi alterado.';
+
+        migratedData = {
+          ...atual,
+          variaveisDisponiveis: [...xAtuais, ...xNovos],
+          variaveisY: [...yAtuais, ...yNovos],
+        };
       }
 
       if (toolId === 'statisticalAnalysis') {
@@ -1171,11 +1239,11 @@ export default function ToolWrapper({
       
       handleToolSave(normalized);
       setClearKey(prev => prev + 1);
-      
-      toast.success("Dados migrados com sucesso!");
+
+      toast.success(mensagemSucesso);
     } catch (error: any) {
-      console.error("Erro ao migrar dados:", error);
-      toast.error(error.message || "Erro ao migrar dados.");
+      console.error("Erro ao sincronizar dados:", error);
+      toast.error(error.message || "Erro ao sincronizar dados.");
     } finally {
       setIsGeneratingData(false);
     }
@@ -2161,8 +2229,13 @@ export default function ToolWrapper({
         />
       )}
 
-      {/* Migrate Block — só aparece se a ferramenta FONTE existe E está preenchida. */}
-      {isToolEmpty() && toolLink?.mode === 'migrate' && showAIPrompt && linkHasContent && (
+      {/* Bloco de sincronizacao — so aparece se a ferramenta FONTE existe E esta
+          preenchida. Nas ferramentas que trabalham em cima da LISTA DE X, o botao
+          fica disponivel a jornada inteira: sincronizar acrescenta o que falta sem
+          tocar no que ja foi preenchido, entao nao ha risco em deixa-lo visivel.
+          Nas demais ele ainda substitui, e por isso continua so com a ferramenta
+          vazia — ate cada uma ganhar a sua propria logica de acrescentar. */}
+      {(TOOLS_QUE_SINCRONIZAM_LISTA.includes(toolId) || isToolEmpty()) && toolLink?.mode === 'migrate' && showAIPrompt && linkHasContent && (
         <MigratePromptCard
           toolId={toolId}
           toolName={toolName}
@@ -2170,6 +2243,7 @@ export default function ToolWrapper({
           onMigrate={() => handleMigrateData(toolLink.from[0])}
           isMigrating={isGeneratingData}
           hasSourceData={true}
+          compacto={!isToolEmpty()}
         />
       )}
 
