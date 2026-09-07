@@ -269,12 +269,12 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
       {/* Box de IA — gera causas potenciais a partir das etapas do Mapa de Processo.
           Só aparece se o Mapa existe/está preenchido E o Brainstorming ainda está vazio. */}
       {!isSolutionBrainstorming && temMapa && brainstormingVazio && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                <Sparkles size={16} className="text-emerald-500" />
+                <span className="text-xs font-black text-emerald-700 uppercase tracking-widest">
                   Gerar causas potenciais com IA
                 </span>
               </div>
@@ -283,7 +283,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 causas potenciais pra cada uma. Ex: <em>"Fazer inspeção"</em> → "Inspeção inadequada",
                 "Inspeção insuficiente"...
               </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+              <p className="text-xs text-emerald-500 font-bold mt-2 italic">
                 * As causas entram na lista abaixo. Você edita, remove ou adiciona as suas.
               </p>
             </div>
@@ -294,7 +294,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
                 isGenerating
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 cursor-pointer shadow-lg shadow-emerald-100"
               )}
             >
               {isGenerating
@@ -352,9 +352,9 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
 
         {/* Configuration Area */}
         {isSolutionBrainstorming ? (
-          <div className="rounded-xl border border-blue-100 bg-blue-50 p-5 space-y-4">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 space-y-4">
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-blue-700 uppercase tracking-widest flex items-center gap-2">
+              <label className="text-[11px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-2">
                 <Target size={15} /> O que você quer melhorar?
               </label>
               <textarea
@@ -362,11 +362,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 onChange={(e) => setBrainstormingTopic(e.target.value)}
                 placeholder="Ex.: Reduzir o tempo de aprovação de pagamentos sem aumentar o risco de erros."
                 rows={3}
-                className="w-full p-4 border border-blue-200 rounded-lg text-[14px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm resize-y"
+                className="w-full p-4 border border-emerald-200 rounded-lg text-[14px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm resize-y"
               />
             </div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <p className="text-xs text-blue-700 leading-relaxed m-0">
+              <p className="text-xs text-emerald-700 leading-relaxed m-0">
                 A IA combinará este objetivo com as causas e análises já registradas no projeto.
                 Revise as sugestões e acrescente novas ideias manualmente quando quiser.
               </p>
@@ -378,7 +378,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                   'min-w-[220px] h-12 px-5 rounded-lg flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest border-none transition-all',
                   isGeneratingAI || brainstormingTopic.trim().length < 10 || (needsCauseValidation && confirmedCauses.length === 0)
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer shadow-lg shadow-blue-100 active:scale-95'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg shadow-emerald-100 active:scale-95'
                 )}
               >
                 {isGeneratingAI ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
@@ -394,7 +394,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
         ) : <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <HelpCircle size={14} className="text-blue-500" />
+              <HelpCircle size={14} className="text-emerald-500" />
               Tipo de Brainstorming
             </label>
             <select 

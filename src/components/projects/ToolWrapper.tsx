@@ -463,15 +463,15 @@ export const AIPromptCard = ({
   }, [allProjectData]);
 
   return (
-    <div className="bg-[#f0f7ff] p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden group">
+    <div className="bg-[#f0fdf4] p-8 rounded-2xl border border-emerald-100 mb-10 shadow-sm relative overflow-hidden group">
       {/* Decorative background element */}
-      <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-100/50 rounded-full blur-3xl group-hover:bg-blue-200/50 transition-colors"></div>
+      <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl group-hover:bg-emerald-200/50 transition-colors"></div>
       
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="space-y-3 flex-1">
-          <div className="flex items-center gap-3 text-blue-700 font-black uppercase tracking-[0.2em] text-xs">
-            <Wand2 size={20} className="text-blue-500" />
-            <p className="text-xs font-black text-blue-700 uppercase tracking-widest mb-2">
+          <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
+            <Wand2 size={20} className="text-emerald-500" />
+            <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">
               {customTitle || `Gerar ${toolName}`}
             </p>
           </div>
@@ -481,16 +481,16 @@ export const AIPromptCard = ({
 
           {toolId === 'brief' && (
             <div className="mt-4 space-y-2">
-              <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest block">
+              <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block">
                 Selecione um Projeto para Trabalhar:
               </label>
-              <p className="text-xs text-blue-800 font-medium opacity-80 mb-2">
+              <p className="text-xs text-emerald-800 font-medium opacity-80 mb-2">
                 Clique no botão "1. Puxar Títulos" para que a IA extraia os projetos disponíveis das fases anteriores.
               </p>
               <select
                 value={selectedProjectIndex}
                 onChange={(e) => setSelectedProjectIndex(e.target.value)}
-                className="w-full p-3 bg-white border border-blue-200 rounded-xl text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                className="w-full p-3 bg-white border border-emerald-200 rounded-xl text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
                 disabled={extractedProjects.length === 0}
               >
                 <option value="">
@@ -512,10 +512,10 @@ export const AIPromptCard = ({
               onClick={handleExtractProjectsAI}
               disabled={isExtracting || isGenerating}
               className={cn(
-                "w-full md:w-auto min-w-[240px] h-12 flex items-center justify-center gap-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md border border-blue-600 cursor-pointer active:scale-95",
+                "w-full md:w-auto min-w-[240px] h-12 flex items-center justify-center gap-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md border border-emerald-600 cursor-pointer active:scale-95",
                 isExtracting || isGenerating
                   ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed shadow-none"
-                  : "bg-white text-blue-600 hover:bg-blue-50"
+                  : "bg-white text-emerald-600 hover:bg-emerald-50"
               )}
             >
               {isExtracting ? (
@@ -539,7 +539,7 @@ export const AIPromptCard = ({
               "w-full md:w-auto min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
               isGenerating || ((toolId === 'stakeholders' || toolId === 'stakeholderAnalysisPMI') && !hasCharterData)
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+                : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200"
             )}
           >
             {isGenerating ? (
@@ -705,9 +705,9 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
     return (
       <div className={cn(
         'mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3',
-        desatualizado ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'
+        desatualizado ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'
       )}>
-        <p className={cn('m-0 text-xs', desatualizado ? 'text-amber-900' : 'text-gray-500')}>
+        <p className={cn('m-0 text-xs', desatualizado ? 'text-blue-900' : 'text-gray-500')}>
           {desatualizado ? (
             <>
               <strong>{sourceName} mudou.</strong>{' '}
@@ -725,7 +725,7 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
             'flex shrink-0 items-center gap-2 rounded-lg border-none px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-all',
             isMigrating || !hasSourceData || !desatualizado
               ? 'cursor-not-allowed bg-gray-200 text-gray-400'
-              : 'cursor-pointer bg-amber-600 text-white hover:bg-amber-700 active:scale-95'
+              : 'cursor-pointer bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
           )}
         >
           {isMigrating
@@ -737,13 +737,13 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
   }
 
   return (
-    <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-10 shadow-sm relative overflow-hidden">
-      <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
+    <div className="bg-blue-50 p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden">
+      <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-100/50 rounded-full blur-3xl"></div>
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="space-y-3 flex-1">
-          <div className="flex items-center gap-3 text-emerald-700 font-black uppercase tracking-[0.2em] text-xs">
-            <ArrowDownToLine size={20} className="text-emerald-500" />
-            <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-2">
+          <div className="flex items-center gap-3 text-blue-700 font-black uppercase tracking-[0.2em] text-xs">
+            <ArrowDownToLine size={20} className="text-blue-500" />
+            <p className="text-xs font-black text-blue-700 uppercase tracking-widest mb-2">
               Sincronizar com {sourceName}
             </p>
           </div>
@@ -764,7 +764,7 @@ const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigratin
               "w-full md:w-auto min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95",
               isMigrating || !hasSourceData
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200"
+                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
             )}
           >
             {isMigrating ? (
@@ -2200,6 +2200,44 @@ export default function ToolWrapper({
   // Quantos itens da ferramenta anterior ainda nao chegaram aqui. Alimenta o
   // aviso de desatualizado: sem ele o aluno mexe na Espinha de Peixe e nao tem
   // como saber que a etapa seguinte ficou para tras.
+  /**
+   * A ferramenta ja mostra um card de IA dela mesma?
+   *
+   * Espinha de Peixe e Brainstorming trazem um card proprio dentro do componente
+   * ("Distribuir causas com IA", "Gerar causas potenciais com IA"). Ele e melhor
+   * que o generico: diz quantas causas vem e de onde, e ACRESCENTA em vez de
+   * sobrescrever o que ja esta na tela. So que o card generico daqui nao sabia
+   * disso e aparecia junto — dois botoes de IA na mesma ferramenta.
+   *
+   * A condicao abaixo repete a do componente de proposito. Quando ela NAO vale
+   * (o consultor ligou esta ferramenta a outra origem, por exemplo), o card
+   * generico volta a aparecer; senao a ferramenta ficaria sem botao nenhum.
+   */
+  const temCardProprioDeIA = useMemo(() => {
+    const conteudo = (id: string) => {
+      const bruto = getToolDataByPrefix(allProjectData, id);
+      return bruto?.toolData || bruto || {};
+    };
+
+    if (toolId === 'measureIshikawa') {
+      const ideias = conteudo('brainstorming').ideas;
+      return Array.isArray(ideias)
+        && ideias.some((ideia: any) => String(ideia?.text || '').trim());
+    }
+
+    if (toolId === 'brainstorming') {
+      const nodes = conteudo('processMap').nodes;
+      return Array.isArray(nodes) && nodes
+        .filter((n: any) => n?.type !== 'lane')
+        .some((n: any) => {
+          const rotulo = String(n?.data?.label || '').trim();
+          return rotulo && rotulo.toLocaleLowerCase('pt-BR') !== 'nova raia';
+        });
+    }
+
+    return false;
+  }, [toolId, allProjectData]);
+
   const novidadesPendentes = useMemo(() => {
     const sincroniza = TOOLS_QUE_SINCRONIZAM_LISTA.includes(toolId)
       || toolId === 'measureMatrix'
@@ -2546,7 +2584,7 @@ export default function ToolWrapper({
           Antes checava previousToolData (a ferramenta anterior por ORDEM da fase, não a
           fonte declarada) — por isso o SIPOC mostrava o bloco mesmo sem Charter preenchido.
           Agora a fonte vem de `toolLink`, que respeita o que o projeto declarou. */}
-      {isToolEmpty() && toolLink?.mode === 'ai' && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && toolId !== 'brainstormingImprove' && toolId !== 'causeValidation' && showAIPrompt && linkHasContent && (
+      {isToolEmpty() && toolLink?.mode === 'ai' && !temCardProprioDeIA && toolId !== 'improvementIdea' && toolId !== 'brief' && toolId !== 'dataNature' && toolId !== 'brainstormingImprove' && toolId !== 'causeValidation' && showAIPrompt && linkHasContent && (
         <AIPromptCard
             toolId={toolId}
             toolName={toolName}
@@ -2601,8 +2639,8 @@ export default function ToolWrapper({
           ja tem escrito. Aqui ele ve item por item, e o que parece repetido ja
           vem desmarcado. */}
       {revisaoSync && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
-          <p className="m-0 text-[11px] font-black uppercase tracking-widest text-amber-700">
+        <div className="mb-6 rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
+          <p className="m-0 text-[11px] font-black uppercase tracking-widest text-blue-700">
             Conferir antes de trazer
           </p>
           <p className="mt-2 mb-4 text-sm leading-relaxed text-gray-600">
@@ -2616,7 +2654,7 @@ export default function ToolWrapper({
                 className={cn(
                   'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
                   revisaoSync.marcados[i]
-                    ? 'border-emerald-200 bg-emerald-50/60'
+                    ? 'border-blue-200 bg-blue-50/60'
                     : 'border-gray-200 bg-gray-50'
                 )}
               >
@@ -2627,7 +2665,7 @@ export default function ToolWrapper({
                     ...r,
                     marcados: r.marcados.map((m, j) => (j === i ? !m : m)),
                   } : r))}
-                  className="mt-1 h-4 w-4 shrink-0 accent-emerald-600"
+                  className="mt-1 h-4 w-4 shrink-0 accent-blue-600"
                 />
                 <span className="flex-1">
                   <span className="block text-sm text-gray-800">{linha.texto}</span>
@@ -2654,7 +2692,7 @@ export default function ToolWrapper({
                 'flex items-center gap-2 rounded-lg border-none px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-all',
                 isGeneratingData || !revisaoSync.marcados.some(Boolean)
                   ? 'cursor-not-allowed bg-gray-200 text-gray-400'
-                  : 'cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+                  : 'cursor-pointer bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
               )}
             >
               {isGeneratingData
@@ -2676,12 +2714,12 @@ export default function ToolWrapper({
           justifica dois cards competindo na tela. Etapa 1 puxa os títulos, etapa 2 gera.
           O rótulo sai de `linkSourceLabel`, ou seja, da ligação que o consultor declarou. */}
       {isToolEmpty() && toolId === 'brief' && showAIPrompt && linkHasContent && (
-        <div className="bg-blue-50 p-8 rounded-2xl border border-blue-100 mb-10 shadow-sm relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-100/50 rounded-full blur-3xl"></div>
+        <div className="bg-emerald-50 p-8 rounded-2xl border border-emerald-100 mb-10 shadow-sm relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-100/50 rounded-full blur-3xl"></div>
           <div className="relative z-10 flex flex-col gap-5">
             <div className="flex items-center gap-3">
-              <Sparkles size={20} className="text-blue-500" />
-              <p className="text-xs font-black text-blue-700 uppercase tracking-widest">
+              <Sparkles size={20} className="text-emerald-500" />
+              <p className="text-xs font-black text-emerald-700 uppercase tracking-widest">
                 Gerar {toolName} a partir de {linkSourceLabel}
               </p>
             </div>
@@ -2694,7 +2732,7 @@ export default function ToolWrapper({
                 </p>
                 <button
                   onClick={handleBriefPullTitles}
-                  className="min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95 bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+                  className="min-w-[240px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none cursor-pointer active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200"
                 >
                   <ArrowDownToLine size={20} />
                   <span>Puxar Projetos</span>
@@ -2705,7 +2743,7 @@ export default function ToolWrapper({
                 <select
                   value={briefSelectedTitle}
                   onChange={(e) => setBriefSelectedTitle(e.target.value)}
-                  className="flex-1 px-4 py-4 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-4 bg-white border border-emerald-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">-- Escolha um projeto da lista --</option>
                   {briefTitlesPulled.map((p, idx) => (
@@ -2721,7 +2759,7 @@ export default function ToolWrapper({
                     "min-w-[200px] h-16 flex items-center justify-center gap-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl border-none active:scale-95",
                     isGeneratingData || !briefSelectedTitle
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
-                      : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200 cursor-pointer"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200 cursor-pointer"
                   )}
                 >
                   {isGeneratingData ? (

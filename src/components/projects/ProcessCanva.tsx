@@ -168,19 +168,19 @@ export default function ProcessCanva({ onSave, initialData, onGenerateAI, isGene
     <div className="space-y-6">
       {/* Bloco de IA — aparece quando a ferramenta está vazia */}
       {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 mb-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                <Sparkles size={16} className="text-emerald-500" />
+                <span className="text-xs font-black text-emerald-700 uppercase tracking-widest">
                   Gerar Mapeamento de Processo (Canva) com IA
                 </span>
               </div>
               <p className="text-sm text-gray-600 leading-relaxed">
                 A IA analisará o escopo do projeto para gerar um mapeamento completo (SIPOC, objetivo, gatilhos e fluxo de atividades) técnico e específico.
               </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+              <p className="text-xs text-emerald-500 font-bold mt-2 italic">
                 * O mapeamento gerado servirá como base para as fases de análise e melhoria do processo.
               </p>
             </div>
@@ -191,7 +191,7 @@ export default function ProcessCanva({ onSave, initialData, onGenerateAI, isGene
                 "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
                 isGeneratingAI
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 cursor-pointer shadow-lg shadow-emerald-100"
               )}
             >
               {isGeneratingAI

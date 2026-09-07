@@ -365,12 +365,12 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
       {/* Box de IA — distribui as causas do Brainstorming nos 6M.
           Só aparece se o Brainstorming existe/está preenchido E o Ishikawa ainda está vazio. */}
       {temBrainstorming && ishikawaVazio && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
+                <Sparkles size={16} className="text-emerald-500" />
+                <span className="text-xs font-black text-emerald-700 uppercase tracking-widest">
                   Distribuir causas com IA
                 </span>
               </div>
@@ -379,7 +379,7 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
                 e coloca cada uma na categoria certa dos 6M (Método, Máquina, Medida, Mão de obra,
                 Material, Meio ambiente).
               </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
+              <p className="text-xs text-emerald-500 font-bold mt-2 italic">
                 * As causas vão direto pras colunas. Você ajusta, move ou remove o que quiser.
               </p>
             </div>
@@ -390,7 +390,7 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
                 "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
                 isGenerating
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 cursor-pointer shadow-lg shadow-emerald-100"
               )}
             >
               {isGenerating
