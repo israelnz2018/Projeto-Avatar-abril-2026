@@ -574,6 +574,8 @@ interface MigratePromptCardProps {
   /** A ferramenta ja tem a lista: vira uma barra fina em vez do card grande.
    *  Sem isto o card verde competiria com o seletor verde de X na mesma tela. */
   compacto?: boolean;
+  /** Quantos itens a ferramenta anterior tem que ainda nao chegaram aqui. */
+  novidades?: number;
 }
 
 /**
@@ -585,21 +587,145 @@ interface MigratePromptCardProps {
  */
 const TOOLS_QUE_SINCRONIZAM_LISTA = ['directObservation', 'dataNature', 'fiveWhys'];
 
-const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigrating, hasSourceData, compacto }: MigratePromptCardProps) => {
+const semAcento = (texto: string) =>
+  texto.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLocaleLowerCase('pt-BR');
+
+/** Chave de comparacao de variavel: mesmo nome = mesma variavel. Sem acento
+ *  porque a mesma categoria aparece como "Metodo" e "Método" entre projetos. */
+const chaveDaVariavel = (valor: any) =>
+  semAcento(String(valor?.variable ?? valor?.name ?? valor ?? ''));
+
+/** Categoria que o aluno marca para a ideia NAO virar causa na espinha. */
+const FORA_DA_ESPINHA = 'nao colocar na espinha de peixe';
+
+const PALAVRAS_VAZIAS = new Set([
+  'esta', 'estao', 'sao', 'sem', 'com', 'para', 'por', 'que', 'nao', 'dos',
+  'das', 'nos', 'nas', 'uma', 'uns', 'umas', 'pelo', 'pela', 'entre', 'seu',
+  'sua', 'mais', 'menos', 'ser', 'tem', 'ate', 'como', 'quando', 'onde',
+]);
+
+/** Palavras com sentido, cortadas em 6 letras para "atualizado" e "atualizar"
+ *  contarem como a mesma ideia. */
+const palavrasChave = (texto: string) =>
+  new Set(
+    semAcento(texto)
+      .split(/[^a-z0-9]+/)
+      .filter((p) => p.length > 3 && !PALAVRAS_VAZIAS.has(p))
+      .map((p) => p.slice(0, 6))
+  );
+
+/**
+ * Quanto dois textos se parecem, de 0 a 1.
+ *
+ * A IA reescreve a mesma causa com outras palavras — "Aprovador substituto nao
+ * esta atualizado no sistema" vira "Aprovador substituto desatualizado" — entao
+ * comparar texto exato acusa novidade onde nao ha, e sincronizar duplicaria a
+ * causa. Isto so LEVANTA A SUSPEITA: quem decide e o aluno, na lista de
+ * conferencia.
+ */
+const parecencaEntre = (a: string, b: string) => {
+  const pa = palavrasChave(a);
+  const pb = palavrasChave(b);
+  if (pa.size === 0 || pb.size === 0) return 0;
+  let iguais = 0;
+  pa.forEach((palavra) => { if (pb.has(palavra)) iguais += 1; });
+  return iguais / Math.min(pa.size, pb.size);
+};
+
+const PARECIDO_DEMAIS = 0.5;
+
+/** O texto que o aluno le, seja a ideia do Brainstorming ou a variavel X. */
+const textoDoItem = (item: any) =>
+  String(item?.text ?? item?.variable ?? item?.name ?? item ?? '').trim();
+
+/** O que ja esta escrito nesta ferramenta, para comparar com o que vem de tras. */
+const textosJaNaFerramenta = (toolId: string, dadosAtuais: any): string[] => {
+  const atual = dadosAtuais?.toolData || dadosAtuais || {};
+  if (toolId === 'measureIshikawa') {
+    return Object.values(atual.causes || {})
+      .flatMap((lista: any) => (Array.isArray(lista) ? lista : []))
+      .map(textoDoItem)
+      .filter(Boolean);
+  }
+  const lista = toolId === 'measureMatrix'
+    ? (Array.isArray(atual.causes) ? atual.causes : [])
+    : (Array.isArray(atual.variaveisDisponiveis) ? atual.variaveisDisponiveis : []);
+  return lista.map(textoDoItem).filter(Boolean);
+};
+
+/**
+ * O que a ferramenta anterior tem e ainda nao chegou aqui.
+ *
+ * Uma funcao so, usada pelo aviso de desatualizado E pelo botao — se fossem
+ * duas, o aviso poderia dizer "3 novidades" e o botao trazer outra coisa.
+ *
+ * Cada destino guarda a informacao num formato: a Espinha em causes por
+ * categoria 6M, a Matriz numa lista de causas pontuadas, e as ferramentas de
+ * investigacao na lista de X migrada.
+ */
+const novidadesDaOrigem = (toolId: string, origem: any, dadosAtuais: any): any[] => {
+  const atual = dadosAtuais?.toolData || dadosAtuais || {};
+
+  // Espinha de Peixe <- Brainstorming. As ideias ja vem com a categoria 6M
+  // escolhida pelo aluno, entao nao ha o que a IA precise classificar aqui.
+  if (toolId === 'measureIshikawa') {
+    const dadosOrigem = origem?.toolData || origem || {};
+    const ideias = Array.isArray(dadosOrigem.ideas) ? dadosOrigem.ideas : [];
+    const jaNaEspinha = new Set(
+      Object.values(atual.causes || {})
+        .flatMap((lista: any) => Array.isArray(lista) ? lista : [])
+        .map(chaveDaVariavel)
+    );
+    return ideias.filter((ideia: any) => {
+      const texto = String(ideia?.text ?? '').trim();
+      const categoria = String(ideia?.category ?? '').trim();
+      if (!texto || !categoria) return false;
+      if (semAcento(categoria) === FORA_DA_ESPINHA) return false;
+      return !jaNaEspinha.has(chaveDaVariavel({ variable: texto }));
+    });
+  }
+
+  const daOrigem = variaveisDaOrigem(origem);
+  if (daOrigem.length === 0) return [];
+
+  const existentes = toolId === 'measureMatrix'
+    ? (Array.isArray(atual.causes) ? atual.causes : [])
+    : (Array.isArray(atual.variaveisDisponiveis) ? atual.variaveisDisponiveis : []);
+
+  const conhecidas = new Set(existentes.map(chaveDaVariavel));
+  return daOrigem.filter((v) => chaveDaVariavel(v) && !conhecidas.has(chaveDaVariavel(v)));
+};
+
+const MigratePromptCard = ({ toolId, toolName, sourceName, onMigrate, isMigrating, hasSourceData, compacto, novidades }: MigratePromptCardProps) => {
   if (compacto) {
+    // Desatualizado = a etapa anterior mudou depois que esta foi preenchida.
+    // Ficar em cinza quando nao ha nada novo evita o aluno apertar por seguranca
+    // sem saber se precisa.
+    const desatualizado = (novidades ?? 0) > 0;
     return (
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
-        <p className="m-0 text-xs text-emerald-900">
-          Criou variável nova em <strong>{sourceName}</strong> depois? Traga o que falta — o que você já preencheu aqui não muda.
+      <div className={cn(
+        'mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3',
+        desatualizado ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'
+      )}>
+        <p className={cn('m-0 text-xs', desatualizado ? 'text-amber-900' : 'text-gray-500')}>
+          {desatualizado ? (
+            <>
+              <strong>{sourceName} mudou.</strong>{' '}
+              {novidades === 1 ? '1 item novo ainda não está aqui.' : `${novidades} itens novos ainda não estão aqui.`}{' '}
+              Trazer não altera nada do que você já preencheu.
+            </>
+          ) : (
+            <>Atualizado com <strong>{sourceName}</strong>. Nada novo para trazer.</>
+          )}
         </p>
         <button
           onClick={onMigrate}
-          disabled={isMigrating || !hasSourceData}
+          disabled={isMigrating || !hasSourceData || !desatualizado}
           className={cn(
             'flex shrink-0 items-center gap-2 rounded-lg border-none px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-all',
-            isMigrating || !hasSourceData
+            isMigrating || !hasSourceData || !desatualizado
               ? 'cursor-not-allowed bg-gray-200 text-gray-400'
-              : 'cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+              : 'cursor-pointer bg-amber-600 text-white hover:bg-amber-700 active:scale-95'
           )}
         >
           {isMigrating
@@ -693,6 +819,13 @@ export default function ToolWrapper({
   const [aiReport, setAiReport] = useState(initialData?.aiReport || '');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingData, setIsGeneratingData] = useState(false);
+  /** Lista que o aluno confere antes de sincronizar. Sem esta etapa o botao
+   *  acrescentaria em silencio uma causa que ja existe escrita de outro jeito. */
+  const [revisaoSync, setRevisaoSync] = useState<{
+    origem: string;
+    itens: Array<{ item: any; texto: string; parecidoCom: string | null }>;
+    marcados: boolean[];
+  } | null>(null);
   const [isEditingReport, setIsEditingReport] = useState(false);
   const [editedReport, setEditedReport] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -1022,7 +1155,58 @@ export default function ToolWrapper({
     }
   };
 
-  const handleMigrateData = async (sourceToolId: string) => {
+  /**
+   * Monta a lista de conferencia: o que a etapa anterior tem e ainda nao chegou
+   * aqui, ja deixando desmarcado o que parece repeticao do que o aluno escreveu.
+   */
+  const abrirRevisaoSync = (sourceToolId: string) => {
+    const sourceData = getToolDataByPrefix(allProjectData, sourceToolId);
+    if (!sourceData) {
+      toast.error('A ferramenta anterior ainda não tem dados para trazer.');
+      return;
+    }
+
+    const novas = novidadesDaOrigem(toolId, sourceData, localData);
+    if (novas.length === 0) {
+      toast.info('Nada novo para trazer. O que você já preencheu continua intacto.');
+      return;
+    }
+
+    const jaEscritos = textosJaNaFerramenta(toolId, localData);
+    const itens = novas.map((item) => {
+      const texto = textoDoItem(item);
+      const maisParecido = jaEscritos
+        .map((existente) => ({ existente, nota: parecencaEntre(texto, existente) }))
+        .sort((a, b) => b.nota - a.nota)[0];
+      return {
+        item,
+        texto,
+        parecidoCom: maisParecido && maisParecido.nota >= PARECIDO_DEMAIS ? maisParecido.existente : null,
+      };
+    });
+
+    setRevisaoSync({
+      origem: sourceToolId,
+      itens,
+      marcados: itens.map((linha) => linha.parecidoCom === null),
+    });
+  };
+
+  const confirmarRevisaoSync = async () => {
+    if (!revisaoSync) return;
+    const escolhidos = revisaoSync.itens
+      .filter((_, i) => revisaoSync.marcados[i])
+      .map((linha) => linha.item);
+    const origem = revisaoSync.origem;
+    setRevisaoSync(null);
+    if (escolhidos.length === 0) return;
+    await handleMigrateData(origem, escolhidos);
+  };
+
+  /** `apenas` = so os itens que o aluno marcou na conferencia. Sem ele o botao
+   *  traz tudo o que a etapa anterior tem de novo (primeiro uso, ferramenta
+   *  vazia, onde nao ha o que duplicar). */
+  const handleMigrateData = async (sourceToolId: string, apenas?: any[]) => {
     setIsGeneratingData(true);
     try {
       const sourceData = getToolDataByPrefix(allProjectData, sourceToolId);
@@ -1055,6 +1239,69 @@ export default function ToolWrapper({
       // Traz a LISTA, nao os campos preenchidos: o aluno escolhe um X por vez no
       // dropdown que aparece depois. E por isso que o card verde some aqui — sem
       // isso os dois blocos verdes ficavam na tela ao mesmo tempo.
+      // A Matriz e gerada por IA na primeira vez (a IA monta os outputs e sugere
+      // as notas). Depois disso ela so recebe causa NOVA por copia direta: deixar
+      // a IA regerar arriscaria reescrever linha que o aluno ja pontuou.
+      // Espinha de Peixe <- Brainstorming. A ideia ja traz a categoria 6M que o
+      // aluno escolheu, entao a causa cai na espinha certa por copia direta. As
+      // causas que ja estao la nao sao tocadas.
+      if (toolId === 'measureIshikawa') {
+        const atual = localData?.toolData || localData || {};
+        const novas = apenas ?? novidadesDaOrigem(toolId, sourceData, localData);
+
+        if (novas.length === 0) {
+          toast.info('Nada novo para trazer. A espinha de peixe já está atualizada.');
+          setIsGeneratingData(false);
+          return;
+        }
+
+        const causas: Record<string, string[]> = { ...(atual.causes || {}) };
+        novas.forEach((ideia: any) => {
+          // Casa com a categoria que ja existe na espinha, mesmo escrita sem
+          // acento ("Metodo" x "Método"), pra nao criar categoria duplicada.
+          const categoriaIdeia = String(ideia.category).trim();
+          const existente = Object.keys(causas).find(
+            (c) => semAcento(c) === semAcento(categoriaIdeia)
+          );
+          const alvo = existente || categoriaIdeia;
+          causas[alvo] = [...(causas[alvo] || []), String(ideia.text).trim()];
+        });
+
+        migratedData = { ...atual, causes: causas };
+        mensagemSucesso = `${novas.length} ${novas.length === 1 ? 'causa nova trazida' : 'causas novas trazidas'} do Brainstorming. Nada do que já estava na espinha mudou.`;
+      }
+
+      if (toolId === 'measureMatrix') {
+        const atual = localData?.toolData || localData || {};
+        const causasAtuais = Array.isArray(atual.causes) ? atual.causes : [];
+        const outputs = Array.isArray(atual.outputs) ? atual.outputs : [];
+        const novas = apenas ?? novidadesDaOrigem(toolId, sourceData, localData);
+
+        if (novas.length === 0) {
+          toast.info('Nada novo para trazer. A matriz já está atualizada.');
+          setIsGeneratingData(false);
+          return;
+        }
+
+        // Nota em branco de proposito: quem pontua e o aluno. E `selected` fica
+        // falso ate ele decidir, senao a causa nova entraria na proxima etapa
+        // sem ninguem ter avaliado.
+        const proximoNumero = causasAtuais.length;
+        migratedData = {
+          ...atual,
+          causes: [
+            ...causasAtuais,
+            ...novas.map((v, i) => ({
+              id: `X${String(proximoNumero + i + 1).padStart(2, '0')}`,
+              name: v.variable,
+              scores: outputs.map(() => 0),
+              selected: false,
+            })),
+          ],
+        };
+        mensagemSucesso = `${novas.length} ${novas.length === 1 ? 'causa nova trazida' : 'causas novas trazidas'} para pontuar. As notas que você já deu não mudaram.`;
+      }
+
       if (toolId === 'directObservation' || toolId === 'dataNature' || toolId === 'fiveWhys') {
         const variaveis = variaveisDaOrigem(sourceData);
 
@@ -1085,11 +1332,11 @@ export default function ToolWrapper({
         // nunca mais chegava aqui. Agora o botao fica a jornada inteira e so
         // ACRESCENTA o que falta, sem encostar no que o aluno ja escreveu.
         const atual = localData?.toolData || localData || {};
-        const chaveVar = (v: any) => String(v?.variable ?? '').trim().toLocaleLowerCase('pt-BR');
+        const chaveVar = chaveDaVariavel;
 
         const xAtuais = Array.isArray(atual.variaveisDisponiveis) ? atual.variaveisDisponiveis : [];
-        const xConhecidos = new Set(xAtuais.map(chaveVar));
-        const xNovos = lista.filter((v) => chaveVar(v) && !xConhecidos.has(chaveVar(v)));
+        const xNovosBrutos = apenas ?? novidadesDaOrigem(toolId, sourceData, localData);
+        const xNovos = lista.filter((v) => xNovosBrutos.some((n: any) => chaveVar(n) === chaveVar(v)));
 
         const yAtuais = Array.isArray(atual.variaveisY) ? atual.variaveisY : [];
         const yConhecidos = new Set(yAtuais.map(chaveVar));
@@ -1882,6 +2129,20 @@ export default function ToolWrapper({
     (id) => sourceHasContent(getToolDataByPrefix(allProjectData, id))
   );
 
+  // Quantos itens da ferramenta anterior ainda nao chegaram aqui. Alimenta o
+  // aviso de desatualizado: sem ele o aluno mexe na Espinha de Peixe e nao tem
+  // como saber que a etapa seguinte ficou para tras.
+  const novidadesPendentes = useMemo(() => {
+    const sincroniza = TOOLS_QUE_SINCRONIZAM_LISTA.includes(toolId)
+      || toolId === 'measureMatrix'
+      || toolId === 'measureIshikawa';
+    const origemId = toolLink?.from?.[0];
+    if (!sincroniza || !origemId) return 0;
+    const origem = getToolDataByPrefix(allProjectData, origemId);
+    if (!origem) return 0;
+    return novidadesDaOrigem(toolId, origem, localData).length;
+  }, [toolId, toolLink, allProjectData, localData]);
+
   const isToolEmpty = () => {
     if (!localData) return true;
     
@@ -2240,11 +2501,106 @@ export default function ToolWrapper({
           toolId={toolId}
           toolName={toolName}
           sourceName={linkSourceLabel}
-          onMigrate={() => handleMigrateData(toolLink.from[0])}
+          onMigrate={() => (isToolEmpty()
+            ? handleMigrateData(toolLink.from[0])
+            : abrirRevisaoSync(toolLink.from[0]))}
           isMigrating={isGeneratingData}
           hasSourceData={true}
           compacto={!isToolEmpty()}
+          novidades={novidadesPendentes}
         />
+      )}
+
+      {/* Matriz Causa e Efeito: a IA monta a matriz na primeira vez (card acima).
+          Depois disso, causa nova da Espinha de Peixe entra por copia direta, sem
+          a IA encostar nas notas ja dadas — por isso esta barra vive fora do
+          fluxo de 'migrate' e so aparece com a matriz ja preenchida. */}
+      {(toolId === 'measureMatrix' || toolId === 'measureIshikawa') && !isToolEmpty() && toolLink?.from?.[0] && showAIPrompt && linkHasContent && (
+        <MigratePromptCard
+          toolId={toolId}
+          toolName={toolName}
+          sourceName={linkSourceLabel}
+          onMigrate={() => abrirRevisaoSync(toolLink.from[0])}
+          isMigrating={isGeneratingData}
+          hasSourceData={true}
+          compacto={true}
+          novidades={novidadesPendentes}
+        />
+      )}
+
+      {/* Conferencia antes de sincronizar. A IA reescreve a mesma causa com
+          outras palavras, entao trazer tudo em silencio duplicaria o que o aluno
+          ja tem escrito. Aqui ele ve item por item, e o que parece repetido ja
+          vem desmarcado. */}
+      {revisaoSync && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-white p-5 shadow-sm">
+          <p className="m-0 text-[11px] font-black uppercase tracking-widest text-amber-700">
+            Conferir antes de trazer
+          </p>
+          <p className="mt-2 mb-4 text-sm leading-relaxed text-gray-600">
+            Marque o que é realmente novo. Nada do que já está em <strong>{toolName}</strong> é alterado.
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {revisaoSync.itens.map((linha, i) => (
+              <label
+                key={`${linha.texto}-${i}`}
+                className={cn(
+                  'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                  revisaoSync.marcados[i]
+                    ? 'border-emerald-200 bg-emerald-50/60'
+                    : 'border-gray-200 bg-gray-50'
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={revisaoSync.marcados[i]}
+                  onChange={() => setRevisaoSync((r) => (r ? {
+                    ...r,
+                    marcados: r.marcados.map((m, j) => (j === i ? !m : m)),
+                  } : r))}
+                  className="mt-1 h-4 w-4 shrink-0 accent-emerald-600"
+                />
+                <span className="flex-1">
+                  <span className="block text-sm text-gray-800">{linha.texto}</span>
+                  {linha.item?.category && (
+                    <span className="mt-1 block text-[11px] uppercase tracking-widest text-gray-400">
+                      {String(linha.item.category)}
+                    </span>
+                  )}
+                  {linha.parecidoCom && (
+                    <span className="mt-1 block text-xs text-amber-700">
+                      Parece com o que já está aqui: “{linha.parecidoCom}”
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={confirmarRevisaoSync}
+              disabled={isGeneratingData || !revisaoSync.marcados.some(Boolean)}
+              className={cn(
+                'flex items-center gap-2 rounded-lg border-none px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-all',
+                isGeneratingData || !revisaoSync.marcados.some(Boolean)
+                  ? 'cursor-not-allowed bg-gray-200 text-gray-400'
+                  : 'cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+              )}
+            >
+              {isGeneratingData
+                ? <><Loader2 className="animate-spin" size={14} /> Trazendo...</>
+                : <><ArrowDownToLine size={14} /> Trazer {revisaoSync.marcados.filter(Boolean).length}</>}
+            </button>
+            <button
+              onClick={() => setRevisaoSync(null)}
+              className="cursor-pointer rounded-lg border-none bg-transparent px-2 py-2 text-[11px] font-black uppercase tracking-widest text-gray-400 transition-colors hover:text-gray-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Brief: um card só, em duas etapas. O Brief precisa de um passo a mais que as
