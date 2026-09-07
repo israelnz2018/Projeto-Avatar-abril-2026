@@ -34,6 +34,7 @@ import { cn } from '@/src/lib/utils';
 import { logToolOpened } from '@/src/services/eventLogger';
 import { normalizeDataNatureData } from '@/src/services/dataNatureRules';
 import { buildCauseEvidenceCandidates, getConfirmedCauseRows } from '@/src/services/causeValidationService';
+import { alinharIdeiasAsCausas, causasSemIdeia } from '@/src/services/brainstormingSolutionCoverage';
 
 interface ToolWrapperProps {
   toolId: string;
@@ -1589,6 +1590,53 @@ export default function ToolWrapper({
         (toolId === 'brainstormingImprove' || toolId === 'causeValidation') ? targetContext : allProjectData
       );
       let normalized = normalizeInitialData(toolId, generatedData);
+
+      if (toolId === 'brainstormingImprove') {
+        const causasConfirmadas = Array.isArray(targetContext?.validatedCauses)
+          ? targetContext.validatedCauses
+          : [];
+        normalized.ideas = alinharIdeiasAsCausas(normalized?.ideas || [], causasConfirmadas);
+
+        const anterior = localData?.toolData || localData || {};
+        const ideiasJaExistentes = alinharIdeiasAsCausas(anterior?.ideas || [], causasConfirmadas);
+        const faltantes = causasSemIdeia(
+          [...ideiasJaExistentes, ...normalized.ideas],
+          causasConfirmadas,
+        );
+
+        // O prompt pede uma ideia para cada causa, mas a cobertura não pode
+        // depender apenas da obediência do modelo. Se faltar algum X, fazemos
+        // uma geração curta e isolada para ele; como o contexto contém uma
+        // única causa, a associação fica inequívoca.
+        if (faltantes.length > 0) {
+          const complementos = await Promise.all(faltantes.map(async (cause: any) => {
+            const resposta = await generateToolData(
+              toolId,
+              toolName,
+              previousToolName || null,
+              { ...targetContext, validatedCauses: [cause] },
+              { name: projectName, description: project.description },
+              { ...targetContext, validatedCauses: [cause] },
+            );
+            const respostaNormalizada = normalizeInitialData(toolId, resposta);
+            const primeira = (respostaNormalizada?.ideas || []).find((idea: any) => String(idea?.text || '').trim());
+            return primeira ? {
+              ...primeira,
+              causeSourceId: cause.sourceId,
+              category: cause.x,
+            } : null;
+          }));
+          normalized.ideas = [...normalized.ideas, ...complementos.filter(Boolean)];
+
+          const aindaFaltantes = causasSemIdeia(
+            [...ideiasJaExistentes, ...normalized.ideas],
+            causasConfirmadas,
+          );
+          if (aindaFaltantes.length > 0) {
+            throw new Error(`A IA não conseguiu gerar uma solução válida para: ${aindaFaltantes.map((cause) => cause.x).join(', ')}. Tente novamente.`);
+          }
+        }
+      }
 
       if (toolId === 'causeValidation') {
         const anterior = localData?.toolData || localData || {};

@@ -389,7 +389,8 @@ REGRA #9 - CHANNEL e FREQUENCY
     {
       "id": "1",
       "text": "Descricao da solucao proposta",
-      "category": "Causa associada",
+      "causeSourceId": "sourceId EXATO da causa confirmada",
+      "category": "Texto X EXATO da causa confirmada",
       "author": "IA LBW",
       "votes": 0,
       "topic": "Texto exato de improvementGoal"
@@ -415,8 +416,9 @@ REGRAS:
 base das solucoes. Nao use uma causa de outra fonte que nao esteja nessa lista.
 2. Use apenas fatos, causas, variaveis e restricoes presentes no contexto recebido.
    Nao invente maquinas, sistemas, departamentos, tecnologias, cargos ou problemas.
-3. Cada solucao deve atacar uma causa ou evidencia identificavel no contexto. No campo
-   "category", escreva de forma curta essa causa/evidencia. Nunca use categoria generica.
+3. Cada solucao deve atacar uma causa identificavel em validatedCauses. Copie
+   "sourceId" para "causeSourceId" e copie o texto "x" INTEIRO E EXATO para
+   "category". Nao abrevie, nao resuma e nao altere o codigo X.
 4. Se uma informacao nao estiver comprovada, trate-a como hipotese a validar, nunca como fato.
 5. Escreva solucoes concretas no formato acao + objeto + local/condicao quando aplicavel.
    Evite frases vagas como "melhorar processo", "treinar equipe" ou "acompanhar melhor".
