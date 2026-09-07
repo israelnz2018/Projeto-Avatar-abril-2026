@@ -424,8 +424,15 @@ base das solucoes. Nao use uma causa de outra fonte que nao esteja nessa lista.
 7. Varie os mecanismos quando forem sustentados pelo contexto: eliminar etapa, simplificar,
    padronizar, prevenir erro, automatizar, balancear carga, controlar parametro ou criar alerta.
 8. Elimine duplicidades e ideias que sejam apenas reformulacoes umas das outras.
-9. Gere de 6 a 10 solucoes. Se o contexto nao sustentar seis ideias relevantes, gere menos;
-   qualidade e aderencia ao projeto sao mais importantes que quantidade.
+9. Se validatedCauses estiver presente, TODA causa confirmada da lista precisa
+   receber PELO MENOS 1 solucao — nenhuma causa confirmada pode ficar sem
+   nenhuma ideia. Depois de cobrir todas, pode dar mais de uma solucao para a
+   causa que sustentar mais de um angulo de ataque.
+9.1. Gere de 6 a 10 solucoes no total, respeitando a cobertura obrigatoria da
+   regra 9. Se validatedCauses tiver mais de 10 causas, a cobertura obrigatoria
+   vale mesmo passando de 10. Se o contexto nao sustentar seis ideias
+   relevantes, gere menos; qualidade e aderencia ao projeto sao mais
+   importantes que quantidade.
 10. "brainstormingTopic" deve repetir exatamente improvementGoal e
     "brainstormingType" deve ser exatamente "Identificar melhor solução".
 
