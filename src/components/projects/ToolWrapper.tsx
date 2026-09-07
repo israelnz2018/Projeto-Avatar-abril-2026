@@ -1524,10 +1524,21 @@ export default function ToolWrapper({
         // getConfirmedCauseRows ja desembrulha; a deteccao tambem precisa.
         const validationRows = validationData?.toolData?.rows ?? validationData?.rows;
         const hasValidationTable = Array.isArray(validationRows);
+        // A IA precisa saber o que JA existe, senao a segunda geracao devolve as
+        // mesmas causas com a solucao reescrita com outras palavras em vez de
+        // cobrir as causas que ainda estao sem ideia nenhuma.
+        const jaExistentes = ((localData?.toolData || localData || {})?.ideas || [])
+          .map((idea: any) => ({
+            causeSourceId: idea?.causeSourceId || '',
+            category: idea?.category || '',
+            text: idea?.text || '',
+          }))
+          .filter((idea: any) => idea.text);
         targetContext = hasValidationTable ? {
           improvementGoal: customContext?.improvementGoal || '',
           brief: getToolDataByPrefix(allProjectData, 'brief'),
           validatedCauses: getConfirmedCauseRows(validationData),
+          existingIdeas: jaExistentes,
         } : {
           improvementGoal: customContext?.improvementGoal || '',
           brief: getToolDataByPrefix(allProjectData, 'brief'),

@@ -409,6 +409,7 @@ Voce vai receber somente estas fontes quando estiverem preenchidas:
 - measureMatrix: causas avaliadas e priorizadas
 - statisticalAnalysis e dataNature: evidencias quantitativas e relacoes entre X e Y
 - validatedCauses: causas que foram revisadas e confirmadas pelo usuario para uso no Brainstorming
+- existingIdeas: solucoes que o aluno JA tem salvas nesta ferramenta
 
 REGRAS:
 1. improvementGoal e obrigatorio e delimita o foco. Nao gere nenhuma ideia fora dele.
@@ -429,6 +430,12 @@ base das solucoes. Nao use uma causa de outra fonte que nao esteja nessa lista.
 7. Varie os mecanismos quando forem sustentados pelo contexto: eliminar etapa, simplificar,
    padronizar, prevenir erro, automatizar, balancear carga, controlar parametro ou criar alerta.
 8. Elimine duplicidades e ideias que sejam apenas reformulacoes umas das outras.
+8.1. existingIdeas sao solucoes que o aluno JA tem salvas. NAO repita nenhuma
+   delas e NAO devolva a mesma solucao reescrita com outras palavras. Prefira
+   sempre a causa que ainda nao tem nenhuma ideia em existingIdeas; so proponha
+   uma segunda solucao para uma causa ja coberta quando o angulo de ataque for
+   claramente diferente do que ja existe. Se todas as causas ja estiverem bem
+   cobertas, devolva poucas ideias — ou nenhuma — em vez de encher de variacao.
 9. Se validatedCauses estiver presente, TODA causa confirmada da lista precisa
    receber PELO MENOS 1 solucao — nenhuma causa confirmada pode ficar sem
    nenhuma ideia. Depois de cobrir todas, pode dar mais de uma solucao para a
