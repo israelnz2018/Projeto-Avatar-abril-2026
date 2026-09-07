@@ -1516,7 +1516,14 @@ export default function ToolWrapper({
 
       if (toolId === 'brainstormingImprove' && allProjectData) {
         const validationData = getToolDataByPrefix(allProjectData, 'causeValidation');
-        const hasValidationTable = Array.isArray(validationData?.rows);
+        // BUG QUE IGNORAVA A VALIDACAO INTEIRA: o Firestore guarda
+        // {aiReport, toolData:{rows:[...]}}, mas a checagem lia validationData.rows
+        // direto — sempre undefined, sempre false. Resultado: caia no ramo de
+        // baixo e mandava a Espinha de Peixe inteira pra IA, que gerava solucao
+        // pra causa que o aluno nunca confirmou e ignorava as que ele confirmou.
+        // getConfirmedCauseRows ja desembrulha; a deteccao tambem precisa.
+        const validationRows = validationData?.toolData?.rows ?? validationData?.rows;
+        const hasValidationTable = Array.isArray(validationRows);
         targetContext = hasValidationTable ? {
           improvementGoal: customContext?.improvementGoal || '',
           brief: getToolDataByPrefix(allProjectData, 'brief'),
