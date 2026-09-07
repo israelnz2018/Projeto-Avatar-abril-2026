@@ -29,3 +29,13 @@ test('identifica toda causa confirmada que ficou sem ideia', () => {
   ], causes);
   assert.deepEqual(missing.map((cause) => cause.sourceId), ['b', 'e']);
 });
+
+test('mantem X3 e X3.1 associados separadamente mesmo com textos de solucao iguais', () => {
+  const aligned = alinharIdeiasAsCausas([
+    { text: 'Padronizar o processo', category: 'X3' },
+    { text: 'Padronizar o processo', category: 'X3.1' },
+  ], causes);
+
+  assert.deepEqual(aligned.map((idea) => idea.causeSourceId), ['a', 'b']);
+  assert.deepEqual(causasSemIdeia(aligned, causes).map((cause) => cause.sourceId), ['c', 'd', 'e']);
+});

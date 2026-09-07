@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
 import { getConfirmedCauseRows, projectY } from '@/src/services/causeValidationService';
+import { alinharIdeiasAsCausas } from '@/src/services/brainstormingSolutionCoverage';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
 // Cada exemplo traz ideias agrupadas pelas categorias 6M reais da ferramenta.
@@ -81,6 +82,7 @@ interface Idea {
   author: string;
   votes: number;
   topic?: string;
+  causeSourceId?: string;
 }
 
 const CATEGORIES = ['Mão de Obra', 'Método', 'Material', 'Máquina', 'Meio Ambiente', 'Medição', 'Não colocar na espinha de peixe'];
@@ -148,9 +150,12 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   // (ToolWrapper.tsx) e nunca reavalia o que ja foi salvo antes.
   const causasConfirmadasX = new Set(confirmedCauses.map((c: any) => c.x));
   const ideiaEhManual = (idea: Idea) => idea.author !== 'IA LBW' && idea.author !== 'IA';
-  const ideasValidas = isSolutionBrainstorming
-    ? ideas.filter((idea) => ideiaEhManual(idea) || causasConfirmadasX.has(idea.category))
+  const ideiasAlinhadas = isSolutionBrainstorming
+    ? alinharIdeiasAsCausas(ideas, confirmedCauses) as Idea[]
     : ideas;
+  const ideasValidas = isSolutionBrainstorming
+    ? ideiasAlinhadas.filter((idea) => ideiaEhManual(idea) || causasConfirmadasX.has(idea.category))
+    : ideiasAlinhadas;
 
   const handleGenerateSolutions = async () => {
     const improvementGoal = brainstormingTopic.trim();

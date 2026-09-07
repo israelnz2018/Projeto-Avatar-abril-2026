@@ -1675,9 +1675,19 @@ export default function ToolWrapper({
 
       if (toolId === 'brainstormingImprove') {
         const anterior = localData?.toolData || localData || {};
-        const anteriores = Array.isArray(anterior.ideas) ? anterior.ideas : [];
+        const causasConfirmadas = Array.isArray(targetContext?.validatedCauses)
+          ? targetContext.validatedCauses
+          : [];
+        // Corrige tambem ideias antigas salvas com categoria abreviada (por
+        // exemplo, "X3.1") antes de verificar duplicidade e montar a tela.
+        const anteriores = alinharIdeiasAsCausas(
+          Array.isArray(anterior.ideas) ? anterior.ideas : [],
+          causasConfirmadas,
+        );
         const topicoAtual = customContext?.improvementGoal || normalized.brainstormingTopic || anterior.brainstormingTopic || '';
-        const chaveDaIdeia = (idea: any) => `${String(idea?.topic || '').trim().toLocaleLowerCase('pt-BR')}|${String(idea?.text || '').trim().toLocaleLowerCase('pt-BR')}`;
+        // O identificador da causa faz parte da chave. Duas causas diferentes
+        // podem receber propostas parecidas sem que uma apague a outra.
+        const chaveDaIdeia = (idea: any) => `${String(idea?.causeSourceId || idea?.category || '').trim().toLocaleLowerCase('pt-BR')}|${String(idea?.topic || '').trim().toLocaleLowerCase('pt-BR')}|${String(idea?.text || '').trim().toLocaleLowerCase('pt-BR')}`;
         const chavesExistentes = new Set(anteriores.map(chaveDaIdeia));
         const geradas = (Array.isArray(normalized.ideas) ? normalized.ideas : [])
           .map((idea: any, index: number) => ({

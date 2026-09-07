@@ -422,6 +422,9 @@ base das solucoes. Nao use uma causa de outra fonte que nao esteja nessa lista.
 4. Se uma informacao nao estiver comprovada, trate-a como hipotese a validar, nunca como fato.
 5. Escreva solucoes concretas no formato acao + objeto + local/condicao quando aplicavel.
    Evite frases vagas como "melhorar processo", "treinar equipe" ou "acompanhar melhor".
+5.1. Nao invente duracao de treinamento, quantidade de pessoas, campos de sistema,
+   documentos, tecnologias ou numeros que nao estejam no contexto. Quando esse detalhe
+   for necessario para implantar a ideia, indique que deve ser definido ou validado.
 6. Nao confunda solucao com sintoma, meta ou analise. Priorize atuar na causa raiz.
 7. Varie os mecanismos quando forem sustentados pelo contexto: eliminar etapa, simplificar,
    padronizar, prevenir erro, automatizar, balancear carga, controlar parametro ou criar alerta.
