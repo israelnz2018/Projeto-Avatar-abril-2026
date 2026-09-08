@@ -3,7 +3,7 @@ import { Lightbulb, Plus, Trash2, CheckCircle2, MessageSquare, Tag, Users, HelpC
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
-import { getConfirmedCauseRows } from '@/src/services/causeValidationService';
+import { getConfirmedCauseRows, projectY } from '@/src/services/causeValidationService';
 import { alinharIdeiasAsCausas } from '@/src/services/brainstormingSolutionCoverage';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
@@ -156,10 +156,15 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
     ? ideiasAlinhadas.filter((idea) => ideiaEhManual(idea) || causasConfirmadasX.has(idea.category))
     : ideiasAlinhadas;
 
+  // O campo comeca em branco (regra geral: nada aparece sozinho). O clique em
+  // "Gerar" e que traz o Y do Brief, se o aluno nao escreveu o proprio objetivo.
+  const objetivoDigitado = brainstormingTopic.trim();
+  const objetivoParaGerar = objetivoDigitado || projectY(allProjectData, '');
+
   const handleGenerateSolutions = async () => {
-    const improvementGoal = brainstormingTopic.trim();
+    const improvementGoal = objetivoParaGerar;
     if (improvementGoal.length < 10) {
-      toast.error('Descreva com um pouco mais de detalhe o que você quer melhorar.');
+      toast.error('Descreva o que você quer melhorar, ou preencha o indicador Y no Entendendo o Problema.');
       return;
     }
     if (!onGenerateAI) {
@@ -170,6 +175,9 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
       toast.error('Valide pelo menos uma causa como contribuinte e marque-a para o Brainstorming antes de gerar solucoes.');
       return;
     }
+    // Mostra na tela o que foi trazido do Brief, pra nao parecer que a IA
+    // gerou algo do nada quando o aluno nao escreveu nada aqui.
+    if (!objetivoDigitado) setBrainstormingTopic(improvementGoal);
     await onGenerateAI({ improvementGoal });
   };
 
@@ -359,7 +367,7 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
               <textarea
                 value={brainstormingTopic}
                 onChange={(e) => setBrainstormingTopic(e.target.value)}
-                placeholder="Ex.: Reduzir o tempo de aprovação de pagamentos sem aumentar o risco de erros."
+                placeholder="Deixe em branco para usar o indicador Y do Entendendo o Problema, ou escreva o seu objetivo."
                 rows={3}
                 className="w-full p-4 border border-emerald-200 rounded-lg text-[14px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm resize-y"
               />
@@ -372,10 +380,10 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
               <button
                 type="button"
                 onClick={handleGenerateSolutions}
-                disabled={!!isGeneratingAI || brainstormingTopic.trim().length < 10 || (needsCauseValidation && confirmedCauses.length === 0)}
+                disabled={!!isGeneratingAI || objetivoParaGerar.length < 10 || (needsCauseValidation && confirmedCauses.length === 0)}
                 className={cn(
                   'min-w-[220px] h-12 px-5 rounded-lg flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest border-none transition-all',
-                  isGeneratingAI || brainstormingTopic.trim().length < 10 || (needsCauseValidation && confirmedCauses.length === 0)
+                  isGeneratingAI || objetivoParaGerar.length < 10 || (needsCauseValidation && confirmedCauses.length === 0)
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-lg shadow-emerald-100 active:scale-95'
                 )}
