@@ -1933,7 +1933,13 @@ export default function ToolWrapper({
             const primeira = (respostaNormalizada?.ideas || []).find((idea: any) => String(idea?.text || '').trim());
             return primeira ? {
               ...primeira,
-              id: primeira.id || `${Date.now()}-${cause.sourceId}`,
+              // NUNCA usar primeira.id: o exemplo do prompt mostra "id": "1", e a
+              // IA copia isso literalmente em toda chamada isolada — as 5 ideias
+              // geradas numa mesma rodada nasciam com o MESMO id "1". Resultado:
+              // o checkbox "ir pro Plano de Acao" de uma marcava todas juntas,
+              // porque o toggle casa por idea.id. cause.sourceId ja e unico por
+              // natureza (vem do Firestore), entao vira o id da linha aqui.
+              id: cause.sourceId,
               causeSourceId: cause.sourceId,
               category: cause.x,
             } : null;

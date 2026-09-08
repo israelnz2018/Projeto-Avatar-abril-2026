@@ -31,7 +31,14 @@ export const alinharIdeiasAsCausas = (ideas: any[], causes: ValidatedCauseForSol
     const category = normalizar(idea?.category);
     const code = codigoX(idea?.category);
     const cause = porId.get(id) || porTexto.get(category) || (code ? porCodigo.get(code) : undefined);
-    return cause ? { ...idea, causeSourceId: cause.sourceId, category: cause.x } : idea;
+    if (!cause) return idea;
+    // idea.id tambem e realinhado pro sourceId da causa. A IA copia o exemplo
+    // do prompt ("id": "1") literalmente em toda chamada isolada, entao varias
+    // ideias de causas diferentes chegavam com o MESMO id "1" — e o checkbox
+    // "ir pro Plano de Acao" de uma marcava todas juntas, porque o toggle casa
+    // por idea.id. sourceId ja e unico por natureza; isso tambem AUTOCORRIGE
+    // ideia que ja foi salva duplicada antes desta correcao.
+    return { ...idea, id: cause.sourceId, causeSourceId: cause.sourceId, category: cause.x };
   });
 };
 
