@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, CheckCircle2, Type, Sparkles, Loader2, BookOpen, X, Info } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Type, Sparkles, Loader2, BookOpen, X, Info, GripVertical } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { distribuirCausasNos6M } from '@/src/services/claudeAiService';
+import { projectY } from '@/src/services/causeValidationService';
 
 interface IshikawaProps {
   onSave: (data: any) => void;
@@ -166,6 +167,23 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
     setCategories(newCategories);
     setCauses(newCauses);
   };
+
+  // ===== Arrastar uma causa pra outro M =====
+  const [draggedCause, setDraggedCause] = useState<{ cat: string; idx: number } | null>(null);
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null);
+
+  const handleMoveCause = (fromCat: string, fromIdx: number, toCat: string) => {
+    if (fromCat === toCat) return;
+    setCauses(prev => {
+      const texto = prev[fromCat]?.[fromIdx];
+      if (texto === undefined) return prev;
+      return {
+        ...prev,
+        [fromCat]: prev[fromCat].filter((_, i) => i !== fromIdx),
+        [toCat]: [...(prev[toCat] || []), texto],
+      };
+    });
+  };
  
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -213,6 +231,12 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
     setIsGenerating(true);
     try {
       const { causes: distribuidas } = await distribuirCausasNos6M(causasDoBrainstorming, categories);
+      // Cabeça do peixe: traz o Y do Brief no mesmo clique, sem sobrescrever
+      // um problema que o aluno ja tenha escrito aqui.
+      if (!problem.trim()) {
+        const y = projectY(allProjectData, '');
+        if (y.trim()) setProblem(y);
+      }
       // Mescla: acrescenta às causas que já existem (sem duplicar texto idêntico na mesma coluna).
       setCauses(prev => {
         const merged: Record<string, string[]> = { ...prev };
@@ -244,6 +268,14 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
     return (
       <div
         key={cat}
+        onDragOver={(e) => { e.preventDefault(); if (draggedCause && draggedCause.cat !== cat) setDragOverCat(cat); }}
+        onDragLeave={() => setDragOverCat((atual) => (atual === cat ? null : atual))}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (draggedCause) handleMoveCause(draggedCause.cat, draggedCause.idx, cat);
+          setDraggedCause(null);
+          setDragOverCat(null);
+        }}
         style={{
           background: c.bg,
           borderRadius: 8,
@@ -251,6 +283,8 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
           minHeight: columnHeight || 220,
           display: 'flex',
           flexDirection: 'column',
+          outline: dragOverCat === cat ? `2px dashed ${c.label}` : 'none',
+          outlineOffset: -2,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 }}>
@@ -281,6 +315,9 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
           {list.map((cause, cIdx) => (
             <div
               key={cIdx}
+              draggable
+              onDragStart={() => setDraggedCause({ cat, idx: cIdx })}
+              onDragEnd={() => { setDraggedCause(null); setDragOverCat(null); }}
               style={{
                 background: '#fff',
                 border: `0.5px solid ${c.border}`,
@@ -289,8 +326,15 @@ export default function Ishikawa({ onSave, initialData, allProjectData }: Ishika
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 8,
+                opacity: draggedCause?.cat === cat && draggedCause?.idx === cIdx ? 0.4 : 1,
               }}
             >
+              <span
+                title="Arrastar para outro M"
+                style={{ cursor: 'grab', color: '#bbb', flexShrink: 0, marginTop: 2 }}
+              >
+                <GripVertical size={12} />
+              </span>
               <textarea
                 value={cause}
                 onChange={(e) => handleUpdateCause(cat, cIdx, e.target.value)}

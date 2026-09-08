@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CheckCircle2,
-  CircleAlert,
   Database,
   HelpCircle,
   Loader2,
@@ -191,12 +190,6 @@ export default function CauseValidationMatrix({
           <span className="rounded-full bg-white px-3 py-2">{rows.length} evidência(s) na tabela</span>
           <span className="rounded-full bg-white px-3 py-2">{confirmedCount} decisão(ões) confirmada(s)</span>
           <span className="rounded-full bg-emerald-100 px-3 py-2 text-emerald-800">{includedCount} no Brainstorming de Soluções</span>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-        <div className="flex gap-2"><CircleAlert size={18} className="mt-0.5 shrink-0" />
-          <span><strong>Atenção:</strong> associação estatística não prova causalidade. As linhas que a IA leu como <strong>Contribui</strong> já vêm marcadas — revise e desmarque o que não fizer sentido. Só o que ficar marcado segue para o Brainstorming de Soluções.</span>
         </div>
       </div>
 
