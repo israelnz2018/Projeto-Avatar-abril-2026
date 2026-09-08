@@ -1897,14 +1897,29 @@ export default function ToolWrapper({
             Array.isArray(anterior.ideas) ? anterior.ideas : [],
             causasConfirmadasAgora,
           );
-          const faltantes = causasSemIdeia(ideiasAtuais, causasConfirmadasAgora);
+          // REGRA: o Brainstorming de Solucoes tem que espelhar a Validacao.
+          // Toda causa confirmada sai daqui com solucao — sem excecao.
+          const ehManual = (idea: any) => idea?.author !== 'IA LBW' && idea?.author !== 'IA';
+          const confirmadasX = new Set(causasConfirmadasAgora.map((c: any) => String(c.x)));
 
-          if (faltantes.length === 0) {
+          // O que o aluno escreveu na mao nunca se perde. Ja a ideia que a IA
+          // gerou pra uma causa que ele DESCONFIRMOU depois sai da lista: ela
+          // so ficava invisivel atras do filtro de tela, e era isso que fazia a
+          // ferramenta mostrar "1" com 5 causas confirmadas.
+          const manuais = ideiasAtuais.filter(ehManual);
+          const daIaAindaValidas = ideiasAtuais.filter(
+            (idea: any) => !ehManual(idea) && confirmadasX.has(String(idea.category)),
+          );
+          const base = [...manuais, ...daIaAindaValidas];
+          const faltantes = causasSemIdeia(base, causasConfirmadasAgora);
+          const limpouOrfas = base.length !== ideiasAtuais.length;
+
+          if (faltantes.length === 0 && !limpouOrfas) {
             toast.info('Todas as causas confirmadas já têm pelo menos uma solução.');
             return;
           }
 
-          const geradas = await Promise.all(faltantes.map(async (cause: any) => {
+          const gerarUma = async (cause: any) => {
             const contextoIsolado = { ...targetContext, validatedCauses: [cause] };
             const resposta = await generateToolData(
               toolId,
@@ -1922,17 +1937,30 @@ export default function ToolWrapper({
               causeSourceId: cause.sourceId,
               category: cause.x,
             } : null;
-          }));
+          };
 
-          const novasIdeias = geradas.filter(Boolean);
-          const combinadas = [...ideiasAtuais, ...novasIdeias];
-          const aindaFaltantes = causasSemIdeia(combinadas, causasConfirmadasAgora);
+          // allSettled, nao all: uma causa que falha (rede, JSON torto, limite da
+          // API) nao pode derrubar as outras. Antes bastava UMA falhar pra tudo
+          // ser descartado e o aluno nao ver progresso nenhum.
+          const colher = (resultados: PromiseSettledResult<any>[]) =>
+            resultados
+              .map((r) => (r.status === 'fulfilled' ? r.value : null))
+              .filter(Boolean);
+
+          let novasIdeias = colher(await Promise.allSettled(faltantes.map(gerarUma)));
+          let aindaFaltantes = causasSemIdeia([...base, ...novasIdeias], causasConfirmadasAgora);
+
+          // Segunda tentativa so pro que faltou.
           if (aindaFaltantes.length > 0) {
-            throw new Error(`A IA não conseguiu gerar uma solução válida para: ${aindaFaltantes.map((c: any) => c.x).join(', ')}. Tente novamente.`);
+            const repescagem = colher(await Promise.allSettled(aindaFaltantes.map(gerarUma)));
+            novasIdeias = [...novasIdeias, ...repescagem];
+            aindaFaltantes = causasSemIdeia([...base, ...novasIdeias], causasConfirmadasAgora);
           }
 
-          // Preserva tudo que ja existia — inclusive ideia de causa que hoje
-          // nao esta mais confirmada — e so acrescenta a que faltava.
+          const combinadas = [...base, ...novasIdeias];
+
+          // Salva SEMPRE o que deu certo. Antes um throw aqui jogava fora ate as
+          // solucoes que a IA tinha acabado de gerar com sucesso.
           const normalizedFinal = {
             ...anterior,
             brainstormingTopic: targetContext.improvementGoal || anterior.brainstormingTopic || '',
@@ -1942,7 +1970,16 @@ export default function ToolWrapper({
           setLocalData(normalizedFinal);
           setClearKey(prev => prev + 1);
           onSave({ toolData: normalizedFinal, aiReport: aiReport, isGenerated: true });
-          toast.success(`${novasIdeias.length} ${novasIdeias.length === 1 ? 'solução nova gerada' : 'soluções novas geradas'}. As causas já cobertas não mudaram.`);
+
+          if (aindaFaltantes.length > 0) {
+            toast.error(
+              `Faltou solução para ${aindaFaltantes.length} causa(s): ${aindaFaltantes.map((c: any) => c.x).join(', ')}. O resto foi salvo — clique de novo para completar.`,
+            );
+          } else {
+            toast.success(
+              `${causasConfirmadasAgora.length} causa(s) confirmada(s), ${causasConfirmadasAgora.length} com solução.`,
+            );
+          }
           return;
         }
       }

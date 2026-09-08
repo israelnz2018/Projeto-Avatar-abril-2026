@@ -157,16 +157,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
     ? ideiasAlinhadas.filter((idea) => ideiaEhManual(idea) || causasConfirmadasX.has(idea.category))
     : ideiasAlinhadas;
 
-  // Cobertura, na cara do aluno. O filtro acima esconde ideia de causa que ele
-  // desmarcou na Validacao depois — e ai a tela mostrava "1" sem explicar por
-  // que, com 4 causas confirmadas ainda sem solucao nenhuma. Estes tres numeros
-  // sao a resposta pra "por que so veio 1?".
+  // Cobertura na cara do aluno: causa confirmada sem solucao tem que aparecer
+  // como numero, nao ficar escondida atras do filtro acima.
   const causasSemSolucao = isSolutionBrainstorming
     ? causasSemIdeia(ideiasAlinhadas, confirmedCauses)
     : [];
-  const ideiasOrfas = isSolutionBrainstorming
-    ? ideiasAlinhadas.length - ideasValidas.length
-    : 0;
 
   // O campo comeca em branco (regra geral: nada aparece sozinho). O clique em
   // "Gerar" e que traz o Y do Brief, se o aluno nao escreveu o proprio objetivo.
@@ -404,12 +399,6 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                     <span className={causasSemSolucao.length > 0 ? 'text-amber-700' : ''}>
                       {causasSemSolucao.length} sem solução
                     </span>
-                  </p>
-                )}
-                {ideiasOrfas > 0 && (
-                  <p className="mt-1 m-0 text-[11px] text-gray-500">
-                    {ideiasOrfas} solução(ões) antiga(s) estão ocultas porque a causa delas
-                    não está mais confirmada na Validação.
                   </p>
                 )}
               </div>
