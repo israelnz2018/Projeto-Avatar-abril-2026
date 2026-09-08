@@ -38,7 +38,11 @@ export const prioritizationItemsFromSource = (sourceData: any): any[] => {
       return true;
     })
     .map((item, index) => ({
+      // Sempre recalcula: duas ideias de brainstorms diferentes podem trazer
+      // o mesmo "id" pequeno (a IA numera "1", "2"... a cada geracao). O
+      // rastro ate a ideia/causa de origem fica em sourceIdeaId/sourceCauseId,
+      // que nao mudam aqui — este id e so a identidade da linha na tabela.
       ...item,
-      id: item.id || String(index + 1),
+      id: String(index + 1),
     }));
 };

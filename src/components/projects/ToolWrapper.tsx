@@ -956,11 +956,24 @@ export default function ToolWrapper({
     }
 
     if (toolId === 'gut' || toolId === 'rab') {
-      normalized.opportunities = (normalized.opportunities || []).map((opp: any, idx: number) => ({
-        id: opp.id || String(idx + 1),
-        description: opp.description || opp.title || '',
-        ...opp,
-      }));
+      // BUG: "id: opp.id || ..." vinha ANTES do "...opp", entao o spread
+      // sempre sobrescrevia com o id original — inclusive quando duas linhas
+      // migradas do Brainstorming traziam o mesmo id pequeno ("1", "1", por
+      // exemplo). Com o id duplicado, editar a nota de uma linha editava as
+      // duas ao mesmo tempo (setRows casa por "r.id === row.id"). Confirmado
+      // no Firestore real: Projeto Setmbro 2026 tinha as duas linhas com id
+      // "1". Agora o id calculado vem DEPOIS do spread, e nunca repete.
+      const idsUsados = new Set<string>();
+      normalized.opportunities = (normalized.opportunities || []).map((opp: any, idx: number) => {
+        let id = String(opp.id ?? '').trim() || String(idx + 1);
+        if (idsUsados.has(id)) id = `${id}-dup${idx}`;
+        idsUsados.add(id);
+        return {
+          description: opp.description || opp.title || '',
+          ...opp,
+          id,
+        };
+      });
       if (!Array.isArray(normalized.columns)) {
         normalized.columns = [];
       }
