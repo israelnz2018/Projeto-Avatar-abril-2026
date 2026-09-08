@@ -4,7 +4,7 @@ import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
 import { generateBrainstormingCausas } from '@/src/services/claudeAiService';
 import { getConfirmedCauseRows, projectY } from '@/src/services/causeValidationService';
-import { alinharIdeiasAsCausas } from '@/src/services/brainstormingSolutionCoverage';
+import { alinharIdeiasAsCausas, causasSemIdeia } from '@/src/services/brainstormingSolutionCoverage';
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — Escritório + Manufatura.
 // Cada exemplo traz ideias agrupadas pelas categorias 6M reais da ferramenta.
@@ -156,6 +156,17 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
   const ideasValidas = isSolutionBrainstorming
     ? ideiasAlinhadas.filter((idea) => ideiaEhManual(idea) || causasConfirmadasX.has(idea.category))
     : ideiasAlinhadas;
+
+  // Cobertura, na cara do aluno. O filtro acima esconde ideia de causa que ele
+  // desmarcou na Validacao depois — e ai a tela mostrava "1" sem explicar por
+  // que, com 4 causas confirmadas ainda sem solucao nenhuma. Estes tres numeros
+  // sao a resposta pra "por que so veio 1?".
+  const causasSemSolucao = isSolutionBrainstorming
+    ? causasSemIdeia(ideiasAlinhadas, confirmedCauses)
+    : [];
+  const ideiasOrfas = isSolutionBrainstorming
+    ? ideiasAlinhadas.length - ideasValidas.length
+    : 0;
 
   // O campo comeca em branco (regra geral: nada aparece sozinho). O clique em
   // "Gerar" e que traz o Y do Brief, se o aluno nao escreveu o proprio objetivo.
@@ -381,10 +392,27 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
               />
             </div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <p className="text-xs text-emerald-700 leading-relaxed m-0">
-                A IA combinará este objetivo com as causas e análises já registradas no projeto.
-                Revise as sugestões e acrescente novas ideias manualmente quando quiser.
-              </p>
+              <div className="flex-1">
+                <p className="text-xs text-emerald-700 leading-relaxed m-0">
+                  A IA gera uma solução para cada causa confirmada na Validação das Causas.
+                  Revise as sugestões e acrescente novas ideias manualmente quando quiser.
+                </p>
+                {confirmedCauses.length > 0 && (
+                  <p className="mt-2 m-0 text-xs font-semibold text-emerald-900">
+                    {confirmedCauses.length} causa(s) confirmada(s) ·{' '}
+                    {confirmedCauses.length - causasSemSolucao.length} com solução ·{' '}
+                    <span className={causasSemSolucao.length > 0 ? 'text-amber-700' : ''}>
+                      {causasSemSolucao.length} sem solução
+                    </span>
+                  </p>
+                )}
+                {ideiasOrfas > 0 && (
+                  <p className="mt-1 m-0 text-[11px] text-gray-500">
+                    {ideiasOrfas} solução(ões) antiga(s) estão ocultas porque a causa delas
+                    não está mais confirmada na Validação.
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleGenerateSolutions}
@@ -397,7 +425,11 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                 )}
               >
                 {isGeneratingAI ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
-                {isGeneratingAI ? 'Gerando soluções...' : ideasValidas.length ? 'Gerar novas soluções' : 'Gerar ideias com IA'}
+                {isGeneratingAI
+                  ? 'Gerando soluções...'
+                  : causasSemSolucao.length > 0
+                    ? `Gerar solução para ${causasSemSolucao.length} causa(s)`
+                    : ideasValidas.length ? 'Gerar novas soluções' : 'Gerar ideias com IA'}
               </button>
             </div>
             {needsCauseValidation && confirmedCauses.length === 0 && (
