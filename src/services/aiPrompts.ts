@@ -811,7 +811,21 @@ Seja conciso, direto, sem floreio.
 
 ATENCAO - PLANO DE ACAO 5W2H:
 
-CONTEXTO RECEBIDO:
+CONTEXTO RECEBIDO — dois formatos possiveis, dependendo da ligacao que o
+consultor declarou pra esta ferramenta no projeto:
+
+FORMATO A (ligado ao RAB ou ao Brainstorming de Solucoes):
+- brief: contexto do projeto (problema, indicador Y, meta)
+- rab: { opportunities: [...] } — SOMENTE as linhas que o aluno marcou no
+  checkbox "Plano de Acao" da Matriz RAB. Gere EXATAMENTE uma acao pra cada
+  item de rab.opportunities — nenhum a mais, nenhum a menos.
+- brainstormingImprove: { ideas: [...] } — SOMENTE as ideias que o aluno
+  marcou no checkbox "Plano de Acao" do Brainstorming de Solucoes. Gere
+  EXATAMENTE uma acao pra cada ideia de brainstormingImprove.ideas.
+Quando rab ou brainstormingImprove estiver presente, IGNORE fmea, effortImpact,
+fiveWhys e improveAdkar mesmo que aparecam — a origem aprovada e so essa.
+
+FORMATO B (projeto sem ligacao declarada pro RAB ou Brainstorming de Solucoes):
 - brief: contexto do projeto (problema, indicador Y, meta)
 - fmea: analise de falhas com acoes recomendadas
 - effortImpact: matriz de priorizacao de acoes (esforco x beneficio)
@@ -824,12 +838,17 @@ SE uma ferramenta vier vazia ou inexistente no contexto, IGNORE essa ferramenta 
 NUNCA crie acoes baseadas em causas/falhas/ideias que nao estejam explicitamente nos dados.
 Se TODAS as ferramentas estiverem vazias, retorne lista vazia: actions: [].
 
-PRIORIZACAO DAS ACOES (apenas das ferramentas com dados):
-1. PRIMEIRO: Acoes do FMEA marcadas como "Acao Obrigatoria" (RPN alto)
-2. SEGUNDO: Acoes do effortImpact no quadrante "Quick Wins" (alto beneficio + baixo esforco)
-3. TERCEIRO: Acoes do improveAdkar (gestao de mudanca dos stakeholders na fase Melhorar)
-4. QUARTO: Acoes para tratar causas raiz dos fiveWhys
-5. QUINTO: Acoes do effortImpact no quadrante "Estrategico" (alto beneficio + alto esforco)
+PRIORIZACAO DAS ACOES:
+- Se vier rab ou brainstormingImprove (FORMATO A): cobertura total e obrigatoria,
+  na ordem em que os itens aparecem. Nao ha priorizacao a fazer — o aluno ja
+  priorizou ao marcar o checkbox.
+- Sem rab nem brainstormingImprove (FORMATO B), priorize apenas as ferramentas
+  com dados, nesta ordem:
+  1. PRIMEIRO: Acoes do FMEA marcadas como "Acao Obrigatoria" (RPN alto)
+  2. SEGUNDO: Acoes do effortImpact no quadrante "Quick Wins" (alto beneficio + baixo esforco)
+  3. TERCEIRO: Acoes do improveAdkar (gestao de mudanca dos stakeholders na fase Melhorar)
+  4. QUARTO: Acoes para tratar causas raiz dos fiveWhys
+  5. QUINTO: Acoes do effortImpact no quadrante "Estrategico" (alto beneficio + alto esforco)
 
 REGRAS DE PREENCHIMENTO:
 - variable: identificar a origem (ex: "FMEA F-01", "EI X3", "ADKAR Melhorar - Joao", "5 Porques - Causa raiz")

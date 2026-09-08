@@ -83,6 +83,7 @@ interface Idea {
   votes: number;
   topic?: string;
   causeSourceId?: string;
+  includeInActionPlan?: boolean;
 }
 
 const CATEGORIES = ['Mão de Obra', 'Método', 'Material', 'Máquina', 'Meio Ambiente', 'Medição', 'Não colocar na espinha de peixe'];
@@ -233,6 +234,13 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
 
   const updateIdeaCategory = (id: string, category: string) => {
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, category } : i));
+  };
+
+  // Marca a solucao pra ir ao Plano de Acao 5W2H. Sem isso o Plano puxaria
+  // TODAS as solucoes geradas — o aluno precisa aprovar uma a uma, igual
+  // ja acontece na Validacao das Causas pro Brainstorming.
+  const toggleIncludeInActionPlan = (id: string, includeInActionPlan: boolean) => {
+    setIdeas(prev => prev.map(i => i.id === id ? { ...i, includeInActionPlan } : i));
   };
 
   const startEditing = (idea: Idea) => {
@@ -492,6 +500,9 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                   )}
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[58%]">Ideia</th>
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[20%]">Autor</th>
+                  {isSolutionBrainstorming && (
+                    <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[12%] text-center">Plano de Ação</th>
+                  )}
                   <th className="p-4 text-[11px] font-black text-gray-400 uppercase tracking-widest w-[10%] text-center">Ações</th>
                 </tr>
               </thead>
@@ -535,6 +546,17 @@ export default function Brainstorming({ toolId, onSave, initialData, onGenerateA
                         idea.author === 'IA LBW' || idea.author === 'IA' ? '' : idea.author
                       )}
                     </td>
+                    {isSolutionBrainstorming && (
+                      <td className="p-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={idea.includeInActionPlan === true}
+                          onChange={(e) => toggleIncludeInActionPlan(idea.id, e.target.checked)}
+                          title="Marcar para ir ao Plano de Ação 5W2H"
+                          className="h-4 w-4 accent-emerald-600 cursor-pointer"
+                        />
+                      </td>
+                    )}
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center gap-3">
                         {editingId === idea.id ? (

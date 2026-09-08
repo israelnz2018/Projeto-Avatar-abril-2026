@@ -256,6 +256,11 @@ export default function RABTool({ onSave, initialData, onGenerateAI, isGeneratin
                   />
                 </th>
               ))}
+              <th className="px-3 py-3 w-24 text-center bg-gray-50 border-b-2 border-gray-200">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider leading-tight">
+                  Plano de Ação
+                </span>
+              </th>
               <th className="px-3 py-3 w-12 text-center bg-gray-50 border-b-2 border-gray-200"></th>
             </tr>
           </thead>
@@ -345,6 +350,18 @@ export default function RABTool({ onSave, initialData, onGenerateAI, isGeneratin
                       )}
                     </td>
                   ))}
+                  <td className="px-3 py-2 border border-slate-200 bg-white align-middle text-center">
+                    <input
+                      type="checkbox"
+                      checked={row.selected === true}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setRows(prev => prev.map(r => r.id === row.id ? { ...r, selected: checked } : r));
+                      }}
+                      title="Marcar para ir ao Plano de Ação 5W2H"
+                      className="h-4 w-4 accent-blue-600 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2 border border-slate-200 bg-white align-middle text-center">
                     <button
                       onClick={() => setRows(prev => prev.filter(r => r.id !== row.id))}

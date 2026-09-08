@@ -1971,13 +1971,38 @@ export default function ToolWrapper({
       }
 
       if (toolId === 'plan5w2h' && allProjectData) {
-        targetContext = {
-          brief: getToolDataByPrefix(allProjectData, 'brief'),
-          fmea: getToolDataByPrefix(allProjectData, 'fmea'),
-          effortImpact: getToolDataByPrefix(allProjectData, 'effortImpact'),
-          fiveWhys: getToolDataByPrefix(allProjectData, 'fiveWhys'),
-          improveAdkar: getToolDataByPrefix(allProjectData, 'improveAdkar'),
-        };
+        // O Plano de Acao 5W2H so pode refletir a ferramenta IMEDIATAMENTE
+        // ligada a ele (RAB ou Brainstorming de Solucoes) — e so as linhas que
+        // o aluno marcou pra ir pro plano. Sem isso, todo Quick Win do RAB ou
+        // toda ideia do Brainstorming virava acao, aprovada ou nao.
+        const origemId = toolLink?.from?.[0];
+        const brief = getToolDataByPrefix(allProjectData, 'brief');
+
+        if (origemId === 'rab') {
+          const rabBruto = getToolDataByPrefix(allProjectData, 'rab');
+          const oportunidades = (rabBruto?.toolData || rabBruto || {})?.opportunities || [];
+          targetContext = {
+            brief,
+            rab: { opportunities: oportunidades.filter((o: any) => o?.selected === true) },
+          };
+        } else if (origemId === 'brainstormingImprove') {
+          const bsBruto = getToolDataByPrefix(allProjectData, 'brainstormingImprove');
+          const ideias = (bsBruto?.toolData || bsBruto || {})?.ideas || [];
+          targetContext = {
+            brief,
+            brainstormingImprove: { ideas: ideias.filter((i: any) => i?.includeInActionPlan === true) },
+          };
+        } else {
+          // Projeto que ainda nao ligou o 5W2H a uma dessas duas origens no
+          // painel do consultor: mantem o comportamento anterior.
+          targetContext = {
+            brief,
+            fmea: getToolDataByPrefix(allProjectData, 'fmea'),
+            effortImpact: getToolDataByPrefix(allProjectData, 'effortImpact'),
+            fiveWhys: getToolDataByPrefix(allProjectData, 'fiveWhys'),
+            improveAdkar: getToolDataByPrefix(allProjectData, 'improveAdkar'),
+          };
+        }
       }
 
       if (toolId === 'fiveWhys' && allProjectData) {
@@ -2005,7 +2030,13 @@ export default function ToolWrapper({
         { name: projectName, description: project.description },
         // Para soluções, enviamos somente as evidências selecionadas acima. Isso
         // reduz ruído e impede que informações sem relação contaminem as ideias.
-        (toolId === 'brainstormingImprove' || toolId === 'causeValidation') ? targetContext : allProjectData
+        // O 5W2H entra aqui só quando a origem é RAB ou Brainstorming de
+        // Soluções: nesse caso targetContext já veio filtrado só com o que foi
+        // marcado, e mandar allProjectData inteiro deixaria a IA ver de novo
+        // a linha não aprovada através do dump geral do projeto.
+        (toolId === 'brainstormingImprove' || toolId === 'causeValidation'
+          || (toolId === 'plan5w2h' && (toolLink?.from?.[0] === 'rab' || toolLink?.from?.[0] === 'brainstormingImprove')))
+          ? targetContext : allProjectData
       );
       let normalized = normalizeInitialData(toolId, generatedData);
 
