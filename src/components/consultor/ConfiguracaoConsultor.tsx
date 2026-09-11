@@ -4,7 +4,7 @@
  */
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp, Megaphone } from 'lucide-react';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
 const SuperRelatorio = lazy(() => import('./SuperRelatorio'));
@@ -17,6 +17,7 @@ const MinhaMarca = lazy(() => import('./MinhaMarca'));
 const ProvaCertificacao = lazy(() => import('../AvaliacaoAdminView'));
 const Certificados = lazy(() => import('../CertificadosView'));
 const MateriaisApoio = lazy(() => import('./MateriaisApoio'));
+const MarketingConsultor = lazy(() => import('./MarketingConsultor'));
 
 const ABAS = [
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
@@ -28,6 +29,8 @@ const ABAS = [
   // Minha Vitrine e Vitrine escondidas por ora (discutir depois).
   { id: 'marca', nome: 'Minha Marca', icon: Palette, Comp: MinhaMarca },
   { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
+  // Fase 1: admin-only (o próprio componente faz a checagem). Ver MARKETING-PARA-NOVOS-CONSULTORES.md
+  { id: 'marketing', nome: 'Marketing para Consultores', icon: Megaphone, Comp: MarketingConsultor },
 ];
 
 export default function ConfiguracaoConsultor() {

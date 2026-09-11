@@ -246,6 +246,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
         { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
+        { name: 'Marketing para Consultores', path: '/configuracao?aba=marketing', icon: Megaphone },
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
       ],
     }] : []),
