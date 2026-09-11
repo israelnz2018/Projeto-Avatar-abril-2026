@@ -18,12 +18,15 @@ import React, { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Settings2, Share2, Video, Sparkles, ClipboardCheck, CalendarClock,
-  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, Lock,
+  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle,
 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { COLECOES, MarketingConfig, TermoTecnico } from '../../types/marketing';
+import {
+  EtapaRedes, EtapaVideos, EtapaCampanhas, EtapaRevisao, EtapaAgenda, useDadosMarketing,
+} from './marketing/EtapasPreenchidas';
 
 type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'revisao' | 'agenda';
 
@@ -69,6 +72,7 @@ export default function MarketingConsultor() {
   const { isAdmin, loading } = useUserAccess();
   const [etapaAtiva, setEtapaAtiva] = useState<EtapaId>('config');
   const [configCompleta, setConfigCompleta] = useState(false);
+  const dados = useDadosMarketing(consultorId);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
 
@@ -137,7 +141,6 @@ export default function MarketingConsultor() {
                 {estado === 'concluida' ? <CheckCircle2 className="w-3.5 h-3.5" /> : e.numero}
               </span>
               {e.nome}
-              {!e.pronta && <Lock className="w-3 h-3 text-gray-400" />}
             </button>
           );
         })}
@@ -159,7 +162,20 @@ export default function MarketingConsultor() {
           onCompletaChange={setConfigCompleta}
         />
       )}
-      {etapaAtiva !== 'config' && <EtapaEmBreve etapa={etapa} />}
+      {etapaAtiva !== 'config' && (
+        dados.carregando
+          ? <div className="text-gray-500">Carregando…</div>
+          : <>
+              {etapaAtiva === 'redes' && <EtapaRedes config={dados.config} />}
+              {etapaAtiva === 'videos' && <EtapaVideos videos={dados.videos} />}
+              {etapaAtiva === 'campanhas' && <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />}
+              {etapaAtiva === 'revisao' && <EtapaRevisao campanhas={dados.campanhas} pecas={dados.pecas} />}
+              {etapaAtiva === 'agenda' && <EtapaAgenda campanhas={dados.campanhas} pecas={dados.pecas} />}
+              <p className="text-xs text-gray-500 mt-5 pt-3 border-t border-gray-100">
+                Esta etapa ainda é somente leitura. Os botões de ação entram na próxima entrega.
+              </p>
+            </>
+      )}
     </div>
   );
 }

@@ -1,0 +1,367 @@
+/**
+ * Telas das etapas 2 a 6 do Marketing para Consultores.
+ *
+ * Nesta entrega são telas de LEITURA: mostram o estado real vindo do Firestore para
+ * o consultor ver onde está. As ações (conectar, enviar, gerar, aprovar, agendar)
+ * entram nas próximas entregas da fase 1.
+ */
+import React, { useEffect, useState } from 'react';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import {
+  Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
+  FileText, Image as ImageIcon, Film, Layers, MessageSquareWarning, Send,
+} from 'lucide-react';
+import { db } from '../../../lib/firebase';
+import {
+  COLECOES, Campanha, ConexaoRede, MarketingConfig, Peca, StatusPeca, TipoPeca, VideoFonte, OBJETIVOS,
+} from '../../../types/marketing';
+
+/* ====================== Etapa 2 — Redes sociais ====================== */
+
+export function EtapaRedes({ config }: { config: MarketingConfig | null }) {
+  return (
+    <div className="space-y-4">
+      <CartaoRede
+        nome="Instagram"
+        icone={<Instagram className="w-5 h-5" />}
+        cor="text-pink-600"
+        conexao={config?.instagram}
+        exigencia="A conta precisa ser profissional (Business ou Creator). Conta pessoal não publica por API."
+      />
+      <CartaoRede
+        nome="LinkedIn"
+        icone={<Linkedin className="w-5 h-5" />}
+        cor="text-blue-700"
+        conexao={config?.linkedin}
+        exigencia="Publica no seu perfil pessoal. Página de empresa exige permissão adicional."
+      />
+      <p className="text-xs text-gray-500">
+        A autorização acontece no site da própria rede. Nenhuma senha ou chave é digitada aqui,
+        e o token fica guardado no servidor — nunca no navegador.
+      </p>
+    </div>
+  );
+}
+
+function CartaoRede({
+  nome, icone, cor, conexao, exigencia,
+}: {
+  nome: string; icone: React.ReactNode; cor: string; conexao?: ConexaoRede; exigencia: string;
+}) {
+  const conectado = Boolean(conexao?.conectado);
+  const diasRestantes = conexao?.expiraEm
+    ? Math.ceil((new Date(conexao.expiraEm).getTime() - Date.now()) / 86400000)
+    : null;
+  const vencendo = diasRestantes !== null && diasRestantes <= 14;
+
+  return (
+    <div className="p-4 rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className={cor}>{icone}</span>
+          <div>
+            <p className="font-bold text-gray-900">{nome}</p>
+            {conectado ? (
+              <>
+                <p className="text-sm text-gray-700">{conexao?.conta}</p>
+                {conexao?.tipoConta && <p className="text-xs text-gray-500">{conexao.tipoConta}</p>}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">Ainda não conectado.</p>
+            )}
+          </div>
+        </div>
+        {conectado ? (
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 shrink-0">
+            <CheckCircle2 className="w-4 h-4" /> Conectado
+          </span>
+        ) : (
+          <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold shrink-0 opacity-50 cursor-not-allowed">
+            Conectar
+          </button>
+        )}
+      </div>
+
+      {conectado && diasRestantes !== null && (
+        <p className={`text-xs mt-3 flex items-center gap-1.5 ${vencendo ? 'text-amber-700' : 'text-gray-500'}`}>
+          <Clock className="w-3.5 h-3.5" />
+          A autorização vence em {diasRestantes} dias
+          {vencendo && ' — será preciso reconectar.'}
+        </p>
+      )}
+      <p className="text-xs text-gray-500 mt-2">{exigencia}</p>
+    </div>
+  );
+}
+
+/* ====================== Etapa 3 — Meus vídeos ====================== */
+
+export function EtapaVideos({ videos }: { videos: VideoFonte[] }) {
+  if (!videos.length) return <Vazio texto="Nenhum vídeo enviado ainda." />;
+  return (
+    <div className="space-y-3">
+      {videos.map((v) => (
+        <div key={v.id} className="p-4 rounded-lg border border-gray-200 bg-white flex items-start gap-3">
+          <Video className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900">{v.titulo}</p>
+            <p className="text-sm text-gray-600">
+              {[v.curso, v.serie].filter(Boolean).join(' · ')}
+              {v.duracaoSegundos ? ` · ${formatarDuracao(v.duracaoSegundos)}` : ''}
+            </p>
+            {v.sourceUrl && <p className="text-xs text-gray-500 mt-1 truncate">{v.sourceUrl}</p>}
+          </div>
+          <span className={`text-xs font-semibold px-2 py-1 rounded shrink-0 ${
+            v.temTranscricao ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+          }`}>
+            {v.temTranscricao ? 'Com transcrição' : 'Sem transcrição'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ====================== Etapa 4 — Campanhas ====================== */
+
+export function EtapaCampanhas({ campanhas, pecas }: { campanhas: Campanha[]; pecas: Peca[] }) {
+  if (!campanhas.length) return <Vazio texto="Nenhuma campanha criada ainda." />;
+  return (
+    <div className="space-y-3">
+      {campanhas.map((c) => {
+        const doCampanha = pecas.filter((p) => p.campanhaId === c.id);
+        const objetivo = OBJETIVOS.find((o) => o.id === c.objetivo);
+        return (
+          <div key={c.id} className="p-4 rounded-lg border border-gray-200 bg-white">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-bold text-gray-900">{c.titulo}</p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {objetivo?.nome}
+                  {c.corteInicio && ` · trecho ${c.corteInicio} a ${c.corteFim}`}
+                </p>
+              </div>
+              <EtiquetaStatus status={c.status} />
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {doCampanha.map((p) => (
+                <span key={p.id} className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded bg-gray-100 text-gray-700">
+                  {iconePeca(p.tipo)} {nomePeca(p.tipo)}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ====================== Etapa 5 — Revisão ====================== */
+
+export function EtapaRevisao({ campanhas, pecas }: { campanhas: Campanha[]; pecas: Peca[] }) {
+  const aRevisar = pecas.filter((p) => p.status === 'revisar');
+  const outras = pecas.filter((p) => p.status !== 'revisar');
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">
+          Aguardando a sua revisão ({aRevisar.length})
+        </h3>
+        {aRevisar.length === 0
+          ? <Vazio texto="Nada pendente. Tudo revisado." />
+          : <div className="space-y-3">{aRevisar.map((p) => <CartaoPeca key={p.id} peca={p} campanhas={campanhas} />)}</div>}
+      </section>
+
+      {outras.length > 0 && (
+        <section>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">Já resolvidas ({outras.length})</h3>
+          <div className="space-y-3">{outras.map((p) => <CartaoPeca key={p.id} peca={p} campanhas={campanhas} />)}</div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function CartaoPeca({ peca, campanhas }: { peca: Peca; campanhas: Campanha[] }) {
+  const campanha = campanhas.find((c) => c.id === peca.campanhaId);
+  const pendente = peca.status === 'revisar';
+
+  return (
+    <div className={`p-4 rounded-lg border bg-white ${pendente ? 'border-blue-300' : 'border-gray-200'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 font-bold text-gray-900">
+            {iconePeca(peca.tipo)} {nomePeca(peca.tipo)}
+            {peca.versao > 1 && (
+              <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                versão {peca.versao}
+              </span>
+            )}
+          </p>
+          {campanha && <p className="text-xs text-gray-500 mt-0.5">{campanha.titulo}</p>}
+          {peca.legenda && <p className="text-sm text-gray-700 mt-2">{peca.legenda}</p>}
+        </div>
+        <EtiquetaStatus status={peca.status} />
+      </div>
+
+      {peca.pedidoMelhoria && (
+        <div className="mt-3 p-2.5 rounded bg-amber-50 border border-amber-200 flex items-start gap-2">
+          <MessageSquareWarning className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-amber-900">Melhoria pedida na versão anterior</p>
+            <p className="text-sm text-amber-800">{peca.pedidoMelhoria}</p>
+          </div>
+        </div>
+      )}
+
+      {pendente && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+          <button className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-semibold opacity-50 cursor-not-allowed">
+            Aprovar
+          </button>
+          <button className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold opacity-50 cursor-not-allowed">
+            Solicitar melhoria
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ====================== Etapa 6 — Publicação ====================== */
+
+export function EtapaAgenda({ pecas, campanhas }: { pecas: Peca[]; campanhas: Campanha[] }) {
+  const publicadas = pecas.filter((p) => p.status === 'publicado');
+  const prontas = pecas.filter((p) => p.status === 'aprovado');
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">Prontas para agendar ({prontas.length})</h3>
+        {prontas.length === 0
+          ? <Vazio texto="Nenhuma peça aprovada aguardando agendamento." />
+          : (
+            <div className="space-y-2">
+              {prontas.map((p) => {
+                const c = campanhas.find((x) => x.id === p.campanhaId);
+                return (
+                  <div key={p.id} className="p-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+                      {iconePeca(p.tipo)} {nomePeca(p.tipo)}
+                      {c && <span className="font-normal text-gray-500">— {c.titulo}</span>}
+                    </span>
+                    <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold shrink-0 opacity-50 cursor-not-allowed">
+                      Agendar
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+      </section>
+
+      <section>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">Já publicadas ({publicadas.length})</h3>
+        {publicadas.length === 0
+          ? <Vazio texto="Nada publicado ainda." />
+          : (
+            <div className="space-y-2">
+              {publicadas.map((p) => {
+                const c = campanhas.find((x) => x.id === p.campanhaId);
+                return (
+                  <div key={p.id} className="p-3 rounded-lg border border-green-200 bg-green-50 flex items-center gap-2">
+                    <Send className="w-4 h-4 text-green-700 shrink-0" />
+                    <span className="text-sm text-green-900">
+                      <strong>{nomePeca(p.tipo)}</strong>{c && ` — ${c.titulo}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+      </section>
+    </div>
+  );
+}
+
+/* ====================== Auxiliares ====================== */
+
+export function useDadosMarketing(consultorId: string) {
+  const [config, setConfig] = useState<MarketingConfig | null>(null);
+  const [videos, setVideos] = useState<VideoFonte[]>([]);
+  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  const [pecas, setPecas] = useState<Peca[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    if (!consultorId) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const porConsultor = (col: string) =>
+          getDocs(query(collection(db, col), where('consultorId', '==', consultorId)));
+        const [cfg, vs, cs, ps] = await Promise.all([
+          getDoc(doc(db, COLECOES.config, consultorId)),
+          porConsultor(COLECOES.videos),
+          porConsultor(COLECOES.campanhas),
+          porConsultor(COLECOES.pecas),
+        ]);
+        if (!vivo) return;
+        setConfig(cfg.exists() ? (cfg.data() as MarketingConfig) : null);
+        setVideos(vs.docs.map((d) => d.data() as VideoFonte));
+        setCampanhas(cs.docs.map((d) => d.data() as Campanha));
+        setPecas(ps.docs.map((d) => d.data() as Peca));
+      } finally {
+        if (vivo) setCarregando(false);
+      }
+    })();
+    return () => { vivo = false; };
+  }, [consultorId]);
+
+  return { config, setConfig, videos, campanhas, pecas, carregando };
+}
+
+const ROTULOS: Record<string, { texto: string; classe: string }> = {
+  'na-fila': { texto: 'Na fila', classe: 'bg-gray-100 text-gray-700' },
+  gerando: { texto: 'Gerando', classe: 'bg-blue-100 text-blue-800' },
+  revisar: { texto: 'Revisar', classe: 'bg-amber-100 text-amber-800' },
+  aprovado: { texto: 'Aprovado', classe: 'bg-green-100 text-green-800' },
+  publicado: { texto: 'Publicado', classe: 'bg-green-600 text-white' },
+  erro: { texto: 'Erro', classe: 'bg-red-100 text-red-800' },
+  rascunho: { texto: 'Rascunho', classe: 'bg-gray-100 text-gray-700' },
+  processando: { texto: 'Processando', classe: 'bg-blue-100 text-blue-800' },
+  aprovada: { texto: 'Aprovada', classe: 'bg-green-100 text-green-800' },
+  publicada: { texto: 'Publicada', classe: 'bg-green-600 text-white' },
+};
+
+function EtiquetaStatus({ status }: { status: StatusPeca | Campanha['status'] }) {
+  const r = ROTULOS[status] || { texto: status, classe: 'bg-gray-100 text-gray-700' };
+  return <span className={`text-xs font-bold px-2 py-1 rounded shrink-0 ${r.classe}`}>{r.texto}</span>;
+}
+
+function iconePeca(tipo: TipoPeca) {
+  const cls = 'w-3.5 h-3.5 inline';
+  if (tipo === 'reel') return <Film className={cls} />;
+  if (tipo === 'carrossel-feed') return <Layers className={cls} />;
+  if (tipo === 'carrossel-video') return <Film className={cls} />;
+  return <FileText className={cls} />;
+}
+
+function nomePeca(tipo: TipoPeca) {
+  if (tipo === 'reel') return 'Reel';
+  if (tipo === 'carrossel-feed') return 'Carrossel de feed';
+  if (tipo === 'carrossel-video') return 'Carrossel em vídeo';
+  return 'Documento PDF';
+}
+
+function formatarDuracao(s: number) {
+  const min = Math.floor(s / 60);
+  const seg = s % 60;
+  return `${min}min ${String(seg).padStart(2, '0')}s`;
+}
+
+function Vazio({ texto }: { texto: string }) {
+  return <p className="text-sm text-gray-500 italic p-4 rounded-lg bg-gray-50 border border-dashed border-gray-300">{texto}</p>;
+}

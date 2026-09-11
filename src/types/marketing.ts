@@ -62,9 +62,28 @@ export interface TermoTecnico {
   correto: string;
 }
 
+/**
+ * Conexão com uma rede social.
+ * O token NUNCA vem para o frontend — aqui fica só o estado, para a tela saber
+ * se está conectado e quando vence. O token vive no servidor.
+ */
+export interface ConexaoRede {
+  conectado: boolean;
+  /** @ do Instagram ou nome do perfil no LinkedIn. */
+  conta?: string;
+  /** Instagram exige conta profissional (Business ou Creator). */
+  tipoConta?: string;
+  /** Quando a autorização expira. Instagram e LinkedIn vencem em ~60 dias. */
+  expiraEm?: string;
+  conectadoEm?: string;
+}
+
 /** Configuração de marketing do consultor. Documento: marketing_config/{consultorId} */
 export interface MarketingConfig {
   consultorId: string;
+  /** Etapa 2 — estado das conexões. */
+  instagram?: ConexaoRede;
+  linkedin?: ConexaoRede;
   /** Quem é o público. Usado para calibrar linguagem. */
   publico?: string;
   /** Área de atuação. Ex.: "melhoria de processos", "cardiologia". */
