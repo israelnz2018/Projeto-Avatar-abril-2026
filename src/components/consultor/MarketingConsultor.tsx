@@ -4,6 +4,9 @@
  * Transforma uma aula longa em Reel, carrossel de feed, carrossel em vídeo e PDF de
  * LinkedIn, com a marca do próprio consultor, revisão peça a peça e publicação agendada.
  *
+ * A navegação é uma SEQUÊNCIA NUMERADA, não um menu solto: o consultor novo abre a aba e
+ * vê exatamente o que precisa fazer, na ordem, e em qual etapa ele está.
+ *
  * FASE 1: admin-only, usuário único (Israel). Os dados já nascem multi-tenant
  * (tudo por consultorId) para não precisar refazer a estrutura na fase 2.
  *
@@ -13,24 +16,59 @@
  */
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Settings2, Video, Layers, Plus, Trash2, Save, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import {
+  Settings2, Share2, Video, Sparkles, ClipboardCheck, CalendarClock,
+  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, Lock,
+} from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { COLECOES, MarketingConfig, TermoTecnico } from '../../types/marketing';
 
-type SubAba = 'config' | 'videos' | 'campanhas';
+type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'revisao' | 'agenda';
 
-const SUB_ABAS: { id: SubAba; nome: string; icon: typeof Settings2 }[] = [
-  { id: 'config', nome: 'Configuração', icon: Settings2 },
-  { id: 'videos', nome: 'Meus vídeos', icon: Video },
-  { id: 'campanhas', nome: 'Campanhas', icon: Layers },
+interface Etapa {
+  id: EtapaId;
+  numero: number;
+  nome: string;
+  /** O que o consultor faz aqui, em uma frase. */
+  oQueFaz: string;
+  icon: typeof Settings2;
+  pronta: boolean;
+}
+
+const ETAPAS: Etapa[] = [
+  {
+    id: 'config', numero: 1, nome: 'Configuração', icon: Settings2, pronta: true,
+    oQueFaz: 'Diga quem é o seu público, sua área e os termos técnicos que não podem sair errados.',
+  },
+  {
+    id: 'redes', numero: 2, nome: 'Redes sociais', icon: Share2, pronta: false,
+    oQueFaz: 'Conecte o Instagram e o LinkedIn. Você autoriza no site da própria rede — nenhuma senha é digitada aqui.',
+  },
+  {
+    id: 'videos', numero: 3, nome: 'Meus vídeos', icon: Video, pronta: false,
+    oQueFaz: 'Envie as suas aulas longas. É delas que sai todo o conteúdo.',
+  },
+  {
+    id: 'campanhas', numero: 4, nome: 'Criar campanha', icon: Sparkles, pronta: false,
+    oQueFaz: 'Escolha um vídeo e um objetivo. O sistema gera o Reel, os carrosséis e o PDF.',
+  },
+  {
+    id: 'revisao', numero: 5, nome: 'Revisão', icon: ClipboardCheck, pronta: false,
+    oQueFaz: 'Veja cada peça, aprove ou peça uma melhoria escrevendo o que quer mudar.',
+  },
+  {
+    id: 'agenda', numero: 6, nome: 'Publicação', icon: CalendarClock, pronta: false,
+    oQueFaz: 'Defina quando cada peça vai ao ar. A publicação acontece sozinha.',
+  },
 ];
 
 export default function MarketingConsultor() {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, loading } = useUserAccess();
-  const [aba, setAba] = useState<SubAba>('config');
+  const [etapaAtiva, setEtapaAtiva] = useState<EtapaId>('config');
+  const [configCompleta, setConfigCompleta] = useState(false);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
 
@@ -51,42 +89,92 @@ export default function MarketingConsultor() {
     );
   }
 
+  const etapa = ETAPAS.find((e) => e.id === etapaAtiva)!;
+  // Primeira etapa ainda não concluída — é onde o consultor deve estar.
+  const proximaPendente = configCompleta ? ETAPAS.find((e) => !e.pronta) : ETAPAS[0];
+
+  function estadoDaEtapa(e: Etapa): 'concluida' | 'atual' | 'pendente' {
+    if (e.id === 'config') return configCompleta ? 'concluida' : 'atual';
+    if (proximaPendente?.id === e.id) return 'atual';
+    return 'pendente';
+  }
+
   return (
     <div className="p-6 max-w-5xl">
-      <header className="mb-6">
+      <header className="mb-5">
         <h1 className="text-2xl font-bold text-gray-900">Marketing para Consultores</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Transforme uma aula longa em Reel, carrossel e documento de LinkedIn, com a sua marca.
+          Siga as etapas na ordem. Ao final, uma aula longa vira Reel, carrossel e documento de
+          LinkedIn, com a sua marca.
         </p>
       </header>
 
-      <nav className="flex gap-1 border-b border-gray-200 mb-6">
-        {SUB_ABAS.map(({ id, nome, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setAba(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              aba === id
-                ? 'border-blue-600 text-blue-700'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {nome}
-          </button>
-        ))}
+      {/* Trilha numerada */}
+      <nav className="flex flex-wrap gap-1.5 mb-5">
+        {ETAPAS.map((e) => {
+          const estado = estadoDaEtapa(e);
+          const ativa = e.id === etapaAtiva;
+          return (
+            <button
+              key={e.id}
+              onClick={() => setEtapaAtiva(e.id)}
+              title={e.oQueFaz}
+              className={`flex items-center gap-2 pl-2 pr-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+                ativa
+                  ? 'border-blue-600 bg-blue-50 text-blue-800'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900'
+              }`}
+            >
+              <span
+                className={`w-6 h-6 shrink-0 rounded-full grid place-items-center text-xs font-bold ${
+                  estado === 'concluida'
+                    ? 'bg-green-600 text-white'
+                    : estado === 'atual'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                }`}
+              >
+                {estado === 'concluida' ? <CheckCircle2 className="w-3.5 h-3.5" /> : e.numero}
+              </span>
+              {e.nome}
+              {!e.pronta && <Lock className="w-3 h-3 text-gray-400" />}
+            </button>
+          );
+        })}
       </nav>
 
-      {aba === 'config' && <AbaConfiguracao consultorId={consultorId} marcaNome={consultor?.branding?.nome} />}
-      {aba === 'videos' && <AbaEmBreve titulo="Meus vídeos" descricao="Envio de aulas longas e ligação com a biblioteca Bunny do consultor." />}
-      {aba === 'campanhas' && <AbaEmBreve titulo="Campanhas" descricao="Geração das peças, revisão e pedido de melhoria." />}
+      {/* O que se faz nesta etapa */}
+      <div className="flex items-start gap-2.5 mb-6 p-3 rounded-lg bg-gray-50 border border-gray-200">
+        <Circle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5 fill-blue-600" />
+        <p className="text-sm text-gray-700">
+          <strong className="text-gray-900">Etapa {etapa.numero} — {etapa.nome}.</strong>{' '}
+          {etapa.oQueFaz}
+        </p>
+      </div>
+
+      {etapaAtiva === 'config' && (
+        <EtapaConfiguracao
+          consultorId={consultorId}
+          marcaNome={consultor?.branding?.nome}
+          onCompletaChange={setConfigCompleta}
+        />
+      )}
+      {etapaAtiva !== 'config' && <EtapaEmBreve etapa={etapa} />}
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
 
-function AbaConfiguracao({ consultorId, marcaNome }: { consultorId: string; marcaNome?: string }) {
+function EtapaConfiguracao({
+  consultorId,
+  marcaNome,
+  onCompletaChange,
+}: {
+  consultorId: string;
+  marcaNome?: string;
+  onCompletaChange: (v: boolean) => void;
+}) {
   const [publico, setPublico] = useState('');
   const [area, setArea] = useState('');
   const [linkPrincipal, setLinkPrincipal] = useState('');
@@ -97,6 +185,11 @@ function AbaConfiguracao({ consultorId, marcaNome }: { consultorId: string; marc
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
+
+  // A etapa 1 conta como concluída quando público e área estão preenchidos.
+  useEffect(() => {
+    onCompletaChange(Boolean(publico.trim() && area.trim()));
+  }, [publico, area, onCompletaChange]);
 
   useEffect(() => {
     if (!consultorId) return;
@@ -139,7 +232,7 @@ function AbaConfiguracao({ consultorId, marcaNome }: { consultorId: string; marc
       };
       await setDoc(doc(db, COLECOES.config, consultorId), payload, { merge: true });
       setTermos(limpos);
-      setMsg('Configuração salva.');
+      setMsg('Configuração salva. Pode seguir para a etapa 2.');
     } catch (e: any) {
       setMsg(`Não foi possível salvar: ${e?.message || e}`);
     } finally {
@@ -161,9 +254,9 @@ function AbaConfiguracao({ consultorId, marcaNome }: { consultorId: string; marc
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <Campo label="Meu público" valor={publico} onChange={setPublico}
+        <Campo label="Meu público" valor={publico} onChange={setPublico} obrigatorio
           dica="Quem você quer alcançar. Ex.: analistas e gestores de operação." />
-        <Campo label="Minha área de atuação" valor={area} onChange={setArea}
+        <Campo label="Minha área de atuação" valor={area} onChange={setArea} obrigatorio
           dica="Ex.: melhoria de processos, qualidade, cardiologia." />
         <Campo label="Página ou link principal" valor={linkPrincipal} onChange={setLinkPrincipal}
           dica="Usado quando a peça precisar apontar para algum lugar." />
@@ -185,7 +278,7 @@ function AbaConfiguracao({ consultorId, marcaNome }: { consultorId: string; marc
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          {salvando ? 'Salvando…' : 'Salvar configuração'}
+          {salvando ? 'Salvando…' : 'Salvar e concluir etapa 1'}
         </button>
         {msg && (
           <span className={`text-sm flex items-center gap-1.5 ${msg.startsWith('Não') ? 'text-red-600' : 'text-green-700'}`}>
@@ -276,15 +369,20 @@ function Campo({
   valor,
   onChange,
   dica,
+  obrigatorio,
 }: {
   label: string;
   valor: string;
   onChange: (v: string) => void;
   dica?: string;
+  obrigatorio?: boolean;
 }) {
   return (
     <label className="block">
-      <span className="block text-sm font-semibold text-gray-800 mb-1">{label}</span>
+      <span className="block text-sm font-semibold text-gray-800 mb-1">
+        {label}
+        {obrigatorio && <span className="text-red-500 ml-0.5">*</span>}
+      </span>
       <input
         value={valor}
         onChange={(e) => onChange(e.target.value)}
@@ -295,12 +393,15 @@ function Campo({
   );
 }
 
-function AbaEmBreve({ titulo, descricao }: { titulo: string; descricao: string }) {
+function EtapaEmBreve({ etapa }: { etapa: Etapa }) {
   return (
     <div className="p-6 rounded-lg border border-dashed border-gray-300 bg-gray-50">
-      <h2 className="font-bold text-gray-800">{titulo}</h2>
-      <p className="text-sm text-gray-600 mt-1">{descricao}</p>
-      <p className="text-xs text-gray-500 mt-3">Próxima entrega da fase 1.</p>
+      <div className="flex items-center gap-2 mb-1">
+        <etapa.icon className="w-5 h-5 text-gray-500" />
+        <h2 className="font-bold text-gray-800">Etapa {etapa.numero} — {etapa.nome}</h2>
+      </div>
+      <p className="text-sm text-gray-600">{etapa.oQueFaz}</p>
+      <p className="text-xs text-gray-500 mt-3">Ainda não construída. Próxima entrega da fase 1.</p>
     </div>
   );
 }
