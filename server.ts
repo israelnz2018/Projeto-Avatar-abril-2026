@@ -2797,6 +2797,186 @@ async function startServer() {
     }
   });
 
+  // POST /api/marketing-consultor/gerar-criativos — lê a transcrição do vídeo e
+  // separa os trechos que valem virar peça.
+  //
+  // Prefixo próprio de propósito: /api/marketing/* já é do e-mail marketing do admin,
+  // que é outra coisa completamente diferente desta aba.
+  //
+  // A IA escolhe só os RECORTES (título + tempo de início e fim). O texto sai da
+  // transcrição real, fatiada aqui no servidor — se a IA também escrevesse o texto,
+  // ela parafrasearia a fala do consultor, e o criativo deixaria de ser o que ele
+  // realmente disse.
+  app.post("/api/marketing-consultor/gerar-criativos", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const videoId = String(req.body?.videoId || "").trim();
+    if (!videoId) return res.status(400).json({ error: "Informe o vídeo." });
+
+    try {
+      const videoRef = adminFirestore().collection("marketing_videos").doc(videoId);
+      const videoSnap = await videoRef.get();
+      if (!videoSnap.exists) return res.status(404).json({ error: "Vídeo não encontrado." });
+      const video = videoSnap.data() as any;
+      const dono = String(video.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
+
+      const transcricao = String(video.transcricao || "").trim();
+      if (!transcricao) return res.status(400).json({ error: "Este vídeo ainda não tem transcrição." });
+
+      // As linhas vêm no formato "[MM:SS] fala" ou "[HH:MM:SS] fala", gravado pela
+      // transcrição. O fim de cada linha é o início da seguinte.
+      //
+      // FALA_MAX_S existe por causa do silêncio: quando há um buraco grande entre
+      // duas falas, sem o teto a fala anterior "esticaria" pelo buraco inteiro, e um
+      // recorte de 30 segundos acabava virando um criativo de mais de uma hora.
+      const FALA_MAX_S = 15;
+      const linhas: { inicio: number; fim: number; texto: string }[] = [];
+      for (const bruta of transcricao.split("\n")) {
+        const m = bruta.match(/^\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\]\s*(.*)$/);
+        if (!m) continue;
+        const horas = Number(m[1] || 0);
+        const inicio = horas * 3600 + Number(m[2]) * 60 + Number(m[3]);
+        const texto = String(m[4] || "").trim();
+        if (!texto) continue;
+        if (linhas.length) {
+          const anterior = linhas[linhas.length - 1];
+          anterior.fim = Math.min(inicio, anterior.inicio + FALA_MAX_S);
+        }
+        linhas.push({ inicio, fim: inicio + 5, texto });
+      }
+      if (linhas.length < 2) return res.status(400).json({ error: "A transcrição deste vídeo não tem tempos para recortar." });
+
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+      const duracaoTotal = Math.round(linhas[linhas.length - 1].fim);
+      const prompt = `TRANSCRIÇÃO COM TEMPOS (vídeo de ${Math.round(duracaoTotal / 60)} minutos):\n${transcricao}\n\n` +
+        `Você seleciona trechos de uma aula longa que funcionam como VÍDEO CURTO de rede social.\n\n` +
+        `Escolha os melhores trechos. Regras:\n` +
+        `- Cada trecho precisa se sustentar SOZINHO: quem nunca viu a aula entende do começo ao fim.\n` +
+        `- Começa numa frase que prende (uma afirmação forte, uma pergunta, um número) — nunca no meio de um raciocínio.\n` +
+        `- Termina fechando a ideia, não no meio de uma frase.\n` +
+        `- Duração entre 20 segundos e 3 minutos. O ideal fica perto de 45 segundos.\n` +
+        `- Os trechos NÃO podem se sobrepor.\n` +
+        `- Prefira menos trechos bons a muitos trechos fracos. Se a aula só tem 3 bons momentos, devolva 3.\n` +
+        `- O título tem no máximo 6 palavras, é uma frase nominal em português, e diz do que o trecho trata.\n\n` +
+        `Devolva APENAS JSON: {"trechos":[{"titulo":"...","inicio":"MM:SS","fim":"MM:SS"}]}`;
+
+      const schemaCriativos = {
+        type: Type.OBJECT,
+        properties: {
+          trechos: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                titulo: { type: Type.STRING },
+                inicio: { type: Type.STRING },
+                fim: { type: Type.STRING },
+              },
+              required: ["titulo", "inicio", "fim"],
+            },
+          },
+        },
+        required: ["trechos"],
+      };
+
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      let trechos: any[] = [];
+      let ultimoErro: any = null;
+      for (let tentativa = 0; tentativa < 2; tentativa++) {
+        try {
+          const gerado = await ai.models.generateContent({
+            model: geminiModel,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: schemaCriativos, maxOutputTokens: 4096, temperature: 0.4 },
+          });
+          const limpo = String(gerado.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+          trechos = JSON.parse(limpo)?.trechos || [];
+          ultimoErro = null;
+          break;
+        } catch (erro) { ultimoErro = erro; }
+      }
+      if (ultimoErro) throw new Error(`O serviço de IA devolveu uma resposta inválida: ${ultimoErro?.message || ultimoErro}`);
+      if (!trechos.length) return res.status(422).json({ error: "A IA não encontrou nenhum trecho aproveitável neste vídeo." });
+
+      const paraSegundos = (valor: string) => {
+        const partes = String(valor || "").split(":").map((p) => Number.parseInt(p, 10));
+        if (partes.some((p) => !Number.isFinite(p))) return NaN;
+        return partes.length === 3
+          ? partes[0] * 3600 + partes[1] * 60 + partes[2]
+          : partes.length === 2 ? partes[0] * 60 + partes[1] : NaN;
+      };
+
+      const agora = new Date().toISOString();
+      const batch = adminFirestore().batch();
+      const criativos: any[] = [];
+      let ordem = 0;
+
+      for (const trecho of trechos) {
+        const inicio = paraSegundos(trecho.inicio);
+        const fim = paraSegundos(trecho.fim);
+        if (!Number.isFinite(inicio) || !Number.isFinite(fim) || fim <= inicio) continue;
+        // O recorte é resolvido contra as linhas reais: a IA aponta o tempo, mas
+        // quem decide qual fala entra é a transcrição.
+        const doTrecho = linhas.filter((l) => l.fim > inicio && l.inicio < fim);
+        if (doTrecho.length < 2) continue;
+
+        // Garantia no servidor, não só no prompt: a IA às vezes devolve um intervalo
+        // fora do que foi pedido, e um "vídeo curto" de 10 minutos não serve pra nada.
+        // Vale também como rede contra buraco de silêncio dentro do recorte.
+        const duracao = doTrecho[doTrecho.length - 1].fim - doTrecho[0].inicio;
+        if (duracao < 10 || duracao > 240) continue;
+
+        ordem += 1;
+        const id = `${videoId}__${String(ordem).padStart(2, "0")}`;
+        const criativo = {
+          id,
+          consultorId: dono || consultorId,
+          videoId,
+          ordem,
+          titulo: String(trecho.titulo || `Trecho ${ordem}`).trim().slice(0, 80),
+          linhas: doTrecho,
+          corteInicio: 0,
+          corteFim: doTrecho.length - 1,
+          status: "novo",
+          criadoEm: agora,
+        };
+        batch.set(adminFirestore().collection("marketing_criativos").doc(id), criativo);
+        criativos.push(criativo);
+      }
+
+      if (!criativos.length) return res.status(422).json({ error: "Os trechos sugeridos não casaram com a transcrição." });
+      await batch.commit();
+      return res.json({ criativos });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-criativos] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao gerar criativos.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.

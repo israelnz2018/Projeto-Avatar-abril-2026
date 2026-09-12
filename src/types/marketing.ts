@@ -122,6 +122,62 @@ export interface VideoFonte {
   criadoEm: string;
 }
 
+/** Uma fala do vídeo, com o tempo em que acontece. */
+export interface LinhaCriativo {
+  /** Segundo em que a fala começa no vídeo original. */
+  inicio: number;
+  /** Segundo em que a fala termina. */
+  fim: number;
+  texto: string;
+}
+
+/** Estado de um criativo na esteira de revisão. */
+export type StatusCriativo = 'novo' | 'revisar' | 'aprovado';
+
+/**
+ * Um trecho do vídeo que vale virar peça. Coleção: marketing_criativos
+ *
+ * A IA lê a transcrição e escolhe os RECORTES; o texto em si vem da transcrição
+ * real, fatiada no servidor — assim nenhuma palavra é inventada, só selecionada.
+ *
+ * O aparo das pontas é feito por índice, e não apagando linhas: `linhas` guarda o
+ * trecho inteiro pra sempre, e corteInicio/corteFim dizem o que está em uso. Assim
+ * o consultor corta demais e desfaz, sem precisar gerar tudo de novo.
+ */
+export interface Criativo {
+  id: string;
+  consultorId: string;
+  videoId: string;
+  /** Ordem em que o trecho aparece no vídeo. */
+  ordem: number;
+  titulo: string;
+  linhas: LinhaCriativo[];
+  /** Índice da primeira linha em uso. */
+  corteInicio: number;
+  /** Índice da última linha em uso. */
+  corteFim: number;
+  status: StatusCriativo;
+  criadoEm: string;
+  atualizadoEm?: string;
+}
+
+/** As linhas que sobraram depois do aparo. */
+export function linhasEmUso(criativo: Criativo): LinhaCriativo[] {
+  return criativo.linhas.slice(criativo.corteInicio, criativo.corteFim + 1);
+}
+
+/** Quanto tempo o vídeo curto vai ter, depois do aparo. */
+export function duracaoCriativo(criativo: Criativo): number {
+  const linhas = linhasEmUso(criativo);
+  if (!linhas.length) return 0;
+  return Math.max(0, Math.round(linhas[linhas.length - 1].fim - linhas[0].inicio));
+}
+
+/** O texto corrido do criativo, já aparado. */
+export function textoCriativo(criativo: Criativo): string {
+  return linhasEmUso(criativo).map((l) => l.texto).join(' ').replace(/\s+/g, ' ').trim();
+}
+
 /** Uma campanha orgânica: um assunto, várias peças. Coleção: marketing_campanhas */
 export interface Campanha {
   id: string;
@@ -186,6 +242,7 @@ export interface Tarefa {
 export const COLECOES = {
   config: 'marketing_config',
   videos: 'marketing_videos',
+  criativos: 'marketing_criativos',
   campanhas: 'marketing_campanhas',
   pecas: 'marketing_pecas',
   tarefas: 'marketing_tarefas',

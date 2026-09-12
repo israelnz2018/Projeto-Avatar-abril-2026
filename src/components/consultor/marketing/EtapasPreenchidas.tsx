@@ -6,13 +6,13 @@
  * entram nas próximas entregas da fase 1.
  */
 import React, { useEffect, useState } from 'react';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
-  FileText, Image as ImageIcon, Film, Layers, MessageSquareWarning, Send,
+  FileText, Image as ImageIcon, Film, Layers, MessageSquareWarning, Send, Trash2, Loader2,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
-import { db, storage } from '../../../lib/firebase';
+import { auth, db, storage } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, ConexaoRede, MarketingConfig, Peca, StatusPeca, TipoPeca, VideoFonte, OBJETIVOS,
 } from '../../../types/marketing';
@@ -97,7 +97,15 @@ function CartaoRede({
 
 /* ====================== Etapa 3 — Meus vídeos ====================== */
 
-export function EtapaVideos({ videos }: { videos: VideoFonte[] }) {
+export function EtapaVideos({
+  videos, criativos = [], onMudou,
+}: {
+  videos: VideoFonte[];
+  /** Só para avisar quantos criativos morrem junto com o vídeo. */
+  criativos?: { videoId: string }[];
+  /** Recarrega a lista depois de apagar um vídeo ou gerar a transcrição de um. */
+  onMudou?: () => void;
+}) {
   if (!videos.length) return <Vazio texto="Nenhum vídeo enviado ainda." />;
   return (
     <div className="space-y-3">
@@ -115,13 +123,148 @@ export function EtapaVideos({ videos }: { videos: VideoFonte[] }) {
               <p className="text-xs text-gray-500 mt-1">Vídeo enviado — hospedado no Bunny.</p>
             )}
           </div>
-          <span className={`text-xs font-semibold px-2 py-1 rounded shrink-0 ${
-            v.temTranscricao ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-          }`}>
-            {v.temTranscricao ? 'Com transcrição' : 'Sem transcrição'}
-          </span>
+          {v.temTranscricao
+            ? (
+              <span className="text-xs font-semibold px-2 py-1 rounded shrink-0 bg-green-100 text-green-800">
+                Com transcrição
+              </span>
+            )
+            : <BotaoTranscrever video={v} onPronto={onMudou} />}
+          {onMudou && (
+            <BotaoApagarVideo
+              video={v}
+              quantosCriativos={criativos.filter((c) => c.videoId === v.id).length}
+              onApagado={onMudou}
+            />
+          )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Rede de segurança da transcrição.
+ *
+ * Ela roda sozinha logo depois do upload, mas pode falhar (rede caiu, codificação
+ * demorou demais, serviço sem saldo) — e aí o vídeo fica salvo sem ela, sem nada
+ * que dê pra clicar. Sem transcrição não há criativo, então este botão precisa
+ * existir na lista, e não só dentro do formulário de cadastro.
+ */
+function BotaoTranscrever({ video, onPronto }: { video: VideoFonte; onPronto?: () => void }) {
+  const [rodando, setRodando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  if (!video.bunnyVideoId) {
+    return (
+      <span
+        title="Vídeo de link externo: a plataforma não consegue transcrever."
+        className="text-xs font-semibold px-2 py-1 rounded shrink-0 bg-gray-100 text-gray-600"
+      >
+        Sem transcrição
+      </span>
+    );
+  }
+
+  async function transcrever() {
+    setRodando(true);
+    setErro('');
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/bunny/transcribe-marketing-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bunnyVideoId: video.bunnyVideoId }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      await updateDoc(doc(db, COLECOES.videos, video.id), {
+        transcricao: corpo.transcript || '',
+        temTranscricao: Boolean(corpo.transcript),
+      });
+      onPronto?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setRodando(false);
+    }
+  }
+
+  return (
+    <div className="shrink-0 text-right">
+      <button
+        onClick={transcrever}
+        disabled={rodando}
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800 hover:bg-amber-200 disabled:opacity-60"
+      >
+        {rodando
+          ? <><Loader2 className="w-3 h-3 animate-spin" /> Transcrevendo…</>
+          : <>Sem transcrição — gerar</>}
+      </button>
+      {erro && <p className="text-[10px] text-red-600 mt-1 max-w-[180px]">{erro}</p>}
+    </div>
+  );
+}
+
+/**
+ * Apagar o vídeo apaga junto os criativos que saíram dele — deixá-los órfãos só
+ * encheria a próxima etapa de trechos que não dá mais pra rever no vídeo de origem.
+ * O arquivo no Bunny continua lá: quem apaga mídia é o dono dela, não esta tela.
+ */
+function BotaoApagarVideo({
+  video, quantosCriativos, onApagado,
+}: {
+  video: VideoFonte;
+  quantosCriativos: number;
+  onApagado: () => void;
+}) {
+  const [confirmando, setConfirmando] = useState(false);
+  const [apagando, setApagando] = useState(false);
+
+  async function apagar() {
+    setApagando(true);
+    try {
+      const doVideo = await getDocs(query(
+        collection(db, COLECOES.criativos),
+        where('videoId', '==', video.id),
+      ));
+      await Promise.all(doVideo.docs.map((d) => deleteDoc(d.ref)));
+      await deleteDoc(doc(db, COLECOES.videos, video.id));
+      onApagado();
+    } finally {
+      setApagando(false);
+      setConfirmando(false);
+    }
+  }
+
+  if (!confirmando) {
+    return (
+      <button
+        onClick={() => setConfirmando(true)}
+        title="Apagar vídeo"
+        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <span className="text-xs text-red-700 font-semibold">
+        {quantosCriativos > 0 ? `Apaga ${quantosCriativos} criativo${quantosCriativos === 1 ? '' : 's'}.` : 'Apagar?'}
+      </span>
+      <button
+        onClick={apagar}
+        disabled={apagando}
+        className="px-2 py-1 rounded bg-red-600 text-white text-xs font-bold disabled:opacity-60"
+      >
+        {apagando ? '…' : 'Apagar'}
+      </button>
+      <button onClick={() => setConfirmando(false)} className="px-2 py-1 text-xs font-semibold text-gray-600">
+        Não
+      </button>
     </div>
   );
 }

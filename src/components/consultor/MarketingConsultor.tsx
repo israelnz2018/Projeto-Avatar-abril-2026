@@ -29,6 +29,7 @@ import {
   EtapaRedes, EtapaVideos, EtapaCampanhas, EtapaRevisao, EtapaAgenda, useDadosMarketing,
 } from './marketing/EtapasPreenchidas';
 import { FormularioVideo, FormularioCampanha } from './marketing/AcoesMarketing';
+import { PainelCriativos, EtapaCriativosAprovados, useCriativos } from './marketing/Criativos';
 
 type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'revisao' | 'agenda';
 
@@ -53,11 +54,11 @@ const ETAPAS: Etapa[] = [
   },
   {
     id: 'videos', numero: 3, nome: 'Meus vídeos', icon: Video, pronta: false,
-    oQueFaz: 'Envie as suas aulas longas. É delas que sai todo o conteúdo.',
+    oQueFaz: 'Envie as suas aulas longas e escolha, dentro de cada uma, os trechos que viram peça.',
   },
   {
-    id: 'campanhas', numero: 4, nome: 'Criar campanha', icon: Sparkles, pronta: false,
-    oQueFaz: 'Escolha um vídeo e um objetivo. O sistema gera o Reel, os carrosséis e o PDF.',
+    id: 'campanhas', numero: 4, nome: 'Criativos aprovados', icon: Sparkles, pronta: false,
+    oQueFaz: 'Os trechos que você aprovou, prontos para virar Reel, carrossel e PDF.',
   },
   {
     id: 'revisao', numero: 5, nome: 'Revisão', icon: ClipboardCheck, pronta: false,
@@ -75,6 +76,7 @@ export default function MarketingConsultor() {
   const [etapaAtiva, setEtapaAtiva] = useState<EtapaId>('config');
   const [configCompleta, setConfigCompleta] = useState(false);
   const dados = useDadosMarketing(consultorId);
+  const criativos = useCriativos(consultorId);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
 
@@ -102,7 +104,7 @@ export default function MarketingConsultor() {
     config: configCompleta,
     redes: Boolean(dados.config?.instagram?.conectado || dados.config?.linkedin?.conectado),
     videos: dados.videos.length > 0,
-    campanhas: dados.campanhas.length > 0,
+    campanhas: criativos.criativos.some((c) => c.status === 'aprovado'),
     revisao: dados.pecas.some((p) => p.status === 'aprovado' || p.status === 'publicado'),
     agenda: dados.pecas.some((p) => p.status === 'publicado'),
   };
@@ -183,25 +185,47 @@ export default function MarketingConsultor() {
               {etapaAtiva === 'videos' && (
                 <div className="space-y-4">
                   <FormularioVideo consultorId={consultorId} onCriado={dados.recarregar} />
-                  <EtapaVideos videos={dados.videos} />
+                  <EtapaVideos
+                    videos={dados.videos}
+                    criativos={criativos.criativos}
+                    onMudou={() => { dados.recarregar(); criativos.recarregar(); }}
+                  />
+                  <PainelCriativos
+                    videos={dados.videos}
+                    criativos={criativos.criativos}
+                    carregando={criativos.carregando}
+                    onMudou={criativos.recarregar}
+                  />
                 </div>
               )}
 
               {etapaAtiva === 'campanhas' && (
-                <div className="space-y-4">
-                  <FormularioCampanha
-                    consultorId={consultorId}
+                <div className="space-y-6">
+                  <EtapaCriativosAprovados
+                    criativos={criativos.criativos}
                     videos={dados.videos}
-                    onCriada={dados.recarregar}
+                    onMudou={criativos.recarregar}
                   />
-                  <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />
+                  <details className="pt-4 border-t border-gray-200">
+                    <summary className="text-sm font-semibold text-gray-600 cursor-pointer">
+                      Montar uma peça escrevendo o texto na mão
+                    </summary>
+                    <div className="mt-3 space-y-4">
+                      <FormularioCampanha
+                        consultorId={consultorId}
+                        videos={dados.videos}
+                        onCriada={dados.recarregar}
+                      />
+                      <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />
+                    </div>
+                  </details>
                 </div>
               )}
 
               {etapaAtiva === 'revisao' && <EtapaRevisao campanhas={dados.campanhas} pecas={dados.pecas} />}
               {etapaAtiva === 'agenda' && <EtapaAgenda campanhas={dados.campanhas} pecas={dados.pecas} />}
 
-              {etapaAtiva !== 'videos' && etapaAtiva !== 'campanhas' && (
+              {(etapaAtiva === 'redes' || etapaAtiva === 'revisao' || etapaAtiva === 'agenda') && (
                 <p className="text-xs text-gray-500 mt-5 pt-3 border-t border-gray-100">
                   Esta etapa ainda é somente leitura. Os botões de ação entram na próxima entrega.
                 </p>
@@ -209,7 +233,7 @@ export default function MarketingConsultor() {
 
               {/* A produção roda fora da tela; nada avisa o navegador quando termina. */}
               <button
-                onClick={dados.recarregar}
+                onClick={() => { dados.recarregar(); criativos.recarregar(); }}
                 className="block text-xs font-semibold text-blue-700 hover:underline mt-4"
               >
                 Atualizar esta tela
