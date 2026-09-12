@@ -108,6 +108,19 @@ export interface VideoFonte {
   transcricao?: string;
   /** Calculado a partir de `transcricao`, não digitado — evita os dois campos divergirem. */
   temTranscricao: boolean;
+  /**
+   * Em que pé está a transcrição.
+   *
+   * Ela roda em segundo plano no servidor, e não dentro da requisição do navegador:
+   * codificar e transcrever uma aula de uma hora leva mais tempo do que qualquer
+   * proxy deixa uma conexão HTTP aberta. Sem este campo o consultor ficava sem
+   * saber se estava andando ou se tinha morrido.
+   */
+  transcricaoStatus?: 'na-fila' | 'processando' | 'pronta' | 'erro';
+  /** Quando o servidor começou. Serve para a tela perceber trabalho travado. */
+  transcricaoIniciadaEm?: string;
+  /** Por que falhou, em português, para o consultor decidir se tenta de novo. */
+  transcricaoErro?: string;
   criadoEm: string;
 }
 

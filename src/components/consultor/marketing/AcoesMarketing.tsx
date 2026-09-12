@@ -9,7 +9,7 @@
  */
 import React, { useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { Plus, Loader2, Send, Video as VideoIcon, Upload, Link2, CheckCircle2, FileAudio } from 'lucide-react';
+import { Plus, Loader2, Send, Video as VideoIcon, Upload, Link2, CheckCircle2 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, ObjetivoCampanha, OBJETIVOS, VideoFonte,
@@ -85,7 +85,6 @@ export function FormularioVideo({
   const [curso, setCurso] = useState('');
   const [serie, setSerie] = useState('');
   const [duracao, setDuracao] = useState('');
-  const [transcricao, setTranscricao] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -96,7 +95,6 @@ export function FormularioVideo({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [progresso, setProgresso] = useState<number | null>(null);
   const [enviado, setEnviado] = useState<{ guid: string; libraryId: string } | null>(null);
-  const [transcrevendo, setTranscrevendo] = useState(false);
 
   async function enviarArquivo() {
     if (!arquivo) { setErro('Escolha um arquivo de vídeo.'); return; }
@@ -106,41 +104,9 @@ export function FormularioVideo({
       const resultado = await enviarVideoParaBunny(arquivo, titulo, setProgresso);
       setEnviado(resultado);
       setProgresso(100);
-      // Emenda direto na transcrição: ela é obrigatória pro resto do fluxo (é dela
-      // que saem os criativos) e custa quase nada, então não faz sentido pedir
-      // mais um clique nem mostrar o texto pro consultor.
-      await transcrever(resultado.guid);
     } catch (e: any) {
       setErro(e?.message || String(e));
       setProgresso(null);
-    }
-  }
-
-  /**
-   * Whisper via DeepInfra, ≈ US$ 0,0002 por minuto de vídeo (menos de 1 centavo
-   * mesmo numa aula de 1h). Só roda depois do upload — precisa do vídeo no Bunny.
-   *
-   * O texto não aparece na tela: ele é insumo da máquina, não algo que o consultor
-   * precise ler ou corrigir. Quem ele revisa é o criativo, mais adiante.
-   */
-  async function transcrever(guid: string) {
-    setTranscrevendo(true);
-    setErro('');
-    try {
-      const user = auth.currentUser;
-      const token = user ? await user.getIdToken() : '';
-      const r = await fetch('/api/bunny/transcribe-marketing-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ bunnyVideoId: guid }),
-      });
-      const corpo = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
-      setTranscricao(corpo.transcript || '');
-    } catch (e: any) {
-      setErro(`Não foi possível transcrever: ${e?.message || e}`);
-    } finally {
-      setTranscrevendo(false);
     }
   }
 
@@ -148,9 +114,6 @@ export function FormularioVideo({
     if (!titulo.trim()) { setErro('O título é obrigatório.'); return; }
     if (origem === 'arquivo' && !enviado) { setErro('Envie o vídeo antes de salvar.'); return; }
     if (origem === 'link' && !sourceUrl.trim()) { setErro('Cole o link do vídeo.'); return; }
-    // Salvar no meio da transcrição gravaria o vídeo sem ela, e o consultor só
-    // descobriria o buraco lá na frente, na hora de gerar os criativos.
-    if (transcrevendo) { setErro('Espere a transcrição terminar.'); return; }
     setSalvando(true);
     setErro('');
     try {
@@ -165,14 +128,27 @@ export function FormularioVideo({
         bunnyLibraryId: origem === 'arquivo' ? enviado?.libraryId : undefined,
         sourceUrl: origem === 'link' ? sourceUrl.trim() : undefined,
         duracaoSegundos: duracao ? Number(duracao) : undefined,
-        transcricao: transcricao.trim() || undefined,
-        temTranscricao: Boolean(transcricao.trim()),
+        temTranscricao: false,
         criadoEm: new Date().toISOString(),
       };
       // Limpa os campos vazios: o Firestore rejeita undefined.
       const limpo = Object.fromEntries(Object.entries(video).filter(([, v]) => v !== undefined));
       await setDoc(doc(db, COLECOES.videos, id), limpo, { merge: true });
-      setTitulo(''); setCurso(''); setSerie(''); setSourceUrl(''); setDuracao(''); setTranscricao('');
+
+      // O vídeo é SALVO PRIMEIRO e a transcrição roda depois, no servidor. Antes era o
+      // contrário — transcrever e só então salvar —, e uma falha na transcrição levava
+      // junto o vídeo inteiro, que já estava no Bunny e não aparecia em lugar nenhum.
+      if (origem === 'arquivo' && enviado) {
+        const user = auth.currentUser;
+        const token = user ? await user.getIdToken() : '';
+        await fetch('/api/bunny/transcribe-marketing-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ videoId: id }),
+        }).catch(() => { /* a lista mostra o estado e oferece "tentar de novo" */ });
+      }
+
+      setTitulo(''); setCurso(''); setSerie(''); setSourceUrl(''); setDuracao('');
       setArquivo(null); setEnviado(null); setProgresso(null);
       setAberto(false);
       onCriado();
@@ -272,26 +248,11 @@ export function FormularioVideo({
               </p>
             )}
 
-            {/* A transcrição roda sozinha depois do envio. O consultor não lê nem
-                corrige esse texto — ele só precisa saber que já está pronto. */}
-            {transcrevendo && (
-              <p className="flex items-center gap-1.5 text-sm text-blue-700 font-semibold">
-                <Loader2 className="w-4 h-4 animate-spin" /> Transcrevendo a fala… pode levar alguns minutos.
+            {enviado && (
+              <p className="text-xs text-blue-800">
+                A transcrição começa quando você salvar, e roda no servidor — pode fechar
+                esta tela. O andamento aparece na lista de vídeos.
               </p>
-            )}
-            {enviado && !transcrevendo && transcricao && (
-              <p className="flex items-center gap-1.5 text-sm text-green-700 font-semibold">
-                <CheckCircle2 className="w-4 h-4" /> Transcrição pronta ({transcricao.split(/\s+/).length} palavras).
-              </p>
-            )}
-            {enviado && !transcrevendo && !transcricao && (
-              <button
-                type="button"
-                onClick={() => transcrever(enviado.guid)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100"
-              >
-                <FileAudio className="w-3.5 h-3.5" /> Tentar transcrever de novo
-              </button>
             )}
 
             <p className="text-xs text-gray-500">
@@ -312,12 +273,10 @@ export function FormularioVideo({
       <div className="flex items-center gap-2 pt-1">
         <button
           onClick={salvar}
-          disabled={salvando || transcrevendo}
-          title={transcrevendo ? 'Espere a transcrição terminar.' : undefined}
+          disabled={salvando}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {(salvando || transcrevendo) && <Loader2 className="w-4 h-4 animate-spin" />}
-          {transcrevendo ? 'Transcrevendo…' : 'Salvar vídeo'}
+          {salvando && <Loader2 className="w-4 h-4 animate-spin" />} Salvar vídeo
         </button>
         <button onClick={() => setAberto(false)} className="px-3 py-2 text-sm font-semibold text-gray-600">
           Cancelar

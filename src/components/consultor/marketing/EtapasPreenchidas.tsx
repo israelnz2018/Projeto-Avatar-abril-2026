@@ -152,7 +152,7 @@ export function EtapaVideos({
  * existir na lista, e não só dentro do formulário de cadastro.
  */
 function BotaoTranscrever({ video, onPronto }: { video: VideoFonte; onPronto?: () => void }) {
-  const [rodando, setRodando] = useState(false);
+  const [pedindo, setPedindo] = useState(false);
   const [erro, setErro] = useState('');
 
   if (!video.bunnyVideoId) {
@@ -166,8 +166,15 @@ function BotaoTranscrever({ video, onPronto }: { video: VideoFonte; onPronto?: (
     );
   }
 
+  // O trabalho roda no servidor e pode ficar órfão se o container reiniciar no meio
+  // (deploy, por exemplo). O servidor renova transcricaoIniciadaEm a cada minuto;
+  // sem notícia há 5, é trabalho morto e o botão de tentar de novo tem que voltar.
+  const desde = Date.parse(video.transcricaoIniciadaEm || '') || 0;
+  const travado = desde > 0 && Date.now() - desde > 5 * 60 * 1000;
+  const andando = (video.transcricaoStatus === 'processando' || video.transcricaoStatus === 'na-fila') && !travado;
+
   async function transcrever() {
-    setRodando(true);
+    setPedindo(true);
     setErro('');
     try {
       const user = auth.currentUser;
@@ -175,34 +182,43 @@ function BotaoTranscrever({ video, onPronto }: { video: VideoFonte; onPronto?: (
       const r = await fetch('/api/bunny/transcribe-marketing-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ bunnyVideoId: video.bunnyVideoId }),
+        body: JSON.stringify({ videoId: video.id }),
       });
       const corpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
-      await updateDoc(doc(db, COLECOES.videos, video.id), {
-        transcricao: corpo.transcript || '',
-        temTranscricao: Boolean(corpo.transcript),
-      });
       onPronto?.();
     } catch (e: any) {
       setErro(e?.message || String(e));
     } finally {
-      setRodando(false);
+      setPedindo(false);
     }
   }
 
+  if (andando) {
+    return (
+      <span className="shrink-0 inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        {video.transcricaoStatus === 'na-fila' ? 'Na fila' : 'Transcrevendo…'}
+      </span>
+    );
+  }
+
   return (
-    <div className="shrink-0 text-right">
+    <div className="shrink-0 text-right max-w-[220px]">
       <button
         onClick={transcrever}
-        disabled={rodando}
+        disabled={pedindo}
         className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800 hover:bg-amber-200 disabled:opacity-60"
       >
-        {rodando
-          ? <><Loader2 className="w-3 h-3 animate-spin" /> Transcrevendo…</>
-          : <>Sem transcrição — gerar</>}
+        {pedindo
+          ? <><Loader2 className="w-3 h-3 animate-spin" /> Pedindo…</>
+          : travado
+            ? <>Transcrição travou — tentar de novo</>
+            : <>Sem transcrição — gerar</>}
       </button>
-      {erro && <p className="text-[10px] text-red-600 mt-1 max-w-[180px]">{erro}</p>}
+      {(erro || video.transcricaoErro) && (
+        <p className="text-[10px] text-red-600 mt-1">{erro || video.transcricaoErro}</p>
+      )}
     </div>
   );
 }
@@ -589,6 +605,18 @@ export function useDadosMarketing(consultorId: string) {
     })();
     return () => { vivo = false; };
   }, [consultorId, versao]);
+
+  // Enquanto houver transcrição rodando no servidor, a tela se atualiza sozinha.
+  // Sem isso o consultor tinha que ficar clicando em "Atualizar" pra descobrir se
+  // já acabou — e a transcrição de uma aula longa leva minutos.
+  const transcrevendo = videos.some(
+    (v) => v.transcricaoStatus === 'na-fila' || v.transcricaoStatus === 'processando',
+  );
+  useEffect(() => {
+    if (!transcrevendo) return;
+    const t = setInterval(() => setVersao((v) => v + 1), 20000);
+    return () => clearInterval(t);
+  }, [transcrevendo]);
 
   return {
     config, setConfig, videos, campanhas, pecas, carregando,

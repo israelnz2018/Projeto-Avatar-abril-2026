@@ -2647,56 +2647,45 @@ async function startServer() {
     }
   });
 
-  // POST /api/bunny/transcribe-marketing-video — transcreve um vídeo da aba "Marketing
-  // para Consultores" e devolve o texto puro. Não escreve em Firestore: o vídeo ainda
-  // pode nem existir como documento (o consultor transcreve ANTES de clicar em Salvar),
-  // então quem persiste é o próprio formulário, junto com o resto dos campos.
-  //
-  // Deliberadamente mais simples que /api/bunny/transcribe-video (curso): sem publicar
-  // legenda no player, sem gerar resumo/índice de conhecimento — aqui o que interessa é
-  // só o texto, pra virar conteúdo de campanha. O núcleo (espera de codificação, fallback
-  // de resolução, chamada ao Whisper) é o mesmo, testado no pipeline de cursos.
-  app.post("/api/bunny/transcribe-marketing-video", async (req: any, res) => {
-    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
-
-    const header = req.headers.authorization || "";
-    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
-    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
-
-    let callerUid: string;
-    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
-    catch { return res.status(401).json({ error: "Token inválido." }); }
-
-    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
-    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
-    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
-    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
-    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
-    const consultorId = String(caller.consultorId || "israel");
-
-    const bunnyVideoId = String(req.body?.bunnyVideoId || "").trim();
-    if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId)) return res.status(400).json({ error: "Vídeo inválido." });
-
+  /**
+   * Transcreve um vídeo do Marketing e grava o resultado no próprio documento.
+   *
+   * Roda em SEGUNDO PLANO de propósito. Codificar e transcrever uma aula de uma hora
+   * (o arquivo original passa de 1 GB) leva mais tempo do que qualquer proxy deixa uma
+   * conexão HTTP aberta — segurando a requisição, o navegador recebia 502 e o trabalho
+   * do servidor ia junto. O pipeline de cursos já tinha esbarrado nisso; aqui a lição
+   * é aplicada desde o começo: a rota responde na hora e o estado vai pro Firestore.
+   *
+   * Deliberadamente mais simples que /api/bunny/transcribe-video (curso): sem publicar
+   * legenda no player e sem gerar resumo/índice de conhecimento — aqui o que interessa
+   * é o texto, que o consultor revisa no criativo.
+   */
+  async function transcreverVideoMarketing(opts: {
+    videoRef: FirebaseFirestore.DocumentReference;
+    bunnyVideoId: string;
+    lib: { libraryId: string; apiKey: string };
+    deepinfraKey: string;
+    referer: Record<string, string>;
+  }) {
+    const { videoRef, bunnyVideoId, lib, deepinfraKey, referer } = opts;
+    const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
     try {
-      // A library é resolvida pelo consultorId de QUEM CHAMA — nunca pelo corpo da
-      // requisição. Um consultor só consegue transcrever vídeo dentro da própria library.
-      const lib = await bunnyLibraryDoConsultor(consultorId);
-      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
-      const deepinfraKey = process.env.DEEPINFRA_API_KEY;
-      if (!deepinfraKey) return res.status(503).json({ error: "Serviço de transcrição não configurado no servidor." });
+      await videoRef.update({
+        transcricaoStatus: "processando",
+        transcricaoIniciadaEm: new Date().toISOString(),
+        transcricaoErro: admin.firestore.FieldValue.delete(),
+      });
 
-      const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
-      const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
-      const referer = origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {};
-
-      // Mesma espera do pipeline de cursos: o upload TUS termina antes da codificação
-      // acabar, e o /play pode devolver um link que ainda não existe de verdade.
+      // O upload TUS termina antes da CODIFICAÇÃO. O /play devolve o fallbackUrl assim
+      // que o registro existe, mesmo sem o MP4 estar gravado. 30 minutos de paciência,
+      // e não 10: nada está preso esperando, e aula longa demora mesmo pra codificar.
       let mediaUrl = "";
       let ultimoMotivo = "codificação ainda não concluída";
-      for (let attempt = 0; attempt < 60 && !mediaUrl; attempt++) {
+      for (let tentativa = 0; tentativa < 180 && !mediaUrl; tentativa++) {
         const infoResponse = await fetch(base, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
         const info = infoResponse.ok ? await infoResponse.json() as any : null;
         const encodeStatus = Number(info?.status ?? -1);
+        // 5 = falha no processamento, 6 = falha no upload. Não adianta esperar.
         if (encodeStatus === 5 || encodeStatus === 6) {
           throw new Error("O servidor de vídeo não conseguiu processar este arquivo. Envie o vídeo novamente.");
         }
@@ -2712,8 +2701,8 @@ async function startServer() {
             const sourceHeight = Number(play?.video?.height || info?.height || 0);
             const usable = resolutions.filter((v: number) => !sourceHeight || v <= sourceHeight);
             const candidates = usable.length > 0 ? usable : resolutions;
-            // Para transcrição, a menor resolução preserva o áudio e reduz muito o
-            // download/memória do servidor (um vídeo 1080p pode ter centenas de MB).
+            // Para transcrição só interessa o áudio, e a menor resolução já o traz
+            // inteiro: um 1080p de uma hora seriam centenas de MB na memória do servidor.
             const resolution = candidates.length > 0 ? Math.min(...candidates) : 0;
             candidata = resolution > 0 ? `${candidata}${resolution}p.mp4` : "";
           }
@@ -2729,21 +2718,27 @@ async function startServer() {
         } else {
           ultimoMotivo = `codificação em ${Number(info?.encodeProgress ?? 0)}%`;
         }
-        if (!mediaUrl) await new Promise(resolve => setTimeout(resolve, 10_000));
+        if (!mediaUrl) {
+          // Carimbo de vida a cada minuto: é como a tela distingue trabalho andando
+          // de processo que morreu no meio (deploy, reinício do container).
+          if (tentativa % 6 === 5) {
+            await videoRef.update({ transcricaoIniciadaEm: new Date().toISOString() }).catch(() => {});
+          }
+          await new Promise((r) => setTimeout(r, 10_000));
+        }
       }
-      if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 10 minutos (${ultimoMotivo}).`);
+      if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 30 minutos (${ultimoMotivo}).`);
 
       const mediaResponse = await fetch(mediaUrl, {
         headers: { Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8", ...referer },
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(600_000),
       });
       if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do servidor de vídeo: HTTP ${mediaResponse.status}`);
       const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
+      console.log(`[transcrever-marketing] ${bunnyVideoId}: baixados ${(mediaBuffer.length / 1048576).toFixed(0)} MB`);
 
       // Dica genérica de contexto. O que a transcrição errar, o consultor conserta
       // na revisão do criativo — é lá que ele lê o texto de qualquer jeito.
-      const dica = "Aula ou palestra em português.";
-
       const form = new FormData();
       form.append("file", new Blob([mediaBuffer]), "video.mp4");
       form.append("model", "openai/whisper-large-v3-turbo");
@@ -2751,13 +2746,13 @@ async function startServer() {
       form.append("response_format", "verbose_json");
       form.append("timestamp_granularities", "segment");
       form.append("temperature", "0");
-      form.append("prompt", dica);
+      form.append("prompt", "Aula ou palestra em português.");
 
       const deepinfraResponse = await fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
         method: "POST",
         headers: { Authorization: `Bearer ${deepinfraKey}` },
         body: form,
-        signal: AbortSignal.timeout(300_000),
+        signal: AbortSignal.timeout(1_800_000),
       });
       if (!deepinfraResponse.ok) {
         const detail = await deepinfraResponse.text().catch(() => "");
@@ -2782,14 +2777,89 @@ async function startServer() {
       }).join("\n");
       if (!rawTranscript.trim()) throw new Error("A transcrição retornou vazia.");
 
-      return res.json({ transcript: rawTranscript });
+      await videoRef.update({
+        transcricao: rawTranscript,
+        temTranscricao: true,
+        transcricaoStatus: "pronta",
+        transcricaoErro: admin.firestore.FieldValue.delete(),
+      });
+      console.log(`[transcrever-marketing] ${bunnyVideoId}: pronta, ${segments.length} falas`);
     } catch (error: any) {
-      console.error("[/api/bunny/transcribe-marketing-video] erro:", error);
-      const errorMessage = String(error?.message || "Erro ao transcrever vídeo.")
+      console.error("[transcrever-marketing] erro:", error);
+      const mensagem = String(error?.message || "Erro ao transcrever vídeo.")
         .replace(/deepinfra/gi, "serviço de transcrição")
         .replace(/\bbunny\b/gi, "servidor de vídeo")
         .slice(0, 500);
-      return res.status(500).json({ error: errorMessage });
+      await videoRef.update({
+        transcricaoStatus: "erro",
+        transcricaoErro: mensagem,
+        temTranscricao: false,
+      }).catch(() => {});
+    }
+  }
+
+  // POST /api/bunny/transcribe-marketing-video — coloca a transcrição pra rodar e
+  // responde na hora. O resultado chega pelo documento do vídeo, não por esta resposta.
+  app.post("/api/bunny/transcribe-marketing-video", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const videoId = String(req.body?.videoId || "").trim();
+    if (!videoId) return res.status(400).json({ error: "Informe o vídeo." });
+
+    try {
+      const videoRef = adminFirestore().collection("marketing_videos").doc(videoId);
+      const snap = await videoRef.get();
+      if (!snap.exists) return res.status(404).json({ error: "Vídeo não encontrado." });
+      const video = snap.data() as any;
+      const dono = String(video.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
+
+      const bunnyVideoId = String(video.bunnyVideoId || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId)) {
+        return res.status(400).json({ error: "Este vídeo não foi enviado pela plataforma, então não há o que transcrever." });
+      }
+      // Já está rodando: um segundo clique não pode abrir uma segunda transcrição
+      // do mesmo vídeo — seria pagar duas vezes pelo mesmo áudio.
+      if (video.transcricaoStatus === "processando") {
+        const desde = Date.parse(video.transcricaoIniciadaEm || "") || 0;
+        if (Date.now() - desde < 5 * 60 * 1000) {
+          return res.json({ estado: "ja-processando" });
+        }
+      }
+
+      // A library é resolvida pelo consultorId de QUEM CHAMA — nunca pelo corpo da
+      // requisição. Um consultor só transcreve vídeo dentro da própria library.
+      const lib = await bunnyLibraryDoConsultor(consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
+      const deepinfraKey = process.env.DEEPINFRA_API_KEY;
+      if (!deepinfraKey) return res.status(503).json({ error: "Serviço de transcrição não configurado no servidor." });
+
+      const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
+      const referer = origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {};
+
+      await videoRef.update({ transcricaoStatus: "na-fila", transcricaoIniciadaEm: new Date().toISOString() });
+      // Sem await: a resposta sai agora e o trabalho continua no processo.
+      void transcreverVideoMarketing({ videoRef, bunnyVideoId, lib, deepinfraKey, referer });
+
+      return res.status(202).json({ estado: "na-fila" });
+    } catch (error: any) {
+      console.error("[/api/bunny/transcribe-marketing-video] erro:", error);
+      return res.status(500).json({ error: String(error?.message || "Erro ao iniciar a transcrição.").slice(0, 500) });
     }
   });
 
