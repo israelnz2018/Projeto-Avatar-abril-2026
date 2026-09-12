@@ -203,6 +203,7 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
   const [apagadas, setApagadas] = useState<number[]>([...linhasApagadasDe(criativo)]);
   const [titulo, setTitulo] = useState(criativo.titulo);
   const [edicoes, setEdicoes] = useState<Record<string, string>>(criativo.edicoes || {});
+  const [erroSalvar, setErroSalvar] = useState('');
 
   const previa: Criativo = { ...criativo, linhasApagadas: apagadas, edicoes };
   const rotulo = ROTULO_STATUS[criativo.status];
@@ -241,6 +242,13 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
         const t = texto.trim();
         if (t && t !== criativo.linhas[Number(i)]?.texto) limpas[i] = t;
       }
+      // Criativo sem nenhuma fala não é criativo: viraria um cartão de 0:00 que nunca
+      // dá peça. Quem quer se livrar do trecho inteiro usa a lixeira do cartão.
+      if (apagadas.length >= criativo.linhas.length) {
+        setErroSalvar('Você apagou todas as falas. Traga alguma de volta, ou apague o criativo inteiro pela lixeira do topo.');
+        return;
+      }
+      setErroSalvar('');
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
         linhasApagadas: [...apagadas].sort((a, b) => a - b),
         titulo: titulo.trim() || criativo.titulo,
@@ -257,6 +265,7 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
 
   function abrirRevisao() {
     setApagadas([...linhasApagadasDe(criativo)]);
+    setErroSalvar('');
     setTitulo(criativo.titulo);
     setEdicoes(criativo.edicoes || {});
     setRevisando(true);
@@ -407,6 +416,9 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
                 <span className="text-xs text-blue-700 font-semibold">
                   {Object.keys(edicoes).length} fala(s) corrigida(s)
                 </span>
+              )}
+              {erroSalvar && (
+                <p className="w-full text-sm text-red-700">{erroSalvar}</p>
               )}
               <button
                 onClick={() => setRevisando(false)}
