@@ -143,9 +143,9 @@ export type StatusCriativo = 'novo' | 'revisar' | 'aprovado';
  * A IA lê a transcrição e escolhe os RECORTES; o texto em si vem da transcrição
  * real, fatiada no servidor — assim nenhuma palavra é inventada, só selecionada.
  *
- * O aparo das pontas é feito por índice, e não apagando linhas: `linhas` guarda o
- * trecho inteiro pra sempre, e corteInicio/corteFim dizem o que está em uso. Assim
- * o consultor corta demais e desfaz, sem precisar gerar tudo de novo.
+ * Apagar uma fala é marcá-la em `linhasApagadas`, não removê-la: `linhas` guarda o
+ * trecho inteiro pra sempre. Assim o consultor apaga demais e desfaz, sem precisar
+ * gerar tudo de novo.
  */
 export interface Criativo {
   id: string;
@@ -155,16 +155,21 @@ export interface Criativo {
   ordem: number;
   titulo: string;
   linhas: LinhaCriativo[];
-  /** Índice da primeira linha em uso. */
-  corteInicio: number;
-  /** Índice da última linha em uso. */
-  corteFim: number;
+  /**
+   * Índices das falas que o consultor apagou. Apagar as primeiras encurta o começo,
+   * as últimas encurtam o fim, e uma do meio abre um buraco — ver `temBuraco`.
+   */
+  linhasApagadas?: number[];
+  /** @deprecated Modelo antigo de aparo por faixa. Convertido por normalizar(). */
+  corteInicio?: number;
+  /** @deprecated Modelo antigo de aparo por faixa. Convertido por normalizar(). */
+  corteFim?: number;
   /**
    * Correções de palavra, por índice de linha (a chave é string porque o Firestore
    * não aceita mapa de número). A linha original nunca é sobrescrita: o que o
    * consultor corrigiu fica aqui por cima, e some se ele apagar a correção.
    *
-   * ESTE é o texto que vira legend do vídeo. O `texto` de `linhas` é o que a
+   * ESTE é o texto que vira legenda do vídeo. O `texto` de `linhas` é o que a
    * transcrição ouviu; o daqui é o que o consultor disse que era pra ser.
    */
   edicoes?: Record<string, string>;
@@ -173,33 +178,75 @@ export interface Criativo {
   atualizadoEm?: string;
 }
 
+/**
+ * Quais falas estão apagadas, entendendo também os criativos do modelo antigo
+ * (corteInicio/corteFim). Sem isso, um criativo gerado antes desta mudança
+ * apareceria inteiro, com o aparo que o consultor já tinha feito perdido.
+ */
+export function linhasApagadasDe(criativo: Criativo): Set<number> {
+  if (Array.isArray(criativo.linhasApagadas)) return new Set(criativo.linhasApagadas);
+  const apagadas = new Set<number>();
+  const ini = criativo.corteInicio ?? 0;
+  const fim = criativo.corteFim ?? criativo.linhas.length - 1;
+  criativo.linhas.forEach((_, i) => { if (i < ini || i > fim) apagadas.add(i); });
+  return apagadas;
+}
+
 /** O texto de uma linha, já com a correção do consultor se houver. */
 export function textoDaLinha(criativo: Criativo, indice: number): string {
   const corrigido = criativo.edicoes?.[String(indice)];
   return corrigido !== undefined ? corrigido : (criativo.linhas[indice]?.texto ?? '');
 }
 
-/** As linhas que sobraram depois do aparo, já com as correções aplicadas. */
+/** As falas que sobraram, já com as correções aplicadas. */
 export function linhasEmUso(criativo: Criativo): LinhaCriativo[] {
+  const apagadas = linhasApagadasDe(criativo);
   return criativo.linhas
-    .slice(criativo.corteInicio, criativo.corteFim + 1)
-    .map((l, i) => ({ ...l, texto: textoDaLinha(criativo, criativo.corteInicio + i) }));
+    .map((l, i) => ({ ...l, indice: i, texto: textoDaLinha(criativo, i) }))
+    .filter((l) => !apagadas.has(l.indice))
+    .map(({ indice, ...l }) => l);
 }
 
-/** Em que segundo do vídeo original o trecho começa, já contando o aparo. */
+/** Em que segundo do vídeo original o trecho começa, já contando o que foi apagado. */
 export function inicioNoVideo(criativo: Criativo): number {
   return linhasEmUso(criativo)[0]?.inicio ?? 0;
 }
 
-/** Em que segundo do vídeo original o trecho termina, já contando o aparo. */
+/** Em que segundo do vídeo original o trecho termina, já contando o que foi apagado. */
 export function fimNoVideo(criativo: Criativo): number {
   const linhas = linhasEmUso(criativo);
   return linhas[linhas.length - 1]?.fim ?? 0;
 }
 
-/** Quanto tempo o vídeo curto vai ter, depois do aparo. */
+/**
+ * Os pedaços contínuos de vídeo que sobraram.
+ *
+ * Apagar só do começo ou só do fim devolve UM pedaço, que é o que o renderizador
+ * sabe cortar hoje. Apagar uma fala do meio parte o trecho em dois, e aí seriam
+ * dois cortes emendados — capacidade que ainda não existe.
+ */
+export function pedacosDeVideo(criativo: Criativo): { inicio: number; fim: number }[] {
+  const apagadas = linhasApagadasDe(criativo);
+  const pedacos: { inicio: number; fim: number }[] = [];
+  let atual: { inicio: number; fim: number } | null = null;
+  criativo.linhas.forEach((linha, i) => {
+    if (apagadas.has(i)) { atual = null; return; }
+    if (atual) atual.fim = linha.fim;
+    else { atual = { inicio: linha.inicio, fim: linha.fim }; pedacos.push(atual); }
+  });
+  return pedacos;
+}
+
+/** Verdadeiro quando há fala apagada no MEIO, partindo o trecho em dois ou mais. */
+export function temBuraco(criativo: Criativo): boolean {
+  return pedacosDeVideo(criativo).length > 1;
+}
+
+/** Quanto tempo o vídeo curto vai ter: a soma dos pedaços que sobraram. */
 export function duracaoCriativo(criativo: Criativo): number {
-  return Math.max(0, Math.round(fimNoVideo(criativo) - inicioNoVideo(criativo)));
+  return Math.max(0, Math.round(
+    pedacosDeVideo(criativo).reduce((total, p) => total + (p.fim - p.inicio), 0),
+  ));
 }
 
 /** O texto corrido do criativo, já aparado. */

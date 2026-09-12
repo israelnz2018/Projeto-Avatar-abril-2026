@@ -2,22 +2,22 @@
  * Criativos — os trechos do vídeo que viram peça.
  *
  * A IA lê a transcrição e propõe os recortes; o consultor decide o que fica.
- * Revisar aqui NÃO é reescrever o texto: é aparar as pontas. O criativo tem que
- * continuar sendo o que a pessoa realmente falou no vídeo — só que começando e
- * terminando na hora certa.
+ * Revisar faz duas coisas, e só duas: CORRIGIR uma palavra que a transcrição ouviu
+ * errado, e APAGAR uma fala inteira. Não se edita meia fala — o texto tem que
+ * continuar sendo o que a pessoa falou, com o tempo dela colado nele.
  *
- * O aparo é por índice de linha, não apagando linha: o trecho inteiro fica
- * guardado, então dá pra cortar demais e voltar atrás sem gerar tudo de novo.
+ * Apagar é marcar o índice, não remover: o trecho inteiro fica guardado, então dá
+ * pra apagar demais e voltar atrás sem gerar tudo de novo.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import {
-  Check, Pencil, Trash2, Loader2, Sparkles, Scissors, RotateCcw, Clock, X,
+  Check, Pencil, Trash2, Loader2, Sparkles, RotateCcw, Clock, X,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
   COLECOES, Criativo, VideoFonte, duracaoCriativo, linhasEmUso, textoCriativo,
-  inicioNoVideo, fimNoVideo,
+  inicioNoVideo, fimNoVideo, linhasApagadasDe, temBuraco, pedacosDeVideo,
 } from '../../../types/marketing';
 
 /* ====================== Leitura ====================== */
@@ -198,14 +198,13 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
   const [revisando, setRevisando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
 
-  // Aparo e correções em rascunho: só vão pro Firestore quando o consultor salva,
-  // pra ele poder experimentar e desistir.
-  const [inicio, setInicio] = useState(criativo.corteInicio);
-  const [fim, setFim] = useState(criativo.corteFim);
+  // Falas apagadas e correções ficam em rascunho: só vão pro Firestore quando o
+  // consultor salva, pra ele poder experimentar e desistir.
+  const [apagadas, setApagadas] = useState<number[]>([...linhasApagadasDe(criativo)]);
   const [titulo, setTitulo] = useState(criativo.titulo);
   const [edicoes, setEdicoes] = useState<Record<string, string>>(criativo.edicoes || {});
 
-  const previa = { ...criativo, corteInicio: inicio, corteFim: fim, edicoes };
+  const previa: Criativo = { ...criativo, linhasApagadas: apagadas, edicoes };
   const rotulo = ROTULO_STATUS[criativo.status];
   const aprovado = criativo.status === 'aprovado';
 
@@ -243,8 +242,7 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
         if (t && t !== criativo.linhas[Number(i)]?.texto) limpas[i] = t;
       }
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
-        corteInicio: inicio,
-        corteFim: fim,
+        linhasApagadas: [...apagadas].sort((a, b) => a - b),
         titulo: titulo.trim() || criativo.titulo,
         edicoes: limpas,
         status: 'revisar',
@@ -258,11 +256,14 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
   }
 
   function abrirRevisao() {
-    setInicio(criativo.corteInicio);
-    setFim(criativo.corteFim);
+    setApagadas([...linhasApagadasDe(criativo)]);
     setTitulo(criativo.titulo);
     setEdicoes(criativo.edicoes || {});
     setRevisando(true);
+  }
+
+  function alternarApagada(i: number) {
+    setApagadas((atual) => (atual.includes(i) ? atual.filter((x) => x !== i) : [...atual, i]));
   }
 
   return (
@@ -327,71 +328,81 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
         ? (
           <div className="mt-3">
             <p className="text-xs text-gray-600 mb-2">
-              Tesoura da esquerda: <strong>começa</strong> naquela fala. Da direita:{' '}
-              <strong>termina</strong> nela. O que sair do corte fica apagado — nada é perdido.
-              Para consertar uma palavra, escreva por cima:{' '}
-              <strong>é esse texto que vale daqui pra frente</strong> — legenda do Reel, PDF, capa, tudo.
+              Duas coisas aqui: <strong>corrigir</strong> uma palavra que a transcrição
+              ouviu errado (escreva por cima) e <strong>apagar</strong> uma fala que não
+              deve entrar (lixeira). Nada é perdido — clique de novo para trazer de volta.
             </p>
             <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 max-h-80 overflow-y-auto">
               {criativo.linhas.map((linha, i) => {
-                const dentro = i >= inicio && i <= fim;
+                const fora = apagadas.includes(i);
+                const corrigida = edicoes[String(i)] !== undefined && edicoes[String(i)] !== linha.texto;
                 return (
                   <div
                     key={i}
-                    className={`flex items-start gap-2 px-2 py-1.5 text-sm ${dentro ? '' : 'opacity-40 bg-gray-50'}`}
+                    className={`flex items-start gap-2 px-2 py-1.5 text-sm ${fora ? 'bg-gray-50' : ''}`}
                   >
-                    <button
-                      onClick={() => { setInicio(i); if (fim < i) setFim(i); }}
-                      title="Começar aqui"
-                      className="p-1 text-gray-400 hover:text-blue-700 shrink-0"
-                    >
-                      <Scissors className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-xs font-mono text-gray-400 shrink-0 mt-0.5 w-10 text-right">
+                    <span className="text-xs font-mono text-gray-400 shrink-0 mt-1.5 w-10 text-right">
                       {formatarDuracao(linha.inicio)}
                     </span>
                     <input
                       value={edicoes[String(i)] ?? linha.texto}
                       onChange={(e) => setEdicoes({ ...edicoes, [String(i)]: e.target.value })}
-                      disabled={!dentro}
-                      title={
-                        edicoes[String(i)] !== undefined && edicoes[String(i)] !== linha.texto
-                          ? `Você corrigiu. A transcrição ouviu: ${linha.texto}`
-                          : undefined
-                      }
-                      className={`flex-1 min-w-0 bg-transparent px-1 py-0.5 rounded border text-gray-800
+                      disabled={fora}
+                      title={corrigida ? `Você corrigiu. A transcrição ouviu: ${linha.texto}` : undefined}
+                      className={`flex-1 min-w-0 bg-transparent px-1 py-1 rounded border
                         focus:outline-none focus:border-blue-400 focus:bg-white
-                        ${edicoes[String(i)] !== undefined && edicoes[String(i)] !== linha.texto
-                          ? 'border-blue-300 bg-blue-50/50'
-                          : 'border-transparent hover:border-gray-200'}`}
+                        ${fora
+                          ? 'text-gray-400 line-through border-transparent'
+                          : corrigida
+                            ? 'text-gray-800 border-blue-300 bg-blue-50/50'
+                            : 'text-gray-800 border-transparent hover:border-gray-200'}`}
                     />
                     <button
-                      onClick={() => { setFim(i); if (inicio > i) setInicio(i); }}
-                      title="Terminar aqui"
-                      className="p-1 text-gray-400 hover:text-blue-700 shrink-0"
+                      onClick={() => alternarApagada(i)}
+                      title={fora ? 'Trazer esta fala de volta' : 'Apagar esta fala'}
+                      className={`p-1.5 rounded shrink-0 ${fora
+                        ? 'text-blue-600 hover:bg-blue-50'
+                        : 'text-gray-300 hover:text-red-600 hover:bg-red-50'}`}
                     >
-                      <Scissors className="w-3.5 h-3.5 rotate-90" />
+                      {fora ? <RotateCcw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
                     </button>
                   </div>
                 );
               })}
             </div>
 
-            <div className="flex items-center gap-2 mt-3">
+            {/* Apagar do meio parte o trecho em dois, e o renderizador de hoje corta
+                um pedaço contínuo só. Avisar aqui é melhor do que deixar o consultor
+                descobrir na hora em que a peça sair diferente do que ele montou. */}
+            {temBuraco(previa) && (
+              <p className="mt-2 text-xs text-amber-800 p-2 rounded bg-amber-50 border border-amber-200">
+                Você apagou uma fala do meio, então o trecho ficou em{' '}
+                {pedacosDeVideo(previa).length} pedaços. O texto (legenda, PDF, carrossel) já
+                sai certo assim. O <strong>vídeo</strong> ainda não: hoje ele corta um pedaço
+                contínuo só, e emendar pedaços é coisa que ainda não foi construída.
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
               <button
                 onClick={salvarCorte}
                 disabled={ocupado}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
               >
-                {ocupado && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar corte
+                {ocupado && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar
               </button>
               <button
-                onClick={() => { setInicio(0); setFim(criativo.linhas.length - 1); setEdicoes({}); }}
-                title="Volta ao corte e ao texto que a transcrição entregou"
+                onClick={() => { setApagadas([]); setEdicoes({}); }}
+                title="Volta ao texto e às falas que a transcrição entregou"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restaurar tudo
               </button>
+              {apagadas.length > 0 && (
+                <span className="text-xs text-gray-600 font-semibold">
+                  {apagadas.length} fala(s) apagada(s)
+                </span>
+              )}
               {Object.keys(edicoes).length > 0 && (
                 <span className="text-xs text-blue-700 font-semibold">
                   {Object.keys(edicoes).length} fala(s) corrigida(s)
