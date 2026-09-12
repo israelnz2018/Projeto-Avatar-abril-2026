@@ -197,13 +197,14 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
   const [revisando, setRevisando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
 
-  // Aparo em rascunho: só vai pro Firestore quando o consultor salva, pra ele poder
-  // experimentar o corte e desistir.
+  // Aparo e correções em rascunho: só vão pro Firestore quando o consultor salva,
+  // pra ele poder experimentar e desistir.
   const [inicio, setInicio] = useState(criativo.corteInicio);
   const [fim, setFim] = useState(criativo.corteFim);
   const [titulo, setTitulo] = useState(criativo.titulo);
+  const [edicoes, setEdicoes] = useState<Record<string, string>>(criativo.edicoes || {});
 
-  const previa = { ...criativo, corteInicio: inicio, corteFim: fim };
+  const previa = { ...criativo, corteInicio: inicio, corteFim: fim, edicoes };
   const rotulo = ROTULO_STATUS[criativo.status];
   const aprovado = criativo.status === 'aprovado';
 
@@ -233,10 +234,18 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
   async function salvarCorte() {
     setOcupado(true);
     try {
+      // Correção igual ao original não é correção: guardá-la só encheria o documento
+      // e faria a linha parecer editada quando não foi.
+      const limpas: Record<string, string> = {};
+      for (const [i, texto] of Object.entries(edicoes)) {
+        const t = texto.trim();
+        if (t && t !== criativo.linhas[Number(i)]?.texto) limpas[i] = t;
+      }
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
         corteInicio: inicio,
         corteFim: fim,
         titulo: titulo.trim() || criativo.titulo,
+        edicoes: limpas,
         status: 'revisar',
         atualizadoEm: new Date().toISOString(),
       });
@@ -251,6 +260,7 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
     setInicio(criativo.corteInicio);
     setFim(criativo.corteFim);
     setTitulo(criativo.titulo);
+    setEdicoes(criativo.edicoes || {});
     setRevisando(true);
   }
 
@@ -307,9 +317,10 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
         ? (
           <div className="mt-3">
             <p className="text-xs text-gray-600 mb-2">
-              Clique na tesoura da esquerda para <strong>começar</strong> naquela fala, e na
-              da direita para <strong>terminar</strong> nela. O que sair do corte fica apagado —
-              nada é perdido.
+              Tesoura da esquerda: <strong>começa</strong> naquela fala. Da direita:{' '}
+              <strong>termina</strong> nela. O que sair do corte fica apagado — nada é perdido.
+              Para consertar uma palavra que a transcrição ouviu errado, é só escrever por cima:
+              <strong> é esse texto que vai virar a legenda do vídeo</strong>.
             </p>
             <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 max-h-80 overflow-y-auto">
               {criativo.linhas.map((linha, i) => {
@@ -329,7 +340,17 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
                     <span className="text-xs font-mono text-gray-400 shrink-0 mt-0.5 w-10 text-right">
                       {formatarDuracao(linha.inicio)}
                     </span>
-                    <span className="flex-1 text-gray-800">{linha.texto}</span>
+                    <input
+                      value={edicoes[String(i)] ?? linha.texto}
+                      onChange={(e) => setEdicoes({ ...edicoes, [String(i)]: e.target.value })}
+                      disabled={!dentro}
+                      title={edicoes[String(i)] !== undefined ? `Transcrição original: ${linha.texto}` : undefined}
+                      className={`flex-1 min-w-0 bg-transparent px-1 py-0.5 rounded border text-gray-800
+                        focus:outline-none focus:border-blue-400 focus:bg-white
+                        ${edicoes[String(i)] !== undefined && edicoes[String(i)] !== linha.texto
+                          ? 'border-blue-300 bg-blue-50/50'
+                          : 'border-transparent hover:border-gray-200'}`}
+                    />
                     <button
                       onClick={() => { setFim(i); if (inicio > i) setInicio(i); }}
                       title="Terminar aqui"
@@ -351,11 +372,17 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
                 {ocupado && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Salvar corte
               </button>
               <button
-                onClick={() => { setInicio(0); setFim(criativo.linhas.length - 1); }}
+                onClick={() => { setInicio(0); setFim(criativo.linhas.length - 1); setEdicoes({}); }}
+                title="Volta ao corte e ao texto que a transcrição entregou"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Restaurar tudo
               </button>
+              {Object.keys(edicoes).length > 0 && (
+                <span className="text-xs text-blue-700 font-semibold">
+                  {Object.keys(edicoes).length} fala(s) corrigida(s)
+                </span>
+              )}
               <button
                 onClick={() => setRevisando(false)}
                 className="flex items-center gap-1 px-2 py-1.5 text-sm font-semibold text-gray-600"

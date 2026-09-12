@@ -156,14 +156,31 @@ export interface Criativo {
   corteInicio: number;
   /** Índice da última linha em uso. */
   corteFim: number;
+  /**
+   * Correções de palavra, por índice de linha (a chave é string porque o Firestore
+   * não aceita mapa de número). A linha original nunca é sobrescrita: o que o
+   * consultor corrigiu fica aqui por cima, e some se ele apagar a correção.
+   *
+   * ESTE é o texto que vira legend do vídeo. O `texto` de `linhas` é o que a
+   * transcrição ouviu; o daqui é o que o consultor disse que era pra ser.
+   */
+  edicoes?: Record<string, string>;
   status: StatusCriativo;
   criadoEm: string;
   atualizadoEm?: string;
 }
 
-/** As linhas que sobraram depois do aparo. */
+/** O texto de uma linha, já com a correção do consultor se houver. */
+export function textoDaLinha(criativo: Criativo, indice: number): string {
+  const corrigido = criativo.edicoes?.[String(indice)];
+  return corrigido !== undefined ? corrigido : (criativo.linhas[indice]?.texto ?? '');
+}
+
+/** As linhas que sobraram depois do aparo, já com as correções aplicadas. */
 export function linhasEmUso(criativo: Criativo): LinhaCriativo[] {
-  return criativo.linhas.slice(criativo.corteInicio, criativo.corteFim + 1);
+  return criativo.linhas
+    .slice(criativo.corteInicio, criativo.corteFim + 1)
+    .map((l, i) => ({ ...l, texto: textoDaLinha(criativo, criativo.corteInicio + i) }));
 }
 
 /** Quanto tempo o vídeo curto vai ter, depois do aparo. */
