@@ -3235,6 +3235,8 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
 
     const criativoId = String(req.body?.criativoId || "").trim();
     if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
+    // O que o consultor pediu pra mudar quando não gostou da versão anterior.
+    const melhoria = String(req.body?.melhoria || "").trim().slice(0, 500);
 
     try {
       const ref = adminFirestore().collection("marketing_criativos").doc(criativoId);
@@ -3273,7 +3275,11 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  tirado da própria fala.\n`
         + `- Cada página avança o raciocínio. Se duas páginas dizem a mesma coisa, junte e faça menos.\n\n`
         + `${GRAMATICA_SLIDES}\n\n`
-        + `Devolva APENAS JSON: {"slides":[{"type":"capa","title":"...","body":"...","sub":"..."}]}`;
+        + `Devolva APENAS JSON: {"slides":[{"type":"capa","title":"...","body":"...","sub":"..."}]}`
+        // O pedido do consultor vai POR ÚLTIMO, depois de todas as regras: ele está
+        // corrigindo uma versão que já viu, e o que ele pede tem que pesar mais do
+        // que a orientação genérica de estilo lá de cima.
+        + (melhoria ? `\n\nO CONSULTOR VIU UMA VERSÃO ANTERIOR E PEDIU: "${melhoria}"\nAtenda a isso. Vale mais que as orientações de estilo acima, menos as regras de formato, que continuam valendo.` : "");
 
       const schemaRoteiro = {
         type: Type.OBJECT,

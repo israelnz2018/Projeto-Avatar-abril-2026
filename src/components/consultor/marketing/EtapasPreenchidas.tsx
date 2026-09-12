@@ -354,7 +354,7 @@ export function EtapaRevisao({ campanhas, pecas }: { campanhas: Campanha[]; peca
  * com link vencido "some" da tela depois. Então a URL de exibição é pedida aqui,
  * na hora de mostrar.
  */
-function Previa({ caminho }: { caminho?: string }) {
+export function Previa({ caminho }: { caminho?: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [erro, setErro] = useState(false);
 

@@ -26,10 +26,11 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 import { ConsultorBranding } from '../../types';
 import { COLECOES, MarketingConfig } from '../../types/marketing';
 import {
-  EtapaRedes, EtapaVideos, EtapaCampanhas, EtapaRevisao, EtapaAgenda, useDadosMarketing,
+  EtapaRedes, EtapaVideos, EtapaRevisao, EtapaAgenda, useDadosMarketing,
 } from './marketing/EtapasPreenchidas';
-import { FormularioVideo, FormularioCampanha } from './marketing/AcoesMarketing';
-import { PainelCriativos, EtapaCriativosAprovados, useCriativos } from './marketing/Criativos';
+import { FormularioVideo } from './marketing/AcoesMarketing';
+import { PainelCriativos, useCriativos } from './marketing/Criativos';
+import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
 
 type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'revisao' | 'agenda';
 
@@ -204,21 +205,9 @@ export default function MarketingConsultor() {
                   <EtapaCriativosAprovados
                     criativos={criativos.criativos}
                     videos={dados.videos}
-                    onMudou={criativos.recarregar}
+                    pecas={dados.pecas}
+                    onMudou={() => { criativos.recarregar(); dados.recarregar(); }}
                   />
-                  <details className="pt-4 border-t border-gray-200">
-                    <summary className="text-sm font-semibold text-gray-600 cursor-pointer">
-                      Montar uma peça escrevendo o texto na mão
-                    </summary>
-                    <div className="mt-3 space-y-4">
-                      <FormularioCampanha
-                        consultorId={consultorId}
-                        videos={dados.videos}
-                        onCriada={dados.recarregar}
-                      />
-                      <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />
-                    </div>
-                  </details>
                 </div>
               )}
 

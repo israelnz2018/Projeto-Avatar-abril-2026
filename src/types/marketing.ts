@@ -173,10 +173,46 @@ export interface Criativo {
    * transcrição ouviu; o daqui é o que o consultor disse que era pra ser.
    */
   edicoes?: Record<string, string>;
+  /**
+   * As páginas do carrossel escritas a partir da fala.
+   *
+   * UM roteiro serve os quatro formatos de texto: o renderizador produz o carrossel
+   * do feed, o PDF do LinkedIn e o vídeo 9:16 numa execução só, a partir das mesmas
+   * páginas. Gerar um por formato custaria quatro vezes mais e deixaria o carrossel
+   * dizendo uma coisa e o PDF outra.
+   */
+  roteiro?: { slides: SlideRoteiro[]; geradoEm: string };
   status: StatusCriativo;
   criadoEm: string;
   atualizadoEm?: string;
 }
+
+/** Uma página do carrossel. Os campos variam conforme o `type`. */
+export interface SlideRoteiro {
+  type: 'capa' | 'padrao' | 'dado' | 'comparacao' | 'camadas' | 'cta';
+  title: string;
+  body: string;
+  /** capa: a pergunta curta embaixo do texto. */
+  sub?: string;
+  /** dado: o número em destaque e de onde ele veio. */
+  numero?: string;
+  fonte?: string;
+  /** comparacao: os dois lados. */
+  negativo?: string;
+  positivo?: string;
+  /** cta: a palavra que o seguidor comenta. */
+  palavra?: string;
+}
+
+/** Os formatos que saem de um roteiro só. */
+export type FormatoPeca = 'carrossel' | 'pdf' | 'video' | 'imagem';
+
+export const FORMATOS: { id: FormatoPeca; nome: string; onde: string }[] = [
+  { id: 'carrossel', nome: 'Carrossel', onde: 'Feed do Instagram' },
+  { id: 'video', nome: 'Carrossel em vídeo', onde: 'Reels, sem voz' },
+  { id: 'pdf', nome: 'Documento PDF', onde: 'LinkedIn' },
+  { id: 'imagem', nome: 'Imagem única', onde: 'Feed, post simples' },
+];
 
 /**
  * Quais falas estão apagadas, entendendo também os criativos do modelo antigo
