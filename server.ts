@@ -2740,13 +2740,9 @@ async function startServer() {
       if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do servidor de vídeo: HTTP ${mediaResponse.status}`);
       const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
 
-      // O dicionário técnico do consultor vira dica pro Whisper: aumenta a chance de
-      // acertar o termo de primeira, em vez de depender só da correção por semelhança depois.
-      const configSnap = await adminFirestore().collection("marketing_config").doc(consultorId).get();
-      const termos: string[] = Array.isArray(configSnap.data()?.termos) ? configSnap.data()!.termos : [];
-      const dica = termos.length
-        ? `Termos técnicos que podem aparecer: ${termos.join(", ")}.`
-        : "Aula ou palestra em português.";
+      // Dica genérica de contexto. O que a transcrição errar, o consultor conserta
+      // na revisão do criativo — é lá que ele lê o texto de qualquer jeito.
+      const dica = "Aula ou palestra em português.";
 
       const form = new FormData();
       form.append("file", new Blob([mediaBuffer]), "video.mp4");
@@ -3025,7 +3021,12 @@ async function startServer() {
 
       await batch.commit();
       console.log(`[gerar-criativos] ${videoId}: IA propôs ${trechos.length}, gravados ${criativos.length}, descartes`, descartes);
-      return res.json({ criativos, propostos: trechos.length, descartes, aprovadosMantidos: aprovados.length });
+      return res.json({
+        criativos,
+        propostos: trechos.length,
+        descartes,
+        aprovadosMantidos: aprovados.length,
+      });
     } catch (error: any) {
       console.error("[/api/marketing-consultor/gerar-criativos] erro:", error);
       const errorMessage = String(error?.message || "Erro ao gerar criativos.")

@@ -46,7 +46,7 @@ interface Etapa {
 const ETAPAS: Etapa[] = [
   {
     id: 'config', numero: 1, nome: 'Configuração', icon: Settings2, pronta: true,
-    oQueFaz: 'Confira sua marca e cadastre os termos técnicos que não podem sair errados.',
+    oQueFaz: 'Confira a marca que vai nas peças e o link que elas divulgam.',
   },
   {
     id: 'redes', numero: 2, nome: 'Redes sociais', icon: Share2, pronta: false,
@@ -257,8 +257,12 @@ export default function MarketingConsultor() {
  * a cada vídeo/campanha. O crédito vem do campo "curso" cadastrado no vídeo (etapa 3);
  * a chamada para ação é parte do texto que o consultor escreve na campanha (etapa 4).
  *
- * O que sobra aqui é só o que é de fato transversal a toda campanha: o link
- * principal e o dicionário de termos técnicos.
+ * O que sobra aqui é o que vale para toda campanha: a marca e o link principal.
+ *
+ * O dicionário técnico foi embora: ele corrigia por semelhança e comia palavra
+ * vizinha ("juntou o Lean com Six Sigma" virava "Lean Lean Six Sigma"). Agora o
+ * consultor lê e conserta o texto na revisão do criativo, que é onde ele passa de
+ * qualquer jeito — um lugar só, e sem a plataforma adivinhando por cima.
  */
 function EtapaConfiguracao({
   consultorId,
@@ -270,7 +274,6 @@ function EtapaConfiguracao({
   onCompletaChange: (v: boolean) => void;
 }) {
   const [linkPrincipal, setLinkPrincipal] = useState('');
-  const [termos, setTermos] = useState<string[]>([]);
 
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -293,7 +296,6 @@ function EtapaConfiguracao({
         if (!vivo) return;
         const d = snap.data() as MarketingConfig | undefined;
         setLinkPrincipal(d?.linkPrincipal || '');
-        setTermos(d?.termos?.length ? d.termos : []);
       } finally {
         if (vivo) setCarregando(false);
       }
@@ -306,15 +308,12 @@ function EtapaConfiguracao({
     setSalvando(true);
     setMsg('');
     try {
-      const limpos = termos.map((t) => t.trim()).filter(Boolean);
       const payload: MarketingConfig = {
         consultorId,
         linkPrincipal: linkPrincipal.trim(),
-        termos: limpos,
         atualizadoEm: new Date().toISOString(),
       };
       await setDoc(doc(db, COLECOES.config, consultorId), payload, { merge: true });
-      setTermos(limpos);
       setMsg('Configuração salva.');
     } catch (e: any) {
       setMsg(`Não foi possível salvar: ${e?.message || e}`);
@@ -333,8 +332,6 @@ function EtapaConfiguracao({
         <Campo label="Página ou link principal" valor={linkPrincipal} onChange={setLinkPrincipal}
           dica="Usado quando a peça precisar apontar para algum lugar." />
       </section>
-
-      <DicionarioTecnico termos={termos} setTermos={setTermos} />
 
       <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
         <button
@@ -389,78 +386,6 @@ function CartaoMarca({ branding }: { branding?: ConsultorBranding }) {
         >
           <Pencil className="w-3.5 h-3.5" /> Editar em Minha Marca
         </a>
-      </div>
-    </section>
-  );
-}
-
-/**
- * Dicionário técnico: o consultor cadastra só a grafia CORRETA dos termos que
- * importam pra ele (ex.: "Lean Six Sigma", "DMAIC") — não precisa adivinhar toda
- * variação de erro possível. Quando o texto de uma peça tiver uma palavra parecida
- * mas errada, o worker troca pela grafia daqui (ver aplicarDicionario).
- */
-function DicionarioTecnico({
-  termos,
-  setTermos,
-}: {
-  termos: string[];
-  setTermos: (t: string[]) => void;
-}) {
-  const [novo, setNovo] = useState('');
-
-  function adicionar() {
-    const v = novo.trim();
-    if (!v) return;
-    // Sem duplicar o mesmo termo com grafia igual (ignorando maiúsculas).
-    if (termos.some((t) => t.toLowerCase() === v.toLowerCase())) { setNovo(''); return; }
-    setTermos([...termos, v]);
-    setNovo('');
-  }
-
-  return (
-    <section>
-      <h2 className="text-base font-bold text-gray-900">Meu dicionário técnico</h2>
-      <p className="text-sm text-gray-600 mt-1 mb-4">
-        Cadastre só os termos mais importantes da sua área, na grafia certa — ex.:
-        “Lean Six Sigma”, “DMAIC”. Não precisa listar as formas erradas: o sistema
-        reconhece uma palavra parecida com a errada e troca pela grafia daqui.
-      </p>
-
-      {termos.length === 0 && (
-        <p className="text-sm text-gray-500 italic mb-3">Nenhum termo cadastrado ainda.</p>
-      )}
-
-      <div className="flex flex-wrap gap-2 mb-3">
-        {termos.map((t, i) => (
-          <span key={`${t}-${i}`} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-sm text-gray-800">
-            {t}
-            <button
-              onClick={() => setTermos(termos.filter((_, j) => j !== i))}
-              className="p-0.5 text-gray-400 hover:text-red-600"
-              title="Remover termo"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </span>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          value={novo}
-          onChange={(e) => setNovo(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); adicionar(); } }}
-          placeholder="Ex.: Lean Six Sigma"
-          className="flex-1 max-w-xs px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        <button
-          onClick={adicionar}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar
-        </button>
       </div>
     </section>
   );

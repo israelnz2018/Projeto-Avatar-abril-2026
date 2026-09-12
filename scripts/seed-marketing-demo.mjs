@@ -37,21 +37,6 @@ const agora = new Date().toISOString();
 const config = {
   consultorId: CONSULTOR_ID,
   linkPrincipal: 'https://israel.educacaopelotrabalho.com/plataformalbw',
-  // Só a grafia correta dos termos que importam — não as variações de erro. O
-  // worker (aplicarDicionario) reconhece por semelhança "se sigma", "seis sigma",
-  // "lean sigma" etc. e troca por "Six Sigma" ou "Lean Six Sigma" sozinho.
-  termos: [
-    'Lean Six Sigma',
-    'Six Sigma',
-    'Lean Manufacturing',
-    'Lean',
-    'DMAIC',
-    'Kaizen',
-    'Taiichi Ohno',
-    'White Belt',
-    'Black Belt',
-    'Green Belt',
-  ],
   instagram: {
     conectado: true,
     conta: '@educacao_pelo_trabalho',
@@ -161,7 +146,7 @@ for (const c of campanhas) {
 await lote.commit();
 
 console.log('Semeado com sucesso:');
-console.log(`  configuração:  1 documento (${config.termos.length} termos técnicos)`);
+console.log('  configuração:  1 documento');
 console.log(`  vídeo fonte:   1`);
 console.log(`  campanhas:     ${campanhas.length}`);
 console.log(`  peças:         ${totalPecas}`);

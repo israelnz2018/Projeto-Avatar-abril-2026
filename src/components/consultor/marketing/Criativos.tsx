@@ -319,8 +319,8 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
             <p className="text-xs text-gray-600 mb-2">
               Tesoura da esquerda: <strong>começa</strong> naquela fala. Da direita:{' '}
               <strong>termina</strong> nela. O que sair do corte fica apagado — nada é perdido.
-              Para consertar uma palavra que a transcrição ouviu errado, é só escrever por cima:
-              <strong> é esse texto que vai virar a legenda do vídeo</strong>.
+              Para consertar uma palavra, escreva por cima:{' '}
+              <strong>é esse texto que vale daqui pra frente</strong> — legenda do Reel, PDF, capa, tudo.
             </p>
             <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 max-h-80 overflow-y-auto">
               {criativo.linhas.map((linha, i) => {
@@ -344,7 +344,11 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
                       value={edicoes[String(i)] ?? linha.texto}
                       onChange={(e) => setEdicoes({ ...edicoes, [String(i)]: e.target.value })}
                       disabled={!dentro}
-                      title={edicoes[String(i)] !== undefined ? `Transcrição original: ${linha.texto}` : undefined}
+                      title={
+                        edicoes[String(i)] !== undefined && edicoes[String(i)] !== linha.texto
+                          ? `Você corrigiu. A transcrição ouviu: ${linha.texto}`
+                          : undefined
+                      }
                       className={`flex-1 min-w-0 bg-transparent px-1 py-0.5 rounded border text-gray-800
                         focus:outline-none focus:border-blue-400 focus:bg-white
                         ${edicoes[String(i)] !== undefined && edicoes[String(i)] !== linha.texto

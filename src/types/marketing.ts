@@ -55,16 +55,6 @@ export type StatusCampanha =
   | 'erro';
 
 /**
- * Termo técnico que o consultor considera importante manter correto nas peças.
- *
- * É só a grafia CORRETA (ex.: "Lean Six Sigma", "DMAIC") — o consultor não cadastra
- * as variações de erro. O worker compara o texto contra esta lista por semelhança
- * (distância de edição) e troca o trecho parecido pela grafia certa. Ver
- * aplicarDicionario em worker/executores.mjs.
- */
-export type TermoTecnico = string;
-
-/**
  * Conexão com uma rede social.
  * O token NUNCA vem para o frontend — aqui fica só o estado, para a tela saber
  * se está conectado e quando vence. O token vive no servidor.
@@ -87,14 +77,13 @@ export interface MarketingConfig {
   instagram?: ConexaoRede;
   linkedin?: ConexaoRede;
   /**
-   * Dicionário técnico do consultor: só os termos importantes da área, na grafia
-   * certa. Nome da empresa e logo NÃO ficam aqui — vêm de "Minha Marca"
-   * (Consultor.branding). Crédito da fonte e chamada para ação também não ficam
-   * aqui: mudam a cada vídeo/campanha, então são preenchidos na etapa 3 (o campo
-   * `curso` do vídeo) e na etapa 4 (dentro do próprio texto dos slides).
+   * Link principal divulgado nas peças.
+   *
+   * Nome da empresa e logo NÃO ficam aqui — vêm de "Minha Marca"
+   * (Consultor.branding). Crédito da fonte e chamada para ação também não:
+   * mudam a cada vídeo/campanha, então saem do campo `curso` do vídeo (etapa 3)
+   * e do próprio texto dos slides (etapa 4).
    */
-  termos: TermoTecnico[];
-  /** Link principal divulgado nas peças. */
   linkPrincipal?: string;
   atualizadoEm?: string;
 }
@@ -128,6 +117,7 @@ export interface LinhaCriativo {
   inicio: number;
   /** Segundo em que a fala termina. */
   fim: number;
+  /** A fala como a transcrição ouviu. O consultor corrige na revisão, em `edicoes`. */
   texto: string;
 }
 
