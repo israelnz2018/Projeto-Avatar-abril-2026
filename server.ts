@@ -2877,7 +2877,13 @@ async function startServer() {
         `- Termina fechando a ideia, não no meio de uma frase.\n` +
         `- Duração entre 20 segundos e 3 minutos. O ideal fica perto de 45 segundos.\n` +
         `- Os trechos NÃO podem se sobrepor.\n` +
-        `- Prefira menos trechos bons a muitos trechos fracos. Se a aula só tem 3 bons momentos, devolva 3.\n` +
+        // Sem a varredura explícita o modelo se concentrava no começo da aula e
+        // deixava blocos de 15 minutos inteiros sem nenhum trecho.
+        `- VARRA A AULA INTEIRA, do minuto 0 ao minuto ${Math.round(duracaoTotal / 60)}. Não pare no começo:\n` +
+        `  percorra todos os blocos e não deixe nenhuma faixa longa da aula sem nenhum trecho,\n` +
+        `  a não ser que ali realmente não haja nada aproveitável (demonstração de tela, silêncio, papo solto).\n` +
+        `- Numa aula desse tamanho normalmente há entre ${Math.max(5, Math.round(duracaoTotal / 300))} e ${Math.max(8, Math.round(duracaoTotal / 150))} bons trechos.\n` +
+        `  Não force para chegar num número: trecho fraco atrapalha. Mas também não pare cedo demais.\n` +
         `- O título tem no máximo 6 palavras, é uma frase nominal em português, e diz do que o trecho trata.\n\n` +
         `Devolva APENAS JSON: {"trechos":[{"titulo":"...","inicio":"MM:SS","fim":"MM:SS"}]}`;
 
@@ -2908,8 +2914,18 @@ async function startServer() {
           const gerado = await ai.models.generateContent({
             model: geminiModel,
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            config: { responseMimeType: "application/json", responseSchema: schemaCriativos, maxOutputTokens: 4096, temperature: 0.4 },
+            // 32k, e não 4k: no Gemini 2.5 o RACIOCÍNIO consome o mesmo orçamento da
+            // resposta, e varrer uma aula de 52 minutos custou 12.928 tokens só de
+            // pensamento (medido, não chutado). Com 4096 o modelo não chegava ao fim
+            // da lista: o JSON vinha cortado no meio e a aula rendia 7 trechos em vez
+            // de 17, sempre nos primeiros minutos. Sobra de teto aqui não custa nada —
+            // cobra-se o que é gerado.
+            config: { responseMimeType: "application/json", responseSchema: schemaCriativos, maxOutputTokens: 32768, temperature: 0.4 },
           });
+          // Falhar alto: truncado por teto de token é um bug de configuração, não
+          // "a IA achou pouco". Sem esta checagem ele se disfarça de lista curta.
+          const motivo = gerado.candidates?.[0]?.finishReason;
+          if (motivo === "MAX_TOKENS") throw new Error("A resposta da IA foi cortada pelo limite de tokens.");
           const limpo = String(gerado.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
           trechos = JSON.parse(limpo)?.trechos || [];
           ultimoErro = null;
@@ -2928,46 +2944,88 @@ async function startServer() {
       };
 
       const agora = new Date().toISOString();
+      const colecao = adminFirestore().collection("marketing_criativos");
+
+      // Gerar de novo SUBSTITUI o que veio da rodada anterior, menos o que o consultor
+      // já aprovou. Antes o id era sequencial (__01, __02...), então uma rodada com
+      // menos trechos deixava os antigos de sobra vivos e a lista virava uma mistura de
+      // duas gerações. O id agora é o segundo em que o trecho começa: estável e sem
+      // colidir entre rodadas.
+      const anteriores = await colecao.where("videoId", "==", videoId).get();
+      const aprovados = anteriores.docs
+        .map((d) => d.data() as any)
+        .filter((c) => c.status === "aprovado");
+
       const batch = adminFirestore().batch();
+      for (const d of anteriores.docs) {
+        if ((d.data() as any).status !== "aprovado") batch.delete(d.ref);
+      }
+
+      // Diagnóstico: quantos a IA propôs e por que cada descarte aconteceu. Sem isso
+      // não havia como saber se "vieram poucos" era julgamento da IA ou filtro nosso.
+      const descartes = { poucasFalas: 0, duracao: 0, tempoInvalido: 0, jaAprovado: 0 };
       const criativos: any[] = [];
-      let ordem = 0;
 
       for (const trecho of trechos) {
         const inicio = paraSegundos(trecho.inicio);
         const fim = paraSegundos(trecho.fim);
-        if (!Number.isFinite(inicio) || !Number.isFinite(fim) || fim <= inicio) continue;
+        if (!Number.isFinite(inicio) || !Number.isFinite(fim) || fim <= inicio) { descartes.tempoInvalido++; continue; }
         // O recorte é resolvido contra as linhas reais: a IA aponta o tempo, mas
         // quem decide qual fala entra é a transcrição.
         const doTrecho = linhas.filter((l) => l.fim > inicio && l.inicio < fim);
-        if (doTrecho.length < 2) continue;
+        if (doTrecho.length < 2) { descartes.poucasFalas++; continue; }
 
         // Garantia no servidor, não só no prompt: a IA às vezes devolve um intervalo
         // fora do que foi pedido, e um "vídeo curto" de 10 minutos não serve pra nada.
         // Vale também como rede contra buraco de silêncio dentro do recorte.
         const duracao = doTrecho[doTrecho.length - 1].fim - doTrecho[0].inicio;
-        if (duracao < 10 || duracao > 240) continue;
+        if (duracao < 10 || duracao > 240) { descartes.duracao++; continue; }
 
-        ordem += 1;
-        const id = `${videoId}__${String(ordem).padStart(2, "0")}`;
-        const criativo = {
-          id,
+        // Não repõe um trecho que já virou aprovado: seria o mesmo conteúdo duas vezes,
+        // uma delas apagando o corte que o consultor já ajustou à mão.
+        const comecoReal = doTrecho[0].inicio;
+        const fimReal = doTrecho[doTrecho.length - 1].fim;
+        const colide = aprovados.some((a) => {
+          const ls = a.linhas || [];
+          if (!ls.length) return false;
+          return ls[ls.length - 1].fim > comecoReal && ls[0].inicio < fimReal;
+        });
+        if (colide) { descartes.jaAprovado++; continue; }
+
+        criativos.push({
+          id: `${videoId}__${String(Math.round(comecoReal)).padStart(5, "0")}`,
           consultorId: dono || consultorId,
           videoId,
-          ordem,
-          titulo: String(trecho.titulo || `Trecho ${ordem}`).trim().slice(0, 80),
+          titulo: String(trecho.titulo || "Trecho").trim().slice(0, 80),
           linhas: doTrecho,
           corteInicio: 0,
           corteFim: doTrecho.length - 1,
           status: "novo",
           criadoEm: agora,
-        };
-        batch.set(adminFirestore().collection("marketing_criativos").doc(id), criativo);
-        criativos.push(criativo);
+        });
       }
 
-      if (!criativos.length) return res.status(422).json({ error: "Os trechos sugeridos não casaram com a transcrição." });
+      if (!criativos.length && !aprovados.length) {
+        return res.status(422).json({
+          error: `A IA propôs ${trechos.length} trecho(s), mas nenhum sobreviveu à conferência contra a transcrição.`,
+        });
+      }
+
+      // A ordem é por tempo no vídeo, contando os aprovados que ficaram de pé.
+      const todos = [...aprovados, ...criativos].sort((a, b) =>
+        (a.linhas?.[0]?.inicio ?? 0) - (b.linhas?.[0]?.inicio ?? 0));
+      todos.forEach((c, i) => {
+        const ordem = i + 1;
+        if (criativos.includes(c)) {
+          batch.set(colecao.doc(c.id), { ...c, ordem });
+        } else if (c.ordem !== ordem) {
+          batch.update(colecao.doc(c.id), { ordem });
+        }
+      });
+
       await batch.commit();
-      return res.json({ criativos });
+      console.log(`[gerar-criativos] ${videoId}: IA propôs ${trechos.length}, gravados ${criativos.length}, descartes`, descartes);
+      return res.json({ criativos, propostos: trechos.length, descartes, aprovadosMantidos: aprovados.length });
     } catch (error: any) {
       console.error("[/api/marketing-consultor/gerar-criativos] erro:", error);
       const errorMessage = String(error?.message || "Erro ao gerar criativos.")

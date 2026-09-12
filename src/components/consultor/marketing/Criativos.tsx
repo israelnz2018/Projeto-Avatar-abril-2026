@@ -60,6 +60,7 @@ export function PainelCriativos({
   const [videoId, setVideoId] = useState('');
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState('');
+  const [relatorio, setRelatorio] = useState('');
 
   // Abre já no primeiro vídeo: o caso comum é ter poucos, e cair numa tela vazia
   // que exige um clique pra mostrar qualquer coisa é ruim.
@@ -77,6 +78,7 @@ export function PainelCriativos({
     if (!videoId) return;
     setGerando(true);
     setErro('');
+    setRelatorio('');
     try {
       const user = auth.currentUser;
       const token = user ? await user.getIdToken() : '';
@@ -87,6 +89,21 @@ export function PainelCriativos({
       });
       const corpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+
+      // Sem esta prestação de contas não dá pra saber se "vieram poucos" foi
+      // julgamento da IA ou filtro da plataforma jogando candidato fora calado.
+      const d = corpo.descartes || {};
+      const motivos = [
+        d.duracao ? `${d.duracao} fora da faixa de duração` : '',
+        d.poucasFalas ? `${d.poucasFalas} curtos demais na transcrição` : '',
+        d.tempoInvalido ? `${d.tempoInvalido} com tempo inválido` : '',
+        d.jaAprovado ? `${d.jaAprovado} já aprovados antes` : '',
+      ].filter(Boolean);
+      setRelatorio(
+        `A IA propôs ${corpo.propostos} trecho(s) e ${corpo.criativos?.length ?? 0} entraram na lista`
+        + (motivos.length ? `. Descartados: ${motivos.join(', ')}.` : '.')
+        + (corpo.aprovadosMantidos ? ` ${corpo.aprovadosMantidos} aprovado(s) anterior(es) foram preservados.` : ''),
+      );
       onMudou();
     } catch (e: any) {
       setErro(e?.message || String(e));
@@ -131,6 +148,11 @@ export function PainelCriativos({
       </div>
 
       {erro && <p className="text-sm text-red-700 mb-3">{erro}</p>}
+      {relatorio && (
+        <p className="text-xs text-gray-600 mb-3 p-2 rounded bg-gray-50 border border-gray-200">
+          {relatorio}
+        </p>
+      )}
 
       {video && !video.temTranscricao && (
         <p className="text-sm text-amber-800 p-3 rounded-lg bg-amber-50 border border-amber-200">
