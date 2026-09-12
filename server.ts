@@ -3177,6 +3177,214 @@ async function startServer() {
     }
   });
 
+  /**
+   * A gramática de slide que o renderizador aceita, escrita para a IA ler.
+   *
+   * Fica aqui e não no prompt solto porque são REGRAS DURAS: o renderizador lança
+   * erro e não produz nada se o carrossel não tiver 6 a 8 páginas, ou se alguma
+   * passar de 32 palavras. Ensinar isso à IA sai de graça; descobrir depois custa
+   * uma geração inteira jogada fora.
+   */
+  const GRAMATICA_SLIDES = `FORMATO DAS PÁGINAS
+
+Cada página tem um "type". Use os tipos assim:
+
+- "capa": a primeira página, sempre. Campos: title, body, sub (uma pergunta curta).
+- "padrao": a página comum, para desenvolver uma ideia. Campos: title, body.
+- "dado": quando há um número que sustenta o argumento. Campos: numero, title, body,
+  fonte (opcional). Só use se o número tiver saído da fala — não invente estatística.
+- "comparacao": para opor duas coisas. Campos: title, body, negativo, positivo
+  (duas ou três palavras cada).
+- "cta": a última página, sempre. Campos: title, body, palavra (UMA palavra em
+  maiúsculas que o seguidor vai comentar).
+
+REGRAS QUE NÃO PODEM SER QUEBRADAS
+
+1. Entre 6 e 8 páginas. Nunca 5, nunca 9.
+2. Cada página: title + body somados no MÁXIMO 32 palavras. Conte. Passar disso
+   faz a peça inteira falhar.
+3. A primeira página é "capa". A última é "cta".
+4. Envolva em asteriscos a expressão que deve aparecer destacada: *assim*. Uma por
+   página, no title.`;
+
+  // POST /api/marketing-consultor/gerar-roteiro — transforma um criativo aprovado
+  // no texto das páginas do carrossel.
+  //
+  // UM roteiro serve os quatro formatos de texto (carrossel no feed, PDF do
+  // LinkedIn, carrossel em vídeo e imagem única): o renderizador já produz os três
+  // primeiros numa execução só, a partir das mesmas páginas. Gerar um roteiro por
+  // formato custaria quatro vezes mais e deixaria o carrossel dizendo uma coisa e
+  // o PDF outra, já que a IA não é determinística.
+  app.post("/api/marketing-consultor/gerar-roteiro", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const criativoId = String(req.body?.criativoId || "").trim();
+    if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
+
+    try {
+      const ref = adminFirestore().collection("marketing_criativos").doc(criativoId);
+      const snap = await ref.get();
+      if (!snap.exists) return res.status(404).json({ error: "Criativo não encontrado." });
+      const criativo = snap.data() as any;
+      const dono = String(criativo.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Criativo não pertence a este consultor." });
+
+      // O texto é montado do mesmo jeito que a tela mostra: sem as falas apagadas e
+      // COM as correções do consultor. O que ele aprovou é o que a IA recebe.
+      const apagadas = new Set<number>(Array.isArray(criativo.linhasApagadas) ? criativo.linhasApagadas : []);
+      const fala = (criativo.linhas || [])
+        .map((l: any, i: number) => ({ i, texto: String(criativo.edicoes?.[String(i)] ?? l.texto ?? "") }))
+        .filter((l: any) => !apagadas.has(l.i) && l.texto.trim())
+        .map((l: any) => l.texto.trim())
+        .join(" ");
+      if (fala.split(/\s+/).length < 20) {
+        return res.status(400).json({ error: "Este criativo tem fala curta demais para virar um carrossel." });
+      }
+
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+      const prompt = `FALA DO CONSULTOR (transcrição literal de um trecho da aula dele):\n"""\n${fala}\n"""\n\n`
+        + `Escreva as páginas de um carrossel de Instagram a partir DESTA fala.\n\n`
+        + `O que vale:\n`
+        + `- O conteúdo sai da fala. Você reorganiza e enxuga; não acrescenta ideia que não está lá,\n`
+        + `  não inventa número, não inventa exemplo.\n`
+        + `- Escreva como quem fala com um colega: frase curta, voz ativa, sem jargão de marketing\n`
+        + `  e sem palavra pomposa. Nada de "descubra", "revolucionário", "você não vai acreditar".\n`
+        + `- A capa precisa fazer parar de rolar: uma afirmação forte ou um incômodo reconhecível,\n`
+        + `  tirado da própria fala.\n`
+        + `- Cada página avança o raciocínio. Se duas páginas dizem a mesma coisa, junte e faça menos.\n\n`
+        + `${GRAMATICA_SLIDES}\n\n`
+        + `Devolva APENAS JSON: {"slides":[{"type":"capa","title":"...","body":"...","sub":"..."}]}`;
+
+      const schemaRoteiro = {
+        type: Type.OBJECT,
+        properties: {
+          slides: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                type: { type: Type.STRING },
+                title: { type: Type.STRING },
+                body: { type: Type.STRING },
+                sub: { type: Type.STRING },
+                numero: { type: Type.STRING },
+                fonte: { type: Type.STRING },
+                negativo: { type: Type.STRING },
+                positivo: { type: Type.STRING },
+                palavra: { type: Type.STRING },
+              },
+              required: ["type", "title", "body"],
+            },
+          },
+        },
+        required: ["slides"],
+      };
+
+      /** As mesmas contas que o renderizador faz antes de aceitar a página. */
+      const conferir = (slides: any[]): string | null => {
+        if (!Array.isArray(slides) || slides.length < 6 || slides.length > 8) {
+          return `veio com ${slides?.length ?? 0} páginas, e o carrossel precisa de 6 a 8`;
+        }
+        const tipos = ["capa", "padrao", "dado", "comparacao", "camadas", "cta"];
+        for (let i = 0; i < slides.length; i++) {
+          const s = slides[i];
+          if (!tipos.includes(String(s.type))) return `página ${i + 1} tem tipo desconhecido "${s.type}"`;
+          const palavras = `${String(s.title || "")} ${String(s.body || "")}`
+            .replace(/\*/g, "").trim().split(/\s+/).filter(Boolean).length;
+          if (palavras > 32) return `página ${i + 1} tem ${palavras} palavras, e o limite é 32`;
+        }
+        if (slides[0].type !== "capa") return "a primeira página precisa ser a capa";
+        if (slides[slides.length - 1].type !== "cta") return "a última página precisa ser a chamada";
+        return null;
+      };
+
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      let slides: any[] = [];
+      let ultimoProblema = "";
+      // Três tentativas, e a partir da segunda a IA recebe o que ela errou. Corrigir
+      // sai muito mais barato do que devolver um erro pro consultor e perder a geração.
+      for (let tentativa = 0; tentativa < 4; tentativa++) {
+        const correcao = ultimoProblema
+          ? `\n\nA sua tentativa anterior foi RECUSADA: ${ultimoProblema}. Corrija isso agora.`
+          : "";
+        let gerado: any;
+        try {
+          gerado = await ai.models.generateContent({
+            model: geminiModel,
+            contents: [{ role: "user", parts: [{ text: prompt + correcao }] }],
+            config: { responseMimeType: "application/json", responseSchema: schemaRoteiro, maxOutputTokens: 32768, temperature: 0.7 },
+          });
+        } catch (erroApi: any) {
+          // O serviço de IA cai e volta — 503 "high demand" aconteceu no primeiro
+          // teste real. Sem este catch, uma instabilidade de segundos virava erro na
+          // cara do consultor e perdia a geração. Espera crescente: 2s, 4s, 8s.
+          const status = Number(erroApi?.status || 0);
+          ultimoProblema = status === 503
+            ? "o serviço de IA estava sobrecarregado"
+            : `o serviço de IA recusou a chamada (${status || "sem status"})`;
+          if (tentativa < 3) await new Promise((r) => setTimeout(r, 2000 * (2 ** tentativa)));
+          continue;
+        }
+        if (gerado.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+          ultimoProblema = "a resposta foi cortada pelo limite de tokens";
+          continue;
+        }
+        try {
+          const limpo = String(gerado.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+          slides = JSON.parse(limpo)?.slides || [];
+        } catch {
+          ultimoProblema = "a resposta não era um JSON válido";
+          continue;
+        }
+        const problema = conferir(slides);
+        if (!problema) { ultimoProblema = ""; break; }
+        ultimoProblema = problema;
+        slides = [];
+      }
+      if (!slides.length) {
+        return res.status(422).json({ error: `A IA não conseguiu montar um carrossel válido: ${ultimoProblema}.` });
+      }
+
+      // Campos vazios viram undefined e o Firestore recusa. Limpa antes de gravar.
+      const limpos = slides.map((s) => Object.fromEntries(
+        Object.entries(s).filter(([, v]) => typeof v === "string" && v.trim()),
+      ));
+
+      await ref.update({
+        roteiro: { slides: limpos, geradoEm: new Date().toISOString() },
+        atualizadoEm: new Date().toISOString(),
+      });
+      console.log(`[gerar-roteiro] ${criativoId}: ${limpos.length} páginas`);
+      return res.json({ slides: limpos });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-roteiro] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao montar o carrossel.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.
