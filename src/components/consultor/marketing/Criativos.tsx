@@ -17,6 +17,7 @@ import {
 import { auth, db } from '../../../lib/firebase';
 import {
   COLECOES, Criativo, VideoFonte, duracaoCriativo, linhasEmUso, textoCriativo,
+  inicioNoVideo, fimNoVideo,
 } from '../../../types/marketing';
 
 /* ====================== Leitura ====================== */
@@ -272,20 +273,29 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
             <span className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${rotulo.classe}`}>
               {rotulo.texto}
             </span>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600">
-              <Clock className="w-3.5 h-3.5" /> {formatarDuracao(duracaoCriativo(previa))}
-            </span>
           </div>
+
+          {/* O TRECHO é o cabeçalho, não o título: o que identifica um criativo é
+              onde ele está na aula — dá pra ir no vídeo e conferir. O nome que a IA
+              inventou é secundário, e muda a cada geração. */}
+          <p className="font-bold text-gray-900 mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <Clock className="w-4 h-4 text-gray-400" />
+            {formatarDuracao(inicioNoVideo(previa))} – {formatarDuracao(fimNoVideo(previa))}
+            <span className="font-normal text-gray-500">
+              · {formatarDuracao(duracaoCriativo(previa))} de vídeo
+            </span>
+          </p>
 
           {revisando
             ? (
               <input
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
-                className="mt-2 w-full px-2 py-1 rounded border border-gray-300 font-bold text-gray-900"
+                placeholder="Nome do criativo (opcional)"
+                className="mt-2 w-full px-2 py-1 rounded border border-gray-300 text-sm text-gray-700"
               />
             )
-            : <p className="font-bold text-gray-900 mt-1.5">{criativo.ordem}. {criativo.titulo}</p>}
+            : criativo.titulo && <p className="text-sm text-gray-500 mt-0.5">{criativo.titulo}</p>}
         </div>
 
         {/* Ações à direita, na mesma linha do título: a lista pode ficar longa e
@@ -456,13 +466,16 @@ export function EtapaCriativosAprovados({
           <div key={c.id} className="p-4 rounded-lg border border-green-200 bg-green-50/40">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-bold text-gray-900">{c.titulo}</p>
+                <p className="font-bold text-gray-900 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  {formatarDuracao(inicioNoVideo(c))} – {formatarDuracao(fimNoVideo(c))}
+                  <span className="font-normal text-gray-500">
+                    · {formatarDuracao(duracaoCriativo(c))} de vídeo
+                  </span>
+                </p>
                 <p className="text-xs text-gray-600 mt-0.5">
                   {video?.titulo}
-                  {' · '}
-                  {formatarDuracao(duracaoCriativo(c))}
-                  {' · '}
-                  {linhasEmUso(c).length} falas
+                  {c.titulo ? ` · ${c.titulo}` : ''}
                 </p>
               </div>
               <BotaoAcao

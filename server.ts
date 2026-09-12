@@ -2695,6 +2695,12 @@ async function startServer() {
           throw new Error("O servidor de vídeo não conseguiu processar este arquivo. Envie o vídeo novamente.");
         }
         if (encodeStatus === 4) {
+          // A duração vem do servidor de vídeo, que sabe de verdade. Antes era um
+          // campo pra digitar à mão, e quem não preenchia ficava com o vídeo sem
+          // duração nenhuma na lista.
+          const duracao = Math.round(Number(info?.length || 0));
+          if (duracao > 0) await videoRef.update({ duracaoSegundos: duracao }).catch(() => {});
+
           const playResponse = await fetch(`${base}/play`, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
           const play = playResponse.ok ? await playResponse.json() as any : null;
           // O Bunny devolve fallbackUrl como prefixo (ex.: .../play_). A resolução

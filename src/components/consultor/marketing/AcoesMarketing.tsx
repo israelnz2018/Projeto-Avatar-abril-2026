@@ -84,7 +84,6 @@ export function FormularioVideo({
   const [titulo, setTitulo] = useState('');
   const [curso, setCurso] = useState('');
   const [serie, setSerie] = useState('');
-  const [duracao, setDuracao] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -133,7 +132,8 @@ export function FormularioVideo({
       bunnyVideoId: bunny?.guid,
       bunnyLibraryId: bunny?.libraryId,
       sourceUrl: origem === 'link' ? sourceUrl.trim() : undefined,
-      duracaoSegundos: duracao ? Number(duracao) : undefined,
+      // duracaoSegundos NÃO vem daqui: quem informa é o servidor de vídeo, durante
+      // a transcrição. Campo pra digitar à mão só gerava lista com vídeo sem duração.
       temTranscricao: false,
       criadoEm: new Date().toISOString(),
     };
@@ -168,7 +168,7 @@ export function FormularioVideo({
         iniciarTranscricao: origem === 'arquivo' && !enviado,
       });
 
-      setTitulo(''); setCurso(''); setSerie(''); setSourceUrl(''); setDuracao('');
+      setTitulo(''); setCurso(''); setSerie(''); setSourceUrl('');
       setArquivo(null); setEnviado(null); setProgresso(null);
       setAberto(false);
       onCriado();
@@ -284,10 +284,6 @@ export function FormularioVideo({
           <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" className={ENTRADA} />
         )}
       </div>
-
-      <Campo rotulo="Duração em segundos">
-        <input value={duracao} onChange={(e) => setDuracao(e.target.value.replace(/\D/g, ''))} placeholder="900" className={`${ENTRADA} max-w-[180px]`} />
-      </Campo>
 
       {erro && <p className="text-sm text-red-700">{erro}</p>}
 

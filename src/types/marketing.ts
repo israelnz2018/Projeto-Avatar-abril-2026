@@ -186,11 +186,20 @@ export function linhasEmUso(criativo: Criativo): LinhaCriativo[] {
     .map((l, i) => ({ ...l, texto: textoDaLinha(criativo, criativo.corteInicio + i) }));
 }
 
+/** Em que segundo do vídeo original o trecho começa, já contando o aparo. */
+export function inicioNoVideo(criativo: Criativo): number {
+  return linhasEmUso(criativo)[0]?.inicio ?? 0;
+}
+
+/** Em que segundo do vídeo original o trecho termina, já contando o aparo. */
+export function fimNoVideo(criativo: Criativo): number {
+  const linhas = linhasEmUso(criativo);
+  return linhas[linhas.length - 1]?.fim ?? 0;
+}
+
 /** Quanto tempo o vídeo curto vai ter, depois do aparo. */
 export function duracaoCriativo(criativo: Criativo): number {
-  const linhas = linhasEmUso(criativo);
-  if (!linhas.length) return 0;
-  return Math.max(0, Math.round(linhas[linhas.length - 1].fim - linhas[0].inicio));
+  return Math.max(0, Math.round(fimNoVideo(criativo) - inicioNoVideo(criativo)));
 }
 
 /** O texto corrido do criativo, já aparado. */
