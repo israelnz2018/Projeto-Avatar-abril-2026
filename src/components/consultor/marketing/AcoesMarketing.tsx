@@ -96,6 +96,7 @@ export function FormularioVideo({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [progresso, setProgresso] = useState<number | null>(null);
   const [enviado, setEnviado] = useState<{ guid: string; libraryId: string } | null>(null);
+  const [transcrevendo, setTranscrevendo] = useState(false);
 
   async function enviarArquivo() {
     if (!arquivo) { setErro('Escolha um arquivo de vídeo.'); return; }
@@ -108,6 +109,33 @@ export function FormularioVideo({
     } catch (e: any) {
       setErro(e?.message || String(e));
       setProgresso(null);
+    }
+  }
+
+  /**
+   * Whisper via DeepInfra, custa ≈ US$ 0,0002 por minuto de vídeo (menos de 1
+   * centavo mesmo numa aula de 1h). Só funciona depois do upload — precisa do
+   * vídeo já estar no Bunny.
+   */
+  async function transcreverAutomaticamente() {
+    if (!enviado) return;
+    setTranscrevendo(true);
+    setErro('');
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/bunny/transcribe-marketing-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bunnyVideoId: enviado.guid }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      setTranscricao(corpo.transcript || '');
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setTranscrevendo(false);
     }
   }
 
@@ -250,8 +278,20 @@ export function FormularioVideo({
 
       <Campo
         rotulo="Transcrição"
-        ajuda="Cole aqui o texto completo da fala. É dela que sai o conteúdo das campanhas."
+        ajuda="É dela que sai o conteúdo das campanhas. Cole o texto ou gere automaticamente a partir do vídeo enviado."
       >
+        {origem === 'arquivo' && enviado && (
+          <button
+            type="button"
+            onClick={transcreverAutomaticamente}
+            disabled={transcrevendo}
+            className="flex items-center gap-1.5 mb-2 px-3 py-1.5 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 disabled:opacity-60"
+          >
+            {transcrevendo
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcrevendo… pode levar alguns minutos</>
+              : <>Transcrever automaticamente <span className="font-normal text-blue-500">(≈ US$ 0,0002/min de vídeo)</span></>}
+          </button>
+        )}
         <textarea
           value={transcricao}
           onChange={(e) => setTranscricao(e.target.value)}

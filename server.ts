@@ -2647,6 +2647,156 @@ async function startServer() {
     }
   });
 
+  // POST /api/bunny/transcribe-marketing-video — transcreve um vídeo da aba "Marketing
+  // para Consultores" e devolve o texto puro. Não escreve em Firestore: o vídeo ainda
+  // pode nem existir como documento (o consultor transcreve ANTES de clicar em Salvar),
+  // então quem persiste é o próprio formulário, junto com o resto dos campos.
+  //
+  // Deliberadamente mais simples que /api/bunny/transcribe-video (curso): sem publicar
+  // legenda no player, sem gerar resumo/índice de conhecimento — aqui o que interessa é
+  // só o texto, pra virar conteúdo de campanha. O núcleo (espera de codificação, fallback
+  // de resolução, chamada ao Whisper) é o mesmo, testado no pipeline de cursos.
+  app.post("/api/bunny/transcribe-marketing-video", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const bunnyVideoId = String(req.body?.bunnyVideoId || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId)) return res.status(400).json({ error: "Vídeo inválido." });
+
+    try {
+      // A library é resolvida pelo consultorId de QUEM CHAMA — nunca pelo corpo da
+      // requisição. Um consultor só consegue transcrever vídeo dentro da própria library.
+      const lib = await bunnyLibraryDoConsultor(consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
+      const deepinfraKey = process.env.DEEPINFRA_API_KEY;
+      if (!deepinfraKey) return res.status(503).json({ error: "Serviço de transcrição não configurado no servidor." });
+
+      const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
+      const origem = String(req.headers.origin || req.headers.referer || process.env.APP_URL || "").trim();
+      const referer = origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {};
+
+      // Mesma espera do pipeline de cursos: o upload TUS termina antes da codificação
+      // acabar, e o /play pode devolver um link que ainda não existe de verdade.
+      let mediaUrl = "";
+      let ultimoMotivo = "codificação ainda não concluída";
+      for (let attempt = 0; attempt < 60 && !mediaUrl; attempt++) {
+        const infoResponse = await fetch(base, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
+        const info = infoResponse.ok ? await infoResponse.json() as any : null;
+        const encodeStatus = Number(info?.status ?? -1);
+        if (encodeStatus === 5 || encodeStatus === 6) {
+          throw new Error("O servidor de vídeo não conseguiu processar este arquivo. Envie o vídeo novamente.");
+        }
+        if (encodeStatus === 4) {
+          const playResponse = await fetch(`${base}/play`, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
+          const play = playResponse.ok ? await playResponse.json() as any : null;
+          // O Bunny devolve fallbackUrl como prefixo (ex.: .../play_). A resolução
+          // precisa ser acrescentada antes do download.
+          let candidata = String(play?.fallbackUrl || play?.originalUrl || "");
+          if (candidata.endsWith("/play_")) {
+            const resolutions = String(play?.video?.availableResolutions || info?.availableResolutions || "")
+              .split(",").map((v: string) => Number.parseInt(v, 10)).filter((v: number) => Number.isFinite(v));
+            const sourceHeight = Number(play?.video?.height || info?.height || 0);
+            const usable = resolutions.filter((v: number) => !sourceHeight || v <= sourceHeight);
+            const candidates = usable.length > 0 ? usable : resolutions;
+            // Para transcrição, a menor resolução preserva o áudio e reduz muito o
+            // download/memória do servidor (um vídeo 1080p pode ter centenas de MB).
+            const resolution = candidates.length > 0 ? Math.min(...candidates) : 0;
+            candidata = resolution > 0 ? `${candidata}${resolution}p.mp4` : "";
+          }
+          if (candidata) {
+            const sonda = await fetch(candidata, { headers: { Range: "bytes=0-1", ...referer }, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+            if (sonda && (sonda.ok || sonda.status === 206)) mediaUrl = candidata;
+            else if (sonda?.status === 403) {
+              throw new Error("O servidor de vídeo recusou o acesso ao arquivo (403). Verifique a restrição de domínios do CDN e a variável APP_URL.");
+            } else ultimoMotivo = `arquivo ainda não disponível (HTTP ${sonda?.status ?? "sem resposta"})`;
+          } else {
+            ultimoMotivo = "o servidor de vídeo não informou nenhuma resolução para download";
+          }
+        } else {
+          ultimoMotivo = `codificação em ${Number(info?.encodeProgress ?? 0)}%`;
+        }
+        if (!mediaUrl) await new Promise(resolve => setTimeout(resolve, 10_000));
+      }
+      if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 10 minutos (${ultimoMotivo}).`);
+
+      const mediaResponse = await fetch(mediaUrl, {
+        headers: { Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8", ...referer },
+        signal: AbortSignal.timeout(120_000),
+      });
+      if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do servidor de vídeo: HTTP ${mediaResponse.status}`);
+      const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
+
+      // O dicionário técnico do consultor vira dica pro Whisper: aumenta a chance de
+      // acertar o termo de primeira, em vez de depender só da correção por semelhança depois.
+      const configSnap = await adminFirestore().collection("marketing_config").doc(consultorId).get();
+      const termos: string[] = Array.isArray(configSnap.data()?.termos) ? configSnap.data()!.termos : [];
+      const dica = termos.length
+        ? `Termos técnicos que podem aparecer: ${termos.join(", ")}.`
+        : "Aula ou palestra em português.";
+
+      const form = new FormData();
+      form.append("file", new Blob([mediaBuffer]), "video.mp4");
+      form.append("model", "openai/whisper-large-v3-turbo");
+      form.append("language", "pt");
+      form.append("response_format", "verbose_json");
+      form.append("timestamp_granularities", "segment");
+      form.append("temperature", "0");
+      form.append("prompt", dica);
+
+      const deepinfraResponse = await fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${deepinfraKey}` },
+        body: form,
+        signal: AbortSignal.timeout(300_000),
+      });
+      if (!deepinfraResponse.ok) {
+        const detail = await deepinfraResponse.text().catch(() => "");
+        if (deepinfraResponse.status === 402) throw new Error("Serviço de transcrição sem saldo positivo. Adicione saldo para processar este vídeo.");
+        throw new Error(`Falha na transcrição HTTP ${deepinfraResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
+      }
+      const transcription = await deepinfraResponse.json() as any;
+      const segments = Array.isArray(transcription.segments)
+        ? transcription.segments.filter((s: any) => String(s.text || "").trim())
+        : [];
+      if (!segments.length) throw new Error("A transcrição não retornou nenhum segmento com texto.");
+
+      const rawTranscript = segments.map((segment: any) => {
+        const total = Math.floor(Number(segment.start || 0));
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        const time = h
+          ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+          : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        return `[${time}] ${String(segment.text).trim()}`;
+      }).join("\n");
+      if (!rawTranscript.trim()) throw new Error("A transcrição retornou vazia.");
+
+      return res.json({ transcript: rawTranscript });
+    } catch (error: any) {
+      console.error("[/api/bunny/transcribe-marketing-video] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao transcrever vídeo.")
+        .replace(/deepinfra/gi, "serviço de transcrição")
+        .replace(/\bbunny\b/gi, "servidor de vídeo")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.
