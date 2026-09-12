@@ -112,7 +112,12 @@ export interface VideoFonte {
   /** Origem alternativa, quando o vídeo já está no YouTube. */
   sourceUrl?: string;
   duracaoSegundos?: number;
-  /** Fase 1: o consultor já tem a transcrição. Fase 2 a plataforma resolve. */
+  /**
+   * Fase 1: o consultor cola a transcrição que já tem. Fase 2 a plataforma extrai
+   * sozinha (o vídeo já está no Bunny, que sabe transcrever — falta só ligar aqui).
+   */
+  transcricao?: string;
+  /** Calculado a partir de `transcricao`, não digitado — evita os dois campos divergirem. */
   temTranscricao: boolean;
   criadoEm: string;
 }

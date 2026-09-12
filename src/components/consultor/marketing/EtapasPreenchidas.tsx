@@ -111,6 +111,9 @@ export function EtapaVideos({ videos }: { videos: VideoFonte[] }) {
               {v.duracaoSegundos ? ` · ${formatarDuracao(v.duracaoSegundos)}` : ''}
             </p>
             {v.sourceUrl && <p className="text-xs text-gray-500 mt-1 truncate">{v.sourceUrl}</p>}
+            {!v.sourceUrl && v.bunnyVideoId && (
+              <p className="text-xs text-gray-500 mt-1">Vídeo enviado — hospedado no Bunny.</p>
+            )}
           </div>
           <span className={`text-xs font-semibold px-2 py-1 rounded shrink-0 ${
             v.temTranscricao ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'

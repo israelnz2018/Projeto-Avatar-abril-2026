@@ -9,13 +9,70 @@
  */
 import React, { useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { Plus, Loader2, Send, Video as VideoIcon } from 'lucide-react';
-import { db } from '../../../lib/firebase';
+import { Plus, Loader2, Send, Video as VideoIcon, Upload, Link2, CheckCircle2 } from 'lucide-react';
+import { auth, db } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, ObjetivoCampanha, OBJETIVOS, VideoFonte,
 } from '../../../types/marketing';
 
 /* ====================== Etapa 3 — cadastrar vídeo ====================== */
+
+/**
+ * Envia o arquivo direto pro Bunny (TUS, resumível) e devolve o guid do vídeo.
+ *
+ * O mesmo caminho que o restante da plataforma já usa (ver KnowledgeManagerView):
+ * o servidor cria o vídeo na Video Library DO CONSULTOR e assina o upload — a chave
+ * da library nunca chega ao navegador. Arquivo grande pode levar mais de uma hora;
+ * a assinatura vale 24h e o upload retoma sozinho se a conexão cair no meio.
+ */
+async function enviarVideoParaBunny(
+  arquivo: File,
+  titulo: string,
+  onProgresso: (pct: number) => void,
+): Promise<{ guid: string; libraryId: string }> {
+  const user = auth.currentUser;
+  const token = user ? await user.getIdToken() : '';
+  const r = await fetch('/api/bunny/create-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ title: titulo || arquivo.name.replace(/\.[^.]+$/, '') }),
+  });
+  const resposta = await r.text();
+  let cred: any = {};
+  try { cred = resposta ? JSON.parse(resposta) : {}; } catch { /* servidor pode ter devolvido HTML de erro */ }
+  if (!r.ok) throw new Error(cred.error || `Não foi possível preparar o envio do vídeo (HTTP ${r.status}).`);
+  if (!cred.guid || !cred.libraryId || !cred.signature || !cred.expiration) {
+    throw new Error('O servidor não devolveu as credenciais completas de envio.');
+  }
+
+  const tus = await import('tus-js-client');
+  await new Promise<void>((resolve, reject) => {
+    const up = new tus.Upload(arquivo, {
+      endpoint: 'https://video.bunnycdn.com/tusupload',
+      retryDelays: [0, 3000, 5000, 10000, 20000, 30000, 60000],
+      storeFingerprintForResuming: true,
+      removeFingerprintOnSuccess: true,
+      headers: {
+        AuthorizationSignature: cred.signature,
+        AuthorizationExpire: String(cred.expiration),
+        LibraryId: String(cred.libraryId),
+        VideoId: cred.guid,
+      },
+      metadata: { filetype: arquivo.type || 'video/mp4', title: titulo || arquivo.name },
+      onError: (e: any) => reject(e),
+      onProgress: (enviado: number, total: number) => onProgresso(Math.round((enviado / total) * 100)),
+      onSuccess: () => resolve(),
+    });
+    void up.findPreviousUploads()
+      .then((anteriores) => {
+        if (anteriores.length > 0) up.resumeFromPreviousUpload(anteriores[0]);
+        up.start();
+      })
+      .catch(reject);
+  });
+
+  return { guid: cred.guid, libraryId: String(cred.libraryId) };
+}
 
 export function FormularioVideo({
   consultorId, onCriado,
@@ -27,14 +84,37 @@ export function FormularioVideo({
   const [titulo, setTitulo] = useState('');
   const [curso, setCurso] = useState('');
   const [serie, setSerie] = useState('');
-  const [sourceUrl, setSourceUrl] = useState('');
   const [duracao, setDuracao] = useState('');
-  const [temTranscricao, setTemTranscricao] = useState(true);
+  const [transcricao, setTranscricao] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
+  // Duas formas de indicar onde está o vídeo: enviar o arquivo agora, ou colar o
+  // link de onde ele já está (Bunny, YouTube) — útil pra aulas já hospedadas.
+  const [origem, setOrigem] = useState<'arquivo' | 'link'>('arquivo');
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [progresso, setProgresso] = useState<number | null>(null);
+  const [enviado, setEnviado] = useState<{ guid: string; libraryId: string } | null>(null);
+
+  async function enviarArquivo() {
+    if (!arquivo) { setErro('Escolha um arquivo de vídeo.'); return; }
+    setErro('');
+    setProgresso(0);
+    try {
+      const resultado = await enviarVideoParaBunny(arquivo, titulo, setProgresso);
+      setEnviado(resultado);
+      setProgresso(100);
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+      setProgresso(null);
+    }
+  }
+
   async function salvar() {
     if (!titulo.trim()) { setErro('O título é obrigatório.'); return; }
+    if (origem === 'arquivo' && !enviado) { setErro('Envie o vídeo antes de salvar.'); return; }
+    if (origem === 'link' && !sourceUrl.trim()) { setErro('Cole o link do vídeo.'); return; }
     setSalvando(true);
     setErro('');
     try {
@@ -45,15 +125,19 @@ export function FormularioVideo({
         titulo: titulo.trim(),
         curso: curso.trim() || undefined,
         serie: serie.trim() || undefined,
-        sourceUrl: sourceUrl.trim() || undefined,
+        bunnyVideoId: origem === 'arquivo' ? enviado?.guid : undefined,
+        bunnyLibraryId: origem === 'arquivo' ? enviado?.libraryId : undefined,
+        sourceUrl: origem === 'link' ? sourceUrl.trim() : undefined,
         duracaoSegundos: duracao ? Number(duracao) : undefined,
-        temTranscricao,
+        transcricao: transcricao.trim() || undefined,
+        temTranscricao: Boolean(transcricao.trim()),
         criadoEm: new Date().toISOString(),
       };
       // Limpa os campos vazios: o Firestore rejeita undefined.
       const limpo = Object.fromEntries(Object.entries(video).filter(([, v]) => v !== undefined));
       await setDoc(doc(db, COLECOES.videos, id), limpo, { merge: true });
-      setTitulo(''); setCurso(''); setSerie(''); setSourceUrl(''); setDuracao('');
+      setTitulo(''); setCurso(''); setSerie(''); setSourceUrl(''); setDuracao(''); setTranscricao('');
+      setArquivo(null); setEnviado(null); setProgresso(null);
       setAberto(false);
       onCriado();
     } catch (e) {
@@ -98,19 +182,84 @@ export function FormularioVideo({
         </Campo>
       </div>
 
-      <Campo rotulo="Endereço do vídeo" ajuda="Link do Bunny, do YouTube ou de onde o vídeo já está hospedado.">
-        <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" className={ENTRADA} />
+      <div>
+        <span className="text-xs font-bold text-gray-700 block mb-1.5">Onde está o vídeo *</span>
+        <div className="flex gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => setOrigem('arquivo')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${
+              origem === 'arquivo' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'
+            }`}
+          >
+            <Upload className="w-3.5 h-3.5" /> Enviar um arquivo
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrigem('link')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${
+              origem === 'link' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'
+            }`}
+          >
+            <Link2 className="w-3.5 h-3.5" /> Já tenho um link
+          </button>
+        </div>
+
+        {origem === 'arquivo' ? (
+          <div className="p-3 rounded-lg border border-gray-300 bg-white space-y-2">
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => { setArquivo(e.target.files?.[0] || null); setEnviado(null); setProgresso(null); }}
+              className="text-sm w-full"
+            />
+            {arquivo && !enviado && (
+              <button
+                type="button"
+                onClick={enviarArquivo}
+                disabled={progresso !== null && progresso < 100}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+              >
+                {progresso !== null && progresso < 100
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enviando… {progresso}%</>
+                  : <><Upload className="w-3.5 h-3.5" /> Enviar vídeo</>}
+              </button>
+            )}
+            {progresso !== null && progresso < 100 && (
+              <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                <div className="h-full bg-blue-600 transition-all" style={{ width: `${progresso}%` }} />
+              </div>
+            )}
+            {enviado && (
+              <p className="flex items-center gap-1.5 text-sm text-green-700 font-semibold">
+                <CheckCircle2 className="w-4 h-4" /> Vídeo enviado.
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
+              Vídeo grande pode demorar. Se a conexão cair, envie de novo — ele retoma de onde parou.
+            </p>
+          </div>
+        ) : (
+          <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" className={ENTRADA} />
+        )}
+      </div>
+
+      <Campo rotulo="Duração em segundos">
+        <input value={duracao} onChange={(e) => setDuracao(e.target.value.replace(/\D/g, ''))} placeholder="900" className={`${ENTRADA} max-w-[180px]`} />
       </Campo>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-        <Campo rotulo="Duração em segundos">
-          <input value={duracao} onChange={(e) => setDuracao(e.target.value.replace(/\D/g, ''))} placeholder="900" className={ENTRADA} />
-        </Campo>
-        <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
-          <input type="checkbox" checked={temTranscricao} onChange={(e) => setTemTranscricao(e.target.checked)} />
-          Já tenho a transcrição deste vídeo
-        </label>
-      </div>
+      <Campo
+        rotulo="Transcrição"
+        ajuda="Cole aqui o texto completo da fala. É dela que sai o conteúdo das campanhas."
+      >
+        <textarea
+          value={transcricao}
+          onChange={(e) => setTranscricao(e.target.value)}
+          rows={8}
+          placeholder="Cole a transcrição completa do vídeo…"
+          className={`${ENTRADA} font-mono text-xs leading-relaxed`}
+        />
+      </Campo>
 
       {erro && <p className="text-sm text-red-700">{erro}</p>}
 
