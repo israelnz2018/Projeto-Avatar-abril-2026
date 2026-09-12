@@ -18,12 +18,13 @@ import React, { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Settings2, Share2, Video, Sparkles, ClipboardCheck, CalendarClock,
-  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle,
+  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, ImageOff, Pencil,
 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { COLECOES, MarketingConfig, TermoTecnico } from '../../types/marketing';
+import { ConsultorBranding } from '../../types';
+import { COLECOES, MarketingConfig } from '../../types/marketing';
 import {
   EtapaRedes, EtapaVideos, EtapaCampanhas, EtapaRevisao, EtapaAgenda, useDadosMarketing,
 } from './marketing/EtapasPreenchidas';
@@ -44,7 +45,7 @@ interface Etapa {
 const ETAPAS: Etapa[] = [
   {
     id: 'config', numero: 1, nome: 'Configuração', icon: Settings2, pronta: true,
-    oQueFaz: 'Diga quem é o seu público, sua área e os termos técnicos que não podem sair errados.',
+    oQueFaz: 'Confira sua marca e cadastre os termos técnicos que não podem sair errados.',
   },
   {
     id: 'redes', numero: 2, nome: 'Redes sociais', icon: Share2, pronta: false,
@@ -169,7 +170,7 @@ export default function MarketingConsultor() {
       {etapaAtiva === 'config' && (
         <EtapaConfiguracao
           consultorId={consultorId}
-          marcaNome={consultor?.branding?.nome}
+          branding={consultor?.branding}
           onCompletaChange={setConfigCompleta}
         />
       )}
@@ -191,7 +192,6 @@ export default function MarketingConsultor() {
                   <FormularioCampanha
                     consultorId={consultorId}
                     videos={dados.videos}
-                    config={dados.config}
                     onCriada={dados.recarregar}
                   />
                   <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />
@@ -222,30 +222,43 @@ export default function MarketingConsultor() {
 
 /* ------------------------------------------------------------------ */
 
+/**
+ * Etapa 1 — Configuração.
+ *
+ * Nome da empresa e logo NÃO são cadastrados aqui: já existem em "Minha Marca" e
+ * esta tela só mostra o que já está lá, com um link para editar. Cadastrar de novo
+ * seria uma segunda fonte de verdade para a mesma coisa.
+ *
+ * Crédito da fonte e chamada para ação também saíram daqui — não são "padrão", mudam
+ * a cada vídeo/campanha. O crédito vem do campo "curso" cadastrado no vídeo (etapa 3);
+ * a chamada para ação é parte do texto que o consultor escreve na campanha (etapa 4).
+ *
+ * O que sobra aqui é só o que é de fato transversal a toda campanha: o link
+ * principal e o dicionário de termos técnicos.
+ */
 function EtapaConfiguracao({
   consultorId,
-  marcaNome,
+  branding,
   onCompletaChange,
 }: {
   consultorId: string;
-  marcaNome?: string;
+  branding?: ConsultorBranding;
   onCompletaChange: (v: boolean) => void;
 }) {
-  const [publico, setPublico] = useState('');
-  const [area, setArea] = useState('');
   const [linkPrincipal, setLinkPrincipal] = useState('');
-  const [ctaPadrao, setCtaPadrao] = useState('');
-  const [creditoFonte, setCreditoFonte] = useState('');
-  const [termos, setTermos] = useState<TermoTecnico[]>([]);
+  const [termos, setTermos] = useState<string[]>([]);
 
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
 
-  // A etapa 1 conta como concluída quando público e área estão preenchidos.
+  const marcaPronta = Boolean(branding?.nome && branding?.logoUrl);
+
+  // A etapa 1 não pede mais nada de obrigatório: ela conta como concluída assim
+  // que a marca (cadastrada em "Minha Marca") existe de verdade.
   useEffect(() => {
-    onCompletaChange(Boolean(publico.trim() && area.trim()));
-  }, [publico, area, onCompletaChange]);
+    onCompletaChange(marcaPronta);
+  }, [marcaPronta, onCompletaChange]);
 
   useEffect(() => {
     if (!consultorId) return;
@@ -255,11 +268,7 @@ function EtapaConfiguracao({
         const snap = await getDoc(doc(db, COLECOES.config, consultorId));
         if (!vivo) return;
         const d = snap.data() as MarketingConfig | undefined;
-        setPublico(d?.publico || '');
-        setArea(d?.area || '');
         setLinkPrincipal(d?.linkPrincipal || '');
-        setCtaPadrao(d?.ctaPadrao || '');
-        setCreditoFonte(d?.creditoFonte || '');
         setTermos(d?.termos?.length ? d.termos : []);
       } finally {
         if (vivo) setCarregando(false);
@@ -273,22 +282,16 @@ function EtapaConfiguracao({
     setSalvando(true);
     setMsg('');
     try {
-      const limpos = termos
-        .map((t) => ({ errado: t.errado.trim(), correto: t.correto.trim() }))
-        .filter((t) => t.errado && t.correto);
+      const limpos = termos.map((t) => t.trim()).filter(Boolean);
       const payload: MarketingConfig = {
         consultorId,
-        publico: publico.trim(),
-        area: area.trim(),
         linkPrincipal: linkPrincipal.trim(),
-        ctaPadrao: ctaPadrao.trim(),
-        creditoFonte: creditoFonte.trim(),
         termos: limpos,
         atualizadoEm: new Date().toISOString(),
       };
       await setDoc(doc(db, COLECOES.config, consultorId), payload, { merge: true });
       setTermos(limpos);
-      setMsg('Configuração salva. Pode seguir para a etapa 2.');
+      setMsg('Configuração salva.');
     } catch (e: any) {
       setMsg(`Não foi possível salvar: ${e?.message || e}`);
     } finally {
@@ -300,29 +303,11 @@ function EtapaConfiguracao({
 
   return (
     <div className="space-y-8">
-      <section className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-        <p className="text-sm text-blue-900">
-          <strong>A sua marca já está cadastrada.</strong>{' '}
-          {marcaNome ? <>Os criativos usam <strong>{marcaNome}</strong>, com a logo e as cores de “Minha Marca”.</> :
-            <>Os criativos usam a logo e as cores definidas em “Minha Marca”.</>}{' '}
-          Não é preciso cadastrar de novo aqui.
-        </p>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Campo label="Meu público" valor={publico} onChange={setPublico} obrigatorio
-          dica="Quem você quer alcançar. Ex.: analistas e gestores de operação." />
-        <Campo label="Minha área de atuação" valor={area} onChange={setArea} obrigatorio
-          dica="Ex.: melhoria de processos, qualidade, cardiologia." />
-        <Campo label="Página ou link principal" valor={linkPrincipal} onChange={setLinkPrincipal}
-          dica="Usado quando a peça precisar apontar para algum lugar." />
-        <Campo label="Crédito da fonte" valor={creditoFonte} onChange={setCreditoFonte}
-          dica="Aparece no rodapé das peças. Ex.: curso White Belt." />
-      </section>
+      <CartaoMarca branding={branding} />
 
       <section>
-        <Campo label="Chamada para ação padrão" valor={ctaPadrao} onChange={setCtaPadrao}
-          dica="Ex.: Comente a palavra MÉTODO e eu te explico." />
+        <Campo label="Página ou link principal" valor={linkPrincipal} onChange={setLinkPrincipal}
+          dica="Usado quando a peça precisar apontar para algum lugar." />
       </section>
 
       <DicionarioTecnico termos={termos} setTermos={setTermos} />
@@ -334,7 +319,7 @@ function EtapaConfiguracao({
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          {salvando ? 'Salvando…' : 'Salvar e concluir etapa 1'}
+          {salvando ? 'Salvando…' : 'Salvar'}
         </button>
         {msg && (
           <span className={`text-sm flex items-center gap-1.5 ${msg.startsWith('Não') ? 'text-red-600' : 'text-green-700'}`}>
@@ -350,70 +335,109 @@ function EtapaConfiguracao({
 /* ------------------------------------------------------------------ */
 
 /**
- * Dicionário técnico: protege os termos que a legenda automática erra.
- * Hoje o gerador de legendas tem uma correção cravada no código que conserta
- * "LEAN SIGMA" para "LEAN SIX SIGMA" — serve só para a LBW. Aqui isso vira
- * tabela por consultor e passa a funcionar para qualquer área.
+ * Mostra a marca já cadastrada em "Minha Marca" — nome e logo. Não dá pra editar
+ * aqui de propósito: ter dois lugares que guardam a mesma logo é como ela acaba
+ * divergindo (uma tela atualiza, a outra fica pra trás).
+ */
+function CartaoMarca({ branding }: { branding?: ConsultorBranding }) {
+  const temLogo = Boolean(branding?.logoUrl);
+  return (
+    <section className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 rounded-lg bg-white border border-blue-200 flex items-center justify-center shrink-0 overflow-hidden">
+          {temLogo
+            ? <img src={branding!.logoUrl} alt={branding?.nome || 'Logo'} className="w-full h-full object-contain p-1.5" />
+            : <ImageOff className="w-6 h-6 text-gray-300" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-blue-900">
+            <strong>{branding?.nome || 'Marca ainda não configurada'}</strong>
+          </p>
+          <p className="text-xs text-blue-800 mt-0.5">
+            {temLogo
+              ? 'Esta logo é a que entra em todas as peças geradas.'
+              : 'Cadastre a logo em "Minha Marca" antes de gerar peças — sem ela as imagens saem sem identidade visual.'}
+          </p>
+        </div>
+        <a
+          href="/configuracao?aba=marca"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 shrink-0"
+        >
+          <Pencil className="w-3.5 h-3.5" /> Editar em Minha Marca
+        </a>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Dicionário técnico: o consultor cadastra só a grafia CORRETA dos termos que
+ * importam pra ele (ex.: "Lean Six Sigma", "DMAIC") — não precisa adivinhar toda
+ * variação de erro possível. Quando o texto de uma peça tiver uma palavra parecida
+ * mas errada, o worker troca pela grafia daqui (ver aplicarDicionario).
  */
 function DicionarioTecnico({
   termos,
   setTermos,
 }: {
-  termos: TermoTecnico[];
-  setTermos: (t: TermoTecnico[]) => void;
+  termos: string[];
+  setTermos: (t: string[]) => void;
 }) {
-  function alterar(i: number, campo: keyof TermoTecnico, valor: string) {
-    const copia = [...termos];
-    copia[i] = { ...copia[i], [campo]: valor };
-    setTermos(copia);
+  const [novo, setNovo] = useState('');
+
+  function adicionar() {
+    const v = novo.trim();
+    if (!v) return;
+    // Sem duplicar o mesmo termo com grafia igual (ignorando maiúsculas).
+    if (termos.some((t) => t.toLowerCase() === v.toLowerCase())) { setNovo(''); return; }
+    setTermos([...termos, v]);
+    setNovo('');
   }
 
   return (
     <section>
       <h2 className="text-base font-bold text-gray-900">Meu dicionário técnico</h2>
       <p className="text-sm text-gray-600 mt-1 mb-4">
-        A transcrição automática erra termos da sua área. Cadastre como o termo costuma sair
-        errado e qual é a grafia correta — a correção entra na legenda e no texto das peças.
+        Cadastre só os termos mais importantes da sua área, na grafia certa — ex.:
+        “Lean Six Sigma”, “DMAIC”. Não precisa listar as formas erradas: o sistema
+        reconhece uma palavra parecida com a errada e troca pela grafia daqui.
       </p>
 
       {termos.length === 0 && (
         <p className="text-sm text-gray-500 italic mb-3">Nenhum termo cadastrado ainda.</p>
       )}
 
-      <div className="space-y-2">
+      <div className="flex flex-wrap gap-2 mb-3">
         {termos.map((t, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input
-              value={t.errado}
-              onChange={(e) => alterar(i, 'errado', e.target.value)}
-              placeholder="como sai errado"
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <span className="text-gray-400 text-sm shrink-0">vira</span>
-            <input
-              value={t.correto}
-              onChange={(e) => alterar(i, 'correto', e.target.value)}
-              placeholder="grafia correta"
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+          <span key={`${t}-${i}`} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-sm text-gray-800">
+            {t}
             <button
               onClick={() => setTermos(termos.filter((_, j) => j !== i))}
-              className="p-2 text-gray-400 hover:text-red-600"
+              className="p-0.5 text-gray-400 hover:text-red-600"
               title="Remover termo"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
-          </div>
+          </span>
         ))}
       </div>
 
-      <button
-        onClick={() => setTermos([...termos, { errado: '', correto: '' }])}
-        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
-      >
-        <Plus className="w-4 h-4" />
-        Adicionar termo
-      </button>
+      <div className="flex items-center gap-2">
+        <input
+          value={novo}
+          onChange={(e) => setNovo(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); adicionar(); } }}
+          placeholder="Ex.: Lean Six Sigma"
+          className="flex-1 max-w-xs px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+        <button
+          onClick={adicionar}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"
+        >
+          <Plus className="w-4 h-4" />
+          Adicionar
+        </button>
+      </div>
     </section>
   );
 }

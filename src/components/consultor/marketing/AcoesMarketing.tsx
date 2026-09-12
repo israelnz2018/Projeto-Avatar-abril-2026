@@ -12,7 +12,7 @@ import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/fires
 import { Plus, Loader2, Send, Video as VideoIcon } from 'lucide-react';
 import { db } from '../../../lib/firebase';
 import {
-  COLECOES, Campanha, MarketingConfig, ObjetivoCampanha, OBJETIVOS, VideoFonte,
+  COLECOES, Campanha, ObjetivoCampanha, OBJETIVOS, VideoFonte,
 } from '../../../types/marketing';
 
 /* ====================== Etapa 3 — cadastrar vídeo ====================== */
@@ -138,11 +138,10 @@ export function FormularioVideo({
  * existe, é mais honesto pedir o texto do que inventar frase genérica.
  */
 export function FormularioCampanha({
-  consultorId, videos, config, onCriada,
+  consultorId, videos, onCriada,
 }: {
   consultorId: string;
   videos: VideoFonte[];
-  config: MarketingConfig | null;
   onCriada: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -198,7 +197,7 @@ export function FormularioCampanha({
           folderType: 'Carrossel',
           sequence: 1,
           video: { enabled: false },
-          signature: assinatura(config, videos.find((v) => v.id === videoId)),
+          signature: assinatura(videos.find((v) => v.id === videoId)),
           slides,
         },
         criadoEm: agora,
@@ -359,14 +358,16 @@ export function interpretarBlocos(texto: string) {
 /**
  * Rodapé das peças: crédito da fonte e identificação da aula.
  *
+ * O crédito vem do vídeo, não de uma configuração fixa — cada aula tem o seu curso,
+ * então o rodapé muda sozinho a cada campanha em vez de repetir um texto padrão.
+ *
  * Linha curta de propósito. A faixa de baixo divide 1080px com a trilha do processo;
  * assinatura comprida sobra e o renderizador corta com reticências.
  */
-function assinatura(config: MarketingConfig | null, video?: VideoFonte) {
+function assinatura(video?: VideoFonte) {
   const curto = (t: string) => (t.length > 30 ? `${t.slice(0, 29).trimEnd()}…` : t);
   const linhas: string[] = [];
-  if (config?.creditoFonte) linhas.push(curto(`FONTE: ${config.creditoFonte}`));
-  else if (video?.curso) linhas.push(curto(`FONTE: curso ${video.curso}`));
+  if (video?.curso) linhas.push(curto(`FONTE: curso ${video.curso}`));
   if (video?.serie) linhas.push(curto(video.serie.toUpperCase()));
   else if (video?.titulo) linhas.push(curto(video.titulo.toUpperCase()));
   return linhas.length ? linhas : ['LBW'];

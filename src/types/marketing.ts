@@ -54,13 +54,15 @@ export type StatusCampanha =
   | 'publicada'
   | 'erro';
 
-/** Termo protegido na correção da transcrição e das legendas. */
-export interface TermoTecnico {
-  /** Como costuma sair errado. Ex.: "lean sigma", "dimaico". */
-  errado: string;
-  /** Grafia correta. Ex.: "Lean Six Sigma", "DMAIC". */
-  correto: string;
-}
+/**
+ * Termo técnico que o consultor considera importante manter correto nas peças.
+ *
+ * É só a grafia CORRETA (ex.: "Lean Six Sigma", "DMAIC") — o consultor não cadastra
+ * as variações de erro. O worker compara o texto contra esta lista por semelhança
+ * (distância de edição) e troca o trecho parecido pela grafia certa. Ver
+ * aplicarDicionario em worker/executores.mjs.
+ */
+export type TermoTecnico = string;
 
 /**
  * Conexão com uma rede social.
@@ -84,18 +86,16 @@ export interface MarketingConfig {
   /** Etapa 2 — estado das conexões. */
   instagram?: ConexaoRede;
   linkedin?: ConexaoRede;
-  /** Quem é o público. Usado para calibrar linguagem. */
-  publico?: string;
-  /** Área de atuação. Ex.: "melhoria de processos", "cardiologia". */
-  area?: string;
-  /** Dicionário técnico do consultor — protege termos que a legenda automática erra. */
+  /**
+   * Dicionário técnico do consultor: só os termos importantes da área, na grafia
+   * certa. Nome da empresa e logo NÃO ficam aqui — vêm de "Minha Marca"
+   * (Consultor.branding). Crédito da fonte e chamada para ação também não ficam
+   * aqui: mudam a cada vídeo/campanha, então são preenchidos na etapa 3 (o campo
+   * `curso` do vídeo) e na etapa 4 (dentro do próprio texto dos slides).
+   */
   termos: TermoTecnico[];
   /** Link principal divulgado nas peças. */
   linkPrincipal?: string;
-  /** Preferências de chamada para ação. */
-  ctaPadrao?: string;
-  /** Crédito exibido no rodapé das peças. Ex.: "curso White Belt". */
-  creditoFonte?: string;
   atualizadoEm?: string;
 }
 

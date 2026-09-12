@@ -36,24 +36,21 @@ const agora = new Date().toISOString();
 
 const config = {
   consultorId: CONSULTOR_ID,
-  publico: 'Analistas, gestores e engenheiros que trabalham com processos, qualidade e operação',
-  area: 'Melhoria de processos e Lean Six Sigma',
   linkPrincipal: 'https://israel.educacaopelotrabalho.com/plataformalbw',
-  ctaPadrao: 'Comente a palavra MÉTODO e eu te explico',
-  creditoFonte: 'curso White Belt — Lean Six Sigma',
-  // Erros reais observados na transcrição automática do White Belt Parte 1.
+  // Só a grafia correta dos termos que importam — não as variações de erro. O
+  // worker (aplicarDicionario) reconhece por semelhança "se sigma", "seis sigma",
+  // "lean sigma" etc. e troca por "Six Sigma" ou "Lean Six Sigma" sozinho.
   termos: [
-    { errado: 'lean sigma', correto: 'Lean Six Sigma' },
-    { errado: 'se sigma', correto: 'Six Sigma' },
-    { errado: 'seis sigma', correto: 'Six Sigma' },
-    { errado: 'limanu factor', correto: 'Lean Manufacturing' },
-    { errado: 'lin', correto: 'Lean' },
-    { errado: 'dimaico', correto: 'DMAIC' },
-    { errado: 'caizen', correto: 'Kaizen' },
-    { errado: 'taicho on', correto: 'Taiichi Ohno' },
-    { errado: 'white belt', correto: 'White Belt' },
-    { errado: 'black belt', correto: 'Black Belt' },
-    { errado: 'green belt', correto: 'Green Belt' },
+    'Lean Six Sigma',
+    'Six Sigma',
+    'Lean Manufacturing',
+    'Lean',
+    'DMAIC',
+    'Kaizen',
+    'Taiichi Ohno',
+    'White Belt',
+    'Black Belt',
+    'Green Belt',
   ],
   instagram: {
     conectado: true,
