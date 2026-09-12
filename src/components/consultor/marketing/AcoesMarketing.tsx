@@ -98,16 +98,61 @@ export function FormularioVideo({
 
   async function enviarArquivo() {
     if (!arquivo) { setErro('Escolha um arquivo de vídeo.'); return; }
+    if (!titulo.trim()) { setErro('Dê um título antes de enviar — é ele que nomeia o vídeo.'); return; }
     setErro('');
     setProgresso(0);
     try {
       const resultado = await enviarVideoParaBunny(arquivo, titulo, setProgresso);
       setEnviado(resultado);
       setProgresso(100);
+
+      // O vídeo é registrado JÁ, e não só no "Salvar". Enviar um arquivo de 2 GB e
+      // fechar a tela sem salvar deixava o vídeo existindo no servidor de vídeo e em
+      // lugar nenhum da plataforma — foi o que aconteceu duas vezes. Aqui ele passa a
+      // existir no momento em que termina de subir, e a transcrição já começa.
+      await registrar(resultado, { iniciarTranscricao: true });
+      onCriado();
     } catch (e: any) {
       setErro(e?.message || String(e));
       setProgresso(null);
     }
+  }
+
+  /** Grava o vídeo e, se pedido, põe a transcrição pra rodar no servidor. */
+  async function registrar(
+    bunny: { guid: string; libraryId: string } | null,
+    opcoes: { iniciarTranscricao: boolean },
+  ) {
+    const id = `${consultorId}__${gerarSlug(titulo)}`;
+    const video: VideoFonte = {
+      id,
+      consultorId,
+      titulo: titulo.trim(),
+      curso: curso.trim() || undefined,
+      serie: serie.trim() || undefined,
+      bunnyVideoId: bunny?.guid,
+      bunnyLibraryId: bunny?.libraryId,
+      sourceUrl: origem === 'link' ? sourceUrl.trim() : undefined,
+      duracaoSegundos: duracao ? Number(duracao) : undefined,
+      temTranscricao: false,
+      criadoEm: new Date().toISOString(),
+    };
+    // Limpa os campos vazios: o Firestore rejeita undefined.
+    const limpo = Object.fromEntries(Object.entries(video).filter(([, v]) => v !== undefined));
+    await setDoc(doc(db, COLECOES.videos, id), limpo, { merge: true });
+
+    if (opcoes.iniciarTranscricao && bunny) {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      // Se esta chamada falhar, o vídeo já está salvo e a lista oferece
+      // "tentar de novo" — não se perde nada.
+      await fetch('/api/bunny/transcribe-marketing-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ videoId: id }),
+      }).catch(() => {});
+    }
+    return id;
   }
 
   async function salvar() {
@@ -117,36 +162,11 @@ export function FormularioVideo({
     setSalvando(true);
     setErro('');
     try {
-      const id = `${consultorId}__${gerarSlug(titulo)}`;
-      const video: VideoFonte = {
-        id,
-        consultorId,
-        titulo: titulo.trim(),
-        curso: curso.trim() || undefined,
-        serie: serie.trim() || undefined,
-        bunnyVideoId: origem === 'arquivo' ? enviado?.guid : undefined,
-        bunnyLibraryId: origem === 'arquivo' ? enviado?.libraryId : undefined,
-        sourceUrl: origem === 'link' ? sourceUrl.trim() : undefined,
-        duracaoSegundos: duracao ? Number(duracao) : undefined,
-        temTranscricao: false,
-        criadoEm: new Date().toISOString(),
-      };
-      // Limpa os campos vazios: o Firestore rejeita undefined.
-      const limpo = Object.fromEntries(Object.entries(video).filter(([, v]) => v !== undefined));
-      await setDoc(doc(db, COLECOES.videos, id), limpo, { merge: true });
-
-      // O vídeo é SALVO PRIMEIRO e a transcrição roda depois, no servidor. Antes era o
-      // contrário — transcrever e só então salvar —, e uma falha na transcrição levava
-      // junto o vídeo inteiro, que já estava no Bunny e não aparecia em lugar nenhum.
-      if (origem === 'arquivo' && enviado) {
-        const user = auth.currentUser;
-        const token = user ? await user.getIdToken() : '';
-        await fetch('/api/bunny/transcribe-marketing-video', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ videoId: id }),
-        }).catch(() => { /* a lista mostra o estado e oferece "tentar de novo" */ });
-      }
+      // Quando veio de arquivo, o vídeo já foi registrado no fim do upload e a
+      // transcrição já está rodando — aqui só se atualizam curso, série e duração.
+      await registrar(origem === 'arquivo' ? enviado : null, {
+        iniciarTranscricao: origem === 'arquivo' && !enviado,
+      });
 
       setTitulo(''); setCurso(''); setSerie(''); setSourceUrl(''); setDuracao('');
       setArquivo(null); setEnviado(null); setProgresso(null);
@@ -250,8 +270,9 @@ export function FormularioVideo({
 
             {enviado && (
               <p className="text-xs text-blue-800">
-                A transcrição começa quando você salvar, e roda no servidor — pode fechar
-                esta tela. O andamento aparece na lista de vídeos.
+                O vídeo já está salvo e a transcrição já começou, no servidor — pode fechar
+                esta tela. O andamento aparece na lista de vídeos. Complete os campos abaixo
+                e salve para guardar curso, série e duração.
               </p>
             )}
 

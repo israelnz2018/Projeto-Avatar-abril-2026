@@ -5,6 +5,11 @@ import path from "path";
 import crypto from "crypto";
 import os from "os";
 import fs from "fs/promises";
+// fs síncrono e streams: a transcrição baixa o vídeo direto pra disco em vez de
+// segurá-lo na memória. Ver transcreverVideoMarketing.
+import fsSync from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline as streamPipeline } from "node:stream/promises";
 import { fileURLToPath } from "url";
 import Automizer from "pptx-automizer";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -2729,37 +2734,54 @@ async function startServer() {
       }
       if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 30 minutos (${ultimoMotivo}).`);
 
-      const mediaResponse = await fetch(mediaUrl, {
-        headers: { Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8", ...referer },
-        signal: AbortSignal.timeout(600_000),
-      });
-      if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do servidor de vídeo: HTTP ${mediaResponse.status}`);
-      const mediaBuffer = Buffer.from(await mediaResponse.arrayBuffer());
-      console.log(`[transcrever-marketing] ${bunnyVideoId}: baixados ${(mediaBuffer.length / 1048576).toFixed(0)} MB`);
+      // Baixa em STREAMING pra um arquivo temporário e manda pro Whisper por
+      // fs.openAsBlob — o vídeo nunca fica inteiro na memória.
+      //
+      // Com Buffer, uma aula de uma hora (123 MB em 240p) levava o processo a 444 MB
+      // de RSS. Num container pequeno isso é OOM, e o servidor reiniciando derruba
+      // junto toda transcrição em andamento. Medido: em streaming fica em ~100 MB,
+      // que é quase só a base do Node.
+      const tmpVideo = path.join(os.tmpdir(), `lbw-transcricao-${bunnyVideoId}.mp4`);
+      let transcription: any;
+      try {
+        const mediaResponse = await fetch(mediaUrl, {
+          headers: { Accept: "video/mp4,video/*;q=0.9,*/*;q=0.8", ...referer },
+          signal: AbortSignal.timeout(900_000),
+        });
+        if (!mediaResponse.ok) throw new Error(`Falha ao baixar o vídeo do servidor de vídeo: HTTP ${mediaResponse.status}`);
+        if (!mediaResponse.body) throw new Error("O servidor de vídeo não devolveu conteúdo.");
+        await streamPipeline(Readable.fromWeb(mediaResponse.body as any), fsSync.createWriteStream(tmpVideo));
+        const tamanho = fsSync.statSync(tmpVideo).size;
+        console.log(`[transcrever-marketing] ${bunnyVideoId}: baixados ${(tamanho / 1048576).toFixed(0)} MB`);
+        if (tamanho < 1024) throw new Error("O arquivo baixado do servidor de vídeo veio vazio.");
 
-      // Dica genérica de contexto. O que a transcrição errar, o consultor conserta
-      // na revisão do criativo — é lá que ele lê o texto de qualquer jeito.
-      const form = new FormData();
-      form.append("file", new Blob([mediaBuffer]), "video.mp4");
-      form.append("model", "openai/whisper-large-v3-turbo");
-      form.append("language", "pt");
-      form.append("response_format", "verbose_json");
-      form.append("timestamp_granularities", "segment");
-      form.append("temperature", "0");
-      form.append("prompt", "Aula ou palestra em português.");
+        // Dica genérica de contexto. O que a transcrição errar, o consultor conserta
+        // na revisão do criativo — é lá que ele lê o texto de qualquer jeito.
+        const form = new FormData();
+        form.append("file", await fsSync.openAsBlob(tmpVideo, { type: "video/mp4" }), "video.mp4");
+        form.append("model", "openai/whisper-large-v3-turbo");
+        form.append("language", "pt");
+        form.append("response_format", "verbose_json");
+        form.append("timestamp_granularities", "segment");
+        form.append("temperature", "0");
+        form.append("prompt", "Aula ou palestra em português.");
 
-      const deepinfraResponse = await fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${deepinfraKey}` },
-        body: form,
-        signal: AbortSignal.timeout(1_800_000),
-      });
-      if (!deepinfraResponse.ok) {
-        const detail = await deepinfraResponse.text().catch(() => "");
-        if (deepinfraResponse.status === 402) throw new Error("Serviço de transcrição sem saldo positivo. Adicione saldo para processar este vídeo.");
-        throw new Error(`Falha na transcrição HTTP ${deepinfraResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
+        const deepinfraResponse = await fetch("https://api.deepinfra.com/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${deepinfraKey}` },
+          body: form,
+          signal: AbortSignal.timeout(1_800_000),
+        });
+        if (!deepinfraResponse.ok) {
+          const detail = await deepinfraResponse.text().catch(() => "");
+          if (deepinfraResponse.status === 402) throw new Error("Serviço de transcrição sem saldo positivo. Adicione saldo para processar este vídeo.");
+          throw new Error(`Falha na transcrição HTTP ${deepinfraResponse.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
+        }
+        transcription = await deepinfraResponse.json() as any;
+      } finally {
+        // O temporário some dê certo ou não: disco cheio derruba o container igual.
+        fsSync.rmSync(tmpVideo, { force: true });
       }
-      const transcription = await deepinfraResponse.json() as any;
       const segments = Array.isArray(transcription.segments)
         ? transcription.segments.filter((s: any) => String(s.text || "").trim())
         : [];
@@ -2862,6 +2884,49 @@ async function startServer() {
       return res.status(500).json({ error: String(error?.message || "Erro ao iniciar a transcrição.").slice(0, 500) });
     }
   });
+
+  /**
+   * Retoma transcrições que ficaram órfãs.
+   *
+   * O trabalho vive dentro do processo. Um deploy, um reinício ou um OOM no meio
+   * deixa o vídeo marcado como "processando" e ninguém mais mexendo nele — e o
+   * consultor só descobre isso esperando em vão. Na subida do servidor, tudo que
+   * ficou nesse estado volta pra fila sozinho.
+   */
+  async function retomarTranscricoesOrfas() {
+    if (!isAdminReady()) return;
+    try {
+      const presos = await adminFirestore().collection("marketing_videos")
+        .where("transcricaoStatus", "in", ["na-fila", "processando"])
+        .get();
+      if (presos.empty) return;
+
+      const deepinfraKey = process.env.DEEPINFRA_API_KEY;
+      const origem = String(process.env.APP_URL || "").trim();
+      const referer = origem ? { Referer: origem.endsWith("/") ? origem : `${origem}/` } : {};
+
+      for (const doc of presos.docs) {
+        const video = doc.data() as any;
+        const bunnyVideoId = String(video.bunnyVideoId || "").trim();
+        const consultorId = String(video.consultorId || "israel");
+        if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId) || !deepinfraKey) {
+          await doc.ref.update({
+            transcricaoStatus: "erro",
+            transcricaoErro: "O servidor reiniciou e não foi possível retomar. Tente de novo.",
+          }).catch(() => {});
+          continue;
+        }
+        const lib = await bunnyLibraryDoConsultor(consultorId);
+        if (!lib) continue;
+        console.log(`[transcrever-marketing] retomando ${doc.id} após reinício do servidor`);
+        void transcreverVideoMarketing({ videoRef: doc.ref, bunnyVideoId, lib, deepinfraKey, referer });
+      }
+    } catch (erro) {
+      console.error("[transcrever-marketing] falha ao retomar órfãs:", erro);
+    }
+  }
+  // Uns segundos depois da subida, pra não disputar CPU com o start do servidor.
+  setTimeout(() => { void retomarTranscricoesOrfas(); }, 15_000);
 
   // POST /api/marketing-consultor/gerar-criativos — lê a transcrição do vídeo e
   // separa os trechos que valem virar peça.
