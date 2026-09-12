@@ -109,6 +109,16 @@ service firebase.storage {
       );
     }
 
+    // Marketing para Consultores: as pecas ficam sob o consultorId do dono.
+    // Quem ESCREVE aqui e o worker, pelo Admin SDK, que nao passa por estas regras.
+    // O navegador so le.
+    match /marketing/{consultorId}/{allPaths=**} {
+      allow read: if isAdmin() || (
+        signedIn() && userDoc(request.auth.uid).consultorId == consultorId
+      );
+      allow write, delete: if isAdmin();
+    }
+
     match /{allPaths=**} {
       allow read, write: if isAdmin();
     }

@@ -27,6 +27,7 @@ import { COLECOES, MarketingConfig, TermoTecnico } from '../../types/marketing';
 import {
   EtapaRedes, EtapaVideos, EtapaCampanhas, EtapaRevisao, EtapaAgenda, useDadosMarketing,
 } from './marketing/EtapasPreenchidas';
+import { FormularioVideo, FormularioCampanha } from './marketing/AcoesMarketing';
 
 type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'revisao' | 'agenda';
 
@@ -94,11 +95,21 @@ export default function MarketingConsultor() {
   }
 
   const etapa = ETAPAS.find((e) => e.id === etapaAtiva)!;
+
+  // Concluída é o que já tem dado real do consultor, não o que já foi programado.
+  const concluidas: Record<EtapaId, boolean> = {
+    config: configCompleta,
+    redes: Boolean(dados.config?.instagram?.conectado || dados.config?.linkedin?.conectado),
+    videos: dados.videos.length > 0,
+    campanhas: dados.campanhas.length > 0,
+    revisao: dados.pecas.some((p) => p.status === 'aprovado' || p.status === 'publicado'),
+    agenda: dados.pecas.some((p) => p.status === 'publicado'),
+  };
   // Primeira etapa ainda não concluída — é onde o consultor deve estar.
-  const proximaPendente = configCompleta ? ETAPAS.find((e) => !e.pronta) : ETAPAS[0];
+  const proximaPendente = ETAPAS.find((e) => !concluidas[e.id]);
 
   function estadoDaEtapa(e: Etapa): 'concluida' | 'atual' | 'pendente' {
-    if (e.id === 'config') return configCompleta ? 'concluida' : 'atual';
+    if (concluidas[e.id]) return 'concluida';
     if (proximaPendente?.id === e.id) return 'atual';
     return 'pendente';
   }
@@ -167,13 +178,42 @@ export default function MarketingConsultor() {
           ? <div className="text-gray-500">Carregando…</div>
           : <>
               {etapaAtiva === 'redes' && <EtapaRedes config={dados.config} />}
-              {etapaAtiva === 'videos' && <EtapaVideos videos={dados.videos} />}
-              {etapaAtiva === 'campanhas' && <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />}
+
+              {etapaAtiva === 'videos' && (
+                <div className="space-y-4">
+                  <FormularioVideo consultorId={consultorId} onCriado={dados.recarregar} />
+                  <EtapaVideos videos={dados.videos} />
+                </div>
+              )}
+
+              {etapaAtiva === 'campanhas' && (
+                <div className="space-y-4">
+                  <FormularioCampanha
+                    consultorId={consultorId}
+                    videos={dados.videos}
+                    config={dados.config}
+                    onCriada={dados.recarregar}
+                  />
+                  <EtapaCampanhas campanhas={dados.campanhas} pecas={dados.pecas} />
+                </div>
+              )}
+
               {etapaAtiva === 'revisao' && <EtapaRevisao campanhas={dados.campanhas} pecas={dados.pecas} />}
               {etapaAtiva === 'agenda' && <EtapaAgenda campanhas={dados.campanhas} pecas={dados.pecas} />}
-              <p className="text-xs text-gray-500 mt-5 pt-3 border-t border-gray-100">
-                Esta etapa ainda é somente leitura. Os botões de ação entram na próxima entrega.
-              </p>
+
+              {etapaAtiva !== 'videos' && etapaAtiva !== 'campanhas' && (
+                <p className="text-xs text-gray-500 mt-5 pt-3 border-t border-gray-100">
+                  Esta etapa ainda é somente leitura. Os botões de ação entram na próxima entrega.
+                </p>
+              )}
+
+              {/* A produção roda fora da tela; nada avisa o navegador quando termina. */}
+              <button
+                onClick={dados.recarregar}
+                className="block text-xs font-semibold text-blue-700 hover:underline mt-4"
+              >
+                Atualizar esta tela
+              </button>
             </>
       )}
     </div>

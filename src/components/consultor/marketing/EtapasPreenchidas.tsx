@@ -11,7 +11,8 @@ import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
   FileText, Image as ImageIcon, Film, Layers, MessageSquareWarning, Send,
 } from 'lucide-react';
-import { db } from '../../../lib/firebase';
+import { getDownloadURL, ref as storageRef } from 'firebase/storage';
+import { db, storage } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, ConexaoRede, MarketingConfig, Peca, StatusPeca, TipoPeca, VideoFonte, OBJETIVOS,
 } from '../../../types/marketing';
@@ -184,6 +185,124 @@ export function EtapaRevisao({ campanhas, pecas }: { campanhas: Campanha[]; peca
   );
 }
 
+/**
+ * Prévia da peça.
+ *
+ * O Firestore guarda o CAMINHO no Storage, não a URL. Link assinado vence, e peça
+ * com link vencido "some" da tela depois. Então a URL de exibição é pedida aqui,
+ * na hora de mostrar.
+ */
+function Previa({ caminho }: { caminho?: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [erro, setErro] = useState(false);
+
+  useEffect(() => {
+    if (!caminho) return;
+    let vivo = true;
+    setUrl(null);
+    setErro(false);
+    getDownloadURL(storageRef(storage, caminho))
+      .then((u) => { if (vivo) setUrl(u); })
+      .catch(() => { if (vivo) setErro(true); });
+    return () => { vivo = false; };
+  }, [caminho]);
+
+  if (!caminho) return null;
+
+  // Peça antiga, produzida direto na máquina antes da fila existir: o arquivo nunca
+  // subiu para a nuvem, então não há o que mostrar aqui.
+  if (!caminho.startsWith('marketing/')) {
+    return (
+      <p className="mt-3 text-xs text-gray-500 italic">
+        Gerada na máquina, fora da plataforma. O arquivo está em {caminho}.
+      </p>
+    );
+  }
+
+  if (erro) {
+    return (
+      <p className="mt-3 text-xs text-gray-500 italic">
+        Não foi possível carregar a prévia deste arquivo.
+      </p>
+    );
+  }
+
+  if (!url) return <div className="mt-3 h-48 w-48 rounded-lg bg-gray-100 animate-pulse" />;
+
+  if (/\.pdf$/i.test(caminho)) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+      >
+        <FileText className="w-4 h-4" /> Abrir o PDF
+      </a>
+    );
+  }
+
+  if (/\.mp4$/i.test(caminho)) {
+    return <video src={url} controls className="mt-3 rounded-lg border border-gray-200 max-h-80" />;
+  }
+
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="block mt-3 w-fit">
+      <img
+        src={url}
+        alt="Prévia da peça"
+        className="rounded-lg border border-gray-200 max-h-80 object-contain bg-gray-50"
+      />
+    </a>
+  );
+}
+
+/** Miniaturas dos demais arquivos da peça — os outros slides, a legenda, a capa. */
+function Anexos({ peca }: { peca: Peca }) {
+  const outros = (peca.arquivos || [])
+    .filter((c) => c !== peca.arquivoUrl && c.startsWith('marketing/'));
+  if (!outros.length) return null;
+  return (
+    <details className="mt-3">
+      <summary className="text-xs font-semibold text-gray-600 cursor-pointer">
+        Ver os outros {outros.length} arquivos desta peça
+      </summary>
+      <div className="flex flex-wrap gap-2 mt-2">
+        {outros.map((c) => <Miniatura key={c} caminho={c} />)}
+      </div>
+    </details>
+  );
+}
+
+function Miniatura({ caminho }: { caminho: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const nome = caminho.split('/').pop() || caminho;
+  const ehImagem = /\.(png|jpe?g)$/i.test(caminho);
+
+  useEffect(() => {
+    let vivo = true;
+    getDownloadURL(storageRef(storage, caminho))
+      .then((u) => { if (vivo) setUrl(u); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [caminho]);
+
+  if (!url) return <div className="w-20 h-28 rounded bg-gray-100 animate-pulse" />;
+
+  return (
+    <a href={url} target="_blank" rel="noreferrer" title={nome}>
+      {ehImagem
+        ? <img src={url} alt={nome} className="w-20 h-28 object-cover rounded border border-gray-200" />
+        : (
+          <span className="w-20 h-28 rounded border border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-1 text-[10px] text-gray-600 px-1 text-center">
+            <FileText className="w-4 h-4" />
+            <span className="truncate w-full">{nome}</span>
+          </span>
+        )}
+    </a>
+  );
+}
+
 function CartaoPeca({ peca, campanhas }: { peca: Peca; campanhas: Campanha[] }) {
   const campanha = campanhas.find((c) => c.id === peca.campanhaId);
   const pendente = peca.status === 'revisar';
@@ -205,6 +324,9 @@ function CartaoPeca({ peca, campanhas }: { peca: Peca; campanhas: Campanha[] }) 
         </div>
         <EtiquetaStatus status={peca.status} />
       </div>
+
+      <Previa caminho={peca.arquivoUrl} />
+      <Anexos peca={peca} />
 
       {peca.pedidoMelhoria && (
         <div className="mt-3 p-2.5 rounded bg-amber-50 border border-amber-200 flex items-start gap-2">
@@ -294,6 +416,8 @@ export function useDadosMarketing(consultorId: string) {
   const [campanhas, setCampanhas] = useState<Campanha[]>([]);
   const [pecas, setPecas] = useState<Peca[]>([]);
   const [carregando, setCarregando] = useState(true);
+  // Muda de valor para forçar nova leitura depois que o consultor cria algo.
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
     if (!consultorId) return;
@@ -318,9 +442,12 @@ export function useDadosMarketing(consultorId: string) {
       }
     })();
     return () => { vivo = false; };
-  }, [consultorId]);
+  }, [consultorId, versao]);
 
-  return { config, setConfig, videos, campanhas, pecas, carregando };
+  return {
+    config, setConfig, videos, campanhas, pecas, carregando,
+    recarregar: () => setVersao((v) => v + 1),
+  };
 }
 
 const ROTULOS: Record<string, { texto: string; classe: string }> = {

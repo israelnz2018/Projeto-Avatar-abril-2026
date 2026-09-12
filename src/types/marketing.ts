@@ -141,8 +141,13 @@ export interface Peca {
   status: StatusPeca;
   /** Versão corrente. Começa em 1 e sobe a cada melhoria pedida. */
   versao: number;
-  /** Caminho no Storage do arquivo desta versão. */
+  /**
+   * Caminho no Storage do arquivo que representa a peça (imagem, vídeo ou PDF).
+   * É o que vira a prévia na tela de revisão.
+   */
   arquivoUrl?: string;
+  /** Todos os arquivos desta versão, incluindo legenda e demais slides. */
+  arquivos?: string[];
   /** Capa, quando houver. */
   capaUrl?: string;
   /** Texto da publicação. */
