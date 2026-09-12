@@ -2768,7 +2768,12 @@ async function startServer() {
         form.append("model", "openai/whisper-large-v3-turbo");
         form.append("language", "pt");
         form.append("response_format", "verbose_json");
-        form.append("timestamp_granularities", "segment");
+        // Os COLCHETES importam: "timestamp_granularities" como campo simples é
+        // ignorado em silêncio e só voltam os segmentos. Com a sintaxe de array da
+        // spec da OpenAI, vêm os dois — e o tempo palavra por palavra não custa nada
+        // a mais. É ele que permite a legenda em karaokê do Reel falado.
+        form.append("timestamp_granularities[]", "segment");
+        form.append("timestamp_granularities[]", "word");
         form.append("temperature", "0");
         form.append("prompt", "Aula ou palestra em português.");
 
@@ -2805,13 +2810,43 @@ async function startServer() {
       }).join("\n");
       if (!rawTranscript.trim()) throw new Error("A transcrição retornou vazia.");
 
+      // O tempo palavra por palavra fica guardado agora, mesmo sem nada consumindo
+      // ainda: é o insumo da legenda em karaokê do Reel falado, e obtê-lo de novo
+      // depois custaria transcrever o vídeo inteiro outra vez.
+      //
+      // Vai numa SUBCOLEÇÃO porque uma aula de uma hora tem ~9 mil palavras e o
+      // documento do vídeo estouraria o limite de 1 MB do Firestore.
+      const palavras = Array.isArray(transcription.words)
+        ? transcription.words
+            .map((p: any) => ({
+              t: String(p.word ?? "").trim(),
+              i: Math.round(Number(p.start || 0) * 1000),
+              f: Math.round(Number(p.end || 0) * 1000),
+            }))
+            .filter((p: any) => p.t)
+        : [];
+
       await videoRef.update({
         transcricao: rawTranscript,
         temTranscricao: true,
         transcricaoStatus: "pronta",
+        temPalavras: palavras.length > 0,
         transcricaoErro: admin.firestore.FieldValue.delete(),
       });
-      console.log(`[transcrever-marketing] ${bunnyVideoId}: pronta, ${segments.length} falas`);
+
+      if (palavras.length) {
+        // Em blocos de 2 mil: um documento só não caberia, e um por palavra seriam
+        // milhares de escritas.
+        const blocos = [];
+        for (let i = 0; i < palavras.length; i += 2000) blocos.push(palavras.slice(i, i + 2000));
+        const lote = adminFirestore().batch();
+        blocos.forEach((bloco, i) => {
+          lote.set(videoRef.collection("palavras").doc(String(i).padStart(3, "0")), { palavras: bloco });
+        });
+        await lote.commit().catch((e) => console.error("[transcrever-marketing] palavras não salvas:", e));
+      }
+
+      console.log(`[transcrever-marketing] ${bunnyVideoId}: pronta, ${segments.length} falas, ${palavras.length} palavras com tempo`);
     } catch (error: any) {
       console.error("[transcrever-marketing] erro:", error);
       const mensagem = String(error?.message || "Erro ao transcrever vídeo.")

@@ -121,6 +121,13 @@ export interface VideoFonte {
   transcricaoIniciadaEm?: string;
   /** Por que falhou, em português, para o consultor decidir se tenta de novo. */
   transcricaoErro?: string;
+  /**
+   * Se o tempo palavra por palavra foi guardado (na subcoleção "palavras" do vídeo).
+   *
+   * É o insumo da legenda em karaokê do Reel falado. Vídeos transcritos antes desta
+   * mudança não têm — precisariam ser transcritos de novo, o que custa centavos.
+   */
+  temPalavras?: boolean;
   criadoEm: string;
 }
 
