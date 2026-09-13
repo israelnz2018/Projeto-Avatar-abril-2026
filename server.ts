@@ -3521,10 +3521,41 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       blocos.docs
         .sort((a, b) => a.id.localeCompare(b.id))
         .forEach((d) => todas.push(...((d.data() as any).palavras || [])));
-      const palavras = todas.filter((p) => Number(p.i) >= faixaInicioMs && Number(p.i) < faixaFimMs);
-      if (palavras.length < 3) {
+      const primeiroIdx = todas.findIndex((p) => Number(p.i) >= faixaInicioMs);
+      if (primeiroIdx < 0) {
         return res.status(422).json({ error: "Não há palavras com tempo dentro deste recorte." });
       }
+      let ultimoIdx = primeiroIdx;
+      while (ultimoIdx + 1 < todas.length && Number(todas[ultimoIdx + 1].i) < faixaFimMs) ultimoIdx++;
+      if (ultimoIdx - primeiroIdx < 2) {
+        return res.status(422).json({ error: "Não há palavras com tempo dentro deste recorte." });
+      }
+
+      // O RECORTE SEGUE ATÉ O PONTO FINAL.
+      //
+      // A faixa do criativo termina num relógio, não numa frase: o teto de 15 s por
+      // fala (que existe para um silêncio não esticar a fala anterior) cortou este
+      // criativo em "...faz com", e a frase só fechava 4,3 s depois, em "...fazer
+      // melhorias." Vídeo que termina no meio da frase não se publica.
+      //
+      // Então, passado o fim da faixa, o corte anda para a frente até a palavra que
+      // fecha a frase. O limite de 20 s existe para o caso de a transcrição não ter
+      // pontuação nenhuma — aí é melhor cortar torto do que devolver a aula inteira.
+      const FIM_DE_FRASE = /[.!?…]["'”’)\]]?$/;
+      const MAX_EXTENSAO_MS = 20000;
+      const limiteMs = faixaFimMs + MAX_EXTENSAO_MS;
+      let estendeu = 0;
+      while (
+        !FIM_DE_FRASE.test(String(todas[ultimoIdx].t || "")) &&
+        ultimoIdx + 1 < todas.length &&
+        Number(todas[ultimoIdx + 1].f) <= limiteMs
+      ) {
+        ultimoIdx++;
+        estendeu++;
+      }
+
+      const palavras = todas.slice(primeiroIdx, ultimoIdx + 1);
+      const fechouFrase = FIM_DE_FRASE.test(String(palavras[palavras.length - 1].t || ""));
 
       // O CORTE sai das PALAVRAS, não dos segmentos. Neste criativo o segmento
       // começava 930 ms antes da primeira palavra: cortar ali daria quase um segundo
@@ -3603,9 +3634,10 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`[gerar-reel] ${criativoId}: ${palavras.length} palavras, ${((clipEndMs - clipStartMs) / 1000).toFixed(1)}s`);
+      console.log(`[gerar-reel] ${criativoId}: ${palavras.length} palavras, ${((clipEndMs - clipStartMs) / 1000).toFixed(1)}s, estendeu ${estendeu} palavra(s) para fechar a frase, fechou=${fechouFrase}`);
       return res.status(202).json({
         estado: "na-fila",
+        fechouFrase,
         segundos: Number(((clipEndMs - clipStartMs) / 1000).toFixed(1)),
         palavras: palavras.length,
       });

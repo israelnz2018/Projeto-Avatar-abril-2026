@@ -13,3 +13,4 @@ secrets/
 .claude/
 DataAnalysis.tsx.backup
 *.backup
+.backend-check/
