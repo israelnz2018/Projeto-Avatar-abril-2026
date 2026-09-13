@@ -1,5 +1,5 @@
 /**
- * Etapa 4 — Criativos aprovados.
+ * Etapa 4 — Minhas peças.
  *
  * Aqui o criativo aprovado vira peça. A fala não se edita mais nesta tela: quem quiser
  * mudar o que foi dito volta pro criativo na etapa 3 e tira a aprovação. O que se edita
@@ -13,14 +13,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, Criativo, Peca, SlideRoteiro, VideoFonte,
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
-import { Previa } from './EtapasPreenchidas';
+import { Previa, Anexos } from './EtapasPreenchidas';
 
 
 export function EtapaCriativosAprovados({
@@ -416,6 +416,7 @@ function Producao({
         aoMudarSegundos={setSegundosPorSlide}
         aoRefazerReel={refazerReel}
         aoRefazerTexto={refazerTexto}
+        aoAprovar={onMudou}
       />
       {avisoReel && (
         <p className="text-sm text-amber-800 p-3 rounded bg-amber-50 border border-amber-200">
@@ -423,9 +424,39 @@ function Producao({
         </p>
       )}
 
+      {/* O PEDIDO FICA À VISTA.
+          Estava escondido dentro do acordeão de editar o texto, junto de seis
+          campos por página — e quem só queria dizer "a capa está fraca" não
+          achava. É o caminho mais usado dos dois, então é o que fica aberto. */}
+      <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <p className="text-sm font-semibold text-gray-800">Quer mudar alguma coisa?</p>
+        <p className="text-xs text-gray-600 mt-0.5 mb-2.5">
+          Escreva o que incomodou e a IA reescreve o texto das peças e refaz tudo. O Reel
+          com você falando não muda — ele usa a sua própria fala.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={melhoria}
+            onChange={(e) => setMelhoria(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && melhoria.trim()) criarTudo(); }}
+            placeholder="Ex.: a capa está fraca, comece pelo incômodo de quem nunca liderou um projeto"
+            className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-gray-300 text-sm"
+          />
+          <button
+            onClick={criarTudo}
+            disabled={gerando || enfileirando || !melhoria.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+          >
+            {gerando
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Reescrevendo…</>
+              : <><RefreshCw className="w-3.5 h-3.5" /> Pedir e refazer</>}
+          </button>
+        </div>
+      </section>
+
       <details className="rounded-lg border border-gray-200 bg-white">
         <summary className="px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer">
-          Quero mudar o texto das peças
+          Prefiro eu mesmo mudar o texto, página a página
         </summary>
         <div className="px-4 pb-4">
           <p className="text-xs text-gray-600 mb-3">
@@ -492,31 +523,6 @@ function Producao({
             </button>
           </div>
 
-          {/* Pedir outra versão à IA SUBSTITUI o texto, inclusive o que foi editado.
-              Por isso fica no fim, separado do botão que só refaz as peças. */}
-          <div className="mt-4 pt-3 border-t border-gray-100">
-            <p className="text-xs text-gray-600 mb-1.5">
-              Ou diga o que mudar e a IA reescreve tudo do zero:
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <input
-                value={melhoria}
-                onChange={(e) => setMelhoria(e.target.value)}
-                placeholder="Ex.: a capa está fraca, comece pelo incômodo de quem nunca liderou um projeto"
-                className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-gray-300 text-sm"
-              />
-              <button
-                onClick={criarTudo}
-                disabled={gerando || enfileirando}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-60"
-              >
-                {gerando
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Reescrevendo…</>
-                  : <><RefreshCw className="w-3.5 h-3.5" /> Reescrever e refazer</>}
-              </button>
-            </div>
-          </div>
-
           {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
         </div>
       </details>
@@ -530,7 +536,7 @@ function PecasProduzidas({
   pecas, esperando, ocupado,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
-  aoRefazerReel, aoRefazerTexto,
+  aoRefazerReel, aoRefazerTexto, aoAprovar,
 }: {
   pecas: Peca[];
   esperando?: boolean;
@@ -541,6 +547,7 @@ function PecasProduzidas({
   aoMudarSegundos: (v: number) => void;
   aoRefazerReel: () => void;
   aoRefazerTexto: () => void;
+  aoAprovar: () => void;
 }) {
   // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
   // ficava escrito "nenhuma peça produzida", que parece falha e não espera.
@@ -623,13 +630,75 @@ function PecasProduzidas({
                     ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
                     : 'Refaz o carrossel, o PDF e o carrossel em vídeo com o texto atual.'}
                 />
+                <BotaoAprovar peca={p} onMudou={aoAprovar} />
               </div>
             </div>
             <Previa caminho={p.arquivoUrl} />
+            {/* O carrossel tem sete páginas e a prévia mostra uma. Aprovar sem ver o
+                resto seria aprovar no escuro. */}
+            <Anexos peca={p} />
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Aprovar e desaprovar uma peça.
+ *
+ * Aprovar é o que manda a peça para a etapa de publicação. Fica AQUI, ao lado da
+ * peça, e não numa tela de revisão separada: o consultor decide olhando o que
+ * saiu, e uma segunda tela mostrando as mesmas peças só duplicava a dúvida sobre
+ * onde aprovar.
+ */
+function BotaoAprovar({ peca, onMudou }: { peca: Peca; onMudou: () => void }) {
+  const [salvando, setSalvando] = useState(false);
+
+  async function definir(status: Peca['status']) {
+    setSalvando(true);
+    try {
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+        status,
+        atualizadoEm: new Date().toISOString(),
+      });
+      onMudou();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (peca.status === 'aprovado' || peca.status === 'publicado') {
+    return (
+      <span className="flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800 text-xs font-bold">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          {peca.status === 'publicado' ? 'Publicada' : 'Aprovada'}
+        </span>
+        {peca.status === 'aprovado' && (
+          <button
+            onClick={() => definir('revisar')}
+            disabled={salvando}
+            title="Tira a aprovação para poder refazer"
+            className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50"
+          >
+            desfazer
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => definir('aprovado')}
+      disabled={salvando}
+      title="Manda esta peça para a etapa de publicação"
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
+    >
+      {salvando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+      Aprovar
+    </button>
   );
 }
 

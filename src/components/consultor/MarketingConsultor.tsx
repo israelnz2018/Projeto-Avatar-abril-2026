@@ -17,7 +17,7 @@
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
-  Settings2, Share2, Video, Sparkles, ClipboardCheck, CalendarClock,
+  Settings2, Share2, Video, Sparkles, CalendarClock,
   Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, ImageOff, Pencil,
 } from 'lucide-react';
 import { db } from '../../lib/firebase';
@@ -26,13 +26,13 @@ import { useUserAccess } from '../../hooks/useUserAccess';
 import { ConsultorBranding } from '../../types';
 import { COLECOES, MarketingConfig } from '../../types/marketing';
 import {
-  EtapaRedes, EtapaVideos, EtapaRevisao, EtapaAgenda, useDadosMarketing,
+  EtapaRedes, EtapaVideos, EtapaAgenda, useDadosMarketing,
 } from './marketing/EtapasPreenchidas';
 import { FormularioVideo } from './marketing/AcoesMarketing';
 import { PainelCriativos, useCriativos } from './marketing/Criativos';
 import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
 
-type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'revisao' | 'agenda';
+type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'agenda';
 
 interface Etapa {
   id: EtapaId;
@@ -58,15 +58,13 @@ const ETAPAS: Etapa[] = [
     oQueFaz: 'Envie as suas aulas longas e escolha, dentro de cada uma, os trechos que viram peça.',
   },
   {
-    id: 'campanhas', numero: 4, nome: 'Criativos aprovados', icon: Sparkles, pronta: false,
-    oQueFaz: 'Os trechos que você aprovou, prontos para virar Reel, carrossel e PDF.',
+    id: 'campanhas', numero: 4, nome: 'Minhas peças', icon: Sparkles, pronta: false,
+    // O nome antigo era "Criativos aprovados" e mentia: o que a etapa 3 aprova é o
+    // TEXTO. O design nasce aqui, e é aqui que ele é aprovado.
+    oQueFaz: 'O texto que você aprovou vira Reel, carrossel e PDF. Veja, refaça o que não gostou e aprove.',
   },
   {
-    id: 'revisao', numero: 5, nome: 'Revisão', icon: ClipboardCheck, pronta: false,
-    oQueFaz: 'Veja cada peça, aprove ou peça uma melhoria escrevendo o que quer mudar.',
-  },
-  {
-    id: 'agenda', numero: 6, nome: 'Publicação', icon: CalendarClock, pronta: false,
+    id: 'agenda', numero: 5, nome: 'Publicação', icon: CalendarClock, pronta: false,
     oQueFaz: 'Defina quando cada peça vai ao ar. A publicação acontece sozinha.',
   },
 ];
@@ -105,8 +103,7 @@ export default function MarketingConsultor() {
     config: configCompleta,
     redes: Boolean(dados.config?.instagram?.conectado || dados.config?.linkedin?.conectado),
     videos: dados.videos.length > 0,
-    campanhas: criativos.criativos.some((c) => c.status === 'aprovado'),
-    revisao: dados.pecas.some((p) => p.status === 'aprovado' || p.status === 'publicado'),
+    campanhas: dados.pecas.some((p) => p.status === 'aprovado' || p.status === 'publicado'),
     agenda: dados.pecas.some((p) => p.status === 'publicado'),
   };
   // Primeira etapa ainda não concluída — é onde o consultor deve estar.
@@ -212,12 +209,11 @@ export default function MarketingConsultor() {
                 </div>
               )}
 
-              {etapaAtiva === 'revisao' && <EtapaRevisao campanhas={dados.campanhas} pecas={dados.pecas} />}
               {etapaAtiva === 'agenda' && <EtapaAgenda campanhas={dados.campanhas} pecas={dados.pecas} />}
 
-              {(etapaAtiva === 'redes' || etapaAtiva === 'revisao' || etapaAtiva === 'agenda') && (
+              {etapaAtiva === 'redes' && (
                 <p className="text-xs text-gray-500 mt-5 pt-3 border-t border-gray-100">
-                  Esta etapa ainda é somente leitura. Os botões de ação entram na próxima entrega.
+                  Esta etapa ainda é somente leitura. Conectar as redes entra na próxima entrega.
                 </p>
               )}
 

@@ -9,7 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
-  FileText, Image as ImageIcon, Film, Layers, MessageSquareWarning, Send, Trash2, Loader2,
+  FileText, Image as ImageIcon, Film, Layers, Send, Trash2, Loader2,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { auth, db, storage } from '../../../lib/firebase';
@@ -322,38 +322,6 @@ export function EtapaCampanhas({ campanhas, pecas }: { campanhas: Campanha[]; pe
 
 /* ====================== Etapa 5 — Revisão ====================== */
 
-export function EtapaRevisao({ campanhas, pecas }: { campanhas: Campanha[]; pecas: Peca[] }) {
-  const aRevisar = pecas.filter((p) => p.status === 'revisar');
-  const outras = pecas.filter((p) => p.status !== 'revisar');
-
-  return (
-    <div className="space-y-6">
-      <section>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">
-          Aguardando a sua revisão ({aRevisar.length})
-        </h3>
-        {aRevisar.length === 0
-          ? <Vazio texto="Nada pendente. Tudo revisado." />
-          : <div className="space-y-3">{aRevisar.map((p) => <CartaoPeca key={p.id} peca={p} campanhas={campanhas} />)}</div>}
-      </section>
-
-      {outras.length > 0 && (
-        <section>
-          <h3 className="text-sm font-bold text-gray-900 mb-3">Já resolvidas ({outras.length})</h3>
-          <div className="space-y-3">{outras.map((p) => <CartaoPeca key={p.id} peca={p} campanhas={campanhas} />)}</div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-/**
- * Prévia da peça.
- *
- * O Firestore guarda o CAMINHO no Storage, não a URL. Link assinado vence, e peça
- * com link vencido "some" da tela depois. Então a URL de exibição é pedida aqui,
- * na hora de mostrar.
- */
 export function Previa({ caminho }: { caminho?: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [erro, setErro] = useState(false);
@@ -419,8 +387,13 @@ export function Previa({ caminho }: { caminho?: string }) {
   );
 }
 
-/** Miniaturas dos demais arquivos da peça — os outros slides, a legenda, a capa. */
-function Anexos({ peca }: { peca: Peca }) {
+/**
+ * Miniaturas dos demais arquivos da peça — os outros slides, a legenda, a capa.
+ *
+ * Exportado porque quem revisa a peça é a etapa 4: a prévia mostra um slide só, e
+ * sem isto o consultor não consegue ver o carrossel inteiro antes de aprovar.
+ */
+export function Anexos({ peca }: { peca: Peca }) {
   const outros = (peca.arquivos || [])
     .filter((c) => c !== peca.arquivoUrl && c.startsWith('marketing/'));
   if (!outros.length) return null;
@@ -465,55 +438,6 @@ function Miniatura({ caminho }: { caminho: string }) {
   );
 }
 
-function CartaoPeca({ peca, campanhas }: { peca: Peca; campanhas: Campanha[] }) {
-  const campanha = campanhas.find((c) => c.id === peca.campanhaId);
-  const pendente = peca.status === 'revisar';
-
-  return (
-    <div className={`p-4 rounded-lg border bg-white ${pendente ? 'border-blue-300' : 'border-gray-200'}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 font-bold text-gray-900">
-            {iconePeca(peca.tipo)} {nomePeca(peca.tipo)}
-            {peca.versao > 1 && (
-              <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                versão {peca.versao}
-              </span>
-            )}
-          </p>
-          {campanha && <p className="text-xs text-gray-500 mt-0.5">{campanha.titulo}</p>}
-          {peca.legenda && <p className="text-sm text-gray-700 mt-2">{peca.legenda}</p>}
-        </div>
-        <EtiquetaStatus status={peca.status} />
-      </div>
-
-      <Previa caminho={peca.arquivoUrl} />
-      <Anexos peca={peca} />
-
-      {peca.pedidoMelhoria && (
-        <div className="mt-3 p-2.5 rounded bg-amber-50 border border-amber-200 flex items-start gap-2">
-          <MessageSquareWarning className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-bold text-amber-900">Melhoria pedida na versão anterior</p>
-            <p className="text-sm text-amber-800">{peca.pedidoMelhoria}</p>
-          </div>
-        </div>
-      )}
-
-      {pendente && (
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-          <button className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-semibold opacity-50 cursor-not-allowed">
-            Aprovar
-          </button>
-          <button className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold opacity-50 cursor-not-allowed">
-            Solicitar melhoria
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ====================== Etapa 6 — Publicação ====================== */
 
 export function EtapaAgenda({ pecas, campanhas }: { pecas: Peca[]; campanhas: Campanha[] }) {
@@ -523,7 +447,14 @@ export function EtapaAgenda({ pecas, campanhas }: { pecas: Peca[]; campanhas: Ca
   return (
     <div className="space-y-6">
       <section>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">Prontas para agendar ({prontas.length})</h3>
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Prontas para publicar ({prontas.length})</h3>
+        {/* Enquanto o Instagram e o LinkedIn não estiverem conectados, o que esta
+            tela pode fazer de útil é entregar o arquivo. Botão que não publica é
+            pior que botão nenhum: o consultor clica e acha que agendou. */}
+        <p className="text-xs text-gray-600 mb-3">
+          A publicação automática entra quando as suas redes estiverem conectadas (etapa 2).
+          Por enquanto, abra o arquivo e publique você mesmo.
+        </p>
         {prontas.length === 0
           ? <Vazio texto="Nenhuma peça aprovada aguardando agendamento." />
           : (
@@ -536,9 +467,7 @@ export function EtapaAgenda({ pecas, campanhas }: { pecas: Peca[]; campanhas: Ca
                       {iconePeca(p.tipo)} {nomePeca(p.tipo)}
                       {c && <span className="font-normal text-gray-500">— {c.titulo}</span>}
                     </span>
-                    <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold shrink-0 opacity-50 cursor-not-allowed">
-                      Agendar
-                    </button>
+                    <LinkDoArquivo caminho={p.arquivoUrl} />
                   </div>
                 );
               })}
@@ -567,6 +496,33 @@ export function EtapaAgenda({ pecas, campanhas }: { pecas: Peca[]; campanhas: Ca
           )}
       </section>
     </div>
+  );
+}
+
+/** Abre o arquivo da peça numa aba. É o que dá para oferecer até a publicação existir. */
+function LinkDoArquivo({ caminho }: { caminho?: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!caminho || !caminho.startsWith('marketing/')) return;
+    let vivo = true;
+    getDownloadURL(storageRef(storage, caminho))
+      .then((u) => { if (vivo) setUrl(u); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [caminho]);
+
+  if (!url) return <span className="text-xs text-gray-400 shrink-0">carregando…</span>;
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="px-3 py-1.5 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold shrink-0 hover:bg-blue-50"
+    >
+      Abrir arquivo
+    </a>
   );
 }
 
