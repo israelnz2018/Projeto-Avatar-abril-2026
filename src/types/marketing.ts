@@ -308,6 +308,13 @@ export interface Campanha {
   /** Trecho do vídeo que originou a campanha. */
   corteInicio?: string;
   corteFim?: string;
+  /**
+   * O ritmo escolhido para o vídeo desta campanha, guardado para a tela lembrar.
+   * `velocidade` é do Reel falado (0,8x a 1,5x); `segundosPorSlide` é do carrossel
+   * em vídeo.
+   */
+  velocidade?: number;
+  segundosPorSlide?: number;
   criadoEm: string;
   atualizadoEm?: string;
 }

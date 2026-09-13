@@ -155,6 +155,10 @@ function Producao({
   const [slides, setSlides] = useState<SlideRoteiro[]>(criativo.roteiro?.slides || []);
   const [melhoria, setMelhoria] = useState('');
   const [avisoReel, setAvisoReel] = useState('');
+  // Os dois vídeos têm ritmo próprio: o Reel falado acelera a fala, o carrossel em
+  // vídeo escolhe quanto tempo cada página fica na tela.
+  const [velocidade, setVelocidade] = useState(1);
+  const [segundosPorSlide, setSegundosPorSlide] = useState(5);
 
   // Trocar de criativo no dropdown tem que trocar o roteiro na tela junto.
   useEffect(() => {
@@ -165,6 +169,20 @@ function Producao({
 
   const campanhaId = `${criativo.id}__pecas`;
   const campanhaReel = `${criativo.id}__reel`;
+
+  // O ritmo escolhido fica GRAVADO NA CAMPANHA, não só na aba aberta.
+  //
+  // Sem isso, sair do criativo e voltar traria 1x e 5s de volta; o consultor
+  // clicaria "refazer" achando que estava só recarregando e receberia uma peça
+  // diferente da que aprovou. Lê uma vez por criativo, de propósito: relê a cada
+  // atualização e o seletor se mexeria sozinho enquanto ele escolhe.
+  useEffect(() => {
+    const reel = campanhas.find((c) => c.id === `${criativo.id}__reel`);
+    const texto = campanhas.find((c) => c.id === `${criativo.id}__pecas`);
+    setVelocidade(Number(reel?.velocidade) || 1);
+    setSegundosPorSlide(Number(texto?.segundosPorSlide) || 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criativo.id]);
   // As quatro peças numa lista só: o Reel falado e as três que saem do roteiro.
   const minhasPecas = pecas.filter((p) => p.campanhaId === campanhaId || p.campanhaId === campanhaReel);
   const daCampanha = minhasPecas;
@@ -224,6 +242,7 @@ function Producao({
         status: 'processando',
         corteInicio: formatar(inicioNoVideo(criativo)),
         corteFim: formatar(fimNoVideo(criativo)),
+        segundosPorSlide,
         criadoEm: agora,
       }, { merge: true });
 
@@ -240,7 +259,7 @@ function Producao({
           slug: criativo.id.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60),
           folderType: 'Carrossel',
           sequence: Math.min(99, Math.max(1, criativo.ordem || 1)),
-          video: { enabled: true, secondsPerSlide: 5 },
+          video: { enabled: true, secondsPerSlide: segundosPorSlide },
           signature: assinatura(video),
           slides: paginas,
         },
@@ -268,14 +287,14 @@ function Producao({
    * mas depois, e só para quem quiser.
    */
   /** Põe o Reel falado na fila. Não passa pela IA: o texto é a própria fala. */
-  async function pedirReel() {
+  async function pedirReel(quaoRapido = velocidade) {
     if (!podeCortar) return;
     const user = auth.currentUser;
     const token = user ? await user.getIdToken() : '';
     const r = await fetch('/api/marketing-consultor/gerar-reel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ criativoId: criativo.id }),
+      body: JSON.stringify({ criativoId: criativo.id, velocidade: quaoRapido }),
     });
     if (!r.ok) {
       const corpo = await r.json().catch(() => ({}));
@@ -307,6 +326,41 @@ function Producao({
     }
   }
 
+
+  /**
+   * Refaz só o Reel falado, com a velocidade que está no seletor.
+   *
+   * Não passa pela IA nem toca nas peças de texto: é o mesmo corte, renderizado
+   * outra vez. Custa um minuto e nada de API.
+   */
+  async function refazerReel() {
+    setGerando(true);
+    setAvisoReel('');
+    setErro('');
+    try {
+      await pedirReel();
+      onMudou();
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  /**
+   * Refaz as peças de texto com o texto que já existe.
+   *
+   * As três saem de UM roteiro e de UMA passagem do renderizador, então refazer
+   * uma refaz as três — e é melhor assim: texto corrigido no carrossel e não no
+   * PDF é o tipo de incoerência que só se descobre depois de publicar. O botão
+   * fica em cada peça porque é ali que o consultor está olhando quando decide.
+   */
+  async function refazerTexto() {
+    const texto = slides.length ? slides : (criativo.roteiro?.slides || []);
+    if (!texto.length) {
+      setErro('Não há texto gravado para refazer. Use "Reescrever e refazer".');
+      return;
+    }
+    await produzirCom(texto);
+  }
 
   // Ainda não começou nada: um botão só, e o que ele vai produzir dito de saída.
   //
@@ -355,7 +409,19 @@ function Producao({
       <PecasProduzidas
         pecas={daCampanha}
         esperando={servidorTrabalhando || gerando || enfileirando}
+        ocupado={servidorTrabalhando || gerando || enfileirando}
+        velocidade={velocidade}
+        aoMudarVelocidade={setVelocidade}
+        segundosPorSlide={segundosPorSlide}
+        aoMudarSegundos={setSegundosPorSlide}
+        aoRefazerReel={refazerReel}
+        aoRefazerTexto={refazerTexto}
       />
+      {avisoReel && (
+        <p className="text-sm text-amber-800 p-3 rounded bg-amber-50 border border-amber-200">
+          {avisoReel}
+        </p>
+      )}
 
       <details className="rounded-lg border border-gray-200 bg-white">
         <summary className="px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer">
@@ -460,7 +526,22 @@ function Producao({
 
 /* ====================== O que saiu ====================== */
 
-function PecasProduzidas({ pecas, esperando }: { pecas: Peca[]; esperando?: boolean }) {
+function PecasProduzidas({
+  pecas, esperando, ocupado,
+  velocidade, aoMudarVelocidade,
+  segundosPorSlide, aoMudarSegundos,
+  aoRefazerReel, aoRefazerTexto,
+}: {
+  pecas: Peca[];
+  esperando?: boolean;
+  ocupado?: boolean;
+  velocidade: number;
+  aoMudarVelocidade: (v: number) => void;
+  segundosPorSlide: number;
+  aoMudarSegundos: (v: number) => void;
+  aoRefazerReel: () => void;
+  aoRefazerTexto: () => void;
+}) {
   // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
   // ficava escrito "nenhuma peça produzida", que parece falha e não espera.
   if (esperando && !pecas.length) {
@@ -496,17 +577,113 @@ function PecasProduzidas({ pecas, esperando }: { pecas: Peca[]; esperando?: bool
       <div className="space-y-4">
         {pecas.map((p) => (
           <div key={p.id} className="pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-              {nomeDaPeca(p.tipo)}
-              {p.versao > 1 && (
-                <span className="text-xs font-normal text-gray-500">versão {p.versao}</span>
-              )}
-            </p>
+            {/* O controle fica na peça, não num painel à parte: é olhando a peça
+                que o consultor decide que ela está lenta demais. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+              <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                {nomeDaPeca(p.tipo)}
+                {p.versao > 1 && (
+                  <span className="text-xs font-normal text-gray-500">versão {p.versao}</span>
+                )}
+              </p>
+
+              <div className="flex items-center gap-2">
+                {p.tipo === 'reel' && (
+                  <Ritmo
+                    rotulo="Velocidade da fala"
+                    valor={velocidade}
+                    aoMudar={aoMudarVelocidade}
+                    opcoes={[
+                      [0.9, '0,9x — mais devagar'],
+                      [1, '1x — normal'],
+                      [1.1, '1,1x — recomendado'],
+                      [1.25, '1,25x — bem rápido'],
+                      [1.5, '1,5x — no limite'],
+                    ]}
+                  />
+                )}
+                {p.tipo === 'carrossel-video' && (
+                  <Ritmo
+                    rotulo="Tempo por página"
+                    valor={segundosPorSlide}
+                    aoMudar={aoMudarSegundos}
+                    opcoes={[
+                      [3, '3s — rápido'],
+                      [4, '4s'],
+                      [5, '5s — normal'],
+                      [6, '6s'],
+                      [8, '8s — para ler com calma'],
+                    ]}
+                  />
+                )}
+                <BotaoRefazer
+                  ocupado={ocupado}
+                  aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
+                  aviso={p.tipo === 'reel'
+                    ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
+                    : 'Refaz o carrossel, o PDF e o carrossel em vídeo com o texto atual.'}
+                />
+              </div>
+            </div>
             <Previa caminho={p.arquivoUrl} />
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+/** O seletor de ritmo de um vídeo. Rótulo curto, porque fica dentro da peça. */
+function Ritmo({
+  rotulo, valor, aoMudar, opcoes,
+}: {
+  rotulo: string;
+  valor: number;
+  aoMudar: (v: number) => void;
+  opcoes: [number, string][];
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-gray-600">
+      <span className="hidden sm:inline">{rotulo}</span>
+      <select
+        value={valor}
+        onChange={(e) => aoMudar(Number(e.target.value))}
+        title={`${rotulo}. Escolha e clique em Refazer.`}
+        className="px-2 py-1 rounded border border-gray-300 text-xs text-gray-800 bg-white"
+      >
+        {opcoes.map(([v, texto]) => (
+          <option key={v} value={v}>{texto}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * O botão de refazer de uma peça.
+ *
+ * Diz no title o que ele refaz de verdade — as peças de texto saem juntas de uma
+ * passagem só do renderizador, e prometer "só esta" seria mentira.
+ */
+function BotaoRefazer({
+  ocupado, aoClicar, aviso,
+}: {
+  ocupado?: boolean;
+  aoClicar: () => void;
+  aviso: string;
+}) {
+  return (
+    <button
+      onClick={aoClicar}
+      disabled={ocupado}
+      title={aviso}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50"
+    >
+      {ocupado
+        ? <Loader2 className="w-3 h-3 animate-spin" />
+        : <RefreshCw className="w-3 h-3" />}
+      Refazer
+    </button>
   );
 }
 

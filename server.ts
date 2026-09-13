@@ -3477,6 +3477,14 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     const criativoId = String(req.body?.criativoId || "").trim();
     if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
 
+    // Velocidade da fala. 1,1x é o que se usa em Reels para tirar o arrasto das
+    // pausas sem a voz soar robótica. A trava é a mesma do renderizador — melhor
+    // recusar aqui, de graça, do que descobrir na fila.
+    const velocidade = Number(req.body?.velocidade ?? 1);
+    if (!Number.isFinite(velocidade) || velocidade < 0.8 || velocidade > 1.5) {
+      return res.status(400).json({ error: "A velocidade tem de ficar entre 0,8x e 1,5x." });
+    }
+
     try {
       const criativoRef = adminFirestore().collection("marketing_criativos").doc(criativoId);
       const criativoSnap = await criativoRef.get();
@@ -3601,6 +3609,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         titulo: criativo.titulo,
         objetivo: "autoridade",
         status: "processando",
+        velocidade,
         criadoEm: agora,
       }, { merge: true });
 
@@ -3623,22 +3632,24 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
           firstWordStart: msParaTempo(Number(palavras[0].i)),
           lastWordEnd: msParaTempo(Number(palavras[palavras.length - 1].f)),
           layout: LAYOUT_REEL,
+          speed: velocidade,
           titleLine1: titulo1,
           titleLine2: titulo2,
           brandText: "EDUCAÇÃO PELO TRABALHO",
           // A capa sai do primeiro terço. O render recusa fora disso.
-          portraitTimeSeconds: Math.min(3, Math.max(1, (clipEndMs - clipStartMs) / 3000)),
+          portraitTimeSeconds: Math.min(3, Math.max(1, (clipEndMs - clipStartMs) / velocidade / 3000)),
           palavras,
         },
         criadoEm: agora,
         criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      console.log(`[gerar-reel] ${criativoId}: ${palavras.length} palavras, ${((clipEndMs - clipStartMs) / 1000).toFixed(1)}s, estendeu ${estendeu} palavra(s) para fechar a frase, fechou=${fechouFrase}`);
+      console.log(`[gerar-reel] ${criativoId}: ${palavras.length} palavras, ${((clipEndMs - clipStartMs) / 1000).toFixed(1)}s, estendeu ${estendeu} palavra(s) para fechar a frase, fechou=${fechouFrase}, ${velocidade}x`);
       return res.status(202).json({
         estado: "na-fila",
         fechouFrase,
-        segundos: Number(((clipEndMs - clipStartMs) / 1000).toFixed(1)),
+        segundos: Number(((clipEndMs - clipStartMs) / velocidade / 1000).toFixed(1)),
+        velocidade,
         palavras: palavras.length,
       });
     } catch (error: any) {
