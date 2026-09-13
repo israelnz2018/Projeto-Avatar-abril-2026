@@ -17,18 +17,20 @@ import {
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
-  COLECOES, Criativo, Peca, SlideRoteiro, VideoFonte,
+  COLECOES, Campanha, Criativo, Peca, SlideRoteiro, VideoFonte,
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
 import { Previa } from './EtapasPreenchidas';
 
 
 export function EtapaCriativosAprovados({
-  criativos, videos, pecas, onMudou,
+  criativos, videos, pecas, campanhas = [], onMudou,
 }: {
   criativos: Criativo[];
   videos: VideoFonte[];
   pecas: Peca[];
+  /** Só para saber se o servidor ainda está trabalhando nesta peça. */
+  campanhas?: Campanha[];
   onMudou: () => void;
 }) {
   const aprovados = useMemo(
@@ -77,7 +79,7 @@ export function EtapaCriativosAprovados({
       </div>
 
       <FalaAprovada criativo={criativo} video={video} onMudou={onMudou} />
-      <Producao criativo={criativo} video={video} pecas={pecas} onMudou={onMudou} />
+      <Producao criativo={criativo} video={video} pecas={pecas} campanhas={campanhas} onMudou={onMudou} />
     </div>
   );
 }
@@ -139,11 +141,12 @@ function FalaAprovada({
 /* ====================== Gerar e revisar as peças ====================== */
 
 function Producao({
-  criativo, video, pecas, onMudou,
+  criativo, video, pecas, campanhas, onMudou,
 }: {
   criativo: Criativo;
   video?: VideoFonte;
   pecas: Peca[];
+  campanhas: Campanha[];
   onMudou: () => void;
 }) {
   const [gerando, setGerando] = useState(false);
@@ -166,6 +169,17 @@ function Producao({
   const minhasPecas = pecas.filter((p) => p.campanhaId === campanhaId || p.campanhaId === campanhaReel);
   const daCampanha = minhasPecas;
   const podeCortar = Boolean(video?.bunnyVideoId);
+
+  // QUEM SABE se ainda está trabalhando é o BANCO, não o navegador.
+  //
+  // Antes isso vinha do estado local de quem clicou, que vira falso assim que a
+  // tarefa ENTRA NA FILA — não quando termina. Nos ~60 segundos seguintes a tela
+  // dizia "nenhuma peça ainda", como se o clique não tivesse feito nada, enquanto
+  // o worker produzia normalmente. O trabalho é do servidor, então o estado dele
+  // também.
+  const servidorTrabalhando = campanhas.some(
+    (c) => (c.id === campanhaId || c.id === campanhaReel) && c.status === 'processando',
+  );
 
   /** Pede as páginas à IA e devolve o que veio. Não produz nada. */
   async function pedirRoteiro(): Promise<SlideRoteiro[]> {
@@ -294,8 +308,13 @@ function Producao({
   }
 
 
-  // Ainda não gerou nada: um botão só, e o que ele vai produzir dito em uma linha.
-  if (!slides.length) {
+  // Ainda não começou nada: um botão só, e o que ele vai produzir dito de saída.
+  //
+  // A condição olha PEÇA e TRABALHO EM CURSO, não o roteiro. Olhando o roteiro, a
+  // tela trocava de modo no instante em que a IA terminava de escrever: o botão
+  // sumia e no lugar aparecia "nenhuma peça ainda", com o worker ainda produzindo.
+  // Para quem clicou, parecia que o clique não tinha feito nada.
+  if (!daCampanha.length && !servidorTrabalhando && !gerando && !enfileirando) {
     return (
       <section className="p-5 rounded-lg border border-gray-200 bg-white">
         <p className="text-sm text-gray-700 mb-1 font-semibold">Deste trecho saem quatro peças:</p>
@@ -335,7 +354,7 @@ function Producao({
           texto intermediário — o texto fica embaixo, fechado, pra quem quiser. */}
       <PecasProduzidas
         pecas={daCampanha}
-        esperando={enfileirando || (gerando && daCampanha.length === 0)}
+        esperando={servidorTrabalhando || gerando || enfileirando}
       />
 
       <details className="rounded-lg border border-gray-200 bg-white">

@@ -206,6 +206,7 @@ export default function MarketingConsultor() {
                     criativos={criativos.criativos}
                     videos={dados.videos}
                     pecas={dados.pecas}
+                    campanhas={dados.campanhas}
                     onMudou={() => { criativos.recarregar(); dados.recarregar(); }}
                   />
                 </div>
