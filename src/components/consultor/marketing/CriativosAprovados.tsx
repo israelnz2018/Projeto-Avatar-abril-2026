@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Film,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
@@ -77,7 +77,6 @@ export function EtapaCriativosAprovados({
       </div>
 
       <FalaAprovada criativo={criativo} video={video} onMudou={onMudou} />
-      <ReelFalado criativo={criativo} video={video} pecas={pecas} onMudou={onMudou} />
       <Producao criativo={criativo} video={video} pecas={pecas} onMudou={onMudou} />
     </div>
   );
@@ -137,127 +136,6 @@ function FalaAprovada({
   );
 }
 
-/* ====================== O Reel falado ====================== */
-
-/**
- * O Reel com o consultor aparecendo, cortado da aula.
- *
- * Fica ANTES do carrossel na tela porque é a peça que mais importa pra quem quer
- * crescer no Instagram: é o rosto da pessoa, e é vídeo. O carrossel vem depois.
- *
- * Não passa pela IA: o texto é a própria fala, já transcrita, e o recorte é o que
- * o consultor aprovou. Por isso é a peça mais barata das quatro.
- */
-function ReelFalado({
-  criativo, video, pecas, onMudou,
-}: {
-  criativo: Criativo;
-  video?: VideoFonte;
-  pecas: Peca[];
-  onMudou: () => void;
-}) {
-  const [pedindo, setPedindo] = useState(false);
-  const [erro, setErro] = useState('');
-  const [precisaRetranscrever, setPrecisaRetranscrever] = useState(false);
-
-  useEffect(() => { setErro(''); setPrecisaRetranscrever(false); }, [criativo.id]);
-
-  const campanhaId = `${criativo.id}__reel`;
-  const peca = pecas.find((p) => p.campanhaId === campanhaId);
-  const podeCortar = Boolean(video?.bunnyVideoId);
-
-  async function pedir() {
-    setPedindo(true);
-    setErro('');
-    setPrecisaRetranscrever(false);
-    try {
-      const user = auth.currentUser;
-      const token = user ? await user.getIdToken() : '';
-      const r = await fetch('/api/marketing-consultor/gerar-reel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ criativoId: criativo.id }),
-      });
-      const corpo = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        if (corpo.precisaRetranscrever) setPrecisaRetranscrever(true);
-        throw new Error(corpo.error || `HTTP ${r.status}`);
-      }
-      onMudou();
-    } catch (e: any) {
-      setErro(e?.message || String(e));
-    } finally {
-      setPedindo(false);
-    }
-  }
-
-  return (
-    <section className="p-4 rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h4 className="font-bold text-gray-900 flex items-center gap-1.5">
-            <Film className="w-4 h-4 text-gray-400" /> Reel com você falando
-          </h4>
-          <p className="text-xs text-gray-600 mt-0.5">
-            Este trecho da aula, cortado, com a sua legenda acompanhando a fala.
-          </p>
-        </div>
-        {!peca && podeCortar && (
-          <button
-            onClick={pedir}
-            disabled={pedindo}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 shrink-0"
-          >
-            {pedindo
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Cortando…</>
-              : <><Film className="w-4 h-4" /> Criar o Reel</>}
-          </button>
-        )}
-        {peca && (
-          <button
-            onClick={pedir}
-            disabled={pedindo}
-            title="Corta de novo, com o recorte atual"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold disabled:opacity-60 shrink-0"
-          >
-            {pedindo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            Refazer
-          </button>
-        )}
-      </div>
-
-      {!podeCortar && (
-        <p className="text-sm text-amber-800 mt-3 p-3 rounded bg-amber-50 border border-amber-200">
-          Este vídeo veio de um link externo, e a plataforma só corta o que ela mesma
-          hospeda. Envie o arquivo pela etapa 3 para poder gerar o Reel.
-        </p>
-      )}
-
-      {erro && (
-        <div className="mt-3 p-3 rounded bg-red-50 border border-red-200">
-          <p className="text-sm text-red-800">{erro}</p>
-          {/* Erro que tem conserto conhecido merece dizer qual é. */}
-          {precisaRetranscrever && (
-            <p className="text-xs text-red-700 mt-1">
-              Vá à etapa 3, apague a transcrição deste vídeo e gere de novo. Leva alguns
-              minutos e custa centavos.
-            </p>
-          )}
-        </div>
-      )}
-
-      {peca && <Previa caminho={peca.arquivoUrl} />}
-
-      {!peca && podeCortar && !erro && (
-        <p className="text-xs text-gray-500 mt-3">
-          Leva menos de um minuto. A plataforma baixa só o trecho do vídeo, não a aula
-          inteira.
-        </p>
-      )}
-    </section>
-  );
-}
-
 /* ====================== Gerar e revisar as peças ====================== */
 
 function Producao({
@@ -273,6 +151,7 @@ function Producao({
   const [erro, setErro] = useState('');
   const [slides, setSlides] = useState<SlideRoteiro[]>(criativo.roteiro?.slides || []);
   const [melhoria, setMelhoria] = useState('');
+  const [avisoReel, setAvisoReel] = useState('');
 
   // Trocar de criativo no dropdown tem que trocar o roteiro na tela junto.
   useEffect(() => {
@@ -282,7 +161,11 @@ function Producao({
   }, [criativo.id, criativo.roteiro?.geradoEm]);
 
   const campanhaId = `${criativo.id}__pecas`;
-  const daCampanha = pecas.filter((p) => p.campanhaId === campanhaId);
+  const campanhaReel = `${criativo.id}__reel`;
+  // As quatro peças numa lista só: o Reel falado e as três que saem do roteiro.
+  const minhasPecas = pecas.filter((p) => p.campanhaId === campanhaId || p.campanhaId === campanhaReel);
+  const daCampanha = minhasPecas;
+  const podeCortar = Boolean(video?.bunnyVideoId);
 
   /** Pede as páginas à IA e devolve o que veio. Não produz nada. */
   async function pedirRoteiro(): Promise<SlideRoteiro[]> {
@@ -370,38 +253,78 @@ function Producao({
    * peça — não aprovar um texto intermediário. Ajustar o texto continua possível,
    * mas depois, e só para quem quiser.
    */
-  async function gerarEProduzir() {
+  /** Põe o Reel falado na fila. Não passa pela IA: o texto é a própria fala. */
+  async function pedirReel() {
+    if (!podeCortar) return;
+    const user = auth.currentUser;
+    const token = user ? await user.getIdToken() : '';
+    const r = await fetch('/api/marketing-consultor/gerar-reel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ criativoId: criativo.id }),
+    });
+    if (!r.ok) {
+      const corpo = await r.json().catch(() => ({}));
+      // Falha no Reel não derruba o carrossel: são peças independentes, e perder as
+      // três porque uma não deu seria pior do que entregar três.
+      setAvisoReel(corpo.error || `Não foi possível cortar o Reel (HTTP ${r.status}).`);
+    }
+  }
+
+  /**
+   * UM clique, as quatro peças.
+   *
+   * Eram dois botões — um pro Reel, outro pro carrossel — e o consultor pediu um só.
+   * As duas coisas são independentes: o corte do vídeo entra na fila enquanto a IA
+   * ainda está escrevendo as páginas.
+   */
+  async function criarTudo() {
     setGerando(true);
     setErro('');
+    setAvisoReel('');
     try {
+      const reel = pedirReel();
       const novos = await pedirRoteiro();
       if (novos.length) await produzirCom(novos);
+      await reel;
+      onMudou();
     } finally {
       setGerando(false);
     }
   }
 
+
   // Ainda não gerou nada: um botão só, e o que ele vai produzir dito em uma linha.
   if (!slides.length) {
     return (
-      <section className="p-4 rounded-lg border border-gray-200 bg-white">
-        <p className="text-sm text-gray-600 mb-3">
-          Desta fala saem três peças, com o mesmo texto: o carrossel do feed, o
-          documento do LinkedIn e o vídeo vertical para os Reels.
-        </p>
+      <section className="p-5 rounded-lg border border-gray-200 bg-white">
+        <p className="text-sm text-gray-700 mb-1 font-semibold">Deste trecho saem quatro peças:</p>
+        <ul className="text-sm text-gray-600 mb-4 space-y-0.5">
+          <li>• <strong>Reel com você falando</strong>, com legenda acompanhando a fala</li>
+          <li>• Carrossel para o feed</li>
+          <li>• Documento PDF para o LinkedIn</li>
+          <li>• Carrossel em vídeo, para os Reels</li>
+        </ul>
         <button
-          onClick={gerarEProduzir}
+          onClick={criarTudo}
           disabled={gerando || enfileirando}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
+          className="flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
         >
           {gerando || enfileirando
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Criando as peças…</>
-            : <><Sparkles className="w-4 h-4" /> Criar as peças</>}
+            ? <><Loader2 className="w-5 h-5 animate-spin" /> Criando tudo…</>
+            : <><Sparkles className="w-5 h-5" /> Criar tudo</>}
         </button>
         <p className="text-xs text-gray-500 mt-2">
           Leva cerca de um minuto. Pode fechar a tela — o trabalho continua no servidor.
         </p>
+        {!podeCortar && (
+          <p className="text-xs text-amber-800 mt-2">
+            Este vídeo veio de link externo, então o Reel falado não sai — só as três
+            peças de texto. Para ter o Reel, envie o arquivo pela etapa 3.
+          </p>
+        )}
         {erro && <p className="text-sm text-red-700 mt-3">{erro}</p>}
+        {avisoReel && <p className="text-sm text-amber-800 mt-3">{avisoReel}</p>}
       </section>
     );
   }
@@ -421,7 +344,8 @@ function Producao({
         </summary>
         <div className="px-4 pb-4">
           <p className="text-xs text-gray-600 mb-3">
-            Este é o texto que aparece nas três peças. Mude o que quiser e mande refazer.
+            Este é o texto do carrossel, do PDF e do vídeo de slides. O Reel com você falando
+            não usa este texto — ele usa a sua própria fala. Mude o que quiser e mande refazer.
             Use *asteriscos* para destacar em azul; cada página aceita no máximo 32 palavras.
           </p>
 
@@ -497,7 +421,7 @@ function Producao({
                 className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-gray-300 text-sm"
               />
               <button
-                onClick={gerarEProduzir}
+                onClick={criarTudo}
                 disabled={gerando || enfileirando}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-60"
               >
