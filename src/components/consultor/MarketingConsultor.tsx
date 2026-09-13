@@ -14,7 +14,7 @@
  *
  * Ver MARKETING-PARA-NOVOS-CONSULTORES.md na raiz do projeto "Empresa de Gestão LBW".
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Settings2, Share2, Video, Sparkles, CalendarClock,
@@ -97,6 +97,17 @@ export default function MarketingConsultor() {
   }
 
   const etapa = ETAPAS.find((e) => e.id === etapaAtiva)!;
+
+  // A marca que vai assinar as peças, vinda de "Minha Marca".
+  //
+  // Sem isto o renderizador escrevia "EDUCAÇÃO PELO TRABALHO" no cabeçalho e usava
+  // as cores da LBW para qualquer consultor — a etapa 1 prometia nome e logo
+  // próprios, e a peça saía com os da casa.
+  const marcaDaPeca = useMemo(() => {
+    const b = consultor?.branding;
+    if (!b?.nome) return undefined;
+    return { nome: b.nome, logoUrl: b.logoUrl, cores: b.cores };
+  }, [consultor?.branding]);
 
   // Concluída é o que já tem dado real do consultor, não o que já foi programado.
   const concluidas: Record<EtapaId, boolean> = {
@@ -200,6 +211,7 @@ export default function MarketingConsultor() {
               {etapaAtiva === 'campanhas' && (
                 <div className="space-y-6">
                   <EtapaCriativosAprovados
+                    marca={marcaDaPeca}
                     criativos={criativos.criativos}
                     videos={dados.videos}
                     pecas={dados.pecas}
@@ -209,7 +221,13 @@ export default function MarketingConsultor() {
                 </div>
               )}
 
-              {etapaAtiva === 'agenda' && <EtapaAgenda campanhas={dados.campanhas} pecas={dados.pecas} />}
+              {etapaAtiva === 'agenda' && (
+                <EtapaAgenda
+                  campanhas={dados.campanhas}
+                  pecas={dados.pecas}
+                  onMudou={() => dados.recarregar()}
+                />
+              )}
 
               {etapaAtiva === 'redes' && (
                 <p className="text-xs text-gray-500 mt-5 pt-3 border-t border-gray-100">

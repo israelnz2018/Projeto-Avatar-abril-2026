@@ -209,6 +209,28 @@ export interface SlideRoteiro {
   positivo?: string;
   /** cta: a palavra que o seguidor comenta. */
   palavra?: string;
+  /**
+   * Quem aparece na página.
+   *
+   * O nome de um arquivo da biblioteca de pessoas ("09-ceticismo-homem-50"),
+   * `false` para não ter ninguém, ou ausente para o renderizador escolher pelo
+   * rodízio. Só capa, padrão, dado e cta mostram pessoa — comparação não tem
+   * espaço para ela.
+   */
+  pessoa?: string | false;
+}
+
+/**
+ * A marca que assina a peça, do jeito que o renderizador espera.
+ *
+ * Vem de "Minha Marca" (Consultor.branding). Antes o renderizador escrevia
+ * "EDUCAÇÃO PELO TRABALHO" fixo no cabeçalho e usava a logo e as cores da LBW,
+ * qualquer que fosse o consultor.
+ */
+export interface MarcaDaPeca {
+  nome: string;
+  logoUrl?: string;
+  cores?: { navy: string; blue: string; light: string; ink?: string; muted?: string };
 }
 
 /** Os formatos que saem de um roteiro só. */
@@ -343,6 +365,16 @@ export interface Peca {
   pedidoMelhoria?: string;
   /** Mensagem de erro, quando status = erro. */
   erro?: string;
+  /**
+   * Quando esta peça vai ao ar, marcado no calendário da etapa 5.
+   *
+   * Guardados como data e hora LOCAIS ("2026-09-15" e "19:00"), não como
+   * timestamp: o consultor mora na Nova Zelândia e publica para o Brasil, e
+   * qualquer conversão de fuso aqui erraria o dia para um dos dois. A hora é a
+   * que ele escolheu, sem tradução.
+   */
+  agendadoEm?: string;
+  agendadoHora?: string;
   criadoEm: string;
   atualizadoEm?: string;
 }

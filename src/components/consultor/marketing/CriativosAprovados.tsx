@@ -17,20 +17,70 @@ import {
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
-  COLECOES, Campanha, Criativo, Peca, SlideRoteiro, VideoFonte,
+  COLECOES, Campanha, Criativo, MarcaDaPeca, Peca, SlideRoteiro, VideoFonte,
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
 import { Previa, Anexos } from './EtapasPreenchidas';
 
+/**
+ * Os layouts de página que o renderizador sabe montar.
+ *
+ * "camadas" existe no renderizador mas fica FORA desta lista: ele precisa de uma
+ * estrutura de cartões aninhados que nem a IA escreve nem esta tela edita, e
+ * escolher esse layout devolveria uma página vazia.
+ */
+const LAYOUTS: { id: SlideRoteiro['type']; nome: string; exige: (keyof SlideRoteiro)[] }[] = [
+  { id: 'capa', nome: 'Capa — título grande e pergunta', exige: ['sub'] },
+  { id: 'padrao', nome: 'Padrão — título e texto', exige: [] },
+  { id: 'dado', nome: 'Dado — número gigante em destaque', exige: ['numero', 'fonte'] },
+  { id: 'comparacao', nome: 'Comparação — antes e depois', exige: ['negativo', 'positivo'] },
+  { id: 'cta', nome: 'Chamada — a palavra a comentar', exige: ['palavra'] },
+];
+
+/** Os layouts que têm espaço para uma pessoa. Comparação não tem. */
+const LAYOUTS_COM_PESSOA = new Set<SlideRoteiro['type']>(['capa', 'padrao', 'dado', 'cta']);
+
+/**
+ * A biblioteca de pessoas recortadas, que vive junto do renderizador.
+ *
+ * A lista está escrita aqui porque a tela não enxerga a pasta de assets do motor.
+ * Se entrar gente nova lá, entra aqui também — e o renderizador avisa no log
+ * quando recebe um nome que não existe, em vez de quebrar.
+ */
+const PESSOAS: { id: string; nome: string }[] = [
+  { id: '01-frustracao-mulher-30', nome: 'Frustração — mulher, 30' },
+  { id: '02-decisao-mulher-30', nome: 'Decisão — mulher, 30' },
+  { id: '03-duvida-homem-40', nome: 'Dúvida — homem, 40' },
+  { id: '04-explicando-homem-40', nome: 'Explicando — homem, 40' },
+  { id: '05-sobrecarga-homem-20', nome: 'Sobrecarga — homem, 20' },
+  { id: '06-insight-homem-20', nome: 'Insight — homem, 20' },
+  { id: '07-apontando-mulher-40', nome: 'Apontando — mulher, 40' },
+  { id: '08-foco-mulher-40', nome: 'Foco — mulher, 40' },
+  { id: '09-ceticismo-homem-50', nome: 'Ceticismo — homem, 50' },
+  { id: '10-confusao-mulher-20', nome: 'Confusão — mulher, 20' },
+  { id: '11-explicando-homem-30', nome: 'Explicando — homem, 30' },
+  { id: '12-lideranca-mulher-30', nome: 'Liderança — mulher, 30' },
+];
+
+/** Os campos de texto que este layout precisa, somados aos que já têm conteúdo. */
+function camposDoSlide(slide: SlideRoteiro): (keyof SlideRoteiro)[] {
+  const doLayout = LAYOUTS.find((l) => l.id === slide.type)?.exige || [];
+  const preenchidos = (['sub', 'numero', 'fonte', 'negativo', 'positivo', 'palavra'] as const)
+    .filter((c) => slide[c] !== undefined);
+  return [...new Set([...doLayout, ...preenchidos])];
+}
+
 
 export function EtapaCriativosAprovados({
-  criativos, videos, pecas, campanhas = [], onMudou,
+  criativos, videos, pecas, campanhas = [], marca, onMudou,
 }: {
   criativos: Criativo[];
   videos: VideoFonte[];
   pecas: Peca[];
   /** Só para saber se o servidor ainda está trabalhando nesta peça. */
   campanhas?: Campanha[];
+  /** Nome, logo e cores do consultor, que vão no cabeçalho e na paleta da peça. */
+  marca?: MarcaDaPeca;
   onMudou: () => void;
 }) {
   const aprovados = useMemo(
@@ -79,7 +129,7 @@ export function EtapaCriativosAprovados({
       </div>
 
       <FalaAprovada criativo={criativo} video={video} onMudou={onMudou} />
-      <Producao criativo={criativo} video={video} pecas={pecas} campanhas={campanhas} onMudou={onMudou} />
+      <Producao criativo={criativo} video={video} pecas={pecas} campanhas={campanhas} marca={marca} onMudou={onMudou} />
     </div>
   );
 }
@@ -141,12 +191,13 @@ function FalaAprovada({
 /* ====================== Gerar e revisar as peças ====================== */
 
 function Producao({
-  criativo, video, pecas, campanhas, onMudou,
+  criativo, video, pecas, campanhas, marca, onMudou,
 }: {
   criativo: Criativo;
   video?: VideoFonte;
   pecas: Peca[];
   campanhas: Campanha[];
+  marca?: MarcaDaPeca;
   onMudou: () => void;
 }) {
   const [gerando, setGerando] = useState(false);
@@ -260,6 +311,9 @@ function Producao({
           folderType: 'Carrossel',
           sequence: Math.min(99, Math.max(1, criativo.ordem || 1)),
           video: { enabled: true, secondsPerSlide: segundosPorSlide },
+          // Sem marca, o renderizador cai no padrão LBW — que é o que ele fazia
+          // antes de este campo existir.
+          ...(marca ? { marca } : {}),
           signature: assinatura(video),
           slides: paginas,
         },
@@ -274,7 +328,7 @@ function Producao({
     }
   }
 
-  function alterarSlide(i: number, campo: keyof SlideRoteiro, valor: string) {
+  function alterarSlide(i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) {
     setSlides((atual) => atual.map((s, j) => (j === i ? { ...s, [campo]: valor } : s)));
   }
 
@@ -468,11 +522,39 @@ function Producao({
           <div className="space-y-2">
             {slides.map((s, i) => (
               <div key={i} className="p-2.5 rounded border border-gray-200">
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
                   <span className="text-xs font-bold text-gray-400">{i + 1}</span>
-                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                    {s.type}
-                  </span>
+
+                  {/* O LAYOUT DA PÁGINA.
+                      Era uma etiqueta cinza, só para olhar. Trocar o layout remonta a
+                      página inteira — é a mudança de design mais forte que o motor faz,
+                      e estava trancada. */}
+                  <select
+                    value={s.type}
+                    onChange={(e) => alterarSlide(i, 'type', e.target.value)}
+                    title="O desenho desta página"
+                    className="px-2 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-800 bg-white"
+                  >
+                    {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                  </select>
+
+                  {/* Quem aparece na página. Comparação não tem espaço para ninguém. */}
+                  {LAYOUTS_COM_PESSOA.has(s.type) && (
+                    <select
+                      value={s.pessoa === false ? 'nenhuma' : (s.pessoa || 'automatica')}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        alterarSlide(i, 'pessoa', v === 'nenhuma' ? false : v === 'automatica' ? undefined : v);
+                      }}
+                      title="Quem aparece nesta página"
+                      className="px-2 py-1 rounded border border-gray-300 text-xs text-gray-800 bg-white"
+                    >
+                      <option value="automatica">Pessoa: automática</option>
+                      <option value="nenhuma">Pessoa: nenhuma</option>
+                      {PESSOAS.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                    </select>
+                  )}
+
                   <ContadorPalavras slide={s} />
                 </div>
                 <input
@@ -488,17 +570,19 @@ function Producao({
                   placeholder="Texto"
                   className="w-full px-2 py-1 mt-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none text-sm text-gray-700 resize-none"
                 />
-                {(['sub', 'numero', 'fonte', 'negativo', 'positivo', 'palavra'] as const).map((campo) => (
-                  s[campo] !== undefined && (
-                    <div key={campo} className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-bold uppercase text-gray-400 w-16 shrink-0">{campo}</span>
-                      <input
-                        value={s[campo] || ''}
-                        onChange={(e) => alterarSlide(i, campo, e.target.value)}
-                        className="flex-1 px-2 py-0.5 rounded border border-gray-200 text-xs text-gray-700"
-                      />
-                    </div>
-                  )
+                {/* Os campos que ESTE layout pede, mesmo os que ainda estão vazios:
+                    trocar para "dado" sem poder escrever o número deixaria a página
+                    com um espaço em branco no lugar do número gigante. */}
+                {camposDoSlide(s).map((campo) => (
+                  <div key={campo} className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold uppercase text-gray-400 w-16 shrink-0">{campo}</span>
+                    <input
+                      value={(s[campo] as string) || ''}
+                      onChange={(e) => alterarSlide(i, campo, e.target.value)}
+                      placeholder={campo === 'numero' ? 'Ex.: 70%' : ''}
+                      className="flex-1 px-2 py-0.5 rounded border border-gray-200 text-xs text-gray-700"
+                    />
+                  </div>
                 ))}
               </div>
             ))}

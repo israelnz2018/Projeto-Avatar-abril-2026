@@ -6,15 +6,16 @@
  * entram nas próximas entregas da fase 1.
  */
 import React, { useEffect, useState } from 'react';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
   FileText, Image as ImageIcon, Film, Layers, Send, Trash2, Loader2,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
+import { diaISO, diasDaSemana, segundaDaSemana, somarDias } from '../../../lib/semana';
 import { auth, db, storage } from '../../../lib/firebase';
 import {
-  COLECOES, Campanha, ConexaoRede, MarketingConfig, Peca, StatusPeca, TipoPeca, VideoFonte, OBJETIVOS,
+  COLECOES, Campanha, ConexaoRede, MarketingConfig, Peca, StatusPeca, TipoPeca, VideoFonte, OBJETIVOS, TIPOS_PECA,
 } from '../../../types/marketing';
 
 /* ====================== Etapa 2 — Redes sociais ====================== */
@@ -438,60 +439,290 @@ function Miniatura({ caminho }: { caminho: string }) {
   );
 }
 
-/* ====================== Etapa 6 — Publicação ====================== */
+/* ====================== Etapa 5 — Publicação ====================== */
 
-export function EtapaAgenda({ pecas, campanhas }: { pecas: Peca[]; campanhas: Campanha[] }) {
-  const publicadas = pecas.filter((p) => p.status === 'publicado');
-  const prontas = pecas.filter((p) => p.status === 'aprovado');
+/**
+ * As cores do calendário, uma por tipo de peça.
+ *
+ * A cor é o que faz a semana ser lida de relance: sem ela, sete dias de retângulos
+ * cinzentos não dizem se a semana está equilibrada entre Instagram e LinkedIn.
+ */
+const CORES_PECA: Record<TipoPeca, { chip: string; ponto: string }> = {
+  'carrossel-feed': { chip: 'bg-green-100 border-green-400 text-green-900', ponto: 'bg-green-500' },
+  'carrossel-video': { chip: 'bg-amber-100 border-amber-400 text-amber-900', ponto: 'bg-amber-500' },
+  'linkedin-pdf': { chip: 'bg-sky-100 border-sky-400 text-sky-900', ponto: 'bg-sky-500' },
+  reel: { chip: 'bg-fuchsia-100 border-fuchsia-400 text-fuchsia-900', ponto: 'bg-fuchsia-500' },
+};
+
+/**
+ * A hora que a peça recebe ao cair no calendário.
+ *
+ * São os horários de maior alcance de cada rede, não um palpite: no Instagram a
+ * audiência brasileira está no almoço e no fim da tarde; no LinkedIn, no começo do
+ * expediente. É só um ponto de partida — a hora se muda clicando na peça.
+ */
+const HORA_SUGERIDA: Record<TipoPeca, string> = {
+  reel: '19:00',
+  'carrossel-feed': '12:00',
+  'carrossel-video': '19:00',
+  'linkedin-pdf': '08:00',
+};
+
+const DIAS_DA_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+export function EtapaAgenda({
+  pecas, campanhas, onMudou,
+}: {
+  pecas: Peca[];
+  campanhas: Campanha[];
+  onMudou?: () => void;
+}) {
+  const [inicio, setInicio] = useState(() => segundaDaSemana(new Date()));
+  const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const dias = diasDaSemana(inicio);
+  const hoje = diaISO(new Date());
+
+  // Só peça aprovada entra no calendário: marcar a publicação de algo que ainda
+  // está em revisão seria agendar uma peça que ainda pode mudar.
+  const aprovadas = pecas.filter((p) => p.status === 'aprovado' || p.status === 'publicado');
+  const naFila = aprovadas.filter((p) => !p.agendadoEm);
+  const agendadas = aprovadas.filter((p) => p.agendadoEm);
+
+  const tituloDe = (p: Peca) => campanhas.find((c) => c.id === p.campanhaId)?.titulo || '';
+
+  async function escrever(pecaId: string, dados: Record<string, unknown>) {
+    setSalvando(true);
+    setErro('');
+    try {
+      await updateDoc(doc(db, COLECOES.pecas, pecaId), { ...dados, atualizadoEm: new Date().toISOString() });
+      onMudou?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  function agendar(peca: Peca, dia: Date) {
+    setSelecionada(null);
+    return escrever(peca.id, {
+      agendadoEm: diaISO(dia),
+      // Mudar de dia preserva a hora escolhida; só a primeira vez usa a sugestão.
+      agendadoHora: peca.agendadoHora || HORA_SUGERIDA[peca.tipo] || '12:00',
+    });
+  }
+
+  function tirarDoCalendario(peca: Peca) {
+    setAberta(null);
+    return escrever(peca.id, { agendadoEm: deleteField(), agendadoHora: deleteField() });
+  }
+
+  /** Largar uma peça num dia, vinda da fila ou de outro dia. */
+  function aoLargar(dia: Date) {
+    return (ev: React.DragEvent) => {
+      ev.preventDefault();
+      const id = ev.dataTransfer.getData('text/plain');
+      const peca = aprovadas.find((p) => p.id === id);
+      if (peca) agendar(peca, dia);
+    };
+  }
+
+  /**
+   * Clicar num dia com uma peça selecionada também agenda.
+   *
+   * Arrastar não pode ser o único caminho: no toque ele não existe, e um calendário
+   * que só funciona com mouse deixa metade dos casos de fora.
+   */
+  function aoClicarNoDia(dia: Date) {
+    if (!selecionada) return;
+    const peca = aprovadas.find((p) => p.id === selecionada);
+    if (peca) agendar(peca, dia);
+  }
+
+  const fim = somarDias(inicio, 6);
+  const rotuloSemana = inicio.getMonth() === fim.getMonth()
+    ? `${inicio.getDate()} a ${fim.getDate()} de ${inicio.toLocaleDateString('pt-BR', { month: 'long' })}`
+    : `${inicio.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} a ${fim.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`;
+
+  const daSemana = agendadas
+    .filter((p) => dias.some((d) => diaISO(d) === p.agendadoEm))
+    .sort((a, b) => `${a.agendadoEm}${a.agendadoHora || ''}`.localeCompare(`${b.agendadoEm}${b.agendadoHora || ''}`));
 
   return (
-    <div className="space-y-6">
-      <section>
-        <h3 className="text-sm font-bold text-gray-900 mb-1">Prontas para publicar ({prontas.length})</h3>
-        {/* Enquanto o Instagram e o LinkedIn não estiverem conectados, o que esta
-            tela pode fazer de útil é entregar o arquivo. Botão que não publica é
-            pior que botão nenhum: o consultor clica e acha que agendou. */}
+    <div className="space-y-4">
+      {/* ── A fila: o que está aprovado e ainda não tem dia ── */}
+      <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h3 className="text-sm font-bold text-gray-900">
+            Aprovadas, sem dia marcado ({naFila.length})
+          </h3>
+          {salvando && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+        </div>
         <p className="text-xs text-gray-600 mb-3">
-          A publicação automática entra quando as suas redes estiverem conectadas (etapa 2).
-          Por enquanto, abra o arquivo e publique você mesmo.
+          Arraste uma peça para o dia — ou clique nela e depois no dia.
         </p>
-        {prontas.length === 0
-          ? <Vazio texto="Nenhuma peça aprovada aguardando agendamento." />
+        {naFila.length === 0
+          ? <Vazio texto="Nada esperando. Tudo que você aprovou já tem dia." />
           : (
-            <div className="space-y-2">
-              {prontas.map((p) => {
-                const c = campanhas.find((x) => x.id === p.campanhaId);
-                return (
-                  <div key={p.id} className="p-3 rounded-lg border border-gray-200 bg-white flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                      {iconePeca(p.tipo)} {nomePeca(p.tipo)}
-                      {c && <span className="font-normal text-gray-500">— {c.titulo}</span>}
-                    </span>
-                    <LinkDoArquivo caminho={p.arquivoUrl} />
-                  </div>
-                );
-              })}
+            <div className="flex flex-wrap gap-2">
+              {naFila.map((p) => (
+                <button
+                  key={p.id}
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                  onClick={() => setSelecionada(selecionada === p.id ? null : p.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}${selecionada === p.id ? ' ring-2 ring-offset-1 ring-blue-500' : ''}`}
+                >
+                  {iconePeca(p.tipo)}
+                  <span className="max-w-[220px] truncate">{nomePeca(p.tipo)} · {tituloDe(p)}</span>
+                </button>
+              ))}
             </div>
           )}
+        {selecionada && (
+          <p className="text-xs font-semibold text-blue-700 mt-2">
+            Agora clique no dia em que ela vai ao ar.
+          </p>
+        )}
       </section>
 
-      <section>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">Já publicadas ({publicadas.length})</h3>
-        {publicadas.length === 0
-          ? <Vazio texto="Nada publicado ainda." />
+      {/* ── A semana ── */}
+      <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setInicio(somarDias(inicio, -7))}
+              title="Semana anterior"
+              className="px-2.5 py-1 rounded border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => setInicio(segundaDaSemana(new Date()))}
+              className="px-2.5 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Esta semana
+            </button>
+            <button
+              onClick={() => setInicio(somarDias(inicio, 7))}
+              title="Próxima semana"
+              className="px-2.5 py-1 rounded border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              ›
+            </button>
+          </div>
+          <span className="text-sm font-bold text-gray-900 capitalize">{rotuloSemana}</span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {TIPOS_PECA.map((t) => (
+              <span key={t.id} className="flex items-center gap-1 text-[11px] text-gray-600">
+                <span className={`w-2.5 h-2.5 rounded-sm ${CORES_PECA[t.id].ponto}`} />
+                {t.nome}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5">
+          {dias.map((d, i) => {
+            const chave = diaISO(d);
+            const doDia = agendadas
+              .filter((p) => p.agendadoEm === chave)
+              .sort((a, b) => (a.agendadoHora || '').localeCompare(b.agendadoHora || ''));
+            const ehHoje = chave === hoje;
+            return (
+              <div
+                key={chave}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={aoLargar(d)}
+                onClick={() => aoClicarNoDia(d)}
+                className={`min-h-[150px] rounded-lg border p-1.5 transition-colors ${
+                  ehHoje ? 'border-blue-400 bg-blue-50/40 ' : 'border-gray-200 bg-gray-50/60 '
+                }${selecionada ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-300' : ''}`}
+              >
+                <div className="flex items-baseline justify-between px-0.5 mb-1">
+                  <span className={`text-[10px] font-bold uppercase ${ehHoje ? 'text-blue-700' : 'text-gray-400'}`}>
+                    {DIAS_DA_SEMANA[i]}
+                  </span>
+                  <span className={`text-xs font-bold ${ehHoje ? 'text-blue-700' : 'text-gray-600'}`}>
+                    {d.getDate()}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  {doDia.map((p) => (
+                    <div key={p.id}>
+                      <button
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                        onClick={(e) => { e.stopPropagation(); setAberta(aberta === p.id ? null : p.id); }}
+                        className={`w-full text-left px-1.5 py-1 rounded border text-[11px] cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}`}
+                      >
+                        <span className="block font-bold">{p.agendadoHora}</span>
+                        <span className="block truncate font-semibold">{nomePeca(p.tipo)}</span>
+                        <span className="block truncate opacity-80">{tituloDe(p)}</span>
+                      </button>
+
+                      {/* Mexer na peça já marcada: a hora e o tirar do calendário. */}
+                      {aberta === p.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-1 p-1.5 rounded border border-gray-300 bg-white space-y-1.5"
+                        >
+                          <label className="block text-[10px] font-bold uppercase text-gray-500">Hora</label>
+                          <input
+                            type="time"
+                            value={p.agendadoHora || ''}
+                            onChange={(e) => escrever(p.id, { agendadoHora: e.target.value })}
+                            className="w-full px-1 py-0.5 rounded border border-gray-300 text-[11px]"
+                          />
+                          <button
+                            onClick={() => tirarDoCalendario(p)}
+                            className="w-full px-1 py-0.5 rounded bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold hover:bg-red-100"
+                          >
+                            Tirar do calendário
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
+      </section>
+
+      {/* ── A semana em lista, com o arquivo de cada peça ── */}
+      <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Nesta semana ({daSemana.length})</h3>
+        <p className="text-xs text-gray-600 mb-3">
+          A publicação automática entra quando as suas redes estiverem conectadas (etapa 2).
+          Por enquanto, abra o arquivo no dia e publique você mesmo.
+        </p>
+        {daSemana.length === 0
+          ? <Vazio texto="Nenhuma peça marcada para esta semana." />
           : (
             <div className="space-y-2">
-              {publicadas.map((p) => {
-                const c = campanhas.find((x) => x.id === p.campanhaId);
-                return (
-                  <div key={p.id} className="p-3 rounded-lg border border-green-200 bg-green-50 flex items-center gap-2">
-                    <Send className="w-4 h-4 text-green-700 shrink-0" />
-                    <span className="text-sm text-green-900">
-                      <strong>{nomePeca(p.tipo)}</strong>{c && ` — ${c.titulo}`}
-                    </span>
-                  </div>
-                );
-              })}
+              {daSemana.map((p) => (
+                <div key={p.id} className="p-2.5 rounded-lg border border-gray-200 flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
+                    <strong className="shrink-0">
+                      {new Date(`${p.agendadoEm}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' })}
+                      {' '}
+                      {p.agendadoHora}
+                    </strong>
+                    <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
+                  </span>
+                  <LinkDoArquivo caminho={p.arquivoUrl} />
+                </div>
+              ))}
             </div>
           )}
       </section>
