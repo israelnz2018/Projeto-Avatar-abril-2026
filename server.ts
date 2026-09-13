@@ -3508,9 +3508,11 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const emUso = (criativo.linhas || []).filter((_: any, i: number) => !apagadas.has(i));
       if (!emUso.length) return res.status(400).json({ error: "Este criativo está sem falas." });
 
-      const clipStartMs = Math.round(Number(emUso[0].inicio) * 1000);
-      const clipEndMs = Math.round(Number(emUso[emUso.length - 1].fim) * 1000);
-      if (!(clipEndMs > clipStartMs)) return res.status(400).json({ error: "O recorte do criativo é inválido." });
+      // A faixa do criativo vem dos SEGMENTOS da transcrição, que são aproximados: o
+      // segmento começa onde o Whisper decidiu quebrar, não onde a fala começa.
+      const faixaInicioMs = Math.round(Number(emUso[0].inicio) * 1000);
+      const faixaFimMs = Math.round(Number(emUso[emUso.length - 1].fim) * 1000);
+      if (!(faixaFimMs > faixaInicioMs)) return res.status(400).json({ error: "O recorte do criativo é inválido." });
 
       // Só as palavras do trecho vão na tarefa. A aula inteira tem ~9 mil; o recorte
       // tem ~70, e é isso que cabe confortavelmente num documento do Firestore.
@@ -3519,10 +3521,20 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       blocos.docs
         .sort((a, b) => a.id.localeCompare(b.id))
         .forEach((d) => todas.push(...((d.data() as any).palavras || [])));
-      const palavras = todas.filter((p) => Number(p.i) >= clipStartMs && Number(p.i) < clipEndMs);
+      const palavras = todas.filter((p) => Number(p.i) >= faixaInicioMs && Number(p.i) < faixaFimMs);
       if (palavras.length < 3) {
         return res.status(422).json({ error: "Não há palavras com tempo dentro deste recorte." });
       }
+
+      // O CORTE sai das PALAVRAS, não dos segmentos. Neste criativo o segmento
+      // começava 930 ms antes da primeira palavra: cortar ali daria quase um segundo
+      // de silêncio na abertura — e o Reel roda em laço no Instagram, então esse
+      // silêncio apareceria a cada volta. Começar exatamente na palavra também é o
+      // que a trava de segurança do renderizador exige.
+      const FOLGA_FINAL_MS = 150;
+      const clipStartMs = Number(palavras[0].i);
+      const clipEndMs = Number(palavras[palavras.length - 1].f) + FOLGA_FINAL_MS;
+      if (!(clipEndMs > clipStartMs)) return res.status(400).json({ error: "O recorte ficou inválido depois do ajuste pelas palavras." });
 
       const lib = await bunnyLibraryDoConsultor(dono || consultorId);
       if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
