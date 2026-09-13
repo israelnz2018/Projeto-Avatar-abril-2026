@@ -77,6 +77,19 @@ export default function MarketingConsultor() {
   const dados = useDadosMarketing(consultorId);
   const criativos = useCriativos(consultorId);
 
+  // A marca que vai assinar as peças, vinda de "Minha Marca".
+  //
+  // FICA AQUI, ANTES DOS RETORNOS ANTECIPADOS, e não junto de onde é usada.
+  // Estava embaixo do `if (loading) return`: na primeira renderização o componente
+  // saía antes e o hook não rodava; quando loading virava false ele passava a
+  // rodar, e o React derrubava a tela inteira com o erro 310 (mais hooks do que
+  // na renderização anterior). Hook não pode ficar depois de um return.
+  const marcaDaPeca = useMemo(() => {
+    const b = consultor?.branding;
+    if (!b?.nome) return undefined;
+    return { nome: b.nome, logoUrl: b.logoUrl, cores: b.cores };
+  }, [consultor?.branding]);
+
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
 
   // Fase 1: só o admin. Na fase 2 isso passa a aceitar isConsultor.
@@ -97,17 +110,6 @@ export default function MarketingConsultor() {
   }
 
   const etapa = ETAPAS.find((e) => e.id === etapaAtiva)!;
-
-  // A marca que vai assinar as peças, vinda de "Minha Marca".
-  //
-  // Sem isto o renderizador escrevia "EDUCAÇÃO PELO TRABALHO" no cabeçalho e usava
-  // as cores da LBW para qualquer consultor — a etapa 1 prometia nome e logo
-  // próprios, e a peça saía com os da casa.
-  const marcaDaPeca = useMemo(() => {
-    const b = consultor?.branding;
-    if (!b?.nome) return undefined;
-    return { nome: b.nome, logoUrl: b.logoUrl, cores: b.cores };
-  }, [consultor?.branding]);
 
   // Concluída é o que já tem dado real do consultor, não o que já foi programado.
   const concluidas: Record<EtapaId, boolean> = {
