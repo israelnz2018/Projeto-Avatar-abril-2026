@@ -3426,6 +3426,195 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     }
   });
 
+  // O enquadramento do Reel falado. Vem do reel-input.example.json do squad, que foi
+  // calibrado olhando o Reel pronto — slide em cima, rosto no recorte de baixo.
+  const LAYOUT_REEL = {
+    slideWidth: 1000, slideHeight: 562, slideX: 40, slideY: 330,
+    faceCropWidth: 290, faceCropHeight: 260, faceCropX: 990, faceCropY: 390,
+    faceOutputWidth: 650, faceOutputHeight: 582, faceX: 215, faceY: 940,
+    coverX: 813, coverY: 627, coverWidth: 227, coverHeight: 236, coverColor: "0xEEEEEE",
+    slideBarY: 853, slideBarHeight: 39,
+  };
+
+  /** Quebra o título em duas linhas equilibradas, que é como o cabeçalho espera. */
+  function tituloEmDuasLinhas(titulo: string): [string, string] {
+    const palavras = String(titulo || "").trim().toUpperCase().split(/\s+/).filter(Boolean);
+    if (palavras.length < 2) return [palavras[0] || "", ""];
+    const metade = Math.ceil(palavras.join(" ").length / 2);
+    let usado = 0;
+    let corte = 1;
+    for (let i = 0; i < palavras.length - 1; i++) {
+      usado += palavras[i].length + 1;
+      if (usado >= metade) { corte = i + 1; break; }
+      corte = i + 2;
+    }
+    return [palavras.slice(0, corte).join(" "), palavras.slice(corte).join(" ")];
+  }
+
+  // POST /api/marketing-consultor/gerar-reel — põe na fila o Reel falado de um
+  // criativo aprovado: o consultor aparecendo, cortado da aula, com legenda karaokê.
+  //
+  // Tudo que o worker precisa é resolvido AQUI, porque é aqui que existe a chave do
+  // servidor de vídeo e o acesso às palavras com tempo. O worker só executa.
+  app.post("/api/marketing-consultor/gerar-reel", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const criativoId = String(req.body?.criativoId || "").trim();
+    if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
+
+    try {
+      const criativoRef = adminFirestore().collection("marketing_criativos").doc(criativoId);
+      const criativoSnap = await criativoRef.get();
+      if (!criativoSnap.exists) return res.status(404).json({ error: "Criativo não encontrado." });
+      const criativo = criativoSnap.data() as any;
+      const dono = String(criativo.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Criativo não pertence a este consultor." });
+
+      const videoSnap = await adminFirestore().collection("marketing_videos").doc(String(criativo.videoId)).get();
+      if (!videoSnap.exists) return res.status(404).json({ error: "O vídeo de origem não existe mais." });
+      const video = videoSnap.data() as any;
+      const bunnyVideoId = String(video.bunnyVideoId || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId)) {
+        return res.status(400).json({ error: "Este vídeo não está hospedado pela plataforma, então não dá para cortar o Reel." });
+      }
+
+      // As palavras com tempo são o insumo da legenda karaokê. Vídeo transcrito antes
+      // de a plataforma passar a guardá-las não tem — e aí a saída é retranscrever,
+      // que custa centavos. Dizer isso é melhor que devolver um erro genérico.
+      if (!video.temPalavras) {
+        return res.status(409).json({
+          error: "Este vídeo foi transcrito antes de a plataforma guardar o tempo de cada palavra, que é o que faz a legenda acompanhar a fala. Gere a transcrição de novo na etapa 3 e tente outra vez.",
+          precisaRetranscrever: true,
+        });
+      }
+
+      // O recorte sai do criativo, já com as falas apagadas fora.
+      const apagadas = new Set<number>(Array.isArray(criativo.linhasApagadas) ? criativo.linhasApagadas : []);
+      const emUso = (criativo.linhas || []).filter((_: any, i: number) => !apagadas.has(i));
+      if (!emUso.length) return res.status(400).json({ error: "Este criativo está sem falas." });
+
+      const clipStartMs = Math.round(Number(emUso[0].inicio) * 1000);
+      const clipEndMs = Math.round(Number(emUso[emUso.length - 1].fim) * 1000);
+      if (!(clipEndMs > clipStartMs)) return res.status(400).json({ error: "O recorte do criativo é inválido." });
+
+      // Só as palavras do trecho vão na tarefa. A aula inteira tem ~9 mil; o recorte
+      // tem ~70, e é isso que cabe confortavelmente num documento do Firestore.
+      const blocos = await videoSnap.ref.collection("palavras").get();
+      const todas: any[] = [];
+      blocos.docs
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .forEach((d) => todas.push(...((d.data() as any).palavras || [])));
+      const palavras = todas.filter((p) => Number(p.i) >= clipStartMs && Number(p.i) < clipEndMs);
+      if (palavras.length < 3) {
+        return res.status(422).json({ error: "Não há palavras com tempo dentro deste recorte." });
+      }
+
+      const lib = await bunnyLibraryDoConsultor(dono || consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
+
+      // 720p: aqui o vídeo é o produto final, e não só a fonte do áudio como na
+      // transcrição. O recorte por range mantém o download pequeno mesmo assim.
+      const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
+      const playResp = await fetch(`${base}/play`, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
+      if (!playResp.ok) return res.status(502).json({ error: "O servidor de vídeo não respondeu." });
+      const play = await playResp.json() as any;
+      let fonteVideo = String(play?.fallbackUrl || play?.originalUrl || "");
+      if (fonteVideo.endsWith("/play_")) {
+        const resolucoes = String(play?.video?.availableResolutions || "")
+          .split(",").map((v: string) => Number.parseInt(v, 10)).filter((v: number) => Number.isFinite(v));
+        const alvo = resolucoes.includes(720) ? 720 : Math.max(...resolucoes);
+        if (!Number.isFinite(alvo)) return res.status(502).json({ error: "O servidor de vídeo não informou nenhuma resolução." });
+        fonteVideo = `${fonteVideo}${alvo}p.mp4`;
+      }
+      if (!fonteVideo) return res.status(502).json({ error: "Não foi possível montar o endereço do vídeo." });
+
+      const origem = String(req.headers.origin || process.env.APP_URL || "").trim();
+      const referer = origem ? (origem.endsWith("/") ? origem : `${origem}/`) : "";
+
+      const [titulo1, titulo2] = tituloEmDuasLinhas(criativo.titulo);
+      const agora = new Date().toISOString();
+      const campanhaId = `${criativoId}__reel`;
+
+      await adminFirestore().collection("marketing_campanhas").doc(campanhaId).set({
+        id: campanhaId,
+        consultorId: dono || consultorId,
+        videoId: criativo.videoId,
+        criativoId,
+        titulo: criativo.titulo,
+        objetivo: "autoridade",
+        status: "processando",
+        criadoEm: agora,
+      }, { merge: true });
+
+      await adminFirestore().collection("marketing_tarefas").add({
+        consultorId: dono || consultorId,
+        campanhaId,
+        criativoId,
+        tipo: "gerar-reel",
+        status: "pendente",
+        tentativas: 0,
+        render: {
+          sourceVideo: fonteVideo,
+          ...(referer ? { sourceHeaders: { Referer: referer } } : {}),
+          clipStartMs,
+          clipEndMs,
+          clipStart: msParaTempo(clipStartMs),
+          clipEnd: msParaTempo(clipEndMs),
+          // A primeira e a última palavra travam o corte: sem elas o Reel pode começar
+          // no meio de uma sílaba ou cortar a última. Ver render-reel.mjs.
+          firstWordStart: msParaTempo(Number(palavras[0].i)),
+          lastWordEnd: msParaTempo(Number(palavras[palavras.length - 1].f)),
+          layout: LAYOUT_REEL,
+          titleLine1: titulo1,
+          titleLine2: titulo2,
+          brandText: "EDUCAÇÃO PELO TRABALHO",
+          // A capa sai do primeiro terço. O render recusa fora disso.
+          portraitTimeSeconds: Math.min(3, Math.max(1, (clipEndMs - clipStartMs) / 3000)),
+          palavras,
+        },
+        criadoEm: agora,
+        criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(`[gerar-reel] ${criativoId}: ${palavras.length} palavras, ${((clipEndMs - clipStartMs) / 1000).toFixed(1)}s`);
+      return res.status(202).json({
+        estado: "na-fila",
+        segundos: Number(((clipEndMs - clipStartMs) / 1000).toFixed(1)),
+        palavras: palavras.length,
+      });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-reel] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao pedir o Reel.")
+        .replace(/\bbunny\b/gi, "servidor de vídeo")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  /** Milissegundos -> "HH:MM:SS.mmm", que é o que o ffmpeg e o render esperam. */
+  function msParaTempo(ms: number): string {
+    const total = Math.max(0, ms) / 1000;
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s.toFixed(3).padStart(6, "0")}`;
+  }
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.

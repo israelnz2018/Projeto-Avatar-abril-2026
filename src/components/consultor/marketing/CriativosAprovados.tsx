@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Film,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
@@ -77,6 +77,7 @@ export function EtapaCriativosAprovados({
       </div>
 
       <FalaAprovada criativo={criativo} video={video} onMudou={onMudou} />
+      <ReelFalado criativo={criativo} video={video} pecas={pecas} onMudou={onMudou} />
       <Producao criativo={criativo} video={video} pecas={pecas} onMudou={onMudou} />
     </div>
   );
@@ -132,6 +133,127 @@ function FalaAprovada({
         </button>
       </div>
       <p className="text-sm text-gray-700 mt-2 leading-relaxed">{textoCriativo(criativo)}</p>
+    </section>
+  );
+}
+
+/* ====================== O Reel falado ====================== */
+
+/**
+ * O Reel com o consultor aparecendo, cortado da aula.
+ *
+ * Fica ANTES do carrossel na tela porque é a peça que mais importa pra quem quer
+ * crescer no Instagram: é o rosto da pessoa, e é vídeo. O carrossel vem depois.
+ *
+ * Não passa pela IA: o texto é a própria fala, já transcrita, e o recorte é o que
+ * o consultor aprovou. Por isso é a peça mais barata das quatro.
+ */
+function ReelFalado({
+  criativo, video, pecas, onMudou,
+}: {
+  criativo: Criativo;
+  video?: VideoFonte;
+  pecas: Peca[];
+  onMudou: () => void;
+}) {
+  const [pedindo, setPedindo] = useState(false);
+  const [erro, setErro] = useState('');
+  const [precisaRetranscrever, setPrecisaRetranscrever] = useState(false);
+
+  useEffect(() => { setErro(''); setPrecisaRetranscrever(false); }, [criativo.id]);
+
+  const campanhaId = `${criativo.id}__reel`;
+  const peca = pecas.find((p) => p.campanhaId === campanhaId);
+  const podeCortar = Boolean(video?.bunnyVideoId);
+
+  async function pedir() {
+    setPedindo(true);
+    setErro('');
+    setPrecisaRetranscrever(false);
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/marketing-consultor/gerar-reel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ criativoId: criativo.id }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (corpo.precisaRetranscrever) setPrecisaRetranscrever(true);
+        throw new Error(corpo.error || `HTTP ${r.status}`);
+      }
+      onMudou();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setPedindo(false);
+    }
+  }
+
+  return (
+    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h4 className="font-bold text-gray-900 flex items-center gap-1.5">
+            <Film className="w-4 h-4 text-gray-400" /> Reel com você falando
+          </h4>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Este trecho da aula, cortado, com a sua legenda acompanhando a fala.
+          </p>
+        </div>
+        {!peca && podeCortar && (
+          <button
+            onClick={pedir}
+            disabled={pedindo}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 shrink-0"
+          >
+            {pedindo
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Cortando…</>
+              : <><Film className="w-4 h-4" /> Criar o Reel</>}
+          </button>
+        )}
+        {peca && (
+          <button
+            onClick={pedir}
+            disabled={pedindo}
+            title="Corta de novo, com o recorte atual"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold disabled:opacity-60 shrink-0"
+          >
+            {pedindo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Refazer
+          </button>
+        )}
+      </div>
+
+      {!podeCortar && (
+        <p className="text-sm text-amber-800 mt-3 p-3 rounded bg-amber-50 border border-amber-200">
+          Este vídeo veio de um link externo, e a plataforma só corta o que ela mesma
+          hospeda. Envie o arquivo pela etapa 3 para poder gerar o Reel.
+        </p>
+      )}
+
+      {erro && (
+        <div className="mt-3 p-3 rounded bg-red-50 border border-red-200">
+          <p className="text-sm text-red-800">{erro}</p>
+          {/* Erro que tem conserto conhecido merece dizer qual é. */}
+          {precisaRetranscrever && (
+            <p className="text-xs text-red-700 mt-1">
+              Vá à etapa 3, apague a transcrição deste vídeo e gere de novo. Leva alguns
+              minutos e custa centavos.
+            </p>
+          )}
+        </div>
+      )}
+
+      {peca && <Previa caminho={peca.arquivoUrl} />}
+
+      {!peca && podeCortar && !erro && (
+        <p className="text-xs text-gray-500 mt-3">
+          Leva menos de um minuto. A plataforma baixa só o trecho do vídeo, não a aula
+          inteira.
+        </p>
+      )}
     </section>
   );
 }
