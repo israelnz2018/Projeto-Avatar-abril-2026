@@ -13,22 +13,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, FileText, Layers, Film, Image as ImageIcon,
-  RefreshCw, Undo2,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
-  COLECOES, Criativo, Peca, SlideRoteiro, VideoFonte, FORMATOS,
+  COLECOES, Criativo, Peca, SlideRoteiro, VideoFonte,
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
 import { Previa } from './EtapasPreenchidas';
 
-const ICONE_FORMATO: Record<string, React.ReactNode> = {
-  carrossel: <Layers className="w-4 h-4" />,
-  video: <Film className="w-4 h-4" />,
-  pdf: <FileText className="w-4 h-4" />,
-  imagem: <ImageIcon className="w-4 h-4" />,
-};
 
 export function EtapaCriativosAprovados({
   criativos, videos, pecas, onMudou,
@@ -169,9 +162,8 @@ function Producao({
   const campanhaId = `${criativo.id}__pecas`;
   const daCampanha = pecas.filter((p) => p.campanhaId === campanhaId);
 
-  async function gerarRoteiro() {
-    setGerando(true);
-    setErro('');
+  /** Pede as páginas à IA e devolve o que veio. Não produz nada. */
+  async function pedirRoteiro(): Promise<SlideRoteiro[]> {
     try {
       const user = auth.currentUser;
       const token = user ? await user.getIdToken() : '';
@@ -182,20 +174,21 @@ function Producao({
       });
       const corpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
-      setSlides(corpo.slides || []);
+      const novos: SlideRoteiro[] = corpo.slides || [];
+      setSlides(novos);
       setMelhoria('');
       onMudou();
+      return novos;
     } catch (e: any) {
       setErro(e?.message || String(e));
-    } finally {
-      setGerando(false);
+      return [];
     }
   }
 
-  /** Manda o roteiro (o que está na tela, com as suas edições) para a fila de produção. */
-  async function produzir() {
-    if (slides.length < 6 || slides.length > 8) {
-      setErro(`O carrossel precisa de 6 a 8 páginas. O roteiro tem ${slides.length}.`);
+  /** Manda para a fila de produção o texto que foi passado. */
+  async function produzirCom(paginas: SlideRoteiro[]) {
+    if (paginas.length < 6 || paginas.length > 8) {
+      setErro(`O carrossel precisa de 6 a 8 páginas. O texto tem ${paginas.length}.`);
       return;
     }
     setEnfileirando(true);
@@ -230,7 +223,7 @@ function Producao({
           sequence: Math.min(99, Math.max(1, criativo.ordem || 1)),
           video: { enabled: true, secondsPerSlide: 5 },
           signature: assinatura(video),
-          slides,
+          slides: paginas,
         },
         criadoEm: agora,
         criadoEmServidor: serverTimestamp(),
@@ -247,30 +240,45 @@ function Producao({
     setSlides((atual) => atual.map((s, j) => (j === i ? { ...s, [campo]: valor } : s)));
   }
 
+  /**
+   * Escrever o texto e produzir viraram UM clique.
+   *
+   * Estavam separados, e o consultor tinha que passar por um formulário de seis
+   * páginas antes de ver qualquer coisa. Ele quer ver a peça pronta e julgar a
+   * peça — não aprovar um texto intermediário. Ajustar o texto continua possível,
+   * mas depois, e só para quem quiser.
+   */
+  async function gerarEProduzir() {
+    setGerando(true);
+    setErro('');
+    try {
+      const novos = await pedirRoteiro();
+      if (novos.length) await produzirCom(novos);
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  // Ainda não gerou nada: um botão só, e o que ele vai produzir dito em uma linha.
   if (!slides.length) {
     return (
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <p className="text-sm text-gray-600 mb-3">
-          As quatro peças saem de um texto só, escrito a partir desta fala. Gere, revise
-          o texto e mande produzir.
+          Desta fala saem três peças, com o mesmo texto: o carrossel do feed, o
+          documento do LinkedIn e o vídeo vertical para os Reels.
         </p>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {FORMATOS.map((f) => (
-            <span key={f.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-gray-100 text-xs font-semibold text-gray-700">
-              {ICONE_FORMATO[f.id]} {f.nome}
-              <span className="font-normal text-gray-500">· {f.onde}</span>
-            </span>
-          ))}
-        </div>
         <button
-          onClick={gerarRoteiro}
-          disabled={gerando}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+          onClick={gerarEProduzir}
+          disabled={gerando || enfileirando}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
         >
-          {gerando
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Escrevendo as páginas…</>
-            : <><Sparkles className="w-4 h-4" /> Gerar as peças</>}
+          {gerando || enfileirando
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Criando as peças…</>
+            : <><Sparkles className="w-4 h-4" /> Criar as peças</>}
         </button>
+        <p className="text-xs text-gray-500 mt-2">
+          Leva cerca de um minuto. Pode fechar a tela — o trabalho continua no servidor.
+        </p>
         {erro && <p className="text-sm text-red-700 mt-3">{erro}</p>}
       </section>
     );
@@ -278,131 +286,148 @@ function Producao({
 
   return (
     <div className="space-y-4">
-      <section className="p-4 rounded-lg border border-gray-200 bg-white">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h4 className="font-bold text-gray-900">O texto das páginas</h4>
-            <p className="text-xs text-gray-600 mt-0.5">
-              Escrito a partir da fala. Edite à vontade — o que estiver aqui é o que vira
-              imagem, em todos os formatos.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-gray-500 shrink-0">
-            {slides.length} páginas
-          </span>
-        </div>
+      {/* AS PEÇAS PRIMEIRO. O consultor quer julgar o que saiu, não aprovar um
+          texto intermediário — o texto fica embaixo, fechado, pra quem quiser. */}
+      <PecasProduzidas
+        pecas={daCampanha}
+        esperando={enfileirando || (gerando && daCampanha.length === 0)}
+      />
 
-        <div className="space-y-2">
-          {slides.map((s, i) => (
-            <div key={i} className="p-2.5 rounded border border-gray-200">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-xs font-bold text-gray-400">{i + 1}</span>
-                <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                  {s.type}
-                </span>
-                <ContadorPalavras slide={s} />
+      <details className="rounded-lg border border-gray-200 bg-white">
+        <summary className="px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer">
+          Quero mudar o texto das peças
+        </summary>
+        <div className="px-4 pb-4">
+          <p className="text-xs text-gray-600 mb-3">
+            Este é o texto que aparece nas três peças. Mude o que quiser e mande refazer.
+            Use *asteriscos* para destacar em azul; cada página aceita no máximo 32 palavras.
+          </p>
+
+          <div className="space-y-2">
+            {slides.map((s, i) => (
+              <div key={i} className="p-2.5 rounded border border-gray-200">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-bold text-gray-400">{i + 1}</span>
+                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                    {s.type}
+                  </span>
+                  <ContadorPalavras slide={s} />
+                </div>
+                <input
+                  value={s.title}
+                  onChange={(e) => alterarSlide(i, 'title', e.target.value)}
+                  placeholder="Título"
+                  className="w-full px-2 py-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none font-bold text-gray-900 text-sm"
+                />
+                <textarea
+                  value={s.body}
+                  onChange={(e) => alterarSlide(i, 'body', e.target.value)}
+                  rows={2}
+                  placeholder="Texto"
+                  className="w-full px-2 py-1 mt-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none text-sm text-gray-700 resize-none"
+                />
+                {(['sub', 'numero', 'fonte', 'negativo', 'positivo', 'palavra'] as const).map((campo) => (
+                  s[campo] !== undefined && (
+                    <div key={campo} className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-bold uppercase text-gray-400 w-16 shrink-0">{campo}</span>
+                      <input
+                        value={s[campo] || ''}
+                        onChange={(e) => alterarSlide(i, campo, e.target.value)}
+                        className="flex-1 px-2 py-0.5 rounded border border-gray-200 text-xs text-gray-700"
+                      />
+                    </div>
+                  )
+                ))}
               </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <button
+              onClick={() => produzirCom(slides)}
+              disabled={enfileirando}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+            >
+              {enfileirando
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
+                : <>Refazer as peças com este texto</>}
+            </button>
+            <button
+              onClick={() => setSlides(criativo.roteiro?.slides || [])}
+              title="Volta ao texto que a IA escreveu"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Desfazer minhas edições
+            </button>
+          </div>
+
+          {/* Pedir outra versão à IA SUBSTITUI o texto, inclusive o que foi editado.
+              Por isso fica no fim, separado do botão que só refaz as peças. */}
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <p className="text-xs text-gray-600 mb-1.5">
+              Ou diga o que mudar e a IA reescreve tudo do zero:
+            </p>
+            <div className="flex flex-wrap gap-2">
               <input
-                value={s.title}
-                onChange={(e) => alterarSlide(i, 'title', e.target.value)}
-                placeholder="Título"
-                className="w-full px-2 py-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none font-bold text-gray-900 text-sm"
+                value={melhoria}
+                onChange={(e) => setMelhoria(e.target.value)}
+                placeholder="Ex.: a capa está fraca, comece pelo incômodo de quem nunca liderou um projeto"
+                className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-gray-300 text-sm"
               />
-              <textarea
-                value={s.body}
-                onChange={(e) => alterarSlide(i, 'body', e.target.value)}
-                rows={2}
-                placeholder="Texto"
-                className="w-full px-2 py-1 mt-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none text-sm text-gray-700 resize-none"
-              />
-              {(['sub', 'numero', 'fonte', 'negativo', 'positivo', 'palavra'] as const).map((campo) => (
-                s[campo] !== undefined && (
-                  <div key={campo} className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold uppercase text-gray-400 w-16 shrink-0">{campo}</span>
-                    <input
-                      value={s[campo] || ''}
-                      onChange={(e) => alterarSlide(i, campo, e.target.value)}
-                      className="flex-1 px-2 py-0.5 rounded border border-gray-200 text-xs text-gray-700"
-                    />
-                  </div>
-                )
-              ))}
+              <button
+                onClick={gerarEProduzir}
+                disabled={gerando || enfileirando}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-60"
+              >
+                {gerando
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Reescrevendo…</>
+                  : <><RefreshCw className="w-3.5 h-3.5" /> Reescrever e refazer</>}
+              </button>
             </div>
-          ))}
+          </div>
+
+          {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
         </div>
-
-        <p className="text-xs text-gray-500 mt-2">
-          Use *asteriscos* para destacar em azul. Cada página aceita no máximo 32 palavras
-          entre título e texto — acima disso a peça não é gerada.
-        </p>
-
-        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-          <button
-            onClick={produzir}
-            disabled={enfileirando}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-          >
-            {enfileirando
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Mandando produzir…</>
-              : <>{daCampanha.length ? 'Produzir de novo com este texto' : 'Produzir as peças'}</>}
-          </button>
-          <button
-            onClick={() => setSlides(criativo.roteiro?.slides || [])}
-            title="Volta ao texto que a IA escreveu"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Desfazer minhas edições
-          </button>
-        </div>
-        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
-      </section>
-
-      {/* Pedir outra versão à IA: o texto some e é reescrito, então fica separado
-          do botão de produzir, pra ninguém clicar sem querer e perder o que editou. */}
-      <section className="p-4 rounded-lg border border-gray-200 bg-gray-50">
-        <h4 className="font-bold text-gray-900 text-sm">Não gostou? Peça outra versão</h4>
-        <p className="text-xs text-gray-600 mt-0.5 mb-2">
-          Diga o que mudar e a IA reescreve as páginas. <strong>Isso substitui o texto
-          acima</strong>, inclusive as suas edições.
-        </p>
-        <textarea
-          value={melhoria}
-          onChange={(e) => setMelhoria(e.target.value)}
-          rows={2}
-          placeholder="Ex.: a capa está fraca, comece pelo incômodo de quem nunca liderou um projeto"
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm"
-        />
-        <button
-          onClick={gerarRoteiro}
-          disabled={gerando}
-          className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-60"
-        >
-          {gerando
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Reescrevendo…</>
-            : <><RefreshCw className="w-3.5 h-3.5" /> Reescrever as páginas</>}
-        </button>
-      </section>
-
-      <PecasProduzidas pecas={daCampanha} />
+      </details>
     </div>
   );
 }
 
 /* ====================== O que saiu ====================== */
 
-function PecasProduzidas({ pecas }: { pecas: Peca[] }) {
+function PecasProduzidas({ pecas, esperando }: { pecas: Peca[]; esperando?: boolean }) {
+  // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
+  // ficava escrito "nenhuma peça produzida", que parece falha e não espera.
+  if (esperando && !pecas.length) {
+    return (
+      <section className="p-6 rounded-lg border border-blue-200 bg-blue-50/40 text-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
+        <p className="text-sm font-semibold text-blue-900 mt-2">Criando as suas peças…</p>
+        <p className="text-xs text-blue-800 mt-1">
+          Cerca de um minuto. Pode fechar a tela — o trabalho continua no servidor.
+        </p>
+      </section>
+    );
+  }
+
   if (!pecas.length) {
     return (
       <p className="text-sm text-gray-500 italic p-4 rounded-lg bg-gray-50 border border-dashed border-gray-300">
-        Nenhuma peça produzida ainda. Clique em “Produzir as peças” e elas aparecem aqui
-        quando ficarem prontas — pode levar um minuto.
+        Nenhuma peça ainda.
       </p>
     );
   }
 
   return (
     <section className="p-4 rounded-lg border border-gray-200 bg-white">
-      <h4 className="font-bold text-gray-900 mb-3">O que foi produzido</h4>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h4 className="font-bold text-gray-900">As suas peças</h4>
+        {esperando && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> refazendo…
+          </span>
+        )}
+      </div>
       <div className="space-y-4">
         {pecas.map((p) => (
           <div key={p.id} className="pb-4 border-b border-gray-100 last:border-0 last:pb-0">

@@ -606,17 +606,23 @@ export function useDadosMarketing(consultorId: string) {
     return () => { vivo = false; };
   }, [consultorId, versao]);
 
-  // Enquanto houver transcrição rodando no servidor, a tela se atualiza sozinha.
+  // Enquanto houver trabalho rodando no servidor, a tela se atualiza sozinha.
   // Sem isso o consultor tinha que ficar clicando em "Atualizar" pra descobrir se
-  // já acabou — e a transcrição de uma aula longa leva minutos.
-  const transcrevendo = videos.some(
+  // já acabou — e transcrever uma aula longa leva minutos, produzir leva um.
+  //
+  // Vale pros dois: a transcrição, que roda no serviço da plataforma, e a produção
+  // das peças, que roda no worker.
+  const trabalhando = videos.some(
     (v) => v.transcricaoStatus === 'na-fila' || v.transcricaoStatus === 'processando',
-  );
+  ) || campanhas.some((c) => c.status === 'processando');
+
   useEffect(() => {
-    if (!transcrevendo) return;
-    const t = setInterval(() => setVersao((v) => v + 1), 20000);
+    if (!trabalhando) return;
+    // 8s, e não 20: produzir uma peça leva ~60s, então 20s deixava o consultor
+    // olhando pra uma tela parada por um terço da espera.
+    const t = setInterval(() => setVersao((v) => v + 1), 8000);
     return () => clearInterval(t);
-  }, [transcrevendo]);
+  }, [trabalhando]);
 
   return {
     config, setConfig, videos, campanhas, pecas, carregando,
