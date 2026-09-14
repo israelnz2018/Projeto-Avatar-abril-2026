@@ -3310,7 +3310,17 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  tirado da própria fala.\n`
         + `- Cada página avança o raciocínio. Se duas páginas dizem a mesma coisa, junte e faça menos.\n\n`
         + `${GRAMATICA_SLIDES}\n\n`
-        + `Devolva APENAS JSON: {"slides":[{"type":"capa","title":"...","body":"...","sub":"..."}]}`
+        + `\nAlém das páginas, escreva DOIS textos para publicar, a partir da MESMA fala:\n\n`
+        + `"artigoLinkedin": o texto do post do LinkedIn, pronto para colar. De 150 a 300 palavras.\n`
+        + `  Primeira linha é o gancho, sozinha. Parágrafos curtos, separados por linha em branco.\n`
+        + `  Sem hashtag no meio; no máximo três no fim. Sem emoji. Termina com uma pergunta.\n`
+        + `  Nada de "carrossel abaixo" ou "deslize" — no LinkedIn é um documento, não um carrossel.\n\n`
+        + `"legendaInstagram": a legenda do post, pronta para colar. De 80 a 150 palavras.\n`
+        + `  Mais direta que a do LinkedIn. Primeira linha curta, que aparece antes do "mais".\n`
+        + `  Quebras de linha curtas. Termina chamando o comentário com a palavra da última página.\n`
+        + `  Até cinco hashtags no fim, específicas do assunto — nada de #sucesso ou #motivacao.\n\n`
+        + `Os dois saem da fala, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
+        + `Devolva APENAS JSON: {"slides":[...],"artigoLinkedin":"...","legendaInstagram":"..."}`
         // O pedido do consultor vai POR ÚLTIMO, depois de todas as regras: ele está
         // corrigindo uma versão que já viu, e o que ele pede tem que pesar mais do
         // que a orientação genérica de estilo lá de cima.
@@ -3337,8 +3347,10 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
               required: ["type", "title", "body"],
             },
           },
+          artigoLinkedin: { type: Type.STRING },
+          legendaInstagram: { type: Type.STRING },
         },
-        required: ["slides"],
+        required: ["slides", "artigoLinkedin", "legendaInstagram"],
       };
 
       /** As mesmas contas que o renderizador faz antes de aceitar a página. */
@@ -3361,6 +3373,8 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
 
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       let slides: any[] = [];
+      let artigoLinkedin = "";
+      let legendaInstagram = "";
       let ultimoProblema = "";
       // Três tentativas, e a partir da segunda a IA recebe o que ela errou. Corrigir
       // sai muito mais barato do que devolver um erro pro consultor e perder a geração.
@@ -3392,7 +3406,13 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         }
         try {
           const limpo = String(gerado.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
-          slides = JSON.parse(limpo)?.slides || [];
+          const corpo = JSON.parse(limpo) || {};
+          slides = corpo.slides || [];
+          // Os textos NÃO entram na validação de propósito: um artigo curto demais
+          // é uma chateação, um carrossel inválido é uma peça que não renderiza.
+          // Recusar a geração inteira por causa da legenda seria perder as quatro peças.
+          artigoLinkedin = String(corpo.artigoLinkedin || "").trim();
+          legendaInstagram = String(corpo.legendaInstagram || "").trim();
         } catch {
           ultimoProblema = "a resposta não era um JSON válido";
           continue;
@@ -3411,12 +3431,19 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         Object.entries(s).filter(([, v]) => typeof v === "string" && v.trim()),
       ));
 
+      const agoraTexto = new Date().toISOString();
       await ref.update({
-        roteiro: { slides: limpos, geradoEm: new Date().toISOString() },
-        atualizadoEm: new Date().toISOString(),
+        roteiro: { slides: limpos, geradoEm: agoraTexto },
+        // Os textos de publicar ficam NO CRIATIVO, e não em arquivo.
+        //
+        // Antes a "legenda" era um legenda.md solto dentro de cada pasta do Storage,
+        // que o consultor não tinha como revisar nem copiar. Aqui eles são campos,
+        // editáveis na tela e regravados por cima quando ele muda.
+        textos: { artigoLinkedin, legendaInstagram, geradoEm: agoraTexto },
+        atualizadoEm: agoraTexto,
       });
-      console.log(`[gerar-roteiro] ${criativoId}: ${limpos.length} páginas`);
-      return res.json({ slides: limpos });
+      console.log(`[gerar-roteiro] ${criativoId}: ${limpos.length} páginas, artigo ${artigoLinkedin.split(/\s+/).filter(Boolean).length} palavras, legenda ${legendaInstagram.split(/\s+/).filter(Boolean).length}`);
+      return res.json({ slides: limpos, artigoLinkedin, legendaInstagram });
     } catch (error: any) {
       console.error("[/api/marketing-consultor/gerar-roteiro] erro:", error);
       const errorMessage = String(error?.message || "Erro ao montar o carrossel.")

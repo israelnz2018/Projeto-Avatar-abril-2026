@@ -13,14 +13,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, Criativo, MarcaDaPeca, Peca, SlideRoteiro, VideoFonte,
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
-import { Previa, Anexos } from './EtapasPreenchidas';
+import { Previa, useArquivoUrl } from './EtapasPreenchidas';
 
 /**
  * Os layouts de página que o renderizador sabe montar.
@@ -458,12 +458,15 @@ function Producao({
 
   return (
     <div className="space-y-4">
-      {/* AS PEÇAS PRIMEIRO. O consultor quer julgar o que saiu, não aprovar um
-          texto intermediário — o texto fica embaixo, fechado, pra quem quiser. */}
+      {/* AS PEÇAS PRIMEIRO, e cada uma com o que dá para mexer NELA.
+          O texto ficava num acordeão lá embaixo, longe da página que estava sendo
+          corrigida — quem revisa precisa ver o que está mudando enquanto muda. */}
       <PecasProduzidas
         pecas={daCampanha}
         esperando={servidorTrabalhando || gerando || enfileirando}
         ocupado={servidorTrabalhando || gerando || enfileirando}
+        criativo={criativo}
+        slides={slides}
         velocidade={velocidade}
         aoMudarVelocidade={setVelocidade}
         segundosPorSlide={segundosPorSlide}
@@ -471,6 +474,8 @@ function Producao({
         aoRefazerReel={refazerReel}
         aoRefazerTexto={refazerTexto}
         aoAprovar={onMudou}
+        aoAlterarSlide={alterarSlide}
+        aoDesfazerSlides={() => setSlides(criativo.roteiro?.slides || [])}
       />
       {avisoReel && (
         <p className="text-sm text-amber-800 p-3 rounded bg-amber-50 border border-amber-200">
@@ -485,8 +490,9 @@ function Producao({
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <p className="text-sm font-semibold text-gray-800">Quer mudar alguma coisa?</p>
         <p className="text-xs text-gray-600 mt-0.5 mb-2.5">
-          Escreva o que incomodou e a IA reescreve o texto das peças e refaz tudo. O Reel
-          com você falando não muda — ele usa a sua própria fala.
+          Escreva o que incomodou e a IA reescreve o texto das peças, o artigo do LinkedIn
+          e a legenda do Instagram, e refaz tudo. O Reel com você falando não muda — ele
+          usa a sua própria fala.
         </p>
         <div className="flex flex-wrap gap-2">
           <input
@@ -506,125 +512,32 @@ function Producao({
               : <><RefreshCw className="w-3.5 h-3.5" /> Pedir e refazer</>}
           </button>
         </div>
+        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
       </section>
-
-      <details className="rounded-lg border border-gray-200 bg-white">
-        <summary className="px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer">
-          Prefiro eu mesmo mudar o texto, página a página
-        </summary>
-        <div className="px-4 pb-4">
-          <p className="text-xs text-gray-600 mb-3">
-            Este é o texto do carrossel, do PDF e do vídeo de slides. O Reel com você falando
-            não usa este texto — ele usa a sua própria fala. Mude o que quiser e mande refazer.
-            Use *asteriscos* para destacar em azul; cada página aceita no máximo 32 palavras.
-          </p>
-
-          <div className="space-y-2">
-            {slides.map((s, i) => (
-              <div key={i} className="p-2.5 rounded border border-gray-200">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="text-xs font-bold text-gray-400">{i + 1}</span>
-
-                  {/* O LAYOUT DA PÁGINA.
-                      Era uma etiqueta cinza, só para olhar. Trocar o layout remonta a
-                      página inteira — é a mudança de design mais forte que o motor faz,
-                      e estava trancada. */}
-                  <select
-                    value={s.type}
-                    onChange={(e) => alterarSlide(i, 'type', e.target.value)}
-                    title="O desenho desta página"
-                    className="px-2 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-800 bg-white"
-                  >
-                    {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
-                  </select>
-
-                  {/* Quem aparece na página. Comparação não tem espaço para ninguém. */}
-                  {LAYOUTS_COM_PESSOA.has(s.type) && (
-                    <select
-                      value={s.pessoa === false ? 'nenhuma' : (s.pessoa || 'automatica')}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        alterarSlide(i, 'pessoa', v === 'nenhuma' ? false : v === 'automatica' ? undefined : v);
-                      }}
-                      title="Quem aparece nesta página"
-                      className="px-2 py-1 rounded border border-gray-300 text-xs text-gray-800 bg-white"
-                    >
-                      <option value="automatica">Pessoa: automática</option>
-                      <option value="nenhuma">Pessoa: nenhuma</option>
-                      {PESSOAS.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                    </select>
-                  )}
-
-                  <ContadorPalavras slide={s} />
-                </div>
-                <input
-                  value={s.title}
-                  onChange={(e) => alterarSlide(i, 'title', e.target.value)}
-                  placeholder="Título"
-                  className="w-full px-2 py-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none font-bold text-gray-900 text-sm"
-                />
-                <textarea
-                  value={s.body}
-                  onChange={(e) => alterarSlide(i, 'body', e.target.value)}
-                  rows={2}
-                  placeholder="Texto"
-                  className="w-full px-2 py-1 mt-1 rounded border border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none text-sm text-gray-700 resize-none"
-                />
-                {/* Os campos que ESTE layout pede, mesmo os que ainda estão vazios:
-                    trocar para "dado" sem poder escrever o número deixaria a página
-                    com um espaço em branco no lugar do número gigante. */}
-                {camposDoSlide(s).map((campo) => (
-                  <div key={campo} className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold uppercase text-gray-400 w-16 shrink-0">{campo}</span>
-                    <input
-                      value={(s[campo] as string) || ''}
-                      onChange={(e) => alterarSlide(i, campo, e.target.value)}
-                      placeholder={campo === 'numero' ? 'Ex.: 70%' : ''}
-                      className="flex-1 px-2 py-0.5 rounded border border-gray-200 text-xs text-gray-700"
-                    />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <button
-              onClick={() => produzirCom(slides)}
-              disabled={enfileirando}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-            >
-              {enfileirando
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
-                : <>Refazer as peças com este texto</>}
-            </button>
-            <button
-              onClick={() => setSlides(criativo.roteiro?.slides || [])}
-              title="Volta ao texto que a IA escreveu"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Desfazer minhas edições
-            </button>
-          </div>
-
-          {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
-        </div>
-      </details>
     </div>
   );
 }
 
 /* ====================== O que saiu ====================== */
 
+/**
+ * As peças produzidas, cada uma com o que dá para mexer nela.
+ *
+ * A ficha muda por tipo de propósito. Um carrossel se revisa página a página,
+ * olhando a página; um PDF se revisa lendo o artigo que vai junto. Mostrar os
+ * quatro do mesmo jeito obrigava o consultor a procurar onde editar cada coisa.
+ */
 function PecasProduzidas({
-  pecas, esperando, ocupado,
+  pecas, esperando, ocupado, criativo, slides,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
-  aoRefazerReel, aoRefazerTexto, aoAprovar,
+  aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoDesfazerSlides,
 }: {
   pecas: Peca[];
   esperando?: boolean;
   ocupado?: boolean;
+  criativo: Criativo;
+  slides: SlideRoteiro[];
   velocidade: number;
   aoMudarVelocidade: (v: number) => void;
   segundosPorSlide: number;
@@ -632,6 +545,8 @@ function PecasProduzidas({
   aoRefazerReel: () => void;
   aoRefazerTexto: () => void;
   aoAprovar: () => void;
+  aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+  aoDesfazerSlides: () => void;
 }) {
   // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
   // ficava escrito "nenhuma peça produzida", que parece falha e não espera.
@@ -655,77 +570,430 @@ function PecasProduzidas({
     );
   }
 
-  return (
-    <section className="p-4 rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h4 className="font-bold text-gray-900">As suas peças</h4>
-        {esperando && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> refazendo…
-          </span>
-        )}
-      </div>
-      <div className="space-y-4">
-        {pecas.map((p) => (
-          <div key={p.id} className="pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-            {/* O controle fica na peça, não num painel à parte: é olhando a peça
-                que o consultor decide que ela está lenta demais. */}
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-              <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                {nomeDaPeca(p.tipo)}
-                {p.versao > 1 && (
-                  <span className="text-xs font-normal text-gray-500">versão {p.versao}</span>
-                )}
-              </p>
+  // A ordem é a de importância para quem publica, não a que o servidor gravou.
+  const ordem: Peca['tipo'][] = ['reel', 'carrossel-feed', 'carrossel-video', 'linkedin-pdf'];
+  const ordenadas = [...pecas].sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
 
-              <div className="flex items-center gap-2">
-                {p.tipo === 'reel' && (
-                  <Ritmo
-                    rotulo="Velocidade da fala"
-                    valor={velocidade}
-                    aoMudar={aoMudarVelocidade}
-                    opcoes={[
-                      [0.9, '0,9x — mais devagar'],
-                      [1, '1x — normal'],
-                      [1.1, '1,1x — recomendado'],
-                      [1.25, '1,25x — bem rápido'],
-                      [1.5, '1,5x — no limite'],
-                    ]}
-                  />
-                )}
-                {p.tipo === 'carrossel-video' && (
-                  <Ritmo
-                    rotulo="Tempo por página"
-                    valor={segundosPorSlide}
-                    aoMudar={aoMudarSegundos}
-                    opcoes={[
-                      [3, '3s — rápido'],
-                      [4, '4s'],
-                      [5, '5s — normal'],
-                      [6, '6s'],
-                      [8, '8s — para ler com calma'],
-                    ]}
-                  />
-                )}
-                <BotaoRefazer
-                  ocupado={ocupado}
-                  aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
-                  aviso={p.tipo === 'reel'
-                    ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
-                    : 'Refaz o carrossel, o PDF e o carrossel em vídeo com o texto atual.'}
+  return (
+    <div className="space-y-4">
+      {ordenadas.map((p) => (
+        <section key={p.id} className="p-4 rounded-lg border border-gray-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+              {nomeDaPeca(p.tipo)}
+              {p.versao > 1 && (
+                <span className="text-xs font-normal text-gray-500">versão {p.versao}</span>
+              )}
+              {esperando && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+                  <Loader2 className="w-3 h-3 animate-spin" /> refazendo…
+                </span>
+              )}
+            </p>
+
+            <div className="flex items-center gap-2">
+              {p.tipo === 'reel' && (
+                <Ritmo
+                  rotulo="Velocidade da fala"
+                  valor={velocidade}
+                  aoMudar={aoMudarVelocidade}
+                  opcoes={[
+                    [0.9, '0,9x — mais devagar'],
+                    [1, '1x — normal'],
+                    [1.1, '1,1x — recomendado'],
+                    [1.25, '1,25x — bem rápido'],
+                    [1.5, '1,5x — no limite'],
+                  ]}
                 />
-                <BotaoAprovar peca={p} onMudou={aoAprovar} />
-              </div>
+              )}
+              {p.tipo === 'carrossel-video' && (
+                <Ritmo
+                  rotulo="Tempo por página"
+                  valor={segundosPorSlide}
+                  aoMudar={aoMudarSegundos}
+                  opcoes={[
+                    [3, '3s — rápido'],
+                    [4, '4s'],
+                    [5, '5s — normal'],
+                    [6, '6s'],
+                    [8, '8s — para ler com calma'],
+                  ]}
+                />
+              )}
+              <BotaoRefazer
+                ocupado={ocupado}
+                aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
+                aviso={p.tipo === 'reel'
+                  ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
+                  : 'Refaz o carrossel, o PDF e o carrossel em vídeo com o texto atual.'}
+              />
+              <BotaoAprovar peca={p} onMudou={aoAprovar} />
             </div>
-            <Previa caminho={p.arquivoUrl} />
-            {/* O carrossel tem sete páginas e a prévia mostra uma. Aprovar sem ver o
-                resto seria aprovar no escuro. */}
-            <Anexos peca={p} />
           </div>
+
+          {p.tipo === 'carrossel-feed' && (
+            <FichaCarrossel
+              peca={p}
+              slides={slides}
+              ocupado={ocupado}
+              aoAlterarSlide={aoAlterarSlide}
+              aoRefazer={aoRefazerTexto}
+              aoDesfazer={aoDesfazerSlides}
+            />
+          )}
+          {p.tipo === 'linkedin-pdf' && (
+            <FichaComTexto
+              peca={p}
+              criativo={criativo}
+              campo="artigoLinkedin"
+              titulo="Artigo do LinkedIn"
+              ajuda="Pronto para colar no LinkedIn. As páginas do PDF são exatamente as do carrossel do feed — mude lá que muda aqui."
+            />
+          )}
+          {p.tipo === 'carrossel-video' && (
+            <FichaComTexto
+              peca={p}
+              criativo={criativo}
+              campo="legendaInstagram"
+              titulo="Legenda do Instagram"
+              ajuda="Pronta para colar. É a mesma legenda do Reel — é o mesmo post."
+            />
+          )}
+          {p.tipo === 'reel' && (
+            <FichaComTexto
+              peca={p}
+              criativo={criativo}
+              campo="legendaInstagram"
+              titulo="Legenda do Instagram"
+              ajuda="Pronta para colar. É a mesma legenda do carrossel em vídeo — é o mesmo post."
+              capa={p.capaUrl}
+            />
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+/**
+ * A ficha do carrossel: as páginas em cima, a escolhida grande, e o editor dela
+ * ao lado.
+ *
+ * Antes era uma imagem só, com o editor escondido num acordeão lá embaixo, longe
+ * da página que estava sendo corrigida. Quem revisa precisa ver o que está
+ * mudando enquanto muda.
+ */
+function FichaCarrossel({
+  peca, slides, ocupado, aoAlterarSlide, aoRefazer, aoDesfazer,
+}: {
+  peca: Peca;
+  slides: SlideRoteiro[];
+  ocupado?: boolean;
+  aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+  aoRefazer: () => void;
+  aoDesfazer: () => void;
+}) {
+  const [aberta, setAberta] = useState(0);
+
+  // Só os PNGs das páginas, na ordem. O que não for página fica de fora: a lista
+  // de arquivos da peça também traz capa e sobras, e elas não são páginas.
+  const paginas = useMemo(
+    () => (peca.arquivos || [])
+      .filter((c) => /slide-\d+\.png$/i.test(c))
+      .sort((a, b) => a.localeCompare(b)),
+    [peca.arquivos],
+  );
+
+  useEffect(() => { setAberta(0); }, [peca.id]);
+
+  if (!paginas.length) return <Previa caminho={peca.arquivoUrl} />;
+
+  const indice = Math.min(aberta, paginas.length - 1);
+  const slide = slides[indice];
+
+  return (
+    <div className="space-y-3">
+      {/* Todas as páginas, pequenas. Clicar troca a grande de baixo. */}
+      <div className="flex flex-wrap gap-2">
+        {paginas.map((c, i) => (
+          <button
+            key={c}
+            onClick={() => setAberta(i)}
+            title={`Página ${i + 1}`}
+            className={`relative rounded border-2 overflow-hidden transition-colors ${
+              i === indice ? 'border-blue-500' : 'border-gray-200 hover:border-gray-400'
+            }`}
+          >
+            <ImagemDoArquivo caminho={c} className="w-16 h-20 object-cover block" />
+            <span className={`absolute bottom-0 right-0 px-1 text-[10px] font-bold ${
+              i === indice ? 'bg-blue-500 text-white' : 'bg-white/80 text-gray-700'
+            }`}>
+              {i + 1}
+            </span>
+          </button>
         ))}
       </div>
-    </section>
+
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* A página escolhida, grande. Uma só. */}
+        <div className="lg:w-[340px] shrink-0">
+          <ImagemDoArquivo
+            caminho={paginas[indice]}
+            className="w-full rounded-lg border border-gray-200 bg-gray-50"
+          />
+        </div>
+
+        {/* O texto desta página, já preenchido com o que está na imagem. */}
+        <div className="flex-1 min-w-0">
+          {!slide ? (
+            <p className="text-sm text-gray-500 italic">
+              O texto desta página não está guardado. Use "Pedir e refazer" para a IA
+              escrever de novo.
+            </p>
+          ) : (
+            <EditorDaPagina
+              indice={indice}
+              slide={slide}
+              aoAlterar={aoAlterarSlide}
+            />
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+            <button
+              onClick={aoRefazer}
+              disabled={ocupado}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+            >
+              {ocupado
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
+                : <>Refazer com estas mudanças</>}
+            </button>
+            <button
+              onClick={aoDesfazer}
+              title="Volta ao texto que a IA escreveu"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Desfazer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
+}
+
+/** Os campos de uma página do carrossel. */
+function EditorDaPagina({
+  indice, slide, aoAlterar,
+}: {
+  indice: number;
+  slide: SlideRoteiro;
+  aoAlterar: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-gray-400">Página {indice + 1}</span>
+
+        <select
+          value={slide.type}
+          onChange={(e) => aoAlterar(indice, 'type', e.target.value)}
+          title="O desenho desta página"
+          className="px-2 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-800 bg-white"
+        >
+          {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+        </select>
+
+        {LAYOUTS_COM_PESSOA.has(slide.type) && (
+          <select
+            value={slide.pessoa === false ? 'nenhuma' : (slide.pessoa || 'automatica')}
+            onChange={(e) => {
+              const v = e.target.value;
+              aoAlterar(indice, 'pessoa', v === 'nenhuma' ? false : v === 'automatica' ? undefined : v);
+            }}
+            title="Quem aparece nesta página"
+            className="px-2 py-1 rounded border border-gray-300 text-xs text-gray-800 bg-white"
+          >
+            <option value="automatica">Pessoa: automática</option>
+            <option value="nenhuma">Pessoa: nenhuma</option>
+            {PESSOAS.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+        )}
+
+        <select
+          value={String(slide.escala ?? 1)}
+          onChange={(e) => aoAlterar(indice, 'escala', e.target.value)}
+          title="O tamanho do texto desta página"
+          className="px-2 py-1 rounded border border-gray-300 text-xs text-gray-800 bg-white"
+        >
+          <option value="0.85">Texto menor</option>
+          <option value="1">Texto normal</option>
+          <option value="1.15">Texto maior</option>
+        </select>
+
+        <ContadorPalavras slide={slide} />
+      </div>
+
+      <input
+        value={slide.title}
+        onChange={(e) => aoAlterar(indice, 'title', e.target.value)}
+        placeholder="Título"
+        className="w-full px-2 py-1.5 rounded border border-gray-200 focus:border-blue-400 focus:outline-none font-bold text-gray-900 text-sm"
+      />
+      <textarea
+        value={slide.body}
+        onChange={(e) => aoAlterar(indice, 'body', e.target.value)}
+        rows={3}
+        placeholder="Texto"
+        className="w-full px-2 py-1.5 rounded border border-gray-200 focus:border-blue-400 focus:outline-none text-sm text-gray-700 resize-y"
+      />
+      {camposDoSlide(slide).map((campo) => (
+        <div key={campo} className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase text-gray-400 w-16 shrink-0">{campo}</span>
+          <input
+            value={(slide[campo] as string) || ''}
+            onChange={(e) => aoAlterar(indice, campo, e.target.value)}
+            placeholder={campo === 'numero' ? 'Ex.: 70%' : ''}
+            className="flex-1 px-2 py-0.5 rounded border border-gray-200 text-xs text-gray-700"
+          />
+        </div>
+      ))}
+      <p className="text-[11px] text-gray-500">
+        Use *asteriscos* para destacar em azul. No máximo 32 palavras por página.
+      </p>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+/**
+ * A peça de um lado, o texto de publicar do outro.
+ *
+ * Serve o PDF (artigo do LinkedIn), o carrossel em vídeo e o Reel (legenda do
+ * Instagram). O texto fica no criativo, e não em arquivo: é o que se revisa e se
+ * copia, e um .md dentro do Storage não servia para nenhuma das duas coisas.
+ */
+function FichaComTexto({
+  peca, criativo, campo, titulo, ajuda, capa,
+}: {
+  peca: Peca;
+  criativo: Criativo;
+  campo: 'artigoLinkedin' | 'legendaInstagram';
+  titulo: string;
+  ajuda: string;
+  capa?: string | null;
+}) {
+  const gravado = criativo.textos?.[campo] || '';
+  const [texto, setTexto] = useState(gravado);
+  const [salvando, setSalvando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [erro, setErro] = useState('');
+
+  // Trocar de criativo, ou a IA reescrever, tem que trazer o texto novo para a tela.
+  useEffect(() => { setTexto(gravado); }, [criativo.id, gravado]);
+
+  const mudou = texto !== gravado;
+
+  async function salvar() {
+    setSalvando(true);
+    setErro('');
+    try {
+      await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
+        [`textos.${campo}`]: texto,
+        atualizadoEm: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      setErro('O navegador não deixou copiar. Selecione o texto e copie à mão.');
+    }
+  }
+
+  const palavras = texto.trim().split(/\s+/).filter(Boolean).length;
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-4">
+      <div className="lg:w-[300px] shrink-0 space-y-2">
+        <Previa caminho={peca.arquivoUrl} />
+        {/* A capa do Reel fica aberta ao lado do vídeo: é ela que vira a miniatura
+            no Instagram, e é a primeira coisa que alguém vê. */}
+        {capa && (
+          <div>
+            <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
+            <ImagemDoArquivo caminho={capa} className="w-32 rounded border border-gray-200" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-gray-800">{titulo}</p>
+          <span className="text-[11px] text-gray-500">{palavras} palavras</span>
+        </div>
+        <p className="text-xs text-gray-600 mt-0.5 mb-2">{ajuda}</p>
+
+        {texto || mudou ? (
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            rows={12}
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 font-normal leading-relaxed resize-y"
+          />
+        ) : (
+          <p className="text-sm text-gray-500 italic p-3 rounded bg-gray-50 border border-dashed border-gray-300">
+            Ainda não há texto. Ele é escrito junto com as peças — use "Pedir e refazer"
+            para a IA escrever.
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <button
+            onClick={copiar}
+            disabled={!texto}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+          >
+            {copiado ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+            {copiado ? 'Copiado' : 'Copiar'}
+          </button>
+          {mudou && (
+            <button
+              onClick={salvar}
+              disabled={salvando}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+            >
+              {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Salvar
+            </button>
+          )}
+          {mudou && !salvando && (
+            <span className="text-[11px] text-amber-700 font-semibold">alterações não salvas</span>
+          )}
+        </div>
+        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Uma imagem do Storage, já resolvida. */
+function ImagemDoArquivo({ caminho, className }: { caminho: string; className?: string }) {
+  const { url, erro } = useArquivoUrl(caminho);
+  if (erro) return <span className={`${className} bg-gray-100 block`} />;
+  if (!url) return <span className={`${className} bg-gray-100 animate-pulse block`} />;
+  return <img src={url} alt="" className={className} />;
 }
 
 /**

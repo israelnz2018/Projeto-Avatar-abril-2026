@@ -189,6 +189,17 @@ export interface Criativo {
    * dizendo uma coisa e o PDF outra.
    */
   roteiro?: { slides: SlideRoteiro[]; geradoEm: string };
+  /**
+   * Os textos prontos para publicar, escritos pela IA junto com as páginas.
+   *
+   * Ficam AQUI, e não em arquivo. Antes a "legenda" era um legenda.md solto dentro
+   * de cada pasta do Storage: o consultor não tinha como revisar nem copiar, e o
+   * arquivo só ocupava espaço na lista da peça.
+   *
+   * O artigo serve o LinkedIn (o PDF), a legenda serve o Instagram (o Reel e o
+   * carrossel em vídeo) — é o mesmo texto nos dois, porque é o mesmo post.
+   */
+  textos?: { artigoLinkedin: string; legendaInstagram: string; geradoEm: string };
   status: StatusCriativo;
   criadoEm: string;
   atualizadoEm?: string;
@@ -218,6 +229,13 @@ export interface SlideRoteiro {
    * espaço para ela.
    */
   pessoa?: string | false;
+  /**
+   * O tamanho do texto desta página, de 0,8 a 1,25.
+   *
+   * Vai como texto porque é o que o `<select>` devolve, e o renderizador já
+   * converte. Ausente é 1 — e a 1 o renderizador nem mexe no CSS.
+   */
+  escala?: string | number;
 }
 
 /**

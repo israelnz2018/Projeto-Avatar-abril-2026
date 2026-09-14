@@ -323,6 +323,34 @@ export function EtapaCampanhas({ campanhas, pecas }: { campanhas: Campanha[]; pe
 
 /* ====================== Etapa 5 — Revisão ====================== */
 
+/**
+ * O endereço navegável de um arquivo do Storage.
+ *
+ * Estava repetido dentro da Previa, da Miniatura e do LinkDoArquivo, cada um com
+ * a sua versão. Agora as telas que mostram peça pedem aqui.
+ *
+ * Devolve `{ url, erro, carregando }` — quem chama decide o que mostrar em cada
+ * caso, porque um PDF que não carrega e uma miniatura que não carrega merecem
+ * tratamentos diferentes.
+ */
+export function useArquivoUrl(caminho?: string) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [erro, setErro] = useState(false);
+
+  useEffect(() => {
+    if (!caminho || !caminho.startsWith('marketing/')) { setUrl(null); setErro(false); return; }
+    let vivo = true;
+    setUrl(null);
+    setErro(false);
+    getDownloadURL(storageRef(storage, caminho))
+      .then((u) => { if (vivo) setUrl(u); })
+      .catch(() => { if (vivo) setErro(true); });
+    return () => { vivo = false; };
+  }, [caminho]);
+
+  return { url, erro, carregando: Boolean(caminho) && !url && !erro };
+}
+
 export function Previa({ caminho }: { caminho?: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [erro, setErro] = useState(false);
