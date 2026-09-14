@@ -3319,10 +3319,17 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  Nada de "carrossel abaixo" ou "deslize" — no LinkedIn é um documento, não um carrossel.\n\n`
         + `"legendaInstagram": a legenda do post, pronta para colar. De 80 a 150 palavras.\n`
         + `  Mais direta que a do LinkedIn. Primeira linha curta, que aparece antes do "mais".\n`
-        + `  Quebras de linha curtas. Termina com uma pergunta de verdade, que dê vontade\n`
-        + `  de responder. NUNCA "comente X", "digite X" ou qualquer isca de engajamento.\n`
+        + `  Termina com uma pergunta de verdade, que dê vontade de responder.\n`
+        + `  NUNCA "comente X", "digite X" ou qualquer isca de engajamento.\n`
+        + `  Até cinco hashtags na ÚLTIMA linha, específicas do assunto — nada de\n`
+        + `  #sucesso ou #motivacao.\n`
         + `  Até cinco hashtags no fim, específicas do assunto — nada de #sucesso ou #motivacao.\n\n`
         + `Os dois saem da fala, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
+        + `QUEBRA DE LINHA, nos dois: separe cada parágrafo com uma linha em branco DE\n`
+        + `VERDADE — o caractere de nova linha, escrito como \\n dentro do texto do JSON.\n`
+        + `Um bloco corrido não se publica: no Instagram ninguém lê, e no LinkedIn o\n`
+        + `texto fica cortado no "ver mais" sem respiro. Nenhum parágrafo com mais de\n`
+        + `três linhas.\n\n`
         + `Devolva APENAS JSON: {"slides":[...],"artigoLinkedin":"...","legendaInstagram":"..."}`
         // O pedido do consultor vai POR ÚLTIMO, depois de todas as regras: ele está
         // corrigindo uma versão que já viu, e o que ele pede tem que pesar mais do
