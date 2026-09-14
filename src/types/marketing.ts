@@ -355,6 +355,16 @@ export interface Campanha {
    */
   velocidade?: number;
   segundosPorSlide?: number;
+  /**
+   * O texto que GEROU as imagens desta campanha.
+   *
+   * Fica aqui, e não só no criativo, porque a tela mostra a imagem e o texto lado
+   * a lado: se o texto vier do criativo e as imagens forem de uma versão anterior,
+   * o consultor corrige um texto que não é o da figura que está vendo. Guardado
+   * junto com a campanha, os dois são sempre o mesmo par.
+   */
+  roteiro?: SlideRoteiro[];
+  roteiroGeradoEm?: string;
   criadoEm: string;
   atualizadoEm?: string;
 }

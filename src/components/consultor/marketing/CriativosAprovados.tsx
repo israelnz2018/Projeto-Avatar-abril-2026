@@ -211,11 +211,30 @@ function Producao({
   const [velocidade, setVelocidade] = useState(1);
   const [segundosPorSlide, setSegundosPorSlide] = useState(5);
 
-  // Trocar de criativo no dropdown tem que trocar o roteiro na tela junto.
+  // O QUE APARECE NO EDITOR É O TEXTO QUE GEROU AS IMAGENS.
+  //
+  // Vinha do criativo, que guarda sempre a última versão escrita pela IA. Quando
+  // essa versão era mais nova que as imagens — a IA reescreveu e a produção ainda
+  // não rodou — a tela mostrava a página 3 nova ao lado da figura da página 3
+  // velha, e o consultor corrigia um texto que não era o da figura.
+  //
+  // Agora vem da campanha, que guarda o texto exato que foi renderizado. Os dois
+  // são o mesmo par por construção. Se a IA tiver escrito algo mais novo, a tela
+  // avisa e deixa carregar — mas não troca sozinha.
+  const campanhaDoTexto = campanhas.find((c) => c.id === `${criativo.id}__pecas`);
+  const textoRenderizado = campanhaDoTexto?.roteiro;
+  // A IA escreveu algo mais novo do que o que virou imagem.
+  const temTextoNovo = Boolean(
+    criativo.roteiro?.geradoEm
+    && campanhaDoTexto?.roteiroGeradoEm
+    && criativo.roteiro.geradoEm > campanhaDoTexto.roteiroGeradoEm,
+  );
+
   useEffect(() => {
-    setSlides(criativo.roteiro?.slides || []);
+    setSlides(textoRenderizado?.length ? textoRenderizado : (criativo.roteiro?.slides || []));
     setErro('');
     setMelhoria('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [criativo.id, criativo.roteiro?.geradoEm]);
 
   const campanhaId = `${criativo.id}__pecas`;
@@ -294,6 +313,9 @@ function Producao({
         corteInicio: formatar(inicioNoVideo(criativo)),
         corteFim: formatar(fimNoVideo(criativo)),
         segundosPorSlide,
+        // O par imagem+texto nasce aqui e fica junto. Ver o comentário no tipo.
+        roteiro: paginas,
+        roteiroGeradoEm: agora,
         criadoEm: agora,
       }, { merge: true });
 
@@ -475,7 +497,12 @@ function Producao({
         aoRefazerTexto={refazerTexto}
         aoAprovar={onMudou}
         aoAlterarSlide={alterarSlide}
-        aoDesfazerSlides={() => setSlides(criativo.roteiro?.slides || [])}
+        aoDesfazerSlides={() => setSlides(textoRenderizado?.length ? textoRenderizado : (criativo.roteiro?.slides || []))}
+        temTextoNovo={temTextoNovo}
+        melhoria={melhoria}
+        aoMudarMelhoria={setMelhoria}
+        aoPedirIa={criarTudo}
+        aoUsarTextoNovo={() => setSlides(criativo.roteiro?.slides || [])}
       />
       {avisoReel && (
         <p className="text-sm text-amber-800 p-3 rounded bg-amber-50 border border-amber-200">
@@ -483,38 +510,49 @@ function Producao({
         </p>
       )}
 
-      {/* O PEDIDO FICA À VISTA.
-          Estava escondido dentro do acordeão de editar o texto, junto de seis
-          campos por página — e quem só queria dizer "a capa está fraca" não
-          achava. É o caminho mais usado dos dois, então é o que fica aberto. */}
-      <section className="p-4 rounded-lg border border-gray-200 bg-white">
-        <p className="text-sm font-semibold text-gray-800">Quer mudar alguma coisa?</p>
-        <p className="text-xs text-gray-600 mt-0.5 mb-2.5">
-          Escreva o que incomodou e a IA reescreve o texto das peças, o artigo do LinkedIn
-          e a legenda do Instagram, e refaz tudo. O Reel com você falando não muda — ele
-          usa a sua própria fala.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <input
-            value={melhoria}
-            onChange={(e) => setMelhoria(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && melhoria.trim()) criarTudo(); }}
-            placeholder="Ex.: a capa está fraca, comece pelo incômodo de quem nunca liderou um projeto"
-            className="flex-1 min-w-[260px] px-3 py-2 rounded-lg border border-gray-300 text-sm"
-          />
-          <button
-            onClick={criarTudo}
-            disabled={gerando || enfileirando || !melhoria.trim()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-          >
-            {gerando
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Reescrevendo…</>
-              : <><RefreshCw className="w-3.5 h-3.5" /> Pedir e refazer</>}
-          </button>
-        </div>
-        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
-      </section>
+      {/* A IMAGEM ÚNICA DO LINKEDIN.
+          É a capa do carrossel, que também serve sozinha: no LinkedIn um post de
+          uma imagem tem alcance diferente do documento, e o consultor quer poder
+          escolher. Não é uma peça nova do renderizador — é a mesma capa, mostrada
+          para o que ela serve. O texto ao lado é o MESMO artigo do PDF: é o mesmo
+          post, então mudar num muda no outro. */}
+      <ImagemUnicaLinkedin criativo={criativo} pecas={daCampanha} />
+
+      {erro && <p className="text-sm text-red-700">{erro}</p>}
     </div>
+  );
+}
+
+/**
+ * A capa do carrossel oferecida como post de uma imagem só no LinkedIn.
+ *
+ * Fica no fim porque é a alternativa ao documento, não a peça principal.
+ */
+function ImagemUnicaLinkedin({ criativo, pecas }: { criativo: Criativo; pecas: Peca[] }) {
+  const feed = pecas.find((p) => p.tipo === 'carrossel-feed');
+  const capa = (feed?.arquivos || []).filter((c) => /slide-\d+\.png$/i.test(c)).sort()[0];
+  if (!capa) return null;
+
+  return (
+    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+      <p className="text-sm font-semibold text-gray-800 mb-3">Imagem única para o LinkedIn</p>
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="lg:w-[300px] shrink-0">
+          <ImagemDoArquivo caminho={capa} className="w-full rounded-lg border border-gray-200" />
+          <p className="text-[11px] text-gray-500 mt-1">
+            É a capa do carrossel. Para um post de imagem só, em vez do documento.
+          </p>
+        </div>
+        <div className="flex-1 min-w-0">
+          <TextoParaPublicar
+            criativo={criativo}
+            campo="artigoLinkedin"
+            titulo="Artigo do LinkedIn"
+            ajuda="O mesmo texto do documento PDF — é o mesmo post. Mudar aqui muda lá."
+          />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -532,6 +570,7 @@ function PecasProduzidas({
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
   aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoDesfazerSlides,
+  temTextoNovo, melhoria, aoMudarMelhoria, aoPedirIa, aoUsarTextoNovo,
 }: {
   pecas: Peca[];
   esperando?: boolean;
@@ -547,6 +586,11 @@ function PecasProduzidas({
   aoAprovar: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoDesfazerSlides: () => void;
+  temTextoNovo?: boolean;
+  melhoria: string;
+  aoMudarMelhoria: (v: string) => void;
+  aoPedirIa: () => void;
+  aoUsarTextoNovo: () => void;
 }) {
   // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
   // ficava escrito "nenhuma peça produzida", que parece falha e não espera.
@@ -635,11 +679,15 @@ function PecasProduzidas({
             <FichaCarrossel
               peca={p}
               slides={slides}
-              roteiroGeradoEm={criativo.roteiro?.geradoEm}
+              temTextoNovo={temTextoNovo}
               ocupado={ocupado}
+              melhoria={melhoria}
+              aoMudarMelhoria={aoMudarMelhoria}
+              aoPedirIa={aoPedirIa}
               aoAlterarSlide={aoAlterarSlide}
               aoRefazer={aoRefazerTexto}
               aoDesfazer={aoDesfazerSlides}
+              aoUsarTextoNovo={aoUsarTextoNovo}
             />
           )}
           {p.tipo === 'linkedin-pdf' && (
@@ -687,15 +735,20 @@ function PecasProduzidas({
  * mudando enquanto muda.
  */
 function FichaCarrossel({
-  peca, slides, roteiroGeradoEm, ocupado, aoAlterarSlide, aoRefazer, aoDesfazer,
+  peca, slides, temTextoNovo, ocupado, melhoria, aoMudarMelhoria, aoPedirIa,
+  aoAlterarSlide, aoRefazer, aoDesfazer, aoUsarTextoNovo,
 }: {
   peca: Peca;
   slides: SlideRoteiro[];
-  roteiroGeradoEm?: string;
+  temTextoNovo?: boolean;
   ocupado?: boolean;
+  melhoria: string;
+  aoMudarMelhoria: (v: string) => void;
+  aoPedirIa: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoRefazer: () => void;
   aoDesfazer: () => void;
+  aoUsarTextoNovo: () => void;
 }) {
   const [aberta, setAberta] = useState(0);
 
@@ -715,23 +768,22 @@ function FichaCarrossel({
   const indice = Math.min(aberta, paginas.length - 1);
   const slide = slides[indice];
 
-  // O TEXTO AO LADO PODE NÃO SER O TEXTO DA IMAGEM.
-  //
-  // A imagem é a última que o renderizador produziu; o texto é o roteiro corrente.
-  // Normalmente andam juntos, porque "Pedir e refazer" faz as duas coisas. Mas se
-  // a produção falhar, ou se a IA reescrever e o render não rodar, o consultor
-  // ficaria corrigindo um texto que não é o da figura que está vendo — e nada na
-  // tela diria isso. Comparar as datas custa nada e evita esse silêncio.
-  const feitaEm = peca.atualizadoEm || peca.criadoEm;
-  const desencontrado = Boolean(roteiroGeradoEm && feitaEm && roteiroGeradoEm > feitaEm);
-
   return (
     <div className="space-y-3">
-      {desencontrado && (
-        <p className="text-xs text-amber-900 p-2.5 rounded bg-amber-50 border border-amber-200">
-          O texto ao lado é mais novo que estas imagens. Clique em
-          <strong> Refazer com estas mudanças</strong> para as páginas ficarem iguais ao texto.
-        </p>
+      {/* O texto ao lado é o que gerou estas imagens. Quando a IA escreveu uma
+          versão mais nova que ainda não virou figura, a tela oferece — mas não
+          troca sozinha, senão o consultor voltaria a corrigir um texto que não é
+          o da imagem que está vendo. */}
+      {temTextoNovo && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900 p-2.5 rounded bg-amber-50 border border-amber-200">
+          <span>A IA escreveu uma versão mais nova que ainda não virou imagem.</span>
+          <button
+            onClick={aoUsarTextoNovo}
+            className="px-2 py-1 rounded border border-amber-400 bg-white font-bold hover:bg-amber-100"
+          >
+            Carregar o texto novo
+          </button>
+        </div>
       )}
       {/* Todas as páginas, pequenas. Clicar troca a grande de baixo. */}
       <div className="flex flex-wrap gap-2">
@@ -790,10 +842,29 @@ function FichaCarrossel({
             </button>
             <button
               onClick={aoDesfazer}
-              title="Volta ao texto que a IA escreveu"
+              title="Volta ao texto que gerou estas imagens"
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Desfazer
+            </button>
+          </div>
+
+          {/* Pedir à IA fica AQUI, junto do texto que ela vai reescrever, e não
+              numa caixa solta no fim da tela. */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            <input
+              value={melhoria}
+              onChange={(e) => aoMudarMelhoria(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && melhoria.trim()) aoPedirIa(); }}
+              placeholder="Ou peça à IA: a capa está fraca, comece pelo incômodo de quem nunca liderou um projeto"
+              className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-gray-300 text-sm"
+            />
+            <button
+              onClick={aoPedirIa}
+              disabled={ocupado || !melhoria.trim()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-50"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Pedir à IA
             </button>
           </div>
         </div>
@@ -904,6 +975,48 @@ function FichaComTexto({
   ajuda: string;
   capa?: string | null;
 }) {
+  return (
+    <div className="flex flex-col lg:flex-row gap-4">
+      <div className="lg:w-[300px] shrink-0 space-y-2">
+        {capa && <TituloDaCapa criativo={criativo} />}
+        <Previa caminho={peca.arquivoUrl} />
+        {/* A capa do Reel fica aberta ao lado do vídeo: é ela que vira a miniatura
+            no Instagram, e é a primeira coisa que alguém vê. */}
+        {capa && (
+          <div>
+            <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
+            <ImagemDoArquivo caminho={capa} className="w-32 rounded border border-gray-200" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <TextoParaPublicar criativo={criativo} campo={campo} titulo={titulo} ajuda={ajuda} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Um texto pronto para colar, editável e copiável.
+ *
+ * Vive no criativo, e não em arquivo. Antes a "legenda" era um legenda.md solto
+ * dentro de cada pasta do Storage: o consultor não tinha como revisar nem copiar,
+ * e o arquivo só ocupava espaço na lista da peça.
+ *
+ * O MESMO campo aparece em mais de um lugar de propósito — o artigo do LinkedIn
+ * está no documento e na imagem única; a legenda do Instagram está no Reel e no
+ * carrossel em vídeo. É o mesmo post em cada caso, então é o mesmo texto, e editar
+ * num lugar muda no outro.
+ */
+function TextoParaPublicar({
+  criativo, campo, titulo, ajuda,
+}: {
+  criativo: Criativo;
+  campo: 'artigoLinkedin' | 'legendaInstagram';
+  titulo: string;
+  ajuda: string;
+}) {
   const gravado = criativo.textos?.[campo] || '';
   const [texto, setTexto] = useState(gravado);
   const [salvando, setSalvando] = useState(false);
@@ -943,65 +1056,106 @@ function FichaComTexto({
   const palavras = texto.trim().split(/\s+/).filter(Boolean).length;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      <div className="lg:w-[300px] shrink-0 space-y-2">
-        <Previa caminho={peca.arquivoUrl} />
-        {/* A capa do Reel fica aberta ao lado do vídeo: é ela que vira a miniatura
-            no Instagram, e é a primeira coisa que alguém vê. */}
-        {capa && (
-          <div>
-            <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
-            <ImagemDoArquivo caminho={capa} className="w-32 rounded border border-gray-200" />
-          </div>
-        )}
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-800">{titulo}</p>
+        <span className="text-[11px] text-gray-500">{palavras} palavras</span>
       </div>
+      <p className="text-xs text-gray-600 mt-0.5 mb-2">{ajuda}</p>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-800">{titulo}</p>
-          <span className="text-[11px] text-gray-500">{palavras} palavras</span>
-        </div>
-        <p className="text-xs text-gray-600 mt-0.5 mb-2">{ajuda}</p>
+      {texto || mudou ? (
+        <textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          rows={12}
+          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 font-normal leading-relaxed resize-y"
+        />
+      ) : (
+        <p className="text-sm text-gray-500 italic p-3 rounded bg-gray-50 border border-dashed border-gray-300">
+          Ainda não há texto. Ele é escrito junto com as peças — peça à IA no carrossel
+          do feed para ela escrever.
+        </p>
+      )}
 
-        {texto || mudou ? (
-          <textarea
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            rows={12}
-            className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 font-normal leading-relaxed resize-y"
-          />
-        ) : (
-          <p className="text-sm text-gray-500 italic p-3 rounded bg-gray-50 border border-dashed border-gray-300">
-            Ainda não há texto. Ele é escrito junto com as peças — use "Pedir e refazer"
-            para a IA escrever.
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 mt-2">
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <button
+          onClick={copiar}
+          disabled={!texto}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+        >
+          {copiado ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+          {copiado ? 'Copiado' : 'Copiar'}
+        </button>
+        {mudou && (
           <button
-            onClick={copiar}
-            disabled={!texto}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+            onClick={salvar}
+            disabled={salvando}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
           >
-            {copiado ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-            {copiado ? 'Copiado' : 'Copiar'}
+            {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Salvar
           </button>
-          {mudou && (
-            <button
-              onClick={salvar}
-              disabled={salvando}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-            >
-              {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              Salvar
-            </button>
-          )}
-          {mudou && !salvando && (
-            <span className="text-[11px] text-amber-700 font-semibold">alterações não salvas</span>
-          )}
-        </div>
-        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
+        )}
+        {mudou && !salvando && (
+          <span className="text-[11px] text-amber-700 font-semibold">alterações não salvas</span>
+        )}
       </div>
+      {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
+    </div>
+  );
+}
+
+/**
+ * O título que aparece no alto do Reel.
+ *
+ * É o título do criativo, e era só de leitura: o consultor via "SUA MENTALIDADE É
+ * DE MELHORIA CONTÍNUA?" queimado no vídeo e não tinha por onde mudar. Agora
+ * muda aqui e vale no próximo Refazer — o corte é o mesmo, só o letreiro muda.
+ */
+function TituloDaCapa({ criativo }: { criativo: Criativo }) {
+  const [texto, setTexto] = useState(criativo.titulo);
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => { setTexto(criativo.titulo); }, [criativo.id, criativo.titulo]);
+
+  const mudou = texto.trim() !== criativo.titulo && Boolean(texto.trim());
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
+        titulo: texto.trim(),
+        atualizadoEm: new Date().toISOString(),
+      });
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="mb-3">
+      <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Texto do alto do vídeo</p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-900"
+        />
+        {mudou && (
+          <button
+            onClick={salvar}
+            disabled={salvando}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-60"
+          >
+            {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Salvar
+          </button>
+        )}
+      </div>
+      {mudou && (
+        <p className="text-[11px] text-amber-700 mt-1">
+          Salve e clique em <strong>Refazer</strong> para o vídeo sair com este texto.
+        </p>
+      )}
     </div>
   );
 }

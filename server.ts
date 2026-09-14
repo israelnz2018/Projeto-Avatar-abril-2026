@@ -3230,8 +3230,10 @@ Cada página tem um "type". Use os tipos assim:
   fonte (opcional). Só use se o número tiver saído da fala — não invente estatística.
 - "comparacao": para opor duas coisas. Campos: title, body, negativo, positivo
   (duas ou três palavras cada).
-- "cta": a última página, sempre. Campos: title, body, palavra (UMA palavra em
-  maiúsculas que o seguidor vai comentar).
+- "cta": a última página, sempre. Campos: title, body. Fecha a ideia — uma
+  afirmação que faça pensar, ou o convite direto ao que o consultor ensina.
+  NÃO peça comentário, nem para "comentar a palavra X": isso é isca, quem lê
+  reconhece como isca, e a página de fecho passa a valer menos que a ideia.
 
 REGRAS QUE NÃO PODEM SER QUEBRADAS
 
@@ -3317,7 +3319,8 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  Nada de "carrossel abaixo" ou "deslize" — no LinkedIn é um documento, não um carrossel.\n\n`
         + `"legendaInstagram": a legenda do post, pronta para colar. De 80 a 150 palavras.\n`
         + `  Mais direta que a do LinkedIn. Primeira linha curta, que aparece antes do "mais".\n`
-        + `  Quebras de linha curtas. Termina chamando o comentário com a palavra da última página.\n`
+        + `  Quebras de linha curtas. Termina com uma pergunta de verdade, que dê vontade\n`
+        + `  de responder. NUNCA "comente X", "digite X" ou qualquer isca de engajamento.\n`
         + `  Até cinco hashtags no fim, específicas do assunto — nada de #sucesso ou #motivacao.\n\n`
         + `Os dois saem da fala, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
         + `Devolva APENAS JSON: {"slides":[...],"artigoLinkedin":"...","legendaInstagram":"..."}`
@@ -3342,7 +3345,6 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
                 fonte: { type: Type.STRING },
                 negativo: { type: Type.STRING },
                 positivo: { type: Type.STRING },
-                palavra: { type: Type.STRING },
               },
               required: ["type", "title", "body"],
             },
