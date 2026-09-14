@@ -635,6 +635,7 @@ function PecasProduzidas({
             <FichaCarrossel
               peca={p}
               slides={slides}
+              roteiroGeradoEm={criativo.roteiro?.geradoEm}
               ocupado={ocupado}
               aoAlterarSlide={aoAlterarSlide}
               aoRefazer={aoRefazerTexto}
@@ -686,10 +687,11 @@ function PecasProduzidas({
  * mudando enquanto muda.
  */
 function FichaCarrossel({
-  peca, slides, ocupado, aoAlterarSlide, aoRefazer, aoDesfazer,
+  peca, slides, roteiroGeradoEm, ocupado, aoAlterarSlide, aoRefazer, aoDesfazer,
 }: {
   peca: Peca;
   slides: SlideRoteiro[];
+  roteiroGeradoEm?: string;
   ocupado?: boolean;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoRefazer: () => void;
@@ -713,8 +715,24 @@ function FichaCarrossel({
   const indice = Math.min(aberta, paginas.length - 1);
   const slide = slides[indice];
 
+  // O TEXTO AO LADO PODE NÃO SER O TEXTO DA IMAGEM.
+  //
+  // A imagem é a última que o renderizador produziu; o texto é o roteiro corrente.
+  // Normalmente andam juntos, porque "Pedir e refazer" faz as duas coisas. Mas se
+  // a produção falhar, ou se a IA reescrever e o render não rodar, o consultor
+  // ficaria corrigindo um texto que não é o da figura que está vendo — e nada na
+  // tela diria isso. Comparar as datas custa nada e evita esse silêncio.
+  const feitaEm = peca.atualizadoEm || peca.criadoEm;
+  const desencontrado = Boolean(roteiroGeradoEm && feitaEm && roteiroGeradoEm > feitaEm);
+
   return (
     <div className="space-y-3">
+      {desencontrado && (
+        <p className="text-xs text-amber-900 p-2.5 rounded bg-amber-50 border border-amber-200">
+          O texto ao lado é mais novo que estas imagens. Clique em
+          <strong> Refazer com estas mudanças</strong> para as páginas ficarem iguais ao texto.
+        </p>
+      )}
       {/* Todas as páginas, pequenas. Clicar troca a grande de baixo. */}
       <div className="flex flex-wrap gap-2">
         {paginas.map((c, i) => (
