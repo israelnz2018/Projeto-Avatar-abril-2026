@@ -223,11 +223,20 @@ function Producao({
   // avisa e deixa carregar — mas não troca sozinha.
   const campanhaDoTexto = campanhas.find((c) => c.id === `${criativo.id}__pecas`);
   const textoRenderizado = campanhaDoTexto?.roteiro;
-  // A IA escreveu algo mais novo do que o que virou imagem.
-  const temTextoNovo = Boolean(
-    criativo.roteiro?.geradoEm
-    && campanhaDoTexto?.roteiroGeradoEm
-    && criativo.roteiro.geradoEm > campanhaDoTexto.roteiroGeradoEm,
+  // NAO DA PARA PROVAR QUE O TEXTO AO LADO É O DA IMAGEM.
+  //
+  // Dois casos, e o segundo é o que me escapou: ou a IA escreveu algo mais novo do
+  // que virou figura, OU a campanha é anterior a esta plataforma guardar o texto
+  // usado, e aí simplesmente não se sabe. Na primeira versão o aviso exigia a data
+  // guardada para disparar — então na campanha que não tinha a data, que é
+  // justamente a que corria mais risco, ele ficava calado.
+  //
+  // Aviso que só funciona no caso fácil não serve. O padrão passa a ser desconfiar.
+  const naoSeiSeBate = Boolean(
+    !campanhaDoTexto?.roteiro?.length
+    || (criativo.roteiro?.geradoEm
+      && campanhaDoTexto?.roteiroGeradoEm
+      && criativo.roteiro.geradoEm > campanhaDoTexto.roteiroGeradoEm),
   );
 
   useEffect(() => {
@@ -498,11 +507,11 @@ function Producao({
         aoAprovar={onMudou}
         aoAlterarSlide={alterarSlide}
         aoDesfazerSlides={() => setSlides(textoRenderizado?.length ? textoRenderizado : (criativo.roteiro?.slides || []))}
-        temTextoNovo={temTextoNovo}
+        naoSeiSeBate={naoSeiSeBate && daCampanha.length > 0}
         melhoria={melhoria}
         aoMudarMelhoria={setMelhoria}
         aoPedirIa={criarTudo}
-        aoUsarTextoNovo={() => setSlides(criativo.roteiro?.slides || [])}
+        aoUsarTextoNovo={refazerTexto}
       />
       {avisoReel && (
         <p className="text-sm text-amber-800 p-3 rounded bg-amber-50 border border-amber-200">
@@ -516,7 +525,14 @@ function Producao({
           escolher. Não é uma peça nova do renderizador — é a mesma capa, mostrada
           para o que ela serve. O texto ao lado é o MESMO artigo do PDF: é o mesmo
           post, então mudar num muda no outro. */}
-      <ImagemUnicaLinkedin criativo={criativo} pecas={daCampanha} />
+      <ImagemUnicaLinkedin
+        criativo={criativo}
+        pecas={daCampanha}
+        slides={slides}
+        ocupado={servidorTrabalhando || gerando || enfileirando}
+        aoAlterarSlide={alterarSlide}
+        aoRefazer={refazerTexto}
+      />
 
       {erro && <p className="text-sm text-red-700">{erro}</p>}
     </div>
@@ -528,14 +544,28 @@ function Producao({
  *
  * Fica no fim porque é a alternativa ao documento, não a peça principal.
  */
-function ImagemUnicaLinkedin({ criativo, pecas }: { criativo: Criativo; pecas: Peca[] }) {
+function ImagemUnicaLinkedin({
+  criativo, pecas, slides, ocupado, aoAlterarSlide, aoRefazer,
+}: {
+  criativo: Criativo;
+  pecas: Peca[];
+  slides: SlideRoteiro[];
+  ocupado?: boolean;
+  aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+  aoRefazer: () => void;
+}) {
   const feed = pecas.find((p) => p.tipo === 'carrossel-feed');
   const capa = (feed?.arquivos || []).filter((c) => /slide-\d+\.png$/i.test(c)).sort()[0];
   if (!capa) return null;
 
+  // A capa É a página 1 do carrossel. Mexer aqui é mexer lá, de propósito: são a
+  // mesma imagem, e manter duas cópias do mesmo texto daria dois textos diferentes.
+  const paginaDaCapa = slides[0];
+
   return (
     <section className="p-4 rounded-lg border border-gray-200 bg-white">
       <p className="text-sm font-semibold text-gray-800 mb-3">Imagem única para o LinkedIn</p>
+
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="lg:w-[300px] shrink-0">
           <ImagemDoArquivo caminho={capa} className="w-full rounded-lg border border-gray-200" />
@@ -543,13 +573,38 @@ function ImagemUnicaLinkedin({ criativo, pecas }: { criativo: Criativo; pecas: P
             É a capa do carrossel. Para um post de imagem só, em vez do documento.
           </p>
         </div>
+
         <div className="flex-1 min-w-0">
-          <TextoParaPublicar
-            criativo={criativo}
-            campo="artigoLinkedin"
-            titulo="Artigo do LinkedIn"
-            ajuda="O mesmo texto do documento PDF — é o mesmo post. Mudar aqui muda lá."
-          />
+          {/* O TEXTO DA IMAGEM, para mudar o que está escrito nela. */}
+          {paginaDaCapa ? (
+            <>
+              <p className="text-sm font-semibold text-gray-800 mb-2">Texto da imagem</p>
+              <EditorDaPagina indice={0} slide={paginaDaCapa} aoAlterar={aoAlterarSlide} />
+              <button
+                onClick={aoRefazer}
+                disabled={ocupado}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 mt-2"
+              >
+                {ocupado
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
+                  : <>Refazer a imagem com este texto</>}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500 italic">
+              O texto desta imagem não está guardado.
+            </p>
+          )}
+
+          {/* E SÓ DEPOIS o artigo que acompanha o post. */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <TextoParaPublicar
+              criativo={criativo}
+              campo="artigoLinkedin"
+              titulo="Artigo do LinkedIn"
+              ajuda="O mesmo texto do documento PDF — é o mesmo post. Mudar aqui muda lá."
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -570,7 +625,7 @@ function PecasProduzidas({
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
   aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoDesfazerSlides,
-  temTextoNovo, melhoria, aoMudarMelhoria, aoPedirIa, aoUsarTextoNovo,
+  naoSeiSeBate, melhoria, aoMudarMelhoria, aoPedirIa, aoUsarTextoNovo,
 }: {
   pecas: Peca[];
   esperando?: boolean;
@@ -586,7 +641,7 @@ function PecasProduzidas({
   aoAprovar: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoDesfazerSlides: () => void;
-  temTextoNovo?: boolean;
+  naoSeiSeBate?: boolean;
   melhoria: string;
   aoMudarMelhoria: (v: string) => void;
   aoPedirIa: () => void;
@@ -679,7 +734,7 @@ function PecasProduzidas({
             <FichaCarrossel
               peca={p}
               slides={slides}
-              temTextoNovo={temTextoNovo}
+              naoSeiSeBate={naoSeiSeBate}
               ocupado={ocupado}
               melhoria={melhoria}
               aoMudarMelhoria={aoMudarMelhoria}
@@ -735,12 +790,12 @@ function PecasProduzidas({
  * mudando enquanto muda.
  */
 function FichaCarrossel({
-  peca, slides, temTextoNovo, ocupado, melhoria, aoMudarMelhoria, aoPedirIa,
+  peca, slides, naoSeiSeBate, ocupado, melhoria, aoMudarMelhoria, aoPedirIa,
   aoAlterarSlide, aoRefazer, aoDesfazer, aoUsarTextoNovo,
 }: {
   peca: Peca;
   slides: SlideRoteiro[];
-  temTextoNovo?: boolean;
+  naoSeiSeBate?: boolean;
   ocupado?: boolean;
   melhoria: string;
   aoMudarMelhoria: (v: string) => void;
@@ -770,18 +825,19 @@ function FichaCarrossel({
 
   return (
     <div className="space-y-3">
-      {/* O texto ao lado é o que gerou estas imagens. Quando a IA escreveu uma
-          versão mais nova que ainda não virou figura, a tela oferece — mas não
-          troca sozinha, senão o consultor voltaria a corrigir um texto que não é
-          o da imagem que está vendo. */}
-      {temTextoNovo && (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900 p-2.5 rounded bg-amber-50 border border-amber-200">
-          <span>A IA escreveu uma versão mais nova que ainda não virou imagem.</span>
+      {/* Diz alto quando o texto ao lado ainda não é o texto destas imagens. */}
+      {naoSeiSeBate && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-amber-900 p-2.5 rounded bg-amber-50 border border-amber-300">
+          <span>
+            <strong>Estas imagens ainda não foram feitas com este texto.</strong> Clique em
+            Refazer com estas mudanças para elas ficarem iguais ao que está escrito aqui.
+          </span>
           <button
             onClick={aoUsarTextoNovo}
-            className="px-2 py-1 rounded border border-amber-400 bg-white font-bold hover:bg-amber-100"
+            disabled={ocupado}
+            className="px-2.5 py-1 rounded bg-amber-600 text-white font-bold hover:bg-amber-700 disabled:opacity-50"
           >
-            Carregar o texto novo
+            Refazer agora
           </button>
         </div>
       )}
@@ -978,14 +1034,15 @@ function FichaComTexto({
   return (
     <div className="flex flex-col lg:flex-row gap-4">
       <div className="lg:w-[300px] shrink-0 space-y-2">
-        {capa && <TituloDaCapa criativo={criativo} />}
         <Previa caminho={peca.arquivoUrl} />
         {/* A capa do Reel fica aberta ao lado do vídeo: é ela que vira a miniatura
-            no Instagram, e é a primeira coisa que alguém vê. */}
+            no Instagram, e é a primeira coisa que alguém vê. O campo que muda o
+            texto dela fica LOGO ACIMA dela, e não no topo da ficha. */}
         {capa && (
-          <div>
+          <div className="pt-2 border-t border-gray-100">
             <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
-            <ImagemDoArquivo caminho={capa} className="w-32 rounded border border-gray-200" />
+            <TituloDaCapa criativo={criativo} />
+            <ImagemDoArquivo caminho={capa} className="w-full rounded border border-gray-200" />
           </div>
         )}
       </div>
@@ -1106,11 +1163,14 @@ function TextoParaPublicar({
 }
 
 /**
- * O título que aparece no alto do Reel.
+ * O título que aparece no alto da CAPA do Reel.
  *
- * É o título do criativo, e era só de leitura: o consultor via "SUA MENTALIDADE É
- * DE MELHORIA CONTÍNUA?" queimado no vídeo e não tinha por onde mudar. Agora
- * muda aqui e vale no próximo Refazer — o corte é o mesmo, só o letreiro muda.
+ * Chamava-se "texto do alto do vídeo", que descrevia onde ele aparece e não o que
+ * ele é. Fica junto da capa, porque é a capa que ele encabeça.
+ *
+ * Era só de leitura: o consultor via "SUA MENTALIDADE É DE MELHORIA CONTÍNUA?"
+ * queimado na imagem e não tinha por onde mudar. Agora muda aqui e vale no
+ * próximo Refazer — o corte é o mesmo, só o letreiro muda.
  */
 function TituloDaCapa({ criativo }: { criativo: Criativo }) {
   const [texto, setTexto] = useState(criativo.titulo);
@@ -1133,7 +1193,7 @@ function TituloDaCapa({ criativo }: { criativo: Criativo }) {
 
   return (
     <div className="mb-3">
-      <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Texto do alto do vídeo</p>
+      <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Texto do alto da capa</p>
       <div className="flex flex-wrap gap-2">
         <input
           value={texto}
