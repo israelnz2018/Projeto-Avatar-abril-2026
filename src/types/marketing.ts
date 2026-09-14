@@ -200,6 +200,23 @@ export interface Criativo {
    * carrossel em vídeo) — é o mesmo texto nos dois, porque é o mesmo post.
    */
   textos?: { artigoLinkedin: string; legendaInstagram: string; geradoEm: string };
+  /**
+   * A arte da capa do Reel, conforme o padrão em
+   * squads/lbw-reel-production/pipeline/data/cover-standard.md.
+   *
+   * A capa é uma arte própria, NUNCA um quadro do vídeo — um quadro do Reel traz
+   * o slide, o círculo do rosto e a legenda karaokê juntos, e vira uma miniatura
+   * ilegível no feed. Do vídeo sai só o retrato.
+   */
+  capa?: {
+    courseKey?: 'white-belt' | 'yellow-belt' | 'green-belt' | 'black-belt';
+    seriesLabel?: string;
+    episode?: string;
+    /** O gancho, de 3 a 6 palavras, em até 3 linhas. */
+    hookLines?: string[];
+    topicLabel?: string;
+    topicStrong?: string;
+  };
   status: StatusCriativo;
   criadoEm: string;
   atualizadoEm?: string;

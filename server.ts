@@ -3634,6 +3634,37 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const referer = origem ? (origem.endsWith("/") ? origem : `${origem}/`) : "";
 
       const [titulo1, titulo2] = tituloEmDuasLinhas(criativo.titulo);
+
+      // A CAPA DO REEL É UMA ARTE, NÃO UM QUADRO DO VÍDEO.
+      //
+      // O padrão das capas (cover-standard.md) diz isso na primeira regra, e a
+      // plataforma vinha violando: arrancava o quadro inteiro do Reel montado, com
+      // slide, círculo do rosto e legenda karaokê dentro. O renderizador da arte já
+      // existia no squad e só não estava ligado aqui.
+      const capaPedida = (criativo.capa || {}) as any;
+      const ganchoBruto: string[] = Array.isArray(capaPedida.hookLines) && capaPedida.hookLines.length
+        ? capaPedida.hookLines.map((l: any) => String(l || "").trim()).filter(Boolean)
+        : ganchoDoTitulo(String(criativo.titulo || ""));
+      const palavrasDoGancho = ganchoBruto.join(" ").split(/\s+/).filter(Boolean).length;
+      if (palavrasDoGancho < 3) {
+        return res.status(400).json({
+          error: "O gancho da capa precisa de 3 a 6 palavras. Escreva um em 'Gancho da capa', na peça do Reel.",
+          campo: "capa.hookLines",
+        });
+      }
+
+      const cover = {
+        mode: "dedicated",
+        courseKey: capaPedida.courseKey || "white-belt",
+        seriesLabel: String(capaPedida.seriesLabel || "WHITE BELT").toUpperCase().slice(0, 24),
+        // Dois dígitos é exigência do padrão: "01", não "1".
+        episode: String(capaPedida.episode || criativo.ordem || 1).replace(/\D/g, "").padStart(2, "0").slice(-2),
+        hookLines: ganchoBruto.slice(0, 3),
+        topicLabel: String(capaPedida.topicLabel || "AULA PRÁTICA").toUpperCase().slice(0, 28),
+        topicStrong: String(
+          capaPedida.topicStrong || video.serie || video.curso || "MELHORIA CONTÍNUA",
+        ).toUpperCase().slice(0, 28),
+      };
       const agora = new Date().toISOString();
       const campanhaId = `${criativoId}__reel`;
 
@@ -3669,6 +3700,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
           lastWordEnd: msParaTempo(Number(palavras[palavras.length - 1].f)),
           layout: LAYOUT_REEL,
           speed: velocidade,
+          cover,
           titleLine1: titulo1,
           titleLine2: titulo2,
           brandText: "EDUCAÇÃO PELO TRABALHO",
@@ -3696,6 +3728,26 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       return res.status(500).json({ error: errorMessage });
     }
   });
+
+  /**
+   * O gancho da capa a partir do título, em até 3 linhas de 3 a 6 palavras.
+   *
+   * Corta em 6 palavras de propósito, em vez de recusar: título comprido é comum,
+   * e uma capa com gancho aparado ainda serve — uma geração recusada não serve
+   * para nada. O consultor ajusta no campo quando quiser outra coisa.
+   */
+  function ganchoDoTitulo(titulo: string): string[] {
+    const palavras = titulo.trim().split(/\s+/).filter(Boolean).slice(0, 6);
+    if (!palavras.length) return [];
+    // DUAS LINHAS, EQUILIBRADAS POR TAMANHO — não por contagem de palavras.
+    //
+    // Dividir em partes iguais de palavras parte nome no meio: "Lean Six Sigma é
+    // método" virava "LEAN SIX / SIGMA É / MÉTODO". Equilibrar por caracteres dá
+    // "LEAN SIX SIGMA / É MÉTODO", que é como a capa foi desenhada.
+    //
+    // É a mesma conta do letreiro do vídeo, e de propósito: são o mesmo gancho.
+    return tituloEmDuasLinhas(palavras.join(" ")).filter(Boolean);
+  }
 
   /** Milissegundos -> "HH:MM:SS.mmm", que é o que o ffmpeg e o render esperam. */
   function msParaTempo(ms: number): string {

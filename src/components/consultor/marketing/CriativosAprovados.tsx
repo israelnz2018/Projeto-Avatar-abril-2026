@@ -1043,6 +1043,7 @@ function FichaComTexto({
             <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
             <TituloDaCapa criativo={criativo} />
             <ImagemDoArquivo caminho={capa} className="w-full rounded border border-gray-200" />
+            <ArteDaCapa criativo={criativo} />
           </div>
         )}
       </div>
@@ -1216,6 +1217,159 @@ function TituloDaCapa({ criativo }: { criativo: Criativo }) {
           Salve e clique em <strong>Refazer</strong> para o vídeo sair com este texto.
         </p>
       )}
+    </div>
+  );
+}
+
+const CURSOS: { id: string; nome: string }[] = [
+  { id: 'white-belt', nome: 'White Belt — fundo branco' },
+  { id: 'yellow-belt', nome: 'Yellow Belt — fundo amarelo' },
+  { id: 'green-belt', nome: 'Green Belt — fundo verde' },
+  { id: 'black-belt', nome: 'Black Belt — fundo preto' },
+];
+
+/**
+ * Os campos da arte da capa do Reel.
+ *
+ * A capa segue o padrão de squads/lbw-reel-production/pipeline/data/cover-standard.md:
+ * marca, curso e episódio, gancho curto, retrato grande. Ela é DESENHADA — do vídeo
+ * sai só o rosto. Antes a plataforma arrancava um quadro inteiro do Reel montado,
+ * com slide e legenda karaokê dentro, que no feed vira uma miniatura ilegível.
+ *
+ * O gancho tem limite de 3 a 6 palavras porque é o que se lê no tamanho de uma
+ * miniatura. Não é preferência: passar disso o padrão manda reprovar a capa.
+ */
+function ArteDaCapa({ criativo }: { criativo: Criativo }) {
+  const gravada = criativo.capa || {};
+  const [curso, setCurso] = useState(gravada.courseKey || 'white-belt');
+  const [serie, setSerie] = useState(gravada.seriesLabel || 'WHITE BELT');
+  const [episodio, setEpisodio] = useState(gravada.episode || String(criativo.ordem || 1).padStart(2, '0'));
+  const [gancho, setGancho] = useState((gravada.hookLines || []).join('\n'));
+  const [rotulo, setRotulo] = useState(gravada.topicLabel || 'AULA PRÁTICA');
+  const [assunto, setAssunto] = useState(gravada.topicStrong || '');
+  const [salvando, setSalvando] = useState(false);
+  const [aberto, setAberto] = useState(false);
+
+  useEffect(() => {
+    const g = criativo.capa || {};
+    setCurso(g.courseKey || 'white-belt');
+    setSerie(g.seriesLabel || 'WHITE BELT');
+    setEpisodio(g.episode || String(criativo.ordem || 1).padStart(2, '0'));
+    setGancho((g.hookLines || []).join('\n'));
+    setRotulo(g.topicLabel || 'AULA PRÁTICA');
+    setAssunto(g.topicStrong || '');
+  }, [criativo.id, criativo.capa]);
+
+  const linhas = gancho.split('\n').map((l) => l.trim()).filter(Boolean);
+  const palavras = linhas.join(' ').split(/\s+/).filter(Boolean).length;
+  const ganchoOk = palavras === 0 || (palavras >= 3 && palavras <= 6 && linhas.length <= 3);
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
+        capa: {
+          courseKey: curso,
+          seriesLabel: serie.trim().toUpperCase(),
+          episode: episodio.replace(/\D/g, '').padStart(2, '0').slice(-2),
+          hookLines: linhas.map((l) => l.toUpperCase()),
+          topicLabel: rotulo.trim().toUpperCase(),
+          topicStrong: assunto.trim().toUpperCase(),
+        },
+        atualizadoEm: new Date().toISOString(),
+      });
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (!aberto) {
+    return (
+      <button
+        onClick={() => setAberto(true)}
+        className="mt-2 text-xs font-semibold text-blue-700 hover:underline"
+      >
+        Mudar a arte da capa
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 p-2.5 rounded border border-gray-200 bg-gray-50/60 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold uppercase text-gray-500">Arte da capa</p>
+        <button onClick={() => setAberto(false)} className="text-xs text-gray-500 hover:text-gray-800">fechar</button>
+      </div>
+
+      <select
+        value={curso}
+        onChange={(e) => setCurso(e.target.value as typeof curso)}
+        className="w-full px-2 py-1 rounded border border-gray-300 text-xs bg-white"
+      >
+        {CURSOS.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+      </select>
+
+      <div className="flex gap-2">
+        <input
+          value={serie}
+          onChange={(e) => setSerie(e.target.value)}
+          placeholder="WHITE BELT"
+          className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-xs"
+        />
+        <input
+          value={episodio}
+          onChange={(e) => setEpisodio(e.target.value)}
+          placeholder="03"
+          className="w-14 px-2 py-1 rounded border border-gray-300 text-xs"
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase text-gray-400">Gancho da capa</span>
+          <span className={`text-[10px] font-bold ${ganchoOk ? 'text-gray-400' : 'text-red-600'}`}>
+            {palavras}/6 palavras · {linhas.length}/3 linhas
+          </span>
+        </div>
+        <textarea
+          value={gancho}
+          onChange={(e) => setGancho(e.target.value)}
+          rows={3}
+          placeholder={'LEAN SIX SIGMA\nÉ MÉTODO'}
+          className="w-full px-2 py-1 rounded border border-gray-300 text-xs font-bold resize-none"
+        />
+        <p className="text-[10px] text-gray-500">
+          Uma linha por linha da capa. De 3 a 6 palavras no total — é o que se lê numa miniatura.
+          Vazio usa o título.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          value={rotulo}
+          onChange={(e) => setRotulo(e.target.value)}
+          placeholder="AULA PRÁTICA"
+          className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-xs"
+        />
+        <input
+          value={assunto}
+          onChange={(e) => setAssunto(e.target.value)}
+          placeholder="MELHORIA CONTÍNUA"
+          className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-xs"
+        />
+      </div>
+
+      <button
+        onClick={salvar}
+        disabled={salvando || !ganchoOk}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold disabled:opacity-50"
+      >
+        {salvando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+        Salvar a arte
+      </button>
+      <p className="text-[10px] text-amber-700">
+        Depois de salvar, clique em <strong>Refazer</strong> para a capa sair assim.
+      </p>
     </div>
   );
 }
