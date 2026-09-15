@@ -922,15 +922,36 @@ export default function KnowledgeManagerView() {
     }
   };
 
-  /** Curso ainda sem vídeo: não há o que apagar na Base de Conhecimento, some só a Initiative. */
+  const cadastrosDoCurso = (courseName: string) => {
+    const nome = courseName.trim().toLocaleLowerCase('pt-BR');
+    return initiatives.filter((item) => item.name?.trim().toLocaleLowerCase('pt-BR') === nome);
+  };
+
+  /**
+   * A tela agrupa cursos por nome. Se uma importação ou teste antigo deixou mais de
+   * uma Initiative com o mesmo nome, todos os registros formam o mesmo curso visível
+   * e precisam sair juntos. Apagar apenas o primeiro fazia o curso reaparecer.
+   */
+  const deleteCourseRegistrations = async (courseName: string) => {
+    const registrations = cadastrosDoCurso(courseName);
+    for (const registration of registrations) {
+      await deleteInitiative(registration.id);
+    }
+    if (registrations.length === 0) return;
+
+    const removedIds = new Set(registrations.map((item) => item.id));
+    setInitiatives((prev) => prev.filter((item) => !removedIds.has(item.id)));
+    setInitiativeNames((prev) => prev.filter(
+      (name) => name.trim().toLocaleLowerCase('pt-BR') !== courseName.trim().toLocaleLowerCase('pt-BR'),
+    ));
+  };
+
+  /** Curso ainda sem vídeo: não há o que apagar na Base de Conhecimento. */
   const handleDeleteEmptyCourse = async (courseName: string) => {
-    const ini = initiatives.find((i) => i.name === courseName);
-    if (!ini) return;
+    if (isIntroCourse(courseName)) return;
     if (!confirm(`Excluir o curso "${courseName}"?\n\nEle ainda não tem nenhum vídeo.`)) return;
     try {
-      await deleteInitiative(ini.id);
-      setInitiatives((prev) => prev.filter((i) => i.id !== ini.id));
-      setInitiativeNames((prev) => prev.filter((n) => n !== courseName));
+      await deleteCourseRegistrations(courseName);
     } catch (error) {
       console.error('[handleDeleteEmptyCourse]', error);
       alert('Não foi possível excluir o curso.');
@@ -1665,13 +1686,9 @@ export default function KnowledgeManagerView() {
         }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
         const courseName = modalConfig.targetCourse;
+        if (isIntroCourse(courseName)) throw new Error('As abas especiais não podem ser excluídas.');
         await deleteCourse(courseName, consultorId);
-        const initiative = initiatives.find((item) => item.name === courseName);
-        if (initiative) {
-          await deleteInitiative(initiative.id);
-          setInitiatives((prev) => prev.filter((item) => item.id !== initiative.id));
-          setInitiativeNames((prev) => prev.filter((name) => name !== courseName));
-        }
+        await deleteCourseRegistrations(courseName);
       } else if (modalConfig.type === 'editCourse' && modalConfig.targetCourse && modalConfig.inputValue) {
         const nomeAntigo = modalConfig.targetCourse;
         const nomeNovo = modalConfig.inputValue.trim();

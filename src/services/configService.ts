@@ -196,12 +196,19 @@ export const saveInitiativeToolLinks = async (
 };
 
 export const deleteInitiative = async (id: string): Promise<void> => {
-  await deleteDoc(doc(db, INITIATIVES_COLLECTION, id));
-  // Also delete associated configs
-  const configs = await getInitiativeConfigs(id);
-  for (const config of configs) {
-    await deleteDoc(doc(db, CONFIG_COLLECTION, `${id}_${config.phaseId}`));
-  }
+  const cid = resolveConsultorId();
+  const configs = await getDocs(query(
+    collection(db, CONFIG_COLLECTION),
+    where('consultorId', '==', cid),
+    where('initiativeId', '==', id),
+  ));
+
+  // A exclusão é atômica e usa o ID real de cada configuração. Registros antigos
+  // nem sempre seguem o padrão `${initiativeId}_${phaseId}` no nome do documento.
+  const batch = writeBatch(db);
+  configs.docs.forEach((config) => batch.delete(config.ref));
+  batch.delete(doc(db, INITIATIVES_COLLECTION, id));
+  await batch.commit();
 };
 
 // ===== Ferramentas em RASCUNHO (não prontas pra distribuir aos consultores) =====
