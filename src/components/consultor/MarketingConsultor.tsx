@@ -213,6 +213,7 @@ export default function MarketingConsultor() {
               {etapaAtiva === 'campanhas' && (
                 <div className="space-y-6">
                   <EtapaCriativosAprovados
+                    consultorId={consultorId}
                     marca={marcaDaPeca}
                     criativos={criativos.criativos}
                     videos={dados.videos}

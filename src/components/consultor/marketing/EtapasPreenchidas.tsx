@@ -401,7 +401,8 @@ export function Previa({ caminho }: { caminho?: string }) {
     );
   }
 
-  if (/\.mp4$/i.test(caminho)) {
+  // .mov é o vídeo que sai do iPhone, e é aceito no envio de peça pronta.
+  if (/\.(mp4|mov)$/i.test(caminho)) {
     return <video src={url} controls className="mt-3 rounded-lg border border-gray-200 max-h-80" />;
   }
 

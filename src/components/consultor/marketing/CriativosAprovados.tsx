@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy, FileUp,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
@@ -21,6 +21,10 @@ import {
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
 import { Previa, useArquivoUrl } from './EtapasPreenchidas';
+import {
+  ContextoImagens, EscolhaImagem, SeletorImagemDaPagina, aplicarEscolha, semIndefinidos, useBibliotecaImagens,
+} from './BibliotecaImagens';
+import { BotaoRemoverPecaEnviada, EnviarPecaPronta, LegendaDaPecaEnviada } from './EnviarPecaPronta';
 
 /**
  * Os layouts de página que o renderizador sabe montar.
@@ -34,33 +38,13 @@ const LAYOUTS: { id: SlideRoteiro['type']; nome: string; exige: (keyof SlideRote
   { id: 'padrao', nome: 'Padrão — título e texto', exige: [] },
   { id: 'dado', nome: 'Dado — número gigante em destaque', exige: ['numero', 'fonte'] },
   { id: 'comparacao', nome: 'Comparação — antes e depois', exige: ['negativo', 'positivo'] },
+  { id: 'foto', nome: 'Foto de fundo — cena com o texto por cima', exige: [] },
   { id: 'cta', nome: 'Chamada — a palavra a comentar', exige: ['palavra'] },
 ];
 
-/** Os layouts que têm espaço para uma pessoa. Comparação não tem. */
-const LAYOUTS_COM_PESSOA = new Set<SlideRoteiro['type']>(['capa', 'padrao', 'dado', 'cta']);
-
-/**
- * A biblioteca de pessoas recortadas, que vive junto do renderizador.
- *
- * A lista está escrita aqui porque a tela não enxerga a pasta de assets do motor.
- * Se entrar gente nova lá, entra aqui também — e o renderizador avisa no log
- * quando recebe um nome que não existe, em vez de quebrar.
- */
-const PESSOAS: { id: string; nome: string }[] = [
-  { id: '01-frustracao-mulher-30', nome: 'Frustração — mulher, 30' },
-  { id: '02-decisao-mulher-30', nome: 'Decisão — mulher, 30' },
-  { id: '03-duvida-homem-40', nome: 'Dúvida — homem, 40' },
-  { id: '04-explicando-homem-40', nome: 'Explicando — homem, 40' },
-  { id: '05-sobrecarga-homem-20', nome: 'Sobrecarga — homem, 20' },
-  { id: '06-insight-homem-20', nome: 'Insight — homem, 20' },
-  { id: '07-apontando-mulher-40', nome: 'Apontando — mulher, 40' },
-  { id: '08-foco-mulher-40', nome: 'Foco — mulher, 40' },
-  { id: '09-ceticismo-homem-50', nome: 'Ceticismo — homem, 50' },
-  { id: '10-confusao-mulher-20', nome: 'Confusão — mulher, 20' },
-  { id: '11-explicando-homem-30', nome: 'Explicando — homem, 30' },
-  { id: '12-lideranca-mulher-30', nome: 'Liderança — mulher, 30' },
-];
+// A lista de 12 pessoas escrita à mão saiu daqui. A tela e o renderizador passaram
+// a ler a mesma biblioteca (marketing_imagens), onde as imagens geradas e as fotos
+// enviadas entram ao lado delas — ver BibliotecaImagens.tsx.
 
 /** Os campos de texto que este layout precisa, somados aos que já têm conteúdo. */
 function camposDoSlide(slide: SlideRoteiro): (keyof SlideRoteiro)[] {
@@ -72,8 +56,9 @@ function camposDoSlide(slide: SlideRoteiro): (keyof SlideRoteiro)[] {
 
 
 export function EtapaCriativosAprovados({
-  criativos, videos, pecas, campanhas = [], marca, onMudou,
+  consultorId, criativos, videos, pecas, campanhas = [], marca, onMudou,
 }: {
+  consultorId: string;
   criativos: Criativo[];
   videos: VideoFonte[];
   pecas: Peca[];
@@ -94,11 +79,18 @@ export function EtapaCriativosAprovados({
     if (!escolhido && aprovados.length) setEscolhido(aprovados[0].id);
   }, [aprovados, escolhido]);
 
+  // As peças avulsas vêm primeiro, e aparecem mesmo sem criativo nenhum: quem só
+  // tem conteúdo pronto não precisa passar por vídeo e transcrição para publicar.
+  const avulsas = <PecasAvulsas consultorId={consultorId} pecas={pecas} campanhas={campanhas} onMudou={onMudou} />;
+
   if (!aprovados.length) {
     return (
-      <p className="text-sm text-gray-500 italic p-4 rounded-lg bg-gray-50 border border-dashed border-gray-300">
-        Nenhum criativo aprovado ainda. Aprove na etapa 3 e ele aparece aqui.
-      </p>
+      <div className="space-y-5">
+        {avulsas}
+        <p className="text-sm text-gray-500 italic p-4 rounded-lg bg-gray-50 border border-dashed border-gray-300">
+          Nenhum criativo aprovado ainda. Aprove na etapa 3 e ele aparece aqui.
+        </p>
+      </div>
     );
   }
 
@@ -107,6 +99,7 @@ export function EtapaCriativosAprovados({
 
   return (
     <div className="space-y-5">
+      {avulsas}
       <div>
         <label className="text-xs font-bold text-gray-700 block mb-1.5">
           Criativo aprovado ({aprovados.length})
@@ -131,6 +124,66 @@ export function EtapaCriativosAprovados({
       <FalaAprovada criativo={criativo} video={video} onMudou={onMudou} />
       <Producao criativo={criativo} video={video} pecas={pecas} campanhas={campanhas} marca={marca} onMudou={onMudou} />
     </div>
+  );
+}
+
+/**
+ * Criativos prontos que não saíram de vídeo nenhum.
+ *
+ * Cada envio avulso cria a própria campanha, com o título dado pelo consultor —
+ * é esse título que identifica a peça no calendário da etapa 5.
+ */
+function PecasAvulsas({
+  consultorId, pecas, campanhas, onMudou,
+}: {
+  consultorId: string;
+  pecas: Peca[];
+  campanhas: Campanha[];
+  onMudou: () => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const idsAvulsas = new Set(campanhas.filter((c) => c.origem === 'enviada').map((c) => c.id));
+  const minhas = pecas
+    .filter((p) => idsAvulsas.has(p.campanhaId))
+    .sort((a, b) => String(b.criadoEm).localeCompare(String(a.criadoEm)));
+  const tituloDe = (p: Peca) => campanhas.find((c) => c.id === p.campanhaId)?.titulo || '';
+
+  return (
+    <section className="p-4 rounded-lg border border-gray-200 bg-gray-50/60 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Criativos prontos</p>
+          <p className="text-xs text-gray-600">
+            Já fez o carrossel, o Reel ou o PDF fora daqui? Envie e ele entra na mesma esteira de aprovação e agenda.
+          </p>
+        </div>
+        {!aberto && (
+          <button
+            onClick={() => setAberto(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50"
+          >
+            <FileUp className="w-4 h-4" /> Enviar criativo pronto
+          </button>
+        )}
+      </div>
+
+      {aberto && (
+        <div className="p-3 rounded-lg bg-white border border-gray-200">
+          <EnviarPecaPronta
+            consultorId={consultorId}
+            aoEnviar={() => { setAberto(false); onMudou(); }}
+            aoCancelar={() => setAberto(false)}
+          />
+        </div>
+      )}
+
+      {minhas.map((p) => (
+        <div key={p.id}>
+          <p className="text-xs font-bold text-gray-500 mb-1">{tituloDe(p)}</p>
+          <PecaEnviada peca={p} aoMudar={onMudou} />
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -210,6 +263,8 @@ function Producao({
   // vídeo escolhe quanto tempo cada página fica na tela.
   const [velocidade, setVelocidade] = useState(1);
   const [segundosPorSlide, setSegundosPorSlide] = useState(5);
+  const [enviandoPronta, setEnviandoPronta] = useState(false);
+  const biblioteca = useBibliotecaImagens(criativo.consultorId);
 
   // O QUE APARECE NO EDITOR É O TEXTO QUE GEROU AS IMAGENS.
   //
@@ -301,6 +356,32 @@ function Producao({
     }
   }
 
+  /**
+   * A configuração de produção destas páginas.
+   *
+   * UMA função para a produção e para a prévia de imagem: a página que o consultor
+   * aprova com a imagem candidata tem de sair exatamente como vai sair no carrossel.
+   */
+  function montarRender(paginas: SlideRoteiro[]) {
+    return semIndefinidos({
+      date: new Date().toISOString().slice(0, 10),
+      slug: criativo.id.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60),
+      folderType: 'Carrossel',
+      sequence: Math.min(99, Math.max(1, criativo.ordem || 1)),
+      video: { enabled: true, secondsPerSlide: segundosPorSlide },
+      // Sem marca, o renderizador cai no padrão LBW — que é o que ele fazia
+      // antes de este campo existir.
+      ...(marca ? { marca } : {}),
+      signature: assinatura(video),
+      slides: paginas,
+    });
+  }
+
+  /** Põe na página a imagem escolhida, trocando o layout quando o dela não comporta. */
+  function trocarImagem(indice: number, escolha: EscolhaImagem) {
+    setSlides((atual) => atual.map((s, j) => (j === indice ? aplicarEscolha(s, escolha) : s)));
+  }
+
   /** Manda para a fila de produção o texto que foi passado. */
   async function produzirCom(recebidas: SlideRoteiro[]) {
     const paginas = semVazios(recebidas);
@@ -337,18 +418,7 @@ function Producao({
         tipo: 'gerar-campanha',
         status: 'pendente',
         tentativas: 0,
-        render: {
-          date: agora.slice(0, 10),
-          slug: criativo.id.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60),
-          folderType: 'Carrossel',
-          sequence: Math.min(99, Math.max(1, criativo.ordem || 1)),
-          video: { enabled: true, secondsPerSlide: segundosPorSlide },
-          // Sem marca, o renderizador cai no padrão LBW — que é o que ele fazia
-          // antes de este campo existir.
-          ...(marca ? { marca } : {}),
-          signature: assinatura(video),
-          slides: paginas,
-        },
+        render: montarRender(paginas),
         criadoEm: agora,
         criadoEmServidor: serverTimestamp(),
       });
@@ -513,11 +583,30 @@ function Producao({
         )}
         {erro && <p className="text-sm text-red-700 mt-3">{erro}</p>}
         {avisoReel && <p className="text-sm text-amber-800 mt-3">{avisoReel}</p>}
+
+        <PecaProntaDoCriativo
+          consultorId={criativo.consultorId}
+          campanhaId={campanhaId}
+          aberto={enviandoPronta}
+          aoAbrir={setEnviandoPronta}
+          aoEnviar={() => { setEnviandoPronta(false); onMudou(); }}
+        />
       </section>
     );
   }
 
+  const contextoImagens = {
+    consultorId: criativo.consultorId,
+    criativoId: criativo.id,
+    slides,
+    montarRender,
+    imagensPorPagina: campanhaDoTexto?.imagensPorPagina,
+    trocarImagem,
+    biblioteca,
+  };
+
   return (
+    <ContextoImagens.Provider value={contextoImagens}>
     <div className="space-y-4">
       {/* AS PEÇAS PRIMEIRO, e cada uma com o que dá para mexer NELA.
           O texto ficava num acordeão lá embaixo, longe da página que estava sendo
@@ -565,8 +654,58 @@ function Producao({
         aoRefazer={refazerTexto}
       />
 
+      <PecaProntaDoCriativo
+        consultorId={criativo.consultorId}
+        campanhaId={campanhaId}
+        aberto={enviandoPronta}
+        aoAbrir={setEnviandoPronta}
+        aoEnviar={() => { setEnviandoPronta(false); onMudou(); }}
+      />
+
       {erro && <p className="text-sm text-red-700">{erro}</p>}
     </div>
+    </ContextoImagens.Provider>
+  );
+}
+
+/**
+ * O criativo pronto, feito fora daqui, para ESTE trecho.
+ *
+ * Fica fechado por padrão: é a alternativa, não o caminho principal — mas à vista,
+ * para quem já tem o carrossel feito não achar que precisa gerar outro.
+ */
+function PecaProntaDoCriativo({
+  consultorId, campanhaId, aberto, aoAbrir, aoEnviar,
+}: {
+  consultorId: string;
+  campanhaId: string;
+  aberto: boolean;
+  aoAbrir: (v: boolean) => void;
+  aoEnviar: () => void;
+}) {
+  if (!aberto) {
+    return (
+      <button
+        onClick={() => aoAbrir(true)}
+        className="flex items-center gap-1.5 mt-3 text-sm font-semibold text-blue-700 hover:underline"
+      >
+        <FileUp className="w-4 h-4" /> Já tenho o criativo pronto — enviar o meu
+      </button>
+    );
+  }
+  return (
+    <section className="mt-3 p-4 rounded-lg border border-gray-200 bg-white">
+      <p className="text-sm font-semibold text-gray-800 mb-1">Enviar o seu criativo pronto</p>
+      <p className="text-xs text-gray-600 mb-3">
+        Ele entra ao lado das peças deste trecho, para aprovar e agendar do mesmo jeito.
+      </p>
+      <EnviarPecaPronta
+        consultorId={consultorId}
+        campanhaId={campanhaId}
+        aoEnviar={aoEnviar}
+        aoCancelar={() => aoAbrir(false)}
+      />
+    </section>
   );
 }
 
@@ -585,7 +724,9 @@ function ImagemUnicaLinkedin({
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoRefazer: () => void;
 }) {
-  const feed = pecas.find((p) => p.tipo === 'carrossel-feed');
+  // A capa do carrossel GERADO: é a página 1 do texto editável ao lado. Um carrossel
+  // enviado pelo consultor não tem esse texto.
+  const feed = pecas.find((p) => p.tipo === 'carrossel-feed' && p.origem !== 'enviada');
   const capa = (feed?.arquivos || []).filter((c) => /slide-\d+\.png$/i.test(c)).sort()[0];
   if (!capa) return null;
 
@@ -702,7 +843,9 @@ function PecasProduzidas({
 
   return (
     <div className="space-y-4">
-      {ordenadas.map((p) => (
+      {ordenadas.map((p) => p.origem === 'enviada' ? (
+        <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />
+      ) : (
         <section key={p.id} className="p-4 rounded-lg border border-gray-200 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
@@ -810,6 +953,55 @@ function PecasProduzidas({
         </section>
       ))}
     </div>
+  );
+}
+
+/**
+ * Uma peça que o consultor enviou pronta.
+ *
+ * Sem Refazer, sem ritmo, sem editor de páginas — não há texto nem render de onde
+ * refazer. O que se faz com ela é olhar, ajustar a legenda, aprovar ou tirar.
+ */
+export function PecaEnviada({ peca, aoMudar }: { peca: Peca; aoMudar: () => void }) {
+  const imagens = (peca.arquivos || []).filter((c) => /slide-\d+\.(png|jpe?g|webp)$/i.test(c)).sort();
+  return (
+    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+          {nomeDaPeca(peca.tipo)}
+          <span className="text-xs font-normal px-1.5 py-0.5 rounded bg-blue-50 text-blue-800">enviada por você</span>
+        </p>
+        <div className="flex items-center gap-2">
+          <BotaoRemoverPecaEnviada peca={peca} aoMudar={aoMudar} />
+          <BotaoAprovar peca={peca} onMudou={aoMudar} />
+        </div>
+      </div>
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="lg:w-[340px] shrink-0">
+          {imagens.length > 1 ? (
+            <div className="grid grid-cols-3 gap-1.5">
+              {imagens.map((c, i) => (
+                <div key={c} className="relative">
+                  <ImagemDoArquivo caminho={c} className="w-full aspect-[4/5] object-cover rounded border border-gray-200" />
+                  <span className="absolute bottom-0 right-0 px-1 text-[10px] font-bold bg-white/80 text-gray-700">{i + 1}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Previa caminho={peca.arquivoUrl} />
+          )}
+          {peca.capaUrl && (
+            <div className="mt-2">
+              <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
+              <ImagemDoArquivo caminho={peca.capaUrl} className="w-24 rounded border border-gray-200" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <LegendaDaPecaEnviada peca={peca} aoMudar={aoMudar} />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -982,22 +1174,6 @@ function EditorDaPagina({
           {LAYOUTS.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
         </select>
 
-        {LAYOUTS_COM_PESSOA.has(slide.type) && (
-          <select
-            value={slide.pessoa === false ? 'nenhuma' : (slide.pessoa || 'automatica')}
-            onChange={(e) => {
-              const v = e.target.value;
-              aoAlterar(indice, 'pessoa', v === 'nenhuma' ? false : v === 'automatica' ? undefined : v);
-            }}
-            title="Quem aparece nesta página"
-            className="px-2 py-1 rounded border border-gray-300 text-xs text-gray-800 bg-white"
-          >
-            <option value="automatica">Pessoa: automática</option>
-            <option value="nenhuma">Pessoa: nenhuma</option>
-            {PESSOAS.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-          </select>
-        )}
-
         <select
           value={String(slide.escala ?? 1)}
           onChange={(e) => aoAlterar(indice, 'escala', e.target.value)}
@@ -1011,6 +1187,10 @@ function EditorDaPagina({
 
         <ContadorPalavras slide={slide} />
       </div>
+
+      {/* Quem ou o que aparece na página, com miniatura. Só existe dentro da
+          produção, que é quem sabe montar a prévia. */}
+      <SeletorImagemDaPagina indice={indice} slide={slide} />
 
       <input
         value={slide.title}

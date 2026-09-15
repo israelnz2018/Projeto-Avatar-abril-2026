@@ -22,6 +22,9 @@ import { ANALYTICS_MODULOS } from "./src/services/analyticsModules";
 import { TOOL_HANDLERS } from "./src/services/pptToolHandlers";
 import { setPptTemplateMode } from "./src/services/slideTemplate";
 import { addCoverSlide } from "./src/services/coverSlide";
+import {
+  EMOCOES_SO_SOB_PEDIDO, TipoImagem, etiquetasValidas, montarPromptImagem, tituloDasEtiquetas, vocabulario,
+} from "./src/types/marketing";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3884,6 +3887,192 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     const s = total % 60;
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s.toFixed(3).padStart(6, "0")}`;
   }
+
+  // O bucket do módulo de marketing. O Admin SDK desta plataforma sobe sem bucket
+  // padrão, então o nome vai explícito.
+  const BUCKET_MARKETING = "senha-92ce1.firebasestorage.app";
+
+  // POST /api/marketing-consultor/imagem-da-pagina — a imagem de uma página do carrossel.
+  //
+  //   acao "sugerir": a IA lê o texto da página e escolhe as etiquetas nas listas
+  //                   fechadas. Não gera imagem nenhuma — o consultor confere e ajusta
+  //                   antes de gastar.
+  //   acao "gerar":   monta o pedido a partir das etiquetas, gera UMA imagem, guarda o
+  //                   original e põe na fila o preparo: recorte do fundo e a página
+  //                   montada com ela, que é o que o consultor aprova.
+  //
+  // A geração fica AQUI e não no worker porque é aqui que já está a chave do gerador.
+  // O worker só recorta e monta a página — o mesmo passo da foto que o consultor envia,
+  // então as duas origens terminam no mesmo lugar.
+  app.post("/api/marketing-consultor/imagem-da-pagina", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const acao = String(req.body?.acao || "");
+    const tipo: TipoImagem = req.body?.tipo === "cena" ? "cena" : "pessoa";
+    const pagina = req.body?.pagina || {};
+    const titulo = String(pagina.title || "").replace(/\*/g, "").trim();
+    const texto = `${titulo}\n${String(pagina.body || "").replace(/\*/g, "").trim()}`.trim().slice(0, 600);
+
+    try {
+      if (acao === "sugerir") {
+        if (!texto) return res.status(400).json({ error: "A página está sem texto para a IA ler." });
+
+        const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+        const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+        const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+        const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+        if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+        const vocab = vocabulario(tipo);
+        const listas = Object.entries(vocab)
+          .map(([grupo, { nome, opcoes }]) => `${grupo} (${nome}): ${opcoes.map((o) => `${o.id} = ${o.nome}`).join("; ")}`)
+          .join("\n");
+        const orientacao = tipo === "cena"
+          ? "Você escolhe a CENA DE FUNDO de uma página de carrossel sobre melhoria de processos. O texto vai por cima da foto.\n"
+            + "A cena tem de mostrar o mesmo momento que o texto: página que expõe um problema pede o problema;\n"
+            + "página que ensina a investigar pede a análise; página que mostra o resultado pede a solução."
+          : "Você escolhe a PESSOA que aparece ao lado do texto de uma página de carrossel sobre melhoria de processos.\n"
+            + "O gesto e a expressão reforçam o que o texto diz: página que expõe um problema pede frustração, sobrecarga ou dúvida;\n"
+            + "página que ensina pede explicando ou apontando; página de conclusão pede confiança ou decisão.\n"
+            + "Quem é e o ambiente vêm do assunto: chão de fábrica pede engenheiro ou operador na fábrica; indicador pede analista.\n"
+            + "Gênero e idade não estão no texto — escolha com variedade.";
+        const prompt = `${orientacao}\n\nPÁGINA:\n"""\n${texto}\n"""\n\nLISTAS (use SÓ estes ids):\n${listas}\n\nDevolva APENAS JSON com um id por lista.`;
+
+        const schema = {
+          type: Type.OBJECT,
+          properties: Object.fromEntries(Object.entries(vocab).map(([grupo, { opcoes }]) => (
+            [grupo, { type: Type.STRING, enum: opcoes.map((o) => o.id) }]
+          ))),
+          required: Object.keys(vocab),
+        };
+
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        let escolhidas: Record<string, unknown> = {};
+        for (let tentativa = 0; tentativa < 3; tentativa++) {
+          try {
+            const gerado = await ai.models.generateContent({
+              model: geminiModel,
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              config: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.9, maxOutputTokens: 2048 },
+            });
+            const limpo = String(gerado.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+            escolhidas = JSON.parse(limpo) || {};
+            break;
+          } catch {
+            if (tentativa < 2) await new Promise((r) => setTimeout(r, 1500 * (tentativa + 1)));
+          }
+        }
+        // Mesmo sem resposta da IA a tela recebe etiquetas válidas: o consultor escolhe
+        // à mão, em vez de ficar olhando um erro.
+        const etiquetas = etiquetasValidas(tipo, escolhidas);
+        return res.json({ etiquetas, titulo: tituloDasEtiquetas(tipo, etiquetas), daIa: Object.keys(escolhidas).length > 0 });
+      }
+
+      if (acao !== "gerar") return res.status(400).json({ error: "Ação desconhecida." });
+
+      const etiquetas = etiquetasValidas(tipo, req.body?.etiquetas || {});
+      const detalhe = String(req.body?.detalhe || "").replace(/\s+/g, " ").trim().slice(0, 240);
+      const pedido = montarPromptImagem(tipo, etiquetas, detalhe);
+
+      const deepinfraKey = process.env.DEEPINFRA_API_KEY;
+      if (!deepinfraKey) return res.status(503).json({ error: "Gerador de imagens não configurado no servidor." });
+
+      const modelo = "black-forest-labs/FLUX-1-dev";
+      // Cena já nasce vertical 4:5, como a página. Pessoa nasce quadrada, como o
+      // elenco da casa — o recorte tira o fundo e a sobra de qualquer jeito.
+      const resposta = await fetch(`https://api.deepinfra.com/v1/inference/${modelo}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${deepinfraKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: pedido, width: 1024, height: tipo === "cena" ? 1280 : 1024, num_inference_steps: 30 }),
+      });
+      if (!resposta.ok) {
+        if (resposta.status === 402) return res.status(402).json({ error: "O gerador de imagens está sem saldo. Adicione saldo para gerar." });
+        const detalheErro = await resposta.text().catch(() => "");
+        return res.status(502).json({ error: `O gerador de imagens recusou o pedido (HTTP ${resposta.status}). ${detalheErro.slice(0, 160)}` });
+      }
+      const corpo = await resposta.json() as any;
+      const base64 = corpo?.images?.[0];
+      if (!base64) return res.status(502).json({ error: "O gerador respondeu sem imagem." });
+
+      const ref = adminFirestore().collection("marketing_imagens").doc();
+      const id = ref.id;
+      // Personagem gerado vai para a biblioteca COMUM: é fictício, e quanto mais
+      // gente usa a mesma biblioteca, menos se gasta gerando parecidos.
+      const original = `marketing/_biblioteca/imagens/${id}/original.png`;
+      await admin.storage().bucket(BUCKET_MARKETING).file(original).save(
+        Buffer.from(String(base64).replace(/^data:image\/\w+;base64,/, ""), "base64"),
+        { contentType: "image/png", metadata: { cacheControl: "private, max-age=86400" } },
+      );
+
+      const criativoId = String(req.body?.criativoId || "").trim().slice(0, 200);
+      const indice = Number.isInteger(req.body?.previa?.pagina) ? Number(req.body.previa.pagina) : null;
+      const renderPrevia = req.body?.previa?.render;
+      const previa = indice !== null && Array.isArray(renderPrevia?.slides) && renderPrevia.slides.length >= 6 && renderPrevia.slides.length <= 8
+        ? JSON.parse(JSON.stringify({ render: renderPrevia, pagina: indice }))
+        : null;
+      const agora = new Date().toISOString();
+      const temas = [...new Set(titulo.toLowerCase().split(/[^\p{L}\d]+/u).filter((p) => p.length > 3))].slice(0, 8);
+
+      await ref.set({
+        id,
+        tipo,
+        origem: "gerada",
+        status: "processando",
+        publica: true,
+        automatica: tipo === "pessoa" && !EMOCOES_SO_SOB_PEDIDO.includes(etiquetas.emocao),
+        consultorId,
+        titulo: tituloDasEtiquetas(tipo, etiquetas),
+        etiquetas,
+        temas,
+        original,
+        prompt: pedido,
+        ...(detalhe ? { detalhe } : {}),
+        ...(criativoId ? { criativoId } : {}),
+        ...(indice !== null ? { pagina: indice } : {}),
+        modelo,
+        vezesUsada: 0,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      });
+
+      await adminFirestore().collection("marketing_tarefas").add({
+        consultorId,
+        campanhaId: criativoId ? `${criativoId}__pecas` : "",
+        tipo: "preparar-imagem",
+        imagemId: id,
+        status: "pendente",
+        tentativas: 0,
+        ...(previa ? { previa } : {}),
+        criadoEm: agora,
+        criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(`[imagem-da-pagina] ${id} ${tipo} ${JSON.stringify(etiquetas)} custo=${corpo?.inference_status?.cost ?? "?"}`);
+      return res.status(202).json({ imagemId: id });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/imagem-da-pagina] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao preparar a imagem.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .replace(/deepinfra/gi, "gerador de imagens")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
 
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
