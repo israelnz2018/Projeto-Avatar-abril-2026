@@ -378,6 +378,7 @@ export default function ProjectToolsConfig() {
     }
   };
 
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isEditingInitiative, setIsEditingInitiative] = useState(false);
   const [editingInitiativeName, setEditingInitiativeName] = useState('');
   const [editingInitiativeParentId, setEditingInitiativeParentId] = useState<string>('');
@@ -470,6 +471,21 @@ export default function ProjectToolsConfig() {
     } catch (error) {
       console.error('[Edit Initiative] Falha:', error);
       toast.error("Erro ao atualizar iniciativa. Veja o console.");
+    }
+  };
+
+  const handleDeleteInitiative = async (id: string) => {
+    try {
+      await updateInitiative(id, { temProjeto: false });
+      setInitiatives(initiatives.filter(i => i.id !== id));
+      if (selectedInitiative?.id === id) {
+        setSelectedInitiative(null);
+        setConfigs([]);
+      }
+      toast.success("Tipo de projeto removido desta aba. O curso e os vídeos continuam existindo.");
+      setIsDeleting(null);
+    } catch (error) {
+      toast.error("Erro ao remover tipo de projeto");
     }
   };
 
@@ -675,6 +691,17 @@ export default function ProjectToolsConfig() {
                 </div>
               </div>
               <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                <button
+                  onClick={() => {
+                    if (confirm("Remover este tipo da aba Projetos?\n\nO curso e os vídeos continuam existindo em Meus Cursos. Esta ação só faz este curso parar de aparecer como tipo de projeto.")) {
+                      handleDeleteInitiative(selectedInitiative!.id);
+                      setIsEditingInitiative(false);
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-black text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  REMOVER DA ABA PROJETOS
+                </button>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setIsEditingInitiative(false)}
@@ -766,6 +793,29 @@ export default function ProjectToolsConfig() {
                 </div>
               );
             })()}
+
+            {isDeleting && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3 text-red-700">
+                  <AlertCircle size={20} />
+                  <p className="font-bold text-sm">Remover este tipo da aba Projetos?</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsDeleting(null)}
+                    className="px-3 py-1.5 text-gray-600 hover:bg-white rounded-lg transition-colors text-xs font-bold"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => handleDeleteInitiative(isDeleting)}
+                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs font-bold shadow-sm"
+                  >
+                    Remover AGORA
+                  </button>
+                </div>
+              </div>
+            )}
 
             {selectedInitiative && (
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 border-t border-gray-100 pt-4">

@@ -732,30 +732,15 @@ function PecasProduzidas({
                   ]}
                 />
               )}
-              {p.tipo === 'carrossel-video' && (
-                <Ritmo
-                  rotulo="Tempo por página"
-                  valor={segundosPorSlide}
-                  aoMudar={aoMudarSegundos}
-                  opcoes={[
-                    [3, '3s — rápido'],
-                    [4, '4s'],
-                    [5, '5s — normal'],
-                    [6, '6s'],
-                    [8, '8s — para ler com calma'],
-                  ]}
-                />
-              )}
-              {/* Só o Reel e o carrossel em vídeo têm Refazer aqui: são os dois que
-                  têm um ritmo próprio para mexer. O carrossel do feed tem o dele
-                  junto do texto, e o PDF e a imagem única saem na mesma passagem. */}
-              {(p.tipo === 'reel' || p.tipo === 'carrossel-video') && (
+              {/* UM botão por trabalho. O servidor faz duas coisas: corta o Reel,
+                  e produz as peças de texto — que saem todas de uma passagem só. O
+                  Refazer das peças de texto vive no carrossel do feed, junto dos
+                  controles delas. */}
+              {p.tipo === 'reel' && (
                 <BotaoRefazer
                   ocupado={ocupado}
-                  aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
-                  aviso={p.tipo === 'reel'
-                    ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
-                    : 'Refaz as peças de texto com este ritmo.'}
+                  aoClicar={aoRefazerReel}
+                  aviso="Corta o vídeo de novo com esta velocidade. Não usa IA."
                 />
               )}
               <BotaoAprovar peca={p} onMudou={aoAprovar} />
@@ -768,6 +753,8 @@ function PecasProduzidas({
               slides={slides}
               naoSeiSeBate={naoSeiSeBate}
               ocupado={ocupado}
+              segundosPorSlide={segundosPorSlide}
+              aoMudarSegundos={aoMudarSegundos}
               melhoria={melhoria}
               aoMudarMelhoria={aoMudarMelhoria}
               aoPedirIa={aoPedirIa}
@@ -792,7 +779,7 @@ function PecasProduzidas({
               criativo={criativo}
               campo="legendaInstagram"
               titulo="Legenda do Instagram"
-              ajuda="Pronta para colar. É a mesma legenda do Reel — é o mesmo post. O texto das páginas vem do carrossel do feed."
+              ajuda="Pronta para colar — é a mesma legenda do Reel, é o mesmo post. As páginas e o ritmo deste vídeo saem do carrossel do feed, aqui em cima."
             />
           )}
           {p.tipo === 'reel' && (
@@ -825,11 +812,14 @@ function PecasProduzidas({
 function FichaCarrossel({
   peca, slides, naoSeiSeBate, ocupado, melhoria, aoMudarMelhoria, aoPedirIa,
   aoAlterarSlide, aoRefazer, aoDesfazer, aoUsarTextoNovo,
+  segundosPorSlide, aoMudarSegundos,
 }: {
   peca: Peca;
   slides: SlideRoteiro[];
   naoSeiSeBate?: boolean;
   ocupado?: boolean;
+  segundosPorSlide: number;
+  aoMudarSegundos: (v: number) => void;
   melhoria: string;
   aoMudarMelhoria: (v: string) => void;
   aoPedirIa: () => void;
@@ -920,6 +910,21 @@ function FichaCarrossel({
           )}
 
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+            {/* O ritmo do carrossel em vídeo mora aqui, e não no cartão dele: é este
+                Refazer que o aplica, e seletor num cartão com botão em outro não se
+                explica para ninguém. */}
+            <Ritmo
+              rotulo="Tempo por página no vídeo"
+              valor={segundosPorSlide}
+              aoMudar={aoMudarSegundos}
+              opcoes={[
+                [3, '3s — rápido'],
+                [4, '4s'],
+                [5, '5s — normal'],
+                [6, '6s'],
+                [8, '8s — para ler com calma'],
+              ]}
+            />
             <button
               onClick={aoRefazer}
               disabled={ocupado}
@@ -927,7 +932,7 @@ function FichaCarrossel({
             >
               {ocupado
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
-                : <>Refazer com estas mudanças</>}
+                : <>Refazer as peças de texto</>}
             </button>
             <button
               onClick={aoDesfazer}
