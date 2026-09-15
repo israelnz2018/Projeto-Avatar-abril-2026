@@ -3644,30 +3644,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       // plataforma vinha violando: arrancava o quadro inteiro do Reel montado, com
       // slide, círculo do rosto e legenda karaokê dentro. O renderizador da arte já
       // existia no squad e só não estava ligado aqui.
-      const capaPedida = (criativo.capa || {}) as any;
-      const ganchoBruto: string[] = Array.isArray(capaPedida.hookLines) && capaPedida.hookLines.length
-        ? capaPedida.hookLines.map((l: any) => String(l || "").trim()).filter(Boolean)
-        : ganchoDoTitulo(String(criativo.titulo || ""));
-      const palavrasDoGancho = ganchoBruto.join(" ").split(/\s+/).filter(Boolean).length;
-      if (palavrasDoGancho < 3) {
-        return res.status(400).json({
-          error: "O gancho da capa precisa de 3 a 6 palavras. Escreva um em 'Gancho da capa', na peça do Reel.",
-          campo: "capa.hookLines",
-        });
-      }
-
-      const cover = {
-        mode: "dedicated",
-        courseKey: capaPedida.courseKey || "white-belt",
-        seriesLabel: String(capaPedida.seriesLabel || "WHITE BELT").toUpperCase().slice(0, 24),
-        // Dois dígitos é exigência do padrão: "01", não "1".
-        episode: String(capaPedida.episode || criativo.ordem || 1).replace(/\D/g, "").padStart(2, "0").slice(-2),
-        hookLines: ganchoBruto.slice(0, 3),
-        topicLabel: String(capaPedida.topicLabel || "AULA PRÁTICA").toUpperCase().slice(0, 28),
-        topicStrong: String(
-          capaPedida.topicStrong || video.serie || video.curso || "MELHORIA CONTÍNUA",
-        ).toUpperCase().slice(0, 28),
-      };
+      const cover = capaDoCriativo(criativo, video);
       const agora = new Date().toISOString();
       const campanhaId = `${criativoId}__reel`;
 
@@ -3779,23 +3756,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       if (!emUso.length) return res.status(400).json({ error: "Este criativo está sem falas." });
       const clipStartMs = Math.round(Number(emUso[0].inicio) * 1000);
 
-      const capaPedida = (criativo.capa || {}) as any;
-      const ganchoBruto: string[] = Array.isArray(capaPedida.hookLines) && capaPedida.hookLines.length
-        ? capaPedida.hookLines.map((l: any) => String(l || "").trim()).filter(Boolean)
-        : ganchoDoTitulo(String(criativo.titulo || ""));
-      if (ganchoBruto.join(" ").split(/\s+/).filter(Boolean).length < 3) {
-        return res.status(400).json({ error: "O gancho da capa precisa de 3 a 6 palavras." });
-      }
-
-      const cover = {
-        mode: "dedicated",
-        courseKey: capaPedida.courseKey || "white-belt",
-        seriesLabel: String(capaPedida.seriesLabel || "WHITE BELT").toUpperCase().slice(0, 24),
-        episode: String(capaPedida.episode || criativo.ordem || 1).replace(/\D/g, "").padStart(2, "0").slice(-2),
-        hookLines: ganchoBruto.slice(0, 3),
-        topicLabel: String(capaPedida.topicLabel || "AULA PRÁTICA").toUpperCase().slice(0, 28),
-        topicStrong: String(capaPedida.topicStrong || video.serie || video.curso || "MELHORIA CONTÍNUA").toUpperCase().slice(0, 28),
-      };
+      const cover = capaDoCriativo(criativo, video);
 
       const lib = await bunnyLibraryDoConsultor(dono || consultorId);
       if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
@@ -3819,8 +3780,11 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const agora = new Date().toISOString();
       const campanhaId = `${criativoId}__reel`;
 
+      // A capa tem estado PRÓPRIO. Marcar a campanha do Reel como "processando"
+      // travava o Reel inteiro na tela enquanto só a capa era refeita.
       await adminFirestore().collection("marketing_campanhas").doc(campanhaId).set({
-        status: "processando",
+        capaStatus: "processando",
+        capaErro: null,
         atualizadoEm: agora,
       }, { merge: true });
 
@@ -3877,6 +3841,39 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     //
     // É a mesma conta do letreiro do vídeo, e de propósito: são o mesmo gancho.
     return tituloEmDuasLinhas(palavras.join(" ")).filter(Boolean);
+  }
+
+  /**
+   * A capa do Reel a partir do que o consultor gravou no criativo.
+   *
+   * NADA AQUI É OBRIGATÓRIO, e VAZIO QUER DIZER VAZIO. Com `||`, o campo que o
+   * consultor apagava — o assunto, o episódio — voltava sozinho com o padrão, e o
+   * episódio apagado ainda virava "00". O padrão só vale para o campo que NUNCA foi
+   * gravado; o que foi gravado vazio sai vazio, e o desenho some com o bloco.
+   *
+   * O gancho também não é mais recusado fora de 3 a 6 palavras: a tela avisa, e o
+   * desenho encolhe a fonte para caber. Perder a capa por uma palavra não servia.
+   *
+   * Um lugar só para o Reel e para o Refazer da capa, que antes tinham cada um a
+   * sua cópia desta conta.
+   */
+  function capaDoCriativo(criativo: any, video: any) {
+    const capa = (criativo?.capa || {}) as any;
+    const gravado = (campo: string, padrao: string) =>
+      (capa[campo] === undefined || capa[campo] === null ? padrao : String(capa[campo])).trim();
+    const gancho: string[] = Array.isArray(capa.hookLines)
+      ? capa.hookLines.map((l: any) => String(l ?? "").trim()).filter(Boolean)
+      : ganchoDoTitulo(String(criativo?.titulo || ""));
+    return {
+      mode: "dedicated",
+      courseKey: capa.courseKey || "white-belt",
+      seriesLabel: gravado("seriesLabel", "WHITE BELT").toUpperCase().slice(0, 24),
+      // Episódio apagado fica sem episódio; o desenho põe os dois dígitos quando há.
+      episode: gravado("episode", String(criativo?.ordem || 1)).replace(/\D/g, "").slice(-3),
+      hookLines: gancho,
+      topicLabel: gravado("topicLabel", "AULA PRÁTICA").toUpperCase().slice(0, 28),
+      topicStrong: gravado("topicStrong", String(video?.serie || video?.curso || "MELHORIA CONTÍNUA")).toUpperCase().slice(0, 28),
+    };
   }
 
   /** Milissegundos -> "HH:MM:SS.mmm", que é o que o ffmpeg e o render esperam. */

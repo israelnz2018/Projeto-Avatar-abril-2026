@@ -329,9 +329,15 @@ function Producao({
   // dizia "nenhuma peça ainda", como se o clique não tivesse feito nada, enquanto
   // o worker produzia normalmente. O trabalho é do servidor, então o estado dele
   // também.
-  const servidorTrabalhando = campanhas.some(
-    (c) => (c.id === campanhaId || c.id === campanhaReel) && c.status === 'processando',
-  );
+  //
+  // E CADA PEÇA COM O SEU. Um "trabalhando" só para tudo fazia o Refazer do Reel
+  // travar o carrossel, e o Refazer da capa travar o Reel. O Reel, a capa e as
+  // peças de texto são produções separadas, e cada uma mostra o próprio estado.
+  const campanhaDoReel = campanhas.find((c) => c.id === campanhaReel);
+  const reelNoServidor = campanhaDoReel?.status === 'processando';
+  const textoNoServidor = campanhas.some((c) => c.id === campanhaId && c.status === 'processando');
+  const servidorTrabalhando = reelNoServidor || textoNoServidor;
+  const [refazendoReel, setRefazendoReel] = useState(false);
 
   /** Pede as páginas à IA e devolve o que veio. Não produz nada. */
   async function pedirRoteiro(): Promise<SlideRoteiro[]> {
@@ -519,14 +525,14 @@ function Producao({
    * outra vez. Custa um minuto e nada de API.
    */
   async function refazerReel() {
-    setGerando(true);
+    setRefazendoReel(true);
     setAvisoReel('');
     setErro('');
     try {
       await pedirReel();
       onMudou();
     } finally {
-      setGerando(false);
+      setRefazendoReel(false);
     }
   }
 
@@ -613,8 +619,10 @@ function Producao({
           corrigida — quem revisa precisa ver o que está mudando enquanto muda. */}
       <PecasProduzidas
         pecas={daCampanha}
-        esperando={servidorTrabalhando || gerando || enfileirando}
-        ocupado={servidorTrabalhando || gerando || enfileirando}
+        esperando={servidorTrabalhando || gerando || enfileirando || refazendoReel}
+        ocupadoReel={reelNoServidor || refazendoReel || gerando}
+        ocupadoTexto={textoNoServidor || enfileirando || gerando}
+        campanhaDoReel={campanhaDoReel}
         criativo={criativo}
         video={video}
         slides={slides}
@@ -649,7 +657,7 @@ function Producao({
         criativo={criativo}
         pecas={daCampanha}
         slides={slides}
-        ocupado={servidorTrabalhando || gerando || enfileirando}
+        ocupado={textoNoServidor || gerando || enfileirando}
         aoAlterarSlide={alterarSlide}
         aoRefazer={refazerTexto}
       />
@@ -788,7 +796,7 @@ function ImagemUnicaLinkedin({
  * quatro do mesmo jeito obrigava o consultor a procurar onde editar cada coisa.
  */
 function PecasProduzidas({
-  pecas, esperando, ocupado, criativo, video, slides,
+  pecas, esperando, ocupadoReel, ocupadoTexto, campanhaDoReel, criativo, video, slides,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
   aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoDesfazerSlides,
@@ -796,7 +804,11 @@ function PecasProduzidas({
 }: {
   pecas: Peca[];
   esperando?: boolean;
-  ocupado?: boolean;
+  /** O Reel e as peças de texto trabalham separados; cada uma trava só a si. */
+  ocupadoReel?: boolean;
+  ocupadoTexto?: boolean;
+  /** Onde fica o estado de trabalho da capa, que é separado do Reel. */
+  campanhaDoReel?: Campanha;
   criativo: Criativo;
   video?: VideoFonte;
   slides: SlideRoteiro[];
@@ -843,17 +855,19 @@ function PecasProduzidas({
 
   return (
     <div className="space-y-4">
-      {ordenadas.map((p) => p.origem === 'enviada' ? (
-        <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />
-      ) : (
-        <section key={p.id} className="p-4 rounded-lg border border-gray-200 bg-white">
+      {ordenadas.map((p) => {
+        if (p.origem === 'enviada') return <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />;
+        const ocupado = p.tipo === 'reel' ? ocupadoReel : ocupadoTexto;
+        return (
+        <React.Fragment key={p.id}>
+        <section className="p-4 rounded-lg border border-gray-200 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
               {nomeDaPeca(p.tipo)}
               {p.versao > 1 && (
                 <span className="text-xs font-normal text-gray-500">versão {p.versao}</span>
               )}
-              {esperando && (
+              {ocupado && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
                   <Loader2 className="w-3 h-3 animate-spin" /> refazendo…
                 </span>
@@ -946,13 +960,114 @@ function PecasProduzidas({
               campo="legendaInstagram"
               titulo="Legenda do Instagram"
               ajuda="Pronta para colar. É a mesma legenda do carrossel em vídeo — é o mesmo post."
-              capa={p.capaUrl}
-              onRefeita={aoAprovar}
             />
           )}
         </section>
-      ))}
+
+        {/* A CAPA DO REEL É UMA PEÇA À PARTE: estado, Refazer e Aprovar próprios.
+            Ficava dentro do cartão do Reel, sem aprovação, e o Refazer de um
+            travava o outro. */}
+        {p.tipo === 'reel' && (
+          <CartaoCapaDoReel
+            peca={p}
+            criativo={criativo}
+            video={video}
+            campanhaDoReel={campanhaDoReel}
+            aoMudar={aoAprovar}
+          />
+        )}
+        </React.Fragment>
+        );
+      })}
     </div>
+  );
+}
+
+/**
+ * A capa do Reel, como peça independente do Reel.
+ *
+ * Refazer a capa não corta o vídeo de novo, e refazer o Reel não mexe na capa.
+ * Cada um é aprovado por si: o consultor pode aprovar a capa e continuar ajustando
+ * a velocidade do vídeo, ou o contrário.
+ */
+function CartaoCapaDoReel({
+  peca, criativo, video, campanhaDoReel, aoMudar,
+}: {
+  peca: Peca;
+  criativo: Criativo;
+  video?: VideoFonte;
+  campanhaDoReel?: Campanha;
+  aoMudar: () => void;
+}) {
+  const [aprovando, setAprovando] = useState(false);
+  const refazendo = campanhaDoReel?.capaStatus === 'processando';
+  const aprovada = peca.capaStatus === 'aprovado';
+
+  async function definir(capaStatus: 'revisar' | 'aprovado') {
+    setAprovando(true);
+    try {
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), { capaStatus, atualizadoEm: new Date().toISOString() });
+      aoMudar();
+    } finally {
+      setAprovando(false);
+    }
+  }
+
+  return (
+    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+          Capa do Reel
+          {refazendo && (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+              <Loader2 className="w-3 h-3 animate-spin" /> refazendo…
+            </span>
+          )}
+        </p>
+        {peca.capaUrl && (aprovada ? (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800 text-xs font-bold">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Aprovada
+            </span>
+            <button
+              onClick={() => definir('revisar')}
+              disabled={aprovando}
+              title="Tira a aprovação da capa. O Reel continua como está."
+              className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50"
+            >
+              desfazer
+            </button>
+          </span>
+        ) : (
+          <button
+            onClick={() => definir('aprovado')}
+            disabled={aprovando || refazendo}
+            title="Aprova só a capa. O Reel tem a aprovação dele."
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
+          >
+            {aprovando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+            Aprovar capa
+          </button>
+        ))}
+      </div>
+
+      {campanhaDoReel?.capaStatus === 'erro' && (
+        <p className="text-xs text-red-700 mb-2">
+          A última tentativa de refazer a capa falhou{campanhaDoReel.capaErro ? `: ${campanhaDoReel.capaErro}` : '.'}
+        </p>
+      )}
+
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="lg:w-[300px] shrink-0">
+          {peca.capaUrl
+            ? <ImagemDoArquivo caminho={peca.capaUrl} className="w-full rounded border border-gray-200" />
+            : <p className="text-xs text-gray-500 italic">Ainda não há capa. Preencha ao lado e clique em Refazer a capa.</p>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <ArteDaCapa criativo={criativo} video={video} refazendo={refazendo} onRefeita={aoMudar} />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1233,41 +1348,24 @@ function EditorDaPagina({
  * copia, e um .md dentro do Storage não servia para nenhuma das duas coisas.
  */
 function FichaComTexto({
-  peca, criativo, video, campo, titulo, ajuda, capa, onRefeita,
+  peca, criativo, campo, titulo, ajuda,
 }: {
   peca: Peca;
   criativo: Criativo;
   video?: VideoFonte;
-  onRefeita?: () => void;
   campo: 'artigoLinkedin' | 'legendaInstagram';
   titulo: string;
   ajuda: string;
-  capa?: string | null;
 }) {
+  // A capa do Reel saiu daqui: virou o cartão próprio dela (CartaoCapaDoReel).
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="lg:w-[300px] shrink-0">
-          <Previa caminho={peca.arquivoUrl} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <TextoParaPublicar criativo={criativo} campo={campo} titulo={titulo} ajuda={ajuda} />
-        </div>
+    <div className="flex flex-col lg:flex-row gap-4">
+      <div className="lg:w-[300px] shrink-0">
+        <Previa caminho={peca.arquivoUrl} />
       </div>
-
-      {/* A capa e os campos dela, lado a lado: é a única forma de conferir que o
-          que está escrito no campo é o que está na imagem. */}
-      {capa && (
-        <div className="flex flex-col lg:flex-row gap-4 pt-4 border-t border-gray-100">
-          <div className="lg:w-[300px] shrink-0">
-            <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa do Reel</p>
-            <ImagemDoArquivo caminho={capa} className="w-full rounded border border-gray-200" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <ArteDaCapa criativo={criativo} video={video} onRefeita={onRefeita} />
-          </div>
-        </div>
-      )}
+      <div className="flex-1 min-w-0">
+        <TextoParaPublicar criativo={criativo} campo={campo} titulo={titulo} ajuda={ajuda} />
+      </div>
     </div>
   );
 }
@@ -1395,17 +1493,24 @@ const CURSOS: { id: string; nome: string }[] = [
  * sai só o rosto. Antes a plataforma arrancava um quadro inteiro do Reel montado,
  * com slide e legenda karaokê dentro, que no feed vira uma miniatura ilegível.
  *
- * O gancho tem limite de 3 a 6 palavras porque é o que se lê no tamanho de uma
- * miniatura. Não é preferência: passar disso o padrão manda reprovar a capa.
+ * NADA AQUI É OBRIGATÓRIO. De 3 a 6 palavras no gancho é o que se lê numa
+ * miniatura, e a tela avisa — mas não impede. Campo apagado fica apagado.
  */
 function ArteDaCapa({
-  criativo, video, onRefeita,
+  criativo, video, refazendo, onRefeita,
 }: {
   criativo: Criativo;
   video?: VideoFonte;
+  /** A capa já está sendo refeita no servidor. */
+  refazendo?: boolean;
   onRefeita?: () => void;
 }) {
   const gravada = criativo.capa || {};
+
+  // VAZIO QUER DIZER VAZIO. Com `||`, o campo que o consultor apagou voltava com o
+  // padrão na próxima vez que a tela abria — foi exatamente a reclamação. O padrão
+  // só vale para o campo que nunca foi gravado.
+  const ou = (valor: string | undefined, padrao: string) => (valor === undefined || valor === null ? padrao : valor);
 
   // OS CAMPOS MOSTRAM O QUE A ARTE USA, e não um exemplo cinza.
   //
@@ -1418,29 +1523,31 @@ function ArteDaCapa({
   const ganchoPadrao = ganchoDoTitulo(criativo.titulo);
   const assuntoPadrao = (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase();
 
+  const episodioPadrao = String(criativo.ordem || 1).padStart(2, '0');
   const [curso, setCurso] = useState(gravada.courseKey || 'white-belt');
-  const [serie, setSerie] = useState(gravada.seriesLabel || 'WHITE BELT');
-  const [episodio, setEpisodio] = useState(gravada.episode || String(criativo.ordem || 1).padStart(2, '0'));
-  const [gancho, setGancho] = useState((gravada.hookLines || ganchoPadrao).join('\n'));
-  const [rotulo, setRotulo] = useState(gravada.topicLabel || 'AULA PRÁTICA');
-  const [assunto, setAssunto] = useState(gravada.topicStrong || assuntoPadrao);
+  const [serie, setSerie] = useState(ou(gravada.seriesLabel, 'WHITE BELT'));
+  const [episodio, setEpisodio] = useState(ou(gravada.episode, episodioPadrao));
+  const [gancho, setGancho] = useState((gravada.hookLines ?? ganchoPadrao).join('\n'));
+  const [rotulo, setRotulo] = useState(ou(gravada.topicLabel, 'AULA PRÁTICA'));
+  const [assunto, setAssunto] = useState(ou(gravada.topicStrong, assuntoPadrao));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
     const g = criativo.capa || {};
     setCurso(g.courseKey || 'white-belt');
-    setSerie(g.seriesLabel || 'WHITE BELT');
-    setEpisodio(g.episode || String(criativo.ordem || 1).padStart(2, '0'));
-    setGancho((g.hookLines || ganchoDoTitulo(criativo.titulo)).join('\n'));
-    setRotulo(g.topicLabel || 'AULA PRÁTICA');
-    setAssunto(g.topicStrong || (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase());
+    setSerie(ou(g.seriesLabel, 'WHITE BELT'));
+    setEpisodio(ou(g.episode, String(criativo.ordem || 1).padStart(2, '0')));
+    setGancho((g.hookLines ?? ganchoDoTitulo(criativo.titulo)).join('\n'));
+    setRotulo(ou(g.topicLabel, 'AULA PRÁTICA'));
+    setAssunto(ou(g.topicStrong, (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [criativo.id, criativo.capa, criativo.titulo, video?.serie]);
 
   const linhas = gancho.split('\n').map((l) => l.trim()).filter(Boolean);
   const palavras = linhas.join(' ').split(/\s+/).filter(Boolean).length;
-  const ganchoOk = palavras >= 3 && palavras <= 6 && linhas.length <= 3;
+  // Só um aviso. O botão não trava por isso.
+  const ganchoNoPadrao = palavras >= 3 && palavras <= 6 && linhas.length <= 3;
 
   /**
    * Salva o texto da capa e manda desenhar só ela.
@@ -1457,7 +1564,8 @@ function ArteDaCapa({
         capa: {
           courseKey: curso,
           seriesLabel: serie.trim().toUpperCase(),
-          episode: episodio.replace(/\D/g, '').padStart(2, '0').slice(-2),
+          // Apagado fica vazio. Antes o vazio virava "00" aqui mesmo.
+          episode: episodio.replace(/\D/g, '').slice(-3),
           hookLines: linhas.map((l) => l.toUpperCase()),
           topicLabel: rotulo.trim().toUpperCase(),
           topicStrong: assunto.trim().toUpperCase(),
@@ -1493,18 +1601,19 @@ function ArteDaCapa({
       <div>
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase text-gray-400">Gancho — o texto grande</span>
-          <span className={`text-[10px] font-bold ${ganchoOk ? 'text-gray-400' : 'text-red-600'}`}>
-            {palavras}/6 palavras · {linhas.length}/3 linhas
+          <span className={`text-[10px] font-bold ${ganchoNoPadrao ? 'text-gray-400' : 'text-amber-600'}`}>
+            {palavras} palavras · {linhas.length} linhas
           </span>
         </div>
         <textarea
           value={gancho}
           onChange={(e) => setGancho(e.target.value)}
           rows={3}
-          className={`${campo} font-bold resize-none`}
+          className={`${campo} font-bold resize-y`}
         />
         <p className="text-[10px] text-gray-500">
-          Uma linha por linha da capa. De 3 a 6 palavras no total — é o que se lê numa miniatura.
+          Uma linha por linha da capa. Recomendado de 3 a 6 palavras, que é o que se lê numa
+          miniatura — mas não é obrigatório: pode deixar em branco ou escrever mais, o texto encolhe para caber.
         </p>
       </div>
 
@@ -1544,10 +1653,10 @@ function ArteDaCapa({
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={salvarERefazer}
-          disabled={salvando || !ganchoOk}
+          disabled={salvando || refazendo}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
         >
-          {salvando
+          {salvando || refazendo
             ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Refazendo a capa…</>
             : <><RefreshCw className="w-3.5 h-3.5" /> Refazer a capa</>}
         </button>

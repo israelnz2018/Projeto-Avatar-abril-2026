@@ -397,6 +397,12 @@ export interface Campanha {
   imagensPorPagina?: (string | null)[];
   /** `enviada`: campanha avulsa, criada para receber um criativo pronto do consultor. */
   origem?: 'enviada';
+  /**
+   * O trabalho da capa do Reel, SEPARADO do `status` do Reel.
+   * Refazer a capa não trava o Reel na tela, e refazer o Reel não mexe na capa.
+   */
+  capaStatus?: 'processando' | 'pronta' | 'erro';
+  capaErro?: string | null;
   criadoEm: string;
   atualizadoEm?: string;
 }
@@ -419,6 +425,8 @@ export interface Peca {
   arquivos?: string[];
   /** Capa, quando houver. */
   capaUrl?: string;
+  /** A aprovação da capa, independente da aprovação do Reel. */
+  capaStatus?: 'revisar' | 'aprovado';
   /** Texto da publicação. */
   legenda?: string;
   /** Pedido de melhoria escrito pelo consultor, que gerou esta versão. */

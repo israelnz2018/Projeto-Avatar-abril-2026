@@ -830,7 +830,8 @@ export function useDadosMarketing(consultorId: string) {
   // das peças, que roda no worker.
   const trabalhando = videos.some(
     (v) => v.transcricaoStatus === 'na-fila' || v.transcricaoStatus === 'processando',
-  ) || campanhas.some((c) => c.status === 'processando');
+  // A capa do Reel tem o próprio estado, separado do Reel — e também conta.
+  ) || campanhas.some((c) => c.status === 'processando' || c.capaStatus === 'processando');
 
   useEffect(() => {
     if (!trabalhando) return;
