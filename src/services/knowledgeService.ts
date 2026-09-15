@@ -123,19 +123,32 @@ export async function saveKnowledge(entry: Omit<KnowledgeEntry, 'timestamp' | 'i
   try {
     let order = providedOrder;
     if (order === undefined) {
-      // Find the last order in the same course and playlist
+      // A ORDEM É PROCURADA DENTRO DO PRÓPRIO CONSULTOR.
+      //
+      // Esta consulta não filtrava por consultorId, e as regras do Firestore só
+      // deixam o consultor LER o conteúdo dele: a consulta era negada, o erro subia
+      // e o vídeo não salvava — só para consultor, porque o admin passa por cima das
+      // regras. Era o que acontecia ao cadastrar vídeo num consultor novo.
+      const scopedConsultorId = entry.consultorId || resolveConsultorId();
       const q = query(
-        collection(db, KNOWLEDGE_COLLECTION), 
+        collection(db, KNOWLEDGE_COLLECTION),
+        where('consultorId', '==', scopedConsultorId),
         where('course', '==', entry.course),
         where('playlist', '==', entry.playlist)
       );
-      const snapshot = await getDocs(q);
-      
       let lastOrder = 0;
-      snapshot.docs.forEach(doc => {
-        const docOrder = doc.data().order || 0;
-        if (docOrder > lastOrder) lastOrder = docOrder;
-      });
+      try {
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach(doc => {
+          const docOrder = doc.data().order || 0;
+          if (docOrder > lastOrder) lastOrder = docOrder;
+        });
+      } catch (erroDaOrdem) {
+        // Não saber a ordem não pode impedir o vídeo de ser salvo: ele entra no fim
+        // e a ordem se arruma arrastando na tela.
+        console.warn('[saveKnowledge] não consegui ler a ordem atual da playlist:', erroDaOrdem);
+        lastOrder = Date.now() % 100000;
+      }
       order = lastOrder + 1;
     }
 

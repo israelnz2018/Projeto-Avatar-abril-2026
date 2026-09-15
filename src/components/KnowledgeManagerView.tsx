@@ -674,6 +674,8 @@ export default function KnowledgeManagerView() {
     setFormData(prev => ({ ...prev, placements: prev.placements.filter((_, i) => i !== idx) }));
   };
   const [isSaving, setIsSaving] = useState(false);
+  /** Onde o último vídeo foi salvo: "Curso › Playlist", para quem acabou de criar a playlist. */
+  const [salvoEm, setSalvoEm] = useState<string[]>([]);
   // ===== Upload direto de vídeo (o provedor fica invisível para o consultor) =====
   const [upFile, setUpFile] = useState<File | null>(null);
   const [upTitle, setUpTitle] = useState('');
@@ -1510,9 +1512,18 @@ export default function KnowledgeManagerView() {
       setIsAdding(false);
       setIsToolsDropdownOpen(false);
       setIsAnalysesDropdownOpen(false);
+      // ONDE O VÍDEO FOI PARAR, dito na tela.
+      //
+      // A playlist não é cadastrada à parte: ela existe porque um vídeo está nela.
+      // Sem este aviso, quem criava uma playlist nova salvava e não tinha como saber
+      // se tinha dado certo.
+      setSalvoEm(resolved.map((p) => `${p.course} › ${p.playlist}`));
       fetchItems();
-    } catch (error) {
-      alert('Erro ao salvar item.');
+    } catch (error: any) {
+      // O erro de verdade, e não "Erro ao salvar item": foi uma permissão negada que
+      // ficou escondida atrás desta mensagem enquanto o cadastro não funcionava.
+      console.error('[handleSave] erro ao salvar vídeo:', error);
+      alert(`Não foi possível salvar o vídeo: ${error?.message || error}`);
     } finally {
       setIsSaving(false);
     }
@@ -1965,6 +1976,27 @@ export default function KnowledgeManagerView() {
             </div>
           </form>
         </motion.div>
+      )}
+
+      {salvoEm.length > 0 && !isAdding && (
+        <div className="flex items-start justify-between gap-3 p-3 rounded-[4px] border border-green-300 bg-green-50">
+          <p className="text-sm text-green-900">
+            <strong>Vídeo salvo.</strong> Ele está em{' '}
+            {salvoEm.map((onde, i) => (
+              <span key={onde}>
+                {i > 0 && ', '}<strong>{onde}</strong>
+              </span>
+            ))}
+            . A playlist é criada junto com o vídeo — ela aparece na lista de cursos aqui embaixo.
+          </p>
+          <button
+            onClick={() => setSalvoEm([])}
+            className="p-1 border-none bg-transparent cursor-pointer text-green-800"
+            title="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
 
       {isAdding && (
