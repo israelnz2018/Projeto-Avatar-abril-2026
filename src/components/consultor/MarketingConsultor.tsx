@@ -84,11 +84,23 @@ export default function MarketingConsultor() {
   // saía antes e o hook não rodava; quando loading virava false ele passava a
   // rodar, e o React derrubava a tela inteira com o erro 310 (mais hooks do que
   // na renderização anterior). Hook não pode ficar depois de um return.
+  // O CABEÇALHO DA PEÇA LEVA A MARCA, NUNCA O NOME DA PESSOA.
+  //
+  // "Minha Marca" guarda um nome só, e no cadastro do consultor ele costuma ser o
+  // nome civil — as peças saíam assinadas "ISRAEL CAVALCANTI DE SOUZA" no topo de
+  // todas as páginas. Quem lê quer saber de quem é o conteúdo, e isso é a empresa.
+  // Quando o nome da marca é o nome da pessoa, fica a marca da casa; quando é uma
+  // marca de verdade ("Olimpia Digital"), ela continua valendo.
   const marcaDaPeca = useMemo(() => {
     const b = consultor?.branding;
     if (!b?.nome) return undefined;
-    return { nome: b.nome, logoUrl: b.logoUrl, cores: b.cores };
-  }, [consultor?.branding]);
+    const igualAoNomeDaPessoa = b.nome.trim().toLowerCase() === String(consultor?.nome || '').trim().toLowerCase();
+    return {
+      nome: igualAoNomeDaPessoa ? 'EDUCAÇÃO PELO TRABALHO' : b.nome,
+      logoUrl: b.logoUrl,
+      cores: b.cores,
+    };
+  }, [consultor?.branding, consultor?.nome]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
 
