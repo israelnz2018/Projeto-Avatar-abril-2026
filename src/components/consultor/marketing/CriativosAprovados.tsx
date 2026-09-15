@@ -302,7 +302,8 @@ function Producao({
   }
 
   /** Manda para a fila de produção o texto que foi passado. */
-  async function produzirCom(paginas: SlideRoteiro[]) {
+  async function produzirCom(recebidas: SlideRoteiro[]) {
+    const paginas = semVazios(recebidas);
     if (paginas.length < 6 || paginas.length > 8) {
       setErro(`O carrossel precisa de 6 a 8 páginas. O texto tem ${paginas.length}.`);
       return;
@@ -359,8 +360,37 @@ function Producao({
     }
   }
 
+  /**
+   * Muda um campo de uma página.
+   *
+   * APAGAR A CHAVE, e não guardar `undefined` nela. O Firestore recusa o documento
+   * INTEIRO quando encontra undefined em qualquer campo — e era isso que acontecia:
+   * escolher "Pessoa: automática" punha undefined no slide, o setDoc da campanha
+   * falhava, a tarefa nunca entrava na fila, e o Refazer "processava" sem mudar
+   * nada. O consultor via as imagens antigas ao lado do texto novo e concluía,
+   * com razão, que a tela não batia.
+   */
   function alterarSlide(i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) {
-    setSlides((atual) => atual.map((s, j) => (j === i ? { ...s, [campo]: valor } : s)));
+    setSlides((atual) => atual.map((s, j) => {
+      if (j !== i) return s;
+      const novo: SlideRoteiro = { ...s };
+      if (valor === undefined) delete novo[campo];
+      else (novo as any)[campo] = valor;
+      return novo;
+    }));
+  }
+
+  /**
+   * Tira qualquer `undefined` antes de gravar.
+   *
+   * Cinto e suspensório: a função acima já apaga a chave, mas um undefined vindo de
+   * outro caminho derrubaria a gravação inteira do mesmo jeito, e o sintoma — um
+   * botão que não faz nada — é caro de diagnosticar.
+   */
+  function semVazios(paginas: SlideRoteiro[]): SlideRoteiro[] {
+    return paginas.map((p) => Object.fromEntries(
+      Object.entries(p).filter(([, v]) => v !== undefined),
+    ) as SlideRoteiro);
   }
 
   /**
@@ -497,6 +527,7 @@ function Producao({
         esperando={servidorTrabalhando || gerando || enfileirando}
         ocupado={servidorTrabalhando || gerando || enfileirando}
         criativo={criativo}
+        video={video}
         slides={slides}
         velocidade={velocidade}
         aoMudarVelocidade={setVelocidade}
@@ -580,15 +611,10 @@ function ImagemUnicaLinkedin({
             <>
               <p className="text-sm font-semibold text-gray-800 mb-2">Texto da imagem</p>
               <EditorDaPagina indice={0} slide={paginaDaCapa} aoAlterar={aoAlterarSlide} />
-              <button
-                onClick={aoRefazer}
-                disabled={ocupado}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 mt-2"
-              >
-                {ocupado
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
-                  : <>Refazer a imagem com este texto</>}
-              </button>
+              <p className="text-[11px] text-gray-500 mt-2">
+                É a página 1 do carrossel do feed. Mudar aqui muda lá — e o
+                <strong> Refazer do carrossel</strong> refaz esta imagem também.
+              </p>
             </>
           ) : (
             <p className="text-sm text-gray-500 italic">
@@ -621,7 +647,7 @@ function ImagemUnicaLinkedin({
  * quatro do mesmo jeito obrigava o consultor a procurar onde editar cada coisa.
  */
 function PecasProduzidas({
-  pecas, esperando, ocupado, criativo, slides,
+  pecas, esperando, ocupado, criativo, video, slides,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
   aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoDesfazerSlides,
@@ -631,6 +657,7 @@ function PecasProduzidas({
   esperando?: boolean;
   ocupado?: boolean;
   criativo: Criativo;
+  video?: VideoFonte;
   slides: SlideRoteiro[];
   velocidade: number;
   aoMudarVelocidade: (v: number) => void;
@@ -719,13 +746,18 @@ function PecasProduzidas({
                   ]}
                 />
               )}
-              <BotaoRefazer
-                ocupado={ocupado}
-                aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
-                aviso={p.tipo === 'reel'
-                  ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
-                  : 'Refaz o carrossel, o PDF e o carrossel em vídeo com o texto atual.'}
-              />
+              {/* Só o Reel e o carrossel em vídeo têm Refazer aqui: são os dois que
+                  têm um ritmo próprio para mexer. O carrossel do feed tem o dele
+                  junto do texto, e o PDF e a imagem única saem na mesma passagem. */}
+              {(p.tipo === 'reel' || p.tipo === 'carrossel-video') && (
+                <BotaoRefazer
+                  ocupado={ocupado}
+                  aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
+                  aviso={p.tipo === 'reel'
+                    ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
+                    : 'Refaz as peças de texto com este ritmo.'}
+                />
+              )}
               <BotaoAprovar peca={p} onMudou={aoAprovar} />
             </div>
           </div>
@@ -751,7 +783,7 @@ function PecasProduzidas({
               criativo={criativo}
               campo="artigoLinkedin"
               titulo="Artigo do LinkedIn"
-              ajuda="Pronto para colar no LinkedIn. As páginas do PDF são exatamente as do carrossel do feed — mude lá que muda aqui."
+              ajuda="Pronto para colar. As páginas do PDF são as do carrossel do feed — mude e refaça lá que muda aqui."
             />
           )}
           {p.tipo === 'carrossel-video' && (
@@ -760,13 +792,14 @@ function PecasProduzidas({
               criativo={criativo}
               campo="legendaInstagram"
               titulo="Legenda do Instagram"
-              ajuda="Pronta para colar. É a mesma legenda do Reel — é o mesmo post."
+              ajuda="Pronta para colar. É a mesma legenda do Reel — é o mesmo post. O texto das páginas vem do carrossel do feed."
             />
           )}
           {p.tipo === 'reel' && (
             <FichaComTexto
               peca={p}
               criativo={criativo}
+              video={video}
               campo="legendaInstagram"
               titulo="Legenda do Instagram"
               ajuda="Pronta para colar. É a mesma legenda do carrossel em vídeo — é o mesmo post."
@@ -1022,35 +1055,40 @@ function EditorDaPagina({
  * copia, e um .md dentro do Storage não servia para nenhuma das duas coisas.
  */
 function FichaComTexto({
-  peca, criativo, campo, titulo, ajuda, capa,
+  peca, criativo, video, campo, titulo, ajuda, capa,
 }: {
   peca: Peca;
   criativo: Criativo;
+  video?: VideoFonte;
   campo: 'artigoLinkedin' | 'legendaInstagram';
   titulo: string;
   ajuda: string;
   capa?: string | null;
 }) {
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      <div className="lg:w-[300px] shrink-0 space-y-2">
-        <Previa caminho={peca.arquivoUrl} />
-        {/* A capa do Reel fica aberta ao lado do vídeo: é ela que vira a miniatura
-            no Instagram, e é a primeira coisa que alguém vê. O campo que muda o
-            texto dela fica LOGO ACIMA dela, e não no topo da ficha. */}
-        {capa && (
-          <div className="pt-2 border-t border-gray-100">
-            <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa</p>
-            <TituloDaCapa criativo={criativo} />
-            <ImagemDoArquivo caminho={capa} className="w-full rounded border border-gray-200" />
-            <ArteDaCapa criativo={criativo} />
-          </div>
-        )}
+    <div className="space-y-4">
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="lg:w-[300px] shrink-0">
+          <Previa caminho={peca.arquivoUrl} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <TextoParaPublicar criativo={criativo} campo={campo} titulo={titulo} ajuda={ajuda} />
+        </div>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <TextoParaPublicar criativo={criativo} campo={campo} titulo={titulo} ajuda={ajuda} />
-      </div>
+      {/* A capa e os campos dela, lado a lado: é a única forma de conferir que o
+          que está escrito no campo é o que está na imagem. */}
+      {capa && (
+        <div className="flex flex-col lg:flex-row gap-4 pt-4 border-t border-gray-100">
+          <div className="lg:w-[300px] shrink-0">
+            <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Capa do Reel</p>
+            <ImagemDoArquivo caminho={capa} className="w-full rounded border border-gray-200" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <ArteDaCapa criativo={criativo} video={video} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1163,64 +1201,6 @@ function TextoParaPublicar({
   );
 }
 
-/**
- * O título que aparece no alto da CAPA do Reel.
- *
- * Chamava-se "texto do alto do vídeo", que descrevia onde ele aparece e não o que
- * ele é. Fica junto da capa, porque é a capa que ele encabeça.
- *
- * Era só de leitura: o consultor via "SUA MENTALIDADE É DE MELHORIA CONTÍNUA?"
- * queimado na imagem e não tinha por onde mudar. Agora muda aqui e vale no
- * próximo Refazer — o corte é o mesmo, só o letreiro muda.
- */
-function TituloDaCapa({ criativo }: { criativo: Criativo }) {
-  const [texto, setTexto] = useState(criativo.titulo);
-  const [salvando, setSalvando] = useState(false);
-  useEffect(() => { setTexto(criativo.titulo); }, [criativo.id, criativo.titulo]);
-
-  const mudou = texto.trim() !== criativo.titulo && Boolean(texto.trim());
-
-  async function salvar() {
-    setSalvando(true);
-    try {
-      await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
-        titulo: texto.trim(),
-        atualizadoEm: new Date().toISOString(),
-      });
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <div className="mb-3">
-      <p className="text-[11px] font-bold uppercase text-gray-400 mb-1">Texto do alto da capa</p>
-      <div className="flex flex-wrap gap-2">
-        <input
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          className="flex-1 min-w-[240px] px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-900"
-        />
-        {mudou && (
-          <button
-            onClick={salvar}
-            disabled={salvando}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-60"
-          >
-            {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-            Salvar
-          </button>
-        )}
-      </div>
-      {mudou && (
-        <p className="text-[11px] text-amber-700 mt-1">
-          Salve e clique em <strong>Refazer</strong> para o vídeo sair com este texto.
-        </p>
-      )}
-    </div>
-  );
-}
-
 const CURSOS: { id: string; nome: string }[] = [
   { id: 'white-belt', nome: 'White Belt — fundo branco' },
   { id: 'yellow-belt', nome: 'Yellow Belt — fundo amarelo' },
@@ -1239,33 +1219,47 @@ const CURSOS: { id: string; nome: string }[] = [
  * O gancho tem limite de 3 a 6 palavras porque é o que se lê no tamanho de uma
  * miniatura. Não é preferência: passar disso o padrão manda reprovar a capa.
  */
-function ArteDaCapa({ criativo }: { criativo: Criativo }) {
+function ArteDaCapa({ criativo, video }: { criativo: Criativo; video?: VideoFonte }) {
   const gravada = criativo.capa || {};
+
+  // OS CAMPOS MOSTRAM O QUE A ARTE USA, e não um exemplo cinza.
+  //
+  // Antes eram placeholders: o campo do gancho sugeria "LEAN SIX SIGMA / É MÉTODO"
+  // e o do assunto sugeria "MELHORIA CONTÍNUA", enquanto a arte usava o título do
+  // criativo e a série do vídeo ("PARTE 1"). A tela dizia uma coisa e a imagem
+  // mostrava outra, sem nenhum jeito de descobrir de onde vinha o quê.
+  //
+  // Estes são os MESMOS padrões do servidor. Se um mudar lá, muda aqui.
+  const ganchoPadrao = ganchoDoTitulo(criativo.titulo);
+  const assuntoPadrao = (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase();
+
   const [curso, setCurso] = useState(gravada.courseKey || 'white-belt');
   const [serie, setSerie] = useState(gravada.seriesLabel || 'WHITE BELT');
   const [episodio, setEpisodio] = useState(gravada.episode || String(criativo.ordem || 1).padStart(2, '0'));
-  const [gancho, setGancho] = useState((gravada.hookLines || []).join('\n'));
+  const [gancho, setGancho] = useState((gravada.hookLines || ganchoPadrao).join('\n'));
   const [rotulo, setRotulo] = useState(gravada.topicLabel || 'AULA PRÁTICA');
-  const [assunto, setAssunto] = useState(gravada.topicStrong || '');
+  const [assunto, setAssunto] = useState(gravada.topicStrong || assuntoPadrao);
   const [salvando, setSalvando] = useState(false);
-  const [aberto, setAberto] = useState(false);
+  const [salvo, setSalvo] = useState(false);
 
   useEffect(() => {
     const g = criativo.capa || {};
     setCurso(g.courseKey || 'white-belt');
     setSerie(g.seriesLabel || 'WHITE BELT');
     setEpisodio(g.episode || String(criativo.ordem || 1).padStart(2, '0'));
-    setGancho((g.hookLines || []).join('\n'));
+    setGancho((g.hookLines || ganchoDoTitulo(criativo.titulo)).join('\n'));
     setRotulo(g.topicLabel || 'AULA PRÁTICA');
-    setAssunto(g.topicStrong || '');
-  }, [criativo.id, criativo.capa]);
+    setAssunto(g.topicStrong || (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criativo.id, criativo.capa, criativo.titulo, video?.serie]);
 
   const linhas = gancho.split('\n').map((l) => l.trim()).filter(Boolean);
   const palavras = linhas.join(' ').split(/\s+/).filter(Boolean).length;
-  const ganchoOk = palavras === 0 || (palavras >= 3 && palavras <= 6 && linhas.length <= 3);
+  const ganchoOk = palavras >= 3 && palavras <= 6 && linhas.length <= 3;
 
   async function salvar() {
     setSalvando(true);
+    setSalvo(false);
     try {
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
         capa: {
@@ -1278,55 +1272,21 @@ function ArteDaCapa({ criativo }: { criativo: Criativo }) {
         },
         atualizadoEm: new Date().toISOString(),
       });
+      setSalvo(true);
     } finally {
       setSalvando(false);
     }
   }
 
-  if (!aberto) {
-    return (
-      <button
-        onClick={() => setAberto(true)}
-        className="mt-2 text-xs font-semibold text-blue-700 hover:underline"
-      >
-        Mudar a arte da capa
-      </button>
-    );
-  }
+  const campo = 'w-full px-2 py-1.5 rounded border border-gray-300 text-sm';
 
   return (
-    <div className="mt-2 p-2.5 rounded border border-gray-200 bg-gray-50/60 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-bold uppercase text-gray-500">Arte da capa</p>
-        <button onClick={() => setAberto(false)} className="text-xs text-gray-500 hover:text-gray-800">fechar</button>
-      </div>
-
-      <select
-        value={curso}
-        onChange={(e) => setCurso(e.target.value as typeof curso)}
-        className="w-full px-2 py-1 rounded border border-gray-300 text-xs bg-white"
-      >
-        {CURSOS.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-      </select>
-
-      <div className="flex gap-2">
-        <input
-          value={serie}
-          onChange={(e) => setSerie(e.target.value)}
-          placeholder="WHITE BELT"
-          className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-xs"
-        />
-        <input
-          value={episodio}
-          onChange={(e) => setEpisodio(e.target.value)}
-          placeholder="03"
-          className="w-14 px-2 py-1 rounded border border-gray-300 text-xs"
-        />
-      </div>
+    <div className="space-y-2.5">
+      <p className="text-sm font-semibold text-gray-800">Texto da capa</p>
 
       <div>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase text-gray-400">Gancho da capa</span>
+          <span className="text-[10px] font-bold uppercase text-gray-400">Gancho — o texto grande</span>
           <span className={`text-[10px] font-bold ${ganchoOk ? 'text-gray-400' : 'text-red-600'}`}>
             {palavras}/6 palavras · {linhas.length}/3 linhas
           </span>
@@ -1335,46 +1295,88 @@ function ArteDaCapa({ criativo }: { criativo: Criativo }) {
           value={gancho}
           onChange={(e) => setGancho(e.target.value)}
           rows={3}
-          placeholder={'LEAN SIX SIGMA\nÉ MÉTODO'}
-          className="w-full px-2 py-1 rounded border border-gray-300 text-xs font-bold resize-none"
+          className={`${campo} font-bold resize-none`}
         />
         <p className="text-[10px] text-gray-500">
           Uma linha por linha da capa. De 3 a 6 palavras no total — é o que se lê numa miniatura.
-          Vazio usa o título.
         </p>
       </div>
 
       <div className="flex gap-2">
-        <input
-          value={rotulo}
-          onChange={(e) => setRotulo(e.target.value)}
-          placeholder="AULA PRÁTICA"
-          className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-xs"
-        />
-        <input
-          value={assunto}
-          onChange={(e) => setAssunto(e.target.value)}
-          placeholder="MELHORIA CONTÍNUA"
-          className="flex-1 min-w-0 px-2 py-1 rounded border border-gray-300 text-xs"
-        />
+        <label className="flex-1 min-w-0">
+          <span className="block text-[10px] font-bold uppercase text-gray-400">Série</span>
+          <input value={serie} onChange={(e) => setSerie(e.target.value)} className={campo} />
+        </label>
+        <label className="w-20">
+          <span className="block text-[10px] font-bold uppercase text-gray-400">Episódio</span>
+          <input value={episodio} onChange={(e) => setEpisodio(e.target.value)} className={campo} />
+        </label>
       </div>
 
-      <button
-        onClick={salvar}
-        disabled={salvando || !ganchoOk}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold disabled:opacity-50"
-      >
-        {salvando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-        Salvar a arte
-      </button>
-      <p className="text-[10px] text-amber-700">
-        Depois de salvar, clique em <strong>Refazer</strong> para a capa sair assim.
-      </p>
+      <div className="flex gap-2">
+        <label className="flex-1 min-w-0">
+          <span className="block text-[10px] font-bold uppercase text-gray-400">Rótulo do rodapé</span>
+          <input value={rotulo} onChange={(e) => setRotulo(e.target.value)} className={campo} />
+        </label>
+        <label className="flex-1 min-w-0">
+          <span className="block text-[10px] font-bold uppercase text-gray-400">Assunto</span>
+          <input value={assunto} onChange={(e) => setAssunto(e.target.value)} className={campo} />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="block text-[10px] font-bold uppercase text-gray-400">Curso — define as cores</span>
+        <select
+          value={curso}
+          onChange={(e) => setCurso(e.target.value as typeof curso)}
+          className={`${campo} bg-white`}
+        >
+          {CURSOS.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
+      </label>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={salvar}
+          disabled={salvando || !ganchoOk}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
+        >
+          {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          Salvar o texto da capa
+        </button>
+        <span className="text-[11px] text-amber-700">
+          {salvo ? 'Salvo. Agora clique em Refazer, aqui em cima.' : 'Salve e clique em Refazer, aqui em cima.'}
+        </span>
+      </div>
     </div>
   );
 }
 
-/** Uma imagem do Storage, já resolvida. */
+/**
+ * O gancho da capa a partir do título — a MESMA conta do servidor.
+ *
+ * Está repetida aqui porque a tela precisa mostrar o valor efetivo antes de o
+ * servidor calcular. Se uma mudar, a outra tem de mudar junto; é o preço de a tela
+ * poder dizer a verdade sobre o que vai sair.
+ */
+function ganchoDoTitulo(titulo: string): string[] {
+  const palavras = String(titulo || '').trim().split(/\s+/).filter(Boolean).slice(0, 6);
+  if (!palavras.length) return [];
+  const texto = palavras.join(' ').toUpperCase();
+  if (palavras.length < 2) return [texto];
+  const metade = Math.ceil(texto.length / 2);
+  let usado = 0;
+  let corte = 1;
+  for (let i = 0; i < palavras.length - 1; i++) {
+    usado += palavras[i].length + 1;
+    if (usado >= metade) { corte = i + 1; break; }
+    corte = i + 2;
+  }
+  const lista = texto.split(' ');
+  return [lista.slice(0, corte).join(' '), lista.slice(corte).join(' ')].filter(Boolean);
+}
+
+/** Uma imagem do Storage, já resolvida. *//** Uma imagem do Storage, já resolvida. */
 function ImagemDoArquivo({ caminho, className }: { caminho: string; className?: string }) {
   const { url, erro } = useArquivoUrl(caminho);
   if (erro) return <span className={`${className} bg-gray-100 block`} />;
