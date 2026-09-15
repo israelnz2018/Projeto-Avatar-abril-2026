@@ -827,11 +827,17 @@ export default function KnowledgeManagerView() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [seekTime, setSeekTime] = useState<number>(0);
   const [activePlaylists, setActivePlaylists] = useState<Record<string, string>>({});
+  // Todos os cursos, inclusive as abas especiais, começam recolhidos.
+  const [expandedCourses, setExpandedCourses] = useState<Record<string, boolean>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
   // Initiatives completas (id + temProjeto) do consultor atual — pro toggle "tem projeto?".
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [cursoVendaEditando, setCursoVendaEditando] = useState<Initiative | null>(null);
   const [salvandoVenda, setSalvandoVenda] = useState(false);
+
+  const toggleCourseExpansion = (courseName: string) => {
+    setExpandedCourses((prev) => ({ ...prev, [courseName]: !prev[courseName] }));
+  };
 
   // Estados do helper de reconciliação de cursos órfãos
   // (cursos que estão nos vídeos mas não existem mais como trilhas no /config — provavelmente foram renomeados)
@@ -2302,6 +2308,7 @@ export default function KnowledgeManagerView() {
         ) : (
           groupedItems.map((course) => {
             const abaEspecial = isIntroCourse(course.name);
+            const cursoAberto = expandedCourses[course.name] === true;
             const totalDoCurso = items.filter(i => i.course === course.name).length;
             const visibleNoCurso = course.playlists.reduce((sum, p) => sum + p.videos.length, 0);
             const filtroAtivo = !!searchTerm && visibleNoCurso < totalDoCurso;
@@ -2311,8 +2318,21 @@ export default function KnowledgeManagerView() {
               {/* Course Header */}
               <div className="bg-gray-50 p-4 border-b border-[#ccc] flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Folder className="text-blue-600" size={20} />
-                  <h2 className="font-bold text-lg text-gray-800 m-0">{course.name}</h2>
+                  <button
+                    type="button"
+                    onClick={() => toggleCourseExpansion(course.name)}
+                    aria-expanded={cursoAberto}
+                    aria-controls={`course-content-${course.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`}
+                    className="flex items-center gap-2 border-none bg-transparent p-0 cursor-pointer text-left"
+                    title={cursoAberto ? 'Fechar curso' : 'Abrir curso'}
+                  >
+                    <ChevronRight
+                      size={18}
+                      className={`text-gray-500 transition-transform ${cursoAberto ? 'rotate-90' : ''}`}
+                    />
+                    <Folder className="text-blue-600" size={20} />
+                    <h2 className="font-bold text-lg text-gray-800 m-0">{course.name}</h2>
+                  </button>
                   {abaEspecial && (
                     <span className="bg-purple-50 text-purple-700 text-[11px] font-bold px-2 py-1 rounded-full border border-purple-200">
                       Aba especial
@@ -2384,7 +2404,9 @@ export default function KnowledgeManagerView() {
                   </button>
                 </div>}
               </div>
-              
+
+              {cursoAberto && (
+              <div id={`course-content-${course.name.replace(/[^a-zA-Z0-9_-]/g, '-')}`}>
               {/* Curso recém-criado, ainda sem nenhum vídeo */}
               {course.playlists.length === 0 && (
                 <div className="px-4 py-8 text-center">
@@ -2483,6 +2505,8 @@ export default function KnowledgeManagerView() {
                     </DndContext>
                   </table>
                 </div>
+              )}
+              </div>
               )}
             </div>
             );
