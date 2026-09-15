@@ -27,13 +27,16 @@ export type TipoPeca =
   | 'reel'
   | 'carrossel-feed'
   | 'carrossel-video'
-  | 'linkedin-pdf';
+  | 'linkedin-pdf'
+  /** A capa do carrossel como post de uma imagem só no LinkedIn. */
+  | 'linkedin-imagem';
 
 export const TIPOS_PECA: { id: TipoPeca; nome: string; destino: string }[] = [
   { id: 'reel', nome: 'Reel', destino: 'Instagram Reels' },
   { id: 'carrossel-feed', nome: 'Carrossel de feed', destino: 'Instagram feed' },
   { id: 'carrossel-video', nome: 'Carrossel em vídeo', destino: 'Instagram Reels' },
   { id: 'linkedin-pdf', nome: 'Documento PDF', destino: 'LinkedIn' },
+  { id: 'linkedin-imagem', nome: 'Imagem única', destino: 'LinkedIn' },
 ];
 
 /** Estado de uma peça. O consultor age em `revisar`. */

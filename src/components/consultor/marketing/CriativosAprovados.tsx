@@ -660,6 +660,7 @@ function Producao({
         ocupado={textoNoServidor || gerando || enfileirando}
         aoAlterarSlide={alterarSlide}
         aoRefazer={refazerTexto}
+        aoMudar={onMudou}
       />
 
       <PecaProntaDoCriativo
@@ -723,7 +724,7 @@ function PecaProntaDoCriativo({
  * Fica no fim porque é a alternativa ao documento, não a peça principal.
  */
 function ImagemUnicaLinkedin({
-  criativo, pecas, slides, ocupado, aoAlterarSlide, aoRefazer,
+  criativo, pecas, slides, ocupado, aoAlterarSlide, aoRefazer, aoMudar,
 }: {
   criativo: Criativo;
   pecas: Peca[];
@@ -731,20 +732,63 @@ function ImagemUnicaLinkedin({
   ocupado?: boolean;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoRefazer: () => void;
+  aoMudar: () => void;
 }) {
   // A capa do carrossel GERADO: é a página 1 do texto editável ao lado. Um carrossel
   // enviado pelo consultor não tem esse texto.
   const feed = pecas.find((p) => p.tipo === 'carrossel-feed' && p.origem !== 'enviada');
-  const capa = (feed?.arquivos || []).filter((c) => /slide-\d+\.png$/i.test(c)).sort()[0];
-  if (!capa) return null;
+  const capaDoFeed = (feed?.arquivos || []).filter((c) => /slide-\d+\.png$/i.test(c)).sort()[0];
+  // A imagem única é uma PEÇA, com aprovação própria e lugar na Publicação. O worker
+  // cria a ficha a cada produção; em campanha produzida antes disso ela nasce no
+  // primeiro Aprovar, a partir da capa do carrossel.
+  const peca = pecas.find((p) => p.tipo === 'linkedin-imagem');
+  const capa = peca?.arquivoUrl || capaDoFeed;
+  if (!capa || !feed) return null;
 
   // A capa É a página 1 do carrossel. Mexer aqui é mexer lá, de propósito: são a
   // mesma imagem, e manter duas cópias do mesmo texto daria dois textos diferentes.
   const paginaDaCapa = slides[0];
+  const aprovada = peca?.status === 'aprovado' || peca?.status === 'publicado';
+
+  async function definir(aprovar: boolean) {
+    const id = peca?.id || `${feed!.campanhaId}__linkedin-imagem`;
+    const agora = new Date().toISOString();
+    await setDoc(doc(db, COLECOES.pecas, id), {
+      id,
+      consultorId: feed!.consultorId,
+      campanhaId: feed!.campanhaId,
+      tipo: 'linkedin-imagem',
+      versao: peca?.versao || 1,
+      arquivoUrl: capa,
+      arquivos: [capa],
+      criadoEm: peca?.criadoEm || agora,
+      status: aprovar ? 'aprovado' : 'revisar',
+      atualizadoEm: agora,
+    }, { merge: true });
+    aoMudar();
+  }
 
   return (
-    <section className="p-4 rounded-lg border border-gray-200 bg-white">
-      <p className="text-sm font-semibold text-gray-800 mb-3">Imagem única para o LinkedIn</p>
+    <section className={cartaoDaPeca(aprovada)}>
+      <CabecalhoDaPeca
+        nome={nomeDaPeca('linkedin-imagem')}
+        ocupado={ocupado}
+        acao={(
+          <BotaoRefazer
+            ocupado={ocupado}
+            aoClicar={aoRefazer}
+            aviso="Refaz esta imagem e as outras peças de texto: ela é a capa do carrossel, e saem de uma produção só."
+          />
+        )}
+        aprovacao={(
+          <BotaoAprovacao
+            aprovado={peca?.status === 'aprovado'}
+            publicado={peca?.status === 'publicado'}
+            desabilitado={ocupado}
+            aoDefinir={definir}
+          />
+        )}
+      />
 
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="lg:w-[300px] shrink-0">
@@ -851,7 +895,10 @@ function PecasProduzidas({
 
   // A ordem é a de importância para quem publica, não a que o servidor gravou.
   const ordem: Peca['tipo'][] = ['reel', 'carrossel-feed', 'carrossel-video', 'linkedin-pdf'];
-  const ordenadas = [...pecas].sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
+  // A imagem única do LinkedIn tem o cartão dela logo abaixo, junto do texto da capa.
+  const ordenadas = pecas
+    .filter((p) => p.tipo !== 'linkedin-imagem')
+    .sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
 
   return (
     <div className="space-y-4">
@@ -861,20 +908,11 @@ function PecasProduzidas({
         return (
         <React.Fragment key={p.id}>
         <section className={cartaoDaPeca(p.status === 'aprovado' || p.status === 'publicado')}>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-              {nomeDaPeca(p.tipo)}
-              {p.versao > 1 && (
-                <span className="text-xs font-normal text-gray-500">versão {p.versao}</span>
-              )}
-              {ocupado && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
-                  <Loader2 className="w-3 h-3 animate-spin" /> refazendo…
-                </span>
-              )}
-            </p>
-
-            <div className="flex items-center gap-2">
+          <CabecalhoDaPeca
+            nome={nomeDaPeca(p.tipo)}
+            detalhe={p.versao > 1 ? <span className="text-xs font-normal text-gray-500">versão {p.versao}</span> : undefined}
+            ocupado={ocupado}
+            ajustes={<>
               {p.tipo === 'reel' && (
                 <Ritmo
                   rotulo="Velocidade da fala"
@@ -903,9 +941,11 @@ function PecasProduzidas({
                   ]}
                 />
               )}
-              {/* UM Refazer por peça, sempre no mesmo canto. As de texto saem todas
-                  de uma passagem, então qualquer um deles refaz as quatro — o aviso
-                  diz isso, para o clique não surpreender. */}
+            </>}
+            // UM Refazer por peça, sempre no mesmo canto. As de texto saem todas de
+            // uma passagem, então qualquer um deles refaz as de texto — o aviso diz
+            // isso, para o clique não surpreender.
+            acao={(
               <BotaoRefazer
                 ocupado={ocupado}
                 aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
@@ -913,9 +953,9 @@ function PecasProduzidas({
                   ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
                   : 'Refaz esta peça e as outras de texto: elas saem de uma produção só.'}
               />
-              <BotaoAprovar peca={p} onMudou={aoAprovar} />
-            </div>
-          </div>
+            )}
+            aprovacao={<BotaoAprovar peca={p} onMudou={aoAprovar} />}
+          />
 
           {p.tipo === 'carrossel-feed' && (
             <FichaCarrossel
@@ -999,57 +1039,36 @@ function CartaoCapaDoReel({
   campanhaDoReel?: Campanha;
   aoMudar: () => void;
 }) {
-  const [aprovando, setAprovando] = useState(false);
-  const refazendo = campanhaDoReel?.capaStatus === 'processando';
+  const arte = useArteDaCapa(criativo, video, aoMudar);
+  const refazendo = campanhaDoReel?.capaStatus === 'processando' || arte.salvando;
   const aprovada = peca.capaStatus === 'aprovado';
-
-  async function definir(capaStatus: 'revisar' | 'aprovado') {
-    setAprovando(true);
-    try {
-      await updateDoc(doc(db, COLECOES.pecas, peca.id), { capaStatus, atualizadoEm: new Date().toISOString() });
-      aoMudar();
-    } finally {
-      setAprovando(false);
-    }
-  }
 
   return (
     <section className={cartaoDaPeca(aprovada)}>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-          Capa do Reel
-          {refazendo && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
-              <Loader2 className="w-3 h-3 animate-spin" /> refazendo…
-            </span>
-          )}
-        </p>
-        {peca.capaUrl && (aprovada ? (
-          <span className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 text-white text-xs font-bold">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Capa aprovada
-            </span>
-            <button
-              onClick={() => definir('revisar')}
-              disabled={aprovando}
-              title="Tira a aprovação da capa. O Reel continua como está."
-              className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50"
-            >
-              desfazer
-            </button>
-          </span>
-        ) : (
-          <button
-            onClick={() => definir('aprovado')}
-            disabled={aprovando || refazendo}
-            title="Aprova só a capa. O Reel tem a aprovação dele."
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
-          >
-            {aprovando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-            Aprovar capa
-          </button>
-        ))}
-      </div>
+      <CabecalhoDaPeca
+        nome="Capa do Reel"
+        ocupado={refazendo}
+        acao={(
+          <BotaoRefazer
+            ocupado={refazendo}
+            aoClicar={arte.salvarERefazer}
+            aviso="Refaz só a imagem da capa, com os campos abaixo. O vídeo não é cortado de novo."
+          />
+        )}
+        aprovacao={(
+          <BotaoAprovacao
+            aprovado={aprovada}
+            desabilitado={!peca.capaUrl || refazendo}
+            aoDefinir={async (aprovar) => {
+              await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+                capaStatus: aprovar ? 'aprovado' : 'revisar',
+                atualizadoEm: new Date().toISOString(),
+              });
+              aoMudar();
+            }}
+          />
+        )}
+      />
 
       {campanhaDoReel?.capaStatus === 'erro' && (
         <p className="text-xs text-red-700 mb-2">
@@ -1061,10 +1080,10 @@ function CartaoCapaDoReel({
         <div className="lg:w-[300px] shrink-0">
           {peca.capaUrl
             ? <ImagemDoArquivo caminho={peca.capaUrl} className="w-full rounded border border-gray-200" />
-            : <p className="text-xs text-gray-500 italic">Ainda não há capa. Preencha ao lado e clique em Refazer a capa.</p>}
+            : <p className="text-xs text-gray-500 italic">Ainda não há capa. Preencha ao lado e clique em Refazer.</p>}
         </div>
         <div className="flex-1 min-w-0">
-          <ArteDaCapa criativo={criativo} video={video} refazendo={refazendo} onRefeita={aoMudar} />
+          <CamposDaCapa arte={arte} />
         </div>
       </div>
     </section>
@@ -1075,35 +1094,18 @@ function CartaoCapaDoReel({
  * Uma peça que o consultor enviou pronta.
  *
  * Sem Refazer, sem ritmo, sem editor de páginas — não há texto nem render de onde
- * refazer. O que se faz com ela é olhar, ajustar a legenda, aprovar ou tirar.
+ * refazer. No lugar do Refazer fica o Tirar; o resto é o padrão de toda peça.
  */
-/**
- * O cartão de uma peça: VERDE quando aprovada.
- *
- * A etiqueta pequena de "Aprovada" no canto se perdia no meio de quatro cartões
- * iguais. O cartão inteiro verde diz de longe o que já foi para a publicação e o
- * que ainda falta revisar.
- */
-function cartaoDaPeca(aprovada: boolean) {
-  return aprovada
-    ? 'p-4 rounded-lg border-2 border-green-500 bg-green-50'
-    : 'p-4 rounded-lg border border-gray-200 bg-white';
-}
-
 export function PecaEnviada({ peca, aoMudar }: { peca: Peca; aoMudar: () => void }) {
   const imagens = (peca.arquivos || []).filter((c) => /slide-\d+\.(png|jpe?g|webp)$/i.test(c)).sort();
   return (
     <section className={cartaoDaPeca(peca.status === 'aprovado' || peca.status === 'publicado')}>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-          {nomeDaPeca(peca.tipo)}
-          <span className="text-xs font-normal px-1.5 py-0.5 rounded bg-blue-50 text-blue-800">enviada por você</span>
-        </p>
-        <div className="flex items-center gap-2">
-          <BotaoRemoverPecaEnviada peca={peca} aoMudar={aoMudar} />
-          <BotaoAprovar peca={peca} onMudou={aoMudar} />
-        </div>
-      </div>
+      <CabecalhoDaPeca
+        nome={nomeDaPeca(peca.tipo)}
+        detalhe={<span className="text-xs font-normal px-1.5 py-0.5 rounded bg-blue-50 text-blue-800">enviada por você</span>}
+        acao={<BotaoRemoverPecaEnviada peca={peca} aoMudar={aoMudar} />}
+        aprovacao={<BotaoAprovar peca={peca} onMudou={aoMudar} />}
+      />
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="lg:w-[340px] shrink-0">
           {imagens.length > 1 ? (
@@ -1509,15 +1511,7 @@ const CURSOS: { id: string; nome: string }[] = [
  * NADA AQUI É OBRIGATÓRIO. De 3 a 6 palavras no gancho é o que se lê numa
  * miniatura, e a tela avisa — mas não impede. Campo apagado fica apagado.
  */
-function ArteDaCapa({
-  criativo, video, refazendo, onRefeita,
-}: {
-  criativo: Criativo;
-  video?: VideoFonte;
-  /** A capa já está sendo refeita no servidor. */
-  refazendo?: boolean;
-  onRefeita?: () => void;
-}) {
+function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefeita?: () => void) {
   const gravada = criativo.capa || {};
 
   // VAZIO QUER DIZER VAZIO. Com `||`, o campo que o consultor apagou voltava com o
@@ -1605,6 +1599,22 @@ function ArteDaCapa({
     }
   }
 
+  return {
+    curso, setCurso, serie, setSerie, episodio, setEpisodio, gancho, setGancho,
+    rotulo, setRotulo, assunto, setAssunto, linhas, palavras, ganchoNoPadrao,
+    salvando, erro, salvarERefazer,
+  };
+}
+
+/**
+ * Os campos da capa. O botão de refazer NÃO fica aqui: fica no canto de cima do
+ * cartão, como em toda peça.
+ */
+function CamposDaCapa({ arte }: { arte: ReturnType<typeof useArteDaCapa> }) {
+  const {
+    curso, setCurso, serie, setSerie, episodio, setEpisodio, gancho, setGancho,
+    rotulo, setRotulo, assunto, setAssunto, linhas, palavras, ganchoNoPadrao, erro,
+  } = arte;
   const campo = 'w-full px-2 py-1.5 rounded border border-gray-300 text-sm';
 
   return (
@@ -1663,20 +1673,10 @@ function ArteDaCapa({
         </select>
       </label>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          onClick={salvarERefazer}
-          disabled={salvando || refazendo}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
-        >
-          {salvando || refazendo
-            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Refazendo a capa…</>
-            : <><RefreshCw className="w-3.5 h-3.5" /> Refazer a capa</>}
-        </button>
-        <span className="text-[11px] text-gray-500">
-          Refaz só a imagem da capa, em segundos. O vídeo não é cortado de novo.
-        </span>
-      </div>
+      <p className="text-[11px] text-gray-500 pt-2 border-t border-gray-100">
+        Editou? Clique em <strong>Refazer</strong>, no canto de cima deste cartão. Refaz só a
+        imagem da capa, em segundos — o vídeo não é cortado de novo.
+      </p>
       {erro && <p className="text-sm text-red-700">{erro}</p>}
     </div>
   );
@@ -1714,42 +1714,95 @@ function ImagemDoArquivo({ caminho, className }: { caminho: string; className?: 
   return <img src={url} alt="" className={className} />;
 }
 
+/* ====================== O padrão de toda peça ====================== */
+
 /**
- * Aprovar e desaprovar uma peça.
+ * O cartão de uma peça: VERDE quando aprovada.
  *
- * Aprovar é o que manda a peça para a etapa de publicação. Fica AQUI, ao lado da
- * peça, e não numa tela de revisão separada: o consultor decide olhando o que
- * saiu, e uma segunda tela mostrando as mesmas peças só duplicava a dúvida sobre
- * onde aprovar.
+ * TODA peça usa este cartão e o cabeçalho abaixo — Reel, capa do Reel, carrossel,
+ * vídeo, PDF, imagem única do LinkedIn e as peças enviadas. Cada cartão tinha sido
+ * montado de um jeito, e a imagem única ficou sem aprovar: o consultor procurava o
+ * botão onde ele estava nos outros, e não achava.
  */
-function BotaoAprovar({ peca, onMudou }: { peca: Peca; onMudou: () => void }) {
+function cartaoDaPeca(aprovada: boolean) {
+  return aprovada
+    ? 'p-4 rounded-lg border-2 border-green-500 bg-green-50'
+    : 'p-4 rounded-lg border border-gray-200 bg-white';
+}
+
+/**
+ * O cabeçalho de toda peça, sempre igual: o nome à esquerda; à direita, os ajustes
+ * da peça, o Refazer (ou o Tirar, na peça enviada) e, por último, o Aprovar.
+ */
+function CabecalhoDaPeca({
+  nome, detalhe, ocupado, ajustes, acao, aprovacao,
+}: {
+  nome: string;
+  /** Um marcador ao lado do nome: "versão 2", "enviada por você". */
+  detalhe?: React.ReactNode;
+  ocupado?: boolean;
+  ajustes?: React.ReactNode;
+  /** Refazer, ou Tirar na peça enviada. */
+  acao?: React.ReactNode;
+  aprovacao: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+        {nome}
+        {detalhe}
+        {ocupado && (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+            <Loader2 className="w-3 h-3 animate-spin" /> refazendo…
+          </span>
+        )}
+      </p>
+      <div className="flex items-center gap-2">
+        {ajustes}
+        {acao}
+        {aprovacao}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Aprovar e desfazer — o MESMO botão em toda peça.
+ *
+ * Aprovar é o que manda a peça para a etapa de publicação. Fica ao lado da peça, e
+ * não numa tela de revisão separada: o consultor decide olhando o que saiu.
+ */
+function BotaoAprovacao({
+  aprovado, publicado, desabilitado, aoDefinir,
+}: {
+  aprovado: boolean;
+  publicado?: boolean;
+  desabilitado?: boolean;
+  aoDefinir: (aprovar: boolean) => Promise<void>;
+}) {
   const [salvando, setSalvando] = useState(false);
 
-  async function definir(status: Peca['status']) {
+  async function definir(aprovar: boolean) {
     setSalvando(true);
     try {
-      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
-        status,
-        atualizadoEm: new Date().toISOString(),
-      });
-      onMudou();
+      await aoDefinir(aprovar);
     } finally {
       setSalvando(false);
     }
   }
 
-  if (peca.status === 'aprovado' || peca.status === 'publicado') {
+  if (aprovado || publicado) {
     return (
       <span className="flex items-center gap-1.5">
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 text-white text-xs font-bold">
           <CheckCircle2 className="w-3.5 h-3.5" />
-          {peca.status === 'publicado' ? 'Publicada' : 'Aprovada · na Publicação'}
+          {publicado ? 'Publicada' : 'Aprovada'}
         </span>
-        {peca.status === 'aprovado' && (
+        {!publicado && (
           <button
-            onClick={() => definir('revisar')}
+            onClick={() => definir(false)}
             disabled={salvando}
-            title="Tira a aprovação para poder refazer"
+            title="Tira a aprovação"
             className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-50"
           >
             desfazer
@@ -1761,14 +1814,32 @@ function BotaoAprovar({ peca, onMudou }: { peca: Peca; onMudou: () => void }) {
 
   return (
     <button
-      onClick={() => definir('aprovado')}
-      disabled={salvando}
-      title="Manda esta peça para a etapa de publicação"
+      onClick={() => definir(true)}
+      disabled={salvando || desabilitado}
+      title="Aprova e manda para a etapa de publicação"
       className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
     >
       {salvando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
       Aprovar
     </button>
+  );
+}
+
+/** A aprovação de uma peça comum, gravada no status dela. */
+function BotaoAprovar({ peca, onMudou, desabilitado }: { peca: Peca; onMudou: () => void; desabilitado?: boolean }) {
+  return (
+    <BotaoAprovacao
+      aprovado={peca.status === 'aprovado'}
+      publicado={peca.status === 'publicado'}
+      desabilitado={desabilitado}
+      aoDefinir={async (aprovar) => {
+        await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+          status: aprovar ? 'aprovado' : 'revisar',
+          atualizadoEm: new Date().toISOString(),
+        });
+        onMudou();
+      }}
+    />
   );
 }
 
@@ -1843,6 +1914,7 @@ function nomeDaPeca(tipo: Peca['tipo']) {
   if (tipo === 'carrossel-feed') return 'Carrossel do feed';
   if (tipo === 'carrossel-video') return 'Carrossel em vídeo';
   if (tipo === 'linkedin-pdf') return 'Documento PDF';
+  if (tipo === 'linkedin-imagem') return 'Imagem única do LinkedIn';
   return 'Reel';
 }
 
