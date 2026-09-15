@@ -103,9 +103,23 @@ async function getAllInitiatives(): Promise<Initiative[]> {
   return getEducationCourses();
 }
 
-/** Lê todos os vídeos. Cacheável depois — por enquanto leitura direta. */
-async function getAllVideos(): Promise<KnowledgeEntry[]> {
-  const snapshot = await getDocs(collection(db, KNOWLEDGE_COLLECTION));
+/**
+ * Os vídeos do tenant de quem está olhando.
+ *
+ * A CONSULTA VAI FILTRADA. Ler a coleção inteira e peneirar depois parece
+ * equivalente e não é: as regras do Firestore são por documento, e ele recusa a
+ * consulta inteira quando não consegue provar que todos podem ser lidos. Só o
+ * admin passava — todo o resto (aluno, coordenador, consultor) recebia uma recusa
+ * e via o progresso das trilhas zerado, sem erro visível.
+ *
+ * `global` existe para o painel do admin, que precisa contar a base toda e é o
+ * único que tem permissão para isso.
+ */
+async function getAllVideos(global = false): Promise<KnowledgeEntry[]> {
+  const ref = collection(db, KNOWLEDGE_COLLECTION);
+  const snapshot = global
+    ? await getDocs(ref)
+    : await getDocs(query(ref, where('consultorId', '==', resolveConsultorId())));
   return snapshot.docs.map(d => ({ id: d.id, ...(d.data() as KnowledgeEntry) }));
 }
 
@@ -745,7 +759,7 @@ export async function getAdminGlobalStats(): Promise<AdminGlobalStats> {
 
   // Conteúdo
   const allInitiatives = await getAllInitiatives();
-  const allVideos = await getAllVideos();
+  const allVideos = await getAllVideos(true);
   const cursos = new Set<string>();
   const playlists = new Set<string>();
   allVideos.forEach(v => {

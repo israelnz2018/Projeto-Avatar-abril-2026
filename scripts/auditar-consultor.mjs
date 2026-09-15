@@ -195,37 +195,38 @@ for (const colecao of ['marketing_videos', 'marketing_criativos', 'marketing_cam
   });
 }
 
-console.log('\n=== LEITURAS DE COLEÇÃO INTEIRA QUE O CÓDIGO FAZ ===');
-// Ler a coleção toda e filtrar no navegador é o erro que quebrou "Meus Cursos": as
-// regras são por documento, e o Firestore RECUSA a consulta inteira quando não
-// consegue provar que todos os documentos podem ser lidos. Para o admin passa —
-// ele tem exceção global —, para o consultor não. Cada linha aqui é uma leitura
-// que existe no código de verdade.
-const leiturasInteiras = [
-  ['initiatives', 'services/configService.ts:25 — a lista de cursos'],
-  ['knowledge_base', 'services/dashboardDataService.ts:108'],
-  ['users', 'services/userService.ts:199 e 348'],
-  ['invites', 'services/userService.ts:333'],
-  ['projects', 'services/dashboardDataService.ts:739'],
-  ['user_progress', 'services/videoProgressService.ts:124'],
-  ['initiative_configs', 'configuração dos cursos'],
-  ['opinioes', 'services/opiniaoService.ts:139'],
-  ['mentor_tool_context', 'services/mentorContextService.ts:45'],
-  ['support_materials', 'materiais de apoio'],
+console.log('\n=== AS CONSULTAS QUE AS TELAS DO CONSULTOR FAZEM ===');
+// Cada uma destas existe no código e está num caminho que o consultor percorre.
+// Ler a coleção toda e peneirar no navegador não serve: as regras são por
+// documento, e o Firestore recusa a consulta inteira quando não consegue provar
+// de antemão que todos podem ser lidos. O admin passa — tem exceção global —, e
+// foi por isso que "Meus Cursos" ficou quebrado sem ninguém ver.
+const consultasDasTelas = [
+  ['initiatives', 'Meus Cursos — a lista de cursos (configService.getInitiatives)'],
+  ['knowledge_base', 'progresso das trilhas (dashboardDataService.getAllVideos)'],
+  ['support_materials', 'Materiais de Apoio'],
+  ['marketing_videos', 'Marketing — os vídeos'],
 ];
-const quebradas = [];
-for (const [colecao, onde] of leiturasInteiras) {
-  let permitido = true;
-  try {
-    await getDocs(collection(bd, colecao));
-  } catch { permitido = false; }
-  if (!permitido) quebradas.push([colecao, onde]);
-  console.log(`${permitido ? 'ok   ' : 'QUEBRA'} ler ${colecao} inteira — ${onde}`);
+for (const [colecao, onde] of consultasDasTelas) {
+  await testar(`consultar ${colecao} pelo dono — ${onde}`, 'pode', async () => {
+    await getDocs(query(collection(bd, colecao), where('consultorId', '==', alvo)));
+  });
 }
-if (quebradas.length) {
-  falhas += quebradas.length;
-  console.log(`\n  ${quebradas.length} leitura(s) que o consultor não consegue fazer:`);
-  for (const [c, onde] of quebradas) console.log(`    ${c} — ${onde}`);
+
+// Estas leituras sem filtro existem no código, mas SÓ em tela de admin. Recusar
+// é o comportamento certo — o teste registra para ninguém as "consertar" sem
+// necessidade e acabar afrouxando a regra.
+console.log('\n  (leituras sem filtro que só o admin faz — recusar é o esperado)');
+for (const [colecao, onde] of [
+  ['users', 'DashboardAdmin — getAllUsers'],
+  ['invites', 'UserManagementView — só no ramo isAdmin'],
+  ['projects', 'getAdminGlobalStats'],
+  ['user_progress', 'DashboardAdmin — getAllUsersProgress'],
+  ['opinioes', 'OpinioesAdminView'],
+]) {
+  let permitido = true;
+  try { await getDocs(collection(bd, colecao)); } catch { permitido = false; }
+  console.log(`  ${permitido ? 'aberta ' : 'fechada'} ${colecao} — ${onde}`);
 }
 
 console.log('\n=== MEUS ALUNOS (users) ===');
