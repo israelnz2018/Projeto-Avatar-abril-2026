@@ -52,6 +52,7 @@ import { getAllToolContexts, MentorToolContext } from '../services/mentorContext
 import { Link2, ArrowRight } from 'lucide-react';
 import { ICON_CATALOG, COLOR_CATALOG, resolveInitiativeVisual } from '../services/initiativeVisual';
 import { uploadInitiativeIcon } from '../services/brandingUploadService';
+import { useConsultor } from '../contexts/ConsultorContext';
 
 const DEFAULT_PHASES = [
   { id: 'Define', name: 'Definir' },
@@ -187,6 +188,7 @@ const TOOL_CATEGORIES = [
 
 export default function ProjectToolsConfig() {
   const { isAdmin } = useUserAccess();
+  const { consultorId } = useConsultor();
   // No SITE do consultor (israel.…) esconde rascunhos mesmo pro admin (visão do consultor).
   // O marcar rascunho + ver tudo fica no admin (app.…). ehAdminHub = pode marcar/ver tudo.
   const ehAdminHub = isAdmin && !isSiteConsultor();
@@ -315,12 +317,12 @@ export default function ProjectToolsConfig() {
 
   useEffect(() => {
     fetchInitiatives();
-  }, []);
+  }, [consultorId]);
 
   const fetchInitiatives = async () => {
     setLoading(true);
     try {
-      const data = await getInitiatives();
+      const data = await getInitiatives(consultorId);
       setAllCourses(data.filter(ehCurso));
       const projectTypes = data.filter(ehTipoDeProjeto);
       if (data.length === 0) {
@@ -331,7 +333,7 @@ export default function ProjectToolsConfig() {
           console.error("Erro ao criar iniciativa padrão:", seedError);
           // Don't fail the whole fetch if seeding fails, just show empty
         }
-        const seededData = await getInitiatives();
+        const seededData = await getInitiatives(consultorId);
         setAllCourses(seededData.filter(ehCurso));
         const seededProjectTypes = seededData.filter(ehTipoDeProjeto);
         setInitiatives(seededProjectTypes);
@@ -368,7 +370,7 @@ export default function ProjectToolsConfig() {
     setEditedPhases(initiative.phases || []);
     setActiveConfigPhaseId(null);
     try {
-      const data = await getInitiativeConfigs(initiative.id);
+      const data = await getInitiativeConfigs(initiative.id, consultorId);
       setConfigs(data);
       if (initiative.phases && initiative.phases.length > 0) {
         setActiveConfigPhaseId(initiative.phases[0].id);
@@ -439,8 +441,8 @@ export default function ProjectToolsConfig() {
         // É o que garante que nada quebre mesmo onde a propagação não alcança
         // (materiais de apoio, quizzes, referências antigas).
         await registrarNomeAnterior(selectedInitiative.id, nomeAntigo);
-        await updateCourseName(nomeAntigo, nomeNovo);
-        await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo);
+        await updateCourseName(nomeAntigo, nomeNovo, consultorId);
+        await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo, consultorId);
       }
 
       const updates: any = {
@@ -503,7 +505,14 @@ export default function ProjectToolsConfig() {
     }
 
     try {
-      const initiative = await createInitiative(newInitiativeName, undefined, newInitiativeParentId || undefined);
+      const initiative = await createInitiative(
+        newInitiativeName,
+        undefined,
+        newInitiativeParentId || undefined,
+        undefined,
+        undefined,
+        consultorId,
+      );
       await updateInitiative(initiative.id, {
         iconId: newInitiativeIconId,
         corId: newInitiativeCorId,
@@ -588,12 +597,12 @@ export default function ProjectToolsConfig() {
       if (phaseId) {
         const config = configs.find(c => c.phaseId === phaseId);
         if (config) {
-          await saveInitiativeConfig(config);
+          await saveInitiativeConfig({ ...config, consultorId });
         }
       } else {
         // Save each config
         for (const config of configs) {
-          await saveInitiativeConfig(config);
+          await saveInitiativeConfig({ ...config, consultorId });
         }
       }
 

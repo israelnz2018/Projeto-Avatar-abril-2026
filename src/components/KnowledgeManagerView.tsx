@@ -837,7 +837,7 @@ export default function KnowledgeManagerView() {
   // (cursos que estão nos vídeos mas não existem mais como trilhas no /config — provavelmente foram renomeados)
 
   useEffect(() => {
-    getInitiatives().then(list => {
+    getInitiatives(consultorId).then(list => {
       // Modelo antigo assumia hierarquia pai/filho — só "filhos" (com parentId) viravam
       // cursos selecionáveis aqui. Após a migração pra trilhas individuais (todas
       // viraram Principal), o filtro `!!i.parentId` retornava [] e o dropdown ficava
@@ -853,7 +853,7 @@ export default function KnowledgeManagerView() {
       setInitiatives(cursos);
     }).catch(console.error);
     fetchItems();
-  }, []);
+  }, [consultorId]);
 
   // ===== Criar curso =====
   // Um curso é uma Initiative do consultor atual (createInitiative já carimba o
@@ -899,20 +899,15 @@ export default function KnowledgeManagerView() {
     setIsSavingCourse(true);
     try {
       // Sem cursoAssociadoId de propósito: este registro É o curso.
-      const criado = await createInitiative(nome);
-      // Visual só pra o card do curso não nascer sem ícone/cor na aba Projetos.
-      // O consultor troca depois em "Projetos, Fases e Ferramentas".
+      const criado = await createInitiative(nome, undefined, undefined, undefined, undefined, consultorId);
+      // O curso nasce apenas como conteúdo. O consultor decide depois se também
+      // quer disponibilizá-lo como um tipo de projeto.
       const iconId = ICON_CATALOG.find((i) => i.id === 'book')?.id || ICON_CATALOG[0].id;
       const corId = COLOR_CATALOG[initiatives.length % COLOR_CATALOG.length].id;
       const ordem = initiatives.reduce((max, i) => Math.max(max, Number(i.ordem) || 0), 0) + 1;
-      // temProjeto: true explícito (não deixar implícito por ausência) — é o que faz
-      // o curso aparecer automaticamente como tipo de projeto na aba Projetos, pro
-      // aluno poder criar um projeto dele. Sem nenhuma fase configurada ainda
-      // (ProjectToolsConfig faz isso depois, se o consultor quiser adicionar
-      // ferramentas da qualidade), o projeto que o aluno criar mostra a tela
-      // "Este projeto não tem ferramentas da qualidade" — ver ProjectManagement.tsx.
-      await updateInitiative(criado.id, { iconId, corId, ordem, temProjeto: true });
-      const completo = { ...criado, iconId, corId, ordem, temProjeto: true };
+      // O padrão de um curso novo é NÃO criar projeto automaticamente.
+      await updateInitiative(criado.id, { iconId, corId, ordem, temProjeto: false });
+      const completo = { ...criado, iconId, corId, ordem, temProjeto: false };
       setInitiatives((prev) => [...prev, completo]);
       setInitiativeNames((prev) => [...prev, nome]);
       setNewCourseName('');
@@ -941,7 +936,8 @@ export default function KnowledgeManagerView() {
   };
 
   // Liga/desliga "este curso tem projeto?" — grava temProjeto na initiative de mesmo nome.
-  // Default (ausente/true) = tem projeto (comportamento atual). false = curso só-conteúdo.
+  // Cursos novos nascem com false. Registros antigos sem a flag continuam com
+  // o comportamento legado para não retirar projetos que já estavam disponíveis.
   const toggleTemProjeto = async (courseName: string) => {
     const ini = initiatives.find((i) => i.name === courseName);
     if (!ini) return; // curso sem trilha correspondente já não vira projeto
@@ -1705,7 +1701,7 @@ export default function KnowledgeManagerView() {
           }
         }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
-        await deleteCourse(modalConfig.targetCourse);
+        await deleteCourse(modalConfig.targetCourse, consultorId);
       } else if (modalConfig.type === 'editCourse' && modalConfig.targetCourse && modalConfig.inputValue) {
         const nomeAntigo = modalConfig.targetCourse;
         const nomeNovo = modalConfig.inputValue.trim();
@@ -1717,8 +1713,8 @@ export default function KnowledgeManagerView() {
           // Guarda o nome antigo na iniciativa antes de propagar: cobre o que a
           // propagação não alcança (materiais de apoio, quizzes, órfãos antigos).
           if (ini) await registrarNomeAnterior(ini.id, nomeAntigo);
-          await updateCourseName(nomeAntigo, nomeNovo);
-          await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo);
+          await updateCourseName(nomeAntigo, nomeNovo, consultorId);
+          await propagarRenomeacaoParaAcessos(nomeAntigo, nomeNovo, consultorId);
           if (ini) {
             await updateInitiative(ini.id, { name: nomeNovo });
             setInitiatives((prev) => prev.map((i) => (i.id === ini.id ? { ...i, name: nomeNovo } : i)));
@@ -1726,9 +1722,9 @@ export default function KnowledgeManagerView() {
           }
         }
       } else if (modalConfig.type === 'deletePlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist) {
-        await deletePlaylist(modalConfig.targetCourse, modalConfig.targetPlaylist);
+        await deletePlaylist(modalConfig.targetCourse, modalConfig.targetPlaylist, consultorId);
       } else if (modalConfig.type === 'editPlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
-        await updatePlaylistName(modalConfig.targetCourse, modalConfig.targetPlaylist, modalConfig.inputValue);
+        await updatePlaylistName(modalConfig.targetCourse, modalConfig.targetPlaylist, modalConfig.inputValue, consultorId);
       }
       
       setModalConfig({ isOpen: false, type: 'editCourse' });

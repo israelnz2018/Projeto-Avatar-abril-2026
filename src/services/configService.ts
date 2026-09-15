@@ -21,11 +21,11 @@ import { setCourseRegistry } from '../lib/courseRegistry';
 const INITIATIVES_COLLECTION = 'initiatives';
 const CONFIG_COLLECTION = 'initiative_configs';
 
-export const getInitiatives = async (): Promise<Initiative[]> => {
+export const getInitiatives = async (consultorIdOverride?: string): Promise<Initiative[]> => {
   const snapshot = await getDocs(collection(db, INITIATIVES_COLLECTION));
   // Multi-tenant: cada consultor vê só as metodologias dele. Trilhas antigas sem
   // consultorId contam como 'israel' (não somem no app. atual).
-  const cid = resolveConsultorId();
+  const cid = consultorIdOverride || resolveConsultorId();
   const initiatives = snapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() } as Initiative))
     .filter(i => ((i as any).consultorId || 'israel') === cid);
@@ -37,14 +37,14 @@ export const getInitiatives = async (): Promise<Initiative[]> => {
 };
 
 /** Catálogo de cursos: tipos marcados somente como projeto ficam fora. */
-export const getCourses = async (): Promise<Initiative[]> => {
-  const initiatives = await getInitiatives();
+export const getCourses = async (consultorIdOverride?: string): Promise<Initiative[]> => {
+  const initiatives = await getInitiatives(consultorIdOverride);
   return initiatives.filter(ehCurso);
 };
 
 /** Catálogo de tipos de projeto, incluindo tipos que não são cursos. */
-export const getProjectTypes = async (): Promise<Initiative[]> => {
-  const initiatives = await getInitiatives();
+export const getProjectTypes = async (consultorIdOverride?: string): Promise<Initiative[]> => {
+  const initiatives = await getInitiatives(consultorIdOverride);
   return initiatives.filter(ehTipoDeProjeto);
 };
 
@@ -109,14 +109,15 @@ export const createInitiative = async (
   description?: string,
   parentId?: string,
   isFree?: boolean,
-  ordem?: number
+  ordem?: number,
+  consultorIdOverride?: string,
 ): Promise<Initiative> => {
   const id = crypto.randomUUID();
   const initiative: Initiative = {
     id,
     name,
     createdAt: new Date().toISOString(),
-    consultorId: resolveConsultorId(), // metodologia pertence ao consultor atual
+    consultorId: consultorIdOverride || resolveConsultorId(), // metodologia pertence ao consultor atual
   };
   if (description) {
     initiative.description = description;
@@ -218,10 +219,10 @@ export const saveToolCategories = async (categories: Record<string, ToolCategory
   await setDoc(doc(db, 'app_config', 'ferramentas'), { categorias: categories }, { merge: true });
 };
 
-export const getInitiativeConfigs = async (initiativeId: string): Promise<InitiativePhaseConfig[]> => {
+export const getInitiativeConfigs = async (initiativeId: string, consultorIdOverride?: string): Promise<InitiativePhaseConfig[]> => {
   const q = query(collection(db, CONFIG_COLLECTION), where('initiativeId', '==', initiativeId));
   const snapshot = await getDocs(q);
-  const cid = resolveConsultorId();
+  const cid = consultorIdOverride || resolveConsultorId();
   return snapshot.docs
     .map(doc => doc.data() as InitiativePhaseConfig)
     .filter(c => ((c as any).consultorId || 'israel') === cid);

@@ -3,15 +3,16 @@ import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getCourses, getInitiatives, getInitiativeConfigs } from '../services/configService';
 import { userDataNoConsultor, type TipoUsuario } from '../services/userService';
-import { resolveConsultorId } from '../services/consultorService';
 import { hasCourseAccess } from '../lib/courseAccess';
 import type { AcessoAnalytics } from '../services/analyticsModules';
+import { useConsultor } from '../contexts/ConsultorContext';
 
 type Plano = 'gratuito' | 'completo' | 'coordenador' | 'por_curso';
 type CursoAcesso = { curso: string; vencimento: string | null; valor?: number; quantidade?: number };
 type ProjetoAcesso = { projeto: string; vencimento: string | null; valor?: number };
 
 export function useUserAccess() {
+  const { consultorId } = useConsultor();
   const [loading, setLoading] = useState(true);
   const [plano, setPlano] = useState<Plano>('gratuito');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -71,7 +72,7 @@ export function useUserAccess() {
         let projetosAcessoExplicitamenteConfigurado = false;
         if (userSnap.exists()) {
           const dataGlobal = userSnap.data();
-          const data = userDataNoConsultor(dataGlobal, resolveConsultorId());
+          const data = userDataNoConsultor(dataGlobal, consultorId);
           acessoPlataformaCompleta = data.pacoteId === 'plataforma-profissional-gestao-projetos-melhoria';
           projetosAcessoExplicitamenteConfigurado = data.projetosAcessoConfigurado === true;
           // Marca o 1º acesso (1x só) — pra saber quem dos convidados já entrou.
@@ -182,7 +183,10 @@ export function useUserAccess() {
           setGrantedToolIds(new Set());
           return;
         }
-        const [initiatives, allInitiatives] = await Promise.all([getCourses(), getInitiatives()]);
+        const [initiatives, allInitiatives] = await Promise.all([
+          getCourses(consultorId),
+          getInitiatives(consultorId),
+        ]);
         // Converte nomes legados (ex.: "6- Como Aplicar...") para o nome atual do
         // curso. Assim todas as telas recebem a mesma lista canônica de acesso.
         cursosLib = cursosLib.map((curso) => initiatives.find((initiative) => hasCourseAccess([curso], initiative.name))?.name || curso);
@@ -190,7 +194,7 @@ export function useUserAccess() {
         const freeInitiatives = initiatives.filter(i => i.isFree === true);
         const toolIdsSet = new Set<string>();
         for (const initiative of freeInitiatives) {
-          const configs = await getInitiativeConfigs(initiative.id);
+          const configs = await getInitiativeConfigs(initiative.id, consultorId);
           configs.forEach(config => {
             if (config.toolIds && Array.isArray(config.toolIds)) {
               config.toolIds.forEach(id => toolIdsSet.add(id));
@@ -215,7 +219,7 @@ export function useUserAccess() {
           return curso && hasCourseAccess(cursosLib, curso.name);
         });
         for (const initiative of liberadas) {
-          const configs = await getInitiativeConfigs(initiative.id);
+          const configs = await getInitiativeConfigs(initiative.id, consultorId);
           configs.forEach(config => {
             if (Array.isArray(config.toolIds)) config.toolIds.forEach(id => grantedToolSet.add(id));
           });
@@ -228,7 +232,7 @@ export function useUserAccess() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [consultorId]);
 
   const canUseTool = (toolId: string) => {
     if (isAdmin || isConsultor) return true;

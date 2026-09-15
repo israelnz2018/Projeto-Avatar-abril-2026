@@ -732,17 +732,30 @@ function PecasProduzidas({
                   ]}
                 />
               )}
-              {/* UM botão por trabalho. O servidor faz duas coisas: corta o Reel,
-                  e produz as peças de texto — que saem todas de uma passagem só. O
-                  Refazer das peças de texto vive no carrossel do feed, junto dos
-                  controles delas. */}
-              {p.tipo === 'reel' && (
-                <BotaoRefazer
-                  ocupado={ocupado}
-                  aoClicar={aoRefazerReel}
-                  aviso="Corta o vídeo de novo com esta velocidade. Não usa IA."
+              {p.tipo === 'carrossel-video' && (
+                <Ritmo
+                  rotulo="Tempo por página"
+                  valor={segundosPorSlide}
+                  aoMudar={aoMudarSegundos}
+                  opcoes={[
+                    [3, '3s — rápido'],
+                    [4, '4s'],
+                    [5, '5s — normal'],
+                    [6, '6s'],
+                    [8, '8s — para ler com calma'],
+                  ]}
                 />
               )}
+              {/* UM Refazer por peça, sempre no mesmo canto. As de texto saem todas
+                  de uma passagem, então qualquer um deles refaz as quatro — o aviso
+                  diz isso, para o clique não surpreender. */}
+              <BotaoRefazer
+                ocupado={ocupado}
+                aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
+                aviso={p.tipo === 'reel'
+                  ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
+                  : 'Refaz esta peça e as outras de texto: elas saem de uma produção só.'}
+              />
               <BotaoAprovar peca={p} onMudou={aoAprovar} />
             </div>
           </div>
@@ -791,6 +804,7 @@ function PecasProduzidas({
               titulo="Legenda do Instagram"
               ajuda="Pronta para colar. É a mesma legenda do carrossel em vídeo — é o mesmo post."
               capa={p.capaUrl}
+              onRefeita={aoAprovar}
             />
           )}
         </section>
@@ -910,30 +924,6 @@ function FichaCarrossel({
           )}
 
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-            {/* O ritmo do carrossel em vídeo mora aqui, e não no cartão dele: é este
-                Refazer que o aplica, e seletor num cartão com botão em outro não se
-                explica para ninguém. */}
-            <Ritmo
-              rotulo="Tempo por página no vídeo"
-              valor={segundosPorSlide}
-              aoMudar={aoMudarSegundos}
-              opcoes={[
-                [3, '3s — rápido'],
-                [4, '4s'],
-                [5, '5s — normal'],
-                [6, '6s'],
-                [8, '8s — para ler com calma'],
-              ]}
-            />
-            <button
-              onClick={aoRefazer}
-              disabled={ocupado}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
-            >
-              {ocupado
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Refazendo…</>
-                : <>Refazer as peças de texto</>}
-            </button>
             <button
               onClick={aoDesfazer}
               title="Volta ao texto que gerou estas imagens"
@@ -941,6 +931,9 @@ function FichaCarrossel({
             >
               <RotateCcw className="w-3.5 h-3.5" /> Desfazer
             </button>
+            <span className="text-[11px] text-gray-500">
+              Editou? Clique em <strong>Refazer</strong>, no canto de cima deste cartão.
+            </span>
           </div>
 
           {/* Pedir à IA fica AQUI, junto do texto que ela vai reescrever, e não
@@ -1060,11 +1053,12 @@ function EditorDaPagina({
  * copia, e um .md dentro do Storage não servia para nenhuma das duas coisas.
  */
 function FichaComTexto({
-  peca, criativo, video, campo, titulo, ajuda, capa,
+  peca, criativo, video, campo, titulo, ajuda, capa, onRefeita,
 }: {
   peca: Peca;
   criativo: Criativo;
   video?: VideoFonte;
+  onRefeita?: () => void;
   campo: 'artigoLinkedin' | 'legendaInstagram';
   titulo: string;
   ajuda: string;
@@ -1090,7 +1084,7 @@ function FichaComTexto({
             <ImagemDoArquivo caminho={capa} className="w-full rounded border border-gray-200" />
           </div>
           <div className="flex-1 min-w-0">
-            <ArteDaCapa criativo={criativo} video={video} />
+            <ArteDaCapa criativo={criativo} video={video} onRefeita={onRefeita} />
           </div>
         </div>
       )}
@@ -1224,7 +1218,13 @@ const CURSOS: { id: string; nome: string }[] = [
  * O gancho tem limite de 3 a 6 palavras porque é o que se lê no tamanho de uma
  * miniatura. Não é preferência: passar disso o padrão manda reprovar a capa.
  */
-function ArteDaCapa({ criativo, video }: { criativo: Criativo; video?: VideoFonte }) {
+function ArteDaCapa({
+  criativo, video, onRefeita,
+}: {
+  criativo: Criativo;
+  video?: VideoFonte;
+  onRefeita?: () => void;
+}) {
   const gravada = criativo.capa || {};
 
   // OS CAMPOS MOSTRAM O QUE A ARTE USA, e não um exemplo cinza.
@@ -1245,7 +1245,7 @@ function ArteDaCapa({ criativo, video }: { criativo: Criativo; video?: VideoFont
   const [rotulo, setRotulo] = useState(gravada.topicLabel || 'AULA PRÁTICA');
   const [assunto, setAssunto] = useState(gravada.topicStrong || assuntoPadrao);
   const [salvando, setSalvando] = useState(false);
-  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
     const g = criativo.capa || {};
@@ -1262,9 +1262,16 @@ function ArteDaCapa({ criativo, video }: { criativo: Criativo; video?: VideoFont
   const palavras = linhas.join(' ').split(/\s+/).filter(Boolean).length;
   const ganchoOk = palavras >= 3 && palavras <= 6 && linhas.length <= 3;
 
-  async function salvar() {
+  /**
+   * Salva o texto da capa e manda desenhar só ela.
+   *
+   * SÓ A CAPA, e não o Reel inteiro: trocar uma palavra do gancho não pode custar
+   * um minuto de renderização e o download do trecho de novo. Do vídeo sai apenas
+   * um quadro para o retrato; o resto é desenho.
+   */
+  async function salvarERefazer() {
     setSalvando(true);
-    setSalvo(false);
+    setErro('');
     try {
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
         capa: {
@@ -1277,7 +1284,21 @@ function ArteDaCapa({ criativo, video }: { criativo: Criativo; video?: VideoFont
         },
         atualizadoEm: new Date().toISOString(),
       });
-      setSalvo(true);
+
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/marketing-consultor/gerar-capa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ criativoId: criativo.id }),
+      });
+      if (!r.ok) {
+        const corpo = await r.json().catch(() => ({}));
+        throw new Error(corpo.error || `HTTP ${r.status}`);
+      }
+      onRefeita?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
     } finally {
       setSalvando(false);
     }
@@ -1342,17 +1363,19 @@ function ArteDaCapa({ criativo, video }: { criativo: Criativo; video?: VideoFont
 
       <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={salvar}
+          onClick={salvarERefazer}
           disabled={salvando || !ganchoOk}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-50"
         >
-          {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-          Salvar o texto da capa
+          {salvando
+            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Refazendo a capa…</>
+            : <><RefreshCw className="w-3.5 h-3.5" /> Refazer a capa</>}
         </button>
-        <span className="text-[11px] text-amber-700">
-          {salvo ? 'Salvo. Agora clique em Refazer, aqui em cima.' : 'Salve e clique em Refazer, aqui em cima.'}
+        <span className="text-[11px] text-gray-500">
+          Refaz só a imagem da capa, em segundos. O vídeo não é cortado de novo.
         </span>
       </div>
+      {erro && <p className="text-sm text-red-700">{erro}</p>}
     </div>
   );
 }

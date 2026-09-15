@@ -3729,6 +3729,133 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     }
   });
 
+  // POST /api/marketing-consultor/gerar-capa — refaz SÓ a capa do Reel.
+  //
+  // Existe porque trocar uma palavra do gancho não pode custar um Reel inteiro: o
+  // corte do vídeo leva um minuto de renderização e baixa o trecho de novo, e a
+  // capa é uma imagem desenhada em HTML. Aqui só o retrato sai do vídeo — um quadro,
+  // por requisição parcial — e o resto é desenho.
+  app.post("/api/marketing-consultor/gerar-capa", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const criativoId = String(req.body?.criativoId || "").trim();
+    if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
+
+    try {
+      const criativoSnap = await adminFirestore().collection("marketing_criativos").doc(criativoId).get();
+      if (!criativoSnap.exists) return res.status(404).json({ error: "Criativo não encontrado." });
+      const criativo = criativoSnap.data() as any;
+      const dono = String(criativo.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Criativo não pertence a este consultor." });
+
+      const videoSnap = await adminFirestore().collection("marketing_videos").doc(String(criativo.videoId)).get();
+      if (!videoSnap.exists) return res.status(404).json({ error: "O vídeo de origem não existe mais." });
+      const video = videoSnap.data() as any;
+      const bunnyVideoId = String(video.bunnyVideoId || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId)) {
+        return res.status(400).json({ error: "Este vídeo não está hospedado pela plataforma, então não dá para tirar o retrato." });
+      }
+
+      const apagadas = new Set<number>(Array.isArray(criativo.linhasApagadas) ? criativo.linhasApagadas : []);
+      const emUso = (criativo.linhas || []).filter((_: any, i: number) => !apagadas.has(i));
+      if (!emUso.length) return res.status(400).json({ error: "Este criativo está sem falas." });
+      const clipStartMs = Math.round(Number(emUso[0].inicio) * 1000);
+
+      const capaPedida = (criativo.capa || {}) as any;
+      const ganchoBruto: string[] = Array.isArray(capaPedida.hookLines) && capaPedida.hookLines.length
+        ? capaPedida.hookLines.map((l: any) => String(l || "").trim()).filter(Boolean)
+        : ganchoDoTitulo(String(criativo.titulo || ""));
+      if (ganchoBruto.join(" ").split(/\s+/).filter(Boolean).length < 3) {
+        return res.status(400).json({ error: "O gancho da capa precisa de 3 a 6 palavras." });
+      }
+
+      const cover = {
+        mode: "dedicated",
+        courseKey: capaPedida.courseKey || "white-belt",
+        seriesLabel: String(capaPedida.seriesLabel || "WHITE BELT").toUpperCase().slice(0, 24),
+        episode: String(capaPedida.episode || criativo.ordem || 1).replace(/\D/g, "").padStart(2, "0").slice(-2),
+        hookLines: ganchoBruto.slice(0, 3),
+        topicLabel: String(capaPedida.topicLabel || "AULA PRÁTICA").toUpperCase().slice(0, 28),
+        topicStrong: String(capaPedida.topicStrong || video.serie || video.curso || "MELHORIA CONTÍNUA").toUpperCase().slice(0, 28),
+      };
+
+      const lib = await bunnyLibraryDoConsultor(dono || consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
+
+      const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
+      const playResp = await fetch(`${base}/play`, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
+      if (!playResp.ok) return res.status(502).json({ error: "O servidor de vídeo não respondeu." });
+      const play = await playResp.json() as any;
+      let fonteVideo = String(play?.fallbackUrl || play?.originalUrl || "");
+      if (fonteVideo.endsWith("/play_")) {
+        const resolucoes = String(play?.video?.availableResolutions || "")
+          .split(",").map((v: string) => Number.parseInt(v, 10)).filter((v: number) => Number.isFinite(v));
+        const alvo = resolucoes.includes(720) ? 720 : Math.max(...resolucoes);
+        if (!Number.isFinite(alvo)) return res.status(502).json({ error: "O servidor de vídeo não informou nenhuma resolução." });
+        fonteVideo = `${fonteVideo}${alvo}p.mp4`;
+      }
+      if (!fonteVideo) return res.status(502).json({ error: "Não foi possível montar o endereço do vídeo." });
+
+      const origem = String(req.headers.origin || process.env.APP_URL || "").trim();
+      const referer = origem ? (origem.endsWith("/") ? origem : `${origem}/`) : "";
+      const agora = new Date().toISOString();
+      const campanhaId = `${criativoId}__reel`;
+
+      await adminFirestore().collection("marketing_campanhas").doc(campanhaId).set({
+        status: "processando",
+        atualizadoEm: agora,
+      }, { merge: true });
+
+      await adminFirestore().collection("marketing_tarefas").add({
+        consultorId: dono || consultorId,
+        campanhaId,
+        criativoId,
+        tipo: "gerar-capa",
+        status: "pendente",
+        tentativas: 0,
+        render: {
+          sourceVideo: fonteVideo,
+          ...(referer ? { sourceHeaders: { Referer: referer } } : {}),
+          // O retrato sai 2 s depois do início da fala: tempo de a expressão assentar.
+          retratoEm: msParaTempo(clipStartMs + 2000),
+          recorte: {
+            width: LAYOUT_REEL.faceCropWidth,
+            height: LAYOUT_REEL.faceCropHeight,
+            x: LAYOUT_REEL.faceCropX,
+            y: LAYOUT_REEL.faceCropY,
+          },
+          cover,
+        },
+        criadoEm: agora,
+        criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log(`[gerar-capa] ${criativoId}: ${cover.seriesLabel} ${cover.episode} — ${cover.hookLines.join(" / ")}`);
+      return res.status(202).json({ estado: "na-fila", cover });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-capa] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao refazer a capa.")
+        .replace(/\bbunny\b/gi, "servidor de vídeo")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   /**
    * O gancho da capa a partir do título, em até 3 linhas de 3 a 6 palavras.
    *
