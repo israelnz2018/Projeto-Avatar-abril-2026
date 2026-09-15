@@ -208,6 +208,43 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
     return Number.isNaN(ms) ? 0 : ms;
   };
 
+  // Reenviar o acesso: gera uma senha NOVA e manda o e-mail de novo.
+  //
+  // Convidar o aluno outra vez não resolvia o caso mais comum — o aluno que nunca
+  // entrou e perdeu o e-mail. Para quem já existe, o convite não troca a senha e o
+  // e-mail diz "use a senha que você já usa", que é justamente a que ele nunca teve.
+  const [reenviando, setReenviando] = useState<string | null>(null);
+  const [reenvioMsg, setReenvioMsg] = useState<Record<string, string>>({});
+
+  async function reenviarAcesso(aluno: Aluno) {
+    if (!aluno.email) return;
+    const aviso = aluno.acessou
+      ? `Reenviar o acesso de ${aluno.nome}?\n\nA senha atual dele vai DEIXAR DE FUNCIONAR e ele recebe uma nova por e-mail.`
+      : `Reenviar o acesso de ${aluno.nome}?\n\nEle recebe uma senha nova por e-mail.`;
+    if (!confirm(aviso)) return;
+    setReenviando(aluno.uid);
+    setReenvioMsg((m) => ({ ...m, [aluno.uid]: '' }));
+    try {
+      const r = await authedFetch('/api/aluno/reenviar-acesso', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: aluno.email }),
+      });
+      const j = await r.json().catch(() => ({} as any));
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setReenvioMsg((m) => ({
+        ...m,
+        [aluno.uid]: j.emailEnviado
+          ? `✅ Enviado para ${aluno.email}`
+          : '⚠️ Senha trocada, mas o e-mail falhou. Tente de novo.',
+      }));
+      carregar();
+    } catch (e: any) {
+      setReenvioMsg((m) => ({ ...m, [aluno.uid]: `❌ ${e?.message || e}` }));
+    } finally {
+      setReenviando(null);
+    }
+  }
+
   const conviteMs = (aluno: Aluno) => {
     if (!aluno.dataConvite) return 0;
     const ms = new Date(aluno.dataConvite).getTime();
@@ -935,12 +972,41 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
           <div>
             <div className="text-sm font-black text-gray-800">Detalhes de acesso</div>
             <div className="text-xs text-gray-500">{a.email} · situação: <b>{situacaoAluno(a)}</b></div>
+            {/* Quem nunca entrou é justamente quem precisa disto — o aviso fica
+                ao lado do botão, e não escondido numa coluna de status. */}
+            {!a.acessou && (
+              <div className="text-xs font-bold text-amber-700 mt-0.5">
+                Nunca entrou na plataforma.
+              </div>
+            )}
+            {reenvioMsg[a.uid] && (
+              <div className="text-xs font-bold text-gray-700 mt-1">{reenvioMsg[a.uid]}</div>
+            )}
           </div>
-          {!somenteLeitura && !a.inativo && editGeralUid === a.uid && (
-            <button type="button" onClick={() => salvarTudo(a)} disabled={editSalvando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-40">
-              {editSalvando ? 'Salvando tudo…' : 'Salvar todas as alterações'}
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {!somenteLeitura && !a.inativo && a.email && (
+              <button
+                type="button"
+                onClick={() => reenviarAcesso(a)}
+                disabled={reenviando === a.uid}
+                title={a.acessou
+                  ? 'Gera uma senha nova e manda o e-mail. A senha atual deixa de funcionar.'
+                  : 'Gera uma senha nova e manda o e-mail de acesso.'}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-black disabled:opacity-40 ${
+                  a.acessou
+                    ? 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                    : 'bg-amber-500 text-white hover:bg-amber-600'
+                }`}
+              >
+                {reenviando === a.uid ? 'Enviando…' : 'Reenviar acesso por e-mail'}
+              </button>
+            )}
+            {!somenteLeitura && !a.inativo && editGeralUid === a.uid && (
+              <button type="button" onClick={() => salvarTudo(a)} disabled={editSalvando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-40">
+                {editSalvando ? 'Salvando tudo…' : 'Salvar todas as alterações'}
+              </button>
+            )}
+          </div>
         </div>
         {msgAcessos && !editArea && <div className="text-xs font-bold text-gray-600">{msgAcessos}</div>}
 

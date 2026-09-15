@@ -4579,6 +4579,100 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     }
   });
 
+  // POST /api/aluno/reenviar-acesso — manda de novo o e-mail de acesso, com uma
+  // SENHA NOVA.
+  //
+  // Convidar o aluno outra vez não resolvia o caso mais comum: o aluno que nunca
+  // entrou e perdeu o e-mail. Para quem já existe, /api/aluno/convidar não troca a
+  // senha — e o e-mail diz "use a senha que você já usa", que é justamente a que
+  // ele nunca teve. O convite virava um beco sem saída.
+  //
+  // Aqui a senha provisória é REGERADA e gravada no Auth antes de sair o e-mail, de
+  // modo que o que chega funciona, tenha o aluno entrado antes ou não.
+  app.post("/api/aluno/reenviar-acesso", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const ADMIN_EMAILS = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const callerEhAdmin = ADMIN_EMAILS.includes((caller.email || "").toLowerCase());
+    const callerEhCoordenador = caller.tipoUsuario === "coordenador";
+    const callerEhConsultor = caller.tipoUsuario === "consultor";
+    if (!callerEhConsultor && !callerEhCoordenador && !callerEhAdmin) {
+      return res.status(403).json({ error: "Só consultor, coordenador ou admin pode reenviar o acesso." });
+    }
+
+    const email = String(req.body?.email || "").toLowerCase().trim();
+    if (!email || email.indexOf("@") < 0) return res.status(400).json({ error: "E-mail inválido." });
+
+    try {
+      let usuario;
+      try { usuario = await adminAuth().getUserByEmail(email); }
+      catch { return res.status(404).json({ error: "Não existe conta com este e-mail. Use 'Adicionar aluno'." }); }
+
+      const alunoSnap = await adminFirestore().collection("users").doc(usuario.uid).get();
+      const aluno = alunoSnap.exists ? (alunoSnap.data() as any) : {};
+
+      // O reenvio troca a senha de alguém: só quem responde por aquele aluno pode.
+      const consultorId = String(caller.consultorId || "israel");
+      const doMeuTenant = String(aluno.consultorId || "israel") === consultorId
+        || (Array.isArray(aluno.consultorIds) && aluno.consultorIds.includes(consultorId));
+      if (!callerEhAdmin && !doMeuTenant) {
+        return res.status(403).json({ error: "Este aluno não é do seu time." });
+      }
+      if (callerEhCoordenador && String(aluno.empresaId || "") !== String(caller.empresaId || "")) {
+        return res.status(403).json({ error: "Este aluno não é da sua empresa." });
+      }
+
+      const senhaNova = gerarSenhaProvisoria();
+      await adminAuth().updateUser(usuario.uid, { password: senhaNova });
+      // senhaProvisoria=true é o que faz a plataforma exigir uma senha nova no
+      // primeiro acesso (App.tsx lê exatamente este campo). Sem marcar, o aluno
+      // ficaria com a senha que EU gerei, e o e-mail estaria prometendo algo que
+      // não aconteceria.
+      await adminFirestore().collection("users").doc(usuario.uid).set({
+        conviteEm: new Date().toISOString(),
+        senhaProvisoria: true,
+      }, { merge: true });
+
+      const nome = String(aluno.nome || usuario.displayName || "").trim();
+      const saud = nome ? `Olá, ${nome.split(" ")[0]}!` : "Olá!";
+      const quem = String(caller.nome || caller.displayName || caller.email || "Seu consultor").trim();
+      const site = String(process.env.APP_URL || "https://app.educacaopelotrabalho.com").replace(/\/$/, "");
+      const html = `
+<div style="font-family:Arial,sans-serif;color:#2A2F3A;max-width:600px;margin:0 auto">
+  <div style="background:#1E2D6E;color:#fff;padding:24px;border-radius:8px 8px 0 0"><h1 style="margin:0;font-size:22px">O seu acesso à plataforma LBW</h1></div>
+  <div style="background:#fff;padding:28px 24px;border:1px solid #ccc;border-top:0;border-radius:0 0 8px 8px">
+    <p style="font-size:15px">${saud}</p>
+    <p style="font-size:15px">${quem} reenviou o seu acesso. <strong>Esta senha é nova</strong> — se você recebeu outro e-mail antes, use este.</p>
+    <p style="background:#F0F2FA;border-left:4px solid #0033CC;padding:12px 16px"><strong>Seu acesso:</strong><br>E-mail: <strong>${email}</strong><br>Senha provisória: <code style="background:#fff;padding:2px 6px;border:1px solid #ccc;border-radius:4px">${senhaNova}</code></p>
+    <p style="font-size:14px">No primeiro acesso o sistema vai pedir para você criar uma senha sua.</p>
+    <p style="text-align:center;margin:24px 0"><a href="${site}" style="background:#0033CC;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold">Acessar plataforma</a></p>
+    <p style="font-size:13px;color:#6B7280">Se o botão não abrir, entre por ${site}</p>
+  </div>
+</div>`;
+
+      let emailEnviado = false;
+      try {
+        const r = await resendSend({ to: email, subject: "O seu acesso à plataforma LBW (senha nova)", html });
+        emailEnviado = r.ok;
+      } catch (e) { console.error("[aluno/reenviar-acesso] falha e-mail:", e); }
+
+      console.log(`[reenviar-acesso] ${email} por ${caller.email} — e-mail ${emailEnviado ? "enviado" : "FALHOU"}`);
+      return res.json({ ok: true, email, emailEnviado });
+    } catch (err: any) {
+      console.error("[POST /api/aluno/reenviar-acesso] erro:", err);
+      return res.status(500).json({ error: err?.message || "Erro ao reenviar o acesso." });
+    }
+  });
+
   app.post("/api/aluno/convidar", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const header = req.headers.authorization || "";
