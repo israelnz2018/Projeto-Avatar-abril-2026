@@ -860,7 +860,7 @@ function PecasProduzidas({
         const ocupado = p.tipo === 'reel' ? ocupadoReel : ocupadoTexto;
         return (
         <React.Fragment key={p.id}>
-        <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <section className={cartaoDaPeca(p.status === 'aprovado' || p.status === 'publicado')}>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
               {nomeDaPeca(p.tipo)}
@@ -1014,7 +1014,7 @@ function CartaoCapaDoReel({
   }
 
   return (
-    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+    <section className={cartaoDaPeca(aprovada)}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
           Capa do Reel
@@ -1026,8 +1026,8 @@ function CartaoCapaDoReel({
         </p>
         {peca.capaUrl && (aprovada ? (
           <span className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800 text-xs font-bold">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Aprovada
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 text-white text-xs font-bold">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Capa aprovada
             </span>
             <button
               onClick={() => definir('revisar')}
@@ -1077,10 +1077,23 @@ function CartaoCapaDoReel({
  * Sem Refazer, sem ritmo, sem editor de páginas — não há texto nem render de onde
  * refazer. O que se faz com ela é olhar, ajustar a legenda, aprovar ou tirar.
  */
+/**
+ * O cartão de uma peça: VERDE quando aprovada.
+ *
+ * A etiqueta pequena de "Aprovada" no canto se perdia no meio de quatro cartões
+ * iguais. O cartão inteiro verde diz de longe o que já foi para a publicação e o
+ * que ainda falta revisar.
+ */
+function cartaoDaPeca(aprovada: boolean) {
+  return aprovada
+    ? 'p-4 rounded-lg border-2 border-green-500 bg-green-50'
+    : 'p-4 rounded-lg border border-gray-200 bg-white';
+}
+
 export function PecaEnviada({ peca, aoMudar }: { peca: Peca; aoMudar: () => void }) {
   const imagens = (peca.arquivos || []).filter((c) => /slide-\d+\.(png|jpe?g|webp)$/i.test(c)).sort();
   return (
-    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+    <section className={cartaoDaPeca(peca.status === 'aprovado' || peca.status === 'publicado')}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
           {nomeDaPeca(peca.tipo)}
@@ -1728,9 +1741,9 @@ function BotaoAprovar({ peca, onMudou }: { peca: Peca; onMudou: () => void }) {
   if (peca.status === 'aprovado' || peca.status === 'publicado') {
     return (
       <span className="flex items-center gap-1.5">
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800 text-xs font-bold">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-600 text-white text-xs font-bold">
           <CheckCircle2 className="w-3.5 h-3.5" />
-          {peca.status === 'publicado' ? 'Publicada' : 'Aprovada'}
+          {peca.status === 'publicado' ? 'Publicada' : 'Aprovada · na Publicação'}
         </span>
         {peca.status === 'aprovado' && (
           <button
