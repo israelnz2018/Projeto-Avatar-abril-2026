@@ -20,7 +20,6 @@ import {
   ArrowRight,
   Download,
   Loader2,
-  ShoppingCart,
 } from 'lucide-react';
 import {
   DndContext,
@@ -74,7 +73,6 @@ import {
 import { isSiteConsultor } from '../services/consultorService';
 import { ICON_CATALOG, COLOR_CATALOG } from '../services/initiativeVisual';
 import type { Initiative } from '../types';
-import { CourseSaleConfigModal, type CourseSaleConfig } from './CourseSaleConfigModal';
 
 const AVAILABLE_TOOLS = [
   { id: 'brief', name: 'Entendendo o Problema' },
@@ -830,10 +828,8 @@ export default function KnowledgeManagerView() {
   // Todos os cursos, inclusive as abas especiais, começam recolhidos.
   const [expandedCourses, setExpandedCourses] = useState<Record<string, boolean>>({});
   const [initiativeNames, setInitiativeNames] = useState<string[]>([]);
-  // Initiatives completas (id + temProjeto) do consultor atual — pro toggle "tem projeto?".
+  // Initiatives completas do consultor atual, inclusive o indicador de ferramentas.
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
-  const [cursoVendaEditando, setCursoVendaEditando] = useState<Initiative | null>(null);
-  const [salvandoVenda, setSalvandoVenda] = useState(false);
 
   const toggleCourseExpansion = (courseName: string) => {
     setExpandedCourses((prev) => ({ ...prev, [courseName]: !prev[courseName] }));
@@ -938,45 +934,6 @@ export default function KnowledgeManagerView() {
     } catch (error) {
       console.error('[handleDeleteEmptyCourse]', error);
       alert('Não foi possível excluir o curso.');
-    }
-  };
-
-  // Liga/desliga "este curso tem projeto?" — grava temProjeto na initiative de mesmo nome.
-  // Cursos novos nascem com false. Registros antigos sem a flag continuam com
-  // o comportamento legado para não retirar projetos que já estavam disponíveis.
-  const toggleTemProjeto = async (courseName: string) => {
-    const ini = initiatives.find((i) => i.name === courseName);
-    if (!ini) return; // curso sem trilha correspondente já não vira projeto
-    const novo = ini.temProjeto === false; // estava sem projeto → liga; senão desliga
-    try {
-      await updateInitiative(ini.id, { temProjeto: novo });
-      setInitiatives((prev) => prev.map((i) => (i.id === ini.id ? { ...i, temProjeto: novo } : i)));
-    } catch (e) {
-      console.error('Erro ao alternar "tem projeto":', e);
-    }
-  };
-
-  const abrirConfiguracaoVenda = (courseName: string) => {
-    const initiative = initiatives.find(item => item.name === courseName);
-    if (!initiative) {
-      alert('Não foi possível localizar a configuração deste curso.');
-      return;
-    }
-    setCursoVendaEditando(initiative);
-  };
-
-  const salvarConfiguracaoVenda = async (config: CourseSaleConfig) => {
-    if (!cursoVendaEditando) return;
-    setSalvandoVenda(true);
-    try {
-      await updateInitiative(cursoVendaEditando.id, config);
-      setInitiatives(prev => prev.map(item => item.id === cursoVendaEditando.id ? { ...item, ...config } : item));
-      setCursoVendaEditando(null);
-    } catch (error: any) {
-      console.error('[salvarConfiguracaoVenda]', error);
-      alert(`Não foi possível salvar a configuração de venda.\n\n${error?.message || 'Erro desconhecido'}`);
-    } finally {
-      setSalvandoVenda(false);
     }
   };
 
@@ -1707,7 +1664,14 @@ export default function KnowledgeManagerView() {
           }
         }
       } else if (modalConfig.type === 'deleteCourse' && modalConfig.targetCourse) {
-        await deleteCourse(modalConfig.targetCourse, consultorId);
+        const courseName = modalConfig.targetCourse;
+        await deleteCourse(courseName, consultorId);
+        const initiative = initiatives.find((item) => item.name === courseName);
+        if (initiative) {
+          await deleteInitiative(initiative.id);
+          setInitiatives((prev) => prev.filter((item) => item.id !== initiative.id));
+          setInitiativeNames((prev) => prev.filter((name) => name !== courseName));
+        }
       } else if (modalConfig.type === 'editCourse' && modalConfig.targetCourse && modalConfig.inputValue) {
         const nomeAntigo = modalConfig.targetCourse;
         const nomeNovo = modalConfig.inputValue.trim();
@@ -2351,34 +2315,14 @@ export default function KnowledgeManagerView() {
                       Filtro ativo · {visibleNoCurso} de {totalDoCurso} visíveis
                     </span>
                   )}
-                  {/* Toggle "tem projeto?" — decide se o curso vira tipo de projeto na aba Projetos */}
+                  {/* Mostra o indicador somente quando o curso oferece ferramentas da qualidade. */}
                   {!abaEspecial && (() => {
                     const ini = initiatives.find((i) => i.name === course.name);
-                    if (!ini) return <span className="text-[11px] text-gray-400 italic ml-1" title="Curso sem projeto correspondente">sem projeto</span>;
-                    const temProjeto = ini.temProjeto !== false;
-                    return (
-                      <button
-                        onClick={() => toggleTemProjeto(course.name)}
-                        title="Este curso aparece como projeto na aba Projetos? Clique para alternar."
-                        className={`text-[11px] font-bold px-2 py-1 rounded-full border transition-colors ${temProjeto ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'}`}
-                      >
-                        {temProjeto ? '✓ Tem projeto' : 'Só conteúdo'}
-                      </button>
-                    );
+                    if (!ini || ini.temProjeto === false) return null;
+                    return <span className="text-[11px] font-bold px-2 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">✓ Tem ferramentas da qualidade</span>;
                   })()}
                 </div>
                 {!abaEspecial && <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => abrirConfiguracaoVenda(course.name)}
-                    className={`flex items-center gap-1.5 border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer whitespace-nowrap rounded-[4px] ${
-                      initiatives.find(item => item.name === course.name)?.vendaAtiva
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                        : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                    }`}
-                    title="Configurar preço, oferta e checkout deste curso"
-                  >
-                    <ShoppingCart size={14} /> {initiatives.find(item => item.name === course.name)?.vendaAtiva ? 'Venda ativa' : 'Configurar venda'}
-                  </button>
                   <button
                     onClick={() => abrirAdicaoNoCurso(course.name)}
                     className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-[4px] hover:bg-blue-700 transition-colors border-none cursor-pointer whitespace-nowrap"
@@ -2516,13 +2460,6 @@ export default function KnowledgeManagerView() {
 
       {/* Custom Modal */}
       <AnimatePresence>
-        <CourseSaleConfigModal
-          course={cursoVendaEditando}
-          saving={salvandoVenda}
-          onClose={() => { if (!salvandoVenda) setCursoVendaEditando(null); }}
-          onSave={salvarConfiguracaoVenda}
-        />
-
         {modalConfig.isOpen && (
           <motion.div 
             initial={{ opacity: 0 }}

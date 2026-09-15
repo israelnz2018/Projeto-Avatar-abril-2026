@@ -347,7 +347,8 @@ service cloud.firestore {
         (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
       );
       allow create: if isAdmin() || (ehConsultor() && novoPertenceAoMeuConsultor());
-      allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
+      allow update: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
+      allow delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor());
     }
 
     match /initiative_configs/{configId} {
@@ -357,7 +358,8 @@ service cloud.firestore {
         (!('consultorId' in resource.data) && meuConsultorId() == 'israel')
       );
       allow create: if isAdmin() || (ehConsultor() && novoPertenceAoMeuConsultor());
-      allow update, delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
+      allow update: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor() && novoPertenceAoMeuConsultor());
+      allow delete: if isAdmin() || (ehConsultor() && pertenceAoMeuConsultor());
     }
 
     match /config/{docId} {
