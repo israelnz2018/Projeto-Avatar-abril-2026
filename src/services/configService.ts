@@ -22,13 +22,36 @@ const INITIATIVES_COLLECTION = 'initiatives';
 const CONFIG_COLLECTION = 'initiative_configs';
 
 export const getInitiatives = async (consultorIdOverride?: string): Promise<Initiative[]> => {
-  const snapshot = await getDocs(collection(db, INITIATIVES_COLLECTION));
-  // Multi-tenant: cada consultor vê só as metodologias dele. Trilhas antigas sem
-  // consultorId contam como 'israel' (não somem no app. atual).
   const cid = consultorIdOverride || resolveConsultorId();
-  const initiatives = snapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as Initiative))
-    .filter(i => ((i as any).consultorId || 'israel') === cid);
+
+  // A CONSULTA VAI FILTRADA. Ler a coleção inteira e peneirar aqui no navegador
+  // parece equivalente e não é: as regras do Firestore são por documento, e ele
+  // RECUSA A CONSULTA INTEIRA quando não consegue provar de antemão que todos os
+  // documentos podem ser lidos. Para o Israel passava — o admin tem exceção global
+  // nas regras —, e para qualquer outro consultor a lista de cursos voltava vazia.
+  //
+  // Foi exatamente isso que fez "Meus Cursos" parecer que não salvava: o curso era
+  // gravado sem erro e a lista nunca conseguia ler de volta.
+  const snapshot = await getDocs(
+    query(collection(db, INITIATIVES_COLLECTION), where('consultorId', '==', cid)),
+  );
+  const initiatives = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Initiative));
+
+  // Trilhas antigas não têm consultorId e pertencem ao Israel. Não dá para pedir
+  // "campo ausente" numa consulta, então elas vêm de uma leitura à parte — que só
+  // o admin consegue fazer, e é justamente para ele que elas existem.
+  if (cid === 'israel') {
+    try {
+      const legadas = await getDocs(collection(db, INITIATIVES_COLLECTION));
+      const jaTem = new Set(initiatives.map(i => i.id));
+      legadas.docs.forEach((doc) => {
+        const dados = { id: doc.id, ...doc.data() } as Initiative;
+        if (!jaTem.has(dados.id) && !(dados as any).consultorId) initiatives.push(dados);
+      });
+    } catch {
+      // Consultor 'israel' que não seja admin simplesmente não vê as legadas.
+    }
+  }
   // Reindexa o registro canônico: é o que permite que qualquer referência gravada
   // por NOME (acessos do aluno, vídeos, materiais) continue apontando para o curso
   // certo mesmo depois de renomeado. Ver lib/courseRegistry.ts.
@@ -220,7 +243,13 @@ export const saveToolCategories = async (categories: Record<string, ToolCategory
 };
 
 export const getInitiativeConfigs = async (initiativeId: string, consultorIdOverride?: string): Promise<InitiativePhaseConfig[]> => {
-  const q = query(collection(db, CONFIG_COLLECTION), where('initiativeId', '==', initiativeId));
+  // Com o dono no filtro: sem ele, a regra não consegue provar que todos os
+  // documentos são legíveis e recusa a consulta para quem não é admin.
+  const q = query(
+    collection(db, CONFIG_COLLECTION),
+    where('consultorId', '==', resolveConsultorId()),
+    where('initiativeId', '==', initiativeId),
+  );
   const snapshot = await getDocs(q);
   const cid = consultorIdOverride || resolveConsultorId();
   return snapshot.docs
