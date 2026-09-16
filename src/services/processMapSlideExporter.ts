@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 const NODE_W_DEFAULT = 150;
 const NODE_H_DEFAULT = 80;
 const DECISION_W = 130;
@@ -115,7 +113,7 @@ export async function exportProcessMapSlide(
       x: TX, y: MAP_Y + MAP_H / 2, w: TW, h: 0.30,
       fontFace: 'Calibri', fontSize: 10, color: THEME.MUTED, italic: true, align: 'center',
     });
-    const fileName = `Mapa_do_Processo_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+    const fileName = `Mapa_do_Processo_${today.replace(/\//g, '')}.pptx`;
     if (!options.pres) await pres.writeFile({ fileName });
     return;
   }
@@ -331,6 +329,6 @@ export async function exportProcessMapSlide(
   slide.addShape('line', { x: lx, y: legY + 0.11, w: 0.30, h: 0, line: { color: THEME.NAVY, width: 1.2, endArrowType: 'triangle' as any } });
   slide.addText('Fluxo', { x: lx + 0.34, y: legY, w: 0.55, h: LEGEND_H, fontFace: 'Calibri', fontSize: 7, color: THEME.NAVY, valign: 'middle' });
 
-  const fileName = `Mapa_do_Processo_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Mapa_do_Processo_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

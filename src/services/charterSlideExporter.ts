@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 function addBlock(
   slide: pptxgen.Slide,
   x: number, y: number, w: number, h: number,
@@ -158,6 +156,6 @@ export async function exportCharterSlide(
     });
   }
 
-  const fileName = `Contrato_do_Projeto_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Contrato_do_Projeto_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

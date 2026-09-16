@@ -15,8 +15,6 @@ import { validarBpmn } from './bpmnValidator';
  * exportacao que quebra no meio, nao.
  */
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 function unwrapToolData(input: any): any {
   if (!input || typeof input !== 'object') return {};
   if (input.toolData && typeof input.toolData === 'object') return input.toolData;
@@ -185,7 +183,7 @@ export async function exportBpmnSlide(
       fontFace: 'Calibri', fontSize: 11, color: THEME.MUTED, italic: true,
       align: 'center', valign: 'middle',
     });
-    const vazio = `Mapa_BPMN_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+    const vazio = `Mapa_BPMN_${today.replace(/\//g, '')}.pptx`;
     if (!options.pres) await pres.writeFile({ fileName: vazio });
     return;
   }
@@ -351,6 +349,6 @@ export async function exportBpmnSlide(
     }
   );
 
-  const fileName = `Mapa_BPMN_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Mapa_BPMN_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

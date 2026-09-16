@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 interface Activity {
   id: string;
   text: string;
@@ -409,6 +407,6 @@ export async function exportImprovementPlanSlide(
     }
   );
 
-  const fileName = `Plano_de_Melhoria_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Plano_de_Melhoria_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

@@ -17,8 +17,6 @@ const PHASE_LABELS: Record<string, string> = {
   Control: 'Controlar',
 };
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 function addPhaseDividerSlide(
   pres: pptxgen,
   project: Project,
@@ -243,7 +241,7 @@ export async function generateFullProjectPresentation(
   setPhaseLabelOverride(null); // limpa o override pra não vazar pra exports avulsos
 
   const today = new Date().toLocaleDateString('pt-BR').replace(/\//g, '');
-  const fileName = `Apresentacao_Final_${sanitize(project.name || 'Projeto')}_${today}.pptx`;
+  const fileName = `Apresentacao_${today}.pptx`;
   await pres.writeFile({ fileName });
 
   return { toolsExported, toolsSkipped };

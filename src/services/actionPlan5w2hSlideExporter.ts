@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 function unwrapToolData(input: any): any {
   if (!input || typeof input !== 'object') return {};
   if (input.toolData && typeof input.toolData === 'object') return input.toolData;
@@ -292,6 +290,6 @@ export async function exportActionPlan5w2hSlide(
     });
   }
 
-  const fileName = `Plano_de_Acao_5W2H_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Plano_de_Acao_5W2H_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

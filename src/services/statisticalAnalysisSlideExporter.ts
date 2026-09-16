@@ -3,8 +3,6 @@ import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 import { exportStatisticalAnalysisV2Slide } from './statisticalAnalysisSlideExporterV2';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 function unwrapToolData(input: any): any {
   if (!input || typeof input !== 'object') return {};
   if (input.toolData && typeof input.toolData === 'object') return input.toolData;
@@ -667,6 +665,6 @@ export async function exportStatisticalAnalysisSlide(
     }
   }
 
-  const fileName = `Analise_Estatistica_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Analise_Estatistica_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

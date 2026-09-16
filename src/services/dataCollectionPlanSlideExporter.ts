@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 // ─────────────────────────────────────────────────────────
 // Helper defensivo: aceita qualquer formato de toolData e
 // retorna sempre o objeto raiz com items/columns
@@ -225,8 +223,6 @@ export async function exportDataCollectionPlanSlide(
     }
   }
 
-
-
-  const fileName = `Plano_de_Coleta_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Plano_de_Coleta_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

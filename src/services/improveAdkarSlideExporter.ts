@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 const LEVELS = ['Desconhece','Resistente','Neutro','Apoiador','Líder'];
 
 function getQuadrant(power: string, interest: string): string {
@@ -260,6 +258,6 @@ export async function exportImproveAdkarSlide(
     });
   }
 
-  const fileName = `Stakeholder_ADKAR_Improve_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Stakeholder_ADKAR_Improve_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

@@ -15,8 +15,6 @@ import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
  * inventado, e etapa sem fonte sai marcada PENDENTE DE VALIDACAO.
  */
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 function unwrapToolData(input: any): any {
   if (!input || typeof input !== 'object') return {};
   if (input.toolData && typeof input.toolData === 'object') return input.toolData;
@@ -433,6 +431,6 @@ export async function exportVsmSlide(
     }
   }
 
-  const fileName = `VSM_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `VSM_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }

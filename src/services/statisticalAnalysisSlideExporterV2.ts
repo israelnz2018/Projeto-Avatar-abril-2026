@@ -2,8 +2,6 @@ import pptxgen from 'pptxgenjs';
 import { Project } from '../types';
 import { createSlide, THEME, TOOL_AREA } from './slideTemplate';
 
-const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
-
 // Aceita toolData direto, {toolData:{...}} ou {formData:{...}}.
 function unwrapToolData(input: any): any {
   if (!input || typeof input !== 'object') return {};
@@ -161,6 +159,6 @@ export async function exportStatisticalAnalysisV2Slide(
     });
   }
 
-  const fileName = `Analise_Estatistica_${sanitize(project.name || 'Projeto')}_${today.replace(/\//g, '')}.pptx`;
+  const fileName = `Analise_Estatistica_${today.replace(/\//g, '')}.pptx`;
   if (!options.pres) await pres.writeFile({ fileName });
 }
