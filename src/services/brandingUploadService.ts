@@ -115,6 +115,42 @@ export async function uploadBrandingImage(file: File, tipo: BrandingAsset): Prom
   return getDownloadURL(sref);
 }
 
+/** Formatos aceitos na imagem do curso. */
+export const TIPOS_DE_IMAGEM_ACEITOS = ['image/png', 'image/jpeg', 'image/webp'];
+
+/** A orientação que a tela mostra ao consultor. A mesma frase em todo lugar. */
+export const ORIENTACAO_IMAGEM_DO_CURSO =
+  'PNG, JPG ou WEBP, de preferência quadrada e com pelo menos 200×200 pixels. '
+  + 'Pode mandar grande: ela é reduzida sozinha para 600 pixels. Até 6 MB.';
+
+/**
+ * A imagem oficial do curso (initiative.iconUrl).
+ *
+ * O consultor não tinha por onde enviar: o único envio existente vive na tela de
+ * projetos, e quem cria curso na Base de Conhecimento só via o ícone de pasta.
+ * A imagem é validada e REDUZIDA NO NAVEGADOR antes de subir — um arquivo de 8 MB
+ * vindo da câmera não pode virar tela lenta para o aluno.
+ *
+ * PNG, para preservar transparência de logo. Um arquivo por curso: enviar de novo
+ * troca a imagem, sem deixar lixo no Storage.
+ */
+export async function uploadImagemDoCurso(file: File, cursoId: string): Promise<string> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Você precisa estar logado.');
+  if (!TIPOS_DE_IMAGEM_ACEITOS.includes(file.type || '')) {
+    throw new Error('Formato não aceito. Envie PNG, JPG ou WEBP.');
+  }
+  if (file.size > MAX_ORIGEM_BYTES) {
+    throw new Error('Imagem muito grande (máximo 6 MB). Escolha outra ou reduza antes de enviar.');
+  }
+
+  const blob = await redimensionar(file, 600, 'image/png', 0.92);
+  const caminho = `community_uploads/${u.uid}/curso-${cursoId}.png`;
+  const sref = storageRef(storage, caminho);
+  await uploadBytes(sref, blob, { contentType: 'image/png' });
+  return getDownloadURL(sref);
+}
+
 /**
  * Ícone próprio de um tipo de projeto (initiative.iconUrl) — PNG pequeno,
  * preserva transparência. Um arquivo por initiative (o novo upload sobrescreve).

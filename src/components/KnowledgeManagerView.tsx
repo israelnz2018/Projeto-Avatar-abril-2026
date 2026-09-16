@@ -72,6 +72,9 @@ import {
 } from '../services/configService';
 import { isSiteConsultor } from '../services/consultorService';
 import { ICON_CATALOG, COLOR_CATALOG } from '../services/initiativeVisual';
+import {
+  ORIENTACAO_IMAGEM_DO_CURSO, TIPOS_DE_IMAGEM_ACEITOS, uploadImagemDoCurso,
+} from '../services/brandingUploadService';
 import type { Initiative } from '../types';
 
 const AVAILABLE_TOOLS = [
@@ -248,6 +251,82 @@ const PIPELINE_STATUS_LABEL: Record<PipelineStageStatus, string> = {
   concluido: 'Concluído',
   erro: 'Falha',
 };
+
+/**
+ * A imagem oficial do curso: prévia, botão de enviar e o que é aceito.
+ *
+ * Serve o cadastro de um curso novo e a edição de um existente. A validação de
+ * formato e tamanho fica no serviço de upload, que também reduz a imagem — aqui
+ * só se recusa o que é óbvio, para o consultor ver o erro antes de esperar o envio.
+ */
+function EscolherImagemDoCurso({
+  urlAtual, arquivo, remover, erro, aoEscolher, aoRemover, aoErro,
+}: {
+  urlAtual?: string;
+  arquivo: File | null;
+  remover: boolean;
+  erro?: string;
+  aoEscolher: (f: File | null) => void;
+  aoRemover: () => void;
+  aoErro: (mensagem: string) => void;
+}) {
+  const previa = arquivo ? URL.createObjectURL(arquivo) : (remover ? '' : urlAtual || '');
+
+  function escolher(f: File | null) {
+    aoErro('');
+    if (!f) return;
+    if (!TIPOS_DE_IMAGEM_ACEITOS.includes(f.type || '')) {
+      aoErro('Formato não aceito. Envie PNG, JPG ou WEBP.');
+      return;
+    }
+    if (f.size > 6 * 1024 * 1024) {
+      aoErro('Imagem muito grande (máximo 6 MB). Escolha outra.');
+      return;
+    }
+    aoEscolher(f);
+  }
+
+  return (
+    <div>
+      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Imagem do curso</label>
+      <div className="flex items-start gap-3">
+        <div className="w-16 h-16 rounded-lg border border-[#ccc] bg-slate-50 grid place-items-center overflow-hidden shrink-0">
+          {previa
+            ? <img src={previa} alt="" className="w-full h-full object-contain" />
+            : <Folder className="text-blue-300" size={24} />}
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[4px] border border-[#ccc] text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer">
+              {previa ? 'Trocar imagem' : 'Enviar imagem'}
+              <input
+                type="file"
+                accept={TIPOS_DE_IMAGEM_ACEITOS.join(',')}
+                className="hidden"
+                onChange={(e) => { escolher(e.target.files?.[0] || null); e.target.value = ''; }}
+              />
+            </label>
+            {previa && (
+              <button
+                type="button"
+                onClick={aoRemover}
+                className="text-xs font-bold text-red-600 hover:text-red-800 border-none bg-transparent cursor-pointer"
+              >
+                Remover
+              </button>
+            )}
+            {arquivo && <span className="text-xs text-green-700 font-bold">escolhida: {arquivo.name}</span>}
+          </div>
+          <p className="text-xs text-gray-500 mt-1 m-0">{ORIENTACAO_IMAGEM_DO_CURSO}</p>
+          <p className="text-xs text-gray-500 m-0">
+            Ela aparece no lugar do ícone de pasta, aqui e onde o curso for mostrado.
+          </p>
+          {erro && <p className="text-xs text-red-700 mt-1 m-0">{erro}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PipelineStageRow({
   label,
@@ -896,6 +975,35 @@ export default function KnowledgeManagerView() {
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [newCourseName, setNewCourseName] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
+  /** A imagem escolhida para o curso — no cadastro novo e na edição. */
+  const [imagemDoCurso, setImagemDoCurso] = useState<File | null>(null);
+  const [removerImagemDoCurso, setRemoverImagemDoCurso] = useState(false);
+  const [erroDaImagem, setErroDaImagem] = useState('');
+
+  /** A imagem oficial de um curso, quando o consultor enviou uma. */
+  const imagemDe = (courseName: string) =>
+    initiatives.find((i) => i.name?.trim().toLowerCase() === courseName.trim().toLowerCase())?.iconUrl || '';
+
+  /**
+   * Sobe a imagem escolhida e grava no curso. Devolve a URL, ou '' quando não havia
+   * imagem nova. Erro aqui não derruba o resto: o curso já foi criado ou renomeado.
+   */
+  const gravarImagemDoCurso = async (initiativeId: string): Promise<string | null> => {
+    if (removerImagemDoCurso) {
+      await updateInitiative(initiativeId, { iconUrl: null as any });
+      return null;
+    }
+    if (!imagemDoCurso) return '';
+    const url = await uploadImagemDoCurso(imagemDoCurso, initiativeId);
+    await updateInitiative(initiativeId, { iconUrl: url });
+    return url;
+  };
+
+  const limparImagemEscolhida = () => {
+    setImagemDoCurso(null);
+    setRemoverImagemDoCurso(false);
+    setErroDaImagem('');
+  };
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -920,10 +1028,21 @@ export default function KnowledgeManagerView() {
       const ordem = initiatives.reduce((max, i) => Math.max(max, Number(i.ordem) || 0), 0) + 1;
       // O padrão de um curso novo é NÃO criar projeto automaticamente.
       await updateInitiative(criado.id, { iconId, corId, ordem, temProjeto: false });
-      const completo = { ...criado, iconId, corId, ordem, temProjeto: false };
+      // A imagem só pode subir depois de o curso existir: o arquivo é guardado com
+      // o id do curso. Se ela falhar, o curso continua criado — o consultor tenta a
+      // imagem de novo pelo lápis, sem perder o cadastro.
+      let iconUrl = '';
+      try {
+        iconUrl = (await gravarImagemDoCurso(criado.id)) || '';
+      } catch (erroImagem: any) {
+        console.error('[handleCreateCourse] imagem:', erroImagem);
+        alert(`O curso foi criado, mas a imagem não subiu: ${erroImagem?.message || erroImagem}`);
+      }
+      const completo = { ...criado, iconId, corId, ordem, temProjeto: false, ...(iconUrl ? { iconUrl } : {}) };
       setInitiatives((prev) => [...prev, completo]);
       setInitiativeNames((prev) => [...prev, nome]);
       setNewCourseName('');
+      limparImagemEscolhida();
       setIsCreatingCourse(false);
     } catch (error: any) {
       console.error('[handleCreateCourse]', error);
@@ -1728,6 +1847,16 @@ export default function KnowledgeManagerView() {
             setInitiativeNames((prev) => prev.map((n) => (n === nomeAntigo ? nomeNovo : n)));
           }
         }
+        // A imagem é gravada mesmo quando o nome não mudou: trocar só a imagem é o
+        // uso mais comum deste modal depois que o curso já existe.
+        const cursoDaImagem = initiatives.find((i) => i.name === nomeAntigo);
+        if (cursoDaImagem && (imagemDoCurso || removerImagemDoCurso)) {
+          const url = await gravarImagemDoCurso(cursoDaImagem.id);
+          setInitiatives((prev) => prev.map((i) => (
+            i.id === cursoDaImagem.id ? { ...i, iconUrl: url || undefined } : i
+          )));
+          limparImagemEscolhida();
+        }
       } else if (modalConfig.type === 'deletePlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist) {
         await deletePlaylist(modalConfig.targetCourse, modalConfig.targetPlaylist, consultorId);
       } else if (modalConfig.type === 'editPlaylist' && modalConfig.targetCourse && modalConfig.targetPlaylist && modalConfig.inputValue) {
@@ -1967,6 +2096,15 @@ export default function KnowledgeManagerView() {
                 exatamente como nos outros cursos.
               </p>
             </div>
+
+            <EscolherImagemDoCurso
+              arquivo={imagemDoCurso}
+              remover={removerImagemDoCurso}
+              erro={erroDaImagem}
+              aoEscolher={(f) => { setImagemDoCurso(f); setRemoverImagemDoCurso(false); }}
+              aoRemover={() => { setImagemDoCurso(null); setRemoverImagemDoCurso(false); }}
+              aoErro={setErroDaImagem}
+            />
             <div className="flex justify-end gap-3 pt-3 border-t border-[#eee]">
               <button
                 type="button"
@@ -2352,7 +2490,17 @@ export default function KnowledgeManagerView() {
                       size={18}
                       className={`text-gray-500 transition-transform ${cursoAberto ? 'rotate-90' : ''}`}
                     />
-                    <Folder className="text-blue-600" size={20} />
+                    {/* A imagem oficial do curso no lugar da pasta genérica. Sem
+                        imagem enviada, continua a pasta de sempre. */}
+                    {imagemDe(course.name) ? (
+                      <img
+                        src={imagemDe(course.name)}
+                        alt=""
+                        className="w-8 h-8 rounded object-contain border border-[#eee] bg-white"
+                      />
+                    ) : (
+                      <Folder className="text-blue-600" size={20} />
+                    )}
                     <h2 className="font-bold text-lg text-gray-800 m-0">{course.name}</h2>
                   </button>
                   {abaEspecial && (
@@ -2389,9 +2537,12 @@ export default function KnowledgeManagerView() {
                     <Plus size={14} /> Adicionar vídeo
                   </button>
                   <button
-                    onClick={() => setModalConfig({ isOpen: true, type: 'editCourse', targetCourse: course.name, inputValue: course.name })}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer" 
-                    title="Editar nome do curso"
+                    onClick={() => {
+                      limparImagemEscolhida();
+                      setModalConfig({ isOpen: true, type: 'editCourse', targetCourse: course.name, inputValue: course.name });
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors border-none bg-transparent cursor-pointer"
+                    title="Editar o nome e a imagem do curso"
                   >
                     <Edit2 size={16} />
                   </button>
@@ -2533,7 +2684,7 @@ export default function KnowledgeManagerView() {
             >
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 {modalConfig.type === 'deleteCourse' && `Excluir Curso`}
-                {modalConfig.type === 'editCourse' && `Editar Nome do Curso`}
+                {modalConfig.type === 'editCourse' && `Editar Curso`}
                 {modalConfig.type === 'deletePlaylist' && `Excluir Playlist`}
                 {modalConfig.type === 'editPlaylist' && `Editar Nome da Playlist`}
                 {modalConfig.type === 'deleteVideo' && `Excluir Vídeo`}
@@ -2768,15 +2919,30 @@ export default function KnowledgeManagerView() {
                 )}
 
                 {modalConfig.type.startsWith('edit') && modalConfig.type !== 'editVideo' && (
-                  <div className="space-y-2">
-                    <label className="font-bold text-xs uppercase text-gray-500">Novo Nome</label>
-                    <input 
-                      type="text" 
-                      value={modalConfig.inputValue || ''} 
-                      onChange={(e) => setModalConfig({...modalConfig, inputValue: e.target.value})}
-                      className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500"
-                      autoFocus
-                    />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="font-bold text-xs uppercase text-gray-500">Novo Nome</label>
+                      <input
+                        type="text"
+                        value={modalConfig.inputValue || ''}
+                        onChange={(e) => setModalConfig({...modalConfig, inputValue: e.target.value})}
+                        className="w-full p-2 border border-[#ccc] rounded-[4px] focus:outline-none focus:border-blue-500"
+                        autoFocus
+                      />
+                    </div>
+                    {/* Trocar a imagem do curso é o uso mais comum deste modal depois
+                        que o curso já existe. Playlist não tem imagem. */}
+                    {modalConfig.type === 'editCourse' && (
+                      <EscolherImagemDoCurso
+                        urlAtual={imagemDe(modalConfig.targetCourse || '')}
+                        arquivo={imagemDoCurso}
+                        remover={removerImagemDoCurso}
+                        erro={erroDaImagem}
+                        aoEscolher={(f) => { setImagemDoCurso(f); setRemoverImagemDoCurso(false); }}
+                        aoRemover={() => { setImagemDoCurso(null); setRemoverImagemDoCurso(true); }}
+                        aoErro={setErroDaImagem}
+                      />
+                    )}
                   </div>
                 )}
               </div>
