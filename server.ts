@@ -22,6 +22,8 @@ import * as PptxAutomizer from "pptx-automizer";
 const Automizer: any = (PptxAutomizer as any)?.Automizer
   ?? (PptxAutomizer as any)?.default?.Automizer
   ?? (PptxAutomizer as any)?.default;
+const ModifyTextHelper: any = (PptxAutomizer as any)?.ModifyTextHelper
+  ?? (PptxAutomizer as any)?.default?.ModifyTextHelper;
 import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
 import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } from "./src/lib/firebaseAdmin";
@@ -30,7 +32,8 @@ import { DEFAULT_QUIZZES } from "./src/services/quizSeed";
 import { empresaIdDireto } from "./src/services/consultorService";
 import { ANALYTICS_MODULOS } from "./src/services/analyticsModules";
 import { TOOL_HANDLERS } from "./src/services/pptToolHandlers";
-import { setPptTemplateMode } from "./src/services/slideTemplate";
+import { SLIDE_DA_CASA, TOOL_AREA, setPptTemplateMode } from "./src/services/slideTemplate";
+import { calcularEncaixe, slideEncaixado } from "./src/services/slideEscalado";
 import { addCoverSlide } from "./src/services/coverSlide";
 import {
   EMOCOES_SO_SOB_PEDIDO, TipoImagem, etiquetasValidas, montarPromptImagem, tituloDasEtiquetas, vocabulario,
@@ -817,9 +820,56 @@ async function startServer() {
 
   // Gera um slide em cima do PPTX real do consultor. O arquivo do modelo nunca
   // é devolvido nem escolhido pelo cliente: ele vem do tenant do usuário autenticado.
+  /**
+   * O que o modelo do consultor tem: tamanho do slide e a forma do título.
+   *
+   * Sem isto, o desenho saía para fora do slide (o modelo pode ser 4:3, e os
+   * exportadores desenham em 16:9) e o título continuava com o texto de exemplo do
+   * próprio modelo — "Conteúdo Programático" no lugar do nome da ferramenta.
+   *
+   * Lê o XML do .pptx direto: é um zip, e o pacote de montagem não expõe isso.
+   */
+  async function lerLayoutDoTemplate(pptx: Buffer) {
+    const POLEGADA = 914400; // EMU por polegada
+    const padrao = { largura: 13.33, altura: 7.5, tituloNome: "", tituloFim: 0 };
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(pptx);
+
+      const apresentacao = await zip.file("ppt/presentation.xml")?.async("string") || "";
+      const cx = Number((apresentacao.match(/<p:sldSz[^>]*\scx="(\d+)"/) || [])[1] || 0);
+      const cy = Number((apresentacao.match(/<p:sldSz[^>]*\scy="(\d+)"/) || [])[1] || 0);
+      const largura = cx ? cx / POLEGADA : padrao.largura;
+      const altura = cy ? cy / POLEGADA : padrao.altura;
+
+      const slide = await zip.file("ppt/slides/slide1.xml")?.async("string") || "";
+      // O título é a forma com texto mais ALTA no slide — é onde qualquer modelo
+      // põe o título, com ou sem placeholder declarado.
+      let titulo: { nome: string; topo: number; fim: number } | null = null;
+      for (const forma of slide.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || []) {
+        if (!/<a:t>[^<]/.test(forma)) continue;
+        const nome = (forma.match(/<p:cNvPr[^>]*name="([^"]*)"/) || [])[1];
+        const off = forma.match(/<a:off x="(-?\d+)" y="(-?\d+)"/);
+        const ext = forma.match(/<a:ext cx="(\d+)" cy="(\d+)"/);
+        if (!nome || !off || !ext) continue;
+        const topo = Number(off[2]) / POLEGADA;
+        const fim = topo + Number(ext[2]) / POLEGADA;
+        // Rodapé e número de página ficam de fora: título é coisa do terço de cima.
+        if (topo > altura / 3) continue;
+        if (!titulo || topo < titulo.topo) titulo = { nome, topo, fim };
+      }
+
+      return { largura, altura, tituloNome: titulo?.nome || "", tituloFim: titulo?.fim || 0 };
+    } catch (erro) {
+      console.warn("[ppt] não consegui ler o layout do modelo:", erro);
+      return padrao;
+    }
+  }
+
   app.post(["/api/ppt/gerar-ferramenta", "/api/ppt/gerar-apresentacao"], requireUser, async (req: any, res: any) => {
     const jobs = Array.isArray(req.body?.jobs) ? req.body.jobs : [{
-      toolId: req.body?.toolId, localData: req.body?.localData, aiAnalysis: req.body?.aiAnalysis, options: req.body?.options,
+      toolId: req.body?.toolId, localData: req.body?.localData, aiAnalysis: req.body?.aiAnalysis,
+      options: req.body?.options, toolTitle: req.body?.toolTitle,
     }];
     if (!jobs.length || jobs.some((job: any) => !TOOL_HANDLERS[String(job?.toolId || "")])) {
       return res.status(400).json({ error: "Uma das ferramentas não possui exportador PowerPoint." });
@@ -839,10 +889,38 @@ async function startServer() {
       try {
         const [capaResp, internaResp] = await Promise.all([fetch(capaUrl), fetch(internaUrl)]);
         if (!capaResp.ok || !internaResp.ok) throw new Error("Não foi possível baixar o modelo PowerPoint.");
+        const capaBuffer = Buffer.from(await capaResp.arrayBuffer());
+        const internaBuffer = Buffer.from(await internaResp.arrayBuffer());
         await Promise.all([
-          fs.writeFile(path.join(workDir, "capa.pptx"), Buffer.from(await capaResp.arrayBuffer())),
-          fs.writeFile(path.join(workDir, "interna.pptx"), Buffer.from(await internaResp.arrayBuffer())),
+          fs.writeFile(path.join(workDir, "capa.pptx"), capaBuffer),
+          fs.writeFile(path.join(workDir, "interna.pptx"), internaBuffer),
         ]);
+
+        // O DESENHO SE ENCAIXA NO MODELO DELE, seja qual for o tamanho.
+        //
+        // As ferramentas desenham para o slide da casa (13,33 × 7,5). O modelo
+        // enviado pode ser outro — o que sai do Google Slides é 10 × 5,625 — e o
+        // encaixe abaixo leva o desenho inteiro para dentro do espaço livre do
+        // modelo, sem distorcer. Vale para as 40 ferramentas e para as próximas,
+        // porque nenhuma delas precisa saber disso. Capa e miolo são arquivos
+        // diferentes: cada um informa o próprio tamanho.
+        const layout = await lerLayoutDoTemplate(internaBuffer);
+        const layoutDaCapa = await lerLayoutDoTemplate(capaBuffer);
+
+        const margem = 0.4;
+        const topo = Math.max(layout.tituloFim + 0.2, layout.altura * 0.12);
+        const encaixeDaFerramenta = calcularEncaixe(TOOL_AREA, {
+          x: margem,
+          y: topo,
+          w: Math.max(1, layout.largura - margem * 2),
+          // Deixa o rodapé do modelo livre (número de página, marca).
+          h: Math.max(1, layout.altura - topo - 0.35),
+        });
+        // A capa usa o slide inteiro: a arte dela vem do próprio modelo.
+        const encaixeDaCapa = calcularEncaixe(
+          { x: 0, y: 0, w: SLIDE_DA_CASA.w, h: SLIDE_DA_CASA.h },
+          { x: 0, y: 0, w: layoutDaCapa.largura, h: layoutDaCapa.altura },
+        );
 
         const automizer = new Automizer({
           templateDir: workDir, outputDir: workDir, removeExistingSlides: true,
@@ -853,17 +931,35 @@ async function startServer() {
         const userName = String(userSnap.data()?.nome || req.userEmail || "");
         setPptTemplateMode(true);
         pres.addSlide("capa", 1, (slide: any) => slide.generate((pptSlide: any) => {
-          addCoverSlide(({ addSlide: () => pptSlide } as any), project, userName);
+          const encaixado = slideEncaixado(pptSlide, encaixeDaCapa);
+          addCoverSlide(({ addSlide: () => encaixado } as any), project, userName);
         }));
         for (const job of jobs) {
           const handler = TOOL_HANDLERS[String(job.toolId)];
-          pres.addSlide("interna", 1, (slide: any) => slide.generate((pptSlide: any) => {
-            const fakePresentation = { addSlide: () => pptSlide } as any;
-            // Os exporters são síncronos até o writeFile (que não ocorre ao passar pres).
-            void handler.exporter(project, job.localData || {}, String(job.aiAnalysis || ""), {
-              ...(job.options || {}), pres: fakePresentation,
+          // O TÍTULO DO SLIDE É O NOME DA FERRAMENTA.
+          //
+          // No modelo do consultor o cabeçalho vem pronto, então o exportador não
+          // escreve título nenhum — e o slide saía com o texto de exemplo do próprio
+          // modelo ("Conteúdo Programático"). Aqui o texto da forma de título é
+          // trocado pelo nome da ferramenta que o consultor mandou gerar.
+          const tituloDaFerramenta = String(job.toolTitle || "").trim();
+          pres.addSlide("interna", 1, (slide: any) => {
+            if (layout.tituloNome && tituloDaFerramenta) {
+              try {
+                slide.modifyElement(layout.tituloNome, ModifyTextHelper.setText(tituloDaFerramenta));
+              } catch (erroTitulo) {
+                console.warn("[ppt] não consegui escrever o título no modelo:", erroTitulo);
+              }
+            }
+            slide.generate((pptSlide: any) => {
+              const encaixado = slideEncaixado(pptSlide, encaixeDaFerramenta);
+              const fakePresentation = { addSlide: () => encaixado } as any;
+              // Os exporters são síncronos até o writeFile (que não ocorre ao passar pres).
+              void handler.exporter(project, job.localData || {}, String(job.aiAnalysis || ""), {
+                ...(job.options || {}), pres: fakePresentation,
+              });
             });
-          }));
+          });
         }
         const name = `${jobs.length > 1 ? "Apresentacao_Final" : "Ferramenta"}_${Date.now()}.pptx`;
         await pres.write(name);

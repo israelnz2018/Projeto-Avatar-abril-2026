@@ -24,6 +24,8 @@ export function addCoverSlide(
   const brandText = getSlideBrand();
   const slide = pres.addSlide();
   if (isPptTemplateMode()) {
+    // Medidas do slide da casa (13,33 × 7,5). Quem encaixa no tamanho do modelo do
+    // consultor é o slideEncaixado, aplicado pelo servidor — ver slideEscalado.ts.
     slide.addText(project.name || 'NOME DO PROJETO', {
       x: 0.82, y: 3.06, w: 11.80, h: 1.06,
       fontFace: 'Calibri', fontSize: 44, bold: true, color: '1E2D6E', shrinkText: true,

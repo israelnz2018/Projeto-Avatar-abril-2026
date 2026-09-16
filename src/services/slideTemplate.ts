@@ -19,6 +19,13 @@ export const TOOL_AREA = {
   h: 5.26,
 };
 
+/**
+ * O slide da casa, em polegadas. É para ESTE tamanho que todos os exportadores
+ * desenham; encaixar no modelo do consultor é trabalho do slideEncaixado
+ * (services/slideEscalado.ts), aplicado pelo servidor ao montar o arquivo.
+ */
+export const SLIDE_DA_CASA = { w: 13.33, h: 7.5 };
+
 // Override do rótulo de fase no cabeçalho. A apresentação COMPLETA do projeto seta
 // isto com o nome da fase REAL da trilha antes de cada ferramenta (evita o "FASE
 // DEFINE" hardcoded dentro de cada exportador). Uso avulso de uma ferramenta deixa

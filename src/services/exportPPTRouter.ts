@@ -35,7 +35,14 @@ export async function routeExportPPT(params: RouteExportPPTParams): Promise<void
     try {
       const aiAnalysis = handler.useAiReport ? (aiReport?.text || '') : '';
       if (temPptTemplateAtivo()) {
-        await exportarFerramentaNoTemplate({ toolId, project, localData, aiAnalysis, options: handler.exporterOptions });
+        // O nome da ferramenta vai junto: no modelo do consultor é ele que vira o
+        // título do slide, no lugar do texto de exemplo que veio no arquivo.
+        const toolTitle = (Array.isArray(availableTools)
+          ? availableTools.find((t: any) => t?.id === toolId)?.name
+          : availableTools?.[toolId]?.name) || '';
+        await exportarFerramentaNoTemplate({
+          toolId, project, localData, aiAnalysis, toolTitle, options: handler.exporterOptions,
+        });
       } else {
         await handler.exporter(project, localData, aiAnalysis, handler.exporterOptions);
       }

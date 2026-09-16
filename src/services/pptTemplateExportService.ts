@@ -19,6 +19,8 @@ function baixar(blob: Blob, fileName: string) {
 
 export async function exportarFerramentaNoTemplate(payload: {
   toolId: string; project: any; localData: any; aiAnalysis: string; options?: any;
+  /** O nome da ferramenta: vira o título do slide dentro do modelo do consultor. */
+  toolTitle?: string;
 }): Promise<void> {
   return exportar('/api/ppt/gerar-ferramenta', payload, 'Apresentacao.pptx');
 }
