@@ -189,7 +189,9 @@ export async function generateFullProjectPresentation(
         const data = getToolData(projectData, toolId, phaseList);
         if (!handlerKey || !data) { toolsSkipped.push(toolId); continue; }
         const handler = TOOL_HANDLERS[handlerKey];
-        jobs.push({ toolId: handlerKey, localData: data.localData,
+        // A FASE VAI JUNTO: é com ela que o servidor põe a subcapa antes do primeiro
+        // slide de cada fase, como já acontece na apresentação da casa.
+        jobs.push({ toolId: handlerKey, localData: data.localData, fase: phase.label,
           aiAnalysis: handler.useAiReport ? getAiAnalysis(data.aiReport) : '', options: handler.exporterOptions || {} });
       }
     }

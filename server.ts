@@ -866,8 +866,29 @@ async function startServer() {
     }
   }
 
+  /**
+   * O nome da ferramenta para o título do slide.
+   *
+   * A tela manda o nome quando sabe (exportação avulsa). Na apresentação completa
+   * ela não tem o catálogo à mão, então o nome sai da mensagem de sucesso do próprio
+   * exportador — "Slide da Espinha de Peixe gerado!" vira "Espinha de Peixe". Melhor
+   * isso do que deixar o texto de exemplo do modelo do consultor no título.
+   */
+  function tituloDaFerramentaDoJob(job: any, handler: any): string {
+    const doCliente = String(job?.toolTitle || "").trim();
+    if (doCliente) return doCliente;
+    return String(handler?.successMsg || "")
+      .replace(/^(Slide|Apresenta[cç][aã]o)\s+(d[aeo]s?\s+)?/i, "")
+      .replace(/\s+(gerad[ao]|criad[ao])!?$/i, "")
+      .trim();
+  }
+
   app.post(["/api/ppt/gerar-ferramenta", "/api/ppt/gerar-apresentacao"], requireUser, async (req: any, res: any) => {
-    const jobs = Array.isArray(req.body?.jobs) ? req.body.jobs : [{
+    // APRESENTAÇÃO COMPLETA tem capa e uma subcapa por fase. FERRAMENTA AVULSA é só
+    // o slide dela: quem clica no botão da ferramenta quer aquele slide, e não uma
+    // capa de projeto junto.
+    const ehApresentacaoCompleta = Array.isArray(req.body?.jobs);
+    const jobs = ehApresentacaoCompleta ? req.body.jobs : [{
       toolId: req.body?.toolId, localData: req.body?.localData, aiAnalysis: req.body?.aiAnalysis,
       options: req.body?.options, toolTitle: req.body?.toolTitle,
     }];
@@ -930,19 +951,49 @@ async function startServer() {
         const project = req.body?.project || {};
         const userName = String(userSnap.data()?.nome || req.userEmail || "");
         setPptTemplateMode(true);
-        pres.addSlide("capa", 1, (slide: any) => slide.generate((pptSlide: any) => {
-          const encaixado = slideEncaixado(pptSlide, encaixeDaCapa);
-          addCoverSlide(({ addSlide: () => encaixado } as any), project, userName);
-        }));
+        if (ehApresentacaoCompleta) {
+          pres.addSlide("capa", 1, (slide: any) => slide.generate((pptSlide: any) => {
+            const encaixado = slideEncaixado(pptSlide, encaixeDaCapa);
+            addCoverSlide(({ addSlide: () => encaixado } as any), project, userName);
+          }));
+        }
+
+        let faseNaSubcapa = "";
         for (const job of jobs) {
           const handler = TOOL_HANDLERS[String(job.toolId)];
+
+          // A SUBCAPA DE CADA FASE, só na apresentação completa. Marca onde uma fase
+          // termina e a outra começa, como já acontece na apresentação da casa.
+          const fase = String(job?.fase || "").trim();
+          if (ehApresentacaoCompleta && fase && fase !== faseNaSubcapa) {
+            faseNaSubcapa = fase;
+            pres.addSlide("interna", 1, (slide: any) => {
+              if (layout.tituloNome) {
+                try {
+                  slide.modifyElement(layout.tituloNome, ModifyTextHelper.setText(fase));
+                } catch { /* modelo sem título nomeado: a subcapa sai só com o texto */ }
+              }
+              slide.generate((pptSlide: any) => {
+                const encaixado = slideEncaixado(pptSlide, encaixeDaFerramenta);
+                encaixado.addText(`FASE · ${fase.toUpperCase()}`, {
+                  x: TOOL_AREA.x, y: TOOL_AREA.y + TOOL_AREA.h / 2 - 0.6, w: TOOL_AREA.w, h: 1.2,
+                  fontFace: "Calibri", fontSize: 40, bold: true, color: "1E2D6E",
+                  align: "center", valign: "middle", shrinkText: true, charSpacing: 2,
+                });
+                encaixado.addText(project.name || "", {
+                  x: TOOL_AREA.x, y: TOOL_AREA.y + TOOL_AREA.h / 2 + 0.7, w: TOOL_AREA.w, h: 0.4,
+                  fontFace: "Calibri", fontSize: 14, color: "6B7AB8", align: "center",
+                });
+              });
+            });
+          }
           // O TÍTULO DO SLIDE É O NOME DA FERRAMENTA.
           //
           // No modelo do consultor o cabeçalho vem pronto, então o exportador não
           // escreve título nenhum — e o slide saía com o texto de exemplo do próprio
           // modelo ("Conteúdo Programático"). Aqui o texto da forma de título é
           // trocado pelo nome da ferramenta que o consultor mandou gerar.
-          const tituloDaFerramenta = String(job.toolTitle || "").trim();
+          const tituloDaFerramenta = tituloDaFerramentaDoJob(job, handler);
           pres.addSlide("interna", 1, (slide: any) => {
             if (layout.tituloNome && tituloDaFerramenta) {
               try {
