@@ -123,7 +123,10 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
   const [perfilMenu, setPerfilMenu] = useState<{ nome?: string; fotoUrl?: string }>({});
   const { projetoAtivo } = useProject();
   const { tipoUsuario, siglaPpt, pptFonte, pptCores, empresaId } = useUserAccess();
-  const { consultor } = useConsultor();
+  const { consultor, consultorId } = useConsultor();
+  // A aba de Marketing ainda está em teste — só o Israel a vê por enquanto.
+  // Ver MARKETING-PARA-NOVOS-CONSULTORES.md.
+  const podeVerMarketingConsultor = consultorId === 'israel';
   // Em site de consultor (israel.…), o dono só vê o papel de CONSULTOR — nunca o admin.
   // O admin (super-admin LBW) vive no hub (app.…). Ver PLANO-WHITELABEL.md.
   const siteConsultor = isSiteConsultor();
@@ -246,7 +249,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
         { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
-        { name: 'Marketing para Consultores', path: '/configuracao?aba=marketing', icon: Megaphone },
+        ...(podeVerMarketingConsultor
+          ? [{ name: 'Marketing para Consultores', path: '/configuracao?aba=marketing', icon: Megaphone }]
+          : []),
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
       ],
     }] : []),
