@@ -15,10 +15,11 @@ const DATA_EXEMPLO = '2026-06-22T12:00:00.000Z';
 const semPrefixo = (nome: string) => nome.replace(/^\d+\s*[-–—]?\s*/, '');
 
 function pendenciasCertificado(config: ConsultorCertificateConfig, consultorId: string, curso?: Initiative): string[] {
-  const temFundoPadrao = consultorId === 'israel' && !config.fundoUrl;
+  const temAssinaturaPadrao = consultorId === 'israel' && !config.fundoUrl;
   const faltando: string[] = [];
-  if (!config.fundoUrl && !temFundoPadrao) faltando.push('enviar o fundo do certificado');
-  if (!config.assinaturaUrl && !temFundoPadrao) faltando.push('enviar a assinatura');
+  // A plataforma fornece um fundo padrão para todos os consultores. O upload de
+  // uma arte própria é opcional e, por isso, nunca deve bloquear a emissão.
+  if (!config.assinaturaUrl && !temAssinaturaPadrao) faltando.push('enviar a assinatura');
   if (!config.instituicao?.trim()) faltando.push('preencher a instituição');
   if (!config.titulo?.trim()) faltando.push('preencher o título');
   if (!config.textoCertificamos?.trim()) faltando.push('preencher o texto antes do nome');
@@ -166,9 +167,9 @@ export default function CertificadosView() {
       <div className="grid items-start gap-6 xl:grid-cols-[430px_minmax(0,1fr)]">
         <div className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <EditorTitle icon={<ImageIcon size={17} />} title="1. Modelo visual" />
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Envie PNG ou JPG em A4 paisagem. Deixe livres as áreas onde aparecerão os campos automáticos para evitar sobreposição.</div>
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs leading-relaxed text-blue-900">A plataforma já fornece o fundo do certificado. Se quiser usar uma arte própria, envie um PNG ou JPG em A4 paisagem e deixe livres as áreas dos campos automáticos.</div>
           {pendencias.length > 0 && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-800"><b>Este curso ainda não está pronto para emitir certificado.</b><br />Falta: {pendencias.join('; ')}.</div>}
-          <AssetUpload titulo="Fundo do certificado" descricao="PNG ou JPG — A4 paisagem." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
+          <AssetUpload titulo="Fundo próprio (opcional)" descricao="Sem envio, será usado o fundo fornecido pela plataforma." url={config.fundoUrl || ''} loading={enviando === 'certificado-fundo'} onFile={(file) => enviar(file, 'certificado-fundo', 'fundoUrl')} />
           <AssetUpload titulo="Assinatura obrigatória" descricao={temAssinaturaPadrao ? 'O modelo padrão LBW já possui assinatura.' : 'PNG transparente recomendado.'} url={config.assinaturaUrl || ''} loading={enviando === 'certificado-assinatura'} onFile={(file) => enviar(file, 'certificado-assinatura', 'assinaturaUrl')} />
           <div className="grid grid-cols-2 gap-2">
             <Toggle label="Mostrar logo" checked={config.mostrarLogo !== false} onChange={(v) => patch('mostrarLogo', v)} />
