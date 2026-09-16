@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { FileUp, Loader2, Trash2, ExternalLink, Pencil, X, Check } from 'lucide-react';
 import { db } from '../../lib/firebase';
@@ -69,6 +69,7 @@ export default function MateriaisApoio() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edição inline
   const [editId, setEditId] = useState<string | null>(null);
@@ -107,6 +108,7 @@ export default function MateriaisApoio() {
     try {
       await uploadSupportMaterial({ titulo, descricao, file, consultorId, categoria, cursos: cursosSelecionados });
       setTitulo(''); setDescricao(''); setFile(null); setCategoria('Material'); setCursosSelecionados([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       setMessage('Material publicado com sucesso.');
       await load();
     } catch (error: any) {
@@ -161,11 +163,31 @@ export default function MateriaisApoio() {
             <input value={titulo} onChange={e => setTitulo(e.target.value)} maxLength={120}
               className={campo} placeholder="Ex.: Apostila da Trilha 1" />
           </label>
-          <label className={label}>Arquivo
-            <input type="file" onChange={e => setFile(e.target.files?.[0] || null)}
+          <div>
+            <span className={label}>Arquivo</span>
+            <input
+              ref={fileInputRef}
+              id="support-material-file"
+              type="file"
+              onChange={e => setFile(e.target.files?.[0] || null)}
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,image/*"
-              className="mt-1 block w-full text-sm font-normal" />
-          </label>
+              className="sr-only"
+            />
+            <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-2">
+              <label
+                htmlFor="support-material-file"
+                className="inline-flex w-fit items-center gap-2 rounded-xl bg-blue-700 text-white px-4 py-2.5 text-sm font-bold cursor-pointer hover:bg-blue-800 transition-colors"
+              >
+                <FileUp size={17} /> Escolher arquivo para upload
+              </label>
+              <span className={`text-sm ${file ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
+                {file ? file.name : 'Nenhum arquivo selecionado'}
+              </span>
+            </div>
+            <p className="mt-1 text-xs font-normal text-gray-500">
+              Escolha o arquivo aqui. O envio acontece ao clicar em <b>Publicar material</b> abaixo.
+            </p>
+          </div>
         </div>
         <label className={label}>Categoria
           <select value={categoria} onChange={e => setCategoria(e.target.value as CategoriaMaterial)} className={`${campo} md:w-64`}>
