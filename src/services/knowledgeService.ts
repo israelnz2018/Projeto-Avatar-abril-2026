@@ -36,6 +36,8 @@ export interface KnowledgeEntry {
     processamentoVideo?: 'aguardando' | 'processando' | 'concluido' | 'erro';
     transcricao?: 'aguardando' | 'processando' | 'concluido' | 'erro';
     indice?: 'aguardando' | 'processando' | 'concluido' | 'erro';
+    /** O que está acontecendo agora na etapa em curso, ex.: "codificação em 65%". */
+    detalhe?: string;
     atualizadoEm?: string;
     erro?: {
       etapa?: 'processamentoVideo' | 'transcricao' | 'indice';

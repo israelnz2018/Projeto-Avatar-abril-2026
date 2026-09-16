@@ -252,12 +252,15 @@ const PIPELINE_STATUS_LABEL: Record<PipelineStageStatus, string> = {
 function PipelineStageRow({
   label,
   status,
+  detalhe,
   onRetry,
   retrying,
   retryWhenProcessing,
 }: {
   label: string;
   status: PipelineStageStatus;
+  /** O que está acontecendo agora, ex.: "codificação em 65%". */
+  detalhe?: string;
   onRetry?: () => void;
   retrying?: boolean;
   retryWhenProcessing?: boolean;
@@ -272,6 +275,11 @@ function PipelineStageRow({
     <div className="flex items-center gap-2 text-[11px] leading-5">
       <span className="w-[132px] text-slate-600">{label}</span>
       <span className={cn('font-bold', colors)}>{PIPELINE_STATUS_LABEL[status]}</span>
+      {/* Vídeo longo leva dezenas de minutos para codificar. Sem dizer em que pé
+          está, "Processando..." parado por meia hora parece travado. */}
+      {status === 'processando' && detalhe && (
+        <span className="text-slate-500">— {detalhe}</span>
+      )}
       {(status === 'erro' || (status === 'processando' && retryWhenProcessing)) && onRetry && (
         <button
           type="button"
@@ -381,6 +389,7 @@ function SortableVideoRow({
                   <PipelineStageRow
                     label="Processamento do vídeo"
                     status={statusVideo}
+                    detalhe={pipeline.detalhe}
                     onRetry={() => handleRetryProcessing(item)}
                     retrying={isReprocessing === item.id}
                     retryWhenProcessing={pipelineTravado && statusVideo === 'processando'}

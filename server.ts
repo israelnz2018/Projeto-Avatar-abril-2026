@@ -2430,15 +2430,27 @@ async function startServer() {
         // assim que o registro do vídeo existe, mesmo sem o MP4 estar gravado — era
         // por isso que o download estourava 404 logo depois de enviar o vídeo.
         // Agora espera o status de codificação concluída (4) E confirma que o arquivo
-        // responde, antes de tentar baixá-lo. Até 10 minutos.
+        // responde, antes de tentar baixá-lo.
+        //
+        // A ESPERA ACOMPANHA O TAMANHO DO VÍDEO. Eram 10 minutos fixos, e uma aula de
+        // uma hora não termina de codificar nesse tempo: o consultor recebia
+        // "não ficou pronto em 10 minutos" num vídeo que estava indo bem. Agora a
+        // conta é pelo minuto de vídeo, com 45 minutos de teto.
         let mediaUrl = "";
         let ultimoMotivo = "codificação ainda não concluída";
-        for (let attempt = 0; attempt < 60 && !mediaUrl; attempt++) {
+        let limiteEmMinutos = 10;
+        const limiteAjustado = (duracaoSegundos: number) => {
+          if (!duracaoSegundos) return;
+          limiteEmMinutos = Math.min(45, Math.max(10, Math.ceil((duracaoSegundos / 60) * 0.75)));
+        };
+        const tentativasMaximas = () => Math.ceil((limiteEmMinutos * 60) / 10);
+        for (let attempt = 0; attempt < tentativasMaximas() && !mediaUrl; attempt++) {
           const infoResponse = await fetch(base, {
             headers: { AccessKey: lib.apiKey, Accept: "application/json" },
           });
           const info = infoResponse.ok ? await infoResponse.json() as any : null;
           const encodeStatus = Number(info?.status ?? -1);
+          limiteAjustado(Number(info?.length || 0));
           // 5 = falha no processamento, 6 = falha no upload. Não adianta esperar.
           if (encodeStatus === 5 || encodeStatus === 6) {
             throw new Error("O servidor de vídeo não conseguiu processar este arquivo. Envie o vídeo novamente.");
@@ -2487,6 +2499,10 @@ async function startServer() {
           }
 
           if (!mediaUrl) {
+            // O QUE ESTÁ ACONTECENDO, escrito para a tela mostrar. "Processando..."
+            // sozinho, por vinte minutos, parece travado — e o consultor não tem como
+            // saber que é só um vídeo longo codificando.
+            pipelineStatus.detalhe = ultimoMotivo;
             // Sinal de vida a cada 30s. Sem isso o atualizadoEm ficava parado
             // durante toda a codificação e a tela marcava como "travado" um vídeo
             // que está processando normalmente — e um Refazer ali dispararia uma
@@ -2495,7 +2511,8 @@ async function startServer() {
             await new Promise(resolve => setTimeout(resolve, 10_000));
           }
         }
-        if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em 10 minutos (${ultimoMotivo}).`);
+        if (!mediaUrl) throw new Error(`O vídeo não ficou pronto no servidor de vídeo em ${limiteEmMinutos} minutos (${ultimoMotivo}).`);
+        pipelineStatus.detalhe = "";
 
         // Codificação confirmada concluída — se a primeira tentativa (antes da espera)
         // não achou a capa porque o Bunny ainda estava gerando, agora é a hora certa.
