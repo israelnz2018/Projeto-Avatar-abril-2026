@@ -1017,16 +1017,14 @@ async function startServer() {
             });
           });
         }
-        // O NOME DO ARQUIVO LEVA O NOME DA FERRAMENTA, não só um carimbo de tempo.
-        //
-        // Era `Ferramenta_1789528543081.pptx` — o consultor baixa uma ferramenta de
-        // cada vez, várias vezes ao longo de um projeto, e todas chegavam com o
-        // mesmo nome genérico na pasta de downloads, diferenciadas só pelos números.
-        const hoje = new Date().toLocaleDateString("pt-BR").replace(/\//g, "");
-        const nomeProjeto = sanitizeNomeArquivo(String(project?.name || "Projeto"));
+        // O NOME DO ARQUIVO É O NOME DA FERRAMENTA + O CARIMBO DE TEMPO — sem o nome
+        // do projeto, que o consultor achou longo demais. O carimbo continua porque
+        // baixar a mesma ferramenta duas vezes não pode sobrescrever o download
+        // anterior na pasta do navegador.
+        const carimbo = Date.now();
         const name = ehApresentacaoCompleta
-          ? `Apresentacao_${nomeProjeto}_${hoje}.pptx`
-          : `${sanitizeNomeArquivo(tituloDaFerramentaDoJob(jobs[0], TOOL_HANDLERS[String(jobs[0].toolId)]))}_${nomeProjeto}_${hoje}.pptx`;
+          ? `Apresentacao_${carimbo}.pptx`
+          : `${sanitizeNomeArquivo(tituloDaFerramentaDoJob(jobs[0], TOOL_HANDLERS[String(jobs[0].toolId)]))}_${carimbo}.pptx`;
         await pres.write(name);
         const arquivo = await fs.readFile(path.join(workDir, name));
         res.setHeader("content-type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
