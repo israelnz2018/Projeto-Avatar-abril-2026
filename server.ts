@@ -3663,6 +3663,27 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
   };
 
   /** Quebra o título em duas linhas equilibradas, que é como o cabeçalho espera. */
+  /**
+   * A MANCHETE DO TRECHO APROVADO — o que o Reel escreve na tela e o que vira o
+   * gancho da capa.
+   *
+   * Vinha do `titulo` do criativo, que é o RÓTULO da fatia: nasce com a IA e o
+   * consultor pode renomear. Quando ele apara a fala — tira o começo, encurta o
+   * fim — o rótulo continua o de antes, e o Reel saía anunciando um assunto que a
+   * fala já não tinha: "SUA MENTALIDADE É DE MELHORIA CONTÍNUA?" num corte que
+   * fala de não ter sido preparado para liderar projetos. As peças de texto, essas,
+   * saíam certas, porque são escritas do trecho aprovado — e o consultor via Reel e
+   * carrossel falando de coisas diferentes.
+   *
+   * A capa do carrossel é a manchete que a IA escreveu A PARTIR do trecho aprovado.
+   * Usá-la aqui alinha Reel, capa e carrossel ao MESMO texto, e deixa o rótulo livre
+   * para o consultor organizar como quiser.
+   */
+  function mancheteDoCriativo(criativo: any): string {
+    const capaDoRoteiro = String(criativo?.roteiro?.slides?.[0]?.title || "").replace(/\*/g, "").trim();
+    return capaDoRoteiro || String(criativo?.titulo || "");
+  }
+
   function tituloEmDuasLinhas(titulo: string): [string, string] {
     const palavras = String(titulo || "").trim().toUpperCase().split(/\s+/).filter(Boolean);
     if (palavras.length < 2) return [palavras[0] || "", ""];
@@ -3823,7 +3844,9 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const origem = String(req.headers.origin || process.env.APP_URL || "").trim();
       const referer = origem ? (origem.endsWith("/") ? origem : `${origem}/`) : "";
 
-      const [titulo1, titulo2] = tituloEmDuasLinhas(criativo.titulo);
+      // O letreiro do Reel sai da manchete do trecho aprovado, não do rótulo do
+      // criativo — ver mancheteDoCriativo.
+      const [titulo1, titulo2] = tituloEmDuasLinhas(mancheteDoCriativo(criativo));
 
       // A CAPA DO REEL É UMA ARTE, NÃO UM QUADRO DO VÍDEO.
       //
@@ -4050,7 +4073,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       (capa[campo] === undefined || capa[campo] === null ? padrao : String(capa[campo])).trim();
     const gancho: string[] = Array.isArray(capa.hookLines)
       ? capa.hookLines.map((l: any) => String(l ?? "").trim()).filter(Boolean)
-      : ganchoDoTitulo(String(criativo?.titulo || ""));
+      : ganchoDoTitulo(mancheteDoCriativo(criativo));
     return {
       mode: "dedicated",
       courseKey: capa.courseKey || "white-belt",

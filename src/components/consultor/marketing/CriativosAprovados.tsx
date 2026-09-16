@@ -1527,7 +1527,7 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
   // mostrava outra, sem nenhum jeito de descobrir de onde vinha o quê.
   //
   // Estes são os MESMOS padrões do servidor. Se um mudar lá, muda aqui.
-  const ganchoPadrao = ganchoDoTitulo(criativo.titulo);
+  const ganchoPadrao = ganchoDoTitulo(mancheteDoCriativo(criativo));
   const assuntoPadrao = (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase();
 
   const episodioPadrao = String(criativo.ordem || 1).padStart(2, '0');
@@ -1545,7 +1545,7 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
     setCurso(g.courseKey || 'white-belt');
     setSerie(ou(g.seriesLabel, 'WHITE BELT'));
     setEpisodio(ou(g.episode, String(criativo.ordem || 1).padStart(2, '0')));
-    setGancho((g.hookLines ?? ganchoDoTitulo(criativo.titulo)).join('\n'));
+    setGancho((g.hookLines ?? ganchoDoTitulo(mancheteDoCriativo(criativo))).join('\n'));
     setRotulo(ou(g.topicLabel, 'AULA PRÁTICA'));
     setAssunto(ou(g.topicStrong, (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1680,6 +1680,20 @@ function CamposDaCapa({ arte }: { arte: ReturnType<typeof useArteDaCapa> }) {
       {erro && <p className="text-sm text-red-700">{erro}</p>}
     </div>
   );
+}
+
+/**
+ * A MANCHETE DO TRECHO APROVADO — a mesma conta do servidor.
+ *
+ * O `titulo` do criativo é o RÓTULO da fatia: nasce com a IA e o consultor pode
+ * renomear. Quando ele apara a fala, o rótulo continua o de antes, e a capa saía
+ * anunciando um assunto que a fala já não tinha. A capa do carrossel é a manchete
+ * que a IA escreveu A PARTIR do trecho aprovado — é ela que alinha Reel, capa e
+ * carrossel ao mesmo texto.
+ */
+function mancheteDoCriativo(criativo: Criativo): string {
+  const capaDoRoteiro = String(criativo.roteiro?.slides?.[0]?.title || '').replace(/\*/g, '').trim();
+  return capaDoRoteiro || criativo.titulo || '';
 }
 
 /**
