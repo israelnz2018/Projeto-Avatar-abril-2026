@@ -1017,14 +1017,15 @@ async function startServer() {
             });
           });
         }
-        // O NOME DO ARQUIVO É O NOME DA FERRAMENTA + O CARIMBO DE TEMPO — sem o nome
-        // do projeto, que o consultor achou longo demais. O carimbo continua porque
-        // baixar a mesma ferramenta duas vezes não pode sobrescrever o download
-        // anterior na pasta do navegador.
-        const carimbo = Date.now();
+        // O NOME DO ARQUIVO É O NOME DA FERRAMENTA + A DATA DE HOJE — sem o nome do
+        // projeto, que o consultor achou longo demais, e sem o relógio em
+        // milissegundos (Date.now()), que virava um número enorme sem sentido nenhum
+        // pra quem olha a pasta de downloads. Mesmo formato que as outras
+        // ferramentas já usam quando geram fora do modelo do consultor.
+        const hoje = new Date().toLocaleDateString("pt-BR").replace(/\//g, "");
         const name = ehApresentacaoCompleta
-          ? `Apresentacao_${carimbo}.pptx`
-          : `${sanitizeNomeArquivo(tituloDaFerramentaDoJob(jobs[0], TOOL_HANDLERS[String(jobs[0].toolId)]))}_${carimbo}.pptx`;
+          ? `Apresentacao_${hoje}.pptx`
+          : `${sanitizeNomeArquivo(tituloDaFerramentaDoJob(jobs[0], TOOL_HANDLERS[String(jobs[0].toolId)]))}_${hoje}.pptx`;
         await pres.write(name);
         const arquivo = await fs.readFile(path.join(workDir, name));
         res.setHeader("content-type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
