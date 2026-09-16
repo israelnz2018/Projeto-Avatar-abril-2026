@@ -764,16 +764,31 @@ export function EtapaAgenda({
 /** Abre o arquivo da peça numa aba. É o que dá para oferecer até a publicação existir. */
 function LinkDoArquivo({ caminho }: { caminho?: string }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [semArquivo, setSemArquivo] = useState(false);
 
   useEffect(() => {
-    if (!caminho || !caminho.startsWith('marketing/')) return;
+    setUrl(null);
+    // Peça antiga, produzida na máquina antes da fila existir: o caminho aponta
+    // para uma pasta local (ENTREGAS/...), e não para o Storage. Não há arquivo
+    // nenhum para abrir daqui.
+    if (!caminho || !caminho.startsWith('marketing/')) { setSemArquivo(true); return; }
+    setSemArquivo(false);
     let vivo = true;
     getDownloadURL(storageRef(storage, caminho))
       .then((u) => { if (vivo) setUrl(u); })
-      .catch(() => {});
+      .catch(() => { if (vivo) setSemArquivo(true); });
     return () => { vivo = false; };
   }, [caminho]);
 
+  // Sem isto ficava "carregando…" para sempre, e o consultor esperava um arquivo
+  // que nunca ia chegar.
+  if (semArquivo) {
+    return (
+      <span className="text-xs text-gray-400 shrink-0" title={caminho}>
+        arquivo fora da plataforma
+      </span>
+    );
+  }
   if (!url) return <span className="text-xs text-gray-400 shrink-0">carregando…</span>;
 
   return (
