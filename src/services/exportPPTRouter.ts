@@ -40,9 +40,13 @@ export async function routeExportPPT(params: RouteExportPPTParams): Promise<void
         await handler.exporter(project, localData, aiAnalysis, handler.exporterOptions);
       }
       toast.success(handler.successMsg);
-    } catch (e) {
+    } catch (e: any) {
+      // O motivo, e não só "tente novamente": o erro do servidor (modelo PPTX que
+      // não baixa, ferramenta sem exportador) some no console e o consultor fica
+      // tentando de novo sem nunca saber o que aconteceu.
       console.error(e);
-      toast.error('Erro ao gerar slide. Tente novamente.');
+      const motivo = String(e?.message || '').slice(0, 200);
+      toast.error(motivo ? `Erro ao gerar slide: ${motivo}` : 'Erro ao gerar slide. Tente novamente.');
     }
     return;
   }

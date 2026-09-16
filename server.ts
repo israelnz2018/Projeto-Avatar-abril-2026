@@ -11,7 +11,17 @@ import fsSync from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline as streamPipeline } from "node:stream/promises";
 import { fileURLToPath } from "url";
-import Automizer from "pptx-automizer";
+// O CONSTRUTOR VEM DE `.Automizer`, NÃO DO DEFAULT.
+//
+// `import Automizer from "pptx-automizer"` entregava um OBJETO, e `new Automizer(...)`
+// estourava "Automizer is not a constructor" — o pacote é CommonJS e, rodando por
+// tsx, o default vira o namespace inteiro. Resultado: TODO consultor com modelo PPTX
+// próprio recebia "Erro ao gerar slide", sempre. Passava despercebido porque quem
+// não enviou os dois .pptx nem chega nesta rota: gera o slide no próprio navegador.
+import * as PptxAutomizer from "pptx-automizer";
+const Automizer: any = (PptxAutomizer as any)?.Automizer
+  ?? (PptxAutomizer as any)?.default?.Automizer
+  ?? (PptxAutomizer as any)?.default;
 import { GoogleGenAI, Type } from "@google/genai";
 import nodemailer from "nodemailer";
 import { initFirebaseAdmin, isAdminReady, adminAuth, adminFirestore, admin } from "./src/lib/firebaseAdmin";
