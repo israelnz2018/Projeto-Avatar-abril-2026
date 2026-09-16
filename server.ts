@@ -883,6 +883,11 @@ async function startServer() {
       .trim();
   }
 
+  /** Nome de arquivo seguro: sem acento, sem espaço, sem caractere que o SO recuse. */
+  const sanitizeNomeArquivo = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "Documento";
+
   app.post(["/api/ppt/gerar-ferramenta", "/api/ppt/gerar-apresentacao"], requireUser, async (req: any, res: any) => {
     // APRESENTAÇÃO COMPLETA tem capa e uma subcapa por fase. FERRAMENTA AVULSA é só
     // o slide dela: quem clica no botão da ferramenta quer aquele slide, e não uma
@@ -1012,7 +1017,16 @@ async function startServer() {
             });
           });
         }
-        const name = `${jobs.length > 1 ? "Apresentacao_Final" : "Ferramenta"}_${Date.now()}.pptx`;
+        // O NOME DO ARQUIVO LEVA O NOME DA FERRAMENTA, não só um carimbo de tempo.
+        //
+        // Era `Ferramenta_1789528543081.pptx` — o consultor baixa uma ferramenta de
+        // cada vez, várias vezes ao longo de um projeto, e todas chegavam com o
+        // mesmo nome genérico na pasta de downloads, diferenciadas só pelos números.
+        const hoje = new Date().toLocaleDateString("pt-BR").replace(/\//g, "");
+        const nomeProjeto = sanitizeNomeArquivo(String(project?.name || "Projeto"));
+        const name = ehApresentacaoCompleta
+          ? `Apresentacao_${nomeProjeto}_${hoje}.pptx`
+          : `${sanitizeNomeArquivo(tituloDaFerramentaDoJob(jobs[0], TOOL_HANDLERS[String(jobs[0].toolId)]))}_${nomeProjeto}_${hoje}.pptx`;
         await pres.write(name);
         const arquivo = await fs.readFile(path.join(workDir, name));
         res.setHeader("content-type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
