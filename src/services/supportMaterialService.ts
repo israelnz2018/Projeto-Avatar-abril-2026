@@ -26,6 +26,9 @@ export async function listSupportMaterials(consultorId = resolveConsultorId()): 
   const snap = await getDocs(query(collection(db, COLLECTION), where('consultorId', '==', consultorId)));
   return snap.docs
     .map(item => ({ categoria: 'Material', cursos: [], ...item.data(), id: item.id } as SupportMaterial))
+    // Registros antigos de auditoria podem existir sem os campos obrigatorios de
+    // um upload. Eles nao representam um material e nao devem virar cards vazios.
+    .filter(material => Boolean(material.titulo?.trim() && material.arquivoUrl?.trim()))
     .sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')));
 }
 
