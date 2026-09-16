@@ -178,10 +178,17 @@ export default function LearningView() {
   //    o resto fica com CADEADO. O plano:completo NÃO libera tudo aqui.
   //  - Modo PLANO (alunos atuais sem pacote): completo vê tudo, starter vê os grátis —
   //    exatamente como funciona hoje (grupos preservados).
+  // O DONO DO CONTEÚDO NUNCA FICA TRANCADO NO PRÓPRIO CURSO.
+  //
+  // Na Área do Aluno o consultor perdia todos os atalhos de staff, e o resultado era
+  // ele olhando o curso que ACABOU de cadastrar com um cadeado e o vídeo marcado
+  // "não liberado" — sem nenhum jeito de conferir a própria aula. `isConsultor` já
+  // vem do cadastro DESTE tenant, então isto libera o dono, não um visitante.
+  const donoDoConteudo = isAdmin || isConsultor;
   const isCourseLocked = (course: string) => {
     if (course === INTRO_COURSE_ALUNO) return false;
     if (course === INTRO_COURSE_COORDENADOR) return modoAreaAluno || !(isAdmin || isConsultor || isCoordenador);
-    if (veTudo) return false;
+    if (veTudo || donoDoConteudo) return false;
     // Modelo POR-CONSULTOR (coordenador ou aluno com pacote): não existe "curso grátis" no
     // sistema — só os cursos explicitamente liberados pelo consultor (isFree não faz bypass).
     if (isCoordenador || acessoPorCurso) return !hasCourseAccess(cursosLiberados || [], course);
@@ -536,7 +543,10 @@ export default function LearningView() {
           const isActive = activeCategory === cat;
           const trilhaLocked = isCourseLocked(cat);
           const total = countByCategory(cat);
-          const banner = getCourseCardBanner(cat, consultorAtual);
+          // A IMAGEM ENVIADA PELO CONSULTOR VEM PRIMEIRO. Sem ela, o banner fixo do
+          // catálogo; sem os dois, o nome do curso sobre o fundo escuro.
+          const imagemDoConsultor = allInitiatives.find((i) => courseNamesMatch(i.name, cat))?.iconUrl;
+          const banner = imagemDoConsultor || getCourseCardBanner(cat, consultorAtual);
 
           return (
             <motion.button
