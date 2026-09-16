@@ -27,7 +27,7 @@ const ABAS = [
   { id: 'fases', nome: 'Projetos, Fases e Ferramentas', icon: Settings, Comp: MinhasFases },
   { id: 'coordenadores', nome: 'Meus Clientes', icon: Users2, Comp: MeusCoordenadores },
   // Minha Vitrine e Vitrine escondidas por ora (discutir depois).
-  { id: 'marca', nome: 'Minha Marca', icon: Palette, Comp: MinhaMarca },
+  { id: 'marca', nome: 'Modelo de PPT', icon: Palette, Comp: MinhaMarca },
   { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
   // Fase 1: admin-only (o próprio componente faz a checagem). Ver MARKETING-PARA-NOVOS-CONSULTORES.md
   { id: 'marketing', nome: 'Marketing para Consultores', icon: Megaphone, Comp: MarketingConsultor },

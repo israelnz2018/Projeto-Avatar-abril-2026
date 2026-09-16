@@ -1,12 +1,9 @@
 /**
- * MinhaMarca — o consultor monta a própria marca: identidade (nome, mentor,
- * foto, logo, texto da marca) + modelo de PPT (nosso template com 3 cores OU template
- * próprio via upload). Salva em consultores/{consultorId} e o app re-veste ao
- * vivo (refresh). Ver PLANO-WHITELABEL.md.
+ * Modelo de PPT do consultor. A identidade da empresa e da IA fica em Meu Perfil.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { Upload, Palette, AlertTriangle, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Upload, Palette, AlertTriangle, ExternalLink } from 'lucide-react';
 import { db, auth } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -17,11 +14,6 @@ export default function MinhaMarca() {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isAdmin, isConsultor, loading } = useUserAccess();
 
-  const [nome, setNome] = useState('');
-  const [slogan, setSlogan] = useState('');
-  const [mentor, setMentor] = useState('');
-  const [fotoUrl, setFotoUrl] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
   const [pptCapaUrl, setPptCapaUrl] = useState('');
   const [pptInternaUrl, setPptInternaUrl] = useState('');
   const [pptCapaPreviaUrl, setPptCapaPreviaUrl] = useState('');
@@ -34,11 +26,6 @@ export default function MinhaMarca() {
   // Pré-popula com a marca atual assim que carrega.
   useEffect(() => {
     const b = consultor.branding;
-    setNome(b.nome || '');
-    setSlogan(b.slogan || '');
-    setMentor(consultor.mentorNome || '');
-    setFotoUrl(b.fotoUrl || '');
-    setLogoUrl(b.logoUrl || '');
     setPptCapaUrl(b.pptCapaUrl || '');
     setPptInternaUrl(b.pptInternaUrl || '');
     setPptCapaPreviaUrl(b.pptCapaPreviaUrl || '');
@@ -80,13 +67,8 @@ export default function MinhaMarca() {
         await setDoc(
           doc(db, 'consultores', consultorId),
           {
-            mentorNome: mentor.trim(),
             branding: {
               ...consultor.branding,
-              nome: nome.trim(),
-              slogan: slogan.trim(),
-              fotoUrl: fotoUrl.trim(),
-              logoUrl: logoUrl.trim(),
               pptModo: 'proprio',
               pptCapaUrl: pptCapaUrl.trim(),
               pptInternaUrl: pptInternaUrl.trim(),
@@ -98,19 +80,10 @@ export default function MinhaMarca() {
           { merge: true }
         );
       } catch (e: any) {
-        throw new Error(`Não foi possível salvar a marca do consultor “${consultorId}”: ${e?.message || e}`);
-      }
-      // Foto também no doc do usuário (comunidade e avatar).
-      const uid = auth.currentUser?.uid;
-      if (uid) {
-        try {
-          await setDoc(doc(db, 'users', uid), { fotoUrl: fotoUrl.trim() }, { merge: true });
-        } catch (e: any) {
-          throw new Error(`A marca foi salva, mas não foi possível atualizar a foto do perfil: ${e?.message || e}`);
-        }
+        throw new Error(`Não foi possível salvar o modelo de PPT do consultor “${consultorId}”: ${e?.message || e}`);
       }
       await refresh(); // re-veste o app ao vivo
-      setMsg('✅ Marca salva. O app já atualizou.');
+      setMsg('✅ Modelo de PPT salvo. O app já atualizou.');
     } catch (e: any) {
       setMsg('❌ Erro ao salvar: ' + (e?.message || e));
     } finally {
@@ -118,74 +91,12 @@ export default function MinhaMarca() {
     }
   }
 
-  const label = 'block text-xs font-black uppercase tracking-wide text-gray-500 mb-1';
-  const campo = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
-
   return (
     <div className="max-w-2xl mx-auto pb-12">
-      <h1 className="text-2xl font-black text-gray-800 mb-1">Minha Marca</h1>
+      <h1 className="text-2xl font-black text-gray-800 mb-1">Modelo de PPT</h1>
       <p className="text-gray-500 text-sm mb-6">
-        A identidade do seu site (<b>{consultorId}.educacaopelotrabalho.com</b>). Salvou, o app re-veste na hora.
+        Envie os modelos usados nos slides exportados pelos seus alunos.
       </p>
-
-      {/* ===== IDENTIDADE ===== */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5 mb-6">
-        <h2 className="flex items-center gap-2 font-black text-gray-800"><User size={16} /> Identidade</h2>
-
-        <div>
-          <label className={label}>Nome / empresa</label>
-          <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Consultoria João Silva" className={campo} />
-        </div>
-
-        <div>
-          <label className={label}>Texto abaixo da logo</label>
-          <input value={slogan} onChange={(e) => setSlogan(e.target.value)} placeholder="Ex.: Educação pelo Trabalho" className={campo} />
-          <p className="text-xs text-gray-400 mt-1">
-            Aparece no menu lateral, junto da sua logo. Se ficar vazio, usamos o padrão LBW: <b>Educação pelo Trabalho</b>.
-          </p>
-        </div>
-
-        <div>
-          <label className={label}>Nome do mentor (o "digital" da IA)</label>
-          <input value={mentor} onChange={(e) => setMentor(e.target.value)} placeholder="Ex.: João Silva" className={campo} />
-          <p className="text-xs text-gray-400 mt-1">É o nome que a IA usa ao se apresentar aos seus alunos.</p>
-        </div>
-
-        {/* FOTO — upload */}
-        <div>
-          <label className={label}>Sua foto (aparece no avatar, no lugar das iniciais)</label>
-          <div className="flex items-center gap-4">
-            {fotoUrl
-              ? <img src={fotoUrl} alt="Prévia" className="h-16 w-16 rounded-full object-cover border border-gray-200" />
-              : <div className="h-16 w-16 rounded-full bg-gray-100 grid place-items-center text-gray-300"><User size={26} /></div>}
-            <UploadBtn
-              titulo={fotoUrl ? 'Trocar foto' : 'Enviar foto'}
-              carregando={enviando === 'foto'}
-              onFile={(f) => enviarImagem(f, 'foto', setFotoUrl)}
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-2">PNG ou JPG. Reduzimos pra até 512px automaticamente.</p>
-        </div>
-
-        {/* LOGO — upload */}
-        <div>
-          <label className={label}>Logo</label>
-          <div className="flex items-center gap-4">
-            {logoUrl
-              ? <img src={logoUrl} alt="Prévia do logo" className="h-14 w-auto max-w-[160px] object-contain border border-gray-100 rounded bg-gray-50 p-1" />
-              : <div className="h-14 w-24 rounded bg-gray-100 grid place-items-center text-gray-300"><ImageIcon size={22} /></div>}
-            <UploadBtn
-              titulo={logoUrl ? 'Trocar logo' : 'Enviar logo'}
-              carregando={enviando === 'logo'}
-              onFile={(f) => enviarImagem(f, 'logo', setLogoUrl)}
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Aparece no <b>cabeçalho do seu site</b>. Ideal PNG com fundo transparente — reduzimos pra até 600px, preservando a transparência.
-            Se você não enviar uma logo, o sistema usa a logo padrão LBW.
-          </p>
-        </div>
-      </div>
 
       {/* ===== MODELO DE PPT ===== */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4 mb-6">
@@ -240,36 +151,11 @@ export default function MinhaMarca() {
           disabled={salvando || !!enviando}
           className="px-6 py-2.5 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40"
         >
-          {salvando ? 'Salvando…' : 'Salvar marca'}
+          {salvando ? 'Salvando…' : 'Salvar modelo de PPT'}
         </button>
         {msg && <span className="text-sm text-gray-600">{msg}</span>}
       </div>
     </div>
-  );
-}
-
-/* ---------- sub-componentes ---------- */
-
-function UploadBtn({ titulo, carregando, onFile }: { titulo: string; carregando: boolean; onFile: (f?: File) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => ref.current?.click()}
-        disabled={carregando}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-      >
-        <Upload size={15} /> {carregando ? 'Enviando…' : titulo}
-      </button>
-      <input
-        ref={ref}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }}
-      />
-    </>
   );
 }
 

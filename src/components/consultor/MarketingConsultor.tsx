@@ -268,7 +268,7 @@ export default function MarketingConsultor() {
 /**
  * Etapa 1 — Configuração.
  *
- * Nome da empresa e logo NÃO são cadastrados aqui: já existem em "Minha Marca" e
+ * Nome da empresa e logo NÃO são cadastrados aqui: já existem em "Meu Perfil" e
  * esta tela só mostra o que já está lá, com um link para editar. Cadastrar de novo
  * seria uma segunda fonte de verdade para a mesma coisa.
  *
@@ -375,7 +375,7 @@ function EtapaConfiguracao({
 /* ------------------------------------------------------------------ */
 
 /**
- * Mostra a marca já cadastrada em "Minha Marca" — nome e logo. Não dá pra editar
+ * Mostra a marca já cadastrada em "Meu Perfil" — nome e logo. Não dá pra editar
  * aqui de propósito: ter dois lugares que guardam a mesma logo é como ela acaba
  * divergindo (uma tela atualiza, a outra fica pra trás).
  */
@@ -396,14 +396,14 @@ function CartaoMarca({ branding }: { branding?: ConsultorBranding }) {
           <p className="text-xs text-blue-800 mt-0.5">
             {temLogo
               ? 'Esta logo é a que entra em todas as peças geradas.'
-              : 'Cadastre a logo em "Minha Marca" antes de gerar peças — sem ela as imagens saem sem identidade visual.'}
+              : 'Cadastre a logo em "Meu Perfil" antes de gerar peças — sem ela as imagens saem sem identidade visual.'}
           </p>
         </div>
         <a
-          href="/configuracao?aba=marca"
+          href="/profile"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-800 shrink-0"
         >
-          <Pencil className="w-3.5 h-3.5" /> Editar em Minha Marca
+          <Pencil className="w-3.5 h-3.5" /> Editar no Meu Perfil
         </a>
       </div>
     </section>

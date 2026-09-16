@@ -98,6 +98,7 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
   const { consultor } = useConsultor();
   const mentorNome = nomeMentorDe(consultor);
   const mentorPrimeiro = mentorNome.split(' ')[0];
+  const mentorFoto = consultor.branding?.fotoUrl?.trim();
   const [lockedPopupOpen, setLockedPopupOpen] = useState(false);
   // Ferramenta ativa bloqueada pro aluno (gratuito) → Mentor sobre ela fica bloqueado.
   const ferramentaBloqueada = !!activeToolId && !canUseTool(activeToolId);
@@ -376,9 +377,13 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
         {/* Header */}
         <div className="px-5 py-3 border-b border-gray-200 bg-white flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-[13px] tracking-wide flex-shrink-0">
-              IS
-            </div>
+            {mentorFoto ? (
+              <img src={mentorFoto} alt={`Foto de ${mentorNome}`} className="w-9 h-9 rounded-full object-cover border border-blue-100 flex-shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-[13px] tracking-wide flex-shrink-0">
+                {mentorPrimeiro.slice(0, 2).toUpperCase()}
+              </div>
+            )}
             <div className="leading-tight min-w-0">
               <h3 className="font-bold text-[14px] m-0 text-gray-900">{mentorNome}</h3>
               <p className="text-[10px] text-gray-500 mt-0.5 m-0">Consultor Sênior</p>
@@ -783,5 +788,4 @@ const MentorSidebar: React.FC<MentorSidebarProps> = ({
 };
 
 export default MentorSidebar;
-
 

@@ -4,6 +4,8 @@ import { updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { uploadBrandingImage } from '../services/brandingUploadService';
+import { useConsultor } from '../contexts/ConsultorContext';
+import { useUserAccess } from '../hooks/useUserAccess';
 
 interface UserProfileData {
   name: string;
@@ -11,6 +13,7 @@ interface UserProfileData {
   company: string;
   role: string;
   photoUrl: string;
+  companySlogan: string;
   wordTemplate: string;
   pptTemplate: string;
   companyLogoUrl: string;
@@ -32,6 +35,7 @@ export const getUserProfile = (): UserProfileData => {
     company: '',
     role: '',
     photoUrl: '',
+    companySlogan: '',
     wordTemplate: 'default',
     pptTemplate: 'default',
     companyLogoUrl: '',
@@ -45,12 +49,16 @@ export const saveUserProfile = (profile: UserProfileData): void => {
 };
 
 export default function UserProfile({ onClose }: { onClose?: () => void }) {
+  const { consultor, consultorId, refresh } = useConsultor();
+  const { isConsultor } = useUserAccess();
   const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
   const [saved, setSaved] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string>(profile.photoUrl || '');
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -62,13 +70,16 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
         const snapshot = await getDoc(doc(db, 'users', usuario.uid));
         const dados = snapshot.data() || {};
         const perfilJaSincronizado = localStorage.getItem(PROFILE_CLOUD_KEY) === '1';
+        const marca = isConsultor ? consultor.branding : undefined;
         const atualizado: UserProfileData = {
           ...current,
-          name: String((perfilJaSincronizado ? dados.nome : current.name) || dados.nome || usuario.displayName || usuario.email?.split('@')[0] || ''),
+          name: String((perfilJaSincronizado ? dados.nome : current.name) || dados.nome || usuario.displayName || consultor.mentorNome || marca?.nome || usuario.email?.split('@')[0] || ''),
           email: usuario.email || current.email,
-          company: String((perfilJaSincronizado ? dados.empresaPerfil : current.company) || dados.empresaPerfil || ''),
+          company: String((perfilJaSincronizado ? dados.empresaPerfil : current.company) || dados.empresaPerfil || marca?.nome || ''),
           role: String((perfilJaSincronizado ? dados.cargo : current.role) || dados.cargo || ''),
-          photoUrl: String((perfilJaSincronizado ? dados.fotoUrl : current.photoUrl) || dados.fotoUrl || usuario.photoURL || ''),
+          photoUrl: String((perfilJaSincronizado ? dados.fotoUrl : current.photoUrl) || dados.fotoUrl || usuario.photoURL || marca?.fotoUrl || ''),
+          companySlogan: String(marca?.slogan || current.companySlogan || ''),
+          companyLogoUrl: String(marca?.logoUrl || current.companyLogoUrl || ''),
         };
         if (ativo) {
           setProfile(atualizado);
@@ -79,7 +90,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
       }
     })();
     return () => { ativo = false; };
-  }, []);
+  }, [consultor, isConsultor]);
 
   const handleChange = (field: keyof UserProfileData, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
@@ -107,6 +118,22 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const url = await uploadBrandingImage(file, 'logo');
+      setProfile(prev => ({ ...prev, companyLogoUrl: url }));
+      setSaved(false);
+    } catch (erro: any) {
+      alert(erro?.message || 'Não foi possível enviar a logo.');
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
+
   const handleSave = async () => {
     if (!profile.name.trim()) {
       alert('Nome é obrigatório.');
@@ -130,6 +157,21 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
         cargo: atualizado.role.trim(),
         fotoUrl,
       }, { merge: true });
+      if (isConsultor) {
+        await setDoc(doc(db, 'consultores', consultorId), {
+          nome: atualizado.name.trim(),
+          mentorNome: atualizado.name.trim(),
+          branding: {
+            ...consultor.branding,
+            nome: atualizado.company.trim() || atualizado.name.trim(),
+            slogan: atualizado.companySlogan?.trim() || '',
+            logoUrl: atualizado.companyLogoUrl?.trim() || '',
+            fotoUrl,
+          },
+          'onboarding.marca': true,
+        }, { merge: true });
+        await refresh();
+      }
       await updateProfile(usuario, { displayName: atualizado.name.trim(), photoURL: fotoUrl || null });
       saveUserProfile(atualizado);
       localStorage.setItem(PROFILE_CLOUD_KEY, '1');
@@ -155,7 +197,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Meu Perfil</h1>
-            <p className="text-xs text-gray-500">Seus dados aparecem automaticamente nos projetos e relatórios</p>
+            <p className="text-xs text-gray-500">{isConsultor ? 'Foto, dados da empresa e IA Consultor são atualizados por aqui.' : 'Seus dados aparecem automaticamente nos projetos e relatórios.'}</p>
           </div>
         </div>
         {onClose && (
@@ -203,17 +245,17 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white hover:bg-blue-700"
           >
             <Camera size={14} />
-            {uploadingPhoto ? 'Enviando foto...' : photoPreview ? 'Trocar foto do perfil' : 'Fazer upload da foto'}
+            {uploadingPhoto ? 'Enviando foto...' : photoPreview ? (isConsultor ? 'Trocar foto do consultor e da IA' : 'Trocar foto do perfil') : (isConsultor ? 'Enviar foto do consultor e da IA' : 'Fazer upload da foto')}
           </button>
-          <p className="text-xs text-blue-500 mt-2">Máximo 2MB — JPG ou PNG</p>
+          <p className="text-xs text-blue-500 mt-2">{isConsultor ? 'A mesma foto aparece no menu e no IA Consultor.' : 'Máximo 2MB — JPG ou PNG'}</p>
         </div>
       </div>
 
-      {/* Dados Pessoais */}
+      {/* Dados pessoais e, para o consultor, identidade da empresa. */}
       <div className="space-y-4 p-5 bg-white border border-gray-100 rounded-2xl shadow-sm">
         <div className="flex items-center gap-2 text-blue-600 font-bold border-b border-gray-50 pb-2">
           <User size={16} />
-          <span className="text-xs uppercase tracking-wider">Dados Pessoais</span>
+          <span className="text-xs uppercase tracking-wider">{isConsultor ? 'Dados do consultor e da empresa' : 'Dados pessoais'}</span>
         </div>
 
         {/* Nome */}
@@ -246,7 +288,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
         {/* Empresa */}
         <div>
           <label className="text-[11px] font-bold text-gray-500 uppercase mb-1.5 block">
-            Empresa / Organização <span className="text-gray-400">(opcional)</span>
+            {isConsultor ? 'Nome da empresa / consultoria' : 'Empresa / Organização'} <span className="text-gray-400">(opcional)</span>
           </label>
           <div className="relative">
             <Building2 size={16} className="absolute left-3 top-3.5 text-gray-400" />
@@ -254,11 +296,42 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
               type="text"
               value={profile.company}
               onChange={e => handleChange('company', e.target.value)}
-              placeholder="Nome da sua empresa"
+              placeholder={isConsultor ? 'Nome da sua empresa ou consultoria' : 'Nome da sua empresa'}
               className="w-full pl-9 pr-3 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
             />
           </div>
         </div>
+
+        {isConsultor && (
+          <>
+            <div>
+              <label className="text-[11px] font-bold text-gray-500 uppercase mb-1.5 block">Logo da empresa <span className="text-gray-400">(opcional)</span></label>
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="h-12 w-20 shrink-0 rounded-lg bg-white border border-gray-200 grid place-items-center overflow-hidden">
+                  {profile.companyLogoUrl ? <img src={profile.companyLogoUrl} alt="Logo da empresa" className="max-h-full max-w-full object-contain p-1" /> : <Building2 size={18} className="text-gray-300" />}
+                </div>
+                <div>
+                  <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50">
+                    {uploadingLogo ? 'Enviando logo...' : profile.companyLogoUrl ? 'Trocar logo' : 'Enviar logo'}
+                  </button>
+                  <p className="mt-1 text-[11px] text-gray-400">PNG ou JPG. Ela aparece no cabeçalho da plataforma.</p>
+                </div>
+                <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-gray-500 uppercase mb-1.5 block">Texto abaixo da logo <span className="text-gray-400">(opcional)</span></label>
+              <input
+                type="text"
+                value={profile.companySlogan || ''}
+                onChange={e => handleChange('companySlogan', e.target.value)}
+                placeholder="Ex.: Educação pelo Trabalho"
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
+              />
+            </div>
+          </>
+        )}
 
         {/* Função */}
         <div>
@@ -280,11 +353,11 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
       {/* Botão Salvar */}
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-gray-400">
-          Seus dados ficam salvos localmente e são usados nos projetos e relatórios.
+          {isConsultor ? 'Este é o único lugar para atualizar sua foto e os dados da empresa.' : 'Seus dados ficam salvos localmente e são usados nos projetos e relatórios.'}
         </p>
         <button
           onClick={handleSave}
-          disabled={saving || uploadingPhoto}
+          disabled={saving || uploadingPhoto || uploadingLogo}
           className={`flex items-center gap-2 px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 border-none cursor-pointer shadow-lg ${
             saved
               ? 'bg-green-500 text-white shadow-green-100'

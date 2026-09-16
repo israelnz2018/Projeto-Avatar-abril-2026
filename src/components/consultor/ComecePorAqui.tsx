@@ -107,7 +107,7 @@ const ITENS: Item[] = [
   { id: 'avaliacao-certificado', titulo: 'Configure a avalia\u00e7\u00e3o e o certificado', texto: 'Crie as perguntas, alternativas e gabarito; depois configure o modelo de certificado que o aluno receber\u00e1.', botao: 'Configurar avalia\u00e7\u00e3o e certificado', path: '/configuracao?aba=prova' },
   { id: 'clientes-alunos', titulo: 'Cadastre clientes e seus pr\u00f3prios alunos', texto: 'Adicione empresas, coordenadores e alunos para organizar o atendimento.', botao: 'Gerenciar clientes e alunos', path: '/configuracao?aba=coordenadores' },
   { id: 'comunicacao', titulo: 'Comunique-se com seus clientes e com outros consultores', texto: 'Configure sua comunidade para se comunicar com os clientes e participe do espa\u00e7o de troca com outros consultores.', botao: 'Abrir comunidade', path: '/comunidade' },
-  { id: 'marca', titulo: 'Configure sua marca', texto: 'Coloque o nome, o texto da marca, a logo e os modelos de PPT da sua plataforma.', botao: 'Configurar minha marca', path: '/configuracao?aba=marca' },
+  { id: 'marca', titulo: 'Configure seu modelo de PPT', texto: 'Envie a capa e a página interna dos slides exportados para os seus alunos.', botao: 'Configurar modelo de PPT', path: '/configuracao?aba=marca' },
   { id: 'melhorar-plataforma', titulo: 'Ajude a melhorar a plataforma', texto: 'Registre sugest\u00f5es e pontos de melhoria a partir do uso real da sua plataforma.', botao: 'Enviar uma sugest\u00e3o', path: '/comunidade-adm' },
   { id: 'termos-gerais', titulo: 'Termos de contrato e considera\u00e7\u00f5es gerais', texto: 'Leia os termos do Programa de Consultores LBW e confirme que entendeu as condi\u00e7\u00f5es gerais.' },
 ];

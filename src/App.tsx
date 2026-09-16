@@ -242,7 +242,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         { name: 'Projetos, Fases e Ferramentas', path: '/configuracao?aba=fases', icon: Settings },
         { name: 'Teste de Avaliação', path: '/configuracao?aba=prova', icon: ClipboardList },
         { name: 'Certificados', path: '/configuracao?aba=certificados', icon: Award },
-        { name: 'Minha Marca', path: '/configuracao?aba=marca', icon: Palette },
+        { name: 'Modelo de PPT', path: '/configuracao?aba=marca', icon: Palette },
         { name: 'Material de Apoio', path: '/configuracao?aba=materiais', icon: FolderCheck },
         { name: 'Meus Clientes', path: '/configuracao?aba=coordenadores&area=consultor', icon: Users },
         { name: 'Relatórios', path: '/configuracao?aba=relatorio', icon: TrendingUp },
@@ -355,7 +355,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Link to="/profile" title="Meu Perfil">
+                  <Link to="/profile" title="Dados do consultor e da empresa">
                     <UserIcon size={16} className="text-gray-400 hover:text-white transition-colors" />
                   </Link>
                   <button

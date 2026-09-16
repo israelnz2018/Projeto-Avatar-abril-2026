@@ -834,7 +834,7 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
       ['Como interpretar a média?', 'Minha média estatística ficou baixa. O que devo observar?', 'Veja a média junto com a mediana e a variação. Um valor isolado pode distorcer a leitura.'],
       ['Qual ferramenta da qualidade usar?', 'Qual ferramenta ajuda a encontrar a causa de um problema?', 'Use o Diagrama de Ishikawa para organizar as possíveis causas por categoria.'],
       ['Posso gerar o PowerPoint?', 'A ferramenta cria uma apresentação automaticamente?', 'Sim. Depois de preencher os dados do projeto, clique em PowerPoint para gerar o arquivo.'],
-      ['Como mudar o design do PowerPoint?', 'Posso usar o modelo visual da minha empresa?', 'Sim. Envie a capa e o corpo do PPTX em “Minha Marca” e o modelo será usado na exportação.'],
+      ['Como mudar o design do PowerPoint?', 'Posso usar o modelo visual da minha empresa?', 'Sim. Envie a capa e o corpo do PPTX em “Modelo de PPT” e o modelo será usado na exportação.'],
     ] as const;
     try {
       for (const [titulo, pergunta, resposta] of exemplos) {

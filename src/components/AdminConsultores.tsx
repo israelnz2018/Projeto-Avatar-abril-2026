@@ -96,7 +96,7 @@ export default function AdminConsultores() {
         branding: existente?.branding || {
           nome: nome.trim() || cid,
           sigla: siglaDe(nome.trim() || cid),
-          // O próprio consultor coloca logo/cores em "Minha Marca".
+          // O próprio consultor coloca a logo no Meu Perfil e o modelo na aba de PPT.
           logoUrl: '',
           cores: {
             navy: '#334155',
@@ -234,7 +234,7 @@ export default function AdminConsultores() {
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-400 mt-2">O logo e as cores o próprio consultor coloca em "Minha Marca", no site dele.</p>
+        <p className="text-xs text-gray-400 mt-2">O logo é configurado pelo consultor em Meu Perfil e o modelo de apresentação na aba Modelo de PPT.</p>
         <div className="flex items-center gap-4 mt-5">
           <button onClick={criar} disabled={salvando} className="px-6 py-2.5 rounded-xl font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40">
             {salvando ? 'Salvando…' : editandoId ? 'Salvar alterações' : 'Criar consultor'}
