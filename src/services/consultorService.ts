@@ -80,17 +80,35 @@ export function isSiteConsultor(hostname?: string): boolean {
   return !RESERVADOS.has(partes[0]);
 }
 
-/** Nome do mentor de IA do consultor (ex.: 'Israel Souza' → 'João Silva'). */
+/** O primeiro nome de alguém. 'Israel Cavalcanti de Souza' → 'Israel'. */
+export function primeiroNome(texto?: string | null): string {
+  return String(texto || '').trim().split(/\s+/)[0] || '';
+}
+
+/**
+ * O nome do IA Consultor: O PRIMEIRO NOME DO CONSULTOR, e só isso.
+ *
+ * Era um campo à parte (`mentorNome`), e a tela de perfil o gravava com o nome
+ * COMPLETO — o IA passava a se chamar "Israel Cavalcanti de Souza". Por ser um campo
+ * solto, também aceitava qualquer coisa: uma consultora ficou com o IA chamado
+ * "Mary", que não é o primeiro nome dela.
+ *
+ * Agora o nome é DERIVADO do nome do consultor, então não há mais como divergir.
+ * O `mentorNome` gravado continua servindo de reserva, para o caso de o nome do
+ * consultor ainda não estar preenchido.
+ */
 export function nomeMentorDe(c: Consultor): string {
-  return (c.mentorNome && c.mentorNome.trim())
-    || (c.id === 'israel' ? 'Israel Souza' : (c.branding?.nome || 'seu mentor'));
+  return primeiroNome(c.nome)
+    || primeiroNome(c.mentorNome)
+    || primeiroNome(c.branding?.nome)
+    || 'seu mentor';
 }
 
 // Variável global do nome do mentor — o ConsultorContext seta com o consultor atual.
 // Serviços não-React (contextualAIService) leem via getMentorNome().
-let mentorNomeAtual = 'Israel Souza';
+let mentorNomeAtual = 'Israel';
 export function setMentorNome(nome: string | null): void {
-  mentorNomeAtual = (nome && nome.trim()) ? nome.trim() : 'Israel Souza';
+  mentorNomeAtual = primeiroNome(nome) || 'Israel';
 }
 export function getMentorNome(): string {
   return mentorNomeAtual;

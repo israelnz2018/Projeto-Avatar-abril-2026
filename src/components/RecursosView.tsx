@@ -14,7 +14,7 @@ import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
 import ChecklistMapa90Dias from './recursos/ChecklistMapa90Dias';
 import { listSupportMaterials, SupportMaterial, CategoriaMaterial } from '../services/supportMaterialService';
-import { resolveConsultorId } from '../services/consultorService';
+import { nomeMentorDe, resolveConsultorId } from '../services/consultorService';
 import { hasCourseAccess } from '../lib/courseAccess';
 
 const CURSO_KIT_90 = 'Como Resolver Problemas no Trabalho - Kit 90 dias';
@@ -49,7 +49,8 @@ const CATEGORIA_COR: Record<Recurso['categoria'], string> = {
 export default function RecursosView() {
   const { isAdmin, isCoordenador, isConsultor, plano, cursosLiberados, acessoPorCurso } = useUserAccess();
   const { consultor } = useConsultor();
-  const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
+  // Mesma regra do IA Consultor: o primeiro nome do consultor.
+  const nomeConsultor = nomeMentorDe(consultor);
   const [aberto, setAberto] = useState<Recurso | null>(null);
   const [materiais, setMateriais] = useState<SupportMaterial[]>([]);
   const [loading, setLoading] = useState(true);

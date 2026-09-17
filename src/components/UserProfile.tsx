@@ -6,6 +6,7 @@ import { auth, db } from '../lib/firebase';
 import { uploadBrandingImage } from '../services/brandingUploadService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { useUserAccess } from '../hooks/useUserAccess';
+import { primeiroNome } from '../services/consultorService';
 import {
   cuidarDoRegistroAntigo, gravarPerfilLocal, jaSincronizou, lerPerfilLocal, marcarSincronizado,
 } from '../lib/perfilLocal';
@@ -208,7 +209,9 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
       if (isConsultor) {
         await setDoc(doc(db, 'consultores', consultorId), {
           nome: atualizado.name.trim(),
-          mentorNome: atualizado.name.trim(),
+          // O IA Consultor se chama pelo PRIMEIRO nome do consultor, e só isso.
+          // Gravava o nome completo, e o IA virava "Israel Cavalcanti de Souza".
+          mentorNome: primeiroNome(atualizado.name),
           branding: {
             ...consultor.branding,
             nome: atualizado.company.trim() || atualizado.name.trim(),
@@ -318,6 +321,15 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
             placeholder="Seu nome completo"
             className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
           />
+          {/* O consultor precisa saber daqui que o IA vai se chamar assim — o nome
+              do IA não é um campo separado, é o primeiro nome dele. */}
+          {isConsultor && (
+            <p className="text-xs text-gray-500 mt-1.5">
+              O seu <strong>IA Consultor</strong> vai se chamar{' '}
+              <strong className="text-blue-700">{primeiroNome(profile.name) || 'o seu primeiro nome'}</strong>
+              {' '}— é sempre o seu primeiro nome.
+            </p>
+          )}
         </div>
 
         {/* Email */}

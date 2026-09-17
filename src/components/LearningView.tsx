@@ -36,7 +36,7 @@ import {
 import { logVideoPlayed } from '../services/eventLogger';
 import { useUserAccess } from '../hooks/useUserAccess';
 import { getCourses } from '../services/configService';
-import { resolveConsultorId } from '../services/consultorService';
+import { nomeMentorDe, resolveConsultorId } from '../services/consultorService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { LockedToolPopup } from './LockedToolPopup';
 import { CoursePurchasePopup } from './CoursePurchasePopup';
@@ -123,7 +123,9 @@ export default function LearningView() {
 
   const { isAdmin, isCoordenador, isConsultor, cursosLiberados, acessoPorCurso, loading: loadingAcesso } = useUserAccess();
   const { consultor } = useConsultor();
-  const nomeConsultor = (consultor.mentorNome && consultor.mentorNome.trim()) || consultor.branding.nome;
+  // O primeiro nome do consultor, pela mesma regra do IA Consultor — assim a área
+  // do aluno e o mentor nunca chamam a mesma pessoa de dois jeitos diferentes.
+  const nomeConsultor = nomeMentorDe(consultor);
   // Na Area do Aluno, o consultor testa a experiencia de um aluno completo,
   // sem herdar atalhos exclusivos de staff.
   const modoAreaAluno = (isAdmin || isConsultor || isCoordenador) && (location.pathname === '/education' || location.pathname === '/alunocomeceporqui');
