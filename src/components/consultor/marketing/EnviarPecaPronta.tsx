@@ -54,8 +54,8 @@ const FORMATOS_ENVIO: Formato[] = [
   },
   {
     id: 'linkedin-pdf',
-    nome: 'Documento PDF',
-    ajuda: 'O PDF que vira documento no LinkedIn. Cada página do PDF é uma página do carrossel lá.',
+    nome: 'Carrossel do LinkedIn',
+    ajuda: 'O PDF que vira carrossel no LinkedIn. Cada página do PDF é uma página do carrossel.',
     aceita: ['application/pdf'],
     multiplos: false,
     maximoMb: 50,
