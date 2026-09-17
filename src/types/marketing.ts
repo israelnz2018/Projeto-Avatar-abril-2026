@@ -35,7 +35,7 @@ export const TIPOS_PECA: { id: TipoPeca; nome: string; destino: string }[] = [
   { id: 'reel', nome: 'Reel', destino: 'Instagram Reels' },
   { id: 'carrossel-feed', nome: 'Carrossel de feed', destino: 'Instagram feed' },
   { id: 'carrossel-video', nome: 'Carrossel em vídeo', destino: 'Instagram Reels' },
-  { id: 'linkedin-pdf', nome: 'Documento PDF', destino: 'LinkedIn' },
+  { id: 'linkedin-pdf', nome: 'Carrossel do LinkedIn', destino: 'LinkedIn' },
   { id: 'linkedin-imagem', nome: 'Imagem única', destino: 'LinkedIn' },
 ];
 
@@ -285,7 +285,7 @@ export type FormatoPeca = 'carrossel' | 'pdf' | 'video' | 'imagem';
 export const FORMATOS: { id: FormatoPeca; nome: string; onde: string }[] = [
   { id: 'carrossel', nome: 'Carrossel', onde: 'Feed do Instagram' },
   { id: 'video', nome: 'Carrossel em vídeo', onde: 'Reels, sem voz' },
-  { id: 'pdf', nome: 'Documento PDF', onde: 'LinkedIn' },
+  { id: 'pdf', nome: 'Carrossel do LinkedIn', onde: 'LinkedIn' },
   { id: 'imagem', nome: 'Imagem única', onde: 'Feed, post simples' },
 ];
 
@@ -426,6 +426,16 @@ export interface Peca {
   arquivoUrl?: string;
   /** Todos os arquivos desta versão, incluindo legenda e demais slides. */
   arquivos?: string[];
+  /**
+   * Páginas que geraram ESTA peça.
+   *
+   * Na primeira produção todas recebem a mesma cópia. Depois, o carrossel do
+   * feed e o do LinkedIn podem ser revisados separadamente sem um sobrescrever
+   * o texto do outro.
+   */
+  roteiro?: SlideRoteiro[];
+  /** Imagem da biblioteca usada em cada página desta peça. */
+  imagensPorPagina?: (string | null)[];
   /** Capa, quando houver. */
   capaUrl?: string;
   /** A aprovação da capa, independente da aprovação do Reel. */
@@ -446,6 +456,8 @@ export interface Peca {
    */
   agendadoEm?: string;
   agendadoHora?: string;
+  /** Onde a peça foi parar na rede. Escrita pelo worker, lida pela tela. */
+  publicacao?: PublicacaoDaPeca;
   /**
    * `enviada`: o consultor subiu a peça pronta, feita fora da plataforma.
    * Não tem Refazer — não há texto nem render de onde refazer.
@@ -455,6 +467,33 @@ export interface Peca {
   atualizadoEm?: string;
 }
 
+/**
+ * O registro da publicação de uma peça.
+ *
+ * Fica na própria peça, e não numa coleção à parte, porque toda pergunta que o
+ * consultor faz na etapa 5 é sobre a peça: saiu? quando? onde vejo? por que
+ * falhou? Um documento separado obrigaria a cruzar duas listas para responder.
+ */
+export interface PublicacaoDaPeca {
+  rede?: 'instagram' | 'linkedin';
+  /**
+   * `publicando` existe porque o Instagram leva minutos processando vídeo. Sem
+   * este estado a tela ficava igual à de quem ainda não tentou, e o consultor
+   * clicava em publicar de novo — gerando post repetido.
+   */
+  status: 'publicando' | 'publicada' | 'falhou';
+  /** Identificador do post na rede. */
+  postId?: string;
+  /** Endereço do post publicado. É o que responde "como sei que publicou?". */
+  link?: string | null;
+  publicadoEm?: string;
+  /** Marcado quando o consultor publicou com as próprias mãos e registrou aqui. */
+  manual?: boolean;
+  erro?: string | null;
+  tentadoEm?: string;
+  falhouEm?: string;
+}
+
 /** Tarefa na fila. O worker privado consome daqui. Coleção: marketing_tarefas */
 export interface Tarefa {
   id: string;
@@ -462,7 +501,7 @@ export interface Tarefa {
   campanhaId: string;
   /** Quando preenchido, regenera só esta peça em vez da campanha inteira. */
   pecaId?: string;
-  tipo: 'gerar-campanha' | 'regerar-peca' | 'gerar-reel' | 'gerar-capa' | 'preparar-imagem';
+  tipo: 'gerar-campanha' | 'regerar-peca' | 'gerar-reel' | 'gerar-capa' | 'preparar-imagem' | 'publicar';
   status: 'pendente' | 'executando' | 'concluida' | 'erro';
   /** Texto do pedido de melhoria, quando for regeração. */
   instrucao?: string;

@@ -5,15 +5,13 @@
  * mudar o que foi dito volta pro criativo na etapa 3 e tira a aprovação. O que se edita
  * aqui é OUTRA coisa — o texto das páginas, que a IA escreveu A PARTIR da fala.
  *
- * UM roteiro serve os quatro formatos. O renderizador entrega o carrossel do feed, o
- * PDF do LinkedIn e o vídeo 9:16 numa execução só, a partir das mesmas páginas — gerar
- * um roteiro por formato custaria quatro vezes mais e deixaria o carrossel dizendo uma
- * coisa e o PDF outra, já que a IA não é determinística.
+ * Na primeira produção, um roteiro serve os quatro formatos. Depois disso, o carrossel
+ * do feed e o carrossel do LinkedIn podem ser revistos separadamente.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy, FileUp,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy, FileUp, Trash2,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
@@ -22,7 +20,7 @@ import {
 } from '../../../types/marketing';
 import { Previa, useArquivoUrl } from './EtapasPreenchidas';
 import {
-  ContextoImagens, EscolhaImagem, SeletorImagemDaPagina, aplicarEscolha, semIndefinidos, useBibliotecaImagens,
+  ContextoImagens, ContextoImagensValor, EscolhaImagem, SeletorImagemDaPagina, aplicarEscolha, semIndefinidos, useBibliotecaImagens,
 } from './BibliotecaImagens';
 import { BotaoRemoverPecaEnviada, EnviarPecaPronta, LegendaDaPecaEnviada } from './EnviarPecaPronta';
 
@@ -257,7 +255,9 @@ function Producao({
   const [enfileirando, setEnfileirando] = useState(false);
   const [erro, setErro] = useState('');
   const [slides, setSlides] = useState<SlideRoteiro[]>(criativo.roteiro?.slides || []);
+  const [slidesPdf, setSlidesPdf] = useState<SlideRoteiro[]>(criativo.roteiro?.slides || []);
   const [melhoria, setMelhoria] = useState('');
+  const [melhoriaPdf, setMelhoriaPdf] = useState('');
   const [avisoReel, setAvisoReel] = useState('');
   // Os dois vídeos têm ritmo próprio: o Reel falado acelera a fala, o carrossel em
   // vídeo escolhe quanto tempo cada página fica na tela.
@@ -278,6 +278,18 @@ function Producao({
   // avisa e deixa carregar — mas não troca sozinha.
   const campanhaDoTexto = campanhas.find((c) => c.id === `${criativo.id}__pecas`);
   const textoRenderizado = campanhaDoTexto?.roteiro;
+  const campanhaId = `${criativo.id}__pecas`;
+  const campanhaReel = `${criativo.id}__reel`;
+  const minhasPecas = pecas.filter((p) => p.campanhaId === campanhaId || p.campanhaId === campanhaReel);
+  const daCampanha = minhasPecas;
+  const pecaFeed = minhasPecas.find((p) => p.tipo === 'carrossel-feed');
+  const pecaPdf = minhasPecas.find((p) => p.tipo === 'linkedin-pdf');
+  const baseDoFeed = pecaFeed?.roteiro?.length
+    ? pecaFeed.roteiro
+    : (textoRenderizado || criativo.roteiro?.slides || []);
+  const baseDoPdf = pecaPdf?.roteiro?.length
+    ? pecaPdf.roteiro
+    : (textoRenderizado || criativo.roteiro?.slides || []);
   // NAO DA PARA PROVAR QUE O TEXTO AO LADO É O DA IMAGEM.
   //
   // Dois casos, e o segundo é o que me escapou: ou a IA escreveu algo mais novo do
@@ -295,14 +307,13 @@ function Producao({
   );
 
   useEffect(() => {
-    setSlides(textoRenderizado?.length ? textoRenderizado : (criativo.roteiro?.slides || []));
+    setSlides(baseDoFeed);
+    setSlidesPdf(baseDoPdf);
     setErro('');
     setMelhoria('');
+    setMelhoriaPdf('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [criativo.id, criativo.roteiro?.geradoEm]);
-
-  const campanhaId = `${criativo.id}__pecas`;
-  const campanhaReel = `${criativo.id}__reel`;
+  }, [criativo.id, pecaFeed?.versao, pecaPdf?.versao, criativo.roteiro?.geradoEm]);
 
   // O ritmo escolhido fica GRAVADO NA CAMPANHA, não só na aba aberta.
   //
@@ -318,8 +329,6 @@ function Producao({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [criativo.id]);
   // As quatro peças numa lista só: o Reel falado e as três que saem do roteiro.
-  const minhasPecas = pecas.filter((p) => p.campanhaId === campanhaId || p.campanhaId === campanhaReel);
-  const daCampanha = minhasPecas;
   const podeCortar = Boolean(video?.bunnyVideoId);
 
   // QUEM SABE se ainda está trabalhando é o BANCO, não o navegador.
@@ -340,20 +349,18 @@ function Producao({
   const [refazendoReel, setRefazendoReel] = useState(false);
 
   /** Pede as páginas à IA e devolve o que veio. Não produz nada. */
-  async function pedirRoteiro(): Promise<SlideRoteiro[]> {
+  async function pedirRoteiro(instrução = ''): Promise<SlideRoteiro[]> {
     try {
       const user = auth.currentUser;
       const token = user ? await user.getIdToken() : '';
       const r = await fetch('/api/marketing-consultor/gerar-roteiro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ criativoId: criativo.id, melhoria: melhoria.trim() || undefined }),
+        body: JSON.stringify({ criativoId: criativo.id, melhoria: instrução.trim() || undefined }),
       });
       const corpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
       const novos: SlideRoteiro[] = corpo.slides || [];
-      setSlides(novos);
-      setMelhoria('');
       onMudou();
       return novos;
     } catch (e: any) {
@@ -368,13 +375,13 @@ function Producao({
    * UMA função para a produção e para a prévia de imagem: a página que o consultor
    * aprova com a imagem candidata tem de sair exatamente como vai sair no carrossel.
    */
-  function montarRender(paginas: SlideRoteiro[]) {
+  function montarRender(paginas: SlideRoteiro[], comVideo = true) {
     return semIndefinidos({
       date: new Date().toISOString().slice(0, 10),
       slug: criativo.id.replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60),
       folderType: 'Carrossel',
       sequence: Math.min(99, Math.max(1, criativo.ordem || 1)),
-      video: { enabled: true, secondsPerSlide: segundosPorSlide },
+      video: { enabled: comVideo, secondsPerSlide: segundosPorSlide },
       // Sem marca, o renderizador cai no padrão LBW — que é o que ele fazia
       // antes de este campo existir.
       ...(marca ? { marca } : {}),
@@ -386,6 +393,24 @@ function Producao({
   /** Põe na página a imagem escolhida, trocando o layout quando o dela não comporta. */
   function trocarImagem(indice: number, escolha: EscolhaImagem) {
     setSlides((atual) => atual.map((s, j) => (j === indice ? aplicarEscolha(s, escolha) : s)));
+  }
+
+  function trocarImagemPdf(indice: number, escolha: EscolhaImagem) {
+    setSlidesPdf((atual) => atual.map((s, j) => (j === indice ? aplicarEscolha(s, escolha) : s)));
+  }
+
+  function excluirSlide(
+    definir: React.Dispatch<React.SetStateAction<SlideRoteiro[]>>,
+    indice: number,
+  ) {
+    definir((atual) => {
+      if (atual.length <= 2) {
+        setErro('O carrossel precisa manter pelo menos duas páginas.');
+        return atual;
+      }
+      setErro('');
+      return atual.filter((_, i) => i !== indice);
+    });
   }
 
   /** Manda para a fila de produção o texto que foi passado. */
@@ -509,7 +534,11 @@ function Producao({
     try {
       const reel = pedirReel();
       const novos = await pedirRoteiro();
-      if (novos.length) await produzirCom(novos);
+      if (novos.length) {
+        setSlides(novos);
+        setSlidesPdf(novos);
+        await produzirCom(novos);
+      }
       await reel;
       onMudou();
     } finally {
@@ -537,20 +566,58 @@ function Producao({
   }
 
   /**
-   * Refaz as peças de texto com o texto que já existe.
+   * Refaz UMA peça depois da produção inicial.
    *
-   * As três saem de UM roteiro e de UMA passagem do renderizador, então refazer
-   * uma refaz as três — e é melhor assim: texto corrigido no carrossel e não no
-   * PDF é o tipo de incoerência que só se descobre depois de publicar. O botão
-   * fica em cada peça porque é ali que o consultor está olhando quando decide.
+   * Feed e LinkedIn nascem do mesmo roteiro, mas a revisão é própria de cada um:
+   * editar ou apagar uma página aqui não pode regravar a outra peça.
    */
-  async function refazerTexto() {
-    const texto = slides.length ? slides : (criativo.roteiro?.slides || []);
-    if (!texto.length) {
-      setErro('Não há texto gravado para refazer. Use "Reescrever e refazer".');
+  async function refazerTexto(peca: Peca, recebidas?: SlideRoteiro[]) {
+    const origem = peca.tipo === 'linkedin-pdf' ? slidesPdf : slides;
+    const paginas = semVazios(recebidas?.length ? recebidas : origem);
+    if (paginas.length < 2 || paginas.length > 8) {
+      setErro(`O carrossel precisa de 2 a 8 páginas. O texto tem ${paginas.length}.`);
       return;
     }
-    await produzirCom(texto);
+
+    setErro('');
+    try {
+      const agora = new Date().toISOString();
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+        status: 'gerando',
+        atualizadoEm: agora,
+      });
+      await addDoc(collection(db, COLECOES.tarefas), {
+        consultorId: criativo.consultorId,
+        campanhaId,
+        pecaId: peca.id,
+        tipo: 'regerar-peca',
+        status: 'pendente',
+        tentativas: 0,
+        // Na revisão individual o worker guarda somente a saída escolhida. O PDF
+        // recebe também os PNGs usados pela prévia página a página.
+        render: montarRender(paginas, peca.tipo === 'carrossel-video'),
+        roteiro: paginas,
+        criadoEm: agora,
+        criadoEmServidor: serverTimestamp(),
+      });
+      onMudou();
+    } catch (e: any) {
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), { status: 'revisar' }).catch(() => {});
+      setErro(e?.message || String(e));
+    }
+  }
+
+  async function pedirERefazer(
+    peca: Peca,
+    pedido: string,
+    definir: React.Dispatch<React.SetStateAction<SlideRoteiro[]>>,
+    limpar: (valor: string) => void,
+  ) {
+    const novos = await pedirRoteiro(pedido);
+    if (!novos.length) return;
+    definir(novos);
+    limpar('');
+    await refazerTexto(peca, novos);
   }
 
   // Ainda não começou nada: um botão só, e o que ele vai produzir dito de saída.
@@ -566,7 +633,7 @@ function Producao({
         <ul className="text-sm text-gray-600 mb-4 space-y-0.5">
           <li>• <strong>Reel com você falando</strong>, com legenda acompanhando a fala</li>
           <li>• Carrossel para o feed</li>
-          <li>• Documento PDF para o LinkedIn</li>
+          <li>• Carrossel do LinkedIn (PDF)</li>
           <li>• Carrossel em vídeo, para os Reels</li>
         </ul>
         <button
@@ -606,8 +673,17 @@ function Producao({
     criativoId: criativo.id,
     slides,
     montarRender,
-    imagensPorPagina: campanhaDoTexto?.imagensPorPagina,
+    imagensPorPagina: pecaFeed?.imagensPorPagina || campanhaDoTexto?.imagensPorPagina,
     trocarImagem,
+    biblioteca,
+  };
+  const contextoImagensPdf = {
+    consultorId: criativo.consultorId,
+    criativoId: criativo.id,
+    slides: slidesPdf,
+    montarRender,
+    imagensPorPagina: pecaPdf?.imagensPorPagina || campanhaDoTexto?.imagensPorPagina,
+    trocarImagem: trocarImagemPdf,
     biblioteca,
   };
 
@@ -626,6 +702,8 @@ function Producao({
         criativo={criativo}
         video={video}
         slides={slides}
+        slidesPdf={slidesPdf}
+        contextoImagensPdf={contextoImagensPdf}
         velocidade={velocidade}
         aoMudarVelocidade={setVelocidade}
         segundosPorSlide={segundosPorSlide}
@@ -634,12 +712,25 @@ function Producao({
         aoRefazerTexto={refazerTexto}
         aoAprovar={onMudou}
         aoAlterarSlide={alterarSlide}
-        aoDesfazerSlides={() => setSlides(textoRenderizado?.length ? textoRenderizado : (criativo.roteiro?.slides || []))}
+        aoAlterarSlidePdf={(i, campo, valor) => setSlidesPdf((atual) => atual.map((s, j) => {
+          if (j !== i) return s;
+          const novo: SlideRoteiro = { ...s };
+          if (valor === undefined) delete novo[campo];
+          else (novo as any)[campo] = valor;
+          return novo;
+        }))}
+        aoExcluirSlide={(i) => excluirSlide(setSlides, i)}
+        aoExcluirSlidePdf={(i) => excluirSlide(setSlidesPdf, i)}
+        aoDesfazerSlides={() => setSlides(baseDoFeed)}
+        aoDesfazerSlidesPdf={() => setSlidesPdf(baseDoPdf)}
         naoSeiSeBate={naoSeiSeBate && daCampanha.length > 0}
         melhoria={melhoria}
         aoMudarMelhoria={setMelhoria}
-        aoPedirIa={criarTudo}
-        aoUsarTextoNovo={refazerTexto}
+        melhoriaPdf={melhoriaPdf}
+        aoMudarMelhoriaPdf={setMelhoriaPdf}
+        aoPedirIa={() => pecaFeed && pedirERefazer(pecaFeed, melhoria, setSlides, setMelhoria)}
+        aoPedirIaPdf={() => pecaPdf && pedirERefazer(pecaPdf, melhoriaPdf, setSlidesPdf, setMelhoriaPdf)}
+        aoUsarTextoNovo={() => pecaFeed && refazerTexto(pecaFeed)}
       />
       {avisoReel && (
         <p className="text-sm text-amber-800 p-3 rounded bg-amber-50 border border-amber-200">
@@ -659,7 +750,7 @@ function Producao({
         slides={slides}
         ocupado={textoNoServidor || gerando || enfileirando}
         aoAlterarSlide={alterarSlide}
-        aoRefazer={refazerTexto}
+        aoRefazer={() => pecaFeed && refazerTexto(pecaFeed)}
         aoMudar={onMudou}
       />
 
@@ -821,7 +912,7 @@ function ImagemUnicaLinkedin({
               criativo={criativo}
               campo="artigoLinkedin"
               titulo="Artigo do LinkedIn"
-              ajuda="O mesmo texto do documento PDF — é o mesmo post. Mudar aqui muda lá."
+              ajuda="O mesmo texto do carrossel do LinkedIn — é o mesmo post. Mudar aqui muda lá."
             />
           </div>
         </div>
@@ -840,11 +931,14 @@ function ImagemUnicaLinkedin({
  * quatro do mesmo jeito obrigava o consultor a procurar onde editar cada coisa.
  */
 function PecasProduzidas({
-  pecas, esperando, ocupadoReel, ocupadoTexto, campanhaDoReel, criativo, video, slides,
+  pecas, esperando, ocupadoReel, ocupadoTexto, campanhaDoReel, criativo, video, slides, slidesPdf,
+  contextoImagensPdf,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
-  aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoDesfazerSlides,
-  naoSeiSeBate, melhoria, aoMudarMelhoria, aoPedirIa, aoUsarTextoNovo,
+  aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
+  aoExcluirSlide, aoExcluirSlidePdf, aoDesfazerSlides, aoDesfazerSlidesPdf,
+  naoSeiSeBate, melhoria, aoMudarMelhoria, melhoriaPdf, aoMudarMelhoriaPdf,
+  aoPedirIa, aoPedirIaPdf, aoUsarTextoNovo,
 }: {
   pecas: Peca[];
   esperando?: boolean;
@@ -856,19 +950,28 @@ function PecasProduzidas({
   criativo: Criativo;
   video?: VideoFonte;
   slides: SlideRoteiro[];
+  slidesPdf: SlideRoteiro[];
+  contextoImagensPdf: ContextoImagensValor;
   velocidade: number;
   aoMudarVelocidade: (v: number) => void;
   segundosPorSlide: number;
   aoMudarSegundos: (v: number) => void;
   aoRefazerReel: () => void;
-  aoRefazerTexto: () => void;
+  aoRefazerTexto: (peca: Peca, slides?: SlideRoteiro[]) => void;
   aoAprovar: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+  aoAlterarSlidePdf: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+  aoExcluirSlide: (i: number) => void;
+  aoExcluirSlidePdf: (i: number) => void;
   aoDesfazerSlides: () => void;
+  aoDesfazerSlidesPdf: () => void;
   naoSeiSeBate?: boolean;
   melhoria: string;
   aoMudarMelhoria: (v: string) => void;
+  melhoriaPdf: string;
+  aoMudarMelhoriaPdf: (v: string) => void;
   aoPedirIa: () => void;
+  aoPedirIaPdf: () => void;
   aoUsarTextoNovo: () => void;
 }) {
   // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
@@ -899,12 +1002,15 @@ function PecasProduzidas({
   const ordenadas = pecas
     .filter((p) => p.tipo !== 'linkedin-imagem')
     .sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
+  const paginasDoFeed = (pecas.find((p) => p.tipo === 'carrossel-feed')?.arquivos || [])
+    .filter((c) => /slide-\d+\.png$/i.test(c))
+    .sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-4">
       {ordenadas.map((p) => {
         if (p.origem === 'enviada') return <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />;
-        const ocupado = p.tipo === 'reel' ? ocupadoReel : ocupadoTexto;
+        const ocupado = p.tipo === 'reel' ? ocupadoReel : (ocupadoTexto || p.status === 'gerando');
         return (
         <React.Fragment key={p.id}>
         <section className={cartaoDaPeca(p.status === 'aprovado' || p.status === 'publicado')}>
@@ -948,10 +1054,10 @@ function PecasProduzidas({
             acao={(
               <BotaoRefazer
                 ocupado={ocupado}
-                aoClicar={p.tipo === 'reel' ? aoRefazerReel : aoRefazerTexto}
+                aoClicar={p.tipo === 'reel' ? aoRefazerReel : () => aoRefazerTexto(p)}
                 aviso={p.tipo === 'reel'
                   ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
-                  : 'Refaz esta peça e as outras de texto: elas saem de uma produção só.'}
+                  : 'Refaz somente esta peça. As outras continuam como estão.'}
               />
             )}
             aprovacao={<BotaoAprovar peca={p} onMudou={aoAprovar} />}
@@ -969,19 +1075,39 @@ function PecasProduzidas({
               aoMudarMelhoria={aoMudarMelhoria}
               aoPedirIa={aoPedirIa}
               aoAlterarSlide={aoAlterarSlide}
-              aoRefazer={aoRefazerTexto}
+              aoExcluirSlide={aoExcluirSlide}
+              aoRefazer={() => aoRefazerTexto(p)}
               aoDesfazer={aoDesfazerSlides}
               aoUsarTextoNovo={aoUsarTextoNovo}
             />
           )}
           {p.tipo === 'linkedin-pdf' && (
-            <FichaComTexto
-              peca={p}
-              criativo={criativo}
-              campo="artigoLinkedin"
-              titulo="Artigo do LinkedIn"
-              ajuda="Pronto para colar. As páginas do PDF são as do carrossel do feed — mude e refaça lá que muda aqui."
-            />
+            <ContextoImagens.Provider value={contextoImagensPdf}>
+              <div className="space-y-4">
+                <FichaCarrossel
+                  peca={p}
+                  paginasAlternativas={paginasDoFeed}
+                  slides={slidesPdf}
+                  ocupado={ocupado}
+                  segundosPorSlide={segundosPorSlide}
+                  aoMudarSegundos={aoMudarSegundos}
+                  melhoria={melhoriaPdf}
+                  aoMudarMelhoria={aoMudarMelhoriaPdf}
+                  aoPedirIa={aoPedirIaPdf}
+                  aoAlterarSlide={aoAlterarSlidePdf}
+                  aoExcluirSlide={aoExcluirSlidePdf}
+                  aoRefazer={() => aoRefazerTexto(p)}
+                  aoDesfazer={aoDesfazerSlidesPdf}
+                  aoUsarTextoNovo={() => aoRefazerTexto(p)}
+                />
+                <TextoParaPublicar
+                  criativo={criativo}
+                  campo="artigoLinkedin"
+                  titulo="Artigo do LinkedIn"
+                  ajuda="Texto que acompanha este carrossel no LinkedIn."
+                />
+              </div>
+            </ContextoImagens.Provider>
           )}
           {p.tipo === 'carrossel-video' && (
             <FichaComTexto
@@ -1147,11 +1273,13 @@ export function PecaEnviada({ peca, aoMudar }: { peca: Peca; aoMudar: () => void
  */
 function FichaCarrossel({
   peca, slides, naoSeiSeBate, ocupado, melhoria, aoMudarMelhoria, aoPedirIa,
-  aoAlterarSlide, aoRefazer, aoDesfazer, aoUsarTextoNovo,
+  aoAlterarSlide, aoExcluirSlide, aoRefazer, aoDesfazer, aoUsarTextoNovo,
+  paginasAlternativas = [],
   segundosPorSlide, aoMudarSegundos,
 }: {
   peca: Peca;
   slides: SlideRoteiro[];
+  paginasAlternativas?: string[];
   naoSeiSeBate?: boolean;
   ocupado?: boolean;
   segundosPorSlide: number;
@@ -1160,6 +1288,7 @@ function FichaCarrossel({
   aoMudarMelhoria: (v: string) => void;
   aoPedirIa: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
+  aoExcluirSlide: (i: number) => void;
   aoRefazer: () => void;
   aoDesfazer: () => void;
   aoUsarTextoNovo: () => void;
@@ -1168,19 +1297,37 @@ function FichaCarrossel({
 
   // Só os PNGs das páginas, na ordem. O que não for página fica de fora: a lista
   // de arquivos da peça também traz capa e sobras, e elas não são páginas.
-  const paginas = useMemo(
+  const paginasDaPeca = useMemo(
     () => (peca.arquivos || [])
       .filter((c) => /slide-\d+\.png$/i.test(c))
       .sort((a, b) => a.localeCompare(b)),
     [peca.arquivos],
   );
+  const paginas = paginasDaPeca.length ? paginasDaPeca : paginasAlternativas;
+  const [paginasVisiveis, setPaginasVisiveis] = useState(paginas);
 
-  useEffect(() => { setAberta(0); }, [peca.id]);
+  useEffect(() => {
+    setAberta(0);
+    setPaginasVisiveis(paginas);
+  }, [peca.id, peca.versao]);
 
-  if (!paginas.length) return <Previa caminho={peca.arquivoUrl} />;
+  if (!paginasVisiveis.length) return <Previa caminho={peca.arquivoUrl} />;
 
-  const indice = Math.min(aberta, paginas.length - 1);
+  const indice = Math.min(aberta, paginasVisiveis.length - 1);
   const slide = slides[indice];
+
+  function excluirPagina() {
+    if (slides.length <= 2) return;
+    aoExcluirSlide(indice);
+    setPaginasVisiveis((atuais) => atuais.filter((_, i) => i !== indice));
+    setAberta(Math.max(0, indice - 1));
+  }
+
+  function desfazer() {
+    aoDesfazer();
+    setPaginasVisiveis(paginas);
+    setAberta(0);
+  }
 
   return (
     <div className="space-y-3">
@@ -1202,7 +1349,7 @@ function FichaCarrossel({
       )}
       {/* Todas as páginas, pequenas. Clicar troca a grande de baixo. */}
       <div className="flex flex-wrap gap-2">
-        {paginas.map((c, i) => (
+        {paginasVisiveis.map((c, i) => (
           <button
             key={c}
             onClick={() => setAberta(i)}
@@ -1225,7 +1372,7 @@ function FichaCarrossel({
         {/* A página escolhida, grande. Uma só. */}
         <div className="lg:w-[340px] shrink-0">
           <ImagemDoArquivo
-            caminho={paginas[indice]}
+            caminho={paginasVisiveis[indice]}
             className="w-full rounded-lg border border-gray-200 bg-gray-50"
           />
         </div>
@@ -1247,11 +1394,19 @@ function FichaCarrossel({
 
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
             <button
-              onClick={aoDesfazer}
+              onClick={desfazer}
               title="Volta ao texto que gerou estas imagens"
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Desfazer
+            </button>
+            <button
+              onClick={excluirPagina}
+              disabled={ocupado || slides.length <= 2}
+              title={slides.length <= 2 ? 'O carrossel precisa ter pelo menos duas páginas' : 'Excluir esta página somente deste carrossel'}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-700 text-sm font-semibold hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Excluir página
             </button>
             <span className="text-[11px] text-gray-500">
               Editou? Clique em <strong>Refazer</strong>, no canto de cima deste cartão.
@@ -1927,7 +2082,7 @@ function ContadorPalavras({ slide }: { slide: SlideRoteiro }) {
 function nomeDaPeca(tipo: Peca['tipo']) {
   if (tipo === 'carrossel-feed') return 'Carrossel do feed';
   if (tipo === 'carrossel-video') return 'Carrossel em vídeo';
-  if (tipo === 'linkedin-pdf') return 'Documento PDF';
+  if (tipo === 'linkedin-pdf') return 'Carrossel do LinkedIn';
   if (tipo === 'linkedin-imagem') return 'Imagem única do LinkedIn';
   return 'Reel';
 }

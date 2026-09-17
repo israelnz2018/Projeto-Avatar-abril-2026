@@ -6,10 +6,13 @@
  * entram nas próximas entregas da fase 1.
  */
 import React, { useEffect, useState } from 'react';
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import {
+  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where,
+} from 'firebase/firestore';
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
   FileText, Image as ImageIcon, Film, Layers, Send, Trash2, Loader2,
+  ExternalLink, RotateCcw, Rocket,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasDaSemana, segundaDaSemana, somarDias } from '../../../lib/semana';
@@ -525,6 +528,12 @@ export function EtapaAgenda({
   const naFila = aprovadas.filter((p) => p.status === 'aprovado' && !p.agendadoEm);
   const agendadas = aprovadas.filter((p) => p.agendadoEm);
 
+  // O histórico. Responde "o que já foi publicado e o que ainda falta" sem
+  // obrigar o consultor a caçar peça por peça no calendário.
+  const publicadas = aprovadas
+    .filter((p) => jaPublicada(p))
+    .sort((a, b) => quandoPublicou(b).localeCompare(quandoPublicou(a)));
+
   const tituloDe = (p: Peca) => campanhas.find((c) => c.id === p.campanhaId)?.titulo || '';
 
   async function escrever(pecaId: string, dados: Record<string, unknown>) {
@@ -694,7 +703,11 @@ export function EtapaAgenda({
                         onClick={(e) => { e.stopPropagation(); setAberta(aberta === p.id ? null : p.id); }}
                         className={`w-full text-left px-1.5 py-1 rounded border text-[11px] cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}`}
                       >
-                        <span className="block font-bold">{p.agendadoHora}</span>
+                        <span className="block font-bold">
+                          {p.agendadoHora}
+                          {/* O ✓ no próprio chip: a semana inteira se lê de um olhar. */}
+                          {jaPublicada(p) && <span title="Publicada"> ✓</span>}
+                        </span>
                         <span className="block truncate font-semibold">{nomePeca(p.tipo)}</span>
                         <span className="block truncate opacity-80">{tituloDe(p)}</span>
                       </button>
@@ -712,6 +725,7 @@ export function EtapaAgenda({
                             onChange={(e) => escrever(p.id, { agendadoHora: e.target.value })}
                             className="w-full px-1 py-0.5 rounded border border-gray-300 text-[11px]"
                           />
+                          {!jaPublicada(p) && <BotaoPublicarAgora peca={p} onMudou={onMudou} miudo />}
                           <button
                             onClick={() => tirarDoCalendario(p)}
                             className="w-full px-1 py-0.5 rounded bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold hover:bg-red-100"
@@ -735,30 +749,347 @@ export function EtapaAgenda({
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Nesta semana ({daSemana.length})</h3>
         <p className="text-xs text-gray-600 mb-3">
-          A publicação automática entra quando as suas redes estiverem conectadas (etapa 2).
-          Por enquanto, abra o arquivo no dia e publique você mesmo.
+          Chegada a hora marcada, a plataforma publica sozinha — a hora é a de Brasília,
+          o fuso de quem lê. Se preferir não esperar, use <strong>Publicar agora</strong>.
         </p>
         {daSemana.length === 0
           ? <Vazio texto="Nenhuma peça marcada para esta semana." />
           : (
             <div className="space-y-2">
               {daSemana.map((p) => (
-                <div key={p.id} className="p-2.5 rounded-lg border border-gray-200 flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
-                    <strong className="shrink-0">
-                      {new Date(`${p.agendadoEm}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' })}
-                      {' '}
-                      {p.agendadoHora}
-                    </strong>
-                    <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
-                  </span>
-                  <LinkDoArquivo caminho={p.arquivoUrl} />
+                <div key={p.id} className="p-2.5 rounded-lg border border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
+                      <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
+                      <strong className="shrink-0">
+                        {new Date(`${p.agendadoEm}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' })}
+                        {' '}
+                        {p.agendadoHora}
+                      </strong>
+                      <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <EstadoDaPublicacao peca={p} />
+                      <LinkDoArquivo caminho={p.arquivoUrl} />
+                    </span>
+                  </div>
+                  <AcoesDePublicacao peca={p} onMudou={onMudou} />
                 </div>
               ))}
             </div>
           )}
       </section>
+
+      {/* ── O histórico: o que já foi ao ar, com o endereço do post ── */}
+      <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Já publicadas ({publicadas.length})</h3>
+        <p className="text-xs text-gray-600 mb-3">
+          O link abre o post na rede — é a prova de que saiu.
+        </p>
+        {publicadas.length === 0
+          ? <Vazio texto="Nada publicado ainda." />
+          : (
+            <div className="space-y-2">
+              {publicadas.slice(0, 20).map((p) => (
+                <div key={p.id} className="p-2.5 rounded-lg border border-green-200 bg-green-50/40 flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
+                    <strong className="shrink-0">{dataCurta(quandoPublicou(p))}</strong>
+                    <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
+                  </span>
+                  <EstadoDaPublicacao peca={p} />
+                </div>
+              ))}
+              {publicadas.length > 20 && (
+                <p className="text-xs text-gray-500">
+                  e mais {publicadas.length - 20} publicadas antes destas.
+                </p>
+              )}
+            </div>
+          )}
+      </section>
+    </div>
+  );
+}
+
+/* ====================== A publicação ====================== */
+
+/** Já foi ao ar? Vale tanto o registro novo quanto o status antigo da peça. */
+export function jaPublicada(peca: Peca): boolean {
+  return peca.publicacao?.status === 'publicada' || peca.status === 'publicado';
+}
+
+/** Quando foi ao ar, para ordenar o histórico. Cai no dia agendado se faltar. */
+function quandoPublicou(peca: Peca): string {
+  return peca.publicacao?.publicadoEm || peca.agendadoEm || peca.atualizadoEm || '';
+}
+
+function dataCurta(iso: string): string {
+  if (!iso) return '';
+  const data = new Date(iso.length <= 10 ? `${iso}T00:00:00` : iso);
+  return Number.isNaN(data.getTime())
+    ? ''
+    : data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+}
+
+/**
+ * O estado da peça na rede, em uma etiqueta.
+ *
+ * É a resposta a "como sei se publicou olhando para esta tela": verde com link
+ * saiu, vermelho com o motivo não saiu, e azul piscando é o Instagram ainda
+ * processando o vídeo.
+ */
+function EstadoDaPublicacao({ peca }: { peca: Peca }) {
+  const pub = peca.publicacao;
+
+  if (jaPublicada(peca)) {
+    const link = pub?.link;
+    return link
+      ? (
+        <a
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-800 text-xs font-bold shrink-0 hover:bg-green-200"
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Publicada
+          <ExternalLink className="w-3 h-3" />
+        </a>
+      )
+      : (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-800 text-xs font-bold shrink-0">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Publicada
+        </span>
+      );
+  }
+
+  if (pub?.status === 'publicando') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-100 text-blue-800 text-xs font-bold shrink-0">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        Publicando…
+      </span>
+    );
+  }
+
+  if (pub?.status === 'falhou') {
+    return (
+      <span
+        title={pub.erro || ''}
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-100 text-red-800 text-xs font-bold shrink-0"
+      >
+        <AlertTriangle className="w-3.5 h-3.5" />
+        Não saiu
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold shrink-0">
+      <Clock className="w-3.5 h-3.5" />
+      Agendada
+    </span>
+  );
+}
+
+/**
+ * O que o consultor pode fazer com uma peça agendada.
+ *
+ * Só aparece quando há o que fazer: peça publicada não mostra botão nenhum, e
+ * peça no meio da publicação também não — clicar duas vezes publicaria duas.
+ */
+function AcoesDePublicacao({ peca, onMudou }: { peca: Peca; onMudou?: () => void }) {
+  const pub = peca.publicacao;
+  if (jaPublicada(peca) || pub?.status === 'publicando') return null;
+
+  return (
+    <div className="space-y-2">
+      {pub?.status === 'falhou' && pub.erro && (
+        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+          <strong>Não saiu:</strong> {pub.erro}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <BotaoPublicarAgora peca={peca} onMudou={onMudou} />
+        <BotaoJaPubliquei peca={peca} onMudou={onMudou} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Manda a peça para a rede agora, sem esperar a hora marcada.
+ *
+ * A tela não fala com o Instagram: ela escreve uma tarefa na fila, e o worker
+ * publica. Publicar leva minutos (o Instagram baixa e transcodifica o vídeo) —
+ * tempo demais para uma requisição do navegador, que morreria no meio.
+ */
+function BotaoPublicarAgora({
+  peca, onMudou, miudo = false,
+}: {
+  peca: Peca; onMudou?: () => void; miudo?: boolean;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+  const [pedindo, setPedindo] = useState(false);
+
+  async function publicar() {
+    setEnviando(true);
+    setErro('');
+    try {
+      await addDoc(collection(db, COLECOES.tarefas), {
+        consultorId: peca.consultorId,
+        campanhaId: peca.campanhaId,
+        pecaId: peca.id,
+        tipo: 'publicar',
+        status: 'pendente',
+        tentativas: 0,
+        criadoEm: new Date().toISOString(),
+        criadoEmServidor: serverTimestamp(),
+      });
+      // O worker escreve 'publicando' na peça em segundos; recarregar mostra isso.
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+        publicacao: { status: 'publicando', erro: null, tentadoEm: new Date().toISOString() },
+        atualizadoEm: new Date().toISOString(),
+      });
+      setPedindo(false);
+      onMudou?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  const rotulo = peca.publicacao?.status === 'falhou' ? 'Tentar de novo' : 'Publicar agora';
+
+  if (miudo) {
+    return (
+      <button
+        onClick={() => void publicar()}
+        disabled={enviando}
+        className="w-full px-1 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold hover:bg-blue-700 disabled:opacity-50"
+      >
+        {enviando ? '…' : rotulo}
+      </button>
+    );
+  }
+
+  // Confirmação antes de ir ao ar: publicar é irreversível — apagar depois não
+  // desfaz quem já viu.
+  if (!pedindo) {
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={() => setPedindo(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700"
+        >
+          {peca.publicacao?.status === 'falhou' ? <RotateCcw className="w-3.5 h-3.5" /> : <Rocket className="w-3.5 h-3.5" />}
+          {rotulo}
+        </button>
+        {erro && <p className="text-xs text-red-700">{erro}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs font-semibold text-gray-800">
+        Publicar no {peca.publicacao?.rede === 'linkedin' || peca.tipo.startsWith('linkedin') ? 'LinkedIn' : 'Instagram'} agora?
+      </span>
+      <button
+        onClick={() => void publicar()}
+        disabled={enviando}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 disabled:opacity-50"
+      >
+        {enviando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+        Sim, publicar
+      </button>
+      <button
+        onClick={() => setPedindo(false)}
+        className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50"
+      >
+        Cancelar
+      </button>
+      {erro && <p className="text-xs text-red-700 w-full">{erro}</p>}
+    </div>
+  );
+}
+
+/**
+ * Registra a publicação feita à mão.
+ *
+ * Existe porque nem tudo vai pela API: um formato novo, uma rede que o consultor
+ * ainda não conectou, ou simplesmente a vontade de postar do celular. Sem isto a
+ * peça ficaria "Agendada" para sempre e o histórico mentiria.
+ */
+function BotaoJaPubliquei({ peca, onMudou }: { peca: Peca; onMudou?: () => void }) {
+  const [abrindo, setAbrindo] = useState(false);
+  const [link, setLink] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function registrar() {
+    setSalvando(true);
+    setErro('');
+    try {
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+        status: 'publicado',
+        publicacao: {
+          rede: peca.tipo.startsWith('linkedin') ? 'linkedin' : 'instagram',
+          status: 'publicada',
+          manual: true,
+          link: link.trim() || null,
+          publicadoEm: new Date().toISOString(),
+          erro: null,
+        },
+        atualizadoEm: new Date().toISOString(),
+      });
+      setAbrindo(false);
+      onMudou?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (!abrindo) {
+    return (
+      <button
+        onClick={() => setAbrindo(true)}
+        className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50"
+      >
+        Já publiquei à mão
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 w-full">
+      <input
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+        placeholder="Cole o endereço do post (opcional)"
+        className="flex-1 min-w-[200px] px-2 py-1.5 rounded border border-gray-300 text-xs"
+      />
+      <button
+        onClick={() => void registrar()}
+        disabled={salvando}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 disabled:opacity-50"
+      >
+        {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+        Marcar como publicada
+      </button>
+      <button
+        onClick={() => setAbrindo(false)}
+        className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50"
+      >
+        Cancelar
+      </button>
+      {erro && <p className="text-xs text-red-700 w-full">{erro}</p>}
     </div>
   );
 }
@@ -850,7 +1181,10 @@ export function useDadosMarketing(consultorId: string) {
   const trabalhando = videos.some(
     (v) => v.transcricaoStatus === 'na-fila' || v.transcricaoStatus === 'processando',
   // A capa do Reel tem o próprio estado, separado do Reel — e também conta.
-  ) || campanhas.some((c) => c.status === 'processando' || c.capaStatus === 'processando');
+  ) || campanhas.some((c) => c.status === 'processando' || c.capaStatus === 'processando')
+  // Publicar também é espera: o Instagram leva minutos transcodificando o vídeo,
+  // e é justamente aí que o consultor fica olhando a tela pra ver se saiu.
+  || pecas.some((p) => p.publicacao?.status === 'publicando');
 
   useEffect(() => {
     if (!trabalhando) return;
@@ -898,7 +1232,7 @@ function nomePeca(tipo: TipoPeca) {
   if (tipo === 'carrossel-feed') return 'Carrossel de feed';
   if (tipo === 'carrossel-video') return 'Carrossel em vídeo';
   if (tipo === 'linkedin-imagem') return 'Imagem única do LinkedIn';
-  return 'Documento PDF';
+  return 'Carrossel do LinkedIn';
 }
 
 function formatarDuracao(s: number) {
