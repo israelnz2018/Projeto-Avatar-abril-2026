@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy, FileUp, Trash2,
+  Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy, FileUp, Trash2, Download,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
@@ -23,6 +23,7 @@ import {
   ContextoImagens, ContextoImagensValor, EscolhaImagem, SeletorImagemDaPagina, aplicarEscolha, semIndefinidos, useBibliotecaImagens,
 } from './BibliotecaImagens';
 import { BotaoRemoverPecaEnviada, EnviarPecaPronta, LegendaDaPecaEnviada } from './EnviarPecaPronta';
+import { PASTA_DA_PECA, salvarPeca, suportaPastas } from '../../../services/salvarNoComputador';
 
 /**
  * Os layouts de página que o renderizador sabe montar.
@@ -864,6 +865,7 @@ function ImagemUnicaLinkedin({
       <CabecalhoDaPeca
         nome={nomeDaPeca('linkedin-imagem')}
         ocupado={ocupado}
+        salvar={<BotaoSalvarNoComputador peca={peca} assunto={criativo.titulo} />}
         acao={(
           <BotaoRefazer
             ocupado={ocupado}
@@ -1017,6 +1019,7 @@ function PecasProduzidas({
           <CabecalhoDaPeca
             nome={nomeDaPeca(p.tipo)}
             detalhe={p.versao > 1 ? <span className="text-xs font-normal text-gray-500">versão {p.versao}</span> : undefined}
+            salvar={<BotaoSalvarNoComputador peca={p} assunto={criativo.titulo} />}
             ocupado={ocupado}
             ajustes={<>
               {p.tipo === 'reel' && (
@@ -1229,6 +1232,7 @@ export function PecaEnviada({ peca, aoMudar }: { peca: Peca; aoMudar: () => void
       <CabecalhoDaPeca
         nome={nomeDaPeca(peca.tipo)}
         detalhe={<span className="text-xs font-normal px-1.5 py-0.5 rounded bg-blue-50 text-blue-800">enviada por você</span>}
+        salvar={<BotaoSalvarNoComputador peca={peca} />}
         acao={<BotaoRemoverPecaEnviada peca={peca} aoMudar={aoMudar} />}
         aprovacao={<BotaoAprovar peca={peca} onMudou={aoMudar} />}
       />
@@ -1904,7 +1908,7 @@ function cartaoDaPeca(aprovada: boolean) {
  * da peça, o Refazer (ou o Tirar, na peça enviada) e, por último, o Aprovar.
  */
 function CabecalhoDaPeca({
-  nome, detalhe, ocupado, ajustes, acao, aprovacao,
+  nome, detalhe, ocupado, ajustes, acao, aprovacao, salvar,
 }: {
   nome: string;
   /** Um marcador ao lado do nome: "versão 2", "enviada por você". */
@@ -1914,6 +1918,8 @@ function CabecalhoDaPeca({
   /** Refazer, ou Tirar na peça enviada. */
   acao?: React.ReactNode;
   aprovacao: React.ReactNode;
+  /** Salvar no computador. Só aparece depois de aprovada. */
+  salvar?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1929,9 +1935,75 @@ function CabecalhoDaPeca({
       <div className="flex items-center gap-2">
         {ajustes}
         {acao}
+        {salvar}
         {aprovacao}
       </div>
     </div>
+  );
+}
+
+/**
+ * Salva os arquivos desta peça no computador, na pasta do formato dela.
+ *
+ * Só aparece depois de APROVADA: salvar um rascunho que ainda vai mudar enche a
+ * pasta de versão velha. É individual por peça, e não um "baixar tudo" — cada
+ * formato tem a sua pasta em ENTREGAS.
+ *
+ * Como o navegador não escolhe onde um download cai, na primeira vez ele pede a
+ * pasta ENTREGAS; depois escreve direto, sem perguntar de novo. Onde a API não
+ * existe, baixa um .zip com o nome da pasta de destino.
+ * Ver src/services/salvarNoComputador.ts.
+ */
+function BotaoSalvarNoComputador({ peca, assunto }: { peca?: Peca | null; assunto?: string }) {
+  const [estado, setEstado] = useState<'parado' | 'salvando' | 'pronto' | 'erro'>('parado');
+  const [recado, setRecado] = useState('');
+
+  const aprovada = Boolean(peca && (peca.status === 'aprovado' || peca.status === 'publicado'));
+  if (!peca || !aprovada) return null;
+
+  const pasta = PASTA_DA_PECA[peca.tipo];
+
+  async function salvar() {
+    setEstado('salvando');
+    setRecado('');
+    try {
+      const feito = await salvarPeca(peca!, assunto || '');
+      setRecado(`${feito.quantos} arquivo${feito.quantos > 1 ? 's' : ''} em ${feito.destino}`);
+      setEstado('pronto');
+    } catch (e: any) {
+      // Fechar o seletor de pasta não é erro: o consultor só mudou de ideia.
+      if (e?.name === 'AbortError' || e?.name === 'NotAllowedError') {
+        setEstado('parado');
+        return;
+      }
+      setRecado(e?.message || String(e));
+      setEstado('erro');
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-col items-end">
+      <button
+        onClick={() => void salvar()}
+        disabled={estado === 'salvando'}
+        title={suportaPastas()
+          ? `Salva em ENTREGAS/${pasta} no seu computador.`
+          : `Baixa um .zip chamado "${pasta}" para a sua pasta de downloads.`}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+      >
+        {estado === 'salvando'
+          ? <Loader2 className="w-4 h-4 animate-spin" />
+          : estado === 'pronto'
+            ? <Check className="w-4 h-4 text-green-600" />
+            : <Download className="w-4 h-4" />}
+        {estado === 'salvando' ? 'Salvando…' : 'Salvar no computador'}
+      </button>
+      {recado && (
+        <span className={`text-[11px] mt-1 max-w-[260px] text-right ${estado === 'erro' ? 'text-red-700' : 'text-green-700'}`}>
+          {recado}
+        </span>
+      )}
+    </span>
   );
 }
 
