@@ -6,6 +6,9 @@ import { auth, db } from '../lib/firebase';
 import { uploadBrandingImage } from '../services/brandingUploadService';
 import { useConsultor } from '../contexts/ConsultorContext';
 import { useUserAccess } from '../hooks/useUserAccess';
+import {
+  cuidarDoRegistroAntigo, gravarPerfilLocal, jaSincronizou, lerPerfilLocal, marcarSincronizado,
+} from '../lib/perfilLocal';
 
 interface UserProfileData {
   name: string;
@@ -21,31 +24,42 @@ interface UserProfileData {
   headerTextColor: string;
 }
 
-const PROFILE_KEY = 'lbw_user_profile';
-const PROFILE_CLOUD_KEY = 'lbw_user_profile_cloud_synced';
+/**
+ * O PERFIL É GUARDADO POR USUÁRIO, e nunca numa chave só — ver lib/perfilLocal.ts,
+ * que é onde essa conta mora e onde ela é testada.
+ *
+ * Sem usuário logado não se lê nada: melhor a tela vir vazia do que vir com o dado
+ * de outra pessoa.
+ */
+const PERFIL_VAZIO: UserProfileData = {
+  name: '',
+  email: '',
+  company: '',
+  role: '',
+  photoUrl: '',
+  companySlogan: '',
+  wordTemplate: 'default',
+  pptTemplate: 'default',
+  companyLogoUrl: '',
+  headerColor: '#1e3a5f',
+  headerTextColor: '#ffffff',
+};
 
 export const getUserProfile = (): UserProfileData => {
-  try {
-    const saved = localStorage.getItem(PROFILE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {}
+  const usuario = auth.currentUser;
+  if (!usuario) return { ...PERFIL_VAZIO };
+  cuidarDoRegistroAntigo(localStorage, usuario.uid, usuario.email || '');
+  const salvo = lerPerfilLocal<UserProfileData>(localStorage, usuario.uid);
+  if (salvo) return { ...PERFIL_VAZIO, ...salvo };
   return {
-    name: auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || '',
-    email: auth.currentUser?.email || '',
-    company: '',
-    role: '',
-    photoUrl: '',
-    companySlogan: '',
-    wordTemplate: 'default',
-    pptTemplate: 'default',
-    companyLogoUrl: '',
-    headerColor: '#1e3a5f',
-    headerTextColor: '#ffffff',
+    ...PERFIL_VAZIO,
+    name: usuario.displayName || usuario.email?.split('@')[0] || '',
+    email: usuario.email || '',
   };
 };
 
 export const saveUserProfile = (profile: UserProfileData): void => {
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  gravarPerfilLocal(localStorage, auth.currentUser?.uid, profile);
 };
 
 export default function UserProfile({ onClose }: { onClose?: () => void }) {
@@ -69,7 +83,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
       try {
         const snapshot = await getDoc(doc(db, 'users', usuario.uid));
         const dados = snapshot.data() || {};
-        const perfilJaSincronizado = localStorage.getItem(PROFILE_CLOUD_KEY) === '1';
+        const perfilJaSincronizado = jaSincronizou(localStorage, usuario.uid);
         const marca = isConsultor ? consultor.branding : undefined;
         const atualizado: UserProfileData = {
           ...current,
@@ -90,7 +104,10 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
       }
     })();
     return () => { ativo = false; };
-  }, [consultor, isConsultor]);
+    // O uid entra nas dependências para a tela recarregar o perfil quando quem está
+    // logado muda — sem isso, trocar de conta na mesma aba deixava o perfil anterior
+    // no formulário.
+  }, [consultor, isConsultor, auth.currentUser?.uid]);
 
   const handleChange = (field: keyof UserProfileData, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
@@ -174,7 +191,7 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
       }
       await updateProfile(usuario, { displayName: atualizado.name.trim(), photoURL: fotoUrl || null });
       saveUserProfile(atualizado);
-      localStorage.setItem(PROFILE_CLOUD_KEY, '1');
+      marcarSincronizado(localStorage, usuario.uid);
       setProfile(atualizado);
       setPhotoPreview(fotoUrl);
       setSaved(true);

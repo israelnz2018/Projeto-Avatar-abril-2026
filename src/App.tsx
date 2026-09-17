@@ -27,7 +27,8 @@ import {
   TrendingUp,
   Rocket,
   FolderOpen,
-  Gamepad2
+  Gamepad2,
+  UserCircle
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -241,6 +242,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       icon: Shield,
       items: [
         { name: 'Consultor Comece por aqui', path: '/consultorcomeceporqui', icon: Rocket },
+        { name: 'Meu perfil', path: '/configuracao?aba=perfil', icon: UserCircle },
         { name: 'Meus Cursos', path: '/configuracao?aba=cursos', icon: BookOpen },
         { name: 'Projetos, Fases e Ferramentas', path: '/configuracao?aba=fases', icon: Settings },
         { name: 'Teste de Avaliação', path: '/configuracao?aba=prova', icon: ClipboardList },

@@ -4,7 +4,7 @@
  */
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp, Megaphone } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp, Megaphone, User } from 'lucide-react';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
 const SuperRelatorio = lazy(() => import('./SuperRelatorio'));
@@ -18,8 +18,13 @@ const ProvaCertificacao = lazy(() => import('../AvaliacaoAdminView'));
 const Certificados = lazy(() => import('../CertificadosView'));
 const MateriaisApoio = lazy(() => import('./MateriaisApoio'));
 const MarketingConsultor = lazy(() => import('./MarketingConsultor'));
+const MeuPerfil = lazy(() => import('../UserProfile'));
 
 const ABAS = [
+  // O MESMO "Meu Perfil" da caixinha ao lado da foto, agora também como aba fixa do
+  // menu: é onde o consultor atualiza foto, empresa e cargo, e ninguém achava isso
+  // escondido atrás de um ícone.
+  { id: 'perfil', nome: 'Meu perfil', icon: User, Comp: MeuPerfil },
   { id: 'cursos', nome: 'Meus Cursos', icon: BookOpen, Comp: MeusCursos },
   { id: 'materiais', nome: 'Material de Apoio', icon: FolderUp, Comp: MateriaisApoio },
   { id: 'prova', nome: 'Teste de Avaliação', icon: ClipboardCheck, Comp: ProvaCertificacao },
