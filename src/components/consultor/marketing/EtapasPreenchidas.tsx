@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasDaSemana, segundaDaSemana, somarDias } from '../../../lib/semana';
+import {
+  FUSOS, FUSO_DA_PUBLICACAO, IdFuso, comoRelogioDe, equivalenteEm, fusoPorId, tzDe,
+} from '../../../lib/fuso';
 import { auth, db, storage } from '../../../lib/firebase';
 import {
   COLECOES, Campanha, ConexaoRede, MarketingConfig, Peca, StatusPeca, TipoPeca, VideoFonte, OBJETIVOS, TIPOS_PECA,
@@ -511,14 +514,19 @@ export function EtapaAgenda({
   campanhas: Campanha[];
   onMudou?: () => void;
 }) {
-  const [inicio, setInicio] = useState(() => segundaDaSemana(new Date()));
+  // Em que relógio o consultor quer LER as horas. Não muda o que é gravado: o
+  // calendário é sempre o do Brasil, porque é lá que o post sai. Ver src/lib/fuso.ts.
+  const [fuso, setFuso] = useState<IdFuso>(() => fusoGuardado());
+  const [inicio, setInicio] = useState(() => segundaDaSemana(hojeNoBrasil()));
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
   const dias = diasDaSemana(inicio);
-  const hoje = diaISO(new Date());
+  // "Hoje" era o dia do NAVEGADOR — ou seja, o da Nova Zelândia. Passava boa parte
+  // do dia marcando de azul um dia que no Brasil ainda não havia começado.
+  const hoje = diaISO(hojeNoBrasil());
 
   // Só peça aprovada entra no calendário: marcar a publicação de algo que ainda
   // está em revisão seria agendar uma peça que ainda pode mudar.
@@ -644,7 +652,7 @@ export function EtapaAgenda({
               ‹
             </button>
             <button
-              onClick={() => setInicio(segundaDaSemana(new Date()))}
+              onClick={() => setInicio(segundaDaSemana(hojeNoBrasil()))}
               className="px-2.5 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50"
             >
               Esta semana
@@ -659,6 +667,10 @@ export function EtapaAgenda({
           </div>
           <span className="text-sm font-bold text-gray-900 capitalize">{rotuloSemana}</span>
           <div className="flex flex-wrap items-center gap-2.5">
+            <EscolherFuso
+              fuso={fuso}
+              aoTrocar={(f) => { setFuso(f); guardarFuso(f); }}
+            />
             {TIPOS_PECA.map((t) => (
               <span key={t.id} className="flex items-center gap-1 text-[11px] text-gray-600">
                 <span className={`w-2.5 h-2.5 rounded-sm ${CORES_PECA[t.id].ponto}`} />
@@ -667,6 +679,16 @@ export function EtapaAgenda({
             ))}
           </div>
         </div>
+
+        {/* De quem é este calendário. Sem dizer isto, o consultor na Nova Zelândia
+            não tem como saber se a segunda que ele está vendo é a dele ou a do
+            público — e as duas quase nunca são o mesmo dia. */}
+        <p className="text-xs text-gray-600 mb-2.5">
+          Os dias e as horas são do <strong>Brasil</strong> — é lá que o post sai.
+          {fuso === FUSO_DA_PUBLICACAO
+            ? ' Embaixo de cada peça está a mesma hora no seu relógio da Nova Zelândia.'
+            : ` Você está lendo as horas em ${fusoPorId(fuso).nome}; embaixo de cada peça está a hora real da publicação, no Brasil.`}
+        </p>
 
         <div className="grid grid-cols-7 gap-1.5">
           {dias.map((d, i) => {
@@ -704,10 +726,18 @@ export function EtapaAgenda({
                         className={`w-full text-left px-1.5 py-1 rounded border text-[11px] cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}`}
                       >
                         <span className="block font-bold">
-                          {p.agendadoHora}
+                          {horaNoRelogio(p, fuso)}
                           {/* O ✓ no próprio chip: a semana inteira se lê de um olhar. */}
                           {jaPublicada(p) && <span title="Publicada"> ✓</span>}
                         </span>
+                        {/* A mesma hora no outro relógio: 19h de segunda no Brasil é
+                            terça de manhã na Nova Zelândia, e sem isto o consultor
+                            acha que a peça sai enquanto ele está acordado. */}
+                        {horaNoOutroRelogio(p, fuso) && (
+                          <span className="block truncate text-[10px] opacity-70">
+                            {horaNoOutroRelogio(p, fuso)}
+                          </span>
+                        )}
                         <span className="block truncate font-semibold">{nomePeca(p.tipo)}</span>
                         <span className="block truncate opacity-80">{tituloDe(p)}</span>
                       </button>
@@ -749,8 +779,8 @@ export function EtapaAgenda({
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Nesta semana ({daSemana.length})</h3>
         <p className="text-xs text-gray-600 mb-3">
-          Chegada a hora marcada, a plataforma publica sozinha — a hora é a de Brasília,
-          o fuso de quem lê. Se preferir não esperar, use <strong>Publicar agora</strong>.
+          Chegada a hora marcada, a plataforma publica sozinha — sempre no horário de
+          Brasília. Se preferir não esperar, use <strong>Publicar agora</strong>.
         </p>
         {daSemana.length === 0
           ? <Vazio texto="Nenhuma peça marcada para esta semana." />
@@ -761,11 +791,14 @@ export function EtapaAgenda({
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
                       <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
-                      <strong className="shrink-0">
-                        {new Date(`${p.agendadoEm}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' })}
-                        {' '}
-                        {p.agendadoHora}
+                      <strong className="shrink-0" title={horaNoOutroRelogio(p, fuso)}>
+                        {fuso === FUSO_DA_PUBLICACAO
+                          ? `${new Date(`${p.agendadoEm}T00:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' })} ${p.agendadoHora || ''}`
+                          : horaNoRelogio(p, fuso)}
                       </strong>
+                      <span className="text-xs text-gray-500 shrink-0">
+                        {horaNoOutroRelogio(p, fuso)}
+                      </span>
                       <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
@@ -810,6 +843,88 @@ export function EtapaAgenda({
       </section>
     </div>
   );
+}
+
+/* ====================== Os dois relógios ====================== */
+
+const CHAVE_DO_FUSO = 'lbw_fuso_da_agenda';
+
+/**
+ * "Hoje" no fuso em que a peça é publicada.
+ *
+ * Um Date de exibição: os campos locais dele mostram a data do Brasil, para a
+ * conta de semana (que lê getDate/getDay) sair no calendário certo.
+ */
+function hojeNoBrasil(): Date {
+  return comoRelogioDe(new Date(), tzDe(FUSO_DA_PUBLICACAO));
+}
+
+/** O relógio escolhido da última vez. Cai no do Brasil, que é o da publicação. */
+function fusoGuardado(): IdFuso {
+  try {
+    const salvo = localStorage.getItem(CHAVE_DO_FUSO);
+    if (salvo === 'nz' || salvo === 'brasil') return salvo;
+  } catch {
+    // Navegador com armazenamento bloqueado: seguir com o padrão, sem quebrar.
+  }
+  return FUSO_DA_PUBLICACAO;
+}
+
+function guardarFuso(id: IdFuso): void {
+  try {
+    localStorage.setItem(CHAVE_DO_FUSO, id);
+  } catch {
+    // Preferência de exibição não é dado crítico: perder não custa nada.
+  }
+}
+
+/**
+ * Troca o relógio da leitura.
+ *
+ * NÃO muda nada no banco, e é por isso que ele existe assim: se o fuso escolhido
+ * mudasse o valor gravado, alternar a visão moveria todos os posts agendados de
+ * dia. O calendário continua sendo o do Brasil; isto só traduz para a cabeça de
+ * quem está na Nova Zelândia.
+ */
+function EscolherFuso({ fuso, aoTrocar }: { fuso: IdFuso; aoTrocar: (f: IdFuso) => void }) {
+  return (
+    <span className="inline-flex items-center rounded-lg border border-gray-300 overflow-hidden">
+      {FUSOS.map((f) => (
+        <button
+          key={f.id}
+          onClick={() => aoTrocar(f.id)}
+          title={`Mostrar as horas no fuso do ${f.nome}`}
+          className={`px-2.5 py-1 text-[11px] font-bold ${
+            fuso === f.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          {f.curto}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * A hora da peça no relógio escolhido.
+ *
+ * Quando o consultor está lendo em horário da Nova Zelândia, mostra a hora dele
+ * em destaque e o dia da semana junto — porque 19h de segunda no Brasil é terça
+ * de manhã lá, e sem o dia a hora sozinha engana.
+ */
+function horaNoRelogio(peca: Peca, fuso: IdFuso): string {
+  if (fuso === FUSO_DA_PUBLICACAO) return peca.agendadoHora || '';
+  return equivalenteEm(peca.agendadoEm, peca.agendadoHora, fuso) || (peca.agendadoHora || '');
+}
+
+/** A mesma hora no outro relógio, para ficar embaixo em letra menor. */
+function horaNoOutroRelogio(peca: Peca, fuso: IdFuso): string {
+  if (fuso === FUSO_DA_PUBLICACAO) {
+    const outro = FUSOS.find((f) => f.id !== FUSO_DA_PUBLICACAO)!;
+    const linha = equivalenteEm(peca.agendadoEm, peca.agendadoHora, outro.id);
+    return linha ? `${linha} ${outro.curto}` : '';
+  }
+  return peca.agendadoHora ? `${peca.agendadoHora} BR` : '';
 }
 
 /* ====================== A publicação ====================== */
