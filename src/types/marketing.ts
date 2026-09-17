@@ -370,6 +370,14 @@ export interface Campanha {
   id: string;
   consultorId: string;
   videoId: string;
+  /**
+   * O criativo de onde a campanha saiu. Já era gravado; faltava no tipo.
+   *
+   * É o ASSUNTO: um criativo gera duas campanhas (as peças de texto e o Reel),
+   * cinco peças no total. A etapa 5 agrupa a fila por aqui — agrupar por
+   * campanha partiria o conjunto em dois, e é como conjunto que ele é pensado.
+   */
+  criativoId?: string;
   titulo: string;
   objetivo: ObjetivoCampanha;
   status: StatusCampanha;

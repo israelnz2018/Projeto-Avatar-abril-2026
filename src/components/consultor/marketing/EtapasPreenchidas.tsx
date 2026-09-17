@@ -523,26 +523,68 @@ export function EtapaAgenda({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
+  // Os filtros. Vazio quer dizer TODOS — filtro que começa escondendo tudo faz
+  // o consultor achar que perdeu o trabalho.
+  const [redes, setRedes] = useState<Set<string>>(new Set());
+  const [situacoes, setSituacoes] = useState<Set<SituacaoPeca>>(new Set());
+  const [busca, setBusca] = useState('');
+  // Um vídeo longo rende dezenas de criativos, e cada criativo rende cinco peças.
+  // Em calendário isso é ilegível; a lista é onde se enxerga volume.
+  const [modo, setModo] = useState<'calendario' | 'lista'>('calendario');
+  const [assuntoAberto, setAssuntoAberto] = useState<string | null>(null);
+
   const dias = diasDaSemana(inicio);
   // "Hoje" era o dia do NAVEGADOR — ou seja, o da Nova Zelândia. Passava boa parte
   // do dia marcando de azul um dia que no Brasil ainda não havia começado.
   const hoje = diaISO(hojeNoBrasil());
 
+  const tituloDe = (p: Peca) => campanhas.find((c) => c.id === p.campanhaId)?.titulo || '';
+
+  /**
+   * O ASSUNTO de uma peça é o criativo de onde ela saiu.
+   *
+   * Um criativo gera duas campanhas (as peças de texto e o Reel) e cinco peças no
+   * total. Agrupar por campanha partiria o conjunto em dois; por criativo, as
+   * cinco ficam juntas — que é como o consultor pensa nelas.
+   */
+  const assuntoDe = (p: Peca) => {
+    const campanha = campanhas.find((c) => c.id === p.campanhaId);
+    return campanha?.criativoId || p.campanhaId;
+  };
+
   // Só peça aprovada entra no calendário: marcar a publicação de algo que ainda
   // está em revisão seria agendar uma peça que ainda pode mudar.
   const aprovadas = pecas.filter((p) => p.status === 'aprovado' || p.status === 'publicado');
-  // Uma peça já publicada não volta para a fila só porque foi enviada imediatamente,
-  // sem passar pelo calendário. Ela continua no histórico, mas não é algo pendente.
-  const naFila = aprovadas.filter((p) => p.status === 'aprovado' && !p.agendadoEm);
-  const agendadas = aprovadas.filter((p) => p.agendadoEm);
+
+  const termo = busca.trim().toLowerCase();
+  const combina = (p: Peca) => {
+    if (redes.size && !redes.has(redeDoTipo(p.tipo))) return false;
+    if (situacoes.size && !situacoes.has(situacaoDaPeca(p))) return false;
+    if (termo && !`${nomePeca(p.tipo)} ${tituloDe(p)}`.toLowerCase().includes(termo)) return false;
+    return true;
+  };
+
+  const visiveis = aprovadas.filter(combina);
+  const naFila = visiveis.filter((p) => situacaoDaPeca(p) === 'fila');
+  // Peça com data continua no calendário mesmo se falhou — é no dia dela que o
+  // consultor vai procurar para entender o que aconteceu.
+  const agendadas = visiveis.filter((p) => p.agendadoEm);
 
   // O histórico. Responde "o que já foi publicado e o que ainda falta" sem
   // obrigar o consultor a caçar peça por peça no calendário.
-  const publicadas = aprovadas
+  const publicadas = visiveis
     .filter((p) => jaPublicada(p))
     .sort((a, b) => quandoPublicou(b).localeCompare(quandoPublicou(a)));
 
-  const tituloDe = (p: Peca) => campanhas.find((c) => c.id === p.campanhaId)?.titulo || '';
+  const assuntosNaFila = agruparPorAssunto(naFila, assuntoDe, tituloDe);
+  const filtrando = redes.size > 0 || situacoes.size > 0 || termo.length > 0;
+
+  function alternar<T>(conjunto: Set<T>, valor: T, definir: (s: Set<T>) => void) {
+    const novo = new Set(conjunto);
+    if (novo.has(valor)) novo.delete(valor);
+    else novo.add(valor);
+    definir(novo);
+  }
 
   async function escrever(pecaId: string, dados: Record<string, unknown>) {
     setSalvando(true);
@@ -604,33 +646,136 @@ export function EtapaAgenda({
 
   return (
     <div className="space-y-4">
-      {/* ── A fila: o que está aprovado e ainda não tem dia ── */}
+      {/* ── Resumo e filtros: a porta de entrada da etapa ── */}
+      <section className="p-4 rounded-lg border border-gray-200 bg-white space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <Contagem numero={aprovadas.filter((p) => situacaoDaPeca(p) === 'fila').length} rotulo="na fila" />
+            <Contagem numero={aprovadas.filter((p) => situacaoDaPeca(p) === 'agendada').length} rotulo="agendadas" />
+            <Contagem numero={aprovadas.filter((p) => jaPublicada(p)).length} rotulo="publicadas" cor="text-green-700" />
+            {aprovadas.some((p) => situacaoDaPeca(p) === 'falhou') && (
+              <Contagem
+                numero={aprovadas.filter((p) => situacaoDaPeca(p) === 'falhou').length}
+                rotulo="não saíram"
+                cor="text-red-700"
+              />
+            )}
+          </div>
+          <span className="flex items-center gap-2">
+            {salvando && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+            <span className="inline-flex items-center rounded-lg border border-gray-300 overflow-hidden">
+              {([['calendario', 'Calendário'], ['lista', 'Lista']] as const).map(([id, nome]) => (
+                <button
+                  key={id}
+                  onClick={() => setModo(id)}
+                  className={`px-3 py-1 text-[11px] font-bold ${
+                    modo === id ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {nome}
+                </button>
+              ))}
+            </span>
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {REDES.map((r) => (
+            <Chip key={r.id} ativo={redes.has(r.id)} onClick={() => alternar(redes, r.id, setRedes)}>
+              {r.nome}
+            </Chip>
+          ))}
+          <span className="w-px h-5 bg-gray-200" />
+          {SITUACOES.map((s) => (
+            <Chip
+              key={s.id}
+              ativo={situacoes.has(s.id)}
+              onClick={() => alternar(situacoes, s.id, setSituacoes)}
+            >
+              {s.nome}
+            </Chip>
+          ))}
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por assunto…"
+            className="flex-1 min-w-[160px] px-2.5 py-1 rounded-lg border border-gray-300 text-xs"
+          />
+          {filtrando && (
+            <button
+              onClick={() => { setRedes(new Set()); setSituacoes(new Set()); setBusca(''); }}
+              className="text-[11px] font-bold text-blue-700 hover:underline"
+            >
+              limpar
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* ── A fila, agrupada por assunto ── */}
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <div className="flex items-center justify-between gap-3 mb-1">
           <h3 className="text-sm font-bold text-gray-900">
             Aprovadas, sem dia marcado ({naFila.length})
           </h3>
-          {salvando && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
         </div>
         <p className="text-xs text-gray-600 mb-3">
-          Arraste uma peça para o dia — ou clique nela e depois no dia.
+          Cada linha é um assunto, com as peças que saíram dele. Abra o assunto e
+          arraste a peça para o dia — ou clique nela e depois no dia.
         </p>
         {naFila.length === 0
-          ? <Vazio texto="Nada esperando. Tudo que você aprovou já tem dia." />
+          ? (
+            <Vazio texto={filtrando
+              ? 'Nenhuma peça na fila com estes filtros.'
+              : 'Nada esperando. Tudo que você aprovou já tem dia.'}
+            />
+          )
           : (
-            <div className="flex flex-wrap gap-2">
-              {naFila.map((p) => (
-                <button
-                  key={p.id}
-                  draggable
-                  onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
-                  onClick={() => setSelecionada(selecionada === p.id ? null : p.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}${selecionada === p.id ? ' ring-2 ring-offset-1 ring-blue-500' : ''}`}
-                >
-                  {iconePeca(p.tipo)}
-                  <span className="max-w-[220px] truncate">{nomePeca(p.tipo)} · {tituloDe(p)}</span>
-                </button>
-              ))}
+            <div className="space-y-1.5">
+              {assuntosNaFila.map((grupo) => {
+                const aberto = assuntoAberto === grupo.chave || assuntosNaFila.length === 1;
+                return (
+                  <div key={grupo.chave} className="rounded-lg border border-gray-200">
+                    <button
+                      onClick={() => setAssuntoAberto(aberto ? null : grupo.chave)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="text-gray-400 text-xs shrink-0">{aberto ? '▾' : '▸'}</span>
+                        <span className="text-sm font-semibold text-gray-900 truncate">{grupo.titulo}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {/* As bolinhas dizem quais dos cinco formatos ainda faltam
+                            colocar no calendário, sem precisar abrir o assunto. */}
+                        {grupo.pecas.map((p) => (
+                          <span
+                            key={p.id}
+                            title={nomePeca(p.tipo)}
+                            className={`w-2.5 h-2.5 rounded-sm ${CORES_PECA[p.tipo].ponto}`}
+                          />
+                        ))}
+                        <span className="text-xs font-bold text-gray-500 ml-1">{grupo.pecas.length}</span>
+                      </span>
+                    </button>
+                    {aberto && (
+                      <div className="flex flex-wrap gap-2 px-3 pb-3">
+                        {grupo.pecas.map((p) => (
+                          <button
+                            key={p.id}
+                            draggable
+                            onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                            onClick={() => setSelecionada(selecionada === p.id ? null : p.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}${selecionada === p.id ? ' ring-2 ring-offset-1 ring-blue-500' : ''}`}
+                          >
+                            {iconePeca(p.tipo)}
+                            <span className="max-w-[200px] truncate">{nomePeca(p.tipo)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         {selecionada && (
@@ -641,6 +786,7 @@ export function EtapaAgenda({
       </section>
 
       {/* ── A semana ── */}
+      {modo === 'calendario' && (
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5">
@@ -774,8 +920,20 @@ export function EtapaAgenda({
 
         {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
       </section>
+      )}
+
+      {/* ── Modo lista: onde volume se enxerga ── */}
+      {modo === 'lista' && (
+        <ListaDePecas
+          pecas={visiveis}
+          fuso={fuso}
+          tituloDe={tituloDe}
+          onMudou={onMudou}
+        />
+      )}
 
       {/* ── A semana em lista, com o arquivo de cada peça ── */}
+      {modo === 'calendario' && (
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Nesta semana ({daSemana.length})</h3>
         <p className="text-xs text-gray-600 mb-3">
@@ -812,8 +970,10 @@ export function EtapaAgenda({
             </div>
           )}
       </section>
+      )}
 
       {/* ── O histórico: o que já foi ao ar, com o endereço do post ── */}
+      {modo === 'calendario' && (
       <section className="p-4 rounded-lg border border-gray-200 bg-white">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Já publicadas ({publicadas.length})</h3>
         <p className="text-xs text-gray-600 mb-3">
@@ -841,7 +1001,97 @@ export function EtapaAgenda({
             </div>
           )}
       </section>
+      )}
     </div>
+  );
+}
+
+/** Um número e o que ele conta. O resumo do topo da etapa. */
+function Contagem({ numero, rotulo, cor = 'text-gray-900' }: { numero: number; rotulo: string; cor?: string }) {
+  return (
+    <span className="flex items-baseline gap-1">
+      <strong className={`text-lg font-bold ${cor}`}>{numero}</strong>
+      <span className="text-xs text-gray-600">{rotulo}</span>
+    </span>
+  );
+}
+
+/**
+ * Todas as peças em lista, ordenadas por data.
+ *
+ * O calendário é bom para equilibrar uma semana e ruim para encarar volume: um
+ * vídeo de uma hora rende dezenas de criativos, e cinco peças cada. A lista
+ * mostra cem linhas sem esforço, e é onde se procura uma peça específica.
+ *
+ * Mostra 30 por vez. O resto aparece com "ver mais" em vez de rolagem infinita,
+ * que faz perder o lugar quando a tela recarrega sozinha.
+ */
+function ListaDePecas({
+  pecas, fuso, tituloDe, onMudou,
+}: {
+  pecas: Peca[];
+  fuso: IdFuso;
+  tituloDe: (p: Peca) => string;
+  onMudou?: () => void;
+}) {
+  const [quantas, setQuantas] = useState(30);
+
+  // Sem data primeiro — é o que espera decisão. Depois por data, da mais
+  // próxima para a mais distante.
+  const ordenadas = [...pecas].sort((a, b) => {
+    const chave = (p: Peca) => (p.agendadoEm ? `1${p.agendadoEm}${p.agendadoHora || ''}` : '0');
+    return chave(a).localeCompare(chave(b));
+  });
+
+  if (!ordenadas.length) {
+    return (
+      <section className="p-4 rounded-lg border border-gray-200 bg-white">
+        <Vazio texto="Nenhuma peça com estes filtros." />
+      </section>
+    );
+  }
+
+  return (
+    <section className="p-4 rounded-lg border border-gray-200 bg-white">
+      <h3 className="text-sm font-bold text-gray-900 mb-3">
+        Todas as peças ({ordenadas.length})
+      </h3>
+      <div className="space-y-1.5">
+        {ordenadas.slice(0, quantas).map((p) => (
+          <div key={p.id} className="p-2.5 rounded-lg border border-gray-200 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
+                <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
+                <strong className="shrink-0 w-24 text-xs">
+                  {p.agendadoEm
+                    ? (fuso === FUSO_DA_PUBLICACAO
+                      ? `${dataCurta(p.agendadoEm)} ${p.agendadoHora || ''}`
+                      : horaNoRelogio(p, fuso))
+                    : <span className="text-gray-400">sem dia</span>}
+                </strong>
+                <span className="text-[11px] font-semibold text-gray-500 shrink-0 w-28 truncate">
+                  {nomePeca(p.tipo)}
+                </span>
+                <span className="truncate">{tituloDe(p)}</span>
+              </span>
+              <span className="flex items-center gap-2 shrink-0">
+                <EstadoDaPublicacao peca={p} />
+                <LinkDoArquivo caminho={p.arquivoUrl} />
+              </span>
+            </div>
+            {p.agendadoEm && <AcoesDePublicacao peca={p} onMudou={onMudou} />}
+          </div>
+        ))}
+      </div>
+      {ordenadas.length > quantas && (
+        <button
+          onClick={() => setQuantas((q) => q + 30)}
+          className="mt-3 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+        >
+          Ver mais {Math.min(30, ordenadas.length - quantas)} de {ordenadas.length - quantas}
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -925,6 +1175,87 @@ function horaNoOutroRelogio(peca: Peca, fuso: IdFuso): string {
     return linha ? `${linha} ${outro.curto}` : '';
   }
   return peca.agendadoHora ? `${peca.agendadoHora} BR` : '';
+}
+
+/* ====================== Filtros e situação ====================== */
+
+/**
+ * Junta as peças por assunto.
+ *
+ * É o que impede a fila de virar um paredão: um vídeo de uma hora rende dezenas
+ * de criativos, cada um com cinco peças. Cem peças soltas são ilegíveis; vinte
+ * assuntos com cinco peças dentro, não.
+ */
+export function agruparPorAssunto(
+  pecas: Peca[],
+  chaveDe: (p: Peca) => string,
+  tituloDe: (p: Peca) => string,
+): { chave: string; titulo: string; pecas: Peca[] }[] {
+  const grupos = new Map<string, { chave: string; titulo: string; pecas: Peca[] }>();
+  for (const peca of pecas) {
+    const chave = chaveDe(peca);
+    if (!grupos.has(chave)) grupos.set(chave, { chave, titulo: tituloDe(peca) || 'Sem título', pecas: [] });
+    grupos.get(chave)!.pecas.push(peca);
+  }
+  return [...grupos.values()].sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'));
+}
+
+/**
+ * Em que pé a peça está, numa palavra.
+ *
+ * Existe porque a informação estava espalhada em três campos (`status`,
+ * `publicacao.status` e `agendadoEm`) e cada trecho da tela combinava do seu
+ * jeito. Com 100 peças na mão, filtrar exige um nome só por situação.
+ */
+export type SituacaoPeca = 'fila' | 'agendada' | 'publicando' | 'publicada' | 'falhou';
+
+export function situacaoDaPeca(peca: Peca): SituacaoPeca {
+  if (jaPublicada(peca)) return 'publicada';
+  if (peca.publicacao?.status === 'publicando') return 'publicando';
+  if (peca.publicacao?.status === 'falhou') return 'falhou';
+  return peca.agendadoEm ? 'agendada' : 'fila';
+}
+
+export const SITUACOES: { id: SituacaoPeca; nome: string }[] = [
+  { id: 'fila', nome: 'Na fila' },
+  { id: 'agendada', nome: 'Agendadas' },
+  { id: 'publicada', nome: 'Publicadas' },
+  { id: 'falhou', nome: 'Não saíram' },
+];
+
+/** Em que rede a peça é publicada. Espelha REDE_DA_PECA do worker. */
+export function redeDoTipo(tipo: TipoPeca): 'instagram' | 'linkedin' {
+  return tipo.startsWith('linkedin') ? 'linkedin' : 'instagram';
+}
+
+export const REDES: { id: 'instagram' | 'linkedin'; nome: string }[] = [
+  { id: 'instagram', nome: 'Instagram' },
+  { id: 'linkedin', nome: 'LinkedIn' },
+];
+
+/**
+ * Botão de filtro que liga e desliga.
+ *
+ * Nenhum selecionado significa "todos" — e não "nenhum". Filtro que começa
+ * vazio e esconde tudo faz o consultor achar que perdeu o trabalho.
+ */
+function Chip({
+  ativo, onClick, children,
+}: {
+  ativo: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${
+        ativo
+          ? 'bg-blue-600 border-blue-600 text-white'
+          : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 /* ====================== A publicação ====================== */
