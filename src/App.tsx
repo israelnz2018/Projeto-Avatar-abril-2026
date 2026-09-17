@@ -38,7 +38,7 @@ import { cn } from './lib/utils';
 
 // Imports eager: rotas iniciais críticas (sempre aparecem rápido) + UserProfile
 // (tem export nominal `getUserProfile` usado em 4 outros arquivos)
-import UserProfile, { getUserProfile } from './components/UserProfile';
+import UserProfile, { getUserProfile, sincronizarPerfilLocal } from './components/UserProfile';
 import JornadaPrincipal from './components/JornadaPrincipal';
 
 // Code splitting: rotas secundárias e telas admin viram chunks separados —
@@ -162,6 +162,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
     return onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
       const dados = snapshot.data() || {};
       setPerfilMenu({ nome: String(dados.nome || ''), fotoUrl: String(dados.fotoUrl || '') });
+      // A cópia do perfil no navegador segue a nuvem: é dela que sai o nome na capa
+      // do PowerPoint e a empresa e o cargo nos relatórios. Ver sincronizarPerfilLocal.
+      sincronizarPerfilLocal(dados);
     }, () => setPerfilMenu({}));
   }, [user?.uid]);
 

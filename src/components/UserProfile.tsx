@@ -62,6 +62,37 @@ export const saveUserProfile = (profile: UserProfileData): void => {
   gravarPerfilLocal(localStorage, auth.currentUser?.uid, profile);
 };
 
+/**
+ * Faz o perfil do navegador seguir o que está na NUVEM.
+ *
+ * A nuvem (users/{uid}) é a fonte da verdade; a cópia no navegador existe para as
+ * outras telas lerem rápido — é dela que sai o nome na capa do PowerPoint e a
+ * empresa e o cargo nos relatórios. Sem isto, trocar de máquina (ou de navegador)
+ * deixava essa cópia vazia: o consultor tinha o perfil salvo e os documentos saíam
+ * sem empresa e sem cargo até ele abrir a tela de perfil e salvar de novo.
+ *
+ * Chamado pelo ouvinte de `users/{uid}` no App: salvar em qualquer lugar chega aqui
+ * sozinho, na mesma hora.
+ *
+ * Só sobrescreve o campo que a nuvem realmente tem: o que só existe no navegador
+ * (ainda não salvo) continua onde está.
+ */
+export function sincronizarPerfilLocal(dados: {
+  nome?: unknown; empresaPerfil?: unknown; cargo?: unknown; fotoUrl?: unknown;
+}): void {
+  const usuario = auth.currentUser;
+  if (!usuario) return;
+  const atual = getUserProfile();
+  saveUserProfile({
+    ...atual,
+    name: String(dados.nome || atual.name || ''),
+    company: String(dados.empresaPerfil || atual.company || ''),
+    role: String(dados.cargo || atual.role || ''),
+    photoUrl: String(dados.fotoUrl || atual.photoUrl || ''),
+    email: usuario.email || atual.email || '',
+  });
+}
+
 export default function UserProfile({ onClose }: { onClose?: () => void }) {
   const { consultor, consultorId, refresh } = useConsultor();
   const { isConsultor } = useUserAccess();
