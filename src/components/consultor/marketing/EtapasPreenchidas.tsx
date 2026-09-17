@@ -15,7 +15,7 @@ import {
   ExternalLink, RotateCcw, Rocket,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
-import { diaISO, diasDaSemana, segundaDaSemana, somarDias } from '../../../lib/semana';
+import { diaISO, diasCorridos, segundaDaSemana, somarDias } from '../../../lib/semana';
 import {
   FUSOS, FUSO_DA_PUBLICACAO, IdFuso, comoRelogioDe, equivalenteEm, fusoPorId, tzDe,
 } from '../../../lib/fuso';
@@ -532,8 +532,11 @@ export function EtapaAgenda({
   // Em calendário isso é ilegível; a lista é onde se enxerga volume.
   const [modo, setModo] = useState<'calendario' | 'lista'>('calendario');
   const [assuntoAberto, setAssuntoAberto] = useState<string | null>(null);
+  // Quantas semanas à vista. Quatro (28 dias) é o padrão: o consultor planeja
+  // por mês, e uma semana só obrigava a navegar para ver o que vinha depois.
+  const [semanas, setSemanas] = useState(4);
 
-  const dias = diasDaSemana(inicio);
+  const dias = diasCorridos(inicio, semanas);
   // "Hoje" era o dia do NAVEGADOR — ou seja, o da Nova Zelândia. Passava boa parte
   // do dia marcando de azul um dia que no Brasil ainda não havia começado.
   const hoje = diaISO(hojeNoBrasil());
@@ -635,7 +638,7 @@ export function EtapaAgenda({
     if (peca) agendar(peca, dia);
   }
 
-  const fim = somarDias(inicio, 6);
+  const fim = somarDias(inicio, semanas * 7 - 1);
   const rotuloSemana = inicio.getMonth() === fim.getMonth()
     ? `${inicio.getDate()} a ${fim.getDate()} de ${inicio.toLocaleDateString('pt-BR', { month: 'long' })}`
     : `${inicio.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} a ${fim.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`;
@@ -769,6 +772,13 @@ export function EtapaAgenda({
                           >
                             {iconePeca(p.tipo)}
                             <span className="max-w-[200px] truncate">{nomePeca(p.tipo)}</span>
+                            {/* Reprise na fila precisa se identificar, senão parece
+                                peça nova e o consultor agenda o mesmo post duas vezes. */}
+                            {p.reprise && p.reprise > 1 && (
+                              <span className="px-1 rounded bg-white/70 text-[10px] font-bold">
+                                {p.reprise}ª
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -791,8 +801,8 @@ export function EtapaAgenda({
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setInicio(somarDias(inicio, -7))}
-              title="Semana anterior"
+              onClick={() => setInicio(somarDias(inicio, -7 * semanas))}
+              title="Período anterior"
               className="px-2.5 py-1 rounded border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50"
             >
               ‹
@@ -801,15 +811,31 @@ export function EtapaAgenda({
               onClick={() => setInicio(segundaDaSemana(hojeNoBrasil()))}
               className="px-2.5 py-1 rounded border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50"
             >
-              Esta semana
+              Hoje
             </button>
             <button
-              onClick={() => setInicio(somarDias(inicio, 7))}
-              title="Próxima semana"
+              onClick={() => setInicio(somarDias(inicio, 7 * semanas))}
+              title="Próximo período"
               className="px-2.5 py-1 rounded border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50"
             >
               ›
             </button>
+            {/* Quantas semanas de uma vez. Quatro é o mês à vista, na mesma
+                grade de sete colunas — só com mais linhas. */}
+            <span className="inline-flex items-center rounded-lg border border-gray-300 overflow-hidden ml-1">
+              {[1, 4].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setSemanas(n)}
+                  title={`Ver ${n * 7} dias`}
+                  className={`px-2.5 py-1 text-[11px] font-bold ${
+                    semanas === n ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {n * 7}d
+                </button>
+              ))}
+            </span>
           </div>
           <span className="text-sm font-bold text-gray-900 capitalize">{rotuloSemana}</span>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -836,27 +862,42 @@ export function EtapaAgenda({
             : ` Você está lendo as horas em ${fusoPorId(fuso).nome}; embaixo de cada peça está a hora real da publicação, no Brasil.`}
         </p>
 
+        {/* Com quatro linhas, repetir o dia da semana em cada célula é ruído.
+            O cabeçalho sai uma vez, em cima das colunas. */}
+        <div className="grid grid-cols-7 gap-1.5 mb-1">
+          {DIAS_DA_SEMANA.map((nome) => (
+            <span key={nome} className="text-[10px] font-bold uppercase text-gray-400 px-0.5">
+              {nome}
+            </span>
+          ))}
+        </div>
+
         <div className="grid grid-cols-7 gap-1.5">
-          {dias.map((d, i) => {
+          {dias.map((d) => {
             const chave = diaISO(d);
             const doDia = agendadas
               .filter((p) => p.agendadoEm === chave)
               .sort((a, b) => (a.agendadoHora || '').localeCompare(b.agendadoHora || ''));
             const ehHoje = chave === hoje;
+            // Primeiro dia do mês: mostra o mês junto, senão em 28 dias o
+            // consultor perde de vista onde a virada aconteceu.
+            const viradaDeMes = d.getDate() === 1;
             return (
               <div
                 key={chave}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={aoLargar(d)}
                 onClick={() => aoClicarNoDia(d)}
-                className={`min-h-[150px] rounded-lg border p-1.5 transition-colors ${
+                className={`${semanas === 1 ? 'min-h-[150px]' : 'min-h-[104px]'} rounded-lg border p-1.5 transition-colors ${
                   ehHoje ? 'border-blue-400 bg-blue-50/40 ' : 'border-gray-200 bg-gray-50/60 '
                 }${selecionada ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-300' : ''}`}
               >
-                <div className="flex items-baseline justify-between px-0.5 mb-1">
-                  <span className={`text-[10px] font-bold uppercase ${ehHoje ? 'text-blue-700' : 'text-gray-400'}`}>
-                    {DIAS_DA_SEMANA[i]}
-                  </span>
+                <div className="flex items-baseline justify-end gap-1 px-0.5 mb-1">
+                  {viradaDeMes && (
+                    <span className="text-[10px] font-bold uppercase text-gray-400 mr-auto">
+                      {d.toLocaleDateString('pt-BR', { month: 'short' })}
+                    </span>
+                  )}
                   <span className={`text-xs font-bold ${ehHoje ? 'text-blue-700' : 'text-gray-600'}`}>
                     {d.getDate()}
                   </span>
@@ -901,7 +942,21 @@ export function EtapaAgenda({
                             onChange={(e) => escrever(p.id, { agendadoHora: e.target.value })}
                             className="w-full px-1 py-0.5 rounded border border-gray-300 text-[11px]"
                           />
-                          {!jaPublicada(p) && <BotaoPublicarAgora peca={p} onMudou={onMudou} miudo />}
+                          {!jaPublicada(p) && !p.pausada && (
+                            <BotaoPublicarAgora peca={p} onMudou={onMudou} miudo />
+                          )}
+                          {!jaPublicada(p) && (
+                            <button
+                              onClick={() => escrever(p.id, { pausada: !p.pausada })}
+                              className={`w-full px-1 py-0.5 rounded border text-[10px] font-bold ${
+                                p.pausada
+                                  ? 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100'
+                                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {p.pausada ? 'Retomar' : 'Pausar'}
+                            </button>
+                          )}
                           <button
                             onClick={() => tirarDoCalendario(p)}
                             className="w-full px-1 py-0.5 rounded bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold hover:bg-red-100"
@@ -984,13 +1039,21 @@ export function EtapaAgenda({
           : (
             <div className="space-y-2">
               {publicadas.slice(0, 20).map((p) => (
-                <div key={p.id} className="p-2.5 rounded-lg border border-green-200 bg-green-50/40 flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
-                    <strong className="shrink-0">{dataCurta(quandoPublicou(p))}</strong>
-                    <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
-                  </span>
-                  <EstadoDaPublicacao peca={p} />
+                <div key={p.id} className="p-2.5 rounded-lg border border-green-200 bg-green-50/40 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-sm text-gray-800 min-w-0">
+                      <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
+                      <strong className="shrink-0">{dataCurta(quandoPublicou(p))}</strong>
+                      <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
+                      {p.reprise && p.reprise > 1 && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded bg-white border border-gray-300 text-[10px] font-bold text-gray-600">
+                          {p.reprise}ª vez
+                        </span>
+                      )}
+                    </span>
+                    <EstadoDaPublicacao peca={p} />
+                  </div>
+                  <AcoesDePublicacao peca={p} onMudou={onMudou} />
                 </div>
               ))}
               {publicadas.length > 20 && (
@@ -1073,13 +1136,18 @@ function ListaDePecas({
                   {nomePeca(p.tipo)}
                 </span>
                 <span className="truncate">{tituloDe(p)}</span>
+                {p.reprise && p.reprise > 1 && (
+                  <span className="shrink-0 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-[10px] font-bold text-gray-600">
+                    {p.reprise}ª vez
+                  </span>
+                )}
               </span>
               <span className="flex items-center gap-2 shrink-0">
                 <EstadoDaPublicacao peca={p} />
                 <LinkDoArquivo caminho={p.arquivoUrl} />
               </span>
             </div>
-            {p.agendadoEm && <AcoesDePublicacao peca={p} onMudou={onMudou} />}
+            <AcoesDePublicacao peca={p} onMudou={onMudou} />
           </div>
         ))}
       </div>
@@ -1207,11 +1275,14 @@ export function agruparPorAssunto(
  * `publicacao.status` e `agendadoEm`) e cada trecho da tela combinava do seu
  * jeito. Com 100 peças na mão, filtrar exige um nome só por situação.
  */
-export type SituacaoPeca = 'fila' | 'agendada' | 'publicando' | 'publicada' | 'falhou';
+export type SituacaoPeca = 'fila' | 'agendada' | 'pausada' | 'publicando' | 'publicada' | 'falhou';
 
 export function situacaoDaPeca(peca: Peca): SituacaoPeca {
   if (jaPublicada(peca)) return 'publicada';
   if (peca.publicacao?.status === 'publicando') return 'publicando';
+  // Pausada vem antes de 'falhou' de propósito: pausar uma peça que falhou é o
+  // jeito de dizer "para de tentar", e é isso que precisa aparecer na tela.
+  if (peca.pausada) return 'pausada';
   if (peca.publicacao?.status === 'falhou') return 'falhou';
   return peca.agendadoEm ? 'agendada' : 'fila';
 }
@@ -1219,9 +1290,27 @@ export function situacaoDaPeca(peca: Peca): SituacaoPeca {
 export const SITUACOES: { id: SituacaoPeca; nome: string }[] = [
   { id: 'fila', nome: 'Na fila' },
   { id: 'agendada', nome: 'Agendadas' },
+  { id: 'pausada', nome: 'Pausadas' },
   { id: 'publicada', nome: 'Publicadas' },
   { id: 'falhou', nome: 'Não saíram' },
 ];
+
+/**
+ * Quantas semanas o mercado recomenda esperar antes de repetir um conteúdo.
+ *
+ * A prática de reciclagem de conteúdo evergreen fala em 8 a 10 semanas. Aqui é
+ * AVISO, não trava: o consultor sabe quando um assunto voltou a ser notícia, e
+ * nada nesta plataforma é obrigatório.
+ */
+export const SEMANAS_ENTRE_REPRISES = 8;
+
+/** Há quantas semanas esta peça foi publicada. Null quando nunca foi. */
+export function semanasDesdePublicacao(peca: Peca): number | null {
+  const quando = peca.publicacao?.publicadoEm;
+  if (!quando) return null;
+  const ms = Date.now() - new Date(quando).getTime();
+  return Number.isNaN(ms) ? null : Math.floor(ms / (7 * 86400000));
+}
 
 /** Em que rede a peça é publicada. Espelha REDE_DA_PECA do worker. */
 export function redeDoTipo(tipo: TipoPeca): 'instagram' | 'linkedin' {
@@ -1320,6 +1409,18 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
     );
   }
 
+  if (peca.pausada) {
+    return (
+      <span
+        title="Continua no calendário, mas não vai ao ar até você retomar."
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 text-amber-800 text-xs font-bold shrink-0"
+      >
+        <Clock className="w-3.5 h-3.5" />
+        Pausada
+      </span>
+    );
+  }
+
   if (pub?.status === 'falhou') {
     return (
       <span
@@ -1348,7 +1449,17 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
  */
 function AcoesDePublicacao({ peca, onMudou }: { peca: Peca; onMudou?: () => void }) {
   const pub = peca.publicacao;
-  if (jaPublicada(peca) || pub?.status === 'publicando') return null;
+  if (pub?.status === 'publicando') return null;
+
+  // Peça que já saiu só oferece a reprise — publicar de novo por engano seria
+  // post repetido no perfil.
+  if (jaPublicada(peca)) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <BotaoRepublicar peca={peca} onMudou={onMudou} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -1358,11 +1469,173 @@ function AcoesDePublicacao({ peca, onMudou }: { peca: Peca; onMudou?: () => void
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <BotaoPublicarAgora peca={peca} onMudou={onMudou} />
-        <BotaoJaPubliquei peca={peca} onMudou={onMudou} />
+        {/* Pausada não mostra "Publicar agora": o consultor acabou de dizer que
+            não quer que ela vá. O caminho de volta é Retomar. */}
+        {!peca.pausada && <BotaoPublicarAgora peca={peca} onMudou={onMudou} />}
+        {peca.agendadoEm && <BotaoPausar peca={peca} onMudou={onMudou} />}
+        {!peca.pausada && <BotaoJaPubliquei peca={peca} onMudou={onMudou} />}
       </div>
     </div>
   );
+}
+
+/**
+ * Tira a peça do ar planejado sem tirá-la do calendário.
+ *
+ * "Tirar do calendário" perde o dia escolhido; pausar guarda. É a diferença
+ * entre "não quero mais nesta data" e "não agora, mas o plano continua".
+ */
+function BotaoPausar({ peca, onMudou }: { peca: Peca; onMudou?: () => void }) {
+  const [salvando, setSalvando] = useState(false);
+  const pausada = Boolean(peca.pausada);
+
+  async function alternar() {
+    setSalvando(true);
+    try {
+      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+        pausada: !pausada,
+        atualizadoEm: new Date().toISOString(),
+      });
+      onMudou?.();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={() => void alternar()}
+      disabled={salvando}
+      title={pausada
+        ? 'Volta a valer o dia e a hora marcados.'
+        : 'Mantém o dia no calendário, mas não publica até você retomar.'}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold disabled:opacity-50 ${
+        pausada
+          ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+      }`}
+    >
+      {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
+      {pausada ? 'Retomar' : 'Pausar'}
+    </button>
+  );
+}
+
+/**
+ * Põe de novo na fila um conteúdo que já foi ao ar.
+ *
+ * CLONA a peça em vez de reaproveitar a mesma: o post original mantém o próprio
+ * link e data, e o histórico continua contando a verdade. Os arquivos são os
+ * mesmos no Storage — nada é copiado, só apontado.
+ *
+ * O aviso das oito semanas é AVISO. A recomendação de reciclagem de conteúdo
+ * evergreen fala em 8 a 10 semanas, mas quem sabe se o assunto voltou a ser
+ * notícia é o consultor, e nada aqui é obrigatório.
+ */
+function BotaoRepublicar({ peca, onMudou }: { peca: Peca; onMudou?: () => void }) {
+  const [pedindo, setPedindo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  const semanas = semanasDesdePublicacao(peca);
+  const cedo = semanas !== null && semanas < SEMANAS_ENTRE_REPRISES;
+  const vez = (peca.reprise || 1) + 1;
+
+  async function republicar() {
+    setSalvando(true);
+    setErro('');
+    try {
+      const agora = new Date().toISOString();
+      const clone = {
+        consultorId: peca.consultorId,
+        campanhaId: peca.campanhaId,
+        tipo: peca.tipo,
+        status: 'aprovado',
+        versao: peca.versao || 1,
+        arquivoUrl: peca.arquivoUrl || null,
+        arquivos: peca.arquivos || [],
+        capaUrl: peca.capaUrl || null,
+        legenda: peca.legenda || null,
+        origem: peca.origem || 'gerada',
+        // Entra na fila SEM dia: a reprise precisa de um lugar novo no
+        // calendário, e reaproveitar o dia antigo a poria no passado.
+        reprise: vez,
+        repriseDe: peca.repriseDe || peca.id,
+        criadoEm: agora,
+      };
+      await addDoc(collection(db, COLECOES.pecas), semIndefinidos(clone));
+      setPedindo(false);
+      onMudou?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (!pedindo) {
+    return (
+      <div className="flex flex-col gap-1">
+        <button
+          onClick={() => setPedindo(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Republicar
+        </button>
+        {peca.reprise && peca.reprise > 1 && (
+          <span className="text-[11px] text-gray-500">já foi ao ar {peca.reprise}x</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-2">
+      {cedo
+        ? (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+            Esta peça saiu há <strong>{semanas === 0 ? 'menos de uma semana' : `${semanas} semana${semanas > 1 ? 's' : ''}`}</strong>.
+            A recomendação é esperar {SEMANAS_ENTRE_REPRISES} semanas antes de repetir um
+            conteúdo, e trocar a legenda para quem já viu não achar repetição.
+          </p>
+        )
+        : (
+          <p className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2">
+            Uma cópia entra na fila, sem dia marcado — você escolhe quando ela sai.
+            O post original continua no histórico, com o link dele.
+          </p>
+        )}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => void republicar()}
+          disabled={salvando}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold disabled:opacity-50 ${
+            cedo ? 'bg-amber-600 hover:bg-amber-700' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+          {cedo ? 'Republicar mesmo assim' : 'Pôr na fila'}
+        </button>
+        <button
+          onClick={() => setPedindo(false)}
+          className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50"
+        >
+          Cancelar
+        </button>
+      </div>
+      {erro && <p className="text-xs text-red-700">{erro}</p>}
+    </div>
+  );
+}
+
+/**
+ * Tira as chaves com valor indefinido antes de gravar.
+ * O Firestore recusa `undefined` e derruba a gravação inteira por causa de um
+ * campo opcional que a peça de origem não tinha.
+ */
+function semIndefinidos<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
 
 /**

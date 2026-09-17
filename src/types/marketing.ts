@@ -464,8 +464,28 @@ export interface Peca {
    */
   agendadoEm?: string;
   agendadoHora?: string;
+  /**
+   * Pausada: mantém o dia marcado, mas o relógio não publica.
+   *
+   * Serve para tirar uma peça do ar planejado sem perder o lugar dela no
+   * calendário — o que tirar do calendário faria. Foi o que o mLabs chama de
+   * "pausar", e resolve o caso de "não hoje, mas não quero remarcar tudo".
+   */
+  pausada?: boolean;
   /** Onde a peça foi parar na rede. Escrita pelo worker, lida pela tela. */
   publicacao?: PublicacaoDaPeca;
+  /**
+   * Reprise de conteúdo que já foi publicado.
+   *
+   * Republicar CLONA a peça em vez de reaproveitar a mesma: assim o post
+   * original mantém o próprio registro e link, e o histórico não é sobrescrito.
+   * Os arquivos são os mesmos do Storage — nada é copiado.
+   *
+   * `reprise` é a contagem (2 = segunda vez no ar), `repriseDe` aponta a peça
+   * de origem.
+   */
+  reprise?: number;
+  repriseDe?: string;
   /**
    * `enviada`: o consultor subiu a peça pronta, feita fora da plataforma.
    * Não tem Refazer — não há texto nem render de onde refazer.

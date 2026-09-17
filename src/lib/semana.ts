@@ -45,3 +45,15 @@ export function somarDias(d: Date, n: number): Date {
 export function diasDaSemana(inicio: Date): Date[] {
   return [0, 1, 2, 3, 4, 5, 6].map((i) => somarDias(inicio, i));
 }
+
+/**
+ * Vários dias corridos a partir de uma data, em blocos de sete.
+ *
+ * Quatro semanas (28 dias) cabem na mesma grade de sete colunas, só com mais
+ * linhas — é o mês inteiro à vista sem precisar de outro calendário, que era o
+ * caminho mais caro para o mesmo resultado.
+ */
+export function diasCorridos(inicio: Date, semanas: number): Date[] {
+  const total = Math.max(1, Math.round(semanas)) * 7;
+  return Array.from({ length: total }, (_, i) => somarDias(inicio, i));
+}
