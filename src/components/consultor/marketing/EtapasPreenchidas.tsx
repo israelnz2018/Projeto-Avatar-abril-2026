@@ -520,7 +520,9 @@ export function EtapaAgenda({
   // Só peça aprovada entra no calendário: marcar a publicação de algo que ainda
   // está em revisão seria agendar uma peça que ainda pode mudar.
   const aprovadas = pecas.filter((p) => p.status === 'aprovado' || p.status === 'publicado');
-  const naFila = aprovadas.filter((p) => !p.agendadoEm);
+  // Uma peça já publicada não volta para a fila só porque foi enviada imediatamente,
+  // sem passar pelo calendário. Ela continua no histórico, mas não é algo pendente.
+  const naFila = aprovadas.filter((p) => p.status === 'aprovado' && !p.agendadoEm);
   const agendadas = aprovadas.filter((p) => p.agendadoEm);
 
   const tituloDe = (p: Peca) => campanhas.find((c) => c.id === p.campanhaId)?.titulo || '';
