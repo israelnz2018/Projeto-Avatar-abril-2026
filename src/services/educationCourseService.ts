@@ -35,7 +35,9 @@ function stableEducationId(consultorId: string, name: string): string {
  */
 export async function getEducationCourses(consultorId = resolveConsultorId()): Promise<Initiative[]> {
   const [initiatives, videos] = await Promise.all([
-    getInitiatives(),
+    // Não volte a deduzir o tenant pelo endereço: no hub o usuário pode estar
+    // administrando a Mariana enquanto o hostname continua sendo app/israel.
+    getInitiatives(consultorId),
     getAllKnowledge(consultorId),
   ]);
 

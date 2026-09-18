@@ -328,9 +328,9 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       const [userDocs, blockedSnap, inits, catalogoEducacional, todasIniciativas] = await Promise.all([
         getUserDocsByConsultor(consultorId),
         getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
-        getCourses(),
+        getCourses(consultorId),
         getEducationCourses(consultorId),
-        getInitiatives(),
+        getInitiatives(consultorId),
       ]);
       const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);

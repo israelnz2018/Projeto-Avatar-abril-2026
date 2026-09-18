@@ -6,13 +6,12 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
 import { ChevronDown, Mail, Pencil, Plus, Users2, X } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
 import { empresaIdDireto } from '../../services/consultorService';
-import { isIntroCourse } from '../../services/knowledgeService';
+import { getEducationCourses } from '../../services/educationCourseService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 import MeusAlunos from './MeusAlunos';
 import CursosEditor, {
@@ -89,9 +88,11 @@ export default function MeusCoordenadores() {
     setLoading(true);
     setErro('');
     try {
-      const [userDocs, kbSnap] = await Promise.all([
+      const [userDocs, catalogoEducacional] = await Promise.all([
         getUserDocsByConsultor(consultorId),
-        getDocs(query(collection(db, 'knowledge_base'), where('consultorId', '==', consultorId))),
+        // Curso cadastrado aparece mesmo antes do primeiro vídeo. A Base de
+        // Conhecimento era um filtro acidental que escondia cursos novos.
+        getEducationCourses(consultorId),
       ]);
       const users = userDocs.map((d) => ({ uid: d.id, ...(d.data() as any) }));
       const coords = users.filter((u) => u.tipoUsuario === 'coordenador');
@@ -100,7 +101,9 @@ export default function MeusCoordenadores() {
       // Alunos antigos podem não ter empresaId; eles também pertencem ao grupo do consultor.
       const timeDireto = alunos.filter((a) => !a.empresaId || a.empresaId === direto);
 
-      const cursosAtuais = Array.from(new Set(kbSnap.docs.map((d) => ((d.data() as any).course || '').trim()).filter((course): course is string => Boolean(course && !isIntroCourse(course)))));
+      const cursosAtuais = Array.from(new Set(
+        catalogoEducacional.map((curso) => String(curso.name || '').trim()).filter(Boolean),
+      ));
       const linhasCoord: CoordRow[] = coords.map((c) => {
         const time = alunos.filter((a) => a.empresaId && a.empresaId === c.empresaId);
         const cursosAcesso = Array.isArray(c.cursosAcesso)
