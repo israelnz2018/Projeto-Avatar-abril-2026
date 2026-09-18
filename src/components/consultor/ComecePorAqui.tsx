@@ -343,8 +343,15 @@ export default function ComecePorAqui() {
               return videos.map((video, indice) => (
                 <div key={video?.id || `${grupo.id}-${indice}`} className="overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
                   <button type="button" disabled={!video} onClick={() => video && setVideoAberto(video)} className="group w-full text-left disabled:cursor-default">
-                    <div className="relative aspect-video overflow-hidden bg-slate-900">
-                      {video?.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="grid h-full place-items-center"><PlayCircle className="text-white/70" size={44} /></div>}
+                    <div className={`relative aspect-video overflow-hidden ${video ? 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100' : 'bg-slate-50'}`}>
+                      {video?.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : (
+                        <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
+                          <span className="grid h-12 w-12 place-items-center rounded-full border border-slate-300 bg-white/80 shadow-sm">
+                            <Video size={24} className="text-blue-600" />
+                          </span>
+                          <span className="text-center text-xs font-bold">{video ? 'Vídeo em preparação' : 'Vídeo será adicionado depois'}</span>
+                        </div>
+                      )}
                       {video && <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-0 transition group-hover:opacity-100"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><PlayCircle size={27} /></span></div>}
                     </div>
                     <div className="p-4"><h3 className="font-bold text-[14px] leading-tight text-gray-800">{video?.title || 'Vídeo ainda não cadastrado'}</h3><p className="mt-2 text-[11px] text-gray-500">{grupo.nome}</p></div>
