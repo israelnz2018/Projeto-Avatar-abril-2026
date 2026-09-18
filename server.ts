@@ -2615,10 +2615,25 @@ async function startServer() {
         };
         const tentativasMaximas = () => Math.ceil((limiteEmMinutos * 60) / 10);
         for (let attempt = 0; attempt < tentativasMaximas() && !mediaUrl; attempt++) {
+          // BUNNY PODE RECUSAR A CONSULTA DE STATUS (limite de requisições, rede)
+          // sem que isso tenha nada a ver com a codificação em si. Antes, uma
+          // consulta recusada virava silenciosamente "codificação em 0%" — o
+          // consultor via o vídeo preso em 0% para sempre, mesmo quando o Bunny já
+          // tinha terminado de codificar há muito tempo (foi o que aconteceu com a
+          // Mariana: o Bunny respondia 100% pronto quando consultado direto, mas o
+          // servidor nunca conseguia essa mesma resposta). Agora a mensagem distingue
+          // "Bunny disse que está em X%" de "não consegui nem perguntar ao Bunny".
           const infoResponse = await fetch(base, {
             headers: { AccessKey: lib.apiKey, Accept: "application/json" },
-          });
-          const info = infoResponse.ok ? await infoResponse.json() as any : null;
+          }).catch((e) => { throw new Error(`Falha de rede ao consultar o servidor de vídeo: ${e?.message || e}`); });
+          if (!infoResponse.ok) {
+            ultimoMotivo = `o servidor de vídeo recusou a consulta de status (HTTP ${infoResponse.status})`;
+            pipelineStatus.detalhe = ultimoMotivo;
+            if (attempt % 3 === 2) await salvarPipelineStatus().catch(() => {});
+            await new Promise((resolve) => setTimeout(resolve, 10_000));
+            continue;
+          }
+          const info = await infoResponse.json() as any;
           const encodeStatus = Number(info?.status ?? -1);
           limiteAjustado(Number(info?.length || 0));
           // 5 = falha no processamento, 6 = falha no upload. Não adianta esperar.
@@ -2877,8 +2892,18 @@ async function startServer() {
       let mediaUrl = "";
       let ultimoMotivo = "codificação ainda não concluída";
       for (let tentativa = 0; tentativa < 180 && !mediaUrl; tentativa++) {
-        const infoResponse = await fetch(base, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
-        const info = infoResponse.ok ? await infoResponse.json() as any : null;
+        // Ver o comentário irmão no outro loop de espera (vídeo de curso, mais
+        // acima): uma consulta de status recusada pelo Bunny não pode virar
+        // silenciosamente "codificação em 0%" — some das duas informações reais.
+        const infoResponse = await fetch(base, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } })
+          .catch((e) => { throw new Error(`Falha de rede ao consultar o servidor de vídeo: ${e?.message || e}`); });
+        if (!infoResponse.ok) {
+          ultimoMotivo = `o servidor de vídeo recusou a consulta de status (HTTP ${infoResponse.status})`;
+          if (tentativa % 6 === 5) await videoRef.update({ transcricaoIniciadaEm: new Date().toISOString() }).catch(() => {});
+          await new Promise((r) => setTimeout(r, 10_000));
+          continue;
+        }
+        const info = await infoResponse.json() as any;
         const encodeStatus = Number(info?.status ?? -1);
         // 5 = falha no processamento, 6 = falha no upload. Não adianta esperar.
         if (encodeStatus === 5 || encodeStatus === 6) {
