@@ -334,9 +334,17 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
                 </BotaoAcao>
               )
               : (
-                <BotaoAcao onClick={() => mudarStatus('aprovado')} disabled={ocupado} titulo="Aprovar" cor="verde">
-                  <Check className="w-4 h-4" />
-                </BotaoAcao>
+                <button
+                  onClick={() => mudarStatus('aprovado')}
+                  disabled={ocupado}
+                  title="Aprovar a copy e gerar as peças"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold shadow-sm hover:bg-green-700 hover:shadow disabled:opacity-50 disabled:cursor-wait transition"
+                >
+                  {ocupado
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Check className="w-4 h-4" />}
+                  Aprovar e gerar
+                </button>
               )}
             <BotaoAcao onClick={abrirRevisao} disabled={ocupado} titulo="Revisar — apara o começo e o fim">
               <Pencil className="w-4 h-4" />
