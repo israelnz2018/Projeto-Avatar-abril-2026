@@ -3918,6 +3918,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         video.serie ? curto(String(video.serie).toUpperCase()) : video.titulo ? curto(String(video.titulo).toUpperCase()) : "",
       ].filter(Boolean);
       const agora = new Date().toISOString();
+      const geracaoId = `${agora}-${Math.random().toString(36).slice(2, 8)}`;
       const render: any = {
         date: agora.slice(0, 10),
         slug: criativoId.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60),
@@ -3931,11 +3932,13 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       await campanhaRef.set({
         id: campanhaId, consultorId: criativo.consultorId || consultorId, videoId: criativo.videoId,
         criativoId, titulo: criativo.titulo, objetivo: "autoridade", status: "processando",
+        geracaoId,
         pecasEsperadas: 5, reelEsperado: true,
         segundosPorSlide: 5, roteiro: slides, roteiroGeradoEm: agora, criadoEm: agora,
       }, { merge: true });
       await dbAdmin.collection("marketing_tarefas").add({
         consultorId: criativo.consultorId || consultorId, campanhaId, criativoId,
+        geracaoId,
         tipo: "gerar-campanha", status: "pendente", tentativas: 0, render,
         criadoEm: agora, criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -3946,7 +3949,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       try {
         const reelResp = await fetch(`${origem}/api/marketing-consultor/gerar-reel`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-          body: JSON.stringify({ criativoId, velocidade: 1, usarTituloCriativo: true }),
+          body: JSON.stringify({ criativoId, velocidade: 1, geracaoId, usarTituloCriativo: true }),
         });
         reel = reelResp.ok ? "na-fila" : "indisponivel";
       } catch { reel = "indisponivel"; }
@@ -3954,6 +3957,93 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     } catch (error: any) {
       console.error("[/api/marketing-consultor/gerar-tudo-aprovado] erro:", error);
       return res.status(500).json({ error: String(error?.message || "NÃ£o foi possÃ­vel iniciar a produÃ§Ã£o.").slice(0, 500) });
+    }
+  });
+
+  // POST /api/marketing-consultor/limpar-pecas — desfazer a aprovação devolve a
+  // copy para o início e remove tudo o que foi produzido a partir dela. O vídeo de
+  // origem e o documento da copy ficam intactos para uma nova aprovação limpa.
+  app.post("/api/marketing-consultor/limpar-pecas", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+    const criativoId = String(req.body?.criativoId || "").trim();
+    if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
+
+    try {
+      const dbAdmin = adminFirestore();
+      const criativoRef = dbAdmin.collection("marketing_criativos").doc(criativoId);
+      const criativoSnap = await criativoRef.get();
+      if (!criativoSnap.exists) return res.status(404).json({ error: "Criativo não encontrado." });
+      const criativo = criativoSnap.data() as any;
+      if (!isAdmin && String(criativo.consultorId || "") !== consultorId) {
+        return res.status(403).json({ error: "Criativo não pertence a este consultor." });
+      }
+
+      const dono = String(criativo.consultorId || consultorId);
+      const campanhaIds = [`${criativoId}__pecas`, `${criativoId}__reel`];
+      const [pecasSnap, tarefasSnap] = await Promise.all([
+        dbAdmin.collection("marketing_pecas").where("campanhaId", "in", campanhaIds).get(),
+        dbAdmin.collection("marketing_tarefas").where("campanhaId", "in", campanhaIds).get(),
+      ]);
+
+      const docsParaApagar = [
+        ...pecasSnap.docs.map((d) => d.ref),
+        ...campanhaIds.map((id) => dbAdmin.collection("marketing_campanhas").doc(id)),
+        ...tarefasSnap.docs
+          .filter((d) => String(d.data()?.status || "") !== "executando")
+          .map((d) => d.ref),
+      ];
+      for (let i = 0; i < docsParaApagar.length; i += 450) {
+        const batch = dbAdmin.batch();
+        docsParaApagar.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+
+      // Uma tarefa já em execução não pode ser interrompida pelo Firestore. Ela fica
+      // marcada para não voltar à fila; a remoção dos arquivos abaixo limpa qualquer
+      // resultado que já tenha subido.
+      const executando = tarefasSnap.docs.filter((d) => String(d.data()?.status || "") === "executando");
+      for (let i = 0; i < executando.length; i += 450) {
+        const batch = dbAdmin.batch();
+        executando.slice(i, i + 450).forEach((d) => batch.update(d.ref, {
+          status: "cancelada",
+          canceladaEm: new Date().toISOString(),
+        }));
+        await batch.commit();
+      }
+
+      let arquivosApagados = 0;
+      const bucket = admin.storage().bucket(BUCKET_MARKETING);
+      for (const campanhaId of campanhaIds) {
+        const [arquivos] = await bucket.getFiles({ prefix: `marketing/${dono}/${campanhaId}/` });
+        const resultados = await Promise.allSettled(arquivos.map((arquivo) => arquivo.delete()));
+        arquivosApagados += resultados.filter((resultado) => resultado.status === "fulfilled").length;
+      }
+
+      return res.json({
+        ok: true,
+        pecasApagadas: pecasSnap.size,
+        campanhasApagadas: campanhaIds.length,
+        tarefasApagadas: tarefasSnap.docs.length - executando.length,
+        tarefasCanceladas: executando.length,
+        arquivosApagados,
+      });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/limpar-pecas] erro:", error);
+      return res.status(500).json({ error: String(error?.message || "Não foi possível limpar as peças.").slice(0, 500) });
     }
   });
 
@@ -4165,6 +4255,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         usarTituloCriativo: req.body?.usarTituloCriativo === true,
       });
       const agora = new Date().toISOString();
+      const geracaoId = String(req.body?.geracaoId || `${agora}-${Math.random().toString(36).slice(2, 8)}`);
       const campanhaId = `${criativoId}__reel`;
 
       await adminFirestore().collection("marketing_campanhas").doc(campanhaId).set({
@@ -4176,6 +4267,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         objetivo: "autoridade",
         status: "processando",
         velocidade,
+        geracaoId,
         criadoEm: agora,
       }, { merge: true });
 
@@ -4183,6 +4275,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         consultorId: dono || consultorId,
         campanhaId,
         criativoId,
+        geracaoId,
         tipo: "gerar-reel",
         status: "pendente",
         tentativas: 0,

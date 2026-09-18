@@ -212,6 +212,22 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
   async function mudarStatus(status: Criativo['status']) {
     setOcupado(true);
     try {
+      if (status === 'novo') {
+        const user = auth.currentUser;
+        const resposta = await fetch('/api/marketing-consultor/limpar-pecas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${user ? await user.getIdToken() : ''}`,
+          },
+          body: JSON.stringify({ criativoId: criativo.id }),
+        });
+        const corpo = await resposta.json().catch(() => ({}));
+        if (!resposta.ok) {
+          setErroSalvar(corpo.error || 'Não foi possível limpar as peças geradas. A aprovação não foi desfeita.');
+          return;
+        }
+      }
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
         status,
         atualizadoEm: new Date().toISOString(),
