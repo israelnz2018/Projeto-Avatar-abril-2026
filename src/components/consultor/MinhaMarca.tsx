@@ -286,26 +286,23 @@ function FundoUpload({
           isPowerPoint
             ? (
               <div className="relative w-full h-full bg-slate-100">
-                {/* Ordem: imagem reconstruída do PPTX → prévia criada no upload →
-                    visualizador do Office. Assim um thumbnail branco do Google Slides
-                    nunca esconde o modelo verdadeiro. */}
-                {imagemPrevia ? (
-                  <img src={imagemPrevia} alt={`Prévia: ${rotulo}`} className="w-full h-full object-contain bg-white" />
-                ) : urlOfficeEmbed ? (
+                {/* O desenho local do PPTX é apenas aproximado: fontes, rotações e
+                    alguns grupos podem sair do lugar. Depois que o modelo está salvo,
+                    o Office renderiza o slide fielmente e por isso tem prioridade. */}
+                {urlOfficeEmbed ? (
                   <iframe
                     title={`Prévia do PowerPoint: ${rotulo}`}
                     src={urlOfficeEmbed}
                     className="w-full h-full border-0 pointer-events-none"
                     loading="lazy"
                   />
+                ) : imagemPrevia ? (
+                  <img src={imagemPrevia} alt={`Prévia: ${rotulo}`} className="w-full h-full object-contain bg-white" />
                 ) : (
                   <div className="w-full h-full grid place-items-center px-3 text-center text-[11px] font-bold text-gray-400">
                     Envie o arquivo de novo pra gerar a prévia
                   </div>
                 )}
-                <div className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-center text-[10px] font-bold text-white">
-                  Prévia do PowerPoint
-                </div>
               </div>
             )
             : <img src={url} alt={rotulo} className="w-full h-full object-cover" />
