@@ -79,17 +79,29 @@ const LEGACY_CONSULTOR_ONBOARDING_STEPS = [
   { id: 'termos-gerais', playlist: '11. Termos de contrato e considerações gerais' },
 ] as const;
 
+/**
+ * As 14 etapas atuais \u2014 refeitas em 18/09/2026 para acompanhar os 12 v\u00eddeos que
+ * o Israel gravou, casando 1:1 com os itens reais do menu do consultor de hoje
+ * (Meu perfil, Meus Cursos, Projetos/Fases/Ferramentas, Modelo de PPT etc. \u2014 ver
+ * a lista de navega\u00e7\u00e3o em App.tsx). Duas etapas ficam sem v\u00eddeo por enquanto,
+ * ainda sendo gravadas: a 1 (boas-vindas) e a 2 (como o aluno v\u00ea a plataforma).
+ */
 export const CONSULTOR_ONBOARDING_STEPS = [
   { id: 'boas-vindas', playlist: '1. Boas-vindas ao Programa de Consultores LBW' },
-  { id: 'experiencia-aluno', playlist: '2. Conhe\u00e7a a plataforma como aluno' },
-  { id: 'cursos', playlist: '3. Como cadastrar os seus cursos' },
-  { id: 'projetos', playlist: '4. Como criar seus projetos por curso' },
-  { id: 'avaliacao-certificado', playlist: '5. Como configurar a avalia\u00e7\u00e3o dos alunos e o certificado' },
-  { id: 'clientes-alunos', playlist: '6. Como cadastrar clientes (empresas) e seus pr\u00f3prios alunos' },
-  { id: 'comunicacao', playlist: '7. Como se comunicar com seus clientes e com outros consultores' },
-  { id: 'marca', playlist: '8. Como configurar sua marca' },
-  { id: 'melhorar-plataforma', playlist: '9. Como ajudar a melhorar a plataforma' },
-  { id: 'termos-gerais', playlist: '10. Termos de contrato e considera\u00e7\u00f5es gerais' },
+  // Sem v\u00eddeo por enquanto: o Israel ainda vai gravar o de "como o aluno v\u00ea".
+  { id: 'experiencia-aluno', playlist: '2. Conhe\u00e7a a plataforma como o aluno v\u00ea' },
+  { id: 'perfil', playlist: '3. Acesso \u00e0 plataforma e meu perfil' },
+  { id: 'associar-ferramentas', playlist: '4. Associar ferramentas e an\u00e1lises ao v\u00eddeo' },
+  { id: 'certificados', playlist: '5. Certificados' },
+  { id: 'comunicacao', playlist: '6. Comunidade e considera\u00e7\u00f5es finais' },
+  { id: 'material-apoio', playlist: '7. Material de apoio' },
+  { id: 'clientes-alunos', playlist: '8. Meus clientes' },
+  { id: 'cursos', playlist: '9. Meus cursos' },
+  { id: 'papeis', playlist: '10. Pap\u00e9is e responsabilidades' },
+  { id: 'marca', playlist: '11. Modelo de PPT' },
+  { id: 'projetos', playlist: '12. Projetos, fases e ferramentas' },
+  { id: 'relatorios', playlist: '13. Relat\u00f3rios' },
+  { id: 'avaliacao-certificado', playlist: '14. Teste de avalia\u00e7\u00e3o' },
 ] as const;
 
 export const CONSULTOR_ONBOARDING_PLAYLISTS = CONSULTOR_ONBOARDING_STEPS.map((item) => item.playlist);

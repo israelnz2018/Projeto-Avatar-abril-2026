@@ -99,17 +99,25 @@ const LEGACY_ITENS: Item[] = [
   },
 ];
 
+// Refeito em 18/09/2026 junto com CONSULTOR_ONBOARDING_STEPS (knowledgeService.ts),
+// para acompanhar 1:1 os 12 vídeos novos e os itens reais do menu do consultor de
+// hoje (ver a lista de navegação em App.tsx). A etapa 1 fica sem vídeo por
+// enquanto — é a de boas-vindas, ainda sendo gravada.
 const ITENS: Item[] = [
-  { id: 'boas-vindas', titulo: 'Boas-vindas ao Programa de Consultores LBW', texto: 'Assista ao v\u00eddeo de abertura para entender o programa, a sua jornada e as pr\u00f3ximas etapas.' },
-  { id: 'experiencia-aluno', titulo: 'Conhe\u00e7a a plataforma como aluno', texto: 'Use o curso gratuito para conhecer, na pr\u00e1tica, a experi\u00eancia que seus futuros alunos ter\u00e3o.' },
-  { id: 'cursos', titulo: 'Cadastre os seus cursos', texto: 'Cadastre pelo menos um curso. Sem curso, n\u00e3o d\u00e1 para criar projeto nem liberar acesso para ningu\u00e9m.', botao: 'Ir para Meus Cursos', path: '/configuracao?aba=cursos' },
-  { id: 'projetos', titulo: 'Crie seus projetos por curso', texto: 'Defina as fases e as ferramentas que ficar\u00e3o dispon\u00edveis em cada tipo de projeto.', botao: 'Configurar projetos', path: '/configuracao?aba=fases' },
-  { id: 'avaliacao-certificado', titulo: 'Configure a avalia\u00e7\u00e3o e o certificado', texto: 'Crie as perguntas, alternativas e gabarito; depois configure o modelo de certificado que o aluno receber\u00e1.', botao: 'Configurar avalia\u00e7\u00e3o e certificado', path: '/configuracao?aba=prova' },
-  { id: 'clientes-alunos', titulo: 'Cadastre clientes e seus pr\u00f3prios alunos', texto: 'Adicione empresas, coordenadores e alunos para organizar o atendimento.', botao: 'Gerenciar clientes e alunos', path: '/configuracao?aba=coordenadores' },
-  { id: 'comunicacao', titulo: 'Comunique-se com seus clientes e com outros consultores', texto: 'Configure sua comunidade para se comunicar com os clientes e participe do espa\u00e7o de troca com outros consultores.', botao: 'Abrir comunidade', path: '/comunidade' },
-  { id: 'marca', titulo: 'Configure seu modelo de PPT', texto: 'Envie a capa e a página interna dos slides exportados para os seus alunos.', botao: 'Configurar modelo de PPT', path: '/configuracao?aba=marca' },
-  { id: 'melhorar-plataforma', titulo: 'Ajude a melhorar a plataforma', texto: 'Registre sugest\u00f5es e pontos de melhoria a partir do uso real da sua plataforma.', botao: 'Enviar uma sugest\u00e3o', path: '/comunidade-adm' },
-  { id: 'termos-gerais', titulo: 'Termos de contrato e considera\u00e7\u00f5es gerais', texto: 'Leia os termos do Programa de Consultores LBW e confirme que entendeu as condi\u00e7\u00f5es gerais.' },
+  { id: 'boas-vindas', titulo: 'Boas-vindas ao Programa de Consultores LBW', texto: 'Assista ao vídeo de abertura para entender o programa, a sua jornada e as próximas etapas.' },
+  { id: 'experiencia-aluno', titulo: 'Conheça a plataforma como o aluno vê', texto: 'Use o curso gratuito para conhecer, na prática, a experiência que seus futuros alunos terão.' },
+  { id: 'perfil', titulo: 'Acesso à plataforma e meu perfil', texto: 'Veja como entrar na sua plataforma e configurar a sua foto, seus dados e os da sua empresa.', botao: 'Ir para Meu perfil', path: '/configuracao?aba=perfil' },
+  { id: 'associar-ferramentas', titulo: 'Associar ferramentas e análises ao vídeo', texto: 'Em cada vídeo de curso, marque quais ferramentas e análises de dados aparecem sugeridas para o aluno.', botao: 'Ir para Meus Cursos', path: '/configuracao?aba=cursos' },
+  { id: 'certificados', titulo: 'Configure os certificados', texto: 'Defina o modelo de certificado que o aluno recebe ao concluir um curso.', botao: 'Configurar certificados', path: '/configuracao?aba=certificados' },
+  { id: 'comunicacao', titulo: 'Comunidade e considerações finais', texto: 'Publique o texto de boas-vindas da sua comunidade e participe do espaço de troca com outros consultores.', botao: 'Abrir comunidade', path: '/comunidade-adm' },
+  { id: 'material-apoio', titulo: 'Material de apoio', texto: 'Envie os arquivos que ficam disponíveis para os seus alunos baixarem.', botao: 'Ir para Material de Apoio', path: '/configuracao?aba=materiais' },
+  { id: 'clientes-alunos', titulo: 'Meus clientes', texto: 'Adicione empresas, coordenadores e alunos para organizar o atendimento.', botao: 'Gerenciar meus clientes', path: '/configuracao?aba=coordenadores&area=consultor' },
+  { id: 'cursos', titulo: 'Meus cursos', texto: 'Cadastre pelo menos um curso. Sem curso, não dá para criar projeto nem liberar acesso para ninguém.', botao: 'Ir para Meus Cursos', path: '/configuracao?aba=cursos' },
+  { id: 'papeis', titulo: 'Papéis e responsabilidades', texto: 'Entenda a diferença entre consultor, coordenador e aluno, e o que cada um pode fazer na plataforma.' },
+  { id: 'marca', titulo: 'Modelo de PPT', texto: 'Envie a capa e a página interna dos slides exportados para os seus alunos.', botao: 'Configurar modelo de PPT', path: '/configuracao?aba=marca' },
+  { id: 'projetos', titulo: 'Projetos, fases e ferramentas', texto: 'Defina as fases e as ferramentas que ficarão disponíveis em cada tipo de projeto.', botao: 'Configurar projetos', path: '/configuracao?aba=fases' },
+  { id: 'relatorios', titulo: 'Relatórios', texto: 'Acompanhe o progresso dos seus alunos e o desempenho da sua plataforma.', botao: 'Ir para Relatórios', path: '/configuracao?aba=relatorio' },
+  { id: 'avaliacao-certificado', titulo: 'Teste de avaliação', texto: 'Crie as perguntas, alternativas e gabarito da prova que libera o certificado do aluno.', botao: 'Configurar teste de avaliação', path: '/configuracao?aba=prova' },
 ];
 
 export default function ComecePorAqui() {
