@@ -90,18 +90,20 @@ export const CONSULTOR_ONBOARDING_STEPS = [
   { id: 'boas-vindas', playlist: '1. Boas-vindas ao Programa de Consultores LBW' },
   // Sem v\u00eddeo por enquanto: o Israel ainda vai gravar o de "como o aluno v\u00ea".
   { id: 'experiencia-aluno', playlist: '2. Conhe\u00e7a a plataforma como o aluno v\u00ea' },
+  // Da\u00ed em diante, a ordem \u00e9 a CRONOL\u00d3GICA de grava\u00e7\u00e3o (hor\u00e1rio do arquivo em
+  // Downloads, do primeiro ao \u00faltimo), confirmada pelo Israel \u2014 e n\u00e3o alfab\u00e9tica.
   { id: 'perfil', playlist: '3. Acesso \u00e0 plataforma e meu perfil' },
-  { id: 'associar-ferramentas', playlist: '4. Associar ferramentas e an\u00e1lises ao v\u00eddeo' },
-  { id: 'certificados', playlist: '5. Certificados' },
-  { id: 'comunicacao', playlist: '6. Comunidade e considera\u00e7\u00f5es finais' },
-  { id: 'material-apoio', playlist: '7. Material de apoio' },
-  { id: 'clientes-alunos', playlist: '8. Meus clientes' },
-  { id: 'cursos', playlist: '9. Meus cursos' },
-  { id: 'papeis', playlist: '10. Pap\u00e9is e responsabilidades' },
+  { id: 'cursos', playlist: '4. Meus cursos' },
+  { id: 'papeis', playlist: '5. Pap\u00e9is e responsabilidades' },
+  { id: 'projetos', playlist: '6. Projetos, fases e ferramentas' },
+  { id: 'associar-ferramentas', playlist: '7. Associar ferramentas e an\u00e1lises ao v\u00eddeo' },
+  { id: 'avaliacao-certificado', playlist: '8. Teste de avalia\u00e7\u00e3o' },
+  { id: 'certificados', playlist: '9. Certificados' },
+  { id: 'material-apoio', playlist: '10. Material de apoio' },
   { id: 'marca', playlist: '11. Modelo de PPT' },
-  { id: 'projetos', playlist: '12. Projetos, fases e ferramentas' },
+  { id: 'clientes-alunos', playlist: '12. Meus clientes' },
   { id: 'relatorios', playlist: '13. Relat\u00f3rios' },
-  { id: 'avaliacao-certificado', playlist: '14. Teste de avalia\u00e7\u00e3o' },
+  { id: 'comunicacao', playlist: '14. Comunidade e considera\u00e7\u00f5es finais' },
 ] as const;
 
 export const CONSULTOR_ONBOARDING_PLAYLISTS = CONSULTOR_ONBOARDING_STEPS.map((item) => item.playlist);
