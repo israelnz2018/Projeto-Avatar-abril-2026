@@ -3661,6 +3661,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
 
       const prompt = `FALA DO CONSULTOR (transcrição literal de um trecho da aula dele):\n"""\n${fala}\n"""\n\n`
         + `Escreva as páginas de um carrossel de Instagram a partir DESTA fala.\n\n`
+        + `TITULO DEFINIDO PELO CONSULTOR: "${String(criativo.titulo || "").replace(/\*/g, "").trim()}". A primeira pagina e a capa e deve usar EXATAMENTE esse texto no campo "title". Nao substitua por um titulo antigo nem por outra pergunta. Esse mesmo titulo deve orientar a capa, o Reel e os textos de publicacao.\n\n`
         + `O que vale:\n`
         + `- O conteúdo sai da fala. Você reorganiza e enxuga; não acrescenta ideia que não está lá,\n`
         + `  não inventa número, não inventa exemplo.\n`
@@ -3797,6 +3798,14 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         return res.status(422).json({ error: `A IA não conseguiu montar um carrossel válido: ${ultimoProblema}.` });
       }
 
+      // A IA pode variar a capa, mas o titulo aprovado pelo consultor e a fonte de
+      // verdade. Assim feed, PDF, carrossel em video e imagem unica partem da mesma
+      // manchete, sem depender de uma nova interpretacao na renderizacao.
+      const tituloDoCriativo = String(criativo.titulo || "").replace(/\*/g, "").trim();
+      if (tituloDoCriativo && slides[0]) {
+        slides[0] = { ...slides[0], title: tituloDoCriativo };
+      }
+
       // Campos vazios viram undefined e o Firestore recusa. Limpa antes de gravar.
       const limpos = slides.map((s) => Object.fromEntries(
         Object.entries(s).filter(([, v]) => typeof v === "string" && v.trim()),
@@ -3859,7 +3868,23 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const campanhaRef = dbAdmin.collection("marketing_campanhas").doc(campanhaId);
       const campanhaExistente = await campanhaRef.get();
       const estadoExistente = String(campanhaExistente.data()?.status || "");
-      if (campanhaExistente.exists && ["processando", "revisar", "aprovada", "publicada"].includes(estadoExistente)) {
+      const tituloCanonico = String(criativo.titulo || "").replace(/\*/g, "").trim();
+      const tituloGerado = String(campanhaExistente.data()?.roteiro?.[0]?.title || "").replace(/\*/g, "").trim();
+      const roteiroPrecisaAtualizar = Boolean(tituloCanonico && tituloGerado !== tituloCanonico);
+      let pecasIncompletas = false;
+      if (campanhaExistente.exists && estadoExistente === "revisar") {
+        const pecasAtuais = await dbAdmin.collection("marketing_pecas").where("campanhaId", "==", campanhaId).get();
+        const tiposAtuais = new Set(pecasAtuais.docs.map((doc) => String(doc.data()?.tipo || "")));
+        pecasIncompletas = ["carrossel-feed", "linkedin-imagem", "carrossel-video", "linkedin-pdf", "linkedin-texto"]
+          .some((tipo) => !tiposAtuais.has(tipo));
+      }
+      // Uma campanha em revisão só pode ser reaproveitada se o primeiro slide já
+      // estiver alinhado ao título que o consultor aprovou. Isso corrige campanhas
+      // antigas que foram geradas antes de o título ser alterado.
+      if (campanhaExistente.exists && ["processando", "aprovada", "publicada"].includes(estadoExistente)) {
+        return res.status(202).json({ estado: "ja-na-fila", campanhaId });
+      }
+      if (campanhaExistente.exists && estadoExistente === "revisar" && !roteiroPrecisaAtualizar && !pecasIncompletas) {
         return res.status(202).json({ estado: "ja-na-fila", campanhaId });
       }
 
@@ -3906,6 +3931,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       await campanhaRef.set({
         id: campanhaId, consultorId: criativo.consultorId || consultorId, videoId: criativo.videoId,
         criativoId, titulo: criativo.titulo, objetivo: "autoridade", status: "processando",
+        pecasEsperadas: 5, reelEsperado: true,
         segundosPorSlide: 5, roteiro: slides, roteiroGeradoEm: agora, criadoEm: agora,
       }, { merge: true });
       await dbAdmin.collection("marketing_tarefas").add({
@@ -3920,7 +3946,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       try {
         const reelResp = await fetch(`${origem}/api/marketing-consultor/gerar-reel`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-          body: JSON.stringify({ criativoId, velocidade: 1 }),
+          body: JSON.stringify({ criativoId, velocidade: 1, usarTituloCriativo: true }),
         });
         reel = reelResp.ok ? "na-fila" : "indisponivel";
       } catch { reel = "indisponivel"; }
@@ -3959,8 +3985,11 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
    * para o consultor organizar como quiser.
    */
   function mancheteDoCriativo(criativo: any): string {
+    const tituloDefinido = String(criativo?.titulo || "").replace(/\*/g, "").trim();
     const capaDoRoteiro = String(criativo?.roteiro?.slides?.[0]?.title || "").replace(/\*/g, "").trim();
-    return capaDoRoteiro || String(criativo?.titulo || "");
+    // O título que o consultor definiu é a fonte de verdade. O título antigo do
+    // roteiro fica apenas como fallback para campanhas criadas antes desse campo.
+    return tituloDefinido || capaDoRoteiro;
   }
 
   function tituloEmDuasLinhas(titulo: string): [string, string] {
@@ -4123,8 +4152,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const origem = String(req.headers.origin || process.env.APP_URL || "").trim();
       const referer = origem ? (origem.endsWith("/") ? origem : `${origem}/`) : "";
 
-      // O letreiro do Reel sai da manchete do trecho aprovado, não do rótulo do
-      // criativo — ver mancheteDoCriativo.
+      // O letreiro do Reel sai do título definido na copy aprovada.
       const [titulo1, titulo2] = tituloEmDuasLinhas(mancheteDoCriativo(criativo));
 
       // A CAPA DO REEL É UMA ARTE, NÃO UM QUADRO DO VÍDEO.
@@ -4133,7 +4161,9 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       // plataforma vinha violando: arrancava o quadro inteiro do Reel montado, com
       // slide, círculo do rosto e legenda karaokê dentro. O renderizador da arte já
       // existia no squad e só não estava ligado aqui.
-      const cover = capaDoCriativo(criativo, video);
+      const cover = capaDoCriativo(criativo, video, {
+        usarTituloCriativo: req.body?.usarTituloCriativo === true,
+      });
       const agora = new Date().toISOString();
       const campanhaId = `${criativoId}__reel`;
 
@@ -4346,11 +4376,13 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
    * Um lugar só para o Reel e para o Refazer da capa, que antes tinham cada um a
    * sua cópia desta conta.
    */
-  function capaDoCriativo(criativo: any, video: any) {
+  function capaDoCriativo(criativo: any, video: any, opcoes: { usarTituloCriativo?: boolean } = {}) {
     const capa = (criativo?.capa || {}) as any;
     const gravado = (campo: string, padrao: string) =>
       (capa[campo] === undefined || capa[campo] === null ? padrao : String(capa[campo])).trim();
-    const gancho: string[] = Array.isArray(capa.hookLines)
+    const gancho: string[] = opcoes.usarTituloCriativo
+      ? ganchoDoTitulo(mancheteDoCriativo(criativo))
+      : Array.isArray(capa.hookLines)
       ? capa.hookLines.map((l: any) => String(l ?? "").trim()).filter(Boolean)
       : ganchoDoTitulo(mancheteDoCriativo(criativo));
     return {

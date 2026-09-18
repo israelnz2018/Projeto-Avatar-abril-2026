@@ -512,7 +512,7 @@ function Producao({
     const r = await fetch('/api/marketing-consultor/gerar-reel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ criativoId: criativo.id, velocidade: quaoRapido }),
+      body: JSON.stringify({ criativoId: criativo.id, velocidade: quaoRapido, usarTituloCriativo: true }),
     });
     if (!r.ok) {
       const corpo = await r.json().catch(() => ({}));
@@ -1039,12 +1039,22 @@ function PecasProduzidas({
   const ordenadas = pecas
     .filter((p) => p.tipo !== 'linkedin-imagem')
     .sort((a, b) => ordem.indexOf(a.tipo) - ordem.indexOf(b.tipo));
+  const tiposEsperados: Peca['tipo'][] = [
+    'reel', 'carrossel-feed', 'linkedin-imagem', 'carrossel-video', 'linkedin-pdf', 'linkedin-texto',
+  ];
+  const faltantes = tiposEsperados.filter((tipo) => !pecas.some((p) => p.tipo === tipo));
   const paginasDoFeed = (pecas.find((p) => p.tipo === 'carrossel-feed')?.arquivos || [])
     .filter((c) => /slide-\d+\.png$/i.test(c))
     .sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-4">
+      <div className={`rounded-lg border px-4 py-3 text-sm ${faltantes.length ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-900'}`}>
+        <strong>{pecas.length} de 6 peças geradas</strong>
+        {faltantes.length
+          ? <span className="ml-2">Faltando: {faltantes.map(nomeDaPeca).join(', ')}.</span>
+          : <span className="ml-2">Reel, capa, carrosséis, imagem e texto do LinkedIn prontos para revisão.</span>}
+      </div>
       {ordenadas.map((p) => {
         if (p.origem === 'enviada') return <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />;
         const ocupado = p.tipo === 'reel' ? ocupadoReel : (ocupadoTexto || p.status === 'gerando');
@@ -1192,6 +1202,20 @@ function PecasProduzidas({
         </React.Fragment>
         );
       })}
+      {pecas.some((p) => p.tipo === 'linkedin-imagem') && (
+        <ImagemUnicaLinkedin
+          criativo={criativo}
+          pecas={pecas}
+          slides={slides}
+          ocupado={ocupadoTexto}
+          aoAlterarSlide={aoAlterarSlide}
+          aoRefazer={() => {
+            const peca = pecas.find((p) => p.tipo === 'carrossel-feed');
+            if (peca) aoRefazerTexto(peca);
+          }}
+          aoMudar={aoAprovar}
+        />
+      )}
     </div>
   );
 }
@@ -1895,8 +1919,9 @@ function CamposDaCapa({ arte }: { arte: ReturnType<typeof useArteDaCapa> }) {
  * carrossel ao mesmo texto.
  */
 function mancheteDoCriativo(criativo: Criativo): string {
+  const tituloDefinido = String(criativo.titulo || '').replace(/\*/g, '').trim();
   const capaDoRoteiro = String(criativo.roteiro?.slides?.[0]?.title || '').replace(/\*/g, '').trim();
-  return capaDoRoteiro || criativo.titulo || '';
+  return tituloDefinido || capaDoRoteiro;
 }
 
 /**
