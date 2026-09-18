@@ -269,100 +269,16 @@ export const saveInitiativeConfig = async (config: InitiativePhaseConfig): Promi
   await setDoc(doc(db, CONFIG_COLLECTION, docId), { ...config, consultorId: config.consultorId || resolveConsultorId() });
 };
 
-export const restoreDefaultMethodologies = async (availableTools: any[]): Promise<void> => {
-  const initiatives = await getInitiatives();
-  for (const initiative of initiatives) {
-    await deleteInitiative(initiative.id);
-  }
-  await seedDefaultInitiative(availableTools);
-};
-
-export const seedDefaultInitiative = async (availableTools: any[]): Promise<void> => {
-  const initiatives = await getInitiatives();
-  
-  // Check if we already have the structure
-  if (initiatives.length > 0) return;
-
-  // 1. Create Root: Projeto de Melhoria
-  const root = await createInitiative('1 - Projeto de Melhoria', 'Metodologias de melhoria contínua');
-  
-  // 1.1 Pequenas melhorias (ver e agir)
-  const smallImprovements = await createInitiative(
-    '1.1 Pequenas melhorias (ver e agir)', 
-    'Ciclo rápido de melhoria', 
-    root.id
-  );
-  
-  const smallPhases = [
-    { id: 'Identificar', name: 'Identificar o problema' },
-    { id: 'Implementar', name: 'Implementar a solução' },
-    { id: 'Controle', name: 'Controle da melhoria' }
-  ];
-  
-  await updateInitiative(smallImprovements.id, { phases: smallPhases });
-  
-  // Assign some default tools to small improvements phases
-  await saveInitiativeConfig({ initiativeId: smallImprovements.id, phaseId: 'Identificar', toolIds: ['brief', 'brainstorming', 'rab', 'gut', 'effortImpact', 'improvementPlan'] });
-  await saveInitiativeConfig({ initiativeId: smallImprovements.id, phaseId: 'Implementar', toolIds: ['plan5w2h'] });
-  await saveInitiativeConfig({ initiativeId: smallImprovements.id, phaseId: 'Controle', toolIds: ['sop'] });
-
-  // 1.2 Projetos Lean Six Sigma
-  const leanSixSigma = await createInitiative(
-    '1.2 Projetos Lean Six Sigma', 
-    'Metodologia DMAIC completa', 
-    root.id
-  );
-  
-  const dmaicPhases = [
-    { id: 'PreDefinir', name: 'Pre-Definir' },
-    { id: 'Define', name: 'Define' },
-    { id: 'Measure', name: 'Measure' },
-    { id: 'Analyze', name: 'Analyze' },
-    { id: 'Improve', name: 'Improve' },
-    { id: 'Control', name: 'Control' }
-  ];
-  
-  await updateInitiative(leanSixSigma.id, { phases: dmaicPhases });
-
-  // Assign DMAIC tools explicitly
-  const dmaicConfigs = [
-    { phaseId: 'PreDefinir', toolIds: ['improvementIdea'] },
-    { phaseId: 'Define', toolIds: ['brief', 'charter', 'stakeholderAdkar', 'sipoc', 'timeline', 'detailedTimeline', 'stakeholders', 'improvementPlan'] },
-    { phaseId: 'Measure', toolIds: ['processMap', 'brainstorming', 'measureIshikawa', 'measureMatrix', 'beforeAfter', 'rab', 'gut', 'effortImpact', 'dataCollection', 'processCanva', 'processModeling', 'processValidation', 'riskManagementPMI'] },
-    { phaseId: 'Analyze', toolIds: ['vsm', 'directObservation', 'fiveWhys', 'fta', 'statisticalAnalysis', 'dataNature', 'causeValidation'] },
-    { phaseId: 'Improve', toolIds: ['fmea', 'plan5w2h', 'actionPlan'] },
-    { phaseId: 'Control', toolIds: ['sop', 'riskMonitoringPMI'] }
-  ];
-
-  for (const config of dmaicConfigs) {
-    await saveInitiativeConfig({
-      initiativeId: leanSixSigma.id,
-      phaseId: config.phaseId,
-      toolIds: config.toolIds
-    });
-  }
-
-  // 1.3 Projeto Tradicional (PMI)
-  const traditionalProject = await createInitiative(
-    '1.3 Projeto Tradicional (PMI)', 
-    'Gestão de projetos baseada no PMBOK/PMI', 
-    root.id
-  );
-  
-  const pmiPhases = [
-    { id: 'Iniciação', name: 'Iniciação' },
-    { id: 'Planejamento', name: 'Planejamento' },
-    { id: 'Execução', name: 'Execução' },
-    { id: 'Monitoramento', name: 'Monitoramento & Controle' },
-    { id: 'Encerramento', name: 'Encerramento' }
-  ];
-  
-  await updateInitiative(traditionalProject.id, { phases: pmiPhases });
-
-  // Assign PMI tools
-  await saveInitiativeConfig({ initiativeId: traditionalProject.id, phaseId: 'Iniciação', toolIds: ['brief', 'projectCharterPMI', 'stakeholderAnalysisPMI', 'gpPlanPMI'] });
-  await saveInitiativeConfig({ initiativeId: traditionalProject.id, phaseId: 'Planejamento', toolIds: ['wbs', 'timeline', 'detailedTimeline', 'plan5w2h', 'riskManagementPMI'] });
-  await saveInitiativeConfig({ initiativeId: traditionalProject.id, phaseId: 'Execução', toolIds: ['dataCollection'] });
-  await saveInitiativeConfig({ initiativeId: traditionalProject.id, phaseId: 'Monitoramento', toolIds: ['pareto', 'riskMonitoringPMI'] });
-  await saveInitiativeConfig({ initiativeId: traditionalProject.id, phaseId: 'Encerramento', toolIds: ['sop'] });
-};
+/**
+ * @deprecated Existia uma versão desta função que criava sozinha, sem avisar,
+ * uma estrutura padrão (a metodologia de melhoria contínua do Israel) na conta
+ * de todo consultor novo que abrisse "Meus Cursos" pela primeira vez. Foi assim
+ * que a Mariana viu "um monte de cursos" que ela nunca criou.
+ *
+ * Não é vazamento entre consultores — a estrutura nascia com o `consultorId`
+ * dela, não misturava dado de ninguém — mas acontecia em silêncio, sem pedir
+ * nada, e o Israel pediu para nunca mais acontecer: "vc tem que deletar isso
+ * de uma vez por todas, nunca criei isso". Removida também a chamada
+ * automática em ProjectToolsConfig.tsx. Quem quiser essa estrutura monta à
+ * mão pelo botão de criar iniciativa, que já existe na tela.
+ */

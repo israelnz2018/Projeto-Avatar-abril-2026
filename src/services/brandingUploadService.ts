@@ -70,7 +70,9 @@ export async function uploadPptPrevia(file: File, tipo: 'ppt-capa' | 'ppt-intern
   try {
     const blob = await gerarPreviaPptx(file);
     if (!blob) return '';
-    const caminho = `community_uploads/${u.uid}/branding-${tipo}-previa.png`;
+    // Caminho novo a cada envio, pelo mesmo motivo do uploadBrandingImage abaixo:
+    // regravar o mesmo caminho troca o token e mata a URL já guardada.
+    const caminho = `community_uploads/${u.uid}/branding-${tipo}-previa-${Date.now()}.png`;
     const sref = storageRef(storage, caminho);
     await uploadBytes(sref, blob, { contentType: 'image/png' });
     return await getDownloadURL(sref);
@@ -94,7 +96,8 @@ export async function uploadBrandingImage(file: File, tipo: BrandingAsset): Prom
   if (isPptAsset && isPowerPoint) {
     if (file.size > MAX_PPT_BYTES) throw new Error('Arquivo PowerPoint muito grande (máx. 30 MB). Reduza e tente de novo.');
     const contentType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    const caminho = `community_uploads/${u.uid}/branding-${tipo}.pptx`;
+    // Caminho novo a cada envio — ver o comentário longo em uploadBrandingImage.
+    const caminho = `community_uploads/${u.uid}/branding-${tipo}-${Date.now()}.pptx`;
     const sref = storageRef(storage, caminho);
     await uploadBytes(sref, file, { contentType });
     return getDownloadURL(sref);
@@ -108,8 +111,24 @@ export async function uploadBrandingImage(file: File, tipo: BrandingAsset): Prom
   const cfg = CONFIG[tipo];
   const blob = await redimensionar(file, cfg.max, cfg.mime, cfg.q);
   const ext = cfg.mime === 'image/png' ? 'png' : 'jpg';
-  // Stamp estável (sem Date.now/Math.random): sobrescreve o anterior do mesmo tipo.
-  const caminho = `community_uploads/${u.uid}/branding-${tipo}.${ext}`;
+
+  // CADA ENVIO VAI PARA UM ARQUIVO NOVO.
+  //
+  // Antes o caminho era fixo (`branding-foto.jpg`), para "sobrescrever o anterior"
+  // e não acumular arquivo. Só que regravar o MESMO caminho faz o Firebase Storage
+  // gerar um TOKEN DE DOWNLOAD NOVO — e toda URL já entregue morre com 403.
+  //
+  // Era isto que apagava a foto e a logo do consultor: o arquivo continuava lá,
+  // perfeito, mas o endereço guardado no Firestore apontava para um token que não
+  // existia mais. A imagem não carregava, e de fora parecia que não tinha salvado.
+  //
+  // É a mesma lição da produção das peças (ver a pasta versionada em
+  // worker/executores.mjs): caminho novo a cada gravação também resolve o cache do
+  // navegador, que é o outro jeito de a imagem velha insistir em aparecer.
+  //
+  // O custo é alguns arquivos de 25 a 85 KB sobrando no Storage a cada troca de
+  // marca — barato perto de uma imagem que não abre.
+  const caminho = `community_uploads/${u.uid}/branding-${tipo}-${Date.now()}.${ext}`;
   const sref = storageRef(storage, caminho);
   await uploadBytes(sref, blob, { contentType: cfg.mime });
   return getDownloadURL(sref);
@@ -145,7 +164,9 @@ export async function uploadImagemDoCurso(file: File, cursoId: string): Promise<
   }
 
   const blob = await redimensionar(file, 600, 'image/png', 0.92);
-  const caminho = `community_uploads/${u.uid}/curso-${cursoId}.png`;
+  // Caminho novo a cada troca — ver o comentário em uploadBrandingImage. Trocar a
+  // imagem do curso no mesmo caminho matava a URL já salva no curso.
+  const caminho = `community_uploads/${u.uid}/curso-${cursoId}-${Date.now()}.png`;
   const sref = storageRef(storage, caminho);
   await uploadBytes(sref, blob, { contentType: 'image/png' });
   return getDownloadURL(sref);
@@ -153,7 +174,9 @@ export async function uploadImagemDoCurso(file: File, cursoId: string): Promise<
 
 /**
  * Ícone próprio de um tipo de projeto (initiative.iconUrl) — PNG pequeno,
- * preserva transparência. Um arquivo por initiative (o novo upload sobrescreve).
+ * preserva transparência. Caminho novo a cada envio: sobrescrever o mesmo
+ * arquivo troca o token do Storage e mata a URL já guardada (ver
+ * uploadBrandingImage).
  */
 export async function uploadInitiativeIcon(file: File, initiativeId: string): Promise<string> {
   const u = auth.currentUser;
@@ -164,7 +187,7 @@ export async function uploadInitiativeIcon(file: File, initiativeId: string): Pr
   if (file.size > MAX_ORIGEM_BYTES) throw new Error('Imagem muito grande (máx. 6 MB). Reduza e tente de novo.');
 
   const blob = await redimensionar(file, 200, 'image/png', 0.92);
-  const caminho = `community_uploads/${u.uid}/initiative-icon-${initiativeId}.png`;
+  const caminho = `community_uploads/${u.uid}/initiative-icon-${initiativeId}-${Date.now()}.png`;
   const sref = storageRef(storage, caminho);
   await uploadBytes(sref, blob, { contentType: 'image/png' });
   return getDownloadURL(sref);

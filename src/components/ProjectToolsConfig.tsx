@@ -32,8 +32,6 @@ import {
   getInitiativeConfigs,
   saveInitiativeConfig,
   saveInitiativeToolLinks,
-  seedDefaultInitiative,
-  restoreDefaultMethodologies,
   getFerramentasRascunho,
   toggleFerramentaRascunho,
   getToolCategories,
@@ -65,7 +63,7 @@ const DEFAULT_PHASES = [
 /**
  * CATÁLOGO DE FERRAMENTAS DA PLATAFORMA
  *
- * ⚠️ AO ADICIONAR UMA FERRAMENTA NOVA, ATUALIZE OS 4 LUGARES ABAIXO:
+ * ⚠️ AO ADICIONAR UMA FERRAMENTA NOVA, ATUALIZE OS 2 LUGARES ABAIXO:
  *
  * 1. ESTE ARRAY (AVAILABLE_TOOLS) — id + nome + fase. É o catálogo visível
  *    na tela "Ferramentas por Projeto".
@@ -75,15 +73,9 @@ const DEFAULT_PHASES = [
  *    Exemplo: { id: 'raci', name: 'Matriz RACI', component: RaciTool }
  *    Sem fase: em que fase a ferramenta entra é decisão do consultor.
  *
- * 3. src/services/configService.ts — função `seedDefaultInitiative`. Adicione
- *    o toolId ao array `toolIds` da fase apropriada nas iniciativas DMAIC,
- *    PMI e/ou Pequenas Melhorias. Sem isso a ferramenta nasce desmarcada
- *    nas iniciativas seedadas.
- *
- * 4. INICIATIVAS EXISTENTES NO FIRESTORE — o seed só roda na primeira vez.
- *    Pra que a ferramenta apareça em iniciativas já criadas, vá manualmente
- *    em cada uma: Ferramentas por Projeto → escolha a iniciativa → fase
- *    correspondente → clique no card da ferramenta → Salvar.
+ * (Não existe mais estrutura padrão seedada sozinha: cada consultor monta a
+ * própria, pelo botão de criar iniciativa. Ver o @deprecated em
+ * configService.ts no lugar de onde `seedDefaultInitiative` vivia.)
  *
  * Sem os 4 passos, a ferramenta pode existir no código mas não aparecer
  * no app — exatamente o sintoma que sempre te frustrou.
@@ -319,49 +311,27 @@ export default function ProjectToolsConfig() {
     fetchInitiatives();
   }, [consultorId]);
 
+  /**
+   * Sem auto-criação. Antes, uma conta nova e vazia recebia sozinha, sem
+   * avisar, a metodologia inteira do Israel — foi assim que a Mariana viu "um
+   * monte de cursos" que nunca criou. Vazia agora fica vazia de verdade; quem
+   * quiser começar uma estrutura usa o botão de criar iniciativa, abaixo.
+   */
   const fetchInitiatives = async () => {
     setLoading(true);
     try {
       const data = await getInitiatives(consultorId);
       setAllCourses(data.filter(ehCurso));
       const projectTypes = data.filter(ehTipoDeProjeto);
-      if (data.length === 0) {
-        // Auto-seed if empty
-        try {
-          await seedDefaultInitiative(AVAILABLE_TOOLS);
-        } catch (seedError: any) {
-          console.error("Erro ao criar iniciativa padrão:", seedError);
-          // Don't fail the whole fetch if seeding fails, just show empty
-        }
-        const seededData = await getInitiatives(consultorId);
-        setAllCourses(seededData.filter(ehCurso));
-        const seededProjectTypes = seededData.filter(ehTipoDeProjeto);
-        setInitiatives(seededProjectTypes);
-        if (seededProjectTypes.length > 0) handleSelectInitiative(seededProjectTypes[0]);
-      } else {
-        setInitiatives(projectTypes);
-        if (projectTypes.length > 0 && !selectedInitiative) {
-          handleSelectInitiative(projectTypes[0]);
-        }
+      setInitiatives(projectTypes);
+      if (projectTypes.length > 0 && !selectedInitiative) {
+        handleSelectInitiative(projectTypes[0]);
       }
     } catch (error: any) {
       console.error("Erro ao carregar iniciativas:", error);
       // Removido o toast de erro para não incomodar o usuário com erros de permissão temporários
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSeedDefault = async () => {
-    setSaving(true);
-    try {
-      await seedDefaultInitiative(AVAILABLE_TOOLS);
-      await fetchInitiatives();
-      toast.success("Configuração padrão aplicada com sucesso!");
-    } catch (error) {
-      toast.error("Erro ao aplicar configuração padrão");
-    } finally {
-      setSaving(false);
     }
   };
 
