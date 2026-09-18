@@ -6,7 +6,7 @@
  *
  * A lista literal `cursosAcesso` é a fonte de verdade das permissões.
  */
-import { ehTipoDeProjeto } from '../../lib/tipoIniciativa';
+import { ehCursoRaiz, ehTipoDeProjeto } from '../../lib/tipoIniciativa';
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
@@ -14,7 +14,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { ChevronDown, Pencil, Plus, Trash2, LockKeyhole, CheckCircle2, Clock3 } from 'lucide-react';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
-import { getCourses, getInitiatives } from '../../services/configService';
+import { getInitiatives } from '../../services/configService';
 import { empresaIdDireto } from '../../services/consultorService';
 import { getUserDocsByConsultor, updateUserNoConsultor } from '../../services/userService';
 import { getEducationCourses } from '../../services/educationCourseService';
@@ -325,16 +325,23 @@ export default function MeusAlunos({ embedded = false, empresaIdFiltro, somenteL
       } catch { /* progresso é opcional — a tela funciona sem ele */ }
     })();
     try {
-      const [userDocs, blockedSnap, inits, catalogoEducacional, todasIniciativas] = await Promise.all([
-        getUserDocsByConsultor(consultorId),
-        getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId))),
-        getCourses(consultorId),
-        getEducationCourses(consultorId),
-        getInitiatives(consultorId),
+      // O catálogo não pode desaparecer porque uma consulta secundária (alunos
+      // bloqueados, vídeos antigos ou progresso) falhou. Cada fonte tem seu
+      // fallback independente, e as iniciativas cadastradas são a fonte oficial
+      // dos cursos, inclusive quando ainda não há nenhum vídeo.
+      const [userDocs, blockedSnap, catalogoEducacional, todasIniciativas] = await Promise.all([
+        getUserDocsByConsultor(consultorId).catch(() => []),
+        getDocs(query(collection(db, 'users'), where('desvinculadoDe', '==', consultorId)))
+          .catch(() => ({ docs: [] as any[] })),
+        getEducationCourses(consultorId).catch(() => []),
+        getInitiatives(consultorId).catch(() => []),
       ]);
       const allUsers = userDocs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-      const gratis = inits.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
-      const nomesCursos = catalogoEducacional.map((curso) => curso.name);
+      const gratis = todasIniciativas.filter((i) => i.isFree === true).map((i) => i.name).filter(Boolean);
+      const nomesCursos = Array.from(new Set([
+        ...catalogoEducacional.map((curso) => curso.name),
+        ...todasIniciativas.filter(ehCursoRaiz).map((curso) => curso.name),
+      ].map((nome) => String(nome || '').trim()).filter(Boolean)));
       const lista: Aluno[] = allUsers
         .map((d) => {
           const u = d as any;
