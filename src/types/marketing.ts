@@ -29,7 +29,8 @@ export type TipoPeca =
   | 'carrossel-video'
   | 'linkedin-pdf'
   /** A capa do carrossel como post de uma imagem só no LinkedIn. */
-  | 'linkedin-imagem';
+  | 'linkedin-imagem'
+  | 'linkedin-texto';
 
 export const TIPOS_PECA: { id: TipoPeca; nome: string; destino: string }[] = [
   { id: 'reel', nome: 'Reel', destino: 'Instagram Reels' },
@@ -37,6 +38,7 @@ export const TIPOS_PECA: { id: TipoPeca; nome: string; destino: string }[] = [
   { id: 'carrossel-video', nome: 'Carrossel em vídeo', destino: 'Instagram Reels' },
   { id: 'linkedin-pdf', nome: 'Carrossel do LinkedIn', destino: 'LinkedIn' },
   { id: 'linkedin-imagem', nome: 'Imagem única', destino: 'LinkedIn' },
+  { id: 'linkedin-texto', nome: 'Texto do LinkedIn', destino: 'LinkedIn' },
 ];
 
 /** Estado de uma peça. O consultor age em `revisar`. */
@@ -202,7 +204,7 @@ export interface Criativo {
    * O artigo serve o LinkedIn (o PDF), a legenda serve o Instagram (o Reel e o
    * carrossel em vídeo) — é o mesmo texto nos dois, porque é o mesmo post.
    */
-  textos?: { artigoLinkedin: string; legendaInstagram: string; geradoEm: string };
+  textos?: { artigoLinkedin: string; legendaInstagram: string; textoLinkedin?: string; geradoEm: string };
   /**
    * A arte da capa do Reel, conforme o padrão em
    * squads/lbw-reel-production/pipeline/data/cover-standard.md.
@@ -280,13 +282,14 @@ export interface MarcaDaPeca {
 }
 
 /** Os formatos que saem de um roteiro só. */
-export type FormatoPeca = 'carrossel' | 'pdf' | 'video' | 'imagem';
+export type FormatoPeca = 'carrossel' | 'pdf' | 'video' | 'imagem' | 'texto-linkedin';
 
 export const FORMATOS: { id: FormatoPeca; nome: string; onde: string }[] = [
   { id: 'carrossel', nome: 'Carrossel', onde: 'Feed do Instagram' },
   { id: 'video', nome: 'Carrossel em vídeo', onde: 'Reels, sem voz' },
   { id: 'pdf', nome: 'Carrossel do LinkedIn', onde: 'LinkedIn' },
   { id: 'imagem', nome: 'Imagem única', onde: 'Feed, post simples' },
+  { id: 'texto-linkedin', nome: 'Texto do LinkedIn', onde: 'LinkedIn, como imagem' },
 ];
 
 /**
@@ -450,6 +453,7 @@ export interface Peca {
   capaStatus?: 'revisar' | 'aprovado';
   /** Texto da publicação. */
   legenda?: string;
+  texto?: string;
   /** Pedido de melhoria escrito pelo consultor, que gerou esta versão. */
   pedidoMelhoria?: string;
   /** Mensagem de erro, quando status = erro. */

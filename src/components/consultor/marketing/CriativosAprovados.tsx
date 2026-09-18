@@ -447,6 +447,7 @@ function Producao({
       await addDoc(collection(db, COLECOES.tarefas), {
         consultorId: criativo.consultorId,
         campanhaId,
+        criativoId: criativo.id,
         tipo: 'gerar-campanha',
         status: 'pendente',
         tentativas: 0,
@@ -573,6 +574,39 @@ function Producao({
    * editar ou apagar uma página aqui não pode regravar a outra peça.
    */
   async function refazerTexto(peca: Peca, recebidas?: SlideRoteiro[]) {
+    if (peca.tipo === 'linkedin-texto') {
+      const texto = String(criativo.textos?.textoLinkedin || peca.texto || '').trim();
+      if (!texto) {
+        setErro('O Texto do LinkedIn está sem conteúdo para renderizar.');
+        return;
+      }
+      setErro('');
+      try {
+        const agora = new Date().toISOString();
+        await updateDoc(doc(db, COLECOES.pecas, peca.id), {
+          status: 'gerando',
+          atualizadoEm: agora,
+        });
+        await addDoc(collection(db, COLECOES.tarefas), {
+          consultorId: criativo.consultorId,
+          campanhaId,
+          pecaId: peca.id,
+          criativoId: criativo.id,
+          tipo: 'regerar-peca',
+          status: 'pendente',
+          tentativas: 0,
+          render: { layout: 'citacao', formato: 'quadrado', frase: texto },
+          criadoEm: agora,
+          criadoEmServidor: serverTimestamp(),
+        });
+        onMudou();
+      } catch (e: any) {
+        await updateDoc(doc(db, COLECOES.pecas, peca.id), { status: 'revisar' }).catch(() => {});
+        setErro(e?.message || String(e));
+      }
+      return;
+    }
+
     const origem = peca.tipo === 'linkedin-pdf' ? slidesPdf : slides;
     const paginas = semVazios(recebidas?.length ? recebidas : origem);
     if (paginas.length < 2 || paginas.length > 8) {
@@ -630,11 +664,12 @@ function Producao({
   if (!daCampanha.length && !servidorTrabalhando && !gerando && !enfileirando) {
     return (
       <section className="p-5 rounded-lg border border-gray-200 bg-white">
-        <p className="text-sm text-gray-700 mb-1 font-semibold">Deste trecho saem quatro peças:</p>
+        <p className="text-sm text-gray-700 mb-1 font-semibold">Deste trecho saem cinco peças:</p>
         <ul className="text-sm text-gray-600 mb-4 space-y-0.5">
           <li>• <strong>Reel com você falando</strong>, com legenda acompanhando a fala</li>
           <li>• Carrossel para o feed</li>
           <li>• Carrossel do LinkedIn (PDF)</li>
+          <li>• Texto do LinkedIn em imagem</li>
           <li>• Carrossel em vídeo, para os Reels</li>
         </ul>
         <button
@@ -999,7 +1034,7 @@ function PecasProduzidas({
   }
 
   // A ordem é a de importância para quem publica, não a que o servidor gravou.
-  const ordem: Peca['tipo'][] = ['reel', 'carrossel-feed', 'carrossel-video', 'linkedin-pdf'];
+  const ordem: Peca['tipo'][] = ['reel', 'carrossel-feed', 'carrossel-video', 'linkedin-pdf', 'linkedin-texto'];
   // A imagem única do LinkedIn tem o cartão dela logo abaixo, junto do texto da capa.
   const ordenadas = pecas
     .filter((p) => p.tipo !== 'linkedin-imagem')
@@ -1119,6 +1154,15 @@ function PecasProduzidas({
               campo="legendaInstagram"
               titulo="Legenda do Instagram"
               ajuda="Pronta para colar — é a mesma legenda do Reel, é o mesmo post. As páginas e o ritmo deste vídeo saem do carrossel do feed, aqui em cima."
+            />
+          )}
+          {p.tipo === 'linkedin-texto' && (
+            <FichaComTexto
+              peca={p}
+              criativo={criativo}
+              campo="textoLinkedin"
+              titulo="Texto do LinkedIn"
+              ajuda="Texto curto que aparece dentro da imagem publicada no LinkedIn. Você pode revisar e editar antes de aprovar."
             />
           )}
           {p.tipo === 'reel' && (
@@ -1527,7 +1571,7 @@ function FichaComTexto({
   peca: Peca;
   criativo: Criativo;
   video?: VideoFonte;
-  campo: 'artigoLinkedin' | 'legendaInstagram';
+  campo: 'artigoLinkedin' | 'legendaInstagram' | 'textoLinkedin';
   titulo: string;
   ajuda: string;
 }) {
@@ -1560,7 +1604,7 @@ function TextoParaPublicar({
   criativo, campo, titulo, ajuda,
 }: {
   criativo: Criativo;
-  campo: 'artigoLinkedin' | 'legendaInstagram';
+  campo: 'artigoLinkedin' | 'legendaInstagram' | 'textoLinkedin';
   titulo: string;
   ajuda: string;
 }) {
@@ -2156,6 +2200,7 @@ function nomeDaPeca(tipo: Peca['tipo']) {
   if (tipo === 'carrossel-video') return 'Carrossel em vídeo';
   if (tipo === 'linkedin-pdf') return 'Carrossel do LinkedIn';
   if (tipo === 'linkedin-imagem') return 'Imagem única do LinkedIn';
+  if (tipo === 'linkedin-texto') return 'Texto do LinkedIn';
   return 'Reel';
 }
 

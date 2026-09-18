@@ -3670,7 +3670,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  tirado da própria fala.\n`
         + `- Cada página avança o raciocínio. Se duas páginas dizem a mesma coisa, junte e faça menos.\n\n`
         + `${GRAMATICA_SLIDES}\n\n`
-        + `\nAlém das páginas, escreva DOIS textos para publicar, a partir da MESMA fala:\n\n`
+        + `\nAlém das páginas, escreva TRÊS textos para publicar, a partir da MESMA fala:\n\n`
         + `"artigoLinkedin": o texto do post do LinkedIn, pronto para colar. De 150 a 300 palavras.\n`
         + `  Primeira linha é o gancho, sozinha. Parágrafos curtos, separados por linha em branco.\n`
         + `  Sem hashtag no meio; no máximo três no fim. Sem emoji. Termina com uma pergunta.\n`
@@ -3682,13 +3682,14 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  Até cinco hashtags na ÚLTIMA linha, específicas do assunto — nada de\n`
         + `  #sucesso ou #motivacao.\n`
         + `  Até cinco hashtags no fim, específicas do assunto — nada de #sucesso ou #motivacao.\n\n`
-        + `Os dois saem da fala, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
+        + `Os três saem da fala, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
         + `QUEBRA DE LINHA, nos dois: separe cada parágrafo com uma linha em branco DE\n`
         + `VERDADE — o caractere de nova linha, escrito como \\n dentro do texto do JSON.\n`
         + `Um bloco corrido não se publica: no Instagram ninguém lê, e no LinkedIn o\n`
         + `texto fica cortado no "ver mais" sem respiro. Nenhum parágrafo com mais de\n`
         + `três linhas.\n\n`
-        + `Devolva APENAS JSON: {"slides":[...],"artigoLinkedin":"...","legendaInstagram":"..."}`
+        + `"textoLinkedin": texto curto para virar uma imagem de texto no LinkedIn. De 35 a 70 palavras, em 3 a 6 frases curtas. Sem hashtags, sem emoji e sem chamada artificial.\n\n`
+        + `Devolva APENAS JSON: {"slides":[...],"artigoLinkedin":"...","legendaInstagram":"...","textoLinkedin":"..."}`
         // O pedido do consultor vai POR ÚLTIMO, depois de todas as regras: ele está
         // corrigindo uma versão que já viu, e o que ele pede tem que pesar mais do
         // que a orientação genérica de estilo lá de cima.
@@ -3716,8 +3717,9 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
           },
           artigoLinkedin: { type: Type.STRING },
           legendaInstagram: { type: Type.STRING },
+          textoLinkedin: { type: Type.STRING },
         },
-        required: ["slides", "artigoLinkedin", "legendaInstagram"],
+        required: ["slides", "artigoLinkedin", "legendaInstagram", "textoLinkedin"],
       };
 
       /** As mesmas contas que o renderizador faz antes de aceitar a página. */
@@ -3742,6 +3744,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       let slides: any[] = [];
       let artigoLinkedin = "";
       let legendaInstagram = "";
+      let textoLinkedin = "";
       let ultimoProblema = "";
       // Três tentativas, e a partir da segunda a IA recebe o que ela errou. Corrigir
       // sai muito mais barato do que devolver um erro pro consultor e perder a geração.
@@ -3780,6 +3783,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
           // Recusar a geração inteira por causa da legenda seria perder as quatro peças.
           artigoLinkedin = String(corpo.artigoLinkedin || "").trim();
           legendaInstagram = String(corpo.legendaInstagram || "").trim();
+          textoLinkedin = String(corpo.textoLinkedin || "").trim();
         } catch {
           ultimoProblema = "a resposta não era um JSON válido";
           continue;
@@ -3806,17 +3810,124 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         // Antes a "legenda" era um legenda.md solto dentro de cada pasta do Storage,
         // que o consultor não tinha como revisar nem copiar. Aqui eles são campos,
         // editáveis na tela e regravados por cima quando ele muda.
-        textos: { artigoLinkedin, legendaInstagram, geradoEm: agoraTexto },
+        textos: { artigoLinkedin, legendaInstagram, textoLinkedin, geradoEm: agoraTexto },
         atualizadoEm: agoraTexto,
       });
       console.log(`[gerar-roteiro] ${criativoId}: ${limpos.length} páginas, artigo ${artigoLinkedin.split(/\s+/).filter(Boolean).length} palavras, legenda ${legendaInstagram.split(/\s+/).filter(Boolean).length}`);
-      return res.json({ slides: limpos, artigoLinkedin, legendaInstagram });
+      return res.json({ slides: limpos, artigoLinkedin, legendaInstagram, textoLinkedin });
     } catch (error: any) {
       console.error("[/api/marketing-consultor/gerar-roteiro] erro:", error);
       const errorMessage = String(error?.message || "Erro ao montar o carrossel.")
         .replace(/\bgemini\b/gi, "serviço de IA")
         .slice(0, 500);
       return res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // Aprovar a copy inicia a produÃ§Ã£o inteira. A tela de Minhas peÃ§as continua
+  // sendo o lugar de revisar cada resultado, mas o consultor nÃ£o precisa abrir
+  // outra aba e clicar em Criar tudo para disparar o mesmo trabalho.
+  app.post("/api/marketing-consultor/gerar-tudo-aprovado", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin nÃ£o configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "AutenticaÃ§Ã£o obrigatÃ³ria." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token invÃ¡lido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "SÃ³ consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+    const criativoId = String(req.body?.criativoId || "").trim();
+    if (!criativoId) return res.status(400).json({ error: "Informe o criativo." });
+
+    try {
+      const dbAdmin = adminFirestore();
+      const criativoRef = dbAdmin.collection("marketing_criativos").doc(criativoId);
+      const criativoSnap = await criativoRef.get();
+      if (!criativoSnap.exists) return res.status(404).json({ error: "Criativo nÃ£o encontrado." });
+      const criativo = criativoSnap.data() as any;
+      if (!isAdmin && String(criativo.consultorId || "") !== consultorId) return res.status(403).json({ error: "Criativo nÃ£o pertence a este consultor." });
+      if (criativo.status !== "aprovado") return res.status(409).json({ error: "Aprove a copy antes de iniciar a produÃ§Ã£o." });
+
+      const campanhaId = `${criativoId}__pecas`;
+      const campanhaRef = dbAdmin.collection("marketing_campanhas").doc(campanhaId);
+      const campanhaExistente = await campanhaRef.get();
+      const estadoExistente = String(campanhaExistente.data()?.status || "");
+      if (campanhaExistente.exists && ["processando", "revisar", "aprovada", "publicada"].includes(estadoExistente)) {
+        return res.status(202).json({ estado: "ja-na-fila", campanhaId });
+      }
+
+      // Reusa a mesma geraÃ§Ã£o de roteiro da etapa 4. Assim a copy aprovada Ã© lida
+      // uma Ãºnica vez e os textos do PDF, Instagram e LinkedIn saem do mesmo pedido.
+      const origem = String(process.env.APP_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+      const roteiroResp = await fetch(`${origem}/api/marketing-consultor/gerar-roteiro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ criativoId }),
+      });
+      const roteiroBody = await roteiroResp.json().catch(() => ({}));
+      if (!roteiroResp.ok) return res.status(roteiroResp.status).json({ error: roteiroBody.error || "NÃ£o foi possÃ­vel gerar os textos." });
+      const slides = Array.isArray(roteiroBody.slides) ? roteiroBody.slides : [];
+      if (slides.length < 6 || slides.length > 8) return res.status(422).json({ error: "A IA nÃ£o devolveu um roteiro vÃ¡lido." });
+
+      const videoSnap = await dbAdmin.collection("marketing_videos").doc(String(criativo.videoId || "")).get();
+      const video = videoSnap.exists ? videoSnap.data() as any : {};
+      const consultorSnap = await dbAdmin.collection("consultores").doc(String(criativo.consultorId || consultorId)).get();
+      const branding = consultorSnap.exists ? (consultorSnap.data() as any)?.branding || {} : {};
+      const nomeBrand = String(branding.nome || "").trim();
+      const nomePessoa = String(consultorSnap.data()?.nome || "").trim();
+      const marca = nomeBrand ? {
+        nome: nomeBrand.toLowerCase() === nomePessoa.toLowerCase() ? "EDUCAÃ‡ÃƒO PELO TRABALHO" : nomeBrand,
+        ...(branding.logoUrl ? { logoUrl: branding.logoUrl } : {}),
+        ...(branding.cores ? { cores: branding.cores } : {}),
+      } : undefined;
+      const curto = (texto: string) => texto.length > 30 ? `${texto.slice(0, 29).trimEnd()}â€¦` : texto;
+      const assinatura = [
+        video.curso ? curto(`FONTE: curso ${video.curso}`) : "",
+        video.serie ? curto(String(video.serie).toUpperCase()) : video.titulo ? curto(String(video.titulo).toUpperCase()) : "",
+      ].filter(Boolean);
+      const agora = new Date().toISOString();
+      const render: any = {
+        date: agora.slice(0, 10),
+        slug: criativoId.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60),
+        folderType: "Carrossel",
+        sequence: Math.min(99, Math.max(1, Number(criativo.ordem) || 1)),
+        video: { enabled: true, secondsPerSlide: 5 },
+        ...(marca ? { marca } : {}),
+        signature: assinatura.length ? assinatura : ["LBW"],
+        slides,
+      };
+      await campanhaRef.set({
+        id: campanhaId, consultorId: criativo.consultorId || consultorId, videoId: criativo.videoId,
+        criativoId, titulo: criativo.titulo, objetivo: "autoridade", status: "processando",
+        segundosPorSlide: 5, roteiro: slides, roteiroGeradoEm: agora, criadoEm: agora,
+      }, { merge: true });
+      await dbAdmin.collection("marketing_tarefas").add({
+        consultorId: criativo.consultorId || consultorId, campanhaId, criativoId,
+        tipo: "gerar-campanha", status: "pendente", tentativas: 0, render,
+        criadoEm: agora, criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // O Reel Ã© independente: se o vÃ­deo nÃ£o tiver palavras temporizadas, os
+      // carrossÃ©is continuam normalmente e a mensagem fica registrada no retorno.
+      let reel = "na-fila";
+      try {
+        const reelResp = await fetch(`${origem}/api/marketing-consultor/gerar-reel`, {
+          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ criativoId, velocidade: 1 }),
+        });
+        reel = reelResp.ok ? "na-fila" : "indisponivel";
+      } catch { reel = "indisponivel"; }
+      return res.status(202).json({ estado: "na-fila", campanhaId, reel });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-tudo-aprovado] erro:", error);
+      return res.status(500).json({ error: String(error?.message || "NÃ£o foi possÃ­vel iniciar a produÃ§Ã£o.").slice(0, 500) });
     }
   });
 

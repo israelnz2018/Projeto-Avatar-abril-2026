@@ -216,6 +216,21 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
         status,
         atualizadoEm: new Date().toISOString(),
       });
+      if (status === 'aprovado') {
+        const user = auth.currentUser;
+        const resposta = await fetch('/api/marketing-consultor/gerar-tudo-aprovado', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${user ? await user.getIdToken() : ''}`,
+          },
+          body: JSON.stringify({ criativoId: criativo.id }),
+        });
+        const corpo = await resposta.json().catch(() => ({}));
+        if (!resposta.ok) {
+          setErroSalvar(corpo.error || 'A copy foi aprovada, mas a produção automática não começou. Tente atualizar a tela.');
+        }
+      }
       onMudou();
     } finally {
       setOcupado(false);
@@ -332,6 +347,8 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
           </div>
         )}
       </div>
+
+      {erroSalvar && !revisando && <p className="mt-2 text-sm text-red-700">{erroSalvar}</p>}
 
       {revisando
         ? (

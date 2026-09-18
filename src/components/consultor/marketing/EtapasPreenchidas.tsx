@@ -492,6 +492,7 @@ const CORES_PECA: Record<TipoPeca, { chip: string; ponto: string }> = {
   'carrossel-video': { chip: 'bg-amber-100 border-amber-400 text-amber-900', ponto: 'bg-amber-500' },
   'linkedin-pdf': { chip: 'bg-sky-100 border-sky-400 text-sky-900', ponto: 'bg-sky-500' },
   'linkedin-imagem': { chip: 'bg-indigo-100 border-indigo-400 text-indigo-900', ponto: 'bg-indigo-500' },
+  'linkedin-texto': { chip: 'bg-violet-100 border-violet-400 text-violet-900', ponto: 'bg-violet-500' },
   reel: { chip: 'bg-fuchsia-100 border-fuchsia-400 text-fuchsia-900', ponto: 'bg-fuchsia-500' },
 };
 
@@ -508,6 +509,7 @@ const HORA_SUGERIDA: Record<TipoPeca, string> = {
   'carrossel-video': '19:00',
   'linkedin-pdf': '08:00',
   'linkedin-imagem': '08:00',
+  'linkedin-texto': '08:00',
 };
 
 const DIAS_DA_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -2003,6 +2005,7 @@ function nomePeca(tipo: TipoPeca) {
   if (tipo === 'carrossel-feed') return 'Carrossel de feed';
   if (tipo === 'carrossel-video') return 'Carrossel em vídeo';
   if (tipo === 'linkedin-imagem') return 'Imagem única do LinkedIn';
+  if (tipo === 'linkedin-texto') return 'Texto do LinkedIn';
   return 'Carrossel do LinkedIn';
 }
 

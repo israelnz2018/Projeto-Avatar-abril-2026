@@ -31,6 +31,7 @@ export const PASTA_DA_PECA: Record<TipoPeca, string> = {
   'linkedin-pdf': 'CARROCEL DO LINKEDIN',
   'reel': 'VIDEO DO REELS e CAPA',
   'linkedin-imagem': 'IMAGEM ÚNICA DO LINKEDIN',
+  'linkedin-texto': 'TEXTO DO LINKEDIN',
 };
 
 /**
@@ -56,6 +57,8 @@ export function arquivosParaSalvar(peca: Peca): string[] {
       return unicos.filter((c) => /\.(mp4|jpe?g|png)$/i.test(c));
     case 'linkedin-imagem':
       return unicos.filter((c) => /\.(png|jpe?g)$/i.test(c));
+    case 'linkedin-texto':
+      return unicos.filter((c) => /\.(png|jpe?g|md|txt)$/i.test(c));
     default:
       return unicos;
   }
