@@ -505,6 +505,20 @@ export interface Peca {
 export interface PublicacaoDaPeca {
   rede?: 'instagram' | 'linkedin';
   /**
+   * O Facebook é BÔNUS, não uma rede própria: quando a peça vai ao Instagram,
+   * a mesma imagem/vídeo e a mesma legenda saem também na Página do Facebook,
+   * automaticamente, sem aprovação nem agendamento separados — é o mesmo post,
+   * em duas redes. Falhar aqui NUNCA desfaz nem marca a peça como falhou: o
+   * Instagram já saiu, e essa parte é sempre a que manda.
+   */
+  facebook?: {
+    status: 'publicada' | 'falhou';
+    postId?: string;
+    link?: string | null;
+    publicadoEm?: string;
+    erro?: string | null;
+  };
+  /**
    * `publicando` existe porque o Instagram leva minutos processando vídeo. Sem
    * este estado a tela ficava igual à de quem ainda não tentou, e o consultor
    * clicava em publicar de novo — gerando post repetido.

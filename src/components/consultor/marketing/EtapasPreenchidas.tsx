@@ -47,6 +47,11 @@ export function EtapaRedes({ config }: { config: MarketingConfig | null }) {
         A autorização acontece no site da própria rede. Nenhuma senha ou chave é digitada aqui,
         e o token fica guardado no servidor — nunca no navegador.
       </p>
+      <p className="text-xs text-gray-500">
+        <strong>Facebook:</strong> quando configurado no servidor, o Reel e o carrossel de
+        feed também saem sozinhos na sua Página do Facebook, junto com o Instagram — mesmo
+        arquivo, mesma legenda, sem aprovação nem agendamento à parte.
+      </p>
     </div>
   );
 }
@@ -1379,25 +1384,33 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
 
   if (jaPublicada(peca)) {
     const link = pub?.link;
-    return link
-      ? (
-        <a
-          href={link}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-800 text-xs font-bold shrink-0 hover:bg-green-200"
-        >
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          Publicada
-          <ExternalLink className="w-3 h-3" />
-        </a>
-      )
-      : (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-800 text-xs font-bold shrink-0">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          Publicada
-        </span>
-      );
+    return (
+      <span className="inline-flex items-center gap-1 shrink-0">
+        {link
+          ? (
+            <a
+              href={link}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-800 text-xs font-bold hover:bg-green-200"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Publicada
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )
+          : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-100 text-green-800 text-xs font-bold">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Publicada
+            </span>
+          )}
+        {/* O Facebook não tem estado próprio na tela — é bônus do Instagram,
+            sem aprovação nem agendamento à parte. Este selo só existe para o
+            consultor saber que também saiu, ou que precisa postar à mão. */}
+        <SeloDoFacebook facebook={pub?.facebook} />
+      </span>
+    );
   }
 
   if (pub?.status === 'publicando') {
@@ -1437,6 +1450,45 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold shrink-0">
       <Clock className="w-3.5 h-3.5" />
       Agendada
+    </span>
+  );
+}
+
+/**
+ * O selo do cruzamento com o Facebook.
+ *
+ * `undefined` quer dizer que nem foi tentado — a maioria das peças (LinkedIn)
+ * nem cruza, e a conta só ganha as credenciais da Página quando o Israel
+ * configurar. Por isso, sem tentativa, não aparece nada: um selo cinza
+ * "Facebook: —" toda vez seria ruído em peça que nunca teve isso como opção.
+ */
+function SeloDoFacebook({ facebook }: { facebook?: NonNullable<Peca['publicacao']>['facebook'] }) {
+  if (!facebook) return null;
+
+  if (facebook.status === 'publicada') {
+    return facebook.link ? (
+      <a
+        href={facebook.link}
+        target="_blank"
+        rel="noreferrer"
+        title="Também saiu na Página do Facebook"
+        className="text-[10px] font-bold text-blue-700 hover:underline shrink-0"
+      >
+        +Facebook
+      </a>
+    ) : (
+      <span title="Também saiu na Página do Facebook" className="text-[10px] font-bold text-blue-700 shrink-0">
+        +Facebook
+      </span>
+    );
+  }
+
+  return (
+    <span
+      title={`Não saiu no Facebook: ${facebook.erro || 'motivo não registrado'}`}
+      className="text-[10px] font-bold text-amber-700 shrink-0"
+    >
+      Facebook não saiu
     </span>
   );
 }
