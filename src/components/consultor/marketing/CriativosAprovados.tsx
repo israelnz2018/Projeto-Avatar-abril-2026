@@ -595,7 +595,7 @@ function Producao({
           tipo: 'regerar-peca',
           status: 'pendente',
           tentativas: 0,
-          render: { layout: 'citacao', formato: 'quadrado', frase: texto },
+          render: { layout: 'texto', formato: 'quadrado', frase: texto, fonte: 'Cortes do curso White Belt' },
           criadoEm: agora,
           criadoEmServidor: serverTimestamp(),
         });
