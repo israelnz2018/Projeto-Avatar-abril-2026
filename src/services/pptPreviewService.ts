@@ -22,6 +22,49 @@ const LARGURA_RENDER = 1600;
 
 type Tema = Record<string, string>;
 
+/**
+ * O Google Slides às vezes exporta um thumbnail JPEG perfeitamente válido, mas
+ * inteiramente branco. O arquivo existe e abre, então conferir apenas o tamanho
+ * ou o MIME não basta. Esta leitura pequena distingue uma prévia de verdade de
+ * um quadro branco/transparente e deixa o código seguir para o desenho do slide.
+ */
+async function imagemTemConteudoVisual(blob: Blob): Promise<boolean> {
+  const url = URL.createObjectURL(blob);
+  try {
+    const imagem = await new Promise<HTMLImageElement | null>((resolve) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => resolve(null);
+      el.src = url;
+    });
+    if (!imagem) return false;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 48;
+    canvas.height = 48;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(imagem, 0, 0, canvas.width, canvas.height);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    let visiveis = 0;
+    let menor = 255;
+    let maior = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] < 16) continue;
+      visiveis++;
+      menor = Math.min(menor, pixels[i], pixels[i + 1], pixels[i + 2]);
+      maior = Math.max(maior, pixels[i], pixels[i + 1], pixels[i + 2]);
+    }
+    if (!visiveis) return false;
+    // Qualquer quadro praticamente uniforme é inútil como prévia, seja branco,
+    // preto ou uma cor sólida. O Office Viewer continua disponível como fallback.
+    return maior - menor > 10;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function resolverCaminho(base: string, alvo: string): string {
   if (alvo.startsWith('/')) return alvo.slice(1);
   const partes = base ? base.split('/') : [];
@@ -226,11 +269,23 @@ async function desenharFormas(
     const ehPlaceholder = !!forma.getElementsByTagName('p:ph')[0];
     if (!ehSlide && ehPlaceholder) continue;
 
-    // Formas: preenchimento sólido (quando houver) + texto.
+    // Formas: imagem ou preenchimento sólido (quando houver) + texto. Google
+    // Slides costuma exportar imagens de fundo como `a:blipFill` dentro de uma
+    // forma, e não como `p:pic`; ignorar isso apagava boa parte do template.
     const spPr = filhoDireto(forma, 'p:spPr');
+    const embedDaForma = spPr?.getElementsByTagName('a:blip')[0]?.getAttribute('r:embed');
+    const caminhoDaImagem = embedDaForma ? rels.get(embedDaForma) : null;
+    let desenhouImagem = false;
+    if (caminhoDaImagem) {
+      const img = await carregarImagem(zip, caminhoDaImagem);
+      if (img) {
+        ctx.drawImage(img, x, y, w, h);
+        desenhouImagem = true;
+      }
+    }
     const preenchimento = spPr ? filhoDireto(spPr, 'a:solidFill') : null;
     const cor = corDe(preenchimento, tema);
-    if (cor) {
+    if (cor && !desenhouImagem) {
       ctx.fillStyle = cor;
       ctx.fillRect(x, y, w, h);
     }
@@ -283,7 +338,9 @@ export async function gerarPreviaPptx(arquivo: File | Blob): Promise<Blob | null
   const miniatura = Object.values(zip.files).find((f) => /(^|\/)thumbnail\.(jpe?g|png)$/i.test(f.name));
   if (miniatura) {
     try {
-      return await miniatura.async('blob');
+      const blob = await miniatura.async('blob');
+      if (await imagemTemConteudoVisual(blob)) return blob;
+      // O thumbnail branco do Google Slides não é a prévia. Desenha o slide real.
     } catch {
       // segue pro desenho aproximado
     }
@@ -333,7 +390,8 @@ export async function gerarPreviaPptx(arquivo: File | Blob): Promise<Blob | null
     if (arvore) await desenharFormas(ctx, arvore, zip, rels, tema, escala, camada.ehSlide);
   }
 
-  return new Promise<Blob | null>((resolve) => {
+  const render = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob((b) => resolve(b), 'image/png', 0.92);
   });
+  return render && await imagemTemConteudoVisual(render) ? render : null;
 }

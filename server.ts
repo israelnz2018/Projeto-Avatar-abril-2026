@@ -664,6 +664,82 @@ async function startServer() {
     }
   }
 
+  // Importa um Google Slides público como PPTX. O arquivo convertido é o modelo
+  // real usado na exportação dos alunos, não uma captura de tela.
+  app.post('/api/ppt/importar-google-slides', requireUser, async (req: any, res: any) => {
+    const consultorId = String(req.body?.consultorId || '').trim();
+    const tipo = String(req.body?.tipo || '');
+    const link = String(req.body?.url || '').trim();
+    const campo = tipo === 'ppt-capa'
+      ? 'pptCapaUrl'
+      : tipo === 'ppt-interna'
+        ? 'pptInternaUrl'
+        : '';
+    const campoPrevia = tipo === 'ppt-capa' ? 'pptCapaPreviaUrl' : 'pptInternaPreviaUrl';
+    const idGoogle = link.match(/docs\.google\.com\/presentation\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]+)/)?.[1];
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/i.test(consultorId) || !campo || !idGoogle) {
+      return res.status(400).json({ error: 'Cole um link válido do Google Slides.' });
+    }
+
+    try {
+      const [usuarioSnap, consultorSnap] = await Promise.all([
+        adminFirestore().collection('users').doc(req.userUid).get(),
+        adminFirestore().collection('consultores').doc(consultorId).get(),
+      ]);
+      const usuario = usuarioSnap.data() || {};
+      const emailsAdmin = ['israelnz2018@hotmail.com', 'israel@learningbyworking.com'];
+      const ids = new Set([
+        String((usuario as any).consultorId || ''),
+        ...(((usuario as any).consultorIds || []) as unknown[]).map(String),
+      ]);
+      const autorizado = emailsAdmin.includes(String(req.userEmail || '')) || ids.has(consultorId);
+      if (!autorizado || !consultorSnap.exists) return res.status(403).json({ error: 'Acesso negado.' });
+
+      const exportacao = `https://docs.google.com/presentation/d/${idGoogle}/export/pptx`;
+      const resposta = await fetch(exportacao, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(45_000),
+        headers: { 'user-agent': 'LBW-PPT-Importer/1.0' },
+      });
+      if (!resposta.ok) {
+        return res.status(422).json({
+          error: 'O Google Slides não liberou o arquivo. Ative “qualquer pessoa com o link” e tente novamente.',
+        });
+      }
+      const arquivo = Buffer.from(await resposta.arrayBuffer());
+      const limite = 30 * 1024 * 1024;
+      if (arquivo.length > limite) return res.status(413).json({ error: 'Apresentação muito grande (máx. 30 MB).' });
+      if (arquivo.length < 4 || arquivo[0] !== 0x50 || arquivo[1] !== 0x4b) {
+        return res.status(422).json({
+          error: 'O link não entregou um PowerPoint. Confira o compartilhamento do Google Slides.',
+        });
+      }
+
+      const bucketName = 'senha-92ce1.firebasestorage.app';
+      const destino = `community_uploads/${req.userUid}/branding-${tipo}-google-${Date.now()}.pptx`;
+      const tokenDownload = crypto.randomUUID();
+      await admin.storage().bucket(bucketName).file(destino).save(arquivo, {
+        contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        metadata: {
+          cacheControl: 'private, max-age=3600',
+          metadata: { firebaseStorageDownloadTokens: tokenDownload },
+        },
+      });
+      const url = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(destino)}?alt=media&token=${tokenDownload}`;
+
+      await consultorSnap.ref.update({
+        [`branding.${campo}`]: url,
+        [`branding.${campoPrevia}`]: admin.firestore.FieldValue.delete(),
+        'branding.pptModo': 'proprio',
+        'onboarding.marca': true,
+      });
+      return res.json({ url });
+    } catch (erro: any) {
+      console.error('[/api/ppt/importar-google-slides]', erro?.message || erro);
+      return res.status(500).json({ error: 'Não foi possível importar o Google Slides.' });
+    }
+  });
+
   // Solicitação enviada a partir de qualquer cadeado da plataforma.
   // Registra no Firestore para auditoria e envia a mensagem por e-mail ao consultor do tenant.
   // Gera, somente para o consultor autenticado, um endereço aleatório válido por

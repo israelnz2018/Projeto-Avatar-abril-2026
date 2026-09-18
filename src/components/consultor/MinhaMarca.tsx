@@ -20,6 +20,7 @@ export default function MinhaMarca() {
   const [pptInternaPreviaUrl, setPptInternaPreviaUrl] = useState('');
 
   const [enviando, setEnviando] = useState<BrandingAsset | null>(null);
+  const [importando, setImportando] = useState<BrandingAsset | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -91,6 +92,35 @@ export default function MinhaMarca() {
     }
   }
 
+  async function importarGoogleSlides(
+    link: string,
+    tipo: 'ppt-capa' | 'ppt-interna',
+    aplicar: (url: string) => void,
+    aplicarPrevia: (url: string) => void,
+  ) {
+    setImportando(tipo);
+    setMsg('');
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error('Você precisa estar logado.');
+      const resposta = await fetch('/api/ppt/importar-google-slides', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ consultorId, tipo, url: link.trim() }),
+      });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(dados.error || `HTTP ${resposta.status}`);
+      aplicar(String(dados.url || ''));
+      aplicarPrevia('');
+      await refresh();
+      setMsg('✅ Google Slides importado e salvo como modelo editável de PowerPoint.');
+    } catch (e: any) {
+      setMsg('❌ ' + (e?.message || e));
+    } finally {
+      setImportando(null);
+    }
+  }
+
   return (
     <div className="max-w-2xl mx-auto pb-12">
       <h1 className="text-2xl font-black text-gray-800 mb-1">Modelo de PPT</h1>
@@ -124,8 +154,11 @@ export default function MinhaMarca() {
                 previaUrl={pptCapaPreviaUrl}
                 consultorId={consultorId}
                 arquivoModelo="capa.pptx"
+                salvo={pptCapaUrl === (consultor.branding.pptCapaUrl || '')}
                 carregando={enviando === 'ppt-capa'}
+                importando={importando === 'ppt-capa'}
                 onFile={(f) => enviarImagem(f, 'ppt-capa', setPptCapaUrl, setPptCapaPreviaUrl)}
+                onGoogleSlides={(link) => importarGoogleSlides(link, 'ppt-capa', setPptCapaUrl, setPptCapaPreviaUrl)}
               />
               <FundoUpload
                 rotulo="Página interna"
@@ -133,13 +166,16 @@ export default function MinhaMarca() {
                 previaUrl={pptInternaPreviaUrl}
                 consultorId={consultorId}
                 arquivoModelo="pagina-interna.pptx"
+                salvo={pptInternaUrl === (consultor.branding.pptInternaUrl || '')}
                 carregando={enviando === 'ppt-interna'}
+                importando={importando === 'ppt-interna'}
                 onFile={(f) => enviarImagem(f, 'ppt-interna', setPptInternaUrl, setPptInternaPreviaUrl)}
+                onGoogleSlides={(link) => importarGoogleSlides(link, 'ppt-interna', setPptInternaUrl, setPptInternaPreviaUrl)}
               />
             </div>
             <p className="text-xs text-gray-400">
-              <b>Formato permitido: .PPTX</b> (PowerPoint moderno). Arquivos <b>.PPT</b> antigos e imagens não são aceitos neste modelo, pois não permitem inserir os dados mantendo o design editável.
-              Se o seu arquivo estiver em .PPT, abra-o no PowerPoint e use <b>Arquivo → Salvar como → Apresentação do PowerPoint (.pptx)</b>. Envie os dois arquivos .pptx para ativar seu modelo; se faltar um deles, fica o modelo padrão LBW.
+              Aceita <b>PowerPoint .PPTX</b> ou um <b>link do Google Slides</b>. O Google Slides é convertido para PPTX para que os PowerPoints gerados pelos alunos continuem editáveis.
+              Em cada link, o primeiro slide será usado como o modelo daquele cartão. Arquivos .PPT antigos e imagens não são aceitos.
             </p>
           </div>
         </div>
@@ -159,12 +195,25 @@ export default function MinhaMarca() {
   );
 }
 
-function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carregando, onFile }: {
-  rotulo: string; url: string; previaUrl: string; consultorId: string; arquivoModelo: string; carregando: boolean; onFile: (f?: File) => void;
+function FundoUpload({
+  rotulo, url, previaUrl, consultorId, arquivoModelo, salvo, carregando, importando, onFile, onGoogleSlides,
+}: {
+  rotulo: string;
+  url: string;
+  previaUrl: string;
+  consultorId: string;
+  arquivoModelo: string;
+  salvo: boolean;
+  carregando: boolean;
+  importando: boolean;
+  onFile: (f?: File) => void;
+  onGoogleSlides: (link: string) => void;
 }) {
   const isPowerPoint = /\.pptx?(\?|$)/i.test(url);
   const [miniatura, setMiniatura] = useState('');
+  const [tentativaPreviaConcluida, setTentativaPreviaConcluida] = useState(false);
   const [urlVisualizacao, setUrlVisualizacao] = useState('');
+  const [linkGoogle, setLinkGoogle] = useState('');
   const urlOffice = urlVisualizacao
     ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(urlVisualizacao)}`
     : '';
@@ -175,7 +224,7 @@ function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carre
   useEffect(() => {
     let ativo = true;
     setUrlVisualizacao('');
-    if (!url || !isPowerPoint) return;
+    if (!url || !isPowerPoint || !salvo) return;
 
     void (async () => {
       try {
@@ -195,28 +244,29 @@ function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carre
     })();
 
     return () => { ativo = false; };
-  }, [url, isPowerPoint, consultorId, arquivoModelo]);
+  }, [url, isPowerPoint, salvo, consultorId, arquivoModelo]);
 
   useEffect(() => {
     let objectUrl = '';
     let ativo = true;
     setMiniatura('');
-    // Com a prévia já gerada no upload não precisa reler o arquivo do Storage
-    // (leitura que, além de desnecessária, costuma esbarrar em CORS).
-    if (!url || !isPowerPoint || previaUrl) return;
+    setTentativaPreviaConcluida(false);
+    // A leitura passa pelo endereço temporário da própria plataforma. Buscar a
+    // URL do Storage direto daqui é bloqueado por CORS em alguns navegadores.
+    if (!urlVisualizacao) return;
 
     void (async () => {
       try {
-        // Template enviado ANTES da prévia existir: tenta reler do Storage e gerar
-        // agora. Pode falhar por CORS — nesse caso o card orienta a reenviar.
-        const resposta = await fetch(url);
+        const resposta = await fetch(urlVisualizacao);
         if (!resposta.ok) return;
         const blob = await gerarPreviaPptx(await resposta.blob());
         if (!blob) return;
         objectUrl = URL.createObjectURL(blob);
         if (ativo) setMiniatura(objectUrl);
       } catch {
-        // Alguns PowerPoints não incluem miniatura; o arquivo continua disponível.
+        // O visualizador do Office continua sendo o último fallback.
+      } finally {
+        if (ativo) setTentativaPreviaConcluida(true);
       }
     })();
 
@@ -224,7 +274,9 @@ function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carre
       ativo = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [url, isPowerPoint, previaUrl]);
+  }, [urlVisualizacao]);
+
+  const imagemPrevia = miniatura || (salvo && tentativaPreviaConcluida ? '' : previaUrl);
 
   return (
     <div>
@@ -234,11 +286,11 @@ function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carre
           isPowerPoint
             ? (
               <div className="relative w-full h-full bg-slate-100">
-                {/* Ordem: prévia gerada no upload (sempre funciona) → miniatura lida do
-                    arquivo → visualizador do Office. As duas últimas são fallback pra
-                    templates enviados antes da prévia existir. */}
-                {previaUrl || miniatura ? (
-                  <img src={previaUrl || miniatura} alt={`Prévia: ${rotulo}`} className="w-full h-full object-contain bg-white" />
+                {/* Ordem: imagem reconstruída do PPTX → prévia criada no upload →
+                    visualizador do Office. Assim um thumbnail branco do Google Slides
+                    nunca esconde o modelo verdadeiro. */}
+                {imagemPrevia ? (
+                  <img src={imagemPrevia} alt={`Prévia: ${rotulo}`} className="w-full h-full object-contain bg-white" />
                 ) : urlOfficeEmbed ? (
                   <iframe
                     title={`Prévia do PowerPoint: ${rotulo}`}
@@ -272,6 +324,26 @@ function FundoUpload({ rotulo, url, previaUrl, consultorId, arquivoModelo, carre
           </a>
         )}
       </div>
+      <div className="mt-2 flex items-stretch gap-2">
+        <input
+          type="url"
+          value={linkGoogle}
+          onChange={(e) => setLinkGoogle(e.target.value)}
+          placeholder="Ou cole o link do Google Slides"
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs"
+        />
+        <button
+          type="button"
+          disabled={importando || !linkGoogle.trim()}
+          onClick={() => onGoogleSlides(linkGoogle)}
+          className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+        >
+          {importando ? 'Importando…' : 'Usar link'}
+        </button>
+      </div>
+      <p className="mt-1 text-[10px] text-gray-400">
+        No Google Slides, libere “qualquer pessoa com o link”. O primeiro slide será usado.
+      </p>
     </div>
   );
 }
