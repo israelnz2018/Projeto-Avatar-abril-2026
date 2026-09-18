@@ -102,7 +102,6 @@ export default function SuperRelatorio() {
             </h2>
             <select value={empresaSelecionada} onChange={(event) => setEmpresaSelecionada(event.target.value)} className="mb-5 w-full max-w-md border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white">
               <option value="empresa-x-demo">Empresa X - FICTÍCIA</option>
-              <option value="diretos">Meus próprios alunos</option>
               {r.empresas.filter((e) => e.chave !== 'diretos').map((e) => <option key={e.chave} value={e.chave}>{e.coordenadorNome || e.titulo}</option>)}
             </select>
             {empresaSelecionada === 'diretos' ? (
