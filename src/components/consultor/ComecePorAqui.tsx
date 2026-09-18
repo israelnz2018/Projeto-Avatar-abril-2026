@@ -205,8 +205,23 @@ export default function ComecePorAqui() {
   }, [consultorId, consultor.certificado, consultor.comunidadeBoasVindas, consultor.depoimentoPosProvaAtivo, consultor.depoimentoPreProvaAtivo]);
 
   useEffect(() => {
-    getAllKnowledge(consultorId)
-      .then((videos) => {
+    async function carregarVideosOrientacao() {
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          await fetch('/api/bunny/refresh-thumbnails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${await user.getIdToken()}`,
+            },
+          });
+        }
+      } catch {
+        // A miniatura é complementar: se o refresh falhar, o vídeo continua abrindo.
+      }
+
+      return getAllKnowledge(consultorId).then((videos) => {
         const onboarding = videos
           .filter((video) => video.course === INTRO_COURSE_CONSULTOR && video.bunnyVideoId && video.bunnyLibraryId)
           .sort((a, b) => (a.playlistOrder ?? 0) - (b.playlistOrder ?? 0) || (a.order ?? 0) - (b.order ?? 0));
@@ -217,8 +232,10 @@ export default function ComecePorAqui() {
           if (etapa && !nomes[etapa]) nomes[etapa] = video.playlist;
         });
         setNomesPlaylistChecklist(nomes);
-      })
-      .catch(() => { setVideosOrientacao([]); setNomesPlaylistChecklist({}); });
+      });
+    }
+
+    carregarVideosOrientacao().catch(() => { setVideosOrientacao([]); setNomesPlaylistChecklist({}); });
   }, [consultorId]);
 
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;

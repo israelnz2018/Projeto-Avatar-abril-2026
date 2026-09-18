@@ -2366,6 +2366,73 @@ async function startServer() {
     }
   }
 
+  // Atualiza as miniaturas dos vídeos que já terminaram de processar, mas foram
+  // cadastrados antes de o Bunny devolver a URL da thumbnail. O processamento do
+  // vídeo pode terminar antes dessa URL existir, então isso também cobre os vídeos
+  // antigos sem obrigar o consultor a reenviar ou reprocessar o arquivo.
+  app.post("/api/bunny/refresh-thumbnails", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+
+    const consultorId = String(caller.consultorId || "israel");
+    try {
+      const lib = await bunnyLibraryDoConsultor(consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
+
+      const snap = await adminFirestore().collection("knowledge_base")
+        .where("consultorId", "==", consultorId).get();
+      const docsSemThumbnail = snap.docs.filter((item) => {
+        const data = item.data() as any;
+        return data.course === "Consultor Comece por aqui" && data.bunnyVideoId && !String(data.bunnyThumbnailUrl || "").trim();
+      });
+      const ids = Array.from(new Set(docsSemThumbnail.map((item) => String(item.data().bunnyVideoId))));
+      if (!ids.length) return res.json({ ok: true, atualizados: 0 });
+
+      const thumbnails = new Map<string, string>();
+      await Promise.all(ids.map(async (videoId) => {
+        try {
+          const response = await fetch(`https://video.bunnycdn.com/library/${lib.libraryId}/videos/${videoId}/play`, {
+            headers: { AccessKey: lib.apiKey, Accept: "application/json" },
+            signal: AbortSignal.timeout(30_000),
+          });
+          if (!response.ok) return;
+          const play = await response.json() as any;
+          const thumbnail = String(play?.video?.thumbnailUrl || play?.thumbnailUrl || "").trim();
+          if (thumbnail) thumbnails.set(videoId, thumbnail);
+        } catch (error) {
+          console.warn(`[bunny/refresh-thumbnails] falha no vídeo ${videoId}:`, error);
+        }
+      }));
+
+      if (!thumbnails.size) return res.json({ ok: true, atualizados: 0 });
+      const batch = adminFirestore().batch();
+      let atualizados = 0;
+      docsSemThumbnail.forEach((item) => {
+        const thumbnail = thumbnails.get(String(item.data().bunnyVideoId));
+        if (!thumbnail) return;
+        batch.update(item.ref, { bunnyThumbnailUrl: thumbnail });
+        atualizados += 1;
+      });
+      await batch.commit();
+      return res.json({ ok: true, atualizados });
+    } catch (error: any) {
+      console.error("[/api/bunny/refresh-thumbnails] erro:", error);
+      return res.status(500).json({ error: error?.message || "Não foi possível atualizar as miniaturas." });
+    }
+  });
+
   // POST /api/bunny/create-video — cria o vídeo na library DO CONSULTOR e devolve a
   // assinatura pro upload DIRETO (TUS) do navegador pro Bunny. A chave nunca vai ao cliente.
   app.post("/api/bunny/create-video", async (req: any, res) => {
