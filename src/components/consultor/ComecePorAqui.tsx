@@ -421,7 +421,7 @@ export default function ComecePorAqui() {
                 <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3 text-sm font-black uppercase tracking-wide text-slate-700"><span>Seu progresso nesta orientação</span><span className="whitespace-nowrap text-blue-700">{videosAcessadosTotal} / {videosProgresso.length} vídeos · {progressoPercentual}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progressoPercentual}%` }} /></div><p className="mt-2 text-sm text-slate-600">Abra os vídeos na sequência para acompanhar sua preparação como consultor.</p></div>
               </div>
             </div>
-            <div className="mx-auto max-w-xl">{renderVideoCard(videoIntroducao, null)}</div>
+            <div className="mx-auto max-w-md">{renderVideoCard(videoIntroducao, null)}</div>
             {videosRestantes.length > 0 && <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">{videosRestantes.map((video, indice) => renderVideoCard(video, indice + 1))}</div>}
           </div>
         </section>
