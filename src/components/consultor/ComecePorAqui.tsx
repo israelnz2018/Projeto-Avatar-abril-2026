@@ -342,7 +342,7 @@ export default function ComecePorAqui() {
           {videoAberto && (
             <div className="p-5 border-b border-gray-100 bg-slate-50">
               <p className="mb-3 font-bold text-gray-800">{videoAberto.title}</p>
-              <div className="aspect-video overflow-hidden rounded-xl bg-slate-900">
+              <div className={`${videoAberto?.onboardingStep === 'boas-vindas' ? 'aspect-square' : 'aspect-video'} overflow-hidden rounded-xl bg-slate-900`}>
                 <iframe
                   title={videoAberto.title}
                   src={`https://iframe.mediadelivery.net/embed/${videoAberto.bunnyLibraryId}/${videoAberto.bunnyVideoId}?autoplay=true&preload=true`}
@@ -360,7 +360,7 @@ export default function ComecePorAqui() {
               return videos.map((video, indice) => (
                 <div key={video?.id || `${grupo.id}-${indice}`} className="overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
                   <button type="button" disabled={!video} onClick={() => video && setVideoAberto(video)} className="group w-full text-left disabled:cursor-default">
-                    <div className={`relative aspect-video overflow-hidden ${video ? 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100' : 'bg-slate-50'}`}>
+                    <div className={`relative ${grupo.id === 'boas-vindas' ? 'aspect-square' : 'aspect-video'} overflow-hidden ${video ? 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100' : 'bg-slate-50'}`}>
                       {video?.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
                           <span className="grid h-12 w-12 place-items-center rounded-full border border-slate-300 bg-white/80 shadow-sm">
