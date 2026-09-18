@@ -9,7 +9,7 @@ import { ehTipoDeProjeto } from '../../lib/tipoIniciativa';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { CheckCircle2, Circle, PlayCircle, Rocket, Video } from 'lucide-react';
+import { CheckCircle2, Circle, GraduationCap, PlayCircle, Rocket, Video } from 'lucide-react';
 import { auth, db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
 import { useUserAccess } from '../../hooks/useUserAccess';
@@ -128,9 +128,19 @@ export default function ComecePorAqui() {
   const [videosOrientacao, setVideosOrientacao] = useState<KnowledgeEntry[]>([]);
   const [nomesPlaylistChecklist, setNomesPlaylistChecklist] = useState<Record<string, string>>({});
   const [videoAberto, setVideoAberto] = useState<KnowledgeEntry | null>(null);
+  const [videosAcessados, setVideosAcessados] = useState<Record<string, boolean>>({});
   const [liberandoCurso, setLiberandoCurso] = useState(false);
   const [erroCurso, setErroCurso] = useState('');
   const [cursoSolicitado, setCursoSolicitado] = useState(false);
+
+  useEffect(() => {
+    try {
+      const salvos = window.localStorage.getItem(`consultor-onboarding-videos-${consultorId}`);
+      setVideosAcessados(salvos ? JSON.parse(salvos) : {});
+    } catch {
+      setVideosAcessados({});
+    }
+  }, [consultorId]);
 
   useEffect(() => {
     let ativo = true;
@@ -301,6 +311,16 @@ export default function ComecePorAqui() {
     </button>
   );
 
+  const abrirVideo = (video: KnowledgeEntry) => {
+    setVideoAberto(video);
+    if (!video.id) return;
+    setVideosAcessados((anterior) => {
+      const atualizado = { ...anterior, [video.id!]: true };
+      try { window.localStorage.setItem(`consultor-onboarding-videos-${consultorId}`, JSON.stringify(atualizado)); } catch { /* armazenamento é apenas um complemento visual */ }
+      return atualizado;
+    });
+  };
+
   // A página e o checklist usam a mesma fonte: as playlists do vídeo. Quando
   // uma playlist é renomeada na Base de Conhecimento, o novo nome chega aqui.
   const gruposOrientacao = (() => {
@@ -324,20 +344,61 @@ export default function ComecePorAqui() {
     return [...padrao, ...extras];
   })();
 
+  const normalizarTexto = (valor: string) => valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const limparNumeroPlaylist = (valor: string) => valor.replace(/^\s*\d+\.\s*/, '').trim();
+  const grupoDoVideo = (video: KnowledgeEntry) => gruposOrientacao.find((grupo) => grupo.videos.some((item) => item.id === video.id));
+  const videosOrdenados = [...videosOrientacao].sort((a, b) => (
+    (a.playlistOrder ?? 999) - (b.playlistOrder ?? 999) || (a.order ?? 0) - (b.order ?? 0)
+  ));
+  const videoIntroducao = videosOrdenados.find((video) => normalizarTexto(video.title).includes('consultor - introducao'))
+    || videosOrdenados.find((video) => video.onboardingStep === 'boas-vindas');
+  const videosRestantes = videosOrdenados.filter((video) => video.id !== videoIntroducao?.id);
+  const videosProgresso = videosOrientacao.filter((video) => video.id);
+  const videosAcessadosTotal = videosProgresso.filter((video) => !!videosAcessados[video.id!]).length;
+  const progressoPercentual = videosProgresso.length ? Math.round((videosAcessadosTotal / videosProgresso.length) * 100) : 0;
+  const renderVideoCard = (video: KnowledgeEntry | undefined, numero: number | null) => {
+    const grupo = video ? grupoDoVideo(video) : gruposOrientacao.find((item) => item.id === 'boas-vindas');
+    const tarefa = grupo ? ITENS.find((item) => item.id === grupo.id) : undefined;
+    const nomePlaylist = limparNumeroPlaylist(grupo?.nome || 'Boas-vindas ao Programa de Consultores LBW');
+    const etiquetaPlaylist = numero === null ? nomePlaylist : `${numero}. ${nomePlaylist}`;
+    return (
+      <div key={video?.id || 'boas-vindas-placeholder'} className="overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
+        <button type="button" disabled={!video} onClick={() => video && abrirVideo(video)} className="group w-full text-left disabled:cursor-default">
+          <div className={`relative ${grupo?.id === 'boas-vindas' ? 'aspect-square' : 'aspect-video'} overflow-hidden ${video ? 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100' : 'bg-slate-50'}`}>
+            {video?.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onError={(evento) => { evento.currentTarget.style.display = 'none'; }} /> : (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
+                <span className="grid h-12 w-12 place-items-center rounded-full border border-slate-300 bg-white/80 shadow-sm">
+                  <Video size={24} className="text-blue-600" />
+                </span>
+                <span className="text-center text-xs font-bold">{video ? 'Vídeo em preparação' : 'Vídeo será adicionado depois'}</span>
+              </div>
+            )}
+            {video && <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-0 transition group-hover:opacity-100"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><PlayCircle size={27} /></span></div>}
+          </div>
+          <div className="p-4"><h3 className="font-bold text-[16px] leading-tight text-gray-800">{video?.title || 'Vídeo ainda não cadastrado'}</h3><p className="mt-2 text-[13px] text-gray-500">{etiquetaPlaylist}</p></div>
+        </button>
+        {tarefa && grupo?.id !== 'experiencia-aluno' && <div className="border-t border-[#eee] bg-slate-50 p-4 text-[15px] leading-6 text-gray-600">
+          <p>{tarefa.texto}</p>
+          {tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-[13px] font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}
+        </div>}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full max-w-none pb-12">
       <div className="flex items-center gap-3 mb-1">
         <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 grid place-items-center"><Rocket size={20} /></div>
         <h1 className="text-2xl font-black text-gray-800">Consultor Comece por aqui</h1>
       </div>
-      <p className="text-gray-500 text-sm mb-6">
+      <p className="text-gray-500 text-base mb-6">
         Um passo a passo para você deixar a sua plataforma pronta para os seus clientes.
       </p>
 
       <div className="space-y-3">
         <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <div className="p-5 border-b border-gray-100">
-            <h2 className="font-black text-gray-800">Vídeos passo a passo</h2>
+            <h2 className="text-lg font-black text-gray-800">Vídeos passo a passo</h2>
           </div>
           {videoAberto && (
             <div className="p-5 border-b border-gray-100 bg-slate-50">
@@ -353,32 +414,15 @@ export default function ComecePorAqui() {
               </div>
             </div>
           )}
-          <div className="grid gap-6 p-5 md:grid-cols-2 xl:grid-cols-3">
-            {gruposOrientacao.map((grupo) => {
-              const tarefa = ITENS.find((item) => item.id === grupo.id);
-              const videos = grupo.videos.length ? grupo.videos : [null];
-              return videos.map((video, indice) => (
-                <div key={video?.id || `${grupo.id}-${indice}`} className="overflow-hidden rounded-[4px] border border-[#ccc] bg-white">
-                  <button type="button" disabled={!video} onClick={() => video && setVideoAberto(video)} className="group w-full text-left disabled:cursor-default">
-                    <div className={`relative ${grupo.id === 'boas-vindas' ? 'aspect-square' : 'aspect-video'} overflow-hidden ${video ? 'bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100' : 'bg-slate-50'}`}>
-                      {video?.bunnyThumbnailUrl ? <img src={video.bunnyThumbnailUrl} alt={video.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : (
-                        <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-500">
-                          <span className="grid h-12 w-12 place-items-center rounded-full border border-slate-300 bg-white/80 shadow-sm">
-                            <Video size={24} className="text-blue-600" />
-                          </span>
-                          <span className="text-center text-xs font-bold">{video ? 'Vídeo em preparação' : 'Vídeo será adicionado depois'}</span>
-                        </div>
-                      )}
-                      {video && <div className="absolute inset-0 grid place-items-center bg-black/20 opacity-0 transition group-hover:opacity-100"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><PlayCircle size={27} /></span></div>}
-                    </div>
-                    <div className="p-4"><h3 className="font-bold text-[14px] leading-tight text-gray-800">{video?.title || 'Vídeo ainda não cadastrado'}</h3><p className="mt-2 text-[11px] text-gray-500">{grupo.nome}</p></div>
-                  </button>
-                  {tarefa && <div className="border-t border-[#eee] bg-slate-50 p-4 text-sm text-gray-600">
-                    {grupo.id === 'experiencia-aluno' ? <div><button type="button" disabled={liberandoCurso} onClick={consultorId === 'israel' ? () => navigate('/education') : conhecerComoAluno} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">{consultorId === 'israel' ? 'Acessar como aluno' : (liberandoCurso ? 'Liberando acesso…' : 'Quero acessar como aluno')}</button><button type="button" onClick={() => alternar('experiencia-aluno')} className={`ml-3 text-xs font-bold ${marcado('experiencia-aluno') ? 'text-emerald-700' : 'text-blue-600'}`}>{marcado('experiencia-aluno') ? '✓ Curso acessado como aluno' : 'Confirmar que já acessei o curso'}</button></div> : <><p>{tarefa.texto}</p>{tarefa.botao && tarefa.path && <button onClick={() => navigate(tarefa.path!)} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800">{tarefa.botao} →</button>}</>}
-                  </div>}
-                </div>
-              ));
-            })}
+          <div className="p-5">
+            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-blue-100 text-blue-700"><GraduationCap size={21} /></div>
+                <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3 text-sm font-black uppercase tracking-wide text-slate-700"><span>Seu progresso nesta orientação</span><span className="whitespace-nowrap text-blue-700">{videosAcessadosTotal} / {videosProgresso.length} vídeos · {progressoPercentual}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progressoPercentual}%` }} /></div><p className="mt-2 text-sm text-slate-600">Abra os vídeos na sequência para acompanhar sua preparação como consultor.</p></div>
+              </div>
+            </div>
+            <div className="mx-auto max-w-xl">{renderVideoCard(videoIntroducao, null)}</div>
+            {videosRestantes.length > 0 && <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">{videosRestantes.map((video, indice) => renderVideoCard(video, indice + 1))}</div>}
           </div>
         </section>
         {/* Checklist temporariamente oculto: será redesenhado após definirmos a
