@@ -221,15 +221,28 @@ export default function UserProfile({ onClose }: { onClose?: () => void }) {
           },
           'onboarding.marca': true,
         }, { merge: true });
-        await refresh();
       }
       await updateProfile(usuario, { displayName: atualizado.name.trim(), photoURL: fotoUrl || null });
+
+      // A cópia local e o "já sincronizou" ANTES do refresh(), de propósito.
+      //
+      // refresh() muda `consultor` no contexto, e o efeito lá em cima depende de
+      // `consultor` — ele dispara de novo assim que o contexto atualiza. Se essa
+      // disparada acontecesse com a cópia local AINDA desatualizada (porque
+      // saveUserProfile/marcarSincronizado só rodariam depois), o efeito lia
+      // `current.photoUrl`/`current.companyLogoUrl` do localStorage VELHO e
+      // reescrevia o perfil na tela com a foto e a logo de ANTES do upload — a
+      // gravação no Firestore tinha ido certa, mas a tela voltava a mostrar a
+      // versão antiga, parecendo que "não salvou". Gravando a cópia local
+      // primeiro, o efeito relê os mesmos dados novos, e não pisa em nada.
       saveUserProfile(atualizado);
       marcarSincronizado(localStorage, usuario.uid);
       setProfile(atualizado);
       setPhotoPreview(fotoUrl);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+
+      if (isConsultor) await refresh();
     } catch (erro: any) {
       alert(erro?.message || 'Não foi possível salvar o perfil.');
     } finally {
