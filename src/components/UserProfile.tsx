@@ -96,7 +96,19 @@ export function sincronizarPerfilLocal(dados: {
 
 export default function UserProfile({ onClose }: { onClose?: () => void }) {
   const { consultor, consultorId, refresh } = useConsultor();
-  const { isConsultor } = useUserAccess();
+  const { isConsultor: ehConsultor, isAdmin } = useUserAccess();
+
+  /**
+   * Quem é DONO de um site de consultor vê a tela completa: foto do consultor e
+   * da IA, logo, texto abaixo da logo e o nome do IA.
+   *
+   * O admin também é dono do site dele (o Israel é `tipoUsuario: 'admin'` com
+   * `consultorId: 'israel'`), e era justamente por não ser 'consultor' que a
+   * tela dele saía diferente da da Mariana: sem logo, sem slogan e sem o aviso
+   * do nome do IA, escondidos atrás de um `isConsultor` que nunca era verdade
+   * para ele. Uma tela só para os dois.
+   */
+  const isConsultor = ehConsultor || isAdmin;
   const [profile, setProfile] = useState<UserProfileData>(getUserProfile());
   const [saved, setSaved] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string>(profile.photoUrl || '');

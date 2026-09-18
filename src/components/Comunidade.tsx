@@ -67,9 +67,23 @@ function tempoRelativo(ts: any): string {
 }
 
 // ===== Avatar =====
-function Avatar({ autor, size = 38, fallbackPhotoUrl = '' }: { autor: Autor; size?: number; fallbackPhotoUrl?: string }) {
+/**
+ * `fotoAtual` VENCE a foto gravada no post, quando existe.
+ *
+ * O post guarda uma cópia da foto do autor do jeito que ela estava no dia em que
+ * foi escrito — é assim de propósito, porque aluno nenhum tem permissão de ler o
+ * perfil de outro aluno para descobrir a foto de agora. O problema é quando essa
+ * cópia envelhece: a foto some (link vencido) ou fica a antiga, para sempre.
+ *
+ * Quando dá para saber a foto atual sem custo nenhum — é o caso do consultor
+ * dono do site, cuja foto já vem no contexto da marca — ela tem que ganhar da
+ * cópia congelada.
+ */
+function Avatar({ autor, size = 38, fallbackPhotoUrl = '', fotoAtual = '' }: {
+  autor: Autor; size?: number; fallbackPhotoUrl?: string; fotoAtual?: string;
+}) {
   const nome = autor.nome || autor.email || 'Aluno';
-  const photoURL = autor.photoURL || fallbackPhotoUrl;
+  const photoURL = fotoAtual || autor.photoURL || fallbackPhotoUrl;
   if (photoURL) {
     return <img src={photoURL} alt={nome} className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
   }
@@ -317,11 +331,14 @@ function ReplyComposer({ mencionaveis, onSubmit }: {
 }
 
 // ===== Thread de um post =====
-function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesLoaded }: {
+function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, emailDoConsultor, fotoDoConsultor, mencionaveis, onRepliesLoaded }: {
   post: CommunityPost;
   meUid: string;
   meIsAdmin: boolean;
   mePhotoUrl: string;
+  /** Para reconhecer os posts do consultor dono do site e usar a foto atual dele. */
+  emailDoConsultor: string;
+  fotoDoConsultor: string;
   mencionaveis: Autor[];
   onRepliesLoaded: (postId: string, replies: CommunityReply[]) => void;
 }) {
@@ -337,7 +354,25 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesL
   const cfg = TIPO_CFG[post.tipo];
   const TipoIcon = cfg.icon;
   const souAutor = post.autor?.uid === meUid;
-  const fotoDoAutorAtual = (autor?: Autor) => autor?.uid === meUid ? mePhotoUrl : '';
+
+  /**
+   * A foto de AGORA do autor, quando dá para saber sem custo.
+   *
+   * O post carrega uma cópia da foto do dia em que foi escrito, e ela envelhece:
+   * fica a antiga, ou some quando o link vence. Aluno não pode ler o perfil de
+   * outro aluno para descobrir a atual — mas em dois casos ela já está na mão:
+   *
+   *  - a minha própria;
+   *  - a do consultor dono do site, que é a marca do tenant e vem no contexto.
+   *
+   * Nos dois, a atual ganha da cópia congelada.
+   */
+  const fotoAtualDe = (autor?: Autor) => {
+    if (!autor) return '';
+    if (autor.uid === meUid) return mePhotoUrl;
+    const email = String(autor.email || '').toLowerCase();
+    return email && email === emailDoConsultor ? fotoDoConsultor : '';
+  };
   const likes = post.likes || [];
   const jaCurti = likes.includes(meUid);
 
@@ -369,7 +404,7 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesL
       {/* Cabeçalho do post */}
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <Avatar autor={post.autor} fallbackPhotoUrl={fotoDoAutorAtual(post.autor)} />
+          <Avatar autor={post.autor} fotoAtual={fotoAtualDe(post.autor)} />
           <div className="flex-1 min-w-0">
             {/* Título (se houver) — escondido no modo edição */}
             {post.titulo && !editando && (
@@ -568,7 +603,7 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesL
           className="w-full text-left border-t border-gray-100 bg-gray-50/60 px-4 py-3 hover:bg-gray-100 transition cursor-pointer border-x-0 border-b-0"
         >
           <div className="flex items-start gap-2.5">
-            <Avatar autor={replies[0].autor} size={26} fallbackPhotoUrl={fotoDoAutorAtual(replies[0].autor)} />
+            <Avatar autor={replies[0].autor} size={26} fotoAtual={fotoAtualDe(replies[0].autor)} />
             <div className="min-w-0 flex-1">
               <span className="text-[12px] font-bold text-gray-700">{replies[0].autor?.nome}</span>
               <span className="text-[13px] text-gray-500 ml-1.5">
@@ -590,7 +625,7 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, mencionaveis, onRepliesL
         <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-3">
           {replies.map((r, ri) => (
             <div key={r.id} className="flex items-start gap-2.5">
-              <Avatar autor={r.autor} size={30} fallbackPhotoUrl={fotoDoAutorAtual(r.autor)} />
+              <Avatar autor={r.autor} size={30} fotoAtual={fotoAtualDe(r.autor)} />
               <div className="flex-1 min-w-0 bg-white border border-gray-200 rounded-xl px-3 py-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[12px] font-black text-gray-800">{r.autor?.nome || r.autor?.email}</span>
@@ -767,7 +802,12 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
   // Escopo do time: admin/consultor escolhem a empresa; coordenador/aluno usam a própria.
   const { isAdmin, isConsultor, isCoordenador, empresaId, tipoUsuario } = useUserAccess();
   const { consultor } = useConsultor();
-  const mePhotoUrl = consultor.branding?.fotoUrl || auth.currentUser?.photoURL || '';
+  // A foto do consultor é a marca do site — serve como "minha foto" só para ELE.
+  // Antes valia para todo mundo: um aluno sem foto aparecia com a cara do
+  // consultor no próprio post.
+  const fotoDoConsultor = consultor.branding?.fotoUrl || '';
+  const emailDoConsultor = String(consultor.email || '').toLowerCase();
+  const mePhotoUrl = (isConsultor ? fotoDoConsultor : '') || auth.currentUser?.photoURL || '';
   const cid = resolveConsultorId();
   // Aluno sem empresaId (cadastro direto pelo consultor, landing page grátis, convite
   // antigo, etc.) é um "aluno direto": o próprio consultor é o coordenador dele. Vale
@@ -1109,6 +1149,8 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
                   meUid={meUid}
                   meIsAdmin={meIsAdmin}
                   mePhotoUrl={mePhotoUrl}
+                  emailDoConsultor={emailDoConsultor}
+                  fotoDoConsultor={fotoDoConsultor}
                   mencionaveis={mencionaveis}
                   onRepliesLoaded={onRepliesLoaded}
                 />
@@ -1129,6 +1171,8 @@ export default function Comunidade({ escopo = 'consultor' }: { escopo?: EscopoCo
                   meUid={meUid}
                   meIsAdmin={meIsAdmin}
                   mePhotoUrl={mePhotoUrl}
+                  emailDoConsultor={emailDoConsultor}
+                  fotoDoConsultor={fotoDoConsultor}
                   mencionaveis={mencionaveis}
                   onRepliesLoaded={onRepliesLoaded}
                 />
