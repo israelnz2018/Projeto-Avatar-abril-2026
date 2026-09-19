@@ -52,6 +52,10 @@ export function EtapaRedes({ config }: { config: MarketingConfig | null }) {
         feed também saem sozinhos na sua Página do Facebook, junto com o Instagram — mesmo
         arquivo, mesma legenda, sem aprovação nem agendamento à parte.
       </p>
+      <p className="text-xs text-gray-500">
+        <strong>YouTube:</strong> quando configurado, o Reel e o carrossel em vídeo também
+        sobem sozinhos como YouTube Shorts — mesma regra: sem aprovação nem agendamento à parte.
+      </p>
     </div>
   );
 }
@@ -1407,10 +1411,11 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
               Publicada
             </span>
           )}
-        {/* O Facebook não tem estado próprio na tela — é bônus do Instagram,
-            sem aprovação nem agendamento à parte. Este selo só existe para o
-            consultor saber que também saiu, ou que precisa postar à mão. */}
-        <SeloDoFacebook facebook={pub?.facebook} />
+        {/* Facebook e YouTube não têm estado próprio na tela — são bônus do
+            Instagram, sem aprovação nem agendamento à parte. O selo só existe
+            para o consultor saber que também saiu, ou que precisa postar à mão. */}
+        <SeloExtra rede="Facebook" dados={pub?.facebook} />
+        <SeloExtra rede="YouTube" dados={pub?.youtube} />
       </span>
     );
   }
@@ -1457,40 +1462,40 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
 }
 
 /**
- * O selo do cruzamento com o Facebook.
+ * O selo de um cruzamento bônus (Facebook, YouTube — o mesmo formato para os dois).
  *
- * `undefined` quer dizer que nem foi tentado — a maioria das peças (LinkedIn)
- * nem cruza, e a conta só ganha as credenciais da Página quando o Israel
+ * `undefined` quer dizer que nem foi tentado — a maioria das peças não cruza
+ * para nenhuma das duas, e a conta só ganha as credenciais quando o Israel
  * configurar. Por isso, sem tentativa, não aparece nada: um selo cinza
  * "Facebook: —" toda vez seria ruído em peça que nunca teve isso como opção.
  */
-function SeloDoFacebook({ facebook }: { facebook?: NonNullable<Peca['publicacao']>['facebook'] }) {
-  if (!facebook) return null;
+function SeloExtra({ rede, dados }: { rede: string; dados?: NonNullable<Peca['publicacao']>['facebook'] }) {
+  if (!dados) return null;
 
-  if (facebook.status === 'publicada') {
-    return facebook.link ? (
+  if (dados.status === 'publicada') {
+    return dados.link ? (
       <a
-        href={facebook.link}
+        href={dados.link}
         target="_blank"
         rel="noreferrer"
-        title="Também saiu na Página do Facebook"
+        title={`Também saiu no ${rede}`}
         className="text-[10px] font-bold text-blue-700 hover:underline shrink-0"
       >
-        +Facebook
+        +{rede}
       </a>
     ) : (
-      <span title="Também saiu na Página do Facebook" className="text-[10px] font-bold text-blue-700 shrink-0">
-        +Facebook
+      <span title={`Também saiu no ${rede}`} className="text-[10px] font-bold text-blue-700 shrink-0">
+        +{rede}
       </span>
     );
   }
 
   return (
     <span
-      title={`Não saiu no Facebook: ${facebook.erro || 'motivo não registrado'}`}
+      title={`Não saiu no ${rede}: ${dados.erro || 'motivo não registrado'}`}
       className="text-[10px] font-bold text-amber-700 shrink-0"
     >
-      Facebook não saiu
+      {rede} não saiu
     </span>
   );
 }

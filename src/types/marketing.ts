@@ -523,6 +523,17 @@ export interface PublicacaoDaPeca {
     erro?: string | null;
   };
   /**
+   * Mesma ideia do Facebook, para Reel e carrossel em vídeo: sobe sozinho como
+   * YouTube Shorts, sem aprovação própria, sem nunca desfazer o Instagram.
+   */
+  youtube?: {
+    status: 'publicada' | 'falhou';
+    postId?: string;
+    link?: string | null;
+    publicadoEm?: string;
+    erro?: string | null;
+  };
+  /**
    * `publicando` existe porque o Instagram leva minutos processando vídeo. Sem
    * este estado a tela ficava igual à de quem ainda não tentou, e o consultor
    * clicava em publicar de novo — gerando post repetido.
