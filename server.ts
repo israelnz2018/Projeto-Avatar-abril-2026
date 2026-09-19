@@ -3833,6 +3833,76 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
     }
   });
 
+  // Reescreve somente o texto que vai dentro da imagem do LinkedIn. NÃ£o regenera
+  // roteiro, Reel ou carrossel: a instruÃ§Ã£o Ã© especÃ­fica desta peÃ§a.
+  app.post("/api/marketing-consultor/gerar-texto-linkedin", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin nÃ£o configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "AutenticaÃ§Ã£o obrigatÃ³ria." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token invÃ¡lido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "SÃ³ consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const criativoId = String(req.body?.criativoId || "").trim();
+    const textoAtual = String(req.body?.textoAtual || "").trim().slice(0, 3000);
+    const instrucoes = String(req.body?.instrucoes || "").trim().slice(0, 700);
+    if (!criativoId || !textoAtual || !instrucoes) return res.status(400).json({ error: "Informe o texto e a instruÃ§Ã£o para a IA." });
+
+    try {
+      const ref = adminFirestore().collection("marketing_criativos").doc(criativoId);
+      const snap = await ref.get();
+      if (!snap.exists) return res.status(404).json({ error: "Criativo nÃ£o encontrado." });
+      const criativo = snap.data() as any;
+      if (!isAdmin && String(criativo.consultorId || "") !== consultorId) {
+        return res.status(403).json({ error: "Criativo nÃ£o pertence a este consultor." });
+      }
+
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) return res.status(503).json({ error: "ServiÃ§o de IA nÃ£o configurado no servidor." });
+
+      const titulo = String(criativo.titulo || "").replace(/\*/g, "").trim();
+      const prompt = `VocÃª estÃ¡ revisando um texto curto que serÃ¡ publicado como imagem no LinkedIn.
+TÃ­tulo aprovado: "${titulo}"
+Texto atual:
+"""
+${textoAtual}
+"""
+InstruÃ§Ã£o do consultor: "${instrucoes}"
+
+Reescreva apenas o texto, atendendo Ã  instruÃ§Ã£o e mantendo o sentido do texto atual.
+Escreva de 35 a 90 palavras, em parÃ¡grafos curtos. NÃ£o use emoji, hashtag, aspas,
+marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto final, sem enfeites.`;
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const gerado = await ai.models.generateContent({
+        model: geminiModel,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { responseMimeType: "text/plain", maxOutputTokens: 1200, temperature: 0.6 },
+      });
+      const textoLinkedin = String(gerado.text || "")
+        .replace(/^```(?:text)?\s*/i, "")
+        .replace(/```$/i, "")
+        .replace(/^\s*["“]|["”]\s*$/g, "")
+        .trim();
+      if (!textoLinkedin) return res.status(422).json({ error: "A IA nÃ£o devolveu um texto." });
+      return res.json({ textoLinkedin });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-texto-linkedin] erro:", error);
+      return res.status(500).json({ error: String(error?.message || "NÃ£o foi possÃ­vel refazer o texto.").slice(0, 500) });
+    }
+  });
+
   // Aprovar a copy inicia a produÃ§Ã£o inteira. A tela de Minhas peÃ§as continua
   // sendo o lugar de revisar cada resultado, mas o consultor nÃ£o precisa abrir
   // outra aba e clicar em Criar tudo para disparar o mesmo trabalho.

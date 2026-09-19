@@ -204,7 +204,13 @@ export interface Criativo {
    * O artigo serve o LinkedIn (o PDF), a legenda serve o Instagram (o Reel e o
    * carrossel em vídeo) — é o mesmo texto nos dois, porque é o mesmo post.
    */
-  textos?: { artigoLinkedin: string; legendaInstagram: string; textoLinkedin?: string; geradoEm: string };
+  textos?: {
+    artigoLinkedin: string;
+    legendaInstagram: string;
+    textoLinkedin?: string;
+    fonteLinkedin?: string;
+    geradoEm: string;
+  };
   /**
    * A arte da capa do Reel, conforme o padrão em
    * squads/lbw-reel-production/pipeline/data/cover-standard.md.

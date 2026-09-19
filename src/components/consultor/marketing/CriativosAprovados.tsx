@@ -573,9 +573,15 @@ function Producao({
    * Feed e LinkedIn nascem do mesmo roteiro, mas a revisão é própria de cada um:
    * editar ou apagar uma página aqui não pode regravar a outra peça.
    */
-  async function refazerTexto(peca: Peca, recebidas?: SlideRoteiro[]) {
+  async function refazerTexto(
+    peca: Peca,
+    recebidas?: SlideRoteiro[],
+    textoLinkedinOverride?: string,
+    fonteLinkedinOverride?: string,
+  ) {
     if (peca.tipo === 'linkedin-texto') {
-      const texto = String(criativo.textos?.textoLinkedin || peca.texto || '').trim();
+      const texto = String(textoLinkedinOverride ?? criativo.textos?.textoLinkedin ?? peca.texto ?? '').trim();
+      const fonte = String(fonteLinkedinOverride ?? criativo.textos?.fonteLinkedin ?? 'Cortes do curso White Belt').trim();
       if (!texto) {
         setErro('O Texto do LinkedIn está sem conteúdo para renderizar.');
         return;
@@ -583,6 +589,12 @@ function Producao({
       setErro('');
       try {
         const agora = new Date().toISOString();
+        await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
+          'textos.textoLinkedin': texto,
+          'textos.fonteLinkedin': fonte,
+          'textos.geradoEm': agora,
+          atualizadoEm: agora,
+        });
         await updateDoc(doc(db, COLECOES.pecas, peca.id), {
           status: 'gerando',
           atualizadoEm: agora,
@@ -595,7 +607,7 @@ function Producao({
           tipo: 'regerar-peca',
           status: 'pendente',
           tentativas: 0,
-          render: { layout: 'texto', formato: 'quadrado', frase: texto, fonte: 'Cortes do curso White Belt' },
+          render: { layout: 'texto', formato: 'quadrado', frase: texto, fonte },
           criadoEm: agora,
           criadoEmServidor: serverTimestamp(),
         });
@@ -639,6 +651,24 @@ function Producao({
     } catch (e: any) {
       await updateDoc(doc(db, COLECOES.pecas, peca.id), { status: 'revisar' }).catch(() => {});
       setErro(e?.message || String(e));
+    }
+  }
+
+  async function pedirIaTextoLinkedin(texto: string, fonte: string, instrucoes: string) {
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/marketing-consultor/gerar-texto-linkedin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ criativoId: criativo.id, textoAtual: texto, fonte, instrucoes }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      return String(corpo.textoLinkedin || '').trim();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+      return '';
     }
   }
 
@@ -746,6 +776,7 @@ function Producao({
         aoMudarSegundos={setSegundosPorSlide}
         aoRefazerReel={refazerReel}
         aoRefazerTexto={refazerTexto}
+        aoPedirIaTextoLinkedin={pedirIaTextoLinkedin}
         aoAprovar={onMudou}
         aoAlterarSlide={alterarSlide}
         aoAlterarSlidePdf={(i, campo, valor) => setSlidesPdf((atual) => atual.map((s, j) => {
@@ -956,7 +987,7 @@ function PecasProduzidas({
   contextoImagensPdf,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
-  aoRefazerReel, aoRefazerTexto, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
+  aoRefazerReel, aoRefazerTexto, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
   aoExcluirSlide, aoExcluirSlidePdf, aoDesfazerSlides, aoDesfazerSlidesPdf,
   naoSeiSeBate, melhoria, aoMudarMelhoria, melhoriaPdf, aoMudarMelhoriaPdf,
   aoPedirIa, aoPedirIaPdf, aoUsarTextoNovo,
@@ -978,7 +1009,8 @@ function PecasProduzidas({
   segundosPorSlide: number;
   aoMudarSegundos: (v: number) => void;
   aoRefazerReel: () => void;
-  aoRefazerTexto: (peca: Peca, slides?: SlideRoteiro[]) => void;
+  aoRefazerTexto: (peca: Peca, slides?: SlideRoteiro[], textoLinkedin?: string, fonteLinkedin?: string) => void;
+  aoPedirIaTextoLinkedin: (texto: string, fonte: string, instrucoes: string) => Promise<string>;
   aoAprovar: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
   aoAlterarSlidePdf: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
@@ -995,6 +1027,12 @@ function PecasProduzidas({
   aoPedirIaPdf: () => void;
   aoUsarTextoNovo: () => void;
 }) {
+  const [textoLinkedinEditado, setTextoLinkedinEditado] = useState<Record<string, { texto: string; fonte: string }>>({});
+
+  useEffect(() => {
+    setTextoLinkedinEditado({});
+  }, [criativo.id]);
+
   // Enquanto o servidor trabalha, a tela tem que dizer que está trabalhando. Antes
   // ficava escrito "nenhuma peça produzida", que parece falha e não espera.
   if (esperando && !pecas.length) {
@@ -1089,7 +1127,12 @@ function PecasProduzidas({
             acao={(
               <BotaoRefazer
                 ocupado={ocupado}
-                aoClicar={p.tipo === 'reel' ? aoRefazerReel : () => aoRefazerTexto(p)}
+                aoClicar={p.tipo === 'reel'
+                  ? aoRefazerReel
+                  : () => {
+                    const editado = textoLinkedinEditado[p.id];
+                    aoRefazerTexto(p, undefined, editado?.texto, editado?.fonte);
+                  }}
                 aviso={p.tipo === 'reel'
                   ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
                   : 'Refaz somente esta peça. As outras continuam como estão.'}
@@ -1159,6 +1202,9 @@ function PecasProduzidas({
               criativo={criativo}
               campo="textoLinkedin"
               titulo="Texto do LinkedIn"
+              aoAlterarTextoLinkedin={(texto, fonte) => setTextoLinkedinEditado((atual) => ({ ...atual, [p.id]: { texto, fonte } }))}
+              aoRefazerTextoLinkedin={(texto, fonte) => aoRefazerTexto(p, undefined, texto, fonte)}
+              aoPedirIaTextoLinkedin={aoPedirIaTextoLinkedin}
               ajuda="Texto curto que aparece dentro da imagem publicada no LinkedIn. Você pode revisar e editar antes de aprovar."
             />
           )}
@@ -1577,7 +1623,7 @@ function EditorDaPagina({
  * copia, e um .md dentro do Storage não servia para nenhuma das duas coisas.
  */
 function FichaComTexto({
-  peca, criativo, campo, titulo, ajuda,
+  peca, criativo, campo, titulo, ajuda, aoAlterarTextoLinkedin, aoRefazerTextoLinkedin, aoPedirIaTextoLinkedin,
 }: {
   peca: Peca;
   criativo: Criativo;
@@ -1585,9 +1631,21 @@ function FichaComTexto({
   campo: 'artigoLinkedin' | 'legendaInstagram' | 'textoLinkedin';
   titulo: string;
   ajuda: string;
+  aoAlterarTextoLinkedin?: (texto: string, fonte: string) => void;
+  aoRefazerTextoLinkedin?: (texto: string, fonte: string) => void;
+  aoPedirIaTextoLinkedin?: (texto: string, fonte: string, instrucoes: string) => Promise<string>;
 }) {
   if (campo === 'textoLinkedin') {
-    return <FichaTextoLinkedin criativo={criativo} titulo={titulo} ajuda={ajuda} />;
+    return (
+      <FichaTextoLinkedin
+        criativo={criativo}
+        titulo={titulo}
+        ajuda={ajuda}
+        aoAlterar={aoAlterarTextoLinkedin}
+        aoRefazer={aoRefazerTextoLinkedin}
+        aoPedirIa={aoPedirIaTextoLinkedin}
+      />
+    );
   }
 
   // A capa do Reel saiu daqui: virou o cartão próprio dela (CartaoCapaDoReel).
@@ -1616,41 +1674,138 @@ function FichaComTexto({
  * num lugar muda no outro.
  */
 function FichaTextoLinkedin({
-  criativo, titulo, ajuda,
+  criativo, titulo, ajuda, aoAlterar, aoRefazer, aoPedirIa,
 }: {
   criativo: Criativo;
   titulo: string;
   ajuda: string;
+  aoAlterar?: (texto: string, fonte: string) => void;
+  aoRefazer?: (texto: string, fonte: string) => void;
+  aoPedirIa?: (texto: string, fonte: string, instrucoes: string) => Promise<string>;
 }) {
   const gravado = criativo.textos?.textoLinkedin || '';
+  const fonteGravada = criativo.textos?.fonteLinkedin || 'Cortes do curso White Belt';
   const [texto, setTexto] = useState(gravado);
+  const [fonte, setFonte] = useState(fonteGravada);
+  const [instrucoes, setInstrucoes] = useState('');
+  const [iaTrabalhando, setIaTrabalhando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [erro, setErro] = useState('');
 
-  useEffect(() => { setTexto(gravado); }, [criativo.id, gravado]);
+  useEffect(() => {
+    setTexto(gravado);
+    setFonte(fonteGravada);
+    setErro('');
+  }, [criativo.id, gravado, fonteGravada]);
+
+  function alterarTexto(valor: string) {
+    setTexto(valor);
+    aoAlterar?.(valor, fonte);
+  }
+
+  function alterarFonte(valor: string) {
+    setFonte(valor);
+    aoAlterar?.(texto, valor);
+  }
+
+  async function pedirIa() {
+    if (!aoPedirIa || !instrucoes.trim() || !texto.trim()) return;
+    setIaTrabalhando(true);
+    setErro('');
+    try {
+      const novo = await aoPedirIa(texto, fonte, instrucoes.trim());
+      if (!novo) return;
+      setTexto(novo);
+      setInstrucoes('');
+      aoAlterar?.(novo, fonte);
+      aoRefazer?.(novo, fonte);
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setIaTrabalhando(false);
+    }
+  }
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      setErro('O navegador não deixou copiar. Selecione o texto e copie à mão.');
+    }
+  }
+
+  const palavras = texto.trim().split(/\s+/).filter(Boolean).length;
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
       <div className="lg:w-[300px] shrink-0">
-        <PreviaTextoLinkedin texto={texto} />
+        <PreviaTextoLinkedin texto={texto} fonte={fonte} />
         <p className="text-[11px] text-gray-500 mt-1">
-          A previa acompanha o texto enquanto voce edita. Clique em Refazer no topo
-          para renderizar a imagem final.
+          A prévia acompanha o texto enquanto você edita. Clique em Refazer no topo para
+          salvar e renderizar a imagem final.
         </p>
       </div>
       <div className="flex-1 min-w-0">
-        <TextoParaPublicar
-          criativo={criativo}
-          campo="textoLinkedin"
-          titulo={titulo}
-          ajuda={ajuda}
-          textoExterno={texto}
-          aoAlterarTexto={setTexto}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-gray-800">{titulo}</p>
+          <span className="text-[11px] text-gray-500">{palavras} palavras</span>
+        </div>
+        <p className="text-xs text-gray-600 mt-0.5 mb-2">{ajuda}</p>
+        <textarea
+          value={texto}
+          onChange={(e) => alterarTexto(e.target.value)}
+          rows={12}
+          className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 font-normal leading-relaxed resize-y"
         />
+        <label className="block mt-3">
+          <span className="block text-xs font-semibold text-gray-700 mb-1">Fonte</span>
+          <input
+            value={fonte}
+            onChange={(e) => alterarFonte(e.target.value)}
+            placeholder="Ex.: Cortes do curso White Belt"
+            className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800"
+          />
+        </label>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <button
+            onClick={copiar}
+            disabled={!texto}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+          >
+            {copiado ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+            {copiado ? 'Copiado' : 'Copiar'}
+          </button>
+        </div>
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Peça à IA para refazer o texto</label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              value={instrucoes}
+              onChange={(e) => setInstrucoes(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && instrucoes.trim()) void pedirIa(); }}
+              placeholder="Ex.: deixe mais direto e fale com quem está começando"
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm"
+            />
+            <button
+              onClick={() => void pedirIa()}
+              disabled={iaTrabalhando || !instrucoes.trim() || !texto.trim()}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+            >
+              {iaTrabalhando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {iaTrabalhando ? 'Refazendo…' : 'Refazer com IA'}
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-1">A nova versão será salva e enviada para renderização da imagem.</p>
+        </div>
+        {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
       </div>
     </div>
   );
 }
 
-function PreviaTextoLinkedin({ texto }: { texto: string }) {
+function PreviaTextoLinkedin({ texto, fonte }: { texto: string; fonte: string }) {
   return (
     <div
       className="aspect-square w-full rounded-lg border border-gray-200 bg-white overflow-hidden flex flex-col justify-center"
@@ -1659,9 +1814,11 @@ function PreviaTextoLinkedin({ texto }: { texto: string }) {
       <p className="m-0 whitespace-pre-wrap break-words text-[14px] leading-[1.28] font-normal text-[#111]">
         {texto || 'O texto do LinkedIn aparecera aqui.'}
       </p>
-      <p className="m-0 mt-[6%] text-[8px] leading-[1.35] font-normal text-[#555]">
-        Fonte: Cortes do curso White Belt
-      </p>
+      {fonte.trim() && (
+        <p className="m-0 mt-[6%] text-[8px] leading-[1.35] font-normal text-[#555]">
+          Fonte: {fonte}
+        </p>
+      )}
     </div>
   );
 }
