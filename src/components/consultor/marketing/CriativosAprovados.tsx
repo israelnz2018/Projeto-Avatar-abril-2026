@@ -8,8 +8,10 @@
  * Na primeira produção, um roteiro serve os quatro formatos. Depois disso, o carrossel
  * do feed e o carrossel do LinkedIn podem ser revistos separadamente.
  */
-import React, { useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  addDoc, collection, doc, onSnapshot, runTransaction, serverTimestamp, setDoc, updateDoc,
+} from 'firebase/firestore';
 import {
   Sparkles, Loader2, RotateCcw, Clock, RefreshCw, Undo2, Check, CheckCircle2, Copy, FileUp, Trash2, Download,
 } from 'lucide-react';
@@ -265,7 +267,16 @@ function Producao({
   const [velocidade, setVelocidade] = useState(1);
   const [segundosPorSlide, setSegundosPorSlide] = useState(5);
   const [enviandoPronta, setEnviandoPronta] = useState(false);
+  // Ocupa o botao imediatamente. Sem este estado local, varios cliques feitos antes
+  // da proxima leitura do Firestore criavam varias tarefas iguais na fila.
+  const [refazendoPecas, setRefazendoPecas] = useState<Set<string>>(new Set());
+  const ouvintesDePeca = useRef<Map<string, () => void>>(new Map());
   const biblioteca = useBibliotecaImagens(criativo.consultorId);
+
+  useEffect(() => () => {
+    ouvintesDePeca.current.forEach((parar) => parar());
+    ouvintesDePeca.current.clear();
+  }, [criativo.id]);
 
   // O QUE APARECE NO EDITOR É O TEXTO QUE GEROU AS IMAGENS.
   //
@@ -579,6 +590,84 @@ function Producao({
     textoLinkedinOverride?: string,
     fonteLinkedinOverride?: string,
   ) {
+    const chave = peca.id;
+    if (refazendoPecas.has(chave) || peca.status === 'gerando') return;
+
+    // A peca e a tarefa sao gravadas juntas. Se uma das duas falhar, nenhuma fica
+    // salva; assim nao existe mais peca em "gerando" sem trabalho real na fila.
+    // A transacao tambem impede dois cliques rapidos de criarem tarefas repetidas.
+    async function enfileirar(dados: Record<string, unknown>) {
+      const pecaRef = doc(db, COLECOES.pecas, peca.id);
+      const tarefaRef = doc(collection(db, COLECOES.tarefas));
+      const agora = new Date().toISOString();
+
+      setRefazendoPecas((atual) => new Set(atual).add(chave));
+      try {
+        await runTransaction(db, async (transacao) => {
+          const atual = await transacao.get(pecaRef);
+          if (!atual.exists()) throw new Error('Esta peca nao existe mais. Atualize a pagina.');
+          if (atual.data()?.status === 'gerando') throw new Error('__TAREFA_JA_ATIVA__');
+
+          transacao.update(pecaRef, {
+            status: 'gerando',
+            erro: null,
+            tarefaAtivaId: tarefaRef.id,
+            gerandoDesde: agora,
+            atualizadoEm: agora,
+          });
+          transacao.set(tarefaRef, {
+            consultorId: criativo.consultorId,
+            campanhaId,
+            pecaId: peca.id,
+            criativoId: criativo.id,
+            tipo: 'regerar-peca',
+            status: 'pendente',
+            tentativas: 0,
+            ...dados,
+            criadoEm: agora,
+            criadoEmServidor: serverTimestamp(),
+          });
+        });
+
+        ouvintesDePeca.current.get(chave)?.();
+        const parar = onSnapshot(pecaRef, (snap) => {
+          const status = String(snap.data()?.status || '');
+          if (status === 'gerando') return;
+          ouvintesDePeca.current.get(chave)?.();
+          ouvintesDePeca.current.delete(chave);
+          setRefazendoPecas((atual) => {
+            const proximo = new Set(atual);
+            proximo.delete(chave);
+            return proximo;
+          });
+          if (snap.data()?.erro) setErro(String(snap.data()?.erro));
+          onMudou();
+        }, (falha) => {
+          ouvintesDePeca.current.delete(chave);
+          setRefazendoPecas((atual) => {
+            const proximo = new Set(atual);
+            proximo.delete(chave);
+            return proximo;
+          });
+          setErro(falha.message || 'Nao foi possivel acompanhar a geracao.');
+          onMudou();
+        });
+        ouvintesDePeca.current.set(chave, parar);
+        onMudou();
+      } catch (e: any) {
+        setRefazendoPecas((atual) => {
+          const proximo = new Set(atual);
+          proximo.delete(chave);
+          return proximo;
+        });
+        if (e?.message === '__TAREFA_JA_ATIVA__') {
+          onMudou();
+          return;
+        }
+        throw e;
+      }
+    }
+
     if (peca.tipo === 'linkedin-texto') {
       const texto = String(textoLinkedinOverride ?? criativo.textos?.textoLinkedin ?? peca.texto ?? '').trim();
       const fonte = String(fonteLinkedinOverride ?? criativo.textos?.fonteLinkedin ?? 'Cortes do curso White Belt').trim();
@@ -595,25 +684,10 @@ function Producao({
           'textos.geradoEm': agora,
           atualizadoEm: agora,
         });
-        await updateDoc(doc(db, COLECOES.pecas, peca.id), {
-          status: 'gerando',
-          atualizadoEm: agora,
-        });
-        await addDoc(collection(db, COLECOES.tarefas), {
-          consultorId: criativo.consultorId,
-          campanhaId,
-          pecaId: peca.id,
-          criativoId: criativo.id,
-          tipo: 'regerar-peca',
-          status: 'pendente',
-          tentativas: 0,
+        await enfileirar({
           render: { layout: 'texto', formato: 'quadrado', frase: texto, fonte },
-          criadoEm: agora,
-          criadoEmServidor: serverTimestamp(),
         });
-        onMudou();
       } catch (e: any) {
-        await updateDoc(doc(db, COLECOES.pecas, peca.id), { status: 'revisar' }).catch(() => {});
         setErro(e?.message || String(e));
       }
       return;
@@ -628,28 +702,13 @@ function Producao({
 
     setErro('');
     try {
-      const agora = new Date().toISOString();
-      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
-        status: 'gerando',
-        atualizadoEm: agora,
-      });
-      await addDoc(collection(db, COLECOES.tarefas), {
-        consultorId: criativo.consultorId,
-        campanhaId,
-        pecaId: peca.id,
-        tipo: 'regerar-peca',
-        status: 'pendente',
-        tentativas: 0,
+      await enfileirar({
         // Na revisão individual o worker guarda somente a saída escolhida. O PDF
         // recebe também os PNGs usados pela prévia página a página.
         render: montarRender(paginas, peca.tipo === 'carrossel-video'),
         roteiro: paginas,
-        criadoEm: agora,
-        criadoEmServidor: serverTimestamp(),
       });
-      onMudou();
     } catch (e: any) {
-      await updateDoc(doc(db, COLECOES.pecas, peca.id), { status: 'revisar' }).catch(() => {});
       setErro(e?.message || String(e));
     }
   }
@@ -764,6 +823,7 @@ function Producao({
         esperando={servidorTrabalhando || gerando || enfileirando || refazendoReel}
         ocupadoReel={reelNoServidor || refazendoReel || gerando}
         ocupadoTexto={textoNoServidor || enfileirando || gerando}
+        refazendoPecas={refazendoPecas}
         campanhaDoReel={campanhaDoReel}
         criativo={criativo}
         video={video}
@@ -983,7 +1043,7 @@ function ImagemUnicaLinkedin({
  * quatro do mesmo jeito obrigava o consultor a procurar onde editar cada coisa.
  */
 function PecasProduzidas({
-  pecas, esperando, ocupadoReel, ocupadoTexto, campanhaDoReel, criativo, video, slides, slidesPdf,
+  pecas, esperando, ocupadoReel, ocupadoTexto, refazendoPecas, campanhaDoReel, criativo, video, slides, slidesPdf,
   contextoImagensPdf,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
@@ -997,6 +1057,8 @@ function PecasProduzidas({
   /** O Reel e as peças de texto trabalham separados; cada uma trava só a si. */
   ocupadoReel?: boolean;
   ocupadoTexto?: boolean;
+  /** Cliques ja aceitos no navegador, antes de a atualizacao do Firestore voltar. */
+  refazendoPecas: Set<string>;
   /** Onde fica o estado de trabalho da capa, que é separado do Reel. */
   campanhaDoReel?: Campanha;
   criativo: Criativo;
@@ -1082,7 +1144,9 @@ function PecasProduzidas({
         // O estado da campanha pode continuar "processando" enquanto outras
         // peças já estão prontas. O indicador deve refletir apenas esta peça,
         // para não exibir "refazendo..." em todos os cartões.
-        const ocupado = p.tipo === 'reel' ? ocupadoReel : p.status === 'gerando';
+        const ocupado = p.tipo === 'reel'
+          ? ocupadoReel
+          : p.status === 'gerando' || refazendoPecas.has(p.id);
         return (
         <React.Fragment key={p.id}>
         <section className={cartaoDaPeca(p.status === 'aprovado' || p.status === 'publicado')}>
@@ -1240,10 +1304,13 @@ function PecasProduzidas({
           criativo={criativo}
           pecas={pecas}
           slides={slides}
-          ocupado={pecas.find((p) => p.tipo === 'linkedin-imagem')?.status === 'gerando'}
+          ocupado={(() => {
+            const imagem = pecas.find((p) => p.tipo === 'linkedin-imagem');
+            return imagem?.status === 'gerando' || Boolean(imagem && refazendoPecas.has(imagem.id));
+          })()}
           aoAlterarSlide={aoAlterarSlide}
           aoRefazer={() => {
-            const peca = pecas.find((p) => p.tipo === 'carrossel-feed');
+            const peca = pecas.find((p) => p.tipo === 'linkedin-imagem');
             if (peca) aoRefazerTexto(peca);
           }}
           aoMudar={aoAprovar}

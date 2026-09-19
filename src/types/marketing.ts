@@ -464,6 +464,10 @@ export interface Peca {
   pedidoMelhoria?: string;
   /** Mensagem de erro, quando status = erro. */
   erro?: string;
+  /** Tarefa que esta refazendo esta peca. Evita cliques duplicados na fila. */
+  tarefaAtivaId?: string | null;
+  /** Inicio da geracao atual, usado para recuperar trabalhos interrompidos. */
+  gerandoDesde?: string | null;
   /**
    * Quando esta peça vai ao ar, marcado no calendário da etapa 5.
    *

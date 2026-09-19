@@ -4328,20 +4328,36 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       const geracaoId = String(req.body?.geracaoId || `${agora}-${Math.random().toString(36).slice(2, 8)}`);
       const campanhaId = `${criativoId}__reel`;
 
-      await adminFirestore().collection("marketing_campanhas").doc(campanhaId).set({
-        id: campanhaId,
-        consultorId: dono || consultorId,
-        videoId: criativo.videoId,
-        criativoId,
-        titulo: criativo.titulo,
-        objetivo: "autoridade",
-        status: "processando",
-        velocidade,
-        geracaoId,
-        criadoEm: agora,
-      }, { merge: true });
+      const campanhaRef = adminFirestore().collection("marketing_campanhas").doc(campanhaId);
+      const tarefaRef = adminFirestore().collection("marketing_tarefas").doc();
+      let jaEstavaNaFila = false;
+      await adminFirestore().runTransaction(async (transacao) => {
+        const campanhaAtual = await transacao.get(campanhaRef);
+        const tarefaAtivaId = String(campanhaAtual.data()?.reelTarefaAtivaId || "");
+        if (tarefaAtivaId) {
+          const tarefaAtiva = await transacao.get(adminFirestore().collection("marketing_tarefas").doc(tarefaAtivaId));
+          if (["pendente", "executando"].includes(String(tarefaAtiva.data()?.status || ""))) {
+            jaEstavaNaFila = true;
+            return;
+          }
+        }
 
-      await adminFirestore().collection("marketing_tarefas").add({
+        transacao.set(campanhaRef, {
+          id: campanhaId,
+          consultorId: dono || consultorId,
+          videoId: criativo.videoId,
+          criativoId,
+          titulo: criativo.titulo,
+          objetivo: "autoridade",
+          status: "processando",
+          erro: null,
+          velocidade,
+          geracaoId,
+          reelTarefaAtivaId: tarefaRef.id,
+          criadoEm: agora,
+        }, { merge: true });
+
+        transacao.set(tarefaRef, {
         consultorId: dono || consultorId,
         campanhaId,
         criativoId,
@@ -4372,7 +4388,12 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
         },
         criadoEm: agora,
         criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
+
+      if (jaEstavaNaFila) {
+        return res.status(202).json({ estado: "ja-na-fila", mensagem: "Este Reel ja esta sendo refeito." });
+      }
 
       console.log(`[gerar-reel] ${criativoId}: ${palavras.length} palavras, ${((clipEndMs - clipStartMs) / 1000).toFixed(1)}s, estendeu ${estendeu} palavra(s) para fechar a frase, fechou=${fechouFrase}, ${velocidade}x`);
       return res.status(202).json({
@@ -4464,22 +4485,37 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
 
       // A capa tem estado PRÓPRIO. Marcar a campanha do Reel como "processando"
       // travava o Reel inteiro na tela enquanto só a capa era refeita.
-      await adminFirestore().collection("marketing_campanhas").doc(campanhaId).set({
-        capaStatus: "processando",
-        capaErro: null,
-        atualizadoEm: agora,
-      }, { merge: true });
+      const campanhaRef = adminFirestore().collection("marketing_campanhas").doc(campanhaId);
+      const tarefaRef = adminFirestore().collection("marketing_tarefas").doc();
+      let jaEstavaNaFila = false;
+      await adminFirestore().runTransaction(async (transacao) => {
+        const campanhaAtual = await transacao.get(campanhaRef);
+        const tarefaAtivaId = String(campanhaAtual.data()?.capaTarefaAtivaId || "");
+        if (tarefaAtivaId) {
+          const tarefaAtiva = await transacao.get(adminFirestore().collection("marketing_tarefas").doc(tarefaAtivaId));
+          if (["pendente", "executando"].includes(String(tarefaAtiva.data()?.status || ""))) {
+            jaEstavaNaFila = true;
+            return;
+          }
+        }
 
-      await adminFirestore().collection("marketing_tarefas").add({
-        consultorId: dono || consultorId,
-        campanhaId,
-        criativoId,
-        tipo: "gerar-capa",
-        status: "pendente",
-        tentativas: 0,
-        render: {
-          sourceVideo: fonteVideo,
-          ...(referer ? { sourceHeaders: { Referer: referer } } : {}),
+        transacao.set(campanhaRef, {
+          capaStatus: "processando",
+          capaErro: null,
+          capaTarefaAtivaId: tarefaRef.id,
+          atualizadoEm: agora,
+        }, { merge: true });
+
+        transacao.set(tarefaRef, {
+          consultorId: dono || consultorId,
+          campanhaId,
+          criativoId,
+          tipo: "gerar-capa",
+          status: "pendente",
+          tentativas: 0,
+          render: {
+            sourceVideo: fonteVideo,
+            ...(referer ? { sourceHeaders: { Referer: referer } } : {}),
           // O retrato sai 2 s depois do início da fala: tempo de a expressão assentar.
           retratoEm: msParaTempo(clipStartMs + 2000),
           recorte: {
@@ -4488,11 +4524,16 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
             x: LAYOUT_REEL.faceCropX,
             y: LAYOUT_REEL.faceCropY,
           },
-          cover,
-        },
-        criadoEm: agora,
-        criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+            cover,
+          },
+          criadoEm: agora,
+          criadoEmServidor: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
+
+      if (jaEstavaNaFila) {
+        return res.status(202).json({ estado: "ja-na-fila", mensagem: "Esta capa ja esta sendo refeita." });
+      }
 
       console.log(`[gerar-capa] ${criativoId}: ${cover.seriesLabel} ${cover.episode} — ${cover.hookLines.join(" / ")}`);
       return res.status(202).json({ estado: "na-fila", cover });
