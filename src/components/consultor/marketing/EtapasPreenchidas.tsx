@@ -2018,6 +2018,10 @@ export function useDadosMarketing(consultorId: string) {
     (v) => v.transcricaoStatus === 'na-fila' || v.transcricaoStatus === 'processando',
   // A capa do Reel tem o próprio estado, separado do Reel — e também conta.
   ) || campanhas.some((c) => c.status === 'processando' || c.capaStatus === 'processando')
+  // Uma revisão individual trabalha na peça, não na campanha. Mesmo que a
+  // campanha tenha um erro antigo, a tela precisa continuar atualizando até a
+  // peça sair de "gerando".
+  || pecas.some((p) => p.status === 'gerando')
   // Publicar também é espera: o Instagram leva minutos transcodificando o vídeo,
   // e é justamente aí que o consultor fica olhando a tela pra ver se saiu.
   || pecas.some((p) => p.publicacao?.status === 'publicando');
