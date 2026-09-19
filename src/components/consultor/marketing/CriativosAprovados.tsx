@@ -1586,6 +1586,10 @@ function FichaComTexto({
   titulo: string;
   ajuda: string;
 }) {
+  if (campo === 'textoLinkedin') {
+    return <FichaTextoLinkedin criativo={criativo} titulo={titulo} ajuda={ajuda} />;
+  }
+
   // A capa do Reel saiu daqui: virou o cartão próprio dela (CartaoCapaDoReel).
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -1611,13 +1615,66 @@ function FichaComTexto({
  * carrossel em vídeo. É o mesmo post em cada caso, então é o mesmo texto, e editar
  * num lugar muda no outro.
  */
+function FichaTextoLinkedin({
+  criativo, titulo, ajuda,
+}: {
+  criativo: Criativo;
+  titulo: string;
+  ajuda: string;
+}) {
+  const gravado = criativo.textos?.textoLinkedin || '';
+  const [texto, setTexto] = useState(gravado);
+
+  useEffect(() => { setTexto(gravado); }, [criativo.id, gravado]);
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-4">
+      <div className="lg:w-[300px] shrink-0">
+        <PreviaTextoLinkedin texto={texto} />
+        <p className="text-[11px] text-gray-500 mt-1">
+          A previa acompanha o texto enquanto voce edita. Clique em Refazer no topo
+          para renderizar a imagem final.
+        </p>
+      </div>
+      <div className="flex-1 min-w-0">
+        <TextoParaPublicar
+          criativo={criativo}
+          campo="textoLinkedin"
+          titulo={titulo}
+          ajuda={ajuda}
+          textoExterno={texto}
+          aoAlterarTexto={setTexto}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PreviaTextoLinkedin({ texto }: { texto: string }) {
+  return (
+    <div
+      className="aspect-square w-full rounded-lg border border-gray-200 bg-white overflow-hidden flex flex-col justify-center"
+      style={{ padding: '10%', fontFamily: 'Arial, Helvetica, sans-serif' }}
+    >
+      <p className="m-0 whitespace-pre-wrap break-words text-[14px] leading-[1.28] font-normal text-[#111]">
+        {texto || 'O texto do LinkedIn aparecera aqui.'}
+      </p>
+      <p className="m-0 mt-[6%] text-[8px] leading-[1.35] font-normal text-[#555]">
+        Fonte: Cortes do curso White Belt
+      </p>
+    </div>
+  );
+}
+
 function TextoParaPublicar({
-  criativo, campo, titulo, ajuda,
+  criativo, campo, titulo, ajuda, textoExterno, aoAlterarTexto,
 }: {
   criativo: Criativo;
   campo: 'artigoLinkedin' | 'legendaInstagram' | 'textoLinkedin';
   titulo: string;
   ajuda: string;
+  textoExterno?: string;
+  aoAlterarTexto?: (texto: string) => void;
 }) {
   const gravado = criativo.textos?.[campo] || '';
   const [texto, setTexto] = useState(gravado);
@@ -1628,14 +1685,15 @@ function TextoParaPublicar({
   // Trocar de criativo, ou a IA reescrever, tem que trazer o texto novo para a tela.
   useEffect(() => { setTexto(gravado); }, [criativo.id, gravado]);
 
-  const mudou = texto !== gravado;
+  const valorAtual = textoExterno ?? texto;
+  const mudou = valorAtual !== gravado;
 
   async function salvar() {
     setSalvando(true);
     setErro('');
     try {
       await updateDoc(doc(db, COLECOES.criativos, criativo.id), {
-        [`textos.${campo}`]: texto,
+        [`textos.${campo}`]: valorAtual,
         atualizadoEm: new Date().toISOString(),
       });
     } catch (e: any) {
@@ -1647,7 +1705,7 @@ function TextoParaPublicar({
 
   async function copiar() {
     try {
-      await navigator.clipboard.writeText(texto);
+      await navigator.clipboard.writeText(valorAtual);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     } catch {
@@ -1655,7 +1713,7 @@ function TextoParaPublicar({
     }
   }
 
-  const palavras = texto.trim().split(/\s+/).filter(Boolean).length;
+  const palavras = valorAtual.trim().split(/\s+/).filter(Boolean).length;
 
   return (
     <div>
@@ -1665,10 +1723,13 @@ function TextoParaPublicar({
       </div>
       <p className="text-xs text-gray-600 mt-0.5 mb-2">{ajuda}</p>
 
-      {texto || mudou ? (
+      {valorAtual || mudou ? (
         <textarea
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
+          value={valorAtual}
+          onChange={(e) => {
+            setTexto(e.target.value);
+            aoAlterarTexto?.(e.target.value);
+          }}
           rows={12}
           className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 font-normal leading-relaxed resize-y"
         />
@@ -1682,7 +1743,7 @@ function TextoParaPublicar({
       <div className="flex flex-wrap items-center gap-2 mt-2">
         <button
           onClick={copiar}
-          disabled={!texto}
+          disabled={!valorAtual}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
         >
           {copiado ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
