@@ -408,7 +408,17 @@ export default function LandingPlataformaLBW({ hero }: { hero?: React.ReactNode 
         name: 'Learning by Working – Educação pelo Trabalho',
         url: 'https://app.educacaopelotrabalho.com/',
         logo: 'https://app.educacaopelotrabalho.com/favicon.png',
-        sameAs: ['https://www.linkedin.com/in/israel-cavalcanti-de-souza-mbb-pmp-mba-9244a320/'],
+        // `sameAs` é onde se declara "estes perfis também sou eu". É o que costura
+        // a identidade da marca para o Google e para os buscadores de IA, que
+        // cruzam essas contas para decidir se a empresa é real e quem ela é.
+        // Só entra aqui perfil CONFERIDO — um link errado quebra a costura toda.
+        // Falta o YouTube: quando o canal existir, é o próximo a entrar (é a 3ª
+        // fonte mais citada pelas IAs, atrás só de Reddit e Wikipedia).
+        sameAs: [
+          'https://www.linkedin.com/in/israel-cavalcanti-de-souza-mbb-pmp-mba-9244a320/',
+          'https://www.instagram.com/educacao_pelo_trabalho/',
+          'https://www.facebook.com/763254156865937',
+        ],
       },
       ...PLANOS_LBW.map((plano) => ({
         '@type': 'Product',
