@@ -285,7 +285,6 @@ function Producao({
   const daCampanha = minhasPecas;
   const pecaFeed = minhasPecas.find((p) => p.tipo === 'carrossel-feed');
   const pecaPdf = minhasPecas.find((p) => p.tipo === 'linkedin-pdf');
-  const pecaImagemLinkedin = minhasPecas.find((p) => p.tipo === 'linkedin-imagem');
   const baseDoFeed = pecaFeed?.roteiro?.length
     ? pecaFeed.roteiro
     : (textoRenderizado || criativo.roteiro?.slides || []);
@@ -774,22 +773,6 @@ function Producao({
           {avisoReel}
         </p>
       )}
-
-      {/* A IMAGEM ÚNICA DO LINKEDIN.
-          É a capa do carrossel, que também serve sozinha: no LinkedIn um post de
-          uma imagem tem alcance diferente do documento, e o consultor quer poder
-          escolher. Não é uma peça nova do renderizador — é a mesma capa, mostrada
-          para o que ela serve. O texto ao lado é o MESMO artigo do PDF: é o mesmo
-          post, então mudar num muda no outro. */}
-      <ImagemUnicaLinkedin
-        criativo={criativo}
-        pecas={daCampanha}
-        slides={slides}
-        ocupado={pecaImagemLinkedin?.status === 'gerando'}
-        aoAlterarSlide={alterarSlide}
-        aoRefazer={() => pecaFeed && refazerTexto(pecaFeed)}
-        aoMudar={onMudou}
-      />
 
       <PecaProntaDoCriativo
         consultorId={criativo.consultorId}
