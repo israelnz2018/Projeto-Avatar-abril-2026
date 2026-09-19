@@ -860,6 +860,15 @@ export function EtapaAgenda({
                 {t.nome}
               </span>
             ))}
+            <span className="text-[11px] text-gray-400">|</span>
+            <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+              <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">Facebook</span>
+              automático para peças do Instagram
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] text-gray-600">
+              <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-bold">YouTube Shorts</span>
+              automático para vídeos
+            </span>
           </div>
         </div>
 
@@ -938,6 +947,7 @@ export function EtapaAgenda({
                         )}
                         <span className="block truncate font-semibold">{nomePeca(p.tipo)}</span>
                         <span className="block truncate opacity-80">{tituloDe(p)}</span>
+                        <DestinosAutomaticos peca={p} compacto />
                       </button>
 
                       {/* Mexer na peça já marcada: a hora e o tirar do calendário. */}
@@ -1024,6 +1034,7 @@ export function EtapaAgenda({
                         {horaNoOutroRelogio(p, fuso)}
                       </span>
                       <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
+                      <DestinosAutomaticos peca={p} />
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
                       <EstadoDaPublicacao peca={p} />
@@ -1056,6 +1067,7 @@ export function EtapaAgenda({
                       <span className={`w-2.5 h-2.5 rounded-sm shrink-0 ${CORES_PECA[p.tipo].ponto}`} />
                       <strong className="shrink-0">{dataCurta(quandoPublicou(p))}</strong>
                       <span className="truncate">{nomePeca(p.tipo)} — {tituloDe(p)}</span>
+                      <DestinosAutomaticos peca={p} />
                       {p.reprise && p.reprise > 1 && (
                         <span className="shrink-0 px-1.5 py-0.5 rounded bg-white border border-gray-300 text-[10px] font-bold text-gray-600">
                           {p.reprise}ª vez
@@ -1147,6 +1159,7 @@ function ListaDePecas({
                   {nomePeca(p.tipo)}
                 </span>
                 <span className="truncate">{tituloDe(p)}</span>
+                <DestinosAutomaticos peca={p} />
                 {p.reprise && p.reprise > 1 && (
                   <span className="shrink-0 px-1.5 py-0.5 rounded bg-gray-100 border border-gray-300 text-[10px] font-bold text-gray-600">
                     {p.reprise}ª vez
@@ -1385,6 +1398,41 @@ function dataCurta(iso: string): string {
  * saiu, vermelho com o motivo não saiu, e azul piscando é o Instagram ainda
  * processando o vídeo.
  */
+function destinosAutomaticos(tipo: TipoPeca): { nome: string; classe: string }[] {
+  if (tipo === 'carrossel-feed') {
+    return [{ nome: 'Facebook', classe: 'bg-blue-50 text-blue-700' }];
+  }
+  if (tipo === 'reel' || tipo === 'carrossel-video') {
+    return [
+      { nome: 'Facebook', classe: 'bg-blue-50 text-blue-700' },
+      { nome: 'YouTube Shorts', classe: 'bg-red-50 text-red-700' },
+    ];
+  }
+  return [];
+}
+
+function DestinosAutomaticos({ peca, compacto = false }: { peca: Peca; compacto?: boolean }) {
+  const destinos = destinosAutomaticos(peca.tipo);
+  if (!destinos.length) return null;
+
+  return (
+    <span
+      className={`flex flex-wrap items-center gap-1 ${compacto ? 'mt-0.5' : 'shrink-0'}`}
+      title="Serão publicados automaticamente junto com o Instagram"
+    >
+      {destinos.map((destino) => (
+        <span
+          key={destino.nome}
+          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${destino.classe}`}
+        >
+          {destino.nome}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Mostra o estado da publicação principal na rede. */
 function EstadoDaPublicacao({ peca }: { peca: Peca }) {
   const pub = peca.publicacao;
 
