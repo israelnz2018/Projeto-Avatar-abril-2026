@@ -572,7 +572,7 @@ export function EtapaAgenda({
 
   const termo = busca.trim().toLowerCase();
   const combina = (p: Peca) => {
-    if (redes.size && !redes.has(redeDoTipo(p.tipo))) return false;
+    if (redes.size && ![...redes].some((rede) => pecaVaiParaRede(p, rede))) return false;
     if (situacoes.size && !situacoes.has(situacaoDaPeca(p))) return false;
     if (termo && !`${nomePeca(p.tipo)} ${tituloDe(p)}`.toLowerCase().includes(termo)) return false;
     return true;
@@ -1341,10 +1341,20 @@ export function redeDoTipo(tipo: TipoPeca): 'instagram' | 'linkedin' {
   return tipo.startsWith('linkedin') ? 'linkedin' : 'instagram';
 }
 
-export const REDES: { id: 'instagram' | 'linkedin'; nome: string }[] = [
+export const REDES: { id: 'instagram' | 'linkedin' | 'facebook' | 'youtube'; nome: string }[] = [
   { id: 'instagram', nome: 'Instagram' },
   { id: 'linkedin', nome: 'LinkedIn' },
+  { id: 'facebook', nome: 'Facebook' },
+  { id: 'youtube', nome: 'YouTube Shorts' },
 ];
+
+/** Indica se a peça chega a uma rede, inclusive quando é um destino automático. */
+export function pecaVaiParaRede(peca: Peca, rede: string): boolean {
+  if (rede === 'instagram' || rede === 'linkedin') return redeDoTipo(peca.tipo) === rede;
+  return destinosAutomaticos(peca.tipo).some((destino) => (
+    rede === 'facebook' ? destino.nome === 'Facebook' : destino.nome === 'YouTube Shorts'
+  ));
+}
 
 /**
  * Botão de filtro que liga e desliga.
