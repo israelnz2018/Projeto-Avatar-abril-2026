@@ -1057,7 +1057,10 @@ function PecasProduzidas({
       </div>
       {ordenadas.map((p) => {
         if (p.origem === 'enviada') return <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />;
-        const ocupado = p.tipo === 'reel' ? ocupadoReel : (ocupadoTexto || p.status === 'gerando');
+        // O estado da campanha pode continuar "processando" enquanto outras
+        // peças já estão prontas. O indicador deve refletir apenas esta peça,
+        // para não exibir "refazendo..." em todos os cartões.
+        const ocupado = p.tipo === 'reel' ? ocupadoReel : p.status === 'gerando';
         return (
         <React.Fragment key={p.id}>
         <section className={cartaoDaPeca(p.status === 'aprovado' || p.status === 'publicado')}>
@@ -1207,7 +1210,7 @@ function PecasProduzidas({
           criativo={criativo}
           pecas={pecas}
           slides={slides}
-          ocupado={ocupadoTexto}
+          ocupado={pecas.find((p) => p.tipo === 'linkedin-imagem')?.status === 'gerando'}
           aoAlterarSlide={aoAlterarSlide}
           aoRefazer={() => {
             const peca = pecas.find((p) => p.tipo === 'carrossel-feed');
