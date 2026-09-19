@@ -285,6 +285,7 @@ function Producao({
   const daCampanha = minhasPecas;
   const pecaFeed = minhasPecas.find((p) => p.tipo === 'carrossel-feed');
   const pecaPdf = minhasPecas.find((p) => p.tipo === 'linkedin-pdf');
+  const pecaImagemLinkedin = minhasPecas.find((p) => p.tipo === 'linkedin-imagem');
   const baseDoFeed = pecaFeed?.roteiro?.length
     ? pecaFeed.roteiro
     : (textoRenderizado || criativo.roteiro?.slides || []);
@@ -784,7 +785,7 @@ function Producao({
         criativo={criativo}
         pecas={daCampanha}
         slides={slides}
-        ocupado={textoNoServidor || gerando || enfileirando}
+        ocupado={pecaImagemLinkedin?.status === 'gerando'}
         aoAlterarSlide={alterarSlide}
         aoRefazer={() => pecaFeed && refazerTexto(pecaFeed)}
         aoMudar={onMudou}
