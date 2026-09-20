@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import {
-  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where,
+  addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, updateDoc, where,
 } from 'firebase/firestore';
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
@@ -1843,20 +1843,31 @@ function BotaoPublicarAgora({
     setEnviando(true);
     setErro('');
     try {
-      await addDoc(collection(db, COLECOES.tarefas), {
-        consultorId: peca.consultorId,
-        campanhaId: peca.campanhaId,
-        pecaId: peca.id,
-        tipo: 'publicar',
-        status: 'pendente',
-        tentativas: 0,
-        criadoEm: new Date().toISOString(),
-        criadoEmServidor: serverTimestamp(),
-      });
+      const agora = new Date().toISOString();
+      const pecaRef = doc(db, COLECOES.pecas, peca.id);
+      const tarefaRef = doc(collection(db, COLECOES.tarefas));
       // O worker escreve 'publicando' na peça em segundos; recarregar mostra isso.
-      await updateDoc(doc(db, COLECOES.pecas, peca.id), {
-        publicacao: { status: 'publicando', erro: null, tentadoEm: new Date().toISOString() },
-        atualizadoEm: new Date().toISOString(),
+      await runTransaction(db, async (transacao) => {
+        const atual = await transacao.get(pecaRef);
+        const dados = atual.data() || {};
+        const publicacaoAtual = (dados.publicacao || {}) as Record<string, unknown>;
+        if (publicacaoAtual.status === 'publicando') {
+          throw new Error('Esta peça já está sendo publicada. Aguarde o resultado.');
+        }
+        transacao.set(tarefaRef, {
+          consultorId: peca.consultorId,
+          campanhaId: peca.campanhaId,
+          pecaId: peca.id,
+          tipo: 'publicar',
+          status: 'pendente',
+          tentativas: 0,
+          criadoEm: agora,
+          criadoEmServidor: serverTimestamp(),
+        });
+        transacao.update(pecaRef, {
+          publicacao: { ...publicacaoAtual, status: 'publicando', erro: null, tentadoEm: agora },
+          atualizadoEm: agora,
+        });
       });
       setPedindo(false);
       onMudou?.();
