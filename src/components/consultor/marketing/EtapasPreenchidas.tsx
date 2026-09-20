@@ -980,6 +980,7 @@ export function EtapaAgenda({
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
                         onClick={(e) => { e.stopPropagation(); setAberta(aberta === p.id ? null : p.id); }}
+                        title={`${nomePeca(p.tipo)} — ${tituloDe(p)}`}
                         className={`w-full text-left px-1.5 py-1 rounded border text-[11px] cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}`}
                       >
                         <span className="block font-bold">
@@ -1477,8 +1478,10 @@ function destinosAutomaticos(tipo: TipoPeca): { nome: string; classe: string }[]
 }
 
 function DestinosAutomaticos({ peca, compacto = false }: { peca: Peca; compacto?: boolean }) {
-  const destinos = destinosAutomaticos(peca.tipo);
-  if (!destinos.length) return null;
+  const principal = peca.tipo.startsWith('linkedin')
+    ? { nome: 'LinkedIn', classe: 'bg-blue-50 text-blue-700' }
+    : { nome: 'Instagram', classe: 'bg-pink-50 text-pink-700' };
+  const destinos = [principal, ...destinosAutomaticos(peca.tipo)];
 
   return (
     <span
