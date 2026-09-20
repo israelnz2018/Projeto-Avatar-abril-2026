@@ -533,6 +533,8 @@ export function EtapaAgenda({
   const [aberta, setAberta] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [agendamentoPendente, setAgendamentoPendente] = useState<{ peca: Peca; dia: Date } | null>(null);
+  const [agendamentoConfirmado, setAgendamentoConfirmado] = useState('');
 
   // Os filtros. Vazio quer dizer TODOS — filtro que começa escondendo tudo faz
   // o consultor achar que perdeu o trabalho.
@@ -600,26 +602,38 @@ export function EtapaAgenda({
     definir(novo);
   }
 
-  async function escrever(pecaId: string, dados: Record<string, unknown>) {
+  async function escrever(pecaId: string, dados: Record<string, unknown>): Promise<boolean> {
     setSalvando(true);
     setErro('');
     try {
       await updateDoc(doc(db, COLECOES.pecas, pecaId), { ...dados, atualizadoEm: new Date().toISOString() });
       onMudou?.();
+      return true;
     } catch (e: any) {
       setErro(e?.message || String(e));
+      return false;
     } finally {
       setSalvando(false);
     }
   }
 
-  function agendar(peca: Peca, dia: Date) {
+  async function agendar(peca: Peca, dia: Date): Promise<boolean> {
     setSelecionada(null);
-    return escrever(peca.id, {
+    const ok = await escrever(peca.id, {
       agendadoEm: diaISO(dia),
-      // Mudar de dia preserva a hora escolhida; só a primeira vez usa a sugestão.
       agendadoHora: peca.agendadoHora || HORA_SUGERIDA[peca.tipo] || '12:00',
     });
+    if (ok) {
+      setAgendamentoPendente(null);
+      setAgendamentoConfirmado(`${nomePeca(peca.tipo)} agendada para ${dia.toLocaleDateString('pt-BR')}.`);
+    }
+    return ok;
+  }
+
+  function prepararAgendamento(peca: Peca, dia: Date) {
+    setErro('');
+    setAgendamentoConfirmado('');
+    setAgendamentoPendente({ peca, dia });
   }
 
   function tirarDoCalendario(peca: Peca) {
@@ -633,7 +647,7 @@ export function EtapaAgenda({
       ev.preventDefault();
       const id = ev.dataTransfer.getData('text/plain');
       const peca = aprovadas.find((p) => p.id === id);
-      if (peca) agendar(peca, dia);
+      if (peca) prepararAgendamento(peca, dia);
     };
   }
 
@@ -646,7 +660,12 @@ export function EtapaAgenda({
   function aoClicarNoDia(dia: Date) {
     if (!selecionada) return;
     const peca = aprovadas.find((p) => p.id === selecionada);
-    if (peca) agendar(peca, dia);
+    if (peca) prepararAgendamento(peca, dia);
+  }
+
+  async function confirmarAgendamento() {
+    if (!agendamentoPendente) return;
+    await agendar(agendamentoPendente.peca, agendamentoPendente.dia);
   }
 
   const fim = somarDias(inicio, semanas * 7 - 1);
@@ -884,6 +903,37 @@ export function EtapaAgenda({
 
         {/* Com quatro linhas, repetir o dia da semana em cada célula é ruído.
             O cabeçalho sai uma vez, em cima das colunas. */}
+        {agendamentoPendente && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+            <p className="text-xs text-blue-900">
+              <strong>{nomePeca(agendamentoPendente.peca.tipo)}</strong> foi colocado em{' '}
+              <strong>{agendamentoPendente.dia.toLocaleDateString('pt-BR')}</strong>. Confirme para salvar o agendamento.
+            </p>
+            <span className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={confirmarAgendamento}
+                disabled={salvando}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60"
+              >
+                {salvando ? 'Salvando...' : 'Confirmar agendamento'}
+              </button>
+              <button
+                onClick={() => { setAgendamentoPendente(null); setSelecionada(null); }}
+                disabled={salvando}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+            </span>
+          </div>
+        )}
+        {agendamentoConfirmado && (
+          <p className="mb-3 inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-bold text-green-800">
+            <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+            {agendamentoConfirmado}
+          </p>
+        )}
+
         <div className="grid grid-cols-7 gap-1.5 mb-1">
           {DIAS_DA_SEMANA.map((nome) => (
             <span key={nome} className="text-[10px] font-bold uppercase text-gray-400 px-0.5">
@@ -935,7 +985,12 @@ export function EtapaAgenda({
                         <span className="block font-bold">
                           {horaNoRelogio(p, fuso)}
                           {/* O ✓ no próprio chip: a semana inteira se lê de um olhar. */}
-                          {jaPublicada(p) && <span title="Publicada"> ✓</span>}
+                          {jaPublicada(p) && (
+                            <span className="inline-flex items-center gap-1" title="Enviada para a mídia principal">
+                              <span className="inline-block h-2 w-2 rounded-full bg-green-500 align-middle" />
+                              <span>✓</span>
+                            </span>
+                          )}
                         </span>
                         {/* A mesma hora no outro relógio: 19h de segunda no Brasil é
                             terça de manhã na Nova Zelândia, e sem isto o consultor
