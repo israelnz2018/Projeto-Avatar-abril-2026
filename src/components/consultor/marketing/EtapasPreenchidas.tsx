@@ -534,6 +534,8 @@ export function EtapaAgenda({
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const [agendamentoPendente, setAgendamentoPendente] = useState<{ peca: Peca; dia: Date } | null>(null);
+  const [horaAgendamentoPendente, setHoraAgendamentoPendente] = useState('');
+  const [horaPendenteSalva, setHoraPendenteSalva] = useState(false);
   const [agendamentoConfirmado, setAgendamentoConfirmado] = useState('');
 
   // Os filtros. Vazio quer dizer TODOS — filtro que começa escondendo tudo faz
@@ -633,6 +635,8 @@ export function EtapaAgenda({
   function prepararAgendamento(peca: Peca, dia: Date) {
     setErro('');
     setAgendamentoConfirmado('');
+    setHoraAgendamentoPendente(peca.agendadoHora || HORA_SUGERIDA[peca.tipo] || '12:00');
+    setHoraPendenteSalva(false);
     setAgendamentoPendente({ peca, dia });
   }
 
@@ -665,7 +669,27 @@ export function EtapaAgenda({
 
   async function confirmarAgendamento() {
     if (!agendamentoPendente) return;
+    if (!horaPendenteSalva) {
+      setErro('Salve o horário antes de confirmar o agendamento.');
+      return;
+    }
     await agendar(agendamentoPendente.peca, agendamentoPendente.dia);
+  }
+
+  async function salvarHoraAgendamento() {
+    if (!agendamentoPendente || !horaAgendamentoPendente) {
+      setErro('Escolha um horário antes de salvar.');
+      return;
+    }
+    const ok = await escrever(agendamentoPendente.peca.id, { agendadoHora: horaAgendamentoPendente });
+    if (ok) {
+      setAgendamentoPendente({
+        ...agendamentoPendente,
+        peca: { ...agendamentoPendente.peca, agendadoHora: horaAgendamentoPendente },
+      });
+      setHoraPendenteSalva(true);
+      setAgendamentoConfirmado(`Horário ${horaAgendamentoPendente} salvo. Agora confirme o agendamento.`);
+    }
   }
 
   const fim = somarDias(inicio, semanas * 7 - 1);
@@ -1036,10 +1060,30 @@ export function EtapaAgenda({
                     >
                       <div className="font-bold text-blue-900">{nomePeca(pendenteNesteDia.tipo)}</div>
                       <div className="truncate text-blue-800">{tituloDe(pendenteNesteDia)}</div>
+                      <label className="mt-1 block text-[10px] font-bold uppercase text-blue-800">
+                        Horário de publicação
+                      </label>
+                      <input
+                        type="time"
+                        value={horaAgendamentoPendente}
+                        onChange={(e) => {
+                          setHoraAgendamentoPendente(e.target.value);
+                          setHoraPendenteSalva(false);
+                          setAgendamentoConfirmado('');
+                        }}
+                        className="w-full rounded border border-blue-200 bg-white px-1 py-1 text-[11px]"
+                      />
                       <div className="mt-1 flex flex-col gap-1">
                         <button
+                          onClick={salvarHoraAgendamento}
+                          disabled={salvando || !horaAgendamentoPendente}
+                          className="w-full rounded border border-blue-300 bg-white px-1 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                        >
+                          {salvando ? 'Salvando...' : 'Salvar horário'}
+                        </button>
+                        <button
                           onClick={confirmarAgendamento}
-                          disabled={salvando}
+                          disabled={salvando || !horaPendenteSalva}
                           className="w-full rounded bg-blue-600 px-1 py-1 text-[10px] font-bold text-white hover:bg-blue-700 disabled:opacity-60"
                         >
                           {salvando ? 'Salvando...' : 'Confirmar agendamento'}
