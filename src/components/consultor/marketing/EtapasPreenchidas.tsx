@@ -1002,7 +1002,7 @@ export function EtapaAgenda({
                           </span>
                         )}
                         <span className="block truncate font-semibold">{nomePeca(p.tipo)}</span>
-                        <span className="block truncate opacity-80">{tituloDe(p)}</span>
+                        <span className="block max-h-[2.4rem] overflow-hidden break-words leading-tight opacity-80">{tituloDe(p)}</span>
                         <DestinosAutomaticos peca={p} compacto />
                       </button>
 
