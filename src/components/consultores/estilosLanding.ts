@@ -39,6 +39,9 @@ export const CSS_CONSULTORES = `
 .consultores-lp .media-placeholder{width:min(780px,100%);min-height:390px;border:1px dashed rgba(147,197,253,.42);border-radius:22px;background:rgba(255,255,255,.045);display:grid;place-items:center;color:#c5d7f8;font-size:13px;font-weight:700;margin:40px auto 32px;box-shadow:inset 0 1px rgba(255,255,255,.08);position:relative;overflow:hidden}
 .consultores-lp .media-placeholder::before{content:'▶';display:grid;place-items:center;color:#fff;width:76px;height:76px;border-radius:50%;border:1px solid rgba(255,255,255,.32);background:rgba(255,255,255,.06);position:absolute;font-size:25px;padding-left:4px}
 .consultores-lp .media-placeholder span{position:relative;top:50px;letter-spacing:0}
+.consultores-lp .media-placeholder.media-video{min-height:0;aspect-ratio:16/9;display:block;border-style:solid;background:#000}
+.consultores-lp .media-placeholder.media-video::before,.consultores-lp .media-placeholder.media-video span{display:none}
+.consultores-lp .media-placeholder.media-video iframe{display:block;width:100%;height:100%;border:0}
 .consultores-lp .split{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch}
 .consultores-lp .panel{border:1px solid var(--line);border-radius:22px;background:#fff;padding:30px;box-shadow:0 16px 46px rgba(30,45,110,.07)}
 .consultores-lp .panel h3{font-size:14px;letter-spacing:.12em;color:var(--blue);margin-bottom:20px}

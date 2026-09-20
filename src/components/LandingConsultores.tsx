@@ -49,7 +49,14 @@ export default function LandingConsultores() {
           <span className="eyebrow">LBW — Educação pelo Trabalho</span>
           <h1>Imagine apresentar sua próxima proposta de consultoria assim.</h1>
           <p className="sub">Em vez de entregar treinamentos, ferramentas e acompanhamento separados, ofereça ao cliente um ambiente completo, com a sua marca, que continua com a equipe depois que você sai.</p>
-          <div className="media-placeholder"><span>[ VÍDEO DE APRESENTAÇÃO ]</span></div>
+          <div className="media-placeholder media-video">
+            <iframe
+              title="Conheça a plataforma como o aluno vê"
+              src="https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=true"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
           <button className="cta" onClick={scrollToForm}>Quero conhecer a plataforma →</button>
           <p className="proof">20+ anos de experiência · 1.500+ profissionais treinados · US$ 20MM+ em ganhos com projetos</p>
         </div>
