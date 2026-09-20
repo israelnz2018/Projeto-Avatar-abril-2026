@@ -68,7 +68,7 @@ const LandingPlataformaLBW = lazy(() => import('./components/LandingPlataformaLB
 const LandingGratisCapabilidade = lazy(() => import('./components/LandingGratisCapabilidade'));
 const LandingTermosGratuitos = lazy(() => import('./components/LandingTermosGratuitos'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
-const LandingConsultores = lazy(() => import('./components/LandingConsultores'));
+const LandingConsultores = lazy(() => import('./components/LandingConsultoresNova'));
 const SejaConsultor = lazy(() => import('./components/SejaConsultor'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
