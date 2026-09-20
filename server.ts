@@ -3978,7 +3978,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       const nomeBrand = String(branding.nome || "").trim();
       const nomePessoa = String(consultorSnap.data()?.nome || "").trim();
       const marca = nomeBrand ? {
-        nome: nomeBrand.toLowerCase() === nomePessoa.toLowerCase() ? "EDUCAÃ‡ÃƒO PELO TRABALHO" : nomeBrand,
+        nome: nomeBrand.toLowerCase() === nomePessoa.toLowerCase() ? "EDUCAÇÃO PELO TRABALHO" : nomeBrand,
         ...(branding.logoUrl ? { logoUrl: branding.logoUrl } : {}),
         ...(branding.cores ? { cores: branding.cores } : {}),
       } : undefined;
