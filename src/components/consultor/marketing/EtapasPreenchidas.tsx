@@ -796,7 +796,10 @@ export function EtapaAgenda({
                           <button
                             key={p.id}
                             draggable
-                            onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                            onDragStart={(e) => {
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', p.id);
+                            }}
                             onClick={() => setSelecionada(selecionada === p.id ? null : p.id)}
                             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}${selecionada === p.id ? ' ring-2 ring-offset-1 ring-blue-500' : ''}`}
                           >
@@ -903,30 +906,6 @@ export function EtapaAgenda({
 
         {/* Com quatro linhas, repetir o dia da semana em cada célula é ruído.
             O cabeçalho sai uma vez, em cima das colunas. */}
-        {agendamentoPendente && (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
-            <p className="text-xs text-blue-900">
-              <strong>{nomePeca(agendamentoPendente.peca.tipo)}</strong> foi colocado em{' '}
-              <strong>{agendamentoPendente.dia.toLocaleDateString('pt-BR')}</strong>. Confirme para salvar o agendamento.
-            </p>
-            <span className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={confirmarAgendamento}
-                disabled={salvando}
-                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60"
-              >
-                {salvando ? 'Salvando...' : 'Confirmar agendamento'}
-              </button>
-              <button
-                onClick={() => { setAgendamentoPendente(null); setSelecionada(null); }}
-                disabled={salvando}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-            </span>
-          </div>
-        )}
         {agendamentoConfirmado && (
           <p className="mb-3 inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-bold text-green-800">
             <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
@@ -948,6 +927,9 @@ export function EtapaAgenda({
             const doDia = agendadas
               .filter((p) => p.agendadoEm === chave)
               .sort((a, b) => (a.agendadoHora || '').localeCompare(b.agendadoHora || ''));
+            const pendenteNesteDia = agendamentoPendente && diaISO(agendamentoPendente.dia) === chave
+              ? agendamentoPendente.peca
+              : null;
             const ehHoje = chave === hoje;
             // Primeiro dia do mês: mostra o mês junto, senão em 28 dias o
             // consultor perde de vista onde a virada aconteceu.
@@ -978,7 +960,10 @@ export function EtapaAgenda({
                     <div key={p.id}>
                       <button
                         draggable
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', p.id);
+                        }}
                         onClick={(e) => { e.stopPropagation(); setAberta(aberta === p.id ? null : p.id); }}
                         title={`${nomePeca(p.tipo)} — ${tituloDe(p)}`}
                         className={`w-full text-left px-1.5 py-1 rounded border text-[11px] cursor-grab active:cursor-grabbing ${CORES_PECA[p.tipo].chip}`}
@@ -1044,6 +1029,31 @@ export function EtapaAgenda({
                       )}
                     </div>
                   ))}
+                  {pendenteNesteDia && !doDia.some((p) => p.id === pendenteNesteDia.id) && (
+                    <div
+                      className="rounded border-2 border-blue-400 bg-blue-50 px-1.5 py-1 text-[11px]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="font-bold text-blue-900">{nomePeca(pendenteNesteDia.tipo)}</div>
+                      <div className="truncate text-blue-800">{tituloDe(pendenteNesteDia)}</div>
+                      <div className="mt-1 flex flex-col gap-1">
+                        <button
+                          onClick={confirmarAgendamento}
+                          disabled={salvando}
+                          className="w-full rounded bg-blue-600 px-1 py-1 text-[10px] font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+                        >
+                          {salvando ? 'Salvando...' : 'Confirmar agendamento'}
+                        </button>
+                        <button
+                          onClick={() => { setAgendamentoPendente(null); setSelecionada(null); }}
+                          disabled={salvando}
+                          className="w-full rounded border border-gray-300 bg-white px-1 py-1 text-[10px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
