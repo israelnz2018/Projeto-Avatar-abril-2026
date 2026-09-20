@@ -1865,7 +1865,7 @@ function BotaoPublicarAgora({
           criadoEmServidor: serverTimestamp(),
         });
         transacao.update(pecaRef, {
-          publicacao: { ...publicacaoAtual, status: 'publicando', erro: null, tentadoEm: agora },
+          publicacao: { ...publicacaoAtual, status: 'publicando', tarefaId: tarefaRef.id, erro: null, tentadoEm: agora },
           atualizadoEm: agora,
         });
       });
