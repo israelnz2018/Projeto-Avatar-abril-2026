@@ -20,4 +20,5 @@ export const CSS_CONSULTORES_NOVA = `
  .consultores-lp-nova .platform-showcase .showcase-block:first-child .showcase-card{width:300px;flex-basis:300px;height:270px;aspect-ratio:auto}.consultores-lp-nova .platform-showcase .showcase-block:nth-child(2) .showcase-card{width:270px;flex-basis:270px;height:270px;aspect-ratio:auto}
 @media(max-width:680px){.consultores-lp-nova .platform-showcase .showcase-block:first-child .showcase-card{width:260px;flex-basis:260px;height:270px}.consultores-lp-nova .platform-showcase .showcase-block:nth-child(2) .showcase-card{width:236px;flex-basis:236px;height:270px}}
  .consultores-lp-nova .hero-video-shell:after,.consultores-lp-nova .hero-scroll-hint,.consultores-lp-nova .platform-showcase-section>.section-heading-centered{display:none!important}.consultores-lp-nova .consultores-hero{padding-bottom:44px}.consultores-lp-nova .platform-showcase-section{padding-top:58px}
+ .consultores-lp-nova .consultores-audience-strip{margin-top:0;padding-top:36px}
 `;
