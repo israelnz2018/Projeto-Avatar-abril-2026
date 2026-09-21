@@ -22,4 +22,5 @@ export const CSS_CONSULTORES_NOVA = `
  .consultores-lp-nova .hero-video-shell:after,.consultores-lp-nova .hero-scroll-hint,.consultores-lp-nova .platform-showcase-section>.section-heading-centered{display:none!important}.consultores-lp-nova .consultores-hero{padding-bottom:44px}.consultores-lp-nova .platform-showcase-section{padding-top:58px}
  .consultores-lp-nova .consultores-audience-strip{margin-top:0;padding-top:36px}
  .consultores-lp-nova .ai-message-user{font-size:0}.consultores-lp-nova .ai-message-user:after{content:'Como faço para ter uma ideia de projeto?';font-size:13px}.consultores-lp-nova .ai-message-bot span{font-size:0}.consultores-lp-nova .ai-message-bot span:after{content:'Use a ferramenta Identificação de Oportunidades. A partir do seu dia a dia, ela ajuda você a encontrar situações que podem virar projetos de melhoria e apresenta uma lista de opções para começar.';font-size:13px}
+ .consultores-lp-nova .consultores-form-card .micro{display:none!important}
 `;
