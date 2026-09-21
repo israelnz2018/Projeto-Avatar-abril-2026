@@ -30,6 +30,8 @@ const NAO_QUALIFICADO_PADRAO =
   + 'melhoria contínua, melhoria de processos ou áreas relacionadas, já possui curso online pronto '
   + 'e já atende ou está buscando empresas como clientes.';
 
+const AGENDAMENTO_CONSULTOR_URL = 'https://cal.com/educacaopelotrabalho/reuniao';
+
 export default function FormularioLead({
   origem,
   nomeInicial = '',
@@ -106,6 +108,7 @@ export default function FormularioLead({
           <>
             <h3>Sua solicitação foi recebida.</h3>
             <p>Vou analisar suas respostas pessoalmente e você receberá um retorno por e-mail em até 48 horas.</p>
+            <a className="booking-link" href={AGENDAMENTO_CONSULTOR_URL} target="_blank" rel="noopener noreferrer">Escolher data e horário da conversa →</a>
           </>
         ) : (
           <>

@@ -23,4 +23,5 @@ export const CSS_CONSULTORES_NOVA = `
  .consultores-lp-nova .consultores-audience-strip{margin-top:0;padding-top:36px}
  .consultores-lp-nova .ai-message-user{font-size:0}.consultores-lp-nova .ai-message-user:after{content:'Como faço para ter uma ideia de projeto?';font-size:13px}.consultores-lp-nova .ai-message-bot span{font-size:0}.consultores-lp-nova .ai-message-bot span:after{content:'Use a ferramenta Identificação de Oportunidades. A partir do seu dia a dia, ela ajuda você a encontrar situações que podem virar projetos de melhoria e apresenta uma lista de opções para começar.';font-size:13px}
  .consultores-lp-nova .consultores-form-card .micro{display:none!important}
+ .consultores-lp-nova .booking-link{display:inline-flex;align-items:center;justify-content:center;margin-top:16px;padding:13px 18px;border-radius:11px;background:#1456e8;color:#fff;font-size:14px;font-weight:850;text-decoration:none;box-shadow:0 10px 24px rgba(20,86,232,.22)}.consultores-lp-nova .booking-link:hover{background:#0d46c7}
 `;
