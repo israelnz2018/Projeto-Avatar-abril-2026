@@ -2052,8 +2052,6 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
 
   const linhas = gancho.split('\n').map((l) => l.trim()).filter(Boolean);
   const palavras = linhas.join(' ').split(/\s+/).filter(Boolean).length;
-  // Só um aviso. O botão não trava por isso.
-  const ganchoNoPadrao = palavras >= 3 && palavras <= 6 && linhas.length <= 3;
 
   /**
    * Salva o texto da capa e manda desenhar só ela.
@@ -2100,7 +2098,7 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
 
   return {
     curso, setCurso, serie, setSerie, episodio, setEpisodio, gancho, setGancho,
-    rotulo, setRotulo, assunto, setAssunto, linhas, palavras, ganchoNoPadrao,
+    rotulo, setRotulo, assunto, setAssunto, linhas, palavras,
     salvando, erro, salvarERefazer,
   };
 }
@@ -2112,7 +2110,7 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
 function CamposDaCapa({ arte }: { arte: ReturnType<typeof useArteDaCapa> }) {
   const {
     curso, setCurso, serie, setSerie, episodio, setEpisodio, gancho, setGancho,
-    rotulo, setRotulo, assunto, setAssunto, linhas, palavras, ganchoNoPadrao, erro,
+    rotulo, setRotulo, assunto, setAssunto, linhas, palavras, erro,
   } = arte;
   const campo = 'w-full px-2 py-1.5 rounded border border-gray-300 text-sm';
 
@@ -2123,7 +2121,7 @@ function CamposDaCapa({ arte }: { arte: ReturnType<typeof useArteDaCapa> }) {
       <div>
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase text-gray-400">Gancho — o texto grande</span>
-          <span className={`text-[10px] font-bold ${ganchoNoPadrao ? 'text-gray-400' : 'text-amber-600'}`}>
+          <span className="text-[10px] font-bold text-gray-400">
             {palavras} palavras · {linhas.length} linhas
           </span>
         </div>
@@ -2134,8 +2132,7 @@ function CamposDaCapa({ arte }: { arte: ReturnType<typeof useArteDaCapa> }) {
           className={`${campo} font-bold resize-y`}
         />
         <p className="text-[10px] text-gray-500">
-          Uma linha por linha da capa. Recomendado de 3 a 6 palavras, que é o que se lê numa
-          miniatura — mas não é obrigatório: pode deixar em branco ou escrever mais, o texto encolhe para caber.
+          Escreva o texto completo. A capa ajusta as linhas e o tamanho da letra para caber.
         </p>
       </div>
 
@@ -2204,7 +2201,7 @@ function mancheteDoCriativo(criativo: Criativo): string {
  * poder dizer a verdade sobre o que vai sair.
  */
 function ganchoDoTitulo(titulo: string): string[] {
-  const palavras = String(titulo || '').trim().split(/\s+/).filter(Boolean).slice(0, 6);
+  const palavras = String(titulo || '').trim().split(/\s+/).filter(Boolean);
   if (!palavras.length) return [];
   const texto = palavras.join(' ').toUpperCase();
   if (palavras.length < 2) return [texto];
