@@ -90,6 +90,14 @@ export interface MarketingConfig {
    * e do próprio texto dos slides (etapa 4).
    */
   linkPrincipal?: string;
+  /**
+   * O que é a plataforma, em texto corrido, escrito pelo consultor.
+   *
+   * Só a pesquisa de pautas usa. Sem isto ela devolve assunto genérico de
+   * internet; com isto ela procura o que conversa com o que você vende de fato.
+   * Opcional: vazio, a pesquisa roda mesmo assim, só mira pior.
+   */
+  sobrePlataforma?: string;
   atualizadoEm?: string;
 }
 
@@ -587,7 +595,51 @@ export const COLECOES = {
   pecas: 'marketing_pecas',
   tarefas: 'marketing_tarefas',
   imagens: 'marketing_imagens',
+  pautas: 'marketing_pautas',
 } as const;
+
+/* ====================== Pesquisa de pautas ====================== */
+
+/**
+ * Uma fonte que a pesquisa REALMENTE leu.
+ *
+ * Vem do `groundingMetadata` que o Gemini devolve junto da resposta, e não do
+ * texto que ele escreve: link citado dentro da resposta pode ser inventado, e
+ * aqui a fonte é a prova de que a afirmação não nasceu da cabeça do modelo.
+ */
+export interface FonteDaPauta {
+  titulo: string;
+  url: string;
+}
+
+export type StatusPauta = 'nova' | 'aprovada' | 'descartada';
+
+/**
+ * Um assunto que a pesquisa trouxe da internet. Coleção: marketing_pautas
+ *
+ * É a porta de entrada ALTERNATIVA da esteira. A porta normal começa num vídeo:
+ * a IA recorta a fala do consultor, e nada é inventado — só selecionado. Aqui
+ * não existe vídeo, o assunto vem de fora, então a garantia muda de natureza: o
+ * que segura a pauta no chão são as `fontes`, e é por isso que elas aparecem no
+ * cartão ANTES de o consultor aprovar.
+ */
+export interface PautaPesquisa {
+  id: string;
+  consultorId: string;
+  /** Para quem é a peça. Texto livre: "atrair consultores", "atrair alunos"… */
+  foco: string;
+  titulo: string;
+  /** A tese, em uma ou duas frases: o que dizer e por que isso convence. */
+  angulo: string;
+  /** Por que este assunto vale agora, e não em qualquer mês. */
+  porQueAgora?: string;
+  fontes: FonteDaPauta[];
+  status: StatusPauta;
+  /** Ordem em que a pesquisa devolveu — mantém a lista estável entre recargas. */
+  ordem: number;
+  pesquisadoEm: string;
+  aprovadoEm?: string;
+}
 
 /* ====================== Biblioteca de imagens ====================== */
 

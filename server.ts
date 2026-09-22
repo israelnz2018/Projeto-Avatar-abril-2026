@@ -3570,6 +3570,155 @@ async function startServer() {
     }
   });
 
+  // POST /api/marketing-consultor/pesquisar — a OUTRA porta de entrada da esteira.
+  //
+  // A porta normal começa num vídeo: a IA recorta a fala do consultor e nada é
+  // inventado, só selecionado. Aqui o assunto vem de fora, e por isso a garantia
+  // tem de ser outra: as fontes saem do groundingMetadata — o que o modelo
+  // REALMENTE abriu —, e não dos links que ele escreve no texto, que podem ser
+  // invenção. Pauta sem nenhuma fonte é descartada aqui mesmo, antes de virar
+  // cartão na tela.
+  app.post("/api/marketing-consultor/pesquisar", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const foco = String(req.body?.foco || "").trim();
+    if (!foco) return res.status(400).json({ error: "Diga para quem é a peça." });
+    const sobrePlataforma = String(req.body?.sobrePlataforma || "").trim();
+
+    try {
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+      const hoje = new Date().toISOString().slice(0, 10);
+      const prompt = `Hoje é ${hoje}.\n\n`
+        + (sobrePlataforma
+          ? `SOBRE A PLATAFORMA (escrito pelo dono dela):\n"""\n${sobrePlataforma.slice(0, 4000)}\n"""\n\n`
+          : "")
+        + `PÚBLICO QUE ELE QUER ALCANÇAR: ${foco}\n\n`
+        + `Pesquise na internet e proponha 5 PAUTAS para posts que falem com esse público.\n\n`
+        + `Uma pauta é um ASSUNTO com um ângulo, não um texto pronto. Regras:\n`
+        + `- Cada pauta parte de algo verificável que você encontrou na pesquisa: um dado,\n`
+        + `  uma mudança de mercado, um relatório, uma prática que se firmou. Não invente número.\n`
+        + `- O ângulo diz o que defender e por que isso convence ESSE público — não é resumo\n`
+        + `  da notícia.\n`
+        + `- Nada de promessa de renda, emprego ou resultado garantido.\n`
+        // Sem isto os títulos saíam em caixa-alta de folheto, com dois-pontos no meio:
+        // "IA e Automação: Como Consultores Escalam Impacto". Ninguém fala assim.
+        + `- O título tem no máximo 12 palavras, é uma frase em português corrente e já\n`
+        + `  carrega a tensão. Não use dois-pontos partindo o título em dois, não use\n`
+        + `  Maiúscula Em Toda Palavra, e não comece com "Guia completo de" nem "Como".\n`
+        + `- As 5 pautas atacam ângulos DIFERENTES entre si. Não devolva a mesma ideia cinco vezes.\n`
+        // A busca cai em site gringo de consultoria por padrão, e o público é brasileiro:
+        // dado de mercado americano convence menos do que dado daqui.
+        + `- O público é BRASILEIRO. Dê preferência a fontes em português e a dados do\n`
+        + `  Brasil. Fonte estrangeira só quando o dado não existir daqui, e nesse caso\n`
+        + `  diga no ângulo que o dado é de fora.\n\n`
+        + `Devolva APENAS JSON, sem cercas de código:\n`
+        + `{"pautas":[{"titulo":"...","angulo":"...","porQueAgora":"..."}]}`;
+
+      // A busca do Google e o responseSchema não podem ser pedidos na mesma chamada:
+      // a API recusa "controlled generation" junto de ferramenta. Então o JSON é
+      // pedido no texto e lido com tolerância — que é o mesmo caminho já usado em
+      // gerar-criativos quando o modelo embrulha a resposta em ```json.
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const gerado = await ai.models.generateContent({
+        model: geminiModel,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { tools: [{ googleSearch: {} }], temperature: 0.7, maxOutputTokens: 32768 },
+      });
+
+      const motivo = gerado.candidates?.[0]?.finishReason;
+      if (motivo === "MAX_TOKENS") throw new Error("A resposta da IA foi cortada pelo limite de tokens.");
+
+      const bruto = String(gerado.text || "").trim();
+      const recorte = bruto.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+      // O modelo com ferramenta às vezes escreve uma frase antes do JSON. Pega do
+      // primeiro { até o último } em vez de desistir por causa disso.
+      const inicio = recorte.indexOf("{");
+      const fim = recorte.lastIndexOf("}");
+      let propostas: any[] = [];
+      try {
+        propostas = JSON.parse(inicio >= 0 && fim > inicio ? recorte.slice(inicio, fim + 1) : recorte)?.pautas || [];
+      } catch {
+        throw new Error("O serviço de IA devolveu uma resposta que não é JSON.");
+      }
+      if (!propostas.length) return res.status(422).json({ error: "A pesquisa não encontrou nenhuma pauta aproveitável." });
+
+      // As fontes DE VERDADE: o que o modelo abriu, não o que ele diz ter aberto.
+      const pedacos = gerado.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const vistos = new Set<string>();
+      const fontes = pedacos
+        .map((p: any) => ({ titulo: String(p?.web?.title || "").trim(), url: String(p?.web?.uri || "").trim() }))
+        .filter((f: any) => {
+          if (!f.url || vistos.has(f.url)) return false;
+          vistos.add(f.url);
+          return true;
+        })
+        .slice(0, 6);
+
+      if (!fontes.length) {
+        return res.status(422).json({
+          error: "A pesquisa não conseguiu abrir nenhuma fonte na internet. Sem fonte, a pauta viraria chute — tente de novo daqui a pouco.",
+        });
+      }
+
+      // Pesquisar de novo SUBSTITUI a rodada anterior, menos o que já foi aprovado —
+      // mesma regra de gerar-criativos, para o consultor não perder o que guardou.
+      const colecao = adminFirestore().collection("marketing_pautas");
+      const anteriores = await colecao.where("consultorId", "==", consultorId).get();
+      const lote = adminFirestore().batch();
+      let aprovadasMantidas = 0;
+      for (const doc of anteriores.docs) {
+        if (String(doc.data()?.status || "") === "aprovada") { aprovadasMantidas += 1; continue; }
+        lote.delete(doc.ref);
+      }
+
+      const agora = new Date().toISOString();
+      const pautas = propostas.slice(0, 8).map((p: any, i: number) => ({
+        id: `${consultorId}__pauta__${Date.now()}__${i}`,
+        consultorId,
+        foco,
+        titulo: String(p?.titulo || "").trim().slice(0, 200),
+        angulo: String(p?.angulo || "").trim().slice(0, 1200),
+        porQueAgora: String(p?.porQueAgora || "").trim().slice(0, 600),
+        fontes,
+        status: "nova" as const,
+        ordem: i,
+        pesquisadoEm: agora,
+      })).filter((p) => p.titulo && p.angulo);
+
+      if (!pautas.length) return res.status(422).json({ error: "A pesquisa voltou sem título ou sem ângulo em nenhuma pauta." });
+      for (const pauta of pautas) lote.set(colecao.doc(pauta.id), pauta);
+      await lote.commit();
+
+      return res.json({ pautas, aprovadasMantidas, fontes: fontes.length });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/pesquisar] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao pesquisar.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   /**
    * A gramática de slide que o renderizador aceita, escrita para a IA ler.
    *
@@ -4547,14 +4696,11 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
   });
 
   /**
-   * O gancho da capa a partir do título, em até 3 linhas de 3 a 6 palavras.
-   *
-   * Corta em 6 palavras de propósito, em vez de recusar: título comprido é comum,
-   * e uma capa com gancho aparado ainda serve — uma geração recusada não serve
-   * para nada. O consultor ajusta no campo quando quiser outra coisa.
+   * O gancho da capa usa o título inteiro. O renderizador ajusta a fonte
+   * para caber sem omitir o final do texto.
    */
   function ganchoDoTitulo(titulo: string): string[] {
-    const palavras = titulo.trim().split(/\s+/).filter(Boolean).slice(0, 6);
+    const palavras = titulo.trim().split(/\s+/).filter(Boolean);
     if (!palavras.length) return [];
     // DUAS LINHAS, EQUILIBRADAS POR TAMANHO — não por contagem de palavras.
     //

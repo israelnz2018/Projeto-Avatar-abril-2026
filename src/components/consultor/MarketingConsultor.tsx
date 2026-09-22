@@ -30,6 +30,7 @@ import {
 } from './marketing/EtapasPreenchidas';
 import { FormularioVideo } from './marketing/AcoesMarketing';
 import { PainelCriativos, useCriativos } from './marketing/Criativos';
+import { PainelPesquisa, usePautas } from './marketing/PesquisaDePautas';
 import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
 
 type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'agenda';
@@ -76,6 +77,7 @@ export default function MarketingConsultor() {
   const [configCompleta, setConfigCompleta] = useState(false);
   const dados = useDadosMarketing(consultorId);
   const criativos = useCriativos(consultorId);
+  const pautas = usePautas(consultorId);
 
   // A marca que vai assinar as peças, vinda de "Minha Marca".
   //
@@ -218,6 +220,16 @@ export default function MarketingConsultor() {
                     criativos={criativos.criativos}
                     carregando={criativos.carregando}
                     onMudou={criativos.recarregar}
+                  />
+                  {/* A segunda porta de entrada: assunto que não está em aula
+                      nenhuma sua. Fica embaixo, e não em cima, porque o caminho
+                      principal continua sendo o vídeo. */}
+                  <PainelPesquisa
+                    consultorId={consultorId}
+                    config={dados.config}
+                    pautas={pautas.pautas}
+                    carregando={pautas.carregando}
+                    onMudou={() => { pautas.recarregar(); dados.recarregar(); }}
                   />
                 </div>
               )}
