@@ -4699,6 +4699,27 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
    * O gancho da capa usa o título inteiro. O renderizador ajusta a fonte
    * para caber sem omitir o final do texto.
    */
+  /**
+   * O gancho gravado é o começo do título e para no meio? Então ele é lixo velho.
+   *
+   * Até 15/09 o `ganchoDoTitulo` cortava o título em 6 palavras (`.slice(0, 6)`).
+   * O corte saiu do código, mas o resultado dele continuou GRAVADO em `capa.hookLines` —
+   * e o gravado ganha do título. Resultado: a capa de "Você usa o Lean Manufacturing
+   * até na sua casa!" seguia saindo "VOCÊ USA O LEAN MANUFACTURING / ATÉ", sem o
+   * final, por mais vezes que fosse refeita. Consertar o código não bastava.
+   *
+   * A conferência é estreita de propósito: só reconhece o gancho que é um PREFIXO
+   * exato do título, palavra por palavra, e mais curto que ele. Gancho que o
+   * consultor escreveu à mão diz outra coisa, não passa neste teste, e é respeitado.
+   */
+  function ganchoTruncado(gancho: string[], titulo: string): boolean {
+    const doTitulo = String(titulo || "").trim().toUpperCase().split(/\s+/).filter(Boolean);
+    const doGancho = gancho.join(" ").trim().toUpperCase().split(/\s+/).filter(Boolean);
+    if (!doTitulo.length || !doGancho.length) return false;
+    if (doGancho.length >= doTitulo.length) return false;
+    return doGancho.every((palavra, i) => palavra === doTitulo[i]);
+  }
+
   function ganchoDoTitulo(titulo: string): string[] {
     const palavras = titulo.trim().split(/\s+/).filter(Boolean);
     if (!palavras.length) return [];
@@ -4730,11 +4751,12 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     const capa = (criativo?.capa || {}) as any;
     const gravado = (campo: string, padrao: string) =>
       (capa[campo] === undefined || capa[campo] === null ? padrao : String(capa[campo])).trim();
-    const gancho: string[] = opcoes.usarTituloCriativo
-      ? ganchoDoTitulo(mancheteDoCriativo(criativo))
-      : Array.isArray(capa.hookLines)
+    const salvo = Array.isArray(capa.hookLines)
       ? capa.hookLines.map((l: any) => String(l ?? "").trim()).filter(Boolean)
-      : ganchoDoTitulo(mancheteDoCriativo(criativo));
+      : null;
+    const gancho: string[] = opcoes.usarTituloCriativo || !salvo || ganchoTruncado(salvo, mancheteDoCriativo(criativo))
+      ? ganchoDoTitulo(mancheteDoCriativo(criativo))
+      : salvo;
     return {
       mode: "dedicated",
       courseKey: capa.courseKey || "white-belt",

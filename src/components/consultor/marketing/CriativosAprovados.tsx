@@ -2026,14 +2026,13 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
   // mostrava outra, sem nenhum jeito de descobrir de onde vinha o quê.
   //
   // Estes são os MESMOS padrões do servidor. Se um mudar lá, muda aqui.
-  const ganchoPadrao = ganchoDoTitulo(mancheteDoCriativo(criativo));
   const assuntoPadrao = (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase();
 
   const episodioPadrao = String(criativo.ordem || 1).padStart(2, '0');
   const [curso, setCurso] = useState(gravada.courseKey || 'white-belt');
   const [serie, setSerie] = useState(ou(gravada.seriesLabel, 'WHITE BELT'));
   const [episodio, setEpisodio] = useState(ou(gravada.episode, episodioPadrao));
-  const [gancho, setGancho] = useState((gravada.hookLines ?? ganchoPadrao).join('\n'));
+  const [gancho, setGancho] = useState(ganchoEfetivo(gravada.hookLines, criativo).join('\n'));
   const [rotulo, setRotulo] = useState(ou(gravada.topicLabel, 'AULA PRÁTICA'));
   const [assunto, setAssunto] = useState(ou(gravada.topicStrong, assuntoPadrao));
   const [salvando, setSalvando] = useState(false);
@@ -2044,7 +2043,7 @@ function useArteDaCapa(criativo: Criativo, video: VideoFonte | undefined, onRefe
     setCurso(g.courseKey || 'white-belt');
     setSerie(ou(g.seriesLabel, 'WHITE BELT'));
     setEpisodio(ou(g.episode, String(criativo.ordem || 1).padStart(2, '0')));
-    setGancho((g.hookLines ?? ganchoDoTitulo(mancheteDoCriativo(criativo))).join('\n'));
+    setGancho(ganchoEfetivo(g.hookLines, criativo).join('\n'));
     setRotulo(ou(g.topicLabel, 'AULA PRÁTICA'));
     setAssunto(ou(g.topicStrong, (video?.serie || video?.curso || 'MELHORIA CONTÍNUA').toUpperCase()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2200,6 +2199,33 @@ function mancheteDoCriativo(criativo: Criativo): string {
  * servidor calcular. Se uma mudar, a outra tem de mudar junto; é o preço de a tela
  * poder dizer a verdade sobre o que vai sair.
  */
+/**
+ * O gancho que a capa vai realmente usar — a mesma decisão do servidor.
+ *
+ * Até 15/09 o gancho era cortado em 6 palavras, e o corte ficou GRAVADO. O
+ * gravado ganha do título, então a capa continuava saindo sem o final mesmo
+ * depois de o corte sair do código. Quando o gancho gravado é só o começo do
+ * título, ele é descartado e o título inteiro volta.
+ *
+ * Gancho escrito à mão diz outra coisa, não é prefixo do título, e é respeitado.
+ */
+function ganchoEfetivo(gravado: unknown, criativo: Criativo): string[] {
+  const titulo = mancheteDoCriativo(criativo);
+  const linhas = Array.isArray(gravado)
+    ? gravado.map((l) => String(l ?? '').trim()).filter(Boolean)
+    : null;
+  if (!linhas || !linhas.length) return ganchoDoTitulo(titulo);
+
+  const doTitulo = titulo.trim().toUpperCase().split(/\s+/).filter(Boolean);
+  const doGancho = linhas.join(' ').trim().toUpperCase().split(/\s+/).filter(Boolean);
+  const truncado = doTitulo.length > 0
+    && doGancho.length > 0
+    && doGancho.length < doTitulo.length
+    && doGancho.every((palavra, i) => palavra === doTitulo[i]);
+
+  return truncado ? ganchoDoTitulo(titulo) : linhas;
+}
+
 function ganchoDoTitulo(titulo: string): string[] {
   const palavras = String(titulo || '').trim().split(/\s+/).filter(Boolean);
   if (!palavras.length) return [];
