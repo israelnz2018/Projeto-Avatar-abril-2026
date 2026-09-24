@@ -517,7 +517,12 @@ function Producao({
    */
   /** Põe o Reel falado na fila. Não passa pela IA: o texto é a própria fala. */
   async function pedirReel(quaoRapido = velocidade) {
-    if (!podeCortar) return;
+    // Sem isto o pedido saía em silêncio: nenhum aviso, nenhum giro, nenhuma
+    // tarefa na fila — parecia que o clique não tinha feito nada.
+    if (!podeCortar) {
+      setAvisoReel('Este vídeo veio de link externo, então o Reel falado não sai daqui. Envie o arquivo pela etapa 3 para ter o Reel.');
+      return;
+    }
     const user = auth.currentUser;
     const token = user ? await user.getIdToken() : '';
     const r = await fetch('/api/marketing-consultor/gerar-reel', {
@@ -576,8 +581,33 @@ function Producao({
     setErro('');
     setAvisoReel('');
     const precisaReel = faltantes.includes('reel');
-    const precisaTexto = faltantes.some((t) => t !== 'reel');
-    setGerando(precisaTexto);
+    const tiposTexto = faltantes.filter((t) => t !== 'reel');
+    // As cinco peças de texto NASCEM juntas (uma tarefa `gerar-campanha` só), mas
+    // REGERAR é a mesma tarefa de novo — e ela grava por cima das cinco, sem
+    // exceção. Se uma das que já existem foi aprovada, ou já foi publicada, pedir
+    // de novo por causa da que falta apagaria essa aprovação/publicação sem
+    // avisar. Aqui não: quando isso é o caso, a tela diz o que fazer em vez de
+    // arriscar.
+    const outrasJaAvancaram = tiposTexto.length > 0 && daCampanha.some(
+      (p) => p.tipo !== 'reel' && p.tipo !== faltantes[0]
+        && (p.status === 'aprovado' || p.status === 'publicado'),
+    );
+    if (tiposTexto.length && outrasJaAvancaram) {
+      setErro(
+        `${nomeDaPeca(tiposTexto[0])} não foi gerado, mas as outras peças de texto já `
+        + 'foram aprovadas ou publicadas. Gerar de novo reescreveria todas elas — fale '
+        + 'com o suporte para recuperar só a que falta.',
+      );
+      return;
+    }
+    const precisaTexto = tiposTexto.length > 0;
+    // DOIS estados, um para cada trabalho — os mesmos que o resto da tela já usa
+    // (`ocupadoReel` olha `refazendoReel`; `ocupadoTexto` olha `gerando`). Só
+    // marcar `gerando` deixava o pedido do Reel sozinho sem nenhum estado local
+    // enquanto ele corria: nem giro, nem botão desabilitado — parecia que o
+    // clique não tinha feito nada, embora o pedido tivesse saído para o servidor.
+    if (precisaReel) setRefazendoReel(true);
+    if (precisaTexto) setGerando(true);
     try {
       const reel = precisaReel ? pedirReel() : Promise.resolve();
       if (precisaTexto) {
@@ -591,7 +621,8 @@ function Producao({
       await reel;
       onMudou();
     } finally {
-      setGerando(false);
+      if (precisaReel) setRefazendoReel(false);
+      if (precisaTexto) setGerando(false);
     }
   }
 
