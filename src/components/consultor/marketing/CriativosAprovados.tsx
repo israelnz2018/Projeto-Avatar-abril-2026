@@ -262,6 +262,10 @@ function Producao({
   const [melhoria, setMelhoria] = useState('');
   const [melhoriaPdf, setMelhoriaPdf] = useState('');
   const [avisoReel, setAvisoReel] = useState('');
+  // O servidor distingue "não deu" de "não deu, e o conserto é este". Guardar a
+  // diferença é o que deixa a tela oferecer o conserto em vez de só reclamar.
+  const [precisaRetranscrever, setPrecisaRetranscrever] = useState(false);
+  const [retranscrevendo, setRetranscrevendo] = useState(false);
   // Os dois vídeos têm ritmo próprio: o Reel falado acelera a fala, o carrossel em
   // vídeo escolhe quanto tempo cada página fica na tela.
   const [velocidade, setVelocidade] = useState(1);
@@ -519,6 +523,7 @@ function Producao({
   async function pedirReel(quaoRapido = velocidade) {
     // Sem isto o pedido saía em silêncio: nenhum aviso, nenhum giro, nenhuma
     // tarefa na fila — parecia que o clique não tinha feito nada.
+    setPrecisaRetranscrever(false);
     if (!podeCortar) {
       setAvisoReel('Este vídeo veio de link externo, então o Reel falado não sai daqui. Envie o arquivo pela etapa 3 para ter o Reel.');
       return;
@@ -535,6 +540,39 @@ function Producao({
       // Falha no Reel não derruba o carrossel: são peças independentes, e perder as
       // três porque uma não deu seria pior do que entregar três.
       setAvisoReel(corpo.error || `Não foi possível cortar o Reel (HTTP ${r.status}).`);
+      // O servidor sabe que o conserto é retranscrever. Guardar isso deixa a tela
+      // oferecer o conserto em vez de só dizer o que está errado.
+      if (corpo.precisaRetranscrever) setPrecisaRetranscrever(true);
+    }
+  }
+
+  /**
+   * Gera a transcrição de novo, para o vídeo passar a ter o tempo de cada palavra.
+   *
+   * É a única saída quando o vídeo foi transcrito antes de a plataforma guardar
+   * esse tempo: sem ele não há legenda karaokê, e sem legenda o Reel não sai. Os
+   * criativos já existentes não se mexem — eles guardam as próprias falas.
+   */
+  async function retranscrever() {
+    setRetranscrevendo(true);
+    setErro('');
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/bunny/transcribe-marketing-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ videoId: criativo.videoId }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      setAvisoReel('A transcrição foi para a fila. Quando terminar, peça o Reel de novo.');
+      setPrecisaRetranscrever(false);
+      onMudou();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setRetranscrevendo(false);
     }
   }
 
@@ -903,6 +941,10 @@ function Producao({
         aoMudarSegundos={setSegundosPorSlide}
         aoRefazerReel={refazerReel}
         aoTentarNovamente={tentarNovamente}
+        avisoReel={avisoReel}
+        precisaRetranscrever={precisaRetranscrever}
+        retranscrevendo={retranscrevendo}
+        aoRetranscrever={retranscrever}
         aoRefazerTexto={refazerTexto}
         aoPedirIaTextoLinkedin={pedirIaTextoLinkedin}
         aoAprovar={onMudou}
@@ -1115,7 +1157,8 @@ function PecasProduzidas({
   contextoImagensPdf,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
-  aoRefazerReel, aoTentarNovamente, aoRefazerTexto, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
+  aoRefazerReel, aoTentarNovamente, avisoReel, precisaRetranscrever, retranscrevendo, aoRetranscrever,
+  aoRefazerTexto, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
   aoExcluirSlide, aoExcluirSlidePdf, aoDesfazerSlides, aoDesfazerSlidesPdf,
   naoSeiSeBate, melhoria, aoMudarMelhoria, melhoriaPdf, aoMudarMelhoriaPdf,
   aoPedirIa, aoPedirIaPdf, aoUsarTextoNovo,
@@ -1141,6 +1184,18 @@ function PecasProduzidas({
   aoRefazerReel: () => void;
   /** Gera de novo só os TIPOS que faltam — não pede peça existente, porque não existe. */
   aoTentarNovamente: (faltantes: TipoPeca[]) => void;
+  /**
+   * O motivo da última recusa do Reel, mostrado JUNTO do botão que a causou.
+   *
+   * Ele já existia, mas era desenhado no rodapé da tela, depois dos cinco cartões
+   * de peça. Quem clica no aviso lá em cima recebia a resposta três telas abaixo,
+   * fora do campo de visão — e concluía, com razão, que o clique não fez nada.
+   */
+  avisoReel?: string;
+  /** O servidor disse que o conserto é retranscrever. Então a tela oferece isso. */
+  precisaRetranscrever?: boolean;
+  retranscrevendo?: boolean;
+  aoRetranscrever: () => void;
   aoRefazerTexto: (peca: Peca, slides?: SlideRoteiro[], textoLinkedin?: string, fonteLinkedin?: string) => void;
   aoPedirIaTextoLinkedin: (texto: string, fonte: string, instrucoes: string) => Promise<string>;
   aoAprovar: () => void;
@@ -1232,6 +1287,24 @@ function PecasProduzidas({
         </div>
         {faltantes.includes('reel') && campanhaDoReel?.erro && (
           <p className="text-xs text-amber-800 mt-1.5">Motivo da última tentativa: {campanhaDoReel.erro}</p>
+        )}
+
+        {/* A resposta do clique fica ONDE O CLIQUE FOI. */}
+        {avisoReel && (
+          <div className="mt-2 pt-2 border-t border-amber-200">
+            <p className="text-xs text-amber-900">{avisoReel}</p>
+            {precisaRetranscrever && (
+              <button
+                onClick={aoRetranscrever}
+                disabled={retranscrevendo}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-wait transition"
+              >
+                {retranscrevendo
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enviando para a fila…</>
+                  : <><RefreshCw className="w-3.5 h-3.5" /> Gerar a transcrição de novo</>}
+              </button>
+            )}
+          </div>
         )}
       </div>
       {ordenadas.map((p) => {
