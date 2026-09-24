@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
-  COLECOES, Campanha, Criativo, MarcaDaPeca, Peca, SlideRoteiro, VideoFonte,
+  COLECOES, Campanha, Criativo, MarcaDaPeca, Peca, SlideRoteiro, TipoPeca, VideoFonte,
   duracaoCriativo, inicioNoVideo, fimNoVideo, textoCriativo,
 } from '../../../types/marketing';
 import { Previa, useArquivoUrl } from './EtapasPreenchidas';
@@ -559,6 +559,42 @@ function Producao({
     }
   }
 
+  /**
+   * Tenta de novo SÓ o que ficou faltando, sem duplicar o que já existe.
+   *
+   * "5 de 6 peças geradas — Faltando: Reel" acontecia sem nenhum jeito de agir:
+   * o corte falha independente do texto (são tarefas separadas na fila), a peça do
+   * Reel nunca chega a ser criada quando a geração falha, e sem peça não existe
+   * cartão com o botão de Refazer de sempre — o consultor via o aviso e não tinha
+   * o que clicar.
+   *
+   * O Reel é sempre independente: pedir de novo não toca nas peças de texto. As
+   * cinco de texto nascem JUNTAS de uma tarefa só (`gerar-campanha`), então não tem
+   * como faltar uma sem faltar todas — refazer o roteiro cobre qualquer uma delas.
+   */
+  async function tentarNovamente(faltantes: TipoPeca[]) {
+    setErro('');
+    setAvisoReel('');
+    const precisaReel = faltantes.includes('reel');
+    const precisaTexto = faltantes.some((t) => t !== 'reel');
+    setGerando(precisaTexto);
+    try {
+      const reel = precisaReel ? pedirReel() : Promise.resolve();
+      if (precisaTexto) {
+        const novos = await pedirRoteiro();
+        if (novos.length) {
+          setSlides(novos);
+          setSlidesPdf(novos);
+          await produzirCom(novos);
+        }
+      }
+      await reel;
+      onMudou();
+    } finally {
+      setGerando(false);
+    }
+  }
+
 
   /**
    * Refaz só o Reel falado, com a velocidade que está no seletor.
@@ -835,6 +871,7 @@ function Producao({
         segundosPorSlide={segundosPorSlide}
         aoMudarSegundos={setSegundosPorSlide}
         aoRefazerReel={refazerReel}
+        aoTentarNovamente={tentarNovamente}
         aoRefazerTexto={refazerTexto}
         aoPedirIaTextoLinkedin={pedirIaTextoLinkedin}
         aoAprovar={onMudou}
@@ -1047,7 +1084,7 @@ function PecasProduzidas({
   contextoImagensPdf,
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
-  aoRefazerReel, aoRefazerTexto, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
+  aoRefazerReel, aoTentarNovamente, aoRefazerTexto, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
   aoExcluirSlide, aoExcluirSlidePdf, aoDesfazerSlides, aoDesfazerSlidesPdf,
   naoSeiSeBate, melhoria, aoMudarMelhoria, melhoriaPdf, aoMudarMelhoriaPdf,
   aoPedirIa, aoPedirIaPdf, aoUsarTextoNovo,
@@ -1071,6 +1108,8 @@ function PecasProduzidas({
   segundosPorSlide: number;
   aoMudarSegundos: (v: number) => void;
   aoRefazerReel: () => void;
+  /** Gera de novo só os TIPOS que faltam — não pede peça existente, porque não existe. */
+  aoTentarNovamente: (faltantes: TipoPeca[]) => void;
   aoRefazerTexto: (peca: Peca, slides?: SlideRoteiro[], textoLinkedin?: string, fonteLinkedin?: string) => void;
   aoPedirIaTextoLinkedin: (texto: string, fonte: string, instrucoes: string) => Promise<string>;
   aoAprovar: () => void;
@@ -1131,13 +1170,38 @@ function PecasProduzidas({
     .filter((c) => /slide-\d+\.png$/i.test(c))
     .sort((a, b) => a.localeCompare(b));
 
+  // Peça faltante não tem cartão — sem cartão não tem o Refazer de sempre.
+  // "Ocupado" olha o tipo de trabalho certo: pedir o Reel de novo não trava
+  // esperando o texto, e vice-versa.
+  const tentandoDeNovo = (faltantes.includes('reel') && Boolean(ocupadoReel))
+    || (faltantes.some((t) => t !== 'reel') && Boolean(ocupadoTexto));
+
   return (
     <div className="space-y-4">
       <div className={`rounded-lg border px-4 py-3 text-sm ${faltantes.length ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-200 bg-green-50 text-green-900'}`}>
-        <strong>{pecas.length} de 6 peças geradas</strong>
-        {faltantes.length
-          ? <span className="ml-2">Faltando: {faltantes.map(nomeDaPeca).join(', ')}.</span>
-          : <span className="ml-2">Reel, capa, carrosséis, imagem e texto do LinkedIn prontos para revisão.</span>}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <strong>{pecas.length} de 6 peças geradas</strong>
+            {faltantes.length
+              ? <span className="ml-2">Faltando: {faltantes.map(nomeDaPeca).join(', ')}.</span>
+              : <span className="ml-2">Reel, capa, carrosséis, imagem e texto do LinkedIn prontos para revisão.</span>}
+          </div>
+          {faltantes.length > 0 && (
+            <button
+              onClick={() => aoTentarNovamente(faltantes)}
+              disabled={tentandoDeNovo}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold shadow-sm hover:bg-amber-700 disabled:opacity-50 disabled:cursor-wait transition"
+            >
+              {tentandoDeNovo
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <RefreshCw className="w-3.5 h-3.5" />}
+              Tentar gerar {faltantes.length === 1 ? 'de novo' : 'as que faltam'}
+            </button>
+          )}
+        </div>
+        {faltantes.includes('reel') && campanhaDoReel?.erro && (
+          <p className="text-xs text-amber-800 mt-1.5">Motivo da última tentativa: {campanhaDoReel.erro}</p>
+        )}
       </div>
       {ordenadas.map((p) => {
         if (p.origem === 'enviada') return <PecaEnviada key={p.id} peca={p} aoMudar={aoAprovar} />;
