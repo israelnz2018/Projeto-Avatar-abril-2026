@@ -5567,10 +5567,31 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       atuaMelhoria === "ja_atuo" &&
       ["ja_atendo", "estou_buscando"].includes(clientesEmpresariais) &&
       cursoOnline === "ja_tenho";
+    // DE QUAL ENDEREÇO A PESSOA VEIO — e, quando for o subdomínio de um
+    // consultor, QUEM a trouxe.
+    //
+    // A landing /consultores responde em qualquer subdomínio, inclusive no de
+    // cada consultor. Isso é de propósito: quem indicar um consultor novo pode
+    // receber comissão depois. Mas `origem` é um texto fixo ("landing-consultores"),
+    // então sem isto o lead que entra por mariana.educacaopelotrabalho.com fica
+    // idêntico ao que entra pela raiz, e não há como apurar comissão nenhuma.
+    //
+    // Sai do cabeçalho Host, não do corpo: é o endereço que o navegador de fato
+    // acessou, e não depende de o formulário lembrar de mandar.
+    const hostOrigem = String(req.headers.host || "").split(":")[0].toLowerCase().slice(0, 120);
+    const RESERVADOS = new Set(["www", "app", "educacaopelotrabalho"]);
+    const rotulo = hostOrigem.endsWith(".educacaopelotrabalho.com")
+      ? hostOrigem.slice(0, -".educacaopelotrabalho.com".length)
+      : "";
+    // Vazio quando veio da raiz, do www ou do app: aí não há quem indicou.
+    const consultorOrigem = rotulo && !RESERVADOS.has(rotulo) && !rotulo.includes(".") ? rotulo : "";
+
     try {
       await adminFirestore().collection("leads_consultores").add({
         nome, cidadeEstado, email, empresa, funcao, whatsapp, origem,
         atuaMelhoria, clientesEmpresariais, cursoOnline, cursoPretendido, empresasAtuacao, prazoConfiguracao, subdominioPretendido, qualificado,
+        hostOrigem,
+        ...(consultorOrigem ? { consultorOrigem } : {}),
         status: qualificado ? "aguardando_aprovacao" : "nao_qualificado",
         criadoEm: new Date().toISOString(),
       });
