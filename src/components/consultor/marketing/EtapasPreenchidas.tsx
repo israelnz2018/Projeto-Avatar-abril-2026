@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasCorridos, segundaDaSemana, somarDias } from '../../../lib/semana';
+import { horaSugerida } from '../../../lib/horarios';
 import {
   FUSOS, FUSO_DA_PUBLICACAO, IdFuso, comoRelogioDe, equivalenteEm, fusoPorId, tzDe,
 } from '../../../lib/fuso';
@@ -500,21 +501,7 @@ const CORES_PECA: Record<TipoPeca, { chip: string; ponto: string }> = {
   reel: { chip: 'bg-fuchsia-100 border-fuchsia-400 text-fuchsia-900', ponto: 'bg-fuchsia-500' },
 };
 
-/**
- * A hora que a peça recebe ao cair no calendário.
- *
- * São os horários de maior alcance de cada rede, não um palpite: no Instagram a
- * audiência brasileira está no almoço e no fim da tarde; no LinkedIn, no começo do
- * expediente. É só um ponto de partida — a hora se muda clicando na peça.
- */
-const HORA_SUGERIDA: Record<TipoPeca, string> = {
-  reel: '19:00',
-  'carrossel-feed': '12:00',
-  'carrossel-video': '19:00',
-  'linkedin-pdf': '08:00',
-  'linkedin-imagem': '08:00',
-  'linkedin-texto': '08:00',
-};
+/* A grade de horários vive em lib/horarios.ts, com teste próprio. */
 
 const DIAS_DA_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -535,7 +522,6 @@ export function EtapaAgenda({
   const [erro, setErro] = useState('');
   const [agendamentoPendente, setAgendamentoPendente] = useState<{ peca: Peca; dia: Date } | null>(null);
   const [horaAgendamentoPendente, setHoraAgendamentoPendente] = useState('');
-  const [horaPendenteSalva, setHoraPendenteSalva] = useState(false);
   const [agendamentoConfirmado, setAgendamentoConfirmado] = useState('');
 
   // Os filtros. Vazio quer dizer TODOS — filtro que começa escondendo tudo faz
@@ -619,11 +605,11 @@ export function EtapaAgenda({
     }
   }
 
-  async function agendar(peca: Peca, dia: Date): Promise<boolean> {
+  async function agendar(peca: Peca, dia: Date, hora?: string): Promise<boolean> {
     setSelecionada(null);
     const ok = await escrever(peca.id, {
       agendadoEm: diaISO(dia),
-      agendadoHora: peca.agendadoHora || HORA_SUGERIDA[peca.tipo] || '12:00',
+      agendadoHora: hora || peca.agendadoHora || horaSugerida(peca.tipo, dia),
     });
     if (ok) {
       setAgendamentoPendente(null);
@@ -635,8 +621,9 @@ export function EtapaAgenda({
   function prepararAgendamento(peca: Peca, dia: Date) {
     setErro('');
     setAgendamentoConfirmado('');
-    setHoraAgendamentoPendente(peca.agendadoHora || HORA_SUGERIDA[peca.tipo] || '12:00');
-    setHoraPendenteSalva(false);
+    // A hora que a peça já tem ganha da sugestão: se o consultor escolheu 20h,
+    // arrastar a peça para outro dia não pode desfazer a escolha dele sozinho.
+    setHoraAgendamentoPendente(peca.agendadoHora || horaSugerida(peca.tipo, dia));
     setAgendamentoPendente({ peca, dia });
   }
 
@@ -667,29 +654,22 @@ export function EtapaAgenda({
     if (peca) prepararAgendamento(peca, dia);
   }
 
+  /**
+   * UM clique salva o dia e a hora juntos.
+   *
+   * Eram dois: "Salvar horário" gravava a hora e só então liberava "Confirmar
+   * agendamento". Duas gravações e dois cliques para uma decisão só — e a
+   * segunda ficava desabilitada até a primeira, o que parava quem não entendia
+   * que faltava um passo. O dia e a hora sempre foram gravados no mesmo
+   * documento; agora vão na mesma escrita.
+   */
   async function confirmarAgendamento() {
     if (!agendamentoPendente) return;
-    if (!horaPendenteSalva) {
-      setErro('Salve o horário antes de confirmar o agendamento.');
+    if (!horaAgendamentoPendente) {
+      setErro('Escolha um horário.');
       return;
     }
-    await agendar(agendamentoPendente.peca, agendamentoPendente.dia);
-  }
-
-  async function salvarHoraAgendamento() {
-    if (!agendamentoPendente || !horaAgendamentoPendente) {
-      setErro('Escolha um horário antes de salvar.');
-      return;
-    }
-    const ok = await escrever(agendamentoPendente.peca.id, { agendadoHora: horaAgendamentoPendente });
-    if (ok) {
-      setAgendamentoPendente({
-        ...agendamentoPendente,
-        peca: { ...agendamentoPendente.peca, agendadoHora: horaAgendamentoPendente },
-      });
-      setHoraPendenteSalva(true);
-      setAgendamentoConfirmado(`Horário ${horaAgendamentoPendente} salvo. Agora confirme o agendamento.`);
-    }
+    await agendar(agendamentoPendente.peca, agendamentoPendente.dia, horaAgendamentoPendente);
   }
 
   const fim = somarDias(inicio, semanas * 7 - 1);
@@ -1068,25 +1048,20 @@ export function EtapaAgenda({
                         value={horaAgendamentoPendente}
                         onChange={(e) => {
                           setHoraAgendamentoPendente(e.target.value);
-                          setHoraPendenteSalva(false);
                           setAgendamentoConfirmado('');
                         }}
                         className="w-full rounded border border-blue-200 bg-white px-1 py-1 text-[11px]"
                       />
+                      <p className="mt-0.5 text-[9px] leading-tight text-blue-700">
+                        Já vem no melhor horário deste dia para esta rede.
+                      </p>
                       <div className="mt-1 flex flex-col gap-1">
                         <button
-                          onClick={salvarHoraAgendamento}
-                          disabled={salvando || !horaAgendamentoPendente}
-                          className="w-full rounded border border-blue-300 bg-white px-1 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
-                        >
-                          {salvando ? 'Salvando...' : 'Salvar horário'}
-                        </button>
-                        <button
                           onClick={confirmarAgendamento}
-                          disabled={salvando || !horaPendenteSalva}
+                          disabled={salvando || !horaAgendamentoPendente}
                           className="w-full rounded bg-blue-600 px-1 py-1 text-[10px] font-bold text-white hover:bg-blue-700 disabled:opacity-60"
                         >
-                          {salvando ? 'Salvando...' : 'Confirmar agendamento'}
+                          {salvando ? 'Salvando...' : 'Salvar agendamento'}
                         </button>
                         <button
                           onClick={() => { setAgendamentoPendente(null); setSelecionada(null); }}
