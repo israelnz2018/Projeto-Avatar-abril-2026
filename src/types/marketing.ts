@@ -113,6 +113,17 @@ export interface VideoFonte {
   bunnyLibraryId?: string;
   /** Origem alternativa, quando o vídeo já está no YouTube. */
   sourceUrl?: string;
+  /**
+   * A aula do curso que este vídeo APONTA, quando ele veio de lá.
+   *
+   * É ponteiro, não cópia: a fala mora em `knowledge_base/{id}.rawTranscript`
+   * e é lida na hora de usar. Copiar os 38 mil caracteres para cá criaria duas
+   * verdades para a mesma aula, que divergem no dia em que a transcrição do
+   * curso for refeita.
+   */
+  knowledgeBaseId?: string;
+  /** `curso`: adotado da biblioteca de aulas. Ausente: arquivo enviado direto. */
+  origem?: 'curso';
   duracaoSegundos?: number;
   /**
    * Fase 1: o consultor cola a transcrição que já tem. Fase 2 a plataforma extrai

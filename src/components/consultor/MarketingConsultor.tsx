@@ -29,6 +29,7 @@ import {
   EtapaRedes, EtapaVideos, EtapaAgenda, useDadosMarketing,
 } from './marketing/EtapasPreenchidas';
 import { FormularioVideo } from './marketing/AcoesMarketing';
+import { EscolherVideoDoCurso } from './marketing/EscolherVideoDoCurso';
 import { PainelCriativos, useCriativos } from './marketing/Criativos';
 import { PainelPesquisa, usePautas } from './marketing/PesquisaDePautas';
 import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
@@ -210,6 +211,9 @@ export default function MarketingConsultor() {
               {etapaAtiva === 'videos' && (
                 <div className="space-y-4">
                   <FormularioVideo consultorId={consultorId} onCriado={dados.recarregar} />
+                  {/* A segunda porta: 849 aulas já hospedadas e transcritas,
+                      que antes não tinham como entrar aqui. */}
+                  <EscolherVideoDoCurso onUsado={() => { dados.recarregar(); criativos.recarregar(); }} />
                   <EtapaVideos
                     videos={dados.videos}
                     criativos={criativos.criativos}

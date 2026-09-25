@@ -12,7 +12,7 @@ import {
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
   FileText, Image as ImageIcon, Film, Layers, Send, Trash2, Loader2,
-  ExternalLink, RotateCcw, Rocket,
+  ExternalLink, RotateCcw, Rocket, Download,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasCorridos, segundaDaSemana, somarDias } from '../../../lib/semana';
@@ -137,8 +137,13 @@ export function EtapaVideos({
             </p>
             {v.sourceUrl && <p className="text-xs text-gray-500 mt-1 truncate">{v.sourceUrl}</p>}
             {!v.sourceUrl && v.bunnyVideoId && (
-              <p className="text-xs text-gray-500 mt-1">Vídeo enviado — hospedado no Bunny.</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {v.origem === 'curso'
+                  ? `Aula do curso — a transcrição é lida de lá, não copiada.${v.serie ? '' : ''}`
+                  : 'Vídeo enviado — hospedado no Bunny.'}
+              </p>
             )}
+            {v.bunnyVideoId && <BotaoBaixarVideo video={v} />}
           </div>
           {v.temTranscricao
             ? (
@@ -156,6 +161,63 @@ export function EtapaVideos({
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Baixar o arquivo da aula, para subir no YouTube com as próprias mãos.
+ *
+ * O servidor devolve o ENDEREÇO, não o arquivo: uma aula de 60 minutos tem
+ * centenas de megabytes, e passar isso pelo servidor da plataforma seria fazer
+ * pior o que o CDN já faz bem. A chave da biblioteca de vídeo fica no servidor;
+ * o navegador só recebe o endereço pronto.
+ */
+function BotaoBaixarVideo({ video }: { video: VideoFonte }) {
+  const [pedindo, setPedindo] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function baixar() {
+    setPedindo(true);
+    setErro('');
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch(`/api/marketing-consultor/baixar-video?videoId=${encodeURIComponent(video.id)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      // Abre em outra aba em vez de trocar a página: o consultor não perde a
+      // tela de marketing por causa de um download de 300 MB.
+      const link = document.createElement('a');
+      link.href = corpo.endereco;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = corpo.nomeSugerido || '';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setPedindo(false);
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={baixar}
+        disabled={pedindo}
+        title="Baixar o arquivo para subir no YouTube"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50"
+      >
+        {pedindo
+          ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Preparando…</>
+          : <><Download className="w-3.5 h-3.5" /> Baixar o vídeo</>}
+      </button>
+      {erro && <p className="text-xs text-red-700 mt-1">{erro}</p>}
     </div>
   );
 }

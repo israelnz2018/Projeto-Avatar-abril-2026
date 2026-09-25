@@ -3337,6 +3337,268 @@ async function startServer() {
   // transcrição real, fatiada aqui no servidor — se a IA também escrevesse o texto,
   // ela parafrasearia a fala do consultor, e o criativo deixaria de ser o que ele
   // realmente disse.
+  /**
+   * A transcrição do vídeo — dele mesmo, ou do vídeo de curso que ele aponta.
+   *
+   * VÍDEO DE CURSO NÃO É COPIADO, É APONTADO. Copiar os 38 mil caracteres do
+   * `rawTranscript` para dentro de marketing_videos criaria duas verdades para
+   * a mesma aula, e elas divergem no dia em que a transcrição do curso for
+   * refeita. Aqui só existe o ponteiro `knowledgeBaseId`, e a fala é lida da
+   * fonte na hora de usar.
+   *
+   * Os dois formatos são o MESMO formato, e isso não é sorte: o `rawTranscript`
+   * dos cursos já vem em "[MM:SS] fala", exatamente o que o recortador espera.
+   */
+  async function transcricaoDoVideo(video: any): Promise<string> {
+    const propria = String(video?.transcricao || "").trim();
+    if (propria) return propria;
+
+    const knowledgeBaseId = String(video?.knowledgeBaseId || "").trim();
+    if (!knowledgeBaseId) return "";
+    const snap = await adminFirestore().collection("knowledge_base").doc(knowledgeBaseId).get();
+    if (!snap.exists) return "";
+    const aula = snap.data() as any;
+    return String(aula.rawTranscript || aula.transcript || "").trim();
+  }
+
+  /**
+   * O RESUMO da aula — o insumo da capa, e não a fala bruta.
+   *
+   * O `transcript` do curso já é um resumo em prosa feito por IA ("O vídeo
+   * introduz a sessão 2, enfatizando que o processo certo gera os resultados
+   * certos…"). Mandar 45 mil caracteres de fala crua para a IA achar um gancho
+   * de 6 palavras custa mais e acerta menos.
+   */
+  async function resumoDoVideo(video: any): Promise<string> {
+    const knowledgeBaseId = String(video?.knowledgeBaseId || "").trim();
+    if (knowledgeBaseId) {
+      const snap = await adminFirestore().collection("knowledge_base").doc(knowledgeBaseId).get();
+      if (snap.exists) {
+        const aula = snap.data() as any;
+        const resumo = String(aula.summary || aula.transcript || "").trim();
+        if (resumo) return resumo;
+      }
+    }
+    // Vídeo enviado direto não tem resumo: a fala é o que existe.
+    return (await transcricaoDoVideo(video)).slice(0, 6000);
+  }
+
+  // GET /api/marketing-consultor/cursos — o catálogo para os dois seletores.
+  //
+  // TRÊS NÍVEIS, e não dois: o Black Belt tem 253 aulas em 22 módulos. Um
+  // seletor plano com 253 linhas é pior que não ter seletor. O agrupamento sai
+  // de `playlist`, que a base já traz.
+  //
+  // Não devolve transcrição nenhuma: são 849 aulas, e a fala de uma só tem 45
+  // mil caracteres. A tela precisa do nome, não do conteúdo.
+  app.get("/api/marketing-consultor/cursos", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    try {
+      const snap = await adminFirestore().collection("knowledge_base")
+        .where("consultorId", "==", consultorId).get();
+
+      const cursos = new Map<string, Map<string, any[]>>();
+      for (const doc of snap.docs) {
+        const aula = doc.data() as any;
+        if (!aula.bunnyVideoId) continue;
+        // Sem fala não há corte nem gancho: não oferece o que não serve.
+        const temFala = String(aula.rawTranscript || aula.transcript || "").trim().length > 100;
+        if (!temFala) continue;
+
+        const curso = String(aula.course || "").trim() || "Sem curso";
+        const modulo = String(aula.playlist || "").trim() || "Sem módulo";
+        if (!cursos.has(curso)) cursos.set(curso, new Map());
+        const modulos = cursos.get(curso)!;
+        if (!modulos.has(modulo)) modulos.set(modulo, []);
+        modulos.get(modulo)!.push({
+          id: doc.id,
+          titulo: String(aula.title || "").trim() || "(sem título)",
+          ordem: Number(aula.order || 0),
+          bunnyVideoId: String(aula.bunnyVideoId),
+          bunnyLibraryId: String(aula.bunnyLibraryId || ""),
+          temResumo: Boolean(String(aula.summary || "").trim()),
+        });
+      }
+
+      const catalogo = [...cursos.entries()]
+        .map(([curso, modulos]) => ({
+          curso,
+          modulos: [...modulos.entries()]
+            .map(([modulo, aulas]) => ({
+              modulo,
+              aulas: aulas.sort((a, b) => a.ordem - b.ordem || a.titulo.localeCompare(b.titulo)),
+            }))
+            .sort((a, b) => a.modulo.localeCompare(b.modulo)),
+          total: [...modulos.values()].reduce((soma, aulas) => soma + aulas.length, 0),
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      return res.json({ cursos: catalogo });
+    } catch (error: any) {
+      console.error("[GET /api/marketing-consultor/cursos] erro:", error);
+      return res.status(500).json({ error: "Erro ao listar os cursos." });
+    }
+  });
+
+  // POST /api/marketing-consultor/usar-video-do-curso — adota uma aula do curso
+  // como vídeo de marketing, POR REFERÊNCIA.
+  app.post("/api/marketing-consultor/usar-video-do-curso", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const knowledgeBaseId = String(req.body?.knowledgeBaseId || "").trim();
+    if (!knowledgeBaseId) return res.status(400).json({ error: "Informe a aula." });
+
+    try {
+      const aulaSnap = await adminFirestore().collection("knowledge_base").doc(knowledgeBaseId).get();
+      if (!aulaSnap.exists) return res.status(404).json({ error: "Esta aula não existe mais." });
+      const aula = aulaSnap.data() as any;
+      if (!isAdmin && String(aula.consultorId || "") !== consultorId) {
+        return res.status(403).json({ error: "Esta aula não é deste consultor." });
+      }
+      if (!aula.bunnyVideoId) return res.status(400).json({ error: "Esta aula não tem vídeo hospedado." });
+
+      const fala = String(aula.rawTranscript || aula.transcript || "").trim();
+      if (fala.length < 100) return res.status(400).json({ error: "Esta aula não tem transcrição aproveitável." });
+
+      // O id é derivado da aula: adotar duas vezes atualiza, não duplica.
+      const videoId = `${consultorId}__aula__${knowledgeBaseId}`;
+      const agora = new Date().toISOString();
+      await adminFirestore().collection("marketing_videos").doc(videoId).set({
+        id: videoId,
+        consultorId,
+        titulo: String(aula.title || "").trim() || "Aula sem título",
+        curso: String(aula.course || "").trim(),
+        serie: String(aula.playlist || "").trim(),
+        bunnyVideoId: String(aula.bunnyVideoId),
+        bunnyLibraryId: String(aula.bunnyLibraryId || ""),
+        // O PONTEIRO, não a cópia. Ver transcricaoDoVideo().
+        knowledgeBaseId,
+        origem: "curso",
+        temTranscricao: true,
+        criadoEm: agora,
+        atualizadoEm: agora,
+      }, { merge: true });
+
+      // As palavras com tempo (legenda karaokê do Reel falado) não existem nas
+      // aulas do curso. As outras cinco peças saem sem elas; o Reel falado
+      // precisa de uma transcrição nova. A tela avisa em vez de deixar falhar.
+      return res.json({
+        ok: true,
+        videoId,
+        precisaRetranscreverParaReel: true,
+      });
+    } catch (error: any) {
+      console.error("[POST /api/marketing-consultor/usar-video-do-curso] erro:", error);
+      return res.status(500).json({ error: "Erro ao usar a aula." });
+    }
+  });
+
+  // GET /api/marketing-consultor/baixar-video?videoId=... — o arquivo da aula,
+  // para o consultor subir no YouTube com as próprias mãos.
+  //
+  // Devolve o ENDEREÇO, não o arquivo: uma aula de 60 minutos tem centenas de
+  // megabytes, e passar isso pelo servidor da plataforma gastaria memória e
+  // tempo dele para fazer o que o CDN do Bunny já faz melhor. O endereço é
+  // montado aqui porque é aqui que existe a chave da biblioteca — ela nunca
+  // chega ao navegador.
+  app.get("/api/marketing-consultor/baixar-video", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const videoId = String(req.query?.videoId || "").trim();
+    if (!videoId) return res.status(400).json({ error: "Informe o vídeo." });
+
+    try {
+      const videoSnap = await adminFirestore().collection("marketing_videos").doc(videoId).get();
+      if (!videoSnap.exists) return res.status(404).json({ error: "Vídeo não encontrado." });
+      const video = videoSnap.data() as any;
+      const dono = String(video.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
+
+      const bunnyVideoId = String(video.bunnyVideoId || "").trim();
+      if (!/^[0-9a-f-]{36}$/i.test(bunnyVideoId)) {
+        return res.status(400).json({ error: "Este vídeo não está hospedado pela plataforma, então não há arquivo para baixar." });
+      }
+
+      const lib = await bunnyLibraryDoConsultor(dono || consultorId);
+      if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
+
+      const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
+      const playResp = await fetch(`${base}/play`, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
+      if (!playResp.ok) return res.status(502).json({ error: "O servidor de vídeo não respondeu." });
+      const play = await playResp.json() as any;
+
+      // O Bunny devolve fallbackUrl como PREFIXO (termina em /play_); a
+      // resolução entra depois. Para subir no YouTube, a maior disponível.
+      let endereco = String(play?.fallbackUrl || play?.originalUrl || "");
+      const resolucoes = String(play?.video?.availableResolutions || "")
+        .split(",").map((v: string) => Number.parseInt(v, 10)).filter((v: number) => Number.isFinite(v));
+      if (endereco.endsWith("/play_")) {
+        const alvo = resolucoes.length ? Math.max(...resolucoes) : NaN;
+        if (!Number.isFinite(alvo)) return res.status(502).json({ error: "O servidor de vídeo não informou nenhuma resolução." });
+        endereco = `${endereco}${alvo}p.mp4`;
+      }
+      if (!endereco) return res.status(502).json({ error: "Não foi possível montar o endereço do vídeo." });
+
+      const limpo = String(video.titulo || "aula").normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 60) || "aula";
+
+      return res.json({
+        endereco,
+        nomeSugerido: `${limpo}.mp4`,
+        resolucao: resolucoes.length ? `${Math.max(...resolucoes)}p` : null,
+      });
+    } catch (error: any) {
+      console.error("[GET /api/marketing-consultor/baixar-video] erro:", error);
+      return res.status(500).json({ error: "Erro ao preparar o download." });
+    }
+  });
+
   app.post("/api/marketing-consultor/gerar-criativos", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 
@@ -3366,7 +3628,8 @@ async function startServer() {
       const dono = String(video.consultorId || "");
       if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
 
-      const transcricao = String(video.transcricao || "").trim();
+      // Lê a fala DELE ou da aula que ele aponta — ver transcricaoDoVideo().
+      const transcricao = await transcricaoDoVideo(video);
       if (!transcricao) return res.status(400).json({ error: "Este vídeo ainda não tem transcrição." });
 
       // As linhas vêm no formato "[MM:SS] fala" ou "[HH:MM:SS] fala", gravado pela
