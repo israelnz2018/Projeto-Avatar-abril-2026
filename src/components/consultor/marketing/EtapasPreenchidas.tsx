@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasCorridos, segundaDaSemana, somarDias } from '../../../lib/semana';
-import { horaSugerida } from '../../../lib/horarios';
+import { horaSugerida, familiaDaPeca } from '../../../lib/horarios';
 import {
   FUSOS, FUSO_DA_PUBLICACAO, IdFuso, comoRelogioDe, equivalenteEm, fusoPorId, tzDe,
 } from '../../../lib/fuso';
@@ -753,11 +753,24 @@ export function EtapaAgenda({
     }
   }
 
+  /**
+   * Quantas peças da MESMA família já estão marcadas neste dia, sem contar a
+   * própria peça (senão reagendar uma peça já marcada empurraria ela mesma
+   * para o horário seguinte). Conta a partir de TODAS as aprovadas, não da
+   * lista filtrada pela busca — senão um filtro ativo faria duas peças
+   * caírem no mesmo horário sem o consultor perceber.
+   */
+  function ocupadosNoDia(peca: Peca, dia: Date): number {
+    const diaAlvo = diaISO(dia);
+    const familia = familiaDaPeca(peca.tipo);
+    return aprovadas.filter((p) => p.id !== peca.id && p.agendadoEm === diaAlvo && familiaDaPeca(p.tipo) === familia).length;
+  }
+
   async function agendar(peca: Peca, dia: Date, hora?: string): Promise<boolean> {
     setSelecionada(null);
     const ok = await escrever(peca.id, {
       agendadoEm: diaISO(dia),
-      agendadoHora: hora || peca.agendadoHora || horaSugerida(peca.tipo, dia),
+      agendadoHora: hora || peca.agendadoHora || horaSugerida(peca.tipo, dia, ocupadosNoDia(peca, dia)),
     });
     if (ok) {
       setAgendamentoPendente(null);
@@ -771,7 +784,7 @@ export function EtapaAgenda({
     setAgendamentoConfirmado('');
     // A hora que a peça já tem ganha da sugestão: se o consultor escolheu 20h,
     // arrastar a peça para outro dia não pode desfazer a escolha dele sozinho.
-    setHoraAgendamentoPendente(peca.agendadoHora || horaSugerida(peca.tipo, dia));
+    setHoraAgendamentoPendente(peca.agendadoHora || horaSugerida(peca.tipo, dia, ocupadosNoDia(peca, dia)));
     setAgendamentoPendente({ peca, dia });
   }
 
@@ -1201,7 +1214,7 @@ export function EtapaAgenda({
                         className="w-full rounded border border-blue-200 bg-white px-1 py-1 text-[11px]"
                       />
                       <p className="mt-0.5 text-[9px] leading-tight text-blue-700">
-                        Já vem no melhor horário deste dia para esta rede.
+                        Já vem no próximo melhor horário livre deste dia para esta rede.
                       </p>
                       <div className="mt-1 flex flex-col gap-1">
                         <button

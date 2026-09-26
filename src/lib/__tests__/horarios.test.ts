@@ -28,11 +28,14 @@ describe('familia de rede', () => {
 });
 
 describe('grade de horários', () => {
-  it('tem os sete dias em toda família, no formato HH:MM', () => {
-    for (const [familia, horas] of Object.entries(HORARIOS_POR_DIA)) {
-      assert.equal(horas.length, 7, `${familia} não tem sete dias`);
-      for (const hora of horas) {
-        assert.match(hora, /^([01]\d|2[0-3]):[0-5]\d$/, `${familia}: "${hora}" não é uma hora válida`);
+  it('tem os sete dias em toda família, cada um com ao menos um horário HH:MM', () => {
+    for (const [familia, dias] of Object.entries(HORARIOS_POR_DIA)) {
+      assert.equal(dias.length, 7, `${familia} não tem sete dias`);
+      for (const horarios of dias) {
+        assert.ok(horarios.length >= 1, `${familia} tem um dia sem nenhum horário`);
+        for (const hora of horarios) {
+          assert.match(hora, /^([01]\d|2[0-3]):[0-5]\d$/, `${familia}: "${hora}" não é uma hora válida`);
+        }
       }
     }
   });
@@ -49,16 +52,47 @@ describe('grade de horários', () => {
     assert.equal(horaSugerida('linkedin-imagem', dia(2)), '16:00');
   });
 
-  it('Reel de terça a quinta cai na janela do almoço', () => {
-    for (const offset of [1, 2, 3]) {
-      assert.equal(horaSugerida('reel', dia(offset)), '11:30');
-      assert.equal(horaSugerida('carrossel-video', dia(offset)), '11:30');
+  it('LinkedIn continua com um horário só por dia — o volume é dos cortes, não dele', () => {
+    for (let offset = 0; offset < 7; offset += 1) {
+      assert.equal(HORARIOS_POR_DIA.linkedin[dia(offset).getDay()].length, 1);
+      assert.equal(HORARIOS_POR_DIA.feed[dia(offset).getDay()].length, 1);
     }
   });
 
-  it('Reel na segunda e na sexta vai para a noite', () => {
-    assert.equal(horaSugerida('reel', SEGUNDA), '19:00');
-    assert.equal(horaSugerida('reel', dia(4)), '19:00');
+  it('a primeira peça do dia usa o primeiro horário, a segunda o próximo', () => {
+    const terca = dia(1);
+    const primeiro = horaSugerida('reel', terca, 0);
+    const segundo = horaSugerida('reel', terca, 1);
+    const terceiro = horaSugerida('reel', terca, 2);
+    assert.equal(primeiro, '11:30');
+    assert.equal(segundo, '15:30');
+    assert.equal(terceiro, '20:00');
+    // As três batem com a janela do almoço, da tarde e da noite — não
+    // empilhadas no mesmo minuto.
+    assert.notEqual(primeiro, segundo);
+    assert.notEqual(segundo, terceiro);
+  });
+
+  it('a quarta peça do dia (mais do que a grade prevê) some 90 min a partir da última, sem travar', () => {
+    const quarta = dia(2);
+    const terceiro = horaSugerida('reel', quarta, 2);
+    const quartaPeca = horaSugerida('reel', quarta, 3);
+    const [h, m] = terceiro.split(':').map(Number);
+    const [h2, m2] = quartaPeca.split(':').map(Number);
+    const diferenca = (h2 * 60 + m2) - (h * 60 + m);
+    assert.equal(diferenca, 90);
+  });
+
+  it('Reel de terça a quinta cai na janela do almoço quando é a primeira peça do dia', () => {
+    for (const offset of [1, 2, 3]) {
+      assert.equal(horaSugerida('reel', dia(offset), 0), '11:30');
+      assert.equal(horaSugerida('carrossel-video', dia(offset), 0), '11:30');
+    }
+  });
+
+  it('Reel na segunda e na sexta começa mais tarde, ainda no horário de almoço estendido', () => {
+    assert.equal(horaSugerida('reel', SEGUNDA, 0), '12:30');
+    assert.equal(horaSugerida('reel', dia(4), 0), '12:30');
   });
 
   it('carrossel do feed usa a faixa da manhã de terça a quinta', () => {
@@ -72,8 +106,8 @@ describe('grade de horários', () => {
     const domingo = dia(6);
     assert.equal(sabado.getDay(), 6);
     assert.equal(domingo.getDay(), 0);
-    assert.equal(horaSugerida('reel', sabado), '11:00');
-    assert.equal(horaSugerida('reel', domingo), '11:00');
+    assert.equal(horaSugerida('reel', sabado, 0), '11:00');
+    assert.equal(horaSugerida('reel', domingo, 0), '11:00');
   });
 
   it('todo tipo devolve hora em todo dia da semana', () => {
