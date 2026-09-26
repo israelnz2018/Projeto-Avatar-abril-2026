@@ -962,7 +962,7 @@ export function EtapaAgenda({
 
   const termo = busca.trim().toLowerCase();
   const combina = (p: Peca) => {
-    if (redes.size && ![...redes].some((rede) => pecaVaiParaRede(p, rede))) return false;
+    if (redes.size && ![...redes].some((rede) => pecaApareceNoFiltroRede(p, rede))) return false;
     if (situacoes.size && !situacoes.has(situacaoDaPeca(p))) return false;
     if (termo && !`${nomePeca(p.tipo)} ${tituloDe(p)}`.toLowerCase().includes(termo)) return false;
     return true;
@@ -1185,6 +1185,11 @@ export function EtapaAgenda({
           Cada linha é um assunto, com as peças que saíram dele. Abra o assunto e
           arraste a peça para o dia — ou clique nela e depois no dia.
         </p>
+        {redes.has('tiktok') && (
+          <p className="text-xs text-gray-600 mb-3 rounded-md bg-gray-50 px-2.5 py-2">
+            Aqui aparecem também os Reels e carrosséis ainda não marcados para o TikTok. Arraste uma peça para o dia desejado e ative “Publicar também no TikTok” antes de confirmar.
+          </p>
+        )}
         {naFila.length === 0
           ? (
             <Vazio texto={filtrando
@@ -1877,6 +1882,18 @@ export function pecaVaiParaRede(peca: Peca, rede: string): boolean {
   return destinosAutomaticos(peca.tipo).some((destino) => (
     rede === 'facebook' ? destino.nome === 'Facebook' : destino.nome === 'YouTube Shorts'
   ));
+}
+
+/**
+ * O filtro TikTok também precisa revelar peças compatíveis ainda não agendadas.
+ * Sem isso o consultor não consegue encontrá-las para ativar o destino no modal
+ * do calendário. Peças já agendadas/publicadas só entram quando TikTok é de fato
+ * um destino delas, evitando misturar posts de outras redes no histórico.
+ */
+function pecaApareceNoFiltroRede(peca: Peca, rede: string): boolean {
+  if (pecaVaiParaRede(peca, rede)) return true;
+  if (rede !== 'tiktok' || situacaoDaPeca(peca) !== 'fila') return false;
+  return peca.tipo === 'reel' || peca.tipo === 'carrossel-video' || peca.tipo === 'carrossel-feed';
 }
 
 /**
