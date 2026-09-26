@@ -3253,7 +3253,25 @@ async function startServer() {
     return res.type("text/plain").send(conteudo);
   });
 
-  // GET /api/tiktok/autorizar — devolve o endereço para o consultor autorizar.
+  /**
+   * O app do TikTok é UM SÓ, compartilhado — client key e secret não mudam
+   * por consultor, exatamente como já é com o YouTube. O que precisa ser POR
+   * CONSULTOR é o token que sai da autorização: cada um autoriza a PRÓPRIA
+   * conta do TikTok, e o resultado tem de morar na gaveta dele, não numa
+   * gaveta global que o próximo consultor sobrescreveria.
+   *
+   * Mesma coleção PRIVADA do padrão que já existe para o Bunny
+   * (bunny_libraries/{consultorId}): aqui é tiktok_consultores/{consultorId}.
+   *
+   * O `state` carrega o consultorId embutido (antes do primeiro ponto) — é
+   * assim que o callback, que chega sem sessão nenhuma (é o TikTok
+   * redirecionando o navegador, não a plataforma chamando a API), sabe em
+   * qual gaveta gravar o resultado sem precisar varrer todos os consultores.
+   */
+
+  // GET /api/tiktok/autorizar — devolve o endereço para O PRÓPRIO consultor
+  // autorizar a conta dele. Fase 1: só quem está liberado a publicar
+  // automaticamente pode chegar até aqui — mesma trava do Instagram/LinkedIn.
   app.get("/api/tiktok/autorizar", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 
@@ -3268,16 +3286,18 @@ async function startServer() {
     const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
     const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
     const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
-    if (!adminEmails.includes(String(caller.email || "").toLowerCase())) {
-      return res.status(403).json({ error: "Só admin." });
-    }
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
 
     const clientKey = process.env.TIKTOK_CLIENT_KEY;
     if (!clientKey) return res.status(503).json({ error: "Falta TIKTOK_CLIENT_KEY no servidor." });
 
-    // `state` protege contra alguém forjar o retorno: é conferido no callback.
-    const state = crypto.randomUUID();
-    await adminFirestore().collection("app_config").doc("tiktok").set(
+    // O consultorId embutido no state, e não num campo separado do banco: o
+    // callback não tem sessão, então precisa achar a gaveta certa só com o que
+    // o TikTok devolver na URL.
+    const state = `${consultorId}.${crypto.randomUUID()}`;
+    await adminFirestore().collection("tiktok_consultores").doc(consultorId).set(
       { estadoPendente: state, pedidoEm: new Date().toISOString() },
       { merge: true },
     );
@@ -3301,7 +3321,8 @@ async function startServer() {
   //
   // Sem autenticação de propósito: quem chega aqui é o navegador vindo do
   // TikTok, sem o cabeçalho da plataforma. O que protege é o `state`, que só
-  // existe porque a rota autenticada acima o gravou.
+  // existe porque a rota autenticada acima o gravou — e é dele que tiramos
+  // QUAL consultor está autorizando.
   app.get("/api/tiktok/callback", async (req: any, res) => {
     const pagina = (titulo: string, detalhe: string) =>
       `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>TikTok</title>`
@@ -3322,7 +3343,12 @@ async function startServer() {
       const state = String(req.query?.state || "").trim();
       if (!code || !state) return res.status(400).send(pagina("Retorno incompleto", "O TikTok não mandou o código de autorização."));
 
-      const ref = adminFirestore().collection("app_config").doc("tiktok");
+      // O consultorId é tudo antes do primeiro ponto — ver o comentário em
+      // /api/tiktok/autorizar. Sem ele reconhecível, não tem gaveta pra abrir.
+      const consultorId = state.split(".")[0];
+      if (!consultorId) return res.status(400).send(pagina("Pedido não reconhecido", "Comece a autorização de novo pela plataforma."));
+
+      const ref = adminFirestore().collection("tiktok_consultores").doc(consultorId);
       const atual = (await ref.get()).data() as any;
       if (!atual?.estadoPendente || atual.estadoPendente !== state) {
         return res.status(400).send(pagina("Pedido não reconhecido", "Comece a autorização de novo pela plataforma."));
