@@ -3221,6 +3221,144 @@ async function startServer() {
 
   // POST /api/bunny/transcribe-marketing-video — coloca a transcrição pra rodar e
   // responde na hora. O resultado chega pelo documento do vídeo, não por esta resposta.
+  /* ===================== Autorização do TikTok ===================== */
+  //
+  // POR QUE ISTO EXISTE, e não é só colar um token no Railway como no Facebook:
+  //
+  // 1. O TikTok NÃO aceita `localhost` como endereço de retorno em app web —
+  //    exige HTTPS. Então a autorização tem de passar por um endereço real da
+  //    plataforma, e não por um servidorzinho na máquina do consultor.
+  // 2. O refresh token do TikTok VENCE EM 365 DIAS (o do YouTube não vence).
+  //    Guardar no Firestore em vez de variável de ambiente faz a renovação
+  //    anual virar "clicar no link de novo" em vez de "mexer no Railway".
+
+  const TIKTOK_REDIRECT = `${String(process.env.APP_URL || "https://app.educacaopelotrabalho.com").replace(/\/$/, "")}/api/tiktok/callback`;
+
+  // GET /api/tiktok/autorizar — devolve o endereço para o consultor autorizar.
+  app.get("/api/tiktok/autorizar", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    if (!adminEmails.includes(String(caller.email || "").toLowerCase())) {
+      return res.status(403).json({ error: "Só admin." });
+    }
+
+    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    if (!clientKey) return res.status(503).json({ error: "Falta TIKTOK_CLIENT_KEY no servidor." });
+
+    // `state` protege contra alguém forjar o retorno: é conferido no callback.
+    const state = crypto.randomUUID();
+    await adminFirestore().collection("app_config").doc("tiktok").set(
+      { estadoPendente: state, pedidoEm: new Date().toISOString() },
+      { merge: true },
+    );
+
+    // video.publish, e NÃO video.upload: `upload` manda o vídeo para a caixa de
+    // entrada do TikTok como rascunho, exigindo alguém abrir o app e postar à
+    // mão. `publish` é o que publica sozinho — que é o ponto de tudo isto.
+    const url = new URL("https://www.tiktok.com/v2/auth/authorize/");
+    url.search = new URLSearchParams({
+      client_key: clientKey,
+      scope: "video.publish",
+      response_type: "code",
+      redirect_uri: TIKTOK_REDIRECT,
+      state,
+    }).toString();
+
+    return res.json({ url: url.toString(), redirectUri: TIKTOK_REDIRECT });
+  });
+
+  // GET /api/tiktok/callback — o TikTok manda o consultor de volta para cá.
+  //
+  // Sem autenticação de propósito: quem chega aqui é o navegador vindo do
+  // TikTok, sem o cabeçalho da plataforma. O que protege é o `state`, que só
+  // existe porque a rota autenticada acima o gravou.
+  app.get("/api/tiktok/callback", async (req: any, res) => {
+    const pagina = (titulo: string, detalhe: string) =>
+      `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>TikTok</title>`
+      + `<style>body{font-family:system-ui,Arial;margin:0;display:grid;place-items:center;height:100vh;background:#f3f4f6;color:#111827}`
+      + `div{max-width:520px;padding:32px;border-radius:16px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.08);text-align:center}`
+      + `h2{margin:0 0 10px}p{margin:0;color:#4b5563;line-height:1.5}</style></head>`
+      + `<body><div><h2>${titulo}</h2><p>${detalhe}</p></div></body></html>`;
+
+    try {
+      if (!isAdminReady()) return res.status(503).send(pagina("Servidor sem configuração", "O Firebase Admin não está configurado."));
+
+      const erroTiktok = String(req.query?.error || "").trim();
+      if (erroTiktok) {
+        return res.status(400).send(pagina("O TikTok recusou", `Motivo: ${erroTiktok}. Você pode fechar esta aba e tentar de novo.`));
+      }
+
+      const code = String(req.query?.code || "").trim();
+      const state = String(req.query?.state || "").trim();
+      if (!code || !state) return res.status(400).send(pagina("Retorno incompleto", "O TikTok não mandou o código de autorização."));
+
+      const ref = adminFirestore().collection("app_config").doc("tiktok");
+      const atual = (await ref.get()).data() as any;
+      if (!atual?.estadoPendente || atual.estadoPendente !== state) {
+        return res.status(400).send(pagina("Pedido não reconhecido", "Comece a autorização de novo pela plataforma."));
+      }
+
+      const clientKey = process.env.TIKTOK_CLIENT_KEY;
+      const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+      if (!clientKey || !clientSecret) {
+        return res.status(503).send(pagina("Servidor sem credenciais", "Faltam TIKTOK_CLIENT_KEY e TIKTOK_CLIENT_SECRET."));
+      }
+
+      const troca = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: new URLSearchParams({
+          client_key: clientKey,
+          client_secret: clientSecret,
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: TIKTOK_REDIRECT,
+        }),
+      });
+      const corpo = await troca.text();
+      if (!troca.ok) {
+        console.error("[tiktok/callback] troca recusada:", corpo.slice(0, 400));
+        return res.status(502).send(pagina("O TikTok recusou a troca", "O código expirou ou o app está mal configurado. Tente de novo."));
+      }
+      const dados = JSON.parse(corpo);
+      if (!dados.refresh_token) {
+        return res.status(502).send(pagina("Sem refresh token", "O TikTok respondeu sem o token de renovação."));
+      }
+
+      // Guarda o que o worker precisa. `refreshExpiraEm` existe para a tela
+      // poder avisar ANTES de vencer, em vez de o consultor descobrir no dia
+      // em que a publicação parar sozinha.
+      const agora = Date.now();
+      await ref.set({
+        refreshToken: dados.refresh_token,
+        openId: dados.open_id || null,
+        escopo: dados.scope || null,
+        autorizadoEm: new Date(agora).toISOString(),
+        refreshExpiraEm: new Date(agora + Number(dados.refresh_expires_in || 31536000) * 1000).toISOString(),
+        estadoPendente: null,
+      }, { merge: true });
+
+      return res.send(pagina(
+        "TikTok autorizado",
+        "Pode fechar esta aba. A publicação automática já está ligada — enquanto o app não passar pela auditoria do TikTok, os vídeos saem como privados.",
+      ));
+    } catch (error: any) {
+      console.error("[GET /api/tiktok/callback] erro:", error);
+      return res.status(500).send(pagina("Deu erro aqui", "Tente começar a autorização de novo pela plataforma."));
+    }
+  });
+
   app.post("/api/bunny/transcribe-marketing-video", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 
