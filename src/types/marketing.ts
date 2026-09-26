@@ -515,6 +515,8 @@ export interface Peca {
   tiktokPromoteOwnBrand?: boolean;
   tiktokBrandedContent?: boolean;
   tiktokMusicUsageConfirmed?: boolean;
+  /** Estado temporário da preparação TikTok dentro do modal de agendamento. */
+  tiktokPreparacaoStatus?: 'carregando' | 'pronto' | 'desconectado' | 'midia-pendente' | 'erro';
   /**
    * Pausada: mantém o dia marcado, mas o relógio não publica.
    *
