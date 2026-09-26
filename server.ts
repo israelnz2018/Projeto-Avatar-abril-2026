@@ -3461,25 +3461,28 @@ async function startServer() {
         + `Monte o pedido com esta estrutura:\n`
         + `1. Uma linha de abertura pedindo 3 conceitos de miniatura para o vídeo, no formato 16:9.\n`
         + `2. Para CADA um dos 3 conceitos, numerado "Conceito 1", "Conceito 2", "Conceito 3":\n`
-        + `   - O gancho, entre aspas, preso a uma ideia, número ou tensão DIFERENTE da aula em cada conceito.\n`
-        + `   - Em uma frase, a composição: onde fica o apresentador, o texto e o único elemento de apoio.\n`
+        + `   - O gancho principal, entre aspas, preso a uma ideia, número ou tensão DIFERENTE da aula em cada conceito.\n`
+        + `   - Um subtítulo opcional, entre aspas, bem menor — só quando o gancho principal sozinho ficar ambíguo sem ele.\n`
+        + `   - Em uma frase, a composição: onde fica o apresentador, o texto (gancho + subtítulo, se houver) e o único elemento de apoio.\n`
         + `3. Uma seção final "Vale para os 3 conceitos", com as regras que não mudam:\n\n`
         + `REGRAS que valem para os três, medidas e não de gosto:\n`
-        + `- Cada gancho tem MENOS DE 4 PALAVRAS. Acima disso o clique cai (dado medido).\n`
-        + `- Cada conceito descreve NO MÁXIMO 3 elementos visuais no quadro inteiro (apresentador, texto, e UM elemento de apoio). Acima de 3, o clique cai 23% (dado medido).\n`
+        + `- O gancho principal tem MENOS DE 4 PALAVRAS, em letra muito grande e em negrito — é ele que precisa se ler num relance a 168 px de largura, o tamanho em que a miniatura aparece na lista de sugeridos. Acima disso o clique cai (dado medido).\n`
+        + `- O subtítulo, quando houver, é TEXTO E TEXTO SÓ: conta como parte do elemento "texto", não como um elemento a mais. Tamanho de letra na metade ou menos do gancho principal, para não competir com ele.\n`
+        + `- Cada conceito descreve NO MÁXIMO 3 elementos visuais no quadro inteiro: o apresentador, o texto (gancho principal + subtítulo, juntos contam como 1) e UM elemento de apoio. Acima de 3, o clique cai 23% (dado medido).\n`
         + `- Alto contraste, cores do curso: ${paleta}.\n`
-        + `- Canto inferior direito do quadro livre em todos (o YouTube sobrepõe a duração do vídeo ali).\n`
+        + `- Fora dos 15% inferiores do quadro para qualquer texto ou elemento importante, e o canto inferior direito sempre livre — o YouTube sobrepõe a duração do vídeo ali.\n`
         + `- Manter o rosto do apresentador fiel, sem estilizar, caso o consultor anexe fotos de referência.\n`
-        + `- Cada gancho é uma tensão ou pergunta que a AULA responde de verdade — não uma promessa que ela não sustenta.\n`
+        + `- Cada gancho é uma tensão ou pergunta que a AULA responde de verdade — não uma promessa que ela não sustenta. O subtítulo, quando houver, também não pode dizer nada que a aula não sustente.\n`
         + `- Escreva em português, em primeira pessoa ("crie 3 conceitos de miniatura..."), pronto para colar. Nada de explicação antes ou depois — só o pedido.`;
 
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       const gerado = await ai.models.generateContent({
         model: geminiModel,
         contents: [{ role: "user", parts: [{ text: instrucao }] }],
-        // 3 conceitos saem mais longos que 1: o teto sobe de 2048 para 3072 para
-        // não cortar o terceiro conceito no meio.
-        config: { temperature: 0.6, maxOutputTokens: 3072 },
+        // 3 conceitos com subtítulo saem mais longos que 1 gancho só. 3072 já
+        // cortou no meio do PRIMEIRO conceito numa aula real (finishReason
+        // MAX_TOKENS, medido) — o piso seguro ficou em 4096.
+        config: { temperature: 0.6, maxOutputTokens: 4096 },
       });
       const motivo = gerado.candidates?.[0]?.finishReason;
       if (motivo === "MAX_TOKENS") throw new Error("A resposta da IA foi cortada pelo limite de tokens.");
