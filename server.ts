@@ -3383,6 +3383,105 @@ async function startServer() {
     return (await transcricaoDoVideo(video)).slice(0, 6000);
   }
 
+  /** A cor por curso, para o prompt descrever em vez de o Israel decorar hex. */
+  const PALETA_POR_BELT: Record<string, string> = {
+    "white belt": "fundo branco, contraste em azul-marinho e azul vivo, destaque amarelo",
+    "yellow belt": "fundo amarelo, contraste em azul-marinho, destaque branco e azul vivo",
+    "green belt": "fundo verde, contraste em branco, destaque amarelo",
+    "black belt": "fundo preto, contraste em branco, destaque amarelo e azul vivo",
+  };
+  function paletaDoVideo(video: any): string {
+    const serie = String(video?.serie || "").toLowerCase();
+    const achado = Object.keys(PALETA_POR_BELT).find((chave) => serie.includes(chave.split(" ")[0]));
+    return PALETA_POR_BELT[achado || "white belt"];
+  }
+
+  // POST /api/marketing-consultor/gerar-prompt-youtube — NÃO gera a imagem.
+  //
+  // A ESTRATÉGIA MUDOU: gerar a capa aqui dentro (render-youtube-thumbnail.mjs)
+  // ficou pior que a ferramenta de IA do próprio YouTube Studio (Ask Studio),
+  // que já lê o vídeo e desenha melhor do que o nosso renderizador HTML. O que
+  // falta lá não é a imagem — é um TEXTO bom para pedir. Esta rota escreve esse
+  // texto a partir dos dados reais do vídeo, e o Israel cola no YouTube.
+  //
+  // Os critérios vêm de pesquisa medida, não de gosto: menos de 4 palavras no
+  // gancho rende 30% mais CTR (1of10); mais de 3 elementos visuais no quadro
+  // derruba o CTR em 23% (ThumbnailTest). Ver a conversa que fechou isso.
+  app.post("/api/marketing-consultor/gerar-prompt-youtube", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const videoId = String(req.body?.videoId || "").trim();
+    if (!videoId) return res.status(400).json({ error: "Informe o vídeo." });
+
+    try {
+      const videoSnap = await adminFirestore().collection("marketing_videos").doc(videoId).get();
+      if (!videoSnap.exists) return res.status(404).json({ error: "Vídeo não encontrado." });
+      const video = videoSnap.data() as any;
+      const dono = String(video.consultorId || "");
+      if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Vídeo não pertence a este consultor." });
+
+      const resumo = await resumoDoVideo(video);
+      if (!resumo) return res.status(400).json({ error: "Este vídeo ainda não tem resumo nem transcrição para basear o gancho." });
+
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+      const titulo = String(video.titulo || "").trim();
+      const curso = String(video.curso || "").trim();
+      const serie = String(video.serie || "").trim();
+      const paleta = paletaDoVideo(video);
+
+      const instrucao = `Você escreve o PEDIDO em português que um consultor vai colar na ferramenta de miniaturas por IA do YouTube Studio (Ask Studio). Não gere imagem nenhuma — só o texto do pedido.\n\n`
+        + `AULA: "${titulo}"${curso ? ` — curso ${curso}` : ""}${serie ? `, ${serie}` : ""}\n\n`
+        + `RESUMO DA AULA (a única fonte do gancho — não invente nada fora daqui):\n"""\n${resumo.slice(0, 4000)}\n"""\n\n`
+        + `Escreva o pedido seguindo TODAS estas regras, medidas e não de gosto:\n`
+        + `- O gancho tem MENOS DE 4 PALAVRAS. Acima disso o clique cai (dado medido).\n`
+        + `- O pedido descreve NO MÁXIMO 3 elementos visuais no quadro inteiro (apresentador, texto, e UM elemento de apoio). Acima de 3, o clique cai 23% (dado medido).\n`
+        + `- Alto contraste, cores do curso: ${paleta}.\n`
+        + `- Formato 16:9, canto inferior direito do quadro livre (o YouTube sobrepõe a duração do vídeo ali).\n`
+        + `- Instrua explicitamente para manter o rosto do apresentador fiel, sem estilizar, caso o consultor anexe fotos de referência.\n`
+        + `- O gancho é uma tensão ou pergunta que a AULA responde de verdade — não uma promessa que ela não sustenta.\n`
+        + `- Escreva em português, em primeira pessoa ("crie uma miniatura..."), pronto para colar. Nada de explicação antes ou depois — só o pedido.`;
+
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const gerado = await ai.models.generateContent({
+        model: geminiModel,
+        contents: [{ role: "user", parts: [{ text: instrucao }] }],
+        config: { temperature: 0.6, maxOutputTokens: 2048 },
+      });
+      const motivo = gerado.candidates?.[0]?.finishReason;
+      if (motivo === "MAX_TOKENS") throw new Error("A resposta da IA foi cortada pelo limite de tokens.");
+      const prompt = String(gerado.text || "").trim();
+      if (!prompt) return res.status(422).json({ error: "A IA não devolveu nenhum texto." });
+
+      return res.json({ prompt });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/gerar-prompt-youtube] erro:", error);
+      const errorMessage = String(error?.message || "Erro ao gerar o prompt.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // GET /api/marketing-consultor/cursos — o catálogo para os dois seletores.
   //
   // TRÊS NÍVEIS, e não dois: o Black Belt tem 253 aulas em 22 módulos. Um

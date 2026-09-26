@@ -12,7 +12,7 @@ import {
 import {
   Instagram, Linkedin, CheckCircle2, AlertTriangle, Video, Clock,
   FileText, Image as ImageIcon, Film, Layers, Send, Trash2, Loader2,
-  ExternalLink, RotateCcw, Rocket, Download,
+  ExternalLink, RotateCcw, Rocket, Download, Sparkles, Copy,
 } from 'lucide-react';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasCorridos, segundaDaSemana, somarDias } from '../../../lib/semana';
@@ -144,6 +144,7 @@ export function EtapaVideos({
               </p>
             )}
             {v.bunnyVideoId && <BotaoBaixarVideo video={v} />}
+            {v.bunnyVideoId && <BotaoPromptYoutube video={v} />}
           </div>
           {v.temTranscricao
             ? (
@@ -218,6 +219,91 @@ function BotaoBaixarVideo({ video }: { video: VideoFonte }) {
           : <><Download className="w-3.5 h-3.5" /> Baixar o vídeo</>}
       </button>
       {erro && <p className="text-xs text-red-700 mt-1">{erro}</p>}
+    </div>
+  );
+}
+
+/**
+ * NÃO GERA A CAPA. Gera o PEDIDO para colar na ferramenta de miniaturas por IA
+ * do próprio YouTube Studio (Ask Studio).
+ *
+ * A estratégia mudou de propósito: o Ask Studio já lê o vídeo e desenha melhor
+ * do que um renderizador HTML nosso. O que faltava não era a imagem — era um
+ * texto de pedido bom, calibrado pelos critérios medidos (gancho com menos de
+ * 4 palavras, no máximo 3 elementos no quadro). Esta rota escreve esse texto a
+ * partir dos dados reais da aula; o Israel copia e cola.
+ */
+function BotaoPromptYoutube({ video }: { video: VideoFonte }) {
+  const [pedindo, setPedindo] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [copiado, setCopiado] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function gerar() {
+    setPedindo(true);
+    setErro('');
+    setCopiado(false);
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/marketing-consultor/gerar-prompt-youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ videoId: video.id }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      setPrompt(corpo.prompt || '');
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setPedindo(false);
+    }
+  }
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiado(true);
+    } catch {
+      setErro('Não copiou sozinho — selecione o texto e copie à mão.');
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={gerar}
+        disabled={pedindo}
+        title="Gerar o texto para colar na ferramenta de miniaturas do YouTube"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50"
+      >
+        {pedindo
+          ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Escrevendo…</>
+          : <><Sparkles className="w-3.5 h-3.5" /> {prompt ? 'Gerar de novo' : 'Gerar prompt para o YouTube'}</>}
+      </button>
+      {erro && <p className="text-xs text-red-700 mt-1">{erro}</p>}
+      {prompt && (
+        <div className="mt-2 p-2.5 rounded-lg bg-gray-50 border border-gray-200">
+          <textarea
+            readOnly
+            value={prompt}
+            rows={6}
+            className="w-full text-xs text-gray-800 bg-white border border-gray-200 rounded p-2 resize-none"
+            onFocus={(e) => e.currentTarget.select()}
+          />
+          <button
+            onClick={copiar}
+            className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:underline"
+          >
+            <Copy className="w-3.5 h-3.5" /> {copiado ? 'Copiado!' : 'Copiar'}
+          </button>
+          <p className="text-[11px] text-gray-500 mt-1">
+            Cole no Ask Studio, dentro do YouTube Studio, ao editar este vídeo. Se anexar fotos
+            suas e a ferramenta recusar, tente colar de novo sem as fotos.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
