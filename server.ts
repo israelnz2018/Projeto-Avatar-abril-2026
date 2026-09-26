@@ -3302,6 +3302,133 @@ async function startServer() {
     });
   });
 
+  // URLs de imagem temporárias para o endpoint de carrossel do TikTok. A rota
+  // só serve JPEGs TikTok do Storage, com HMAC e expiração; o TikTok não pode
+  // acessar diretamente os URLs do Firebase Storage (domínio não verificado).
+  app.get("/api/tiktok/media/:token", async (req: any, res) => {
+    try {
+      const secret = process.env.TIKTOK_MEDIA_SIGNING_SECRET;
+      let signingKey = secret;
+      if (!signingKey) {
+        const raw = process.env.FIREBASE_ADMIN_KEY_JSON || process.env.FIREBASE_SERVICE_ACCOUNT
+          || (process.env.FIREBASE_ADMIN_KEY_PATH && fsSync.existsSync(process.env.FIREBASE_ADMIN_KEY_PATH)
+            ? fsSync.readFileSync(process.env.FIREBASE_ADMIN_KEY_PATH, "utf8") : "");
+        const privateKey = raw ? JSON.parse(raw).private_key : "";
+        if (!privateKey) return res.status(503).type("text/plain").send("TikTok media signing unavailable");
+        signingKey = crypto.createHmac("sha256", privateKey).update("lbw:tiktok:media-url:v1").digest("hex");
+      }
+
+      const [payload, signature, extra] = String(req.params.token || "").split(".");
+      if (!payload || !signature || extra) return res.status(404).end();
+      const expected = crypto.createHmac("sha256", signingKey).update(payload).digest();
+      const provided = Buffer.from(signature, "base64url");
+      if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) return res.status(404).end();
+
+      const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+      const segments = String(data.path || "").split("/");
+      if (Number(data.exp) < Math.floor(Date.now() / 1000)
+        || segments.length !== 6 || segments[0] !== "marketing" || !segments[1] || !segments[2]
+        || segments[3] !== "tiktok" || !/^v\d+$/.test(segments[4]) || !/^slide-\d+\.jpg$/i.test(segments[5])) {
+        return res.status(404).end();
+      }
+      if (!isAdminReady()) return res.status(503).type("text/plain").send("Storage unavailable");
+      const file = admin.storage().bucket(BUCKET_MARKETING).file(data.path);
+      const [exists] = await file.exists();
+      if (!exists) return res.status(404).end();
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=300");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      const stream = file.createReadStream();
+      stream.on("error", () => { if (!res.headersSent) res.status(404); res.end(); });
+      return stream.pipe(res);
+    } catch (error: any) {
+      console.error("[tiktok/media] erro:", error?.message || error);
+      return res.status(404).end();
+    }
+  });
+
+  // Consulta a conta antes de marcar uma peça para o TikTok. O navegador recebe
+  // somente dados públicos do criador e opções de publicação, nunca os tokens.
+  app.get("/api/tiktok/creator-info", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    try {
+      const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+      const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+      const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+      if (caller.tipoUsuario !== "consultor" && !adminEmails.includes(String(caller.email || "").toLowerCase())) {
+        return res.status(403).json({ error: "Somente consultores podem consultar a conta TikTok." });
+      }
+      const consultorId = String(caller.consultorId || "israel");
+      const ref = adminFirestore().collection("tiktok_consultores").doc(consultorId);
+      const saved = (await ref.get()).data() as any;
+      if (!saved?.refreshToken) return res.status(409).json({ error: "Conecte a conta TikTok antes de agendar." });
+      const clientKey = process.env.TIKTOK_CLIENT_KEY;
+      const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+      if (!clientKey || !clientSecret) return res.status(503).json({ error: "Credenciais do TikTok ausentes no servidor." });
+
+      const tokenResponse = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: new URLSearchParams({
+          client_key: clientKey, client_secret: clientSecret,
+          refresh_token: String(saved.refreshToken), grant_type: "refresh_token",
+        }),
+      });
+      const tokenBody = await tokenResponse.text();
+      if (!tokenResponse.ok) {
+        console.error("[tiktok/creator-info] renovação recusada:", tokenBody.slice(0, 350));
+        return res.status(502).json({ error: "Não consegui renovar a autorização TikTok. Reconecte a conta e tente novamente." });
+      }
+      const tokenData = JSON.parse(tokenBody) as any;
+      if (!tokenData.access_token) return res.status(502).json({ error: "TikTok não devolveu um token de acesso." });
+      if (tokenData.refresh_token) {
+        const now = Date.now();
+        await ref.set({
+          refreshToken: tokenData.refresh_token,
+          refreshExpiraEm: new Date(now + Number(tokenData.refresh_expires_in || 31536000) * 1000).toISOString(),
+          tokenAtualizadoEm: new Date(now).toISOString(),
+        }, { merge: true });
+      }
+
+      const creatorResponse = await fetch("https://open.tiktokapis.com/v2/post/publish/creator_info/query/", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tokenData.access_token}`, "Content-Type": "application/json; charset=UTF-8" },
+      });
+      const creatorBody = await creatorResponse.text();
+      if (!creatorResponse.ok) {
+        console.error("[tiktok/creator-info] consulta recusada:", creatorBody.slice(0, 350));
+        return res.status(502).json({ error: "TikTok não conseguiu consultar os dados da conta." });
+      }
+      const result = JSON.parse(creatorBody) as any;
+      if (result.error?.code && result.error.code !== "ok") {
+        return res.status(502).json({ error: `TikTok: ${result.error.message || result.error.code}` });
+      }
+      const data = result.data || {};
+      return res.json({
+        username: data.creator_username || null,
+        nickname: data.creator_nickname || null,
+        avatarUrl: data.creator_avatar_url || null,
+        privacyLevelOptions: process.env.TIKTOK_CLIENT_AUDITED === "true"
+          ? (data.privacy_level_options || []) : ["SELF_ONLY"],
+        commentDisabled: Boolean(data.comment_disabled),
+        duetDisabled: Boolean(data.duet_disabled),
+        stitchDisabled: Boolean(data.stitch_disabled),
+        maxVideoPostDurationSec: Number(data.max_video_post_duration_sec || 0),
+        sandbox: process.env.TIKTOK_CLIENT_AUDITED !== "true",
+      });
+    } catch (error: any) {
+      console.error("[tiktok/creator-info] erro:", error?.message || error);
+      return res.status(500).json({ error: "Erro ao consultar a conta TikTok." });
+    }
+  });
+
   app.get("/api/tiktok/autorizar", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 

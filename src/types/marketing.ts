@@ -504,6 +504,17 @@ export interface Peca {
   agendadoHora?: string;
   /** Publicar o Reel/vídeo também no TikTok no horário agendado. */
   publicarNoTiktok?: boolean;
+  /** Versão do mesmo Reel sem a faixa de marca usada no TikTok. */
+  tiktokVideoUrl?: string;
+  /** Imagens limpas em JPEG, na ordem, para o carrossel de fotos do TikTok. */
+  tiktokSlides?: string[];
+  /** Dados e consentimentos confirmados para a conta TikTok desta publicação. */
+  tiktokConsentAt?: string;
+  tiktokCreatorUsername?: string;
+  tiktokPrivacyLevel?: string;
+  tiktokPromoteOwnBrand?: boolean;
+  tiktokBrandedContent?: boolean;
+  tiktokMusicUsageConfirmed?: boolean;
   /**
    * Pausada: mantém o dia marcado, mas o relógio não publica.
    *
@@ -575,10 +586,13 @@ export interface PublicacaoDaPeca {
    * no ar — a publicação em si é assíncrona do lado do TikTok.
    */
   tiktok?: {
-    status: 'publicada' | 'falhou';
+    status: 'processando' | 'publicada' | 'falhou';
     postId?: string;
+    creatorUsername?: string | null;
     link?: string | null;
+    enviadoEm?: string;
     publicadoEm?: string;
+    falhouEm?: string;
     erro?: string | null;
   };
   /**

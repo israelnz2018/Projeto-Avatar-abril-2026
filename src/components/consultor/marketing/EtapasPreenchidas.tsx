@@ -158,6 +158,161 @@ function CartaoTiktok() {
   );
 }
 
+type TikTokCreatorInfo = {
+  username: string | null;
+  nickname: string | null;
+  avatarUrl: string | null;
+  privacyLevelOptions: string[];
+  commentDisabled: boolean;
+  duetDisabled: boolean;
+  stitchDisabled: boolean;
+  maxVideoPostDurationSec: number;
+  sandbox: boolean;
+};
+
+const infoTikTokEmCache = new Map<string, TikTokCreatorInfo>();
+
+async function consultarInfoTikTok(): Promise<TikTokCreatorInfo> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Entre novamente na plataforma para conectar o TikTok.');
+  const emCache = infoTikTokEmCache.get(user.uid);
+  if (emCache) return emCache;
+  const token = await user.getIdToken();
+  const resposta = await fetch('/api/tiktok/creator-info', { headers: { Authorization: `Bearer ${token}` } });
+  const dados = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) throw new Error(dados.error || `Não consegui consultar o TikTok (HTTP ${resposta.status}).`);
+  infoTikTokEmCache.set(user.uid, dados as TikTokCreatorInfo);
+  return dados as TikTokCreatorInfo;
+}
+
+function PreviaConteudoTikTok({ peca }: { peca: Peca }) {
+  const foto = peca.tipo === 'carrossel-feed';
+  const arquivos = foto
+    ? (peca.tiktokSlides || [])
+    : [peca.tiktokVideoUrl].filter(Boolean) as string[];
+  const [urls, setUrls] = useState<string[]>([]);
+  const [erro, setErro] = useState('');
+  useEffect(() => {
+    let vivo = true;
+    setUrls([]);
+    setErro('');
+    if (!arquivos.length) { setErro('A versão TikTok limpa ainda não foi gerada.'); return () => { vivo = false; }; }
+    Promise.all(arquivos.slice(0, 8).map((arquivo) => getDownloadURL(storageRef(storage, arquivo))))
+      .then((enderecos) => { if (vivo) setUrls(enderecos); })
+      .catch(() => { if (vivo) setErro('Não consegui carregar a prévia desta versão.'); });
+    return () => { vivo = false; };
+  }, [peca.id, peca.tiktokVideoUrl, JSON.stringify(peca.tiktokSlides), peca.arquivoUrl]);
+
+  return (
+    <div className="mt-2 rounded border border-gray-200 bg-white p-2">
+      <p className="mb-1 text-[10px] font-bold text-gray-600">Prévia exata enviada ao TikTok</p>
+      {erro ? <p className="text-[10px] text-amber-700">{erro}</p> : urls.length === 0
+        ? <p className="text-[10px] text-gray-500">Carregando prévia…</p>
+        : foto
+          ? <div className="flex gap-1.5 overflow-x-auto">{urls.map((url, i) => <img key={url} src={url} alt={`Slide ${i + 1}`} className="h-20 w-auto rounded border object-contain" />)}</div>
+          : <video src={urls[0]} controls playsInline className="max-h-48 w-auto max-w-full rounded bg-black" />}
+    </div>
+  );
+}
+
+function ControleTikTok({ peca, aoAlterar }: { peca: Peca; aoAlterar: (dados: Record<string, unknown>) => void }) {
+  const [info, setInfo] = useState<TikTokCreatorInfo | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState('');
+  const ativo = peca.publicarNoTiktok === true;
+  const ehVideo = peca.tipo === 'reel' || peca.tipo === 'carrossel-video';
+  const midiaTiktokDisponivel = peca.tipo === 'carrossel-feed'
+    ? Boolean(peca.tiktokSlides?.length)
+    : Boolean(peca.tiktokVideoUrl);
+
+  useEffect(() => {
+    if (!ativo) return;
+    let vivo = true;
+    setCarregando(true);
+    consultarInfoTikTok()
+      .then((dados) => { if (vivo) setInfo(dados); })
+      .catch((e: any) => { if (vivo) setErro(e?.message || String(e)); })
+      .finally(() => { if (vivo) setCarregando(false); });
+    return () => { vivo = false; };
+  }, [ativo]);
+
+  async function alternar(checked: boolean) {
+    setErro('');
+    if (!checked) {
+      aoAlterar({ publicarNoTiktok: false });
+      return;
+    }
+    if (!midiaTiktokDisponivel) {
+      setErro(peca.tipo === 'carrossel-feed'
+        ? 'Este carrossel ainda não tem as imagens limpas para o TikTok. Refazer o carrossel prepara os arquivos compatíveis.'
+        : 'Este vídeo ainda não tem a versão limpa para o TikTok. Refazer o Reel/carrossel em vídeo prepara o arquivo compatível.');
+      return;
+    }
+    setCarregando(true);
+    try {
+      const dados = await consultarInfoTikTok();
+      setInfo(dados);
+      if (!dados.username || !dados.privacyLevelOptions?.length) throw new Error('A conta conectada não devolveu as opções necessárias para publicar. Reconecte o TikTok.');
+      aoAlterar({
+        publicarNoTiktok: true,
+        tiktokConsentAt: new Date().toISOString(),
+        tiktokCreatorUsername: dados.username,
+        tiktokPrivacyLevel: dados.privacyLevelOptions.includes('SELF_ONLY') ? 'SELF_ONLY' : dados.privacyLevelOptions[0],
+        tiktokPromoteOwnBrand: false,
+        tiktokBrandedContent: false,
+        ...(ehVideo ? { tiktokMusicUsageConfirmed: false } : {}),
+      });
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-2 text-[10px] font-semibold text-gray-700">
+        <input type="checkbox" checked={ativo} disabled={carregando} onChange={(e) => void alternar(e.target.checked)} />
+        Publicar também no TikTok
+        {carregando && <Loader2 className="h-3 w-3 animate-spin" />}
+      </label>
+      {erro && <p className="text-[10px] text-red-700">{erro}</p>}
+      {ativo && info && (
+        <div className="rounded border border-gray-200 bg-gray-50 p-2 text-[10px] text-gray-700 space-y-1.5">
+          <p>Conta de destino: <strong>@{info.username}</strong></p>
+          <label className="block">
+            Quem pode ver
+            <select
+              value={peca.tiktokPrivacyLevel || 'SELF_ONLY'}
+              onChange={(e) => aoAlterar({ tiktokPrivacyLevel: e.target.value })}
+              className="mt-0.5 block w-full rounded border border-gray-300 bg-white px-2 py-1 text-[10px]"
+            >
+              {info.privacyLevelOptions.map((opcao) => <option key={opcao} value={opcao}>{opcao === 'SELF_ONLY' ? 'Somente você' : opcao === 'PUBLIC_TO_EVERYONE' ? 'Todos' : opcao === 'MUTUAL_FOLLOW_FRIENDS' ? 'Amigos' : 'Seguidores'}</option>)}
+            </select>
+          </label>
+          {info.sandbox && <p className="text-amber-800">Sandbox/sem auditoria: o post fica privado, visível só para você.</p>}
+          <p>Ao ativar, você autoriza o envio desta peça e da legenda para a conta acima.</p>
+          <PreviaConteudoTikTok peca={peca} />
+          <label className="flex items-start gap-1.5">
+            <input type="checkbox" checked={peca.tiktokPromoteOwnBrand === true} onChange={(e) => aoAlterar({ tiktokPromoteOwnBrand: e.target.checked })} />
+            Promove meu próprio negócio
+          </label>
+          <label className="flex items-start gap-1.5">
+            <input type="checkbox" checked={peca.tiktokBrandedContent === true} disabled={peca.tiktokPrivacyLevel === 'SELF_ONLY'} onChange={(e) => aoAlterar({ tiktokBrandedContent: e.target.checked })} />
+            É parceria paga com outra marca
+          </label>
+          {ehVideo && (
+            <label className="flex items-start gap-1.5 font-semibold">
+              <input type="checkbox" checked={peca.tiktokMusicUsageConfirmed === true} onChange={(e) => aoAlterar({ tiktokMusicUsageConfirmed: e.target.checked })} />
+              Confirmo que tenho direito de usar o áudio e aceito a confirmação de música do TikTok.
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CartaoRede({
   nome, icone, cor, conexao, exigencia,
 }: {
@@ -869,6 +1024,12 @@ export function EtapaAgenda({
       agendadoEm: diaISO(dia),
       agendadoHora: hora || peca.agendadoHora || horaSugerida(peca.tipo, dia, ocupadosNoDia(peca, dia)),
       publicarNoTiktok: peca.publicarNoTiktok === true,
+      tiktokConsentAt: peca.publicarNoTiktok ? peca.tiktokConsentAt || new Date().toISOString() : peca.tiktokConsentAt || null,
+      tiktokCreatorUsername: peca.tiktokCreatorUsername || null,
+      tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
+      tiktokPromoteOwnBrand: peca.tiktokPromoteOwnBrand === true,
+      tiktokBrandedContent: peca.tiktokBrandedContent === true,
+      tiktokMusicUsageConfirmed: peca.tiktokMusicUsageConfirmed === true,
     });
     if (ok) {
       setAgendamentoPendente(null);
@@ -926,6 +1087,11 @@ export function EtapaAgenda({
     if (!agendamentoPendente) return;
     if (!horaAgendamentoPendente) {
       setErro('Escolha um horário.');
+      return;
+    }
+    const peca = agendamentoPendente.peca;
+    if (peca.publicarNoTiktok && (peca.tipo === 'reel' || peca.tipo === 'carrossel-video') && !peca.tiktokMusicUsageConfirmed) {
+      setErro('Para agendar no TikTok, confirme que tem direito de usar o áudio.');
       return;
     }
     await agendar(agendamentoPendente.peca, agendamentoPendente.dia, horaAgendamentoPendente);
@@ -1267,15 +1433,8 @@ export function EtapaAgenda({
                             onChange={(e) => escrever(p.id, { agendadoHora: e.target.value })}
                             className="w-full px-1 py-0.5 rounded border border-gray-300 text-[11px]"
                           />
-                          {(p.tipo === 'reel' || p.tipo === 'carrossel-video') && (
-                            <label className="flex items-center gap-2 text-[10px] font-semibold text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={p.publicarNoTiktok === true}
-                                onChange={(e) => escrever(p.id, { publicarNoTiktok: e.target.checked })}
-                              />
-                              Publicar também no TikTok
-                            </label>
+                          {['reel', 'carrossel-video', 'carrossel-feed'].includes(p.tipo) && (
+                            <ControleTikTok peca={p} aoAlterar={(dados) => void escrever(p.id, dados)} />
                           )}
                           {!jaPublicada(p) && !p.pausada && (
                             <BotaoPublicarAgora peca={p} onMudou={onMudou} miudo />
@@ -1309,18 +1468,13 @@ export function EtapaAgenda({
                     >
                       <div className="font-bold text-blue-900">{nomePeca(pendenteNesteDia.tipo)}</div>
                       <div className="truncate text-blue-800">{tituloDe(pendenteNesteDia)}</div>
-                      {(pendenteNesteDia.tipo === 'reel' || pendenteNesteDia.tipo === 'carrossel-video') && (
-                        <label className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-blue-900">
-                          <input
-                            type="checkbox"
-                            checked={pendenteNesteDia.publicarNoTiktok === true}
-                            onChange={(e) => setAgendamentoPendente({
-                              ...agendamentoPendente!,
-                              peca: { ...pendenteNesteDia, publicarNoTiktok: e.target.checked },
-                            })}
-                          />
-                          Publicar também no TikTok
-                        </label>
+                      {['reel', 'carrossel-video', 'carrossel-feed'].includes(pendenteNesteDia.tipo) && (
+                        <ControleTikTok
+                          peca={pendenteNesteDia}
+                          aoAlterar={(dados) => setAgendamentoPendente((atual) => atual
+                            ? { ...atual, peca: { ...atual.peca, ...dados } as Peca }
+                            : atual)}
+                        />
                       )}
                       <label className="mt-1 block text-[10px] font-bold uppercase text-blue-800">
                         Horário de publicação
@@ -1905,8 +2059,22 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
  * configurar. Por isso, sem tentativa, não aparece nada: um selo cinza
  * "Facebook: —" toda vez seria ruído em peça que nunca teve isso como opção.
  */
-function SeloExtra({ rede, dados }: { rede: string; dados?: NonNullable<Peca['publicacao']>['facebook'] }) {
+type DadosPublicacaoExtra =
+  | NonNullable<NonNullable<Peca['publicacao']>['facebook']>
+  | NonNullable<NonNullable<Peca['publicacao']>['youtube']>
+  | NonNullable<NonNullable<Peca['publicacao']>['tiktok']>;
+
+function SeloExtra({ rede, dados }: { rede: string; dados?: DadosPublicacaoExtra }) {
   if (!dados) return null;
+
+  if (dados.status === 'processando') {
+    return (
+      <span title={`${rede}: envio recebido, aguardando confirmação da plataforma`} className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 shrink-0">
+        <span className="h-2.5 w-2.5 rounded-full border-2 border-slate-300 border-t-blue-600 animate-spin" />
+        {rede} processando
+      </span>
+    );
+  }
 
   if (dados.status === 'publicada') {
     return dados.link ? (
