@@ -17,6 +17,7 @@ import {
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { diaISO, diasCorridos, segundaDaSemana, somarDias } from '../../../lib/semana';
 import { horaSugerida, familiaDaPeca } from '../../../lib/horarios';
+import { aceitoNoTiktok, camposDeAgendamentoTiktok, conflitoDeMarcaEPrivacidade } from '../../../lib/tiktok';
 import {
   FUSOS, FUSO_DA_PUBLICACAO, IdFuso, comoRelogioDe, equivalenteEm, fusoPorId, tzDe,
 } from '../../../lib/fuso';
@@ -331,6 +332,25 @@ function ControleTikTok({
           {(peca.tiktokPromoteOwnBrand || peca.tiktokBrandedContent) && (
             <p className="text-amber-800">
               O TikTok identificará esta publicação como {peca.tiktokBrandedContent ? '“Parceria paga”' : '“Conteúdo promocional”'}.
+            </p>
+          )}
+          {/* A caixa de parceria paga fica desabilitada quando a privacidade já é
+              SELF_ONLY, mas a ordem inversa passava: marcar a parceria e SÓ DEPOIS
+              trocar a privacidade deixava as duas ligadas. Aqui o consultor vê o
+              conflito na hora, em vez de descobrir quando a publicação falhar. */}
+          {conflitoDeMarcaEPrivacidade({
+            tipo: peca.tipo,
+            tiktokBrandedContent: peca.tiktokBrandedContent === true,
+            tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
+            declaracaoExibida: true,
+          }) && (
+            <p className="rounded border border-red-200 bg-red-50 p-1.5 font-semibold text-red-800">
+              {conflitoDeMarcaEPrivacidade({
+                tipo: peca.tipo,
+                tiktokBrandedContent: peca.tiktokBrandedContent === true,
+                tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
+                declaracaoExibida: true,
+              })}
             </p>
           )}
           {prepararNoAgendamento && peca.tiktokBrandedContent && (
@@ -1057,10 +1077,17 @@ export function EtapaAgenda({
       tiktokCreatorUsername: peca.tiktokCreatorUsername || null,
       tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
       tiktokPromoteOwnBrand: peca.tiktokPromoteOwnBrand === true,
-      tiktokBrandedContent: peca.tiktokBrandedContent === true,
-      tiktokMusicUsageConfirmed: peca.publicarNoTiktok && (peca.tipo === 'reel' || peca.tipo === 'carrossel-video')
-        ? true
-        : peca.tiktokMusicUsageConfirmed === true,
+      // O consentimento sai de camposDeAgendamentoTiktok, nunca de um atalho
+      // aqui: só vale quando a declaração esteve VISÍVEL na tela em que o
+      // consultor confirmou. Ver src/lib/tiktok.ts.
+      ...camposDeAgendamentoTiktok({
+        tipo: peca.tipo,
+        publicarNoTiktok: peca.publicarNoTiktok === true,
+        declaracaoExibida: true,
+        tiktokMusicUsageConfirmed: peca.tiktokMusicUsageConfirmed === true,
+        tiktokBrandedContent: peca.tiktokBrandedContent === true,
+        tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
+      }),
     });
     if (ok) {
       setAgendamentoPendente(null);
@@ -1181,13 +1208,18 @@ export function EtapaAgenda({
           </span>
         </div>
 
+        {/* Dois grupos de filtro, não um. Sem rótulo, "Instagram" e "Na fila"
+            pareciam a mesma lista — e a barrinha sozinha não separava o
+            suficiente, ainda mais quando os chips quebram de linha. */}
         <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Rede</span>
           {REDES.map((r) => (
             <Chip key={r.id} ativo={redes.has(r.id)} onClick={() => alternar(redes, r.id, setRedes)}>
               {r.nome}
             </Chip>
           ))}
           <span className="w-px h-5 bg-gray-200" />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Situação</span>
           {SITUACOES.map((s) => (
             <Chip
               key={s.id}
@@ -2019,7 +2051,11 @@ function DestinosAutomaticos({ peca, compacto = false }: { peca: Peca; compacto?
   const destinos = [
     principal,
     ...destinosAutomaticos(peca.tipo),
-    ...(peca.publicarNoTiktok === true && (peca.tipo === 'reel' || peca.tipo === 'carrossel-video')
+    // Inclui carrossel-feed: o worker publica os três formatos no TikTok
+    // (vídeo por FILE_UPLOAD, fotos pelo endpoint de carrossel). Deixar o
+    // carrossel de fotos de fora escondia do consultor um destino que ele
+    // tinha acabado de ligar — a peça ia para o TikTok sem selo que dissesse.
+    ...(peca.publicarNoTiktok === true && aceitoNoTiktok(peca.tipo)
       ? [{ nome: 'TikTok', classe: 'bg-gray-900 text-white' }]
       : []),
   ];
@@ -2101,12 +2137,19 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
 
   if (pub?.status === 'falhou') {
     return (
-      <span
-        title={pub.erro || ''}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-100 text-red-800 text-xs font-bold shrink-0"
-      >
-        <AlertTriangle className="w-3.5 h-3.5" />
-        Não saiu
+      <span className="inline-flex items-center gap-1 shrink-0">
+        <span
+          title={pub.erro || ''}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-100 text-red-800 text-xs font-bold"
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          Não saiu
+        </span>
+        {/* O TikTok é destino independente: ele pode ter saído mesmo com a rede
+            principal falhando. Sem este selo aqui, um post que de fato foi ao ar
+            no TikTok ficaria invisível numa peça marcada como "Não saiu" — e o
+            consultor publicaria de novo à mão, duplicando. */}
+        <SeloExtra rede="TikTok" dados={pub?.tiktok} />
       </span>
     );
   }
