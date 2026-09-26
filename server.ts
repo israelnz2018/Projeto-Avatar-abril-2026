@@ -3272,6 +3272,36 @@ async function startServer() {
   // GET /api/tiktok/autorizar — devolve o endereço para O PRÓPRIO consultor
   // autorizar a conta dele. Fase 1: só quem está liberado a publicar
   // automaticamente pode chegar até aqui — mesma trava do Instagram/LinkedIn.
+  // GET /api/tiktok/status — a tela usa isto pra saber se JÁ está conectado.
+  //
+  // A gaveta tiktok_consultores é privada (só admin SDK lê, ver firestore.rules)
+  // porque guarda o refresh token. Esta rota é a única porta que o navegador do
+  // consultor tem pra saber "estou conectado?" — e ela nunca devolve o token,
+  // só o que é seguro mostrar na tela.
+  app.get("/api/tiktok/status", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const consultorId = String(caller.consultorId || "israel");
+
+    const snap = await adminFirestore().collection("tiktok_consultores").doc(consultorId).get();
+    const dados = snap.exists ? (snap.data() as any) : null;
+    return res.json({
+      conectado: Boolean(dados?.refreshToken),
+      openId: dados?.openId || null,
+      refreshExpiraEm: dados?.refreshExpiraEm || null,
+    });
+  });
+
   app.get("/api/tiktok/autorizar", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 

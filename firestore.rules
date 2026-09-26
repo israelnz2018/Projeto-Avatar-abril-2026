@@ -219,6 +219,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Refresh token do TikTok por consultor — mesma forma do bunny_libraries acima.
+    // O consultor nunca lê isto direto: a tela usa GET /api/tiktok/status, que
+    // devolve só se está conectado, nunca o token em si.
+    match /tiktok_consultores/{consultorId} {
+      allow read, write: if isAdmin();
+    }
+
     // Repasse B2B (repasses/{empresaId}): valor da NF + parcelas + trava do certificado.
     // Leitura: autenticado (o aluno precisa checar a trava do certificado da empresa dele).
     // Escrita: admin OU consultor (o dono do mundo registra/quita o repasse).

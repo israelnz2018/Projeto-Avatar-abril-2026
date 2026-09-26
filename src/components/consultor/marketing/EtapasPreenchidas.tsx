@@ -57,6 +57,103 @@ export function EtapaRedes({ config }: { config: MarketingConfig | null }) {
         <strong>YouTube:</strong> quando configurado, o Reel e o carrossel em vídeo também
         sobem sozinhos como YouTube Shorts — mesma regra: sem aprovação nem agendamento à parte.
       </p>
+      <CartaoTiktok />
+    </div>
+  );
+}
+
+/**
+ * TikTok tem cartão PRÓPRIO, não decorativo como os de cima.
+ *
+ * Os de Instagram/LinkedIn ainda têm o botão "Conectar" desabilitado — essa
+ * conexão acontece hoje por fora da tela. O TikTok é o primeiro em que o botão
+ * FUNCIONA de verdade: chama /api/tiktok/autorizar com o crachá de login do
+ * navegador (a rota exige isso, e abrir o link direto na barra de endereço
+ * não carrega esse crachá — foi o que travou o Israel na primeira tentativa).
+ */
+function CartaoTiktok() {
+  const [carregando, setCarregando] = useState(true);
+  const [status, setStatus] = useState<{ conectado: boolean; openId: string | null; refreshExpiraEm: string | null } | null>(null);
+  const [conectando, setConectando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const user = auth.currentUser;
+        const token = user ? await user.getIdToken() : '';
+        const r = await fetch('/api/tiktok/status', { headers: { Authorization: `Bearer ${token}` } });
+        const corpo = await r.json().catch(() => ({}));
+        if (vivo && r.ok) setStatus(corpo);
+      } finally {
+        if (vivo) setCarregando(false);
+      }
+    })();
+    return () => { vivo = false; };
+  }, []);
+
+  async function conectar() {
+    setConectando(true);
+    setErro('');
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/tiktok/autorizar', { headers: { Authorization: `Bearer ${token}` } });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      // Troca a página inteira pelo TikTok — é assim que qualquer login por
+      // OAuth funciona; a volta é a própria rota /api/tiktok/callback.
+      window.location.href = corpo.url;
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+      setConectando(false);
+    }
+  }
+
+  const diasRestantes = status?.refreshExpiraEm
+    ? Math.ceil((new Date(status.refreshExpiraEm).getTime() - Date.now()) / 86400000)
+    : null;
+
+  return (
+    <div className="p-4 rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="font-bold text-gray-900">TikTok</p>
+          {carregando
+            ? <p className="text-sm text-gray-500">Verificando…</p>
+            : status?.conectado
+              ? <p className="text-sm text-gray-700">Conectado{status.openId ? ` — ${status.openId}` : ''}</p>
+              : <p className="text-sm text-gray-500">Ainda não conectado.</p>}
+        </div>
+        {!carregando && (
+          status?.conectado ? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 shrink-0">
+              <CheckCircle2 className="w-4 h-4" /> Conectado
+            </span>
+          ) : (
+            <button
+              onClick={conectar}
+              disabled={conectando}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-semibold shrink-0 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {conectando ? 'Abrindo o TikTok…' : 'Conectar'}
+            </button>
+          )
+        )}
+      </div>
+      {status?.conectado && diasRestantes !== null && (
+        <p className={`text-xs mt-3 flex items-center gap-1.5 ${diasRestantes <= 30 ? 'text-amber-700' : 'text-gray-500'}`}>
+          <Clock className="w-3.5 h-3.5" />
+          A autorização vence em {diasRestantes} dias
+          {diasRestantes <= 30 && ' — será preciso reconectar.'}
+        </p>
+      )}
+      {erro && <p className="text-sm text-red-700 mt-2">{erro}</p>}
+      <p className="text-xs text-gray-500 mt-2">
+        Enquanto o app não passar pela auditoria do TikTok, os vídeos saem publicados como privados
+        — só você vê. Depois da auditoria, sem precisar reconectar, eles passam a sair públicos.
+      </p>
     </div>
   );
 }
