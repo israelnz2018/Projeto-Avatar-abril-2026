@@ -193,14 +193,14 @@ function PreviaConteudoTikTok({ peca }: { peca: Peca }) {
   const foto = peca.tipo === 'carrossel-feed';
   const arquivos = foto
     ? (peca.tiktokSlides || [])
-    : [peca.tiktokVideoUrl].filter(Boolean) as string[];
+    : [peca.tiktokVideoUrl || (peca.origem !== 'enviada' ? peca.arquivoUrl : null)].filter(Boolean) as string[];
   const [urls, setUrls] = useState<string[]>([]);
   const [erro, setErro] = useState('');
   useEffect(() => {
     let vivo = true;
     setUrls([]);
     setErro('');
-    if (!arquivos.length) { setErro('A versão TikTok limpa ainda não foi gerada.'); return () => { vivo = false; }; }
+    if (!arquivos.length) { setErro('Não há um arquivo de vídeo compatível para o TikTok.'); return () => { vivo = false; }; }
     Promise.all(arquivos.slice(0, 8).map((arquivo) => getDownloadURL(storageRef(storage, arquivo))))
       .then((enderecos) => { if (vivo) setUrls(enderecos); })
       .catch(() => { if (vivo) setErro('Não consegui carregar a prévia desta versão.'); });
@@ -209,7 +209,9 @@ function PreviaConteudoTikTok({ peca }: { peca: Peca }) {
 
   return (
     <div className="mt-2 rounded border border-gray-200 bg-white p-2">
-      <p className="mb-1 text-[10px] font-bold text-gray-600">Prévia exata enviada ao TikTok</p>
+      <p className="mb-1 text-[10px] font-bold text-gray-600">
+        {foto || peca.tiktokVideoUrl ? 'Prévia enviada ao TikTok' : 'Prévia do Reel; a faixa de marca será removida antes do envio'}
+      </p>
       {erro ? <p className="text-[10px] text-amber-700">{erro}</p> : urls.length === 0
         ? <p className="text-[10px] text-gray-500">Carregando prévia…</p>
         : foto
@@ -233,7 +235,7 @@ function ControleTikTok({
   const ehVideo = peca.tipo === 'reel' || peca.tipo === 'carrossel-video';
   const midiaTiktokDisponivel = peca.tipo === 'carrossel-feed'
     ? Boolean(peca.tiktokSlides?.length)
-    : Boolean(peca.tiktokVideoUrl);
+    : Boolean(peca.tiktokVideoUrl || (peca.origem !== 'enviada' && peca.arquivoUrl));
 
   useEffect(() => {
     if (!prepararNoAgendamento && !ativo) return;
@@ -288,7 +290,11 @@ function ControleTikTok({
         <p className="text-[10px] text-gray-600">TikTok não conectado. O agendamento seguirá normalmente para as outras redes conectadas.</p>
       )}
       {prepararNoAgendamento && peca.tiktokPreparacaoStatus === 'midia-pendente' && (
-        <p className="text-[10px] text-amber-800">Esta peça ainda não tem a versão limpa do TikTok. O agendamento seguirá para as outras redes; refaça-a e reagende para incluir o TikTok.</p>
+        <p className="text-[10px] text-amber-800">
+          {peca.origem === 'enviada'
+            ? 'Este vídeo enviado manualmente não tem uma versão sem a faixa de marca. Envie um arquivo original sem sobreposição para publicar no TikTok.'
+            : 'Não encontrei um vídeo compatível com o TikTok. O agendamento seguirá para as outras redes.'}
+        </p>
       )}
       {prepararNoAgendamento && peca.tiktokPreparacaoStatus === 'erro' && (
         <p className="text-[10px] text-red-700">Não consegui validar a conta TikTok. O agendamento seguirá para as outras redes e o TikTok ficará de fora.</p>
