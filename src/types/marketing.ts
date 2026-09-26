@@ -568,6 +568,18 @@ export interface PublicacaoDaPeca {
     erro?: string | null;
   };
   /**
+   * Mesma ideia do Facebook e do YouTube. `link` fica `null` por natureza da
+   * API do TikTok: o envio confirma que ENTROU na fila deles, não que já está
+   * no ar — a publicação em si é assíncrona do lado do TikTok.
+   */
+  tiktok?: {
+    status: 'publicada' | 'falhou';
+    postId?: string;
+    link?: string | null;
+    publicadoEm?: string;
+    erro?: string | null;
+  };
+  /**
    * `publicando` existe porque o Instagram leva minutos processando vídeo. Sem
    * este estado a tela ficava igual à de quem ainda não tentou, e o consultor
    * clicava em publicar de novo — gerando post repetido.

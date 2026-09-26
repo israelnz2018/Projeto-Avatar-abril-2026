@@ -1709,6 +1709,7 @@ function EstadoDaPublicacao({ peca }: { peca: Peca }) {
             para o consultor saber que também saiu, ou que precisa postar à mão. */}
         <SeloExtra rede="Facebook" dados={pub?.facebook} />
         <SeloExtra rede="YouTube" dados={pub?.youtube} />
+        <SeloExtra rede="TikTok" dados={pub?.tiktok} />
       </span>
     );
   }
