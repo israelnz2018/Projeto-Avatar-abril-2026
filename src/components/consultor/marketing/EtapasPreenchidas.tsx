@@ -288,7 +288,7 @@ function BotaoPromptYoutube({ video }: { video: VideoFonte }) {
           <textarea
             readOnly
             value={prompt}
-            rows={6}
+            rows={16}
             className="w-full text-xs text-gray-800 bg-white border border-gray-200 rounded p-2 resize-none"
             onFocus={(e) => e.currentTarget.select()}
           />

@@ -3449,23 +3449,37 @@ async function startServer() {
       const serie = String(video.serie || "").trim();
       const paleta = paletaDoVideo(video);
 
+      // O ASK STUDIO JÁ DEVOLVE 3 CONCEITOS por pedido, sozinho. Um pedido com um
+      // gancho só tende a voltar com 3 variações quase iguais desse mesmo gancho —
+      // o Ask Studio varia a composição, não a ideia. Pedir os 3 ÂNGULOS aqui, cada
+      // um preso a um trecho diferente e real do resumo, é o que faz as 3 opções
+      // que o Israel recebe lá serem de fato 3 escolhas, e não 3 vezes a mesma.
       const instrucao = `Você escreve o PEDIDO em português que um consultor vai colar na ferramenta de miniaturas por IA do YouTube Studio (Ask Studio). Não gere imagem nenhuma — só o texto do pedido.\n\n`
+        + `O Ask Studio devolve 3 opções de miniatura a partir de UM pedido só. Se o pedido tiver um gancho só, as 3 opções tendem a ser 3 variações quase iguais dele. Por isso o pedido pede 3 CONCEITOS, cada um com seu próprio gancho — presos a um ponto DIFERENTE e real da aula, não o mesmo ponto reescrito de outro jeito.\n\n`
         + `AULA: "${titulo}"${curso ? ` — curso ${curso}` : ""}${serie ? `, ${serie}` : ""}\n\n`
-        + `RESUMO DA AULA (a única fonte do gancho — não invente nada fora daqui):\n"""\n${resumo.slice(0, 4000)}\n"""\n\n`
-        + `Escreva o pedido seguindo TODAS estas regras, medidas e não de gosto:\n`
-        + `- O gancho tem MENOS DE 4 PALAVRAS. Acima disso o clique cai (dado medido).\n`
-        + `- O pedido descreve NO MÁXIMO 3 elementos visuais no quadro inteiro (apresentador, texto, e UM elemento de apoio). Acima de 3, o clique cai 23% (dado medido).\n`
+        + `RESUMO DA AULA (a única fonte dos ganchos — não invente nada fora daqui):\n"""\n${resumo.slice(0, 4000)}\n"""\n\n`
+        + `Monte o pedido com esta estrutura:\n`
+        + `1. Uma linha de abertura pedindo 3 conceitos de miniatura para o vídeo, no formato 16:9.\n`
+        + `2. Para CADA um dos 3 conceitos, numerado "Conceito 1", "Conceito 2", "Conceito 3":\n`
+        + `   - O gancho, entre aspas, preso a uma ideia, número ou tensão DIFERENTE da aula em cada conceito.\n`
+        + `   - Em uma frase, a composição: onde fica o apresentador, o texto e o único elemento de apoio.\n`
+        + `3. Uma seção final "Vale para os 3 conceitos", com as regras que não mudam:\n\n`
+        + `REGRAS que valem para os três, medidas e não de gosto:\n`
+        + `- Cada gancho tem MENOS DE 4 PALAVRAS. Acima disso o clique cai (dado medido).\n`
+        + `- Cada conceito descreve NO MÁXIMO 3 elementos visuais no quadro inteiro (apresentador, texto, e UM elemento de apoio). Acima de 3, o clique cai 23% (dado medido).\n`
         + `- Alto contraste, cores do curso: ${paleta}.\n`
-        + `- Formato 16:9, canto inferior direito do quadro livre (o YouTube sobrepõe a duração do vídeo ali).\n`
-        + `- Instrua explicitamente para manter o rosto do apresentador fiel, sem estilizar, caso o consultor anexe fotos de referência.\n`
-        + `- O gancho é uma tensão ou pergunta que a AULA responde de verdade — não uma promessa que ela não sustenta.\n`
-        + `- Escreva em português, em primeira pessoa ("crie uma miniatura..."), pronto para colar. Nada de explicação antes ou depois — só o pedido.`;
+        + `- Canto inferior direito do quadro livre em todos (o YouTube sobrepõe a duração do vídeo ali).\n`
+        + `- Manter o rosto do apresentador fiel, sem estilizar, caso o consultor anexe fotos de referência.\n`
+        + `- Cada gancho é uma tensão ou pergunta que a AULA responde de verdade — não uma promessa que ela não sustenta.\n`
+        + `- Escreva em português, em primeira pessoa ("crie 3 conceitos de miniatura..."), pronto para colar. Nada de explicação antes ou depois — só o pedido.`;
 
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       const gerado = await ai.models.generateContent({
         model: geminiModel,
         contents: [{ role: "user", parts: [{ text: instrucao }] }],
-        config: { temperature: 0.6, maxOutputTokens: 2048 },
+        // 3 conceitos saem mais longos que 1: o teto sobe de 2048 para 3072 para
+        // não cortar o terceiro conceito no meio.
+        config: { temperature: 0.6, maxOutputTokens: 3072 },
       });
       const motivo = gerado.candidates?.[0]?.finishReason;
       if (motivo === "MAX_TOKENS") throw new Error("A resposta da IA foi cortada pelo limite de tokens.");
