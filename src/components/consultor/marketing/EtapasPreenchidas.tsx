@@ -868,6 +868,7 @@ export function EtapaAgenda({
     const ok = await escrever(peca.id, {
       agendadoEm: diaISO(dia),
       agendadoHora: hora || peca.agendadoHora || horaSugerida(peca.tipo, dia, ocupadosNoDia(peca, dia)),
+      publicarNoTiktok: peca.publicarNoTiktok === true,
     });
     if (ok) {
       setAgendamentoPendente(null);
@@ -1266,6 +1267,16 @@ export function EtapaAgenda({
                             onChange={(e) => escrever(p.id, { agendadoHora: e.target.value })}
                             className="w-full px-1 py-0.5 rounded border border-gray-300 text-[11px]"
                           />
+                          {(p.tipo === 'reel' || p.tipo === 'carrossel-video') && (
+                            <label className="flex items-center gap-2 text-[10px] font-semibold text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={p.publicarNoTiktok === true}
+                                onChange={(e) => escrever(p.id, { publicarNoTiktok: e.target.checked })}
+                              />
+                              Publicar também no TikTok
+                            </label>
+                          )}
                           {!jaPublicada(p) && !p.pausada && (
                             <BotaoPublicarAgora peca={p} onMudou={onMudou} miudo />
                           )}
@@ -1298,6 +1309,19 @@ export function EtapaAgenda({
                     >
                       <div className="font-bold text-blue-900">{nomePeca(pendenteNesteDia.tipo)}</div>
                       <div className="truncate text-blue-800">{tituloDe(pendenteNesteDia)}</div>
+                      {(pendenteNesteDia.tipo === 'reel' || pendenteNesteDia.tipo === 'carrossel-video') && (
+                        <label className="mt-1 flex items-center gap-2 text-[10px] font-semibold text-blue-900">
+                          <input
+                            type="checkbox"
+                            checked={pendenteNesteDia.publicarNoTiktok === true}
+                            onChange={(e) => setAgendamentoPendente({
+                              ...agendamentoPendente!,
+                              peca: { ...pendenteNesteDia, publicarNoTiktok: e.target.checked },
+                            })}
+                          />
+                          Publicar também no TikTok
+                        </label>
+                      )}
                       <label className="mt-1 block text-[10px] font-bold uppercase text-blue-800">
                         Horário de publicação
                       </label>
@@ -1684,16 +1708,18 @@ export function redeDoTipo(tipo: TipoPeca): 'instagram' | 'linkedin' {
   return tipo.startsWith('linkedin') ? 'linkedin' : 'instagram';
 }
 
-export const REDES: { id: 'instagram' | 'linkedin' | 'facebook' | 'youtube'; nome: string }[] = [
+export const REDES: { id: 'instagram' | 'linkedin' | 'facebook' | 'youtube' | 'tiktok'; nome: string }[] = [
   { id: 'instagram', nome: 'Instagram' },
   { id: 'linkedin', nome: 'LinkedIn' },
   { id: 'facebook', nome: 'Facebook' },
   { id: 'youtube', nome: 'YouTube Shorts' },
+  { id: 'tiktok', nome: 'TikTok' },
 ];
 
 /** Indica se a peça chega a uma rede, inclusive quando é um destino automático. */
 export function pecaVaiParaRede(peca: Peca, rede: string): boolean {
   if (rede === 'instagram' || rede === 'linkedin') return redeDoTipo(peca.tipo) === rede;
+  if (rede === 'tiktok') return peca.publicarNoTiktok === true;
   return destinosAutomaticos(peca.tipo).some((destino) => (
     rede === 'facebook' ? destino.nome === 'Facebook' : destino.nome === 'YouTube Shorts'
   ));
@@ -1768,12 +1794,18 @@ function DestinosAutomaticos({ peca, compacto = false }: { peca: Peca; compacto?
   const principal = peca.tipo.startsWith('linkedin')
     ? { nome: 'LinkedIn', classe: 'bg-blue-50 text-blue-700' }
     : { nome: 'Instagram', classe: 'bg-pink-50 text-pink-700' };
-  const destinos = [principal, ...destinosAutomaticos(peca.tipo)];
+  const destinos = [
+    principal,
+    ...destinosAutomaticos(peca.tipo),
+    ...(peca.publicarNoTiktok === true && (peca.tipo === 'reel' || peca.tipo === 'carrossel-video')
+      ? [{ nome: 'TikTok', classe: 'bg-gray-900 text-white' }]
+      : []),
+  ];
 
   return (
     <span
       className={`flex flex-wrap items-center gap-1 ${compacto ? 'mt-0.5' : 'shrink-0'}`}
-      title="Serão publicados automaticamente junto com o Instagram"
+      title="Redes selecionadas para esta peça"
     >
       {destinos.map((destino) => (
         <span

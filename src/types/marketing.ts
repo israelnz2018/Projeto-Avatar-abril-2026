@@ -502,6 +502,8 @@ export interface Peca {
    */
   agendadoEm?: string;
   agendadoHora?: string;
+  /** Publicar o Reel/vídeo também no TikTok no horário agendado. */
+  publicarNoTiktok?: boolean;
   /**
    * Pausada: mantém o dia marcado, mas o relógio não publica.
    *
