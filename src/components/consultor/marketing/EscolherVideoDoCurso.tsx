@@ -10,9 +10,19 @@
  * plana de 253 linhas é pior do que não ter lista. Curso → módulo → aula.
  *
  * A aula NÃO é copiada, é apontada (ver `knowledgeBaseId` no tipo VideoFonte).
+ *
+ * SEM PORTÃO DE CLIQUE. A primeira versão escondia os três seletores atrás de
+ * um botão "Usar um vídeo dos meus cursos" — abrir, esperar carregar, só então
+ * escolher. Dois passos para uma coisa que devia ser um. Agora o catálogo é
+ * buscado assim que o componente aparece na tela, e quem renderiza este
+ * componente já decidiu que este é o caminho escolhido — não há mais "abrir".
+ *
+ * A base é filtrada por `consultorId` do lado do servidor
+ * (`/api/marketing-consultor/cursos`): cada consultor só recebe os PRÓPRIOS
+ * cursos e vídeos, nunca os de outro.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Check, Loader2, Plus } from 'lucide-react';
+import { Check, Loader2, Plus } from 'lucide-react';
 import { auth } from '../../../lib/firebase';
 
 interface Aula {
@@ -25,9 +35,8 @@ interface Modulo { modulo: string; aulas: Aula[] }
 interface Curso { curso: string; modulos: Modulo[]; total: number }
 
 export function EscolherVideoDoCurso({ onUsado }: { onUsado: () => void }) {
-  const [aberto, setAberto] = useState(false);
   const [cursos, setCursos] = useState<Curso[]>([]);
-  const [carregando, setCarregando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
 
@@ -36,10 +45,8 @@ export function EscolherVideoDoCurso({ onUsado }: { onUsado: () => void }) {
   const [aula, setAula] = useState('');
   const [usando, setUsando] = useState(false);
 
-  // Só busca o catálogo quando o painel abre: são 849 aulas, e quem só quer
-  // enviar um arquivo novo não precisa pagar essa leitura.
+  // Busca assim que a tela mostra este componente — sem clique de abertura.
   useEffect(() => {
-    if (!aberto || cursos.length || carregando) return;
     let vivo = true;
     (async () => {
       setCarregando(true);
@@ -61,7 +68,7 @@ export function EscolherVideoDoCurso({ onUsado }: { onUsado: () => void }) {
       }
     })();
     return () => { vivo = false; };
-  }, [aberto, cursos.length, carregando]);
+  }, []);
 
   const modulosDoCurso = useMemo(
     () => cursos.find((c) => c.curso === curso)?.modulos || [],
@@ -117,30 +124,8 @@ export function EscolherVideoDoCurso({ onUsado }: { onUsado: () => void }) {
     }
   }
 
-  if (!aberto) {
-    return (
-      <button
-        onClick={() => setAberto(true)}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-blue-300 bg-white text-blue-700 text-sm font-semibold hover:bg-blue-50"
-      >
-        <BookOpen className="w-4 h-4" />
-        Usar um vídeo dos meus cursos
-      </button>
-    );
-  }
-
   return (
     <section className="p-4 rounded-lg border border-blue-200 bg-blue-50/40">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-blue-700" />
-          Usar um vídeo dos meus cursos
-        </h3>
-        <button onClick={() => setAberto(false)} className="text-xs text-gray-600 hover:underline">
-          Fechar
-        </button>
-      </div>
-
       {carregando && (
         <p className="text-sm text-gray-600 flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin" /> Lendo os seus cursos…

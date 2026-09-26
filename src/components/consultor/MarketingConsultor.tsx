@@ -75,6 +75,10 @@ export default function MarketingConsultor() {
   const { consultor, consultorId } = useConsultor();
   const { isAdmin, loading } = useUserAccess();
   const [etapaAtiva, setEtapaAtiva] = useState<EtapaId>('config');
+  // Origem do vídeo, na etapa 3: 'existente' primeiro, porque 849 aulas já
+  // hospedadas e transcritas é o caminho que mais serve hoje — enviar arquivo
+  // novo é a exceção, não a regra.
+  const [origemVideo, setOrigemVideo] = useState<'existente' | 'novo'>('existente');
   const [configCompleta, setConfigCompleta] = useState(false);
   const dados = useDadosMarketing(consultorId);
   const criativos = useCriativos(consultorId);
@@ -210,10 +214,34 @@ export default function MarketingConsultor() {
 
               {etapaAtiva === 'videos' && (
                 <div className="space-y-4">
-                  <FormularioVideo consultorId={consultorId} onCriado={dados.recarregar} />
-                  {/* A segunda porta: 849 aulas já hospedadas e transcritas,
-                      que antes não tinham como entrar aqui. */}
-                  <EscolherVideoDoCurso onUsado={() => { dados.recarregar(); criativos.recarregar(); }} />
+                  {/* ESCOLHA SEMPRE VISÍVEL, sem botão de abrir escondendo nada.
+                      Antes "usar vídeo do curso" ficava atrás de um clique que
+                      só então buscava e mostrava os três seletores — dois
+                      passos para uma coisa que devia ser um. Agora a escolha
+                      em si já mostra o formulário certo, buscando na hora. */}
+                  <div className="inline-flex rounded-lg border border-gray-300 bg-gray-100 p-1">
+                    <button
+                      onClick={() => setOrigemVideo('existente')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-semibold transition ${
+                        origemVideo === 'existente' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      Vídeo que já tenho no curso
+                    </button>
+                    <button
+                      onClick={() => setOrigemVideo('novo')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-semibold transition ${
+                        origemVideo === 'novo' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      Enviar um vídeo novo
+                    </button>
+                  </div>
+
+                  {origemVideo === 'existente'
+                    ? <EscolherVideoDoCurso onUsado={() => { dados.recarregar(); criativos.recarregar(); }} />
+                    : <FormularioVideo consultorId={consultorId} onCriado={dados.recarregar} />}
+
                   <EtapaVideos
                     videos={dados.videos}
                     criativos={criativos.criativos}
