@@ -3234,6 +3234,25 @@ async function startServer() {
 
   const TIKTOK_REDIRECT = `${String(process.env.APP_URL || "https://app.educacaopelotrabalho.com").replace(/\/$/, "")}/api/tiktok/callback`;
 
+  // GET /tiktok<algo>.txt — o arquivo de verificação de propriedade do domínio.
+  //
+  // O TikTok exige provar que o domínio é seu antes de aceitar as URLs de
+  // política e termos. Um dos jeitos é servir um arquivo de 68 bytes que ele
+  // gera, num caminho da raiz.
+  //
+  // PRECISA DE ROTA PRÓPRIA: sem isto, `/tiktokXXXX.txt` cairia no `app.get('*')`
+  // lá embaixo, que devolve o index.html para qualquer caminho desconhecido — o
+  // TikTok receberia uma página HTML no lugar do texto e recusaria a
+  // verificação, sem dizer por quê.
+  //
+  // O conteúdo vem de variável de ambiente para o Israel poder colar no Railway
+  // e tentar de novo sem depender de um deploy novo a cada tentativa.
+  app.get(/^\/tiktok[A-Za-z0-9]*\.txt$/, (_req: any, res) => {
+    const conteudo = String(process.env.TIKTOK_VERIFICACAO || "").trim();
+    if (!conteudo) return res.status(404).type("text/plain").send("");
+    return res.type("text/plain").send(conteudo);
+  });
+
   // GET /api/tiktok/autorizar — devolve o endereço para o consultor autorizar.
   app.get("/api/tiktok/autorizar", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
