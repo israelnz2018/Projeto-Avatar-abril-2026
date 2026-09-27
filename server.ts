@@ -4423,7 +4423,7 @@ async function startServer() {
       const lote = adminFirestore().batch();
       let aprovadasMantidas = 0;
       for (const doc of anteriores.docs) {
-        if (String(doc.data()?.status || "") === "aprovada") { aprovadasMantidas += 1; continue; }
+        if (["aprovada", "convertida"].includes(String(doc.data()?.status || ""))) { aprovadasMantidas += 1; continue; }
         lote.delete(doc.ref);
       }
 
@@ -4452,6 +4452,82 @@ async function startServer() {
         .replace(/\bgemini\b/gi, "serviço de IA")
         .slice(0, 500);
       return res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // POST /api/marketing-consultor/pauta-vira-criativo — a pauta aprovada entra
+  // na MESMA esteira dos criativos que nascem de vídeo, e não numa paralela.
+  //
+  // Só cria o documento em marketing_criativos, com origem:"pesquisa" e sem
+  // `linhas` (não há transcrição — não há vídeo). É esse marcador que
+  // gerar-roteiro usa para saber que a base factual é o ângulo + as fontes da
+  // pesquisa, e não uma fala. Dali em diante — gerar-roteiro, gerar-tudo-aprovado,
+  // o worker — é o caminho que já existe, sem nenhuma mudança: o Reel já falha
+  // sozinho, sem derrubar o carrossel, quando falta vídeo (ver o try/catch em
+  // torno de gerar-reel), que é exatamente o caso aqui.
+  app.post("/api/marketing-consultor/pauta-vira-criativo", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const pautaId = String(req.body?.pautaId || "").trim();
+    if (!pautaId) return res.status(400).json({ error: "Informe a pauta." });
+
+    try {
+      const dbAdmin = adminFirestore();
+      const pautaRef = dbAdmin.collection("marketing_pautas").doc(pautaId);
+      const pautaSnap = await pautaRef.get();
+      if (!pautaSnap.exists) return res.status(404).json({ error: "Pauta não encontrada." });
+      const pauta = pautaSnap.data() as any;
+      if (!isAdmin && String(pauta.consultorId || "") !== consultorId) {
+        return res.status(403).json({ error: "Pauta não pertence a este consultor." });
+      }
+      if (pauta.status === "convertida" && pauta.criativoId) {
+        return res.status(202).json({ estado: "ja-convertida", criativoId: pauta.criativoId });
+      }
+      if (pauta.status !== "aprovada" && pauta.status !== "convertida") {
+        return res.status(400).json({ error: "Aprove a pauta antes de gerar o criativo." });
+      }
+
+      const agora = new Date().toISOString();
+      // Mesmo formato de id do vídeo (campanhaId__NNNNN), trocando o segundo pelo
+      // sufixo da pauta: aqui não há tempo de vídeo para usar como posição.
+      const criativoId = `${consultorId}__pauta__${pautaId.slice(-12)}`;
+      const criativoRef = dbAdmin.collection("marketing_criativos").doc(criativoId);
+      await criativoRef.set({
+        id: criativoId,
+        consultorId,
+        origem: "pesquisa",
+        pautaId,
+        videoId: "",
+        titulo: String(pauta.titulo || "").trim().slice(0, 80),
+        angulo: String(pauta.angulo || "").trim(),
+        porQueAgora: String(pauta.porQueAgora || "").trim(),
+        fontes: Array.isArray(pauta.fontes) ? pauta.fontes : [],
+        linhas: [],
+        ordem: 1,
+        status: "novo",
+        criadoEm: agora,
+      }, { merge: true });
+
+      await pautaRef.update({ status: "convertida", criativoId, convertidoEm: agora });
+      return res.json({ criativoId });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/pauta-vira-criativo] erro:", error);
+      return res.status(500).json({ error: String(error?.message || "Não foi possível gerar o criativo desta pauta.").slice(0, 500) });
     }
   });
 
@@ -4526,16 +4602,44 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const dono = String(criativo.consultorId || "");
       if (!isAdmin && dono !== consultorId) return res.status(403).json({ error: "Criativo não pertence a este consultor." });
 
-      // O texto é montado do mesmo jeito que a tela mostra: sem as falas apagadas e
-      // COM as correções do consultor. O que ele aprovou é o que a IA recebe.
-      const apagadas = new Set<number>(Array.isArray(criativo.linhasApagadas) ? criativo.linhasApagadas : []);
-      const fala = (criativo.linhas || [])
-        .map((l: any, i: number) => ({ i, texto: String(criativo.edicoes?.[String(i)] ?? l.texto ?? "") }))
-        .filter((l: any) => !apagadas.has(l.i) && l.texto.trim())
-        .map((l: any) => l.texto.trim())
-        .join(" ");
-      if (fala.split(/\s+/).length < 20) {
-        return res.status(400).json({ error: "Este criativo tem fala curta demais para virar um carrossel." });
+      // ORIGEM DO CONTEÚDO: vídeo (fala real) ou pesquisa (ângulo + fontes reais).
+      //
+      // As duas garantias são a MESMA ideia — nada que não veio de algum lugar
+      // verificável — só a fonte muda. Fora deste bloco, o prompt (gramática dos
+      // slides, os três textos de publicar) é IDÊNTICO nos dois casos.
+      const ehDePesquisa = criativo.origem === "pesquisa";
+      let baseFactual: string;
+      let enquadramento: string;
+      let regraDeOrigem: string;
+      if (ehDePesquisa) {
+        const angulo = String(criativo.angulo || "").trim();
+        if (!angulo) return res.status(400).json({ error: "Esta pauta não tem ângulo definido." });
+        const fontesTexto = (Array.isArray(criativo.fontes) ? criativo.fontes : [])
+          .map((f: any) => `- ${String(f?.titulo || f?.url || "").trim()} (${String(f?.url || "").trim()})`)
+          .join("\n");
+        baseFactual = `ASSUNTO (de uma pesquisa na internet — não é fala de uma aula):\n"""\n`
+          + `Ângulo: ${angulo}\n`
+          + (criativo.porQueAgora ? `Por que agora: ${String(criativo.porQueAgora).trim()}\n` : "")
+          + `\nFontes que a pesquisa realmente abriu — a base factual, use só o que elas sustentam:\n${fontesTexto || "(nenhuma)"}\n"""`;
+        enquadramento = "Escreva as páginas de um carrossel de Instagram a partir DESTE assunto, apoiado nas fontes.";
+        regraDeOrigem = "- O conteúdo sai do ângulo e das fontes. Você desenvolve o raciocínio; não acrescenta dado,\n"
+          + "  número ou exemplo que as fontes não sustentam — e não cita URL dentro do texto.\n";
+      } else {
+        // O texto é montado do mesmo jeito que a tela mostra: sem as falas apagadas e
+        // COM as correções do consultor. O que ele aprovou é o que a IA recebe.
+        const apagadas = new Set<number>(Array.isArray(criativo.linhasApagadas) ? criativo.linhasApagadas : []);
+        const fala = (criativo.linhas || [])
+          .map((l: any, i: number) => ({ i, texto: String(criativo.edicoes?.[String(i)] ?? l.texto ?? "") }))
+          .filter((l: any) => !apagadas.has(l.i) && l.texto.trim())
+          .map((l: any) => l.texto.trim())
+          .join(" ");
+        if (fala.split(/\s+/).length < 20) {
+          return res.status(400).json({ error: "Este criativo tem fala curta demais para virar um carrossel." });
+        }
+        baseFactual = `FALA DO CONSULTOR (transcrição literal de um trecho da aula dele):\n"""\n${fala}\n"""`;
+        enquadramento = "Escreva as páginas de um carrossel de Instagram a partir DESTA fala.";
+        regraDeOrigem = "- O conteúdo sai da fala. Você reorganiza e enxuga; não acrescenta ideia que não está lá,\n"
+          + "  não inventa número, não inventa exemplo.\n";
       }
 
       const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
@@ -4544,19 +4648,18 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
       const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
       if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
 
-      const prompt = `FALA DO CONSULTOR (transcrição literal de um trecho da aula dele):\n"""\n${fala}\n"""\n\n`
-        + `Escreva as páginas de um carrossel de Instagram a partir DESTA fala.\n\n`
-        + `TITULO DEFINIDO PELO CONSULTOR: "${String(criativo.titulo || "").replace(/\*/g, "").trim()}". A primeira pagina e a capa e deve usar EXATAMENTE esse texto no campo "title". Nao substitua por um titulo antigo nem por outra pergunta. Esse mesmo titulo deve orientar a capa, o Reel e os textos de publicacao.\n\n`
+      const prompt = `${baseFactual}\n\n`
+        + `${enquadramento}\n\n`
+        + `TITULO DEFINIDO PELO CONSULTOR: "${String(criativo.titulo || "").replace(/\*/g, "").trim()}". A primeira pagina e a capa e deve usar EXATAMENTE esse texto no campo "title". Nao substitua por um titulo antigo nem por outra pergunta. Esse mesmo titulo deve orientar a capa e os textos de publicacao.\n\n`
         + `O que vale:\n`
-        + `- O conteúdo sai da fala. Você reorganiza e enxuga; não acrescenta ideia que não está lá,\n`
-        + `  não inventa número, não inventa exemplo.\n`
+        + regraDeOrigem
         + `- Escreva como quem fala com um colega: frase curta, voz ativa, sem jargão de marketing\n`
         + `  e sem palavra pomposa. Nada de "descubra", "revolucionário", "você não vai acreditar".\n`
         + `- A capa precisa fazer parar de rolar: uma afirmação forte ou um incômodo reconhecível,\n`
         + `  tirado da própria fala.\n`
         + `- Cada página avança o raciocínio. Se duas páginas dizem a mesma coisa, junte e faça menos.\n\n`
         + `${GRAMATICA_SLIDES}\n\n`
-        + `\nAlém das páginas, escreva TRÊS textos para publicar, a partir da MESMA fala:\n\n`
+        + `\nAlém das páginas, escreva TRÊS textos para publicar, a partir d${ehDePesquisa ? "o mesmo assunto" : "a MESMA fala"}:\n\n`
         + `"artigoLinkedin": o texto do post do LinkedIn, pronto para colar. De 150 a 300 palavras.\n`
         + `  Primeira linha é o gancho, sozinha. Parágrafos curtos, separados por linha em branco.\n`
         + `  Sem hashtag no meio; no máximo três no fim. Sem emoji. Termina com uma pergunta.\n`
@@ -4568,7 +4671,7 @@ REGRAS QUE NÃO PODEM SER QUEBRADAS
         + `  Até cinco hashtags na ÚLTIMA linha, específicas do assunto — nada de\n`
         + `  #sucesso ou #motivacao.\n`
         + `  Até cinco hashtags no fim, específicas do assunto — nada de #sucesso ou #motivacao.\n\n`
-        + `Os três saem da fala, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
+        + `Os três saem d${ehDePesquisa ? "as fontes" : "a fala"}, como as páginas: sem inventar número, exemplo nem promessa.\n\n`
         + `QUEBRA DE LINHA, nos dois: separe cada parágrafo com uma linha em branco DE\n`
         + `VERDADE — o caractere de nova linha, escrito como \\n dentro do texto do JSON.\n`
         + `Um bloco corrido não se publica: no Instagram ninguém lê, e no LinkedIn o\n`

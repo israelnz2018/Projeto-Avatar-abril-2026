@@ -187,6 +187,17 @@ export interface Criativo {
   titulo: string;
   linhas: LinhaCriativo[];
   /**
+   * 'pesquisa': nasceu de uma PautaPesquisa aprovada, não de um vídeo. `linhas`
+   * vem vazio nesse caso — não existe fala para transcrever. `angulo` e `fontes`
+   * são a base factual que gerar-roteiro usa no lugar da fala. Ausente (vídeo
+   * normal) é tratado como 'video' em todo lugar que checa isto.
+   */
+  origem?: 'video' | 'pesquisa';
+  pautaId?: string;
+  angulo?: string;
+  porQueAgora?: string;
+  fontes?: FonteDaPauta[];
+  /**
    * Índices das falas que o consultor apagou. Apagar as primeiras encurta o começo,
    * as últimas encurtam o fim, e uma do meio abre um buraco — ver `temBuraco`.
    */
@@ -658,7 +669,10 @@ export interface FonteDaPauta {
   url: string;
 }
 
-export type StatusPauta = 'nova' | 'aprovada' | 'descartada';
+// 'convertida': já virou criativo (marketing_criativos). Continua contando como
+// aprovada para "pesquisar de novo" não apagá-la, mas o cartão para de oferecer
+// "Gerar criativo" de novo — evita duplicar a mesma pauta em dois criativos.
+export type StatusPauta = 'nova' | 'aprovada' | 'convertida' | 'descartada';
 
 /**
  * Um assunto que a pesquisa trouxe da internet. Coleção: marketing_pautas

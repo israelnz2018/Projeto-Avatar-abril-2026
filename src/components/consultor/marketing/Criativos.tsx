@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import {
-  Check, Pencil, Trash2, Loader2, Sparkles, RotateCcw, Clock, X,
+  Check, Pencil, Trash2, Loader2, Sparkles, RotateCcw, Clock, Globe, X,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import {
@@ -318,14 +318,28 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
 
           {/* O TRECHO é o cabeçalho, não o título: o que identifica um criativo é
               onde ele está na aula — dá pra ir no vídeo e conferir. O nome que a IA
-              inventou é secundário, e muda a cada geração. */}
-          <p className="font-bold text-gray-900 mt-1.5 flex items-center gap-1.5 flex-wrap">
-            <Clock className="w-4 h-4 text-gray-400" />
-            {formatarDuracao(inicioNoVideo(previa))} – {formatarDuracao(fimNoVideo(previa))}
-            <span className="font-normal text-gray-500">
-              · {formatarDuracao(duracaoCriativo(previa))} de vídeo
-            </span>
-          </p>
+              inventou é secundário, e muda a cada geração.
+              Criativo de pesquisa não tem vídeo — mostrar "0:00 – 0:00" aqui seria
+              inventar um dado que não existe, então o cabeçalho vira outro. */}
+          {criativo.origem === 'pesquisa'
+            ? (
+              <p className="font-bold text-gray-900 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                <Globe className="w-4 h-4 text-gray-400" />
+                Da pesquisa
+                {criativo.angulo && (
+                  <span className="font-normal text-gray-500 truncate max-w-md">· {criativo.angulo}</span>
+                )}
+              </p>
+            )
+            : (
+              <p className="font-bold text-gray-900 mt-1.5 flex items-center gap-1.5 flex-wrap">
+                <Clock className="w-4 h-4 text-gray-400" />
+                {formatarDuracao(inicioNoVideo(previa))} – {formatarDuracao(fimNoVideo(previa))}
+                <span className="font-normal text-gray-500">
+                  · {formatarDuracao(duracaoCriativo(previa))} de vídeo
+                </span>
+              </p>
+            )}
 
           {revisando
             ? (
@@ -362,9 +376,12 @@ function CartaoCriativo({ criativo, onMudou }: { criativo: Criativo; onMudou: ()
                   Aprovar e gerar
                 </button>
               )}
-            <BotaoAcao onClick={abrirRevisao} disabled={ocupado} titulo="Revisar — apara o começo e o fim">
-              <Pencil className="w-4 h-4" />
-            </BotaoAcao>
+            {/* Revisar apara falas de uma transcrição — não existe fala aqui. */}
+            {criativo.origem !== 'pesquisa' && (
+              <BotaoAcao onClick={abrirRevisao} disabled={ocupado} titulo="Revisar — apara o começo e o fim">
+                <Pencil className="w-4 h-4" />
+              </BotaoAcao>
+            )}
             <BotaoAcao onClick={apagar} disabled={ocupado} titulo="Deletar" cor="vermelho">
               <Trash2 className="w-4 h-4" />
             </BotaoAcao>

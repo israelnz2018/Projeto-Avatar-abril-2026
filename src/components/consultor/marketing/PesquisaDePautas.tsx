@@ -16,7 +16,7 @@ import {
   collection, doc, getDocs, query, updateDoc, where,
 } from 'firebase/firestore';
 import {
-  Check, ExternalLink, Globe, Loader2, RotateCcw, Search, Trash2,
+  Check, ExternalLink, Globe, Loader2, RotateCcw, Search, Sparkles, Trash2,
 } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import { COLECOES, MarketingConfig, PautaPesquisa } from '../../../types/marketing';
@@ -246,7 +246,9 @@ export function PainelPesquisa({
 function CartaoPauta({ pauta, onMudou }: { pauta: PautaPesquisa; onMudou: () => void }) {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
+  const [gerando, setGerando] = useState(false);
   const aprovada = pauta.status === 'aprovada';
+  const convertida = pauta.status === 'convertida';
 
   async function mudarStatus(status: PautaPesquisa['status']) {
     setOcupado(true);
@@ -263,17 +265,47 @@ function CartaoPauta({ pauta, onMudou }: { pauta: PautaPesquisa; onMudou: () => 
     }
   }
 
+  // Vira um criativo (marketing_criativos) na MESMA esteira dos que nascem de
+  // vídeo — carrossel de fotos + os três textos, sem Reel (não há vídeo aqui).
+  // Ver server.ts: /pauta-vira-criativo.
+  async function gerarCriativo() {
+    setGerando(true);
+    setErro('');
+    try {
+      const user = auth.currentUser;
+      const token = user ? await user.getIdToken() : '';
+      const r = await fetch('/api/marketing-consultor/pauta-vira-criativo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pautaId: pauta.id }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
+      onMudou();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setGerando(false);
+    }
+  }
+
   if (pauta.status === 'descartada') return null;
 
   return (
-    <div className={`p-4 rounded-lg border bg-white ${aprovada ? 'border-green-300' : 'border-gray-200'}`}>
+    <div className={`p-4 rounded-lg border bg-white ${aprovada || convertida ? 'border-green-300' : 'border-gray-200'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {aprovada && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
-              Aprovada
-            </span>
-          )}
+          {convertida
+            ? (
+              <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
+                Virou criativo
+              </span>
+            )
+            : aprovada && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
+                Aprovada
+              </span>
+            )}
           <p className="font-bold text-gray-900 mt-1.5">{pauta.titulo}</p>
           <p className="text-sm text-gray-700 mt-1.5">
             <span className="font-semibold text-gray-500">Ângulo: </span>
@@ -289,38 +321,58 @@ function CartaoPauta({ pauta, onMudou }: { pauta: PautaPesquisa; onMudou: () => 
 
         {/* Mesma disposição dos criativos: ações à direita, na linha do título. */}
         <div className="flex items-center gap-1 shrink-0">
-          {aprovada
-            ? (
-              <button
-                onClick={() => mudarStatus('nova')}
-                disabled={ocupado}
-                title="Desfazer aprovação"
-                className="p-2 rounded-lg text-gray-400 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-40"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            )
-            : (
-              <button
-                onClick={() => mudarStatus('aprovada')}
-                disabled={ocupado}
-                title="Aprovar esta pauta"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold shadow-sm hover:bg-green-700 hover:shadow disabled:opacity-50 disabled:cursor-wait transition"
-              >
-                {ocupado
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <Check className="w-4 h-4" />}
-                Aprovar
-              </button>
-            )}
-          <button
-            onClick={() => mudarStatus('descartada')}
-            disabled={ocupado}
-            title="Descartar — some da lista"
-            className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {/* Depois de virar criativo, a pauta não volta atrás por aqui — desfazer
+              teria de lidar com o criativo já criado, e a lixeira do criativo (na
+              tela de Criativos) já resolve quem quer descartar. */}
+          {!convertida && (
+            aprovada
+              ? (
+                <>
+                  <button
+                    onClick={gerarCriativo}
+                    disabled={ocupado || gerando}
+                    title="Gerar o carrossel e os textos a partir desta pauta"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-sm hover:bg-blue-700 hover:shadow disabled:opacity-50 disabled:cursor-wait transition"
+                  >
+                    {gerando
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Sparkles className="w-4 h-4" />}
+                    Gerar criativo
+                  </button>
+                  <button
+                    onClick={() => mudarStatus('nova')}
+                    disabled={ocupado || gerando}
+                    title="Desfazer aprovação"
+                    className="p-2 rounded-lg text-gray-400 hover:text-blue-700 hover:bg-blue-50 disabled:opacity-40"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                </>
+              )
+              : (
+                <button
+                  onClick={() => mudarStatus('aprovada')}
+                  disabled={ocupado}
+                  title="Aprovar esta pauta"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-bold shadow-sm hover:bg-green-700 hover:shadow disabled:opacity-50 disabled:cursor-wait transition"
+                >
+                  {ocupado
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Check className="w-4 h-4" />}
+                  Aprovar
+                </button>
+              )
+          )}
+          {!convertida && (
+            <button
+              onClick={() => mudarStatus('descartada')}
+              disabled={ocupado}
+              title="Descartar — some da lista"
+              className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -348,8 +400,15 @@ function CartaoPauta({ pauta, onMudou }: { pauta: PautaPesquisa; onMudou: () => 
 
       {aprovada && (
         <p className="text-xs text-gray-500 mt-2.5">
-          Guardada. Transformar pauta aprovada em copy e em peça é o próximo passo —
-          ainda não está ligado.
+          Guardada. Clique em <strong>Gerar criativo</strong> para a IA escrever o carrossel
+          e os textos a partir deste ângulo — vai para a aba Criativos, onde você revisa e
+          aprova antes de virar peça, como qualquer outro criativo.
+        </p>
+      )}
+      {convertida && (
+        <p className="text-xs text-gray-500 mt-2.5">
+          Virou criativo. Vá na aba <strong>Criativos</strong> para revisar a copy e aprovar —
+          o carrossel de fotos e os textos saem de lá, sem Reel (esta pauta não tem vídeo).
         </p>
       )}
 
