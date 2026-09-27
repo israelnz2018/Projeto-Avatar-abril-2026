@@ -234,8 +234,14 @@ function ControleTikTok({
   const [erro, setErro] = useState('');
   const ativo = peca.publicarNoTiktok === true;
   const ehVideo = peca.tipo === 'reel' || peca.tipo === 'carrossel-video';
+  // Vídeo (reel/carrossel-video) já aceitava a peça sem tiktokVideoUrl pronto,
+  // porque o worker sabe recortar a marca na hora de publicar (arquivoVideoTikTok).
+  // Carrossel de fotos ganhou o mesmo plano B (slidesLimposDoCarrosselTiktok) —
+  // por isso agora também aceita sem tiktokSlides pronto, contanto que as fotos
+  // normais (peca.arquivos) existam. Sem isto, uma peça "Refeita" individualmente
+  // (que perde a versão limpa) ficaria bloqueada aqui mesmo já podendo publicar.
   const midiaTiktokDisponivel = peca.tipo === 'carrossel-feed'
-    ? Boolean(peca.tiktokSlides?.length)
+    ? Boolean(peca.tiktokSlides?.length) || (peca.origem !== 'enviada' && (peca.arquivos?.length ?? 0) >= 2)
     : Boolean(peca.tiktokVideoUrl || (peca.origem !== 'enviada' && peca.arquivoUrl));
 
   useEffect(() => {
@@ -293,8 +299,14 @@ function ControleTikTok({
       {prepararNoAgendamento && peca.tiktokPreparacaoStatus === 'midia-pendente' && (
         <p className="text-[10px] text-amber-800">
           {peca.origem === 'enviada'
-            ? 'Este vídeo enviado manualmente não tem uma versão sem a faixa de marca. Envie um arquivo original sem sobreposição para publicar no TikTok.'
-            : 'Não encontrei um vídeo compatível com o TikTok. O agendamento seguirá para as outras redes.'}
+            ? `Este ${ehVideo ? 'vídeo' : 'arquivo'} enviado manualmente não tem uma versão sem a faixa de marca. Envie um arquivo original sem sobreposição para publicar no TikTok.`
+            : ehVideo
+              ? 'Não encontrei um vídeo compatível com o TikTok. O agendamento seguirá para as outras redes.'
+              // Carrossel de fotos: a mensagem antiga falava em "vídeo", que não existe
+              // aqui — confundia sem dizer o que fazer. O publish-time já tem plano B
+              // (gera as imagens limpas na hora, ver publicarCarrosselFotosTiktok), então
+              // isto só aparece se nem as fotos normais existirem ainda.
+              : 'As imagens deste carrossel ainda não terminaram de gerar. O agendamento seguirá para as outras redes; tente de novo em alguns instantes.'}
         </p>
       )}
       {prepararNoAgendamento && peca.tiktokPreparacaoStatus === 'erro' && (
