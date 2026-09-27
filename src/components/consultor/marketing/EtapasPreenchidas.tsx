@@ -1449,9 +1449,11 @@ export function EtapaAgenda({
             Aprovadas, sem dia marcado ({naFila.length})
           </h3>
         </div>
-        <p className="text-xs text-gray-600 mb-3">
+        <p className="text-xs text-gray-600 mb-3 rounded-md bg-blue-50 px-2.5 py-2">
           Cada linha é um assunto, com as peças que saíram dele. Abra o assunto e
-          arraste a peça para o dia — ou clique nela e depois no dia.
+          arraste a peça para o dia. <strong>Se o dia estiver fora da tela</strong> (arrastar
+          não rola a página sozinho), clique na peça — ela fica com contorno azul —,
+          role até o dia certo, e clique nele. Sem precisar arrastar.
         </p>
         {redes.has('tiktok') && (
           <p className="text-xs text-gray-600 mb-3 rounded-md bg-gray-50 px-2.5 py-2">
