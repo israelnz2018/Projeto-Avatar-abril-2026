@@ -301,62 +301,184 @@ function ControleTikTok({
         <p className="text-[10px] text-red-700">Não consegui validar a conta TikTok. O agendamento seguirá para as outras redes e o TikTok ficará de fora.</p>
       )}
       {ativo && info && (
-        <div className="rounded border border-gray-200 bg-gray-50 p-2 text-[10px] text-gray-700 space-y-1.5">
-          <p>Conta de destino: <strong>@{info.username}</strong></p>
-          <label className="block">
-            Quem pode ver
-            <select
-              value={peca.tiktokPrivacyLevel || 'SELF_ONLY'}
-              onChange={(e) => aoAlterar({ tiktokPrivacyLevel: e.target.value })}
-              className="mt-0.5 block w-full rounded border border-gray-300 bg-white px-2 py-1 text-[10px]"
-            >
-              {info.privacyLevelOptions.map((opcao) => <option key={opcao} value={opcao}>{opcao === 'SELF_ONLY' ? 'Somente você' : opcao === 'PUBLIC_TO_EVERYONE' ? 'Todos' : opcao === 'MUTUAL_FOLLOW_FRIENDS' ? 'Amigos' : 'Seguidores'}</option>)}
-            </select>
-          </label>
-          {info.sandbox && <p className="text-amber-800">Sandbox/sem auditoria: o post fica privado, visível só para você.</p>}
-          {prepararNoAgendamento && (
-            <p className="font-semibold">
-              Ao confirmar o agendamento, você autoriza o envio desta versão e da legenda para @{info.username}.
-              {ehVideo && ' Você também confirma que tem direito de usar o áudio e aceita a Confirmação de Uso de Música do TikTok.'}
-            </p>
+        <PainelTikTok
+          peca={peca}
+          info={info}
+          ehVideo={ehVideo}
+          prepararNoAgendamento={prepararNoAgendamento}
+          aoAlterar={aoAlterar}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Nome de cada privacidade, do jeito que o TikTok chama na interface dele. */
+const PRIVACIDADE_TIKTOK: Record<string, string> = {
+  SELF_ONLY: 'Somente você',
+  PUBLIC_TO_EVERYONE: 'Todos',
+  MUTUAL_FOLLOW_FRIENDS: 'Amigos',
+  FOLLOWER_OF_CREATOR: 'Seguidores',
+};
+
+/**
+ * O painel do TikTok, RECOLHIDO por padrão.
+ *
+ * O Israel, vendo a coluna de avisos ao lado do que o Instagram pede: "este
+ * monte de mensagens apenas para postar um reel... eu só quero colocar o
+ * criativo, saber para onde vai, aprovar a hora e apertar um botão".
+ *
+ * A reclamação é justa, mas nada aqui pode simplesmente sumir: as Content
+ * Sharing Guidelines exigem, ANTES do botão de publicar, cinco coisas — a conta
+ * de destino, uma prévia do conteúdo, o seletor de privacidade SEM valor
+ * padrão, o controle de conteúdo comercial e a declaração de consentimento. É
+ * por isso que o TikTok dá mais trabalho que Instagram, Facebook e YouTube
+ * juntos: nas outras três a publicação é carona, sem escolha por peça.
+ *
+ * A saída é a hierarquia, não o corte: em uma linha fica o que ele precisa
+ * saber para seguir (conta e privacidade). O resto — prévia, conteúdo
+ * comercial, texto legal — fica atrás de "ajustar", a um clique, para quem
+ * quiser mudar algo. O que é obrigatório MOSTRAR antes de publicar continua
+ * visível; o que é obrigatório OFERECER continua acessível.
+ */
+function PainelTikTok({
+  peca, info, ehVideo, prepararNoAgendamento, aoAlterar,
+}: {
+  peca: Peca;
+  info: TikTokCreatorInfo;
+  ehVideo: boolean;
+  prepararNoAgendamento: boolean;
+  aoAlterar: (dados: Record<string, unknown>) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const escolhida = peca.tiktokPrivacyLevel || '';
+  const comercial = peca.tiktokPromoteOwnBrand === true || peca.tiktokBrandedContent === true;
+  const conflito = conflitoDeMarcaEPrivacidade({
+    tipo: peca.tipo,
+    tiktokBrandedContent: peca.tiktokBrandedContent === true,
+    tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
+    declaracaoExibida: true,
+  });
+
+  /*
+   * RESOLVIDO = já escolheu a privacidade e não há conflito.
+   *
+   * O pedido do Israel: "e o que for obrigatório, permita que abra um dropdown,
+   * e então depois de eu aprovar, ele fique no tamanho dos outros". É o que esta
+   * variável faz: enquanto falta decidir, o painel ocupa espaço e chama atenção;
+   * decidido, encolhe para UMA LINHA, do tamanho dos selos das outras redes.
+   *
+   * O TikTok continua atendido: a conta de destino e a privacidade escolhida
+   * seguem visíveis nessa linha, e tudo o mais fica a um clique em "ajustar".
+   */
+  const resolvido = Boolean(escolhida) && !conflito;
+
+  if (resolvido && !aberto) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] text-gray-700">
+        <span className="font-bold text-gray-900">TikTok</span>
+        <span>@{info.username}</span>
+        <span className="text-gray-400">·</span>
+        <span>{PRIVACIDADE_TIKTOK[escolhida] || escolhida}</span>
+        {comercial && (
+          <span className="text-amber-800">
+            · {peca.tiktokBrandedContent ? 'Parceria paga' : 'Promocional'}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setAberto(true)}
+          className="ml-auto rounded border border-gray-300 bg-white px-1.5 py-0.5 font-semibold text-gray-600 hover:bg-gray-100"
+        >
+          ajustar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded border border-gray-200 bg-gray-50 p-2 text-[10px] text-gray-700 space-y-1.5">
+      {/* A linha que resolve o caso comum: para onde vai e quem vê. */}
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+        <span>Vai para <strong>@{info.username}</strong></span>
+        <span className="text-gray-400">·</span>
+        {/* Sem valor padrão, por exigência do TikTok: "users must manually
+            select the privacy status and there should be no default value". */}
+        <select
+          value={escolhida}
+          onChange={(e) => aoAlterar({ tiktokPrivacyLevel: e.target.value })}
+          className={`rounded border bg-white px-1.5 py-0.5 text-[10px] ${
+            escolhida ? 'border-gray-300' : 'border-amber-400 text-amber-800'
+          }`}
+        >
+          <option value="">Quem pode ver?</option>
+          {info.privacyLevelOptions.map((opcao) => (
+            <option key={opcao} value={opcao}>{PRIVACIDADE_TIKTOK[opcao] || opcao}</option>
+          ))}
+        </select>
+        {/* "pronto" só aparece quando há o que concluir: com a privacidade
+            escolhida e sem conflito, fechar devolve o painel a uma linha. */}
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          disabled={aberto && !resolvido}
+          className={`ml-auto rounded border px-1.5 py-0.5 font-semibold ${
+            aberto && resolvido
+              ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
+              : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-100 disabled:opacity-40'
+          }`}
+        >
+          {aberto ? (resolvido ? 'pronto' : 'escolha acima') : 'ajustar'}
+        </button>
+      </div>
+
+      {!escolhida && (
+        <p className="text-amber-800">Escolha quem pode ver — o TikTok não deixa deixar em branco.</p>
+      )}
+      {comercial && (
+        <p className="text-amber-800">
+          Sairá marcado como {peca.tiktokBrandedContent ? '“Parceria paga”' : '“Conteúdo promocional”'}.
+        </p>
+      )}
+      {conflito && (
+        <p className="rounded border border-red-200 bg-red-50 p-1.5 font-semibold text-red-800">{conflito}</p>
+      )}
+
+      {aberto && (
+        <div className="space-y-1.5 border-t border-gray-200 pt-1.5">
+          {info.sandbox && (
+            <p className="text-amber-800">Enquanto o app não passa pela auditoria do TikTok, o post sai privado — só você vê.</p>
           )}
           <PreviaConteudoTikTok peca={peca} />
           <label className="flex items-start gap-1.5">
-            <input type="checkbox" checked={peca.tiktokPromoteOwnBrand === true} onChange={(e) => aoAlterar({ tiktokPromoteOwnBrand: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={peca.tiktokPromoteOwnBrand === true}
+              onChange={(e) => aoAlterar({ tiktokPromoteOwnBrand: e.target.checked })}
+            />
             Promove meu próprio negócio
           </label>
           <label className="flex items-start gap-1.5">
-            <input type="checkbox" checked={peca.tiktokBrandedContent === true} disabled={peca.tiktokPrivacyLevel === 'SELF_ONLY'} onChange={(e) => aoAlterar({ tiktokBrandedContent: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={peca.tiktokBrandedContent === true}
+              disabled={peca.tiktokPrivacyLevel === 'SELF_ONLY'}
+              onChange={(e) => aoAlterar({ tiktokBrandedContent: e.target.checked })}
+            />
             É parceria paga com outra marca
           </label>
-          {(peca.tiktokPromoteOwnBrand || peca.tiktokBrandedContent) && (
-            <p className="text-amber-800">
-              O TikTok identificará esta publicação como {peca.tiktokBrandedContent ? '“Parceria paga”' : '“Conteúdo promocional”'}.
-            </p>
-          )}
-          {/* A caixa de parceria paga fica desabilitada quando a privacidade já é
-              SELF_ONLY, mas a ordem inversa passava: marcar a parceria e SÓ DEPOIS
-              trocar a privacidade deixava as duas ligadas. Aqui o consultor vê o
-              conflito na hora, em vez de descobrir quando a publicação falhar. */}
-          {conflitoDeMarcaEPrivacidade({
-            tipo: peca.tipo,
-            tiktokBrandedContent: peca.tiktokBrandedContent === true,
-            tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
-            declaracaoExibida: true,
-          }) && (
-            <p className="rounded border border-red-200 bg-red-50 p-1.5 font-semibold text-red-800">
-              {conflitoDeMarcaEPrivacidade({
-                tipo: peca.tipo,
-                tiktokBrandedContent: peca.tiktokBrandedContent === true,
-                tiktokPrivacyLevel: peca.tiktokPrivacyLevel || null,
-                declaracaoExibida: true,
-              })}
-            </p>
-          )}
-          {prepararNoAgendamento && peca.tiktokBrandedContent && (
-            <p className="font-semibold">Ao confirmar, você também concorda com a Política de Conteúdo de Marca do TikTok.</p>
-          )}
         </div>
+      )}
+
+      {/* A declaração de consentimento é obrigatória ANTES do botão de publicar,
+          então fica FORA do trecho recolhido — mas em uma linha discreta, e só
+          no modal de agendamento, que é onde existe um botão de publicar. */}
+      {prepararNoAgendamento && (
+        <p className="text-gray-500">
+          Ao confirmar, você autoriza o envio para @{info.username}
+          {ehVideo && ' e aceita a Confirmação de Uso de Música do TikTok'}
+          {peca.tiktokBrandedContent && ' e a Política de Conteúdo de Marca'}.
+        </p>
       )}
     </div>
   );
