@@ -74,6 +74,14 @@ export function PainelCriativos({
     () => criativos.filter((c) => c.videoId === videoId).sort((a, b) => a.ordem - b.ordem),
     [criativos, videoId],
   );
+  // Criativo de pesquisa não tem videoId nenhum — nunca bateria com o filtro
+  // acima, então precisa de uma lista PRÓPRIA, fora do "escolha um vídeo". Foi
+  // isto que deixou o primeiro criativo de pesquisa do Israel invisível: ele
+  // existia no banco, mas nenhuma tela mostrava ele.
+  const daPesquisa = useMemo(
+    () => criativos.filter((c) => c.origem === 'pesquisa'),
+    [criativos],
+  );
 
   async function gerar() {
     if (!videoId) return;
@@ -113,74 +121,92 @@ export function PainelCriativos({
     }
   }
 
-  if (!videos.length) return null;
-
   return (
     <section className="pt-6 mt-6 border-t border-gray-200">
-      <h3 className="text-base font-bold text-gray-900">Criativos</h3>
-      <p className="text-sm text-gray-600 mt-1 mb-3">
-        Escolha um vídeo para ver os trechos que dão um vídeo curto. Aprove os que
-        prestam, apare as pontas dos que quase prestam, apague o resto.
-      </p>
-
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <select
-          value={videoId}
-          onChange={(e) => setVideoId(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-gray-300 text-sm max-w-md"
-        >
-          {videos.map((v) => (
-            <option key={v.id} value={v.id}>{v.titulo}</option>
-          ))}
-        </select>
-
-        {video && (
-          <button
-            onClick={gerar}
-            disabled={gerando || !video.temTranscricao}
-            title={video.temTranscricao ? undefined : 'Este vídeo ainda não tem transcrição.'}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {gerando
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Procurando trechos…</>
-              : <><Sparkles className="w-4 h-4" /> {doVideo.length ? 'Gerar de novo' : 'Gerar criativos'}</>}
-          </button>
-        )}
-      </div>
-
-      {erro && <p className="text-sm text-red-700 mb-3">{erro}</p>}
-      {relatorio && (
-        <p className="text-xs text-gray-600 mb-3 p-2 rounded bg-gray-50 border border-gray-200">
-          {relatorio}
-        </p>
+      {/* Sempre visível, mesmo sem nenhum vídeo — é o mesmo motivo pelo qual as
+          "peças avulsas" (CriativosAprovados.tsx) aparecem fora da lista por
+          vídeo: quem não tem vídeo nenhum não pode ficar sem ver o que gerou. */}
+      {daPesquisa.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-base font-bold text-gray-900">Da pesquisa</h3>
+          <p className="text-sm text-gray-600 mt-1 mb-3">
+            Nasceram de uma pauta aprovada, não de um vídeo. Revise a copy e aprove
+            para gerar o carrossel e os textos.
+          </p>
+          <div className="space-y-3">
+            {daPesquisa.map((c) => <CartaoCriativo key={c.id} criativo={c} onMudou={onMudou} />)}
+          </div>
+        </div>
       )}
 
-      {video && !video.temTranscricao && (
-        <p className="text-sm text-amber-800 p-3 rounded-lg bg-amber-50 border border-amber-200">
-          Este vídeo não tem transcrição, e é dela que saem os criativos. Envie o
-          vídeo pela plataforma para que ela transcreva sozinha.
-        </p>
-      )}
+      {videos.length > 0 && (
+        <>
+          <h3 className="text-base font-bold text-gray-900">Criativos</h3>
+          <p className="text-sm text-gray-600 mt-1 mb-3">
+            Escolha um vídeo para ver os trechos que dão um vídeo curto. Aprove os que
+            prestam, apare as pontas dos que quase prestam, apague o resto.
+          </p>
 
-      {carregando
-        ? <p className="text-sm text-gray-500">Carregando…</p>
-        : doVideo.length === 0
-          ? (
-            <p className="text-sm text-gray-500 italic p-4 rounded-lg bg-gray-50 border border-dashed border-gray-300">
-              Nenhum criativo ainda para este vídeo.
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <select
+              value={videoId}
+              onChange={(e) => setVideoId(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-sm max-w-md"
+            >
+              {videos.map((v) => (
+                <option key={v.id} value={v.id}>{v.titulo}</option>
+              ))}
+            </select>
+
+            {video && (
+              <button
+                onClick={gerar}
+                disabled={gerando || !video.temTranscricao}
+                title={video.temTranscricao ? undefined : 'Este vídeo ainda não tem transcrição.'}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {gerando
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Procurando trechos…</>
+                  : <><Sparkles className="w-4 h-4" /> {doVideo.length ? 'Gerar de novo' : 'Gerar criativos'}</>}
+              </button>
+            )}
+          </div>
+
+          {erro && <p className="text-sm text-red-700 mb-3">{erro}</p>}
+          {relatorio && (
+            <p className="text-xs text-gray-600 mb-3 p-2 rounded bg-gray-50 border border-gray-200">
+              {relatorio}
             </p>
-          )
-          : (
-            <div className="space-y-3">
-              {doVideo.map((c) => <CartaoCriativo key={c.id} criativo={c} onMudou={onMudou} />)}
-            </div>
           )}
 
-      {doVideo.length > 0 && (
-        <p className="text-xs text-gray-500 mt-3">
-          {doVideo.filter((c) => c.status === 'aprovado').length} de {doVideo.length} aprovados.
-          Os aprovados aparecem na etapa 4.
-        </p>
+          {video && !video.temTranscricao && (
+            <p className="text-sm text-amber-800 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              Este vídeo não tem transcrição, e é dela que saem os criativos. Envie o
+              vídeo pela plataforma para que ela transcreva sozinha.
+            </p>
+          )}
+
+          {carregando
+            ? <p className="text-sm text-gray-500">Carregando…</p>
+            : doVideo.length === 0
+              ? (
+                <p className="text-sm text-gray-500 italic p-4 rounded-lg bg-gray-50 border border-dashed border-gray-300">
+                  Nenhum criativo ainda para este vídeo.
+                </p>
+              )
+              : (
+                <div className="space-y-3">
+                  {doVideo.map((c) => <CartaoCriativo key={c.id} criativo={c} onMudou={onMudou} />)}
+                </div>
+              )}
+
+          {doVideo.length > 0 && (
+            <p className="text-xs text-gray-500 mt-3">
+              {doVideo.filter((c) => c.status === 'aprovado').length} de {doVideo.length} aprovados.
+              Os aprovados aparecem na etapa 4.
+            </p>
+          )}
+        </>
       )}
     </section>
   );
