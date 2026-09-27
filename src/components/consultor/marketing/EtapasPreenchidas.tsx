@@ -1286,6 +1286,68 @@ export function EtapaAgenda({
     await agendar(agendamentoPendente.peca, agendamentoPendente.dia, horaAgendamentoPendente);
   }
 
+  /**
+   * O segundo botão do modal: em vez de esperar o horário escolhido, grava o
+   * agendamento para AGORA e já dispara a publicação — sem esperar o relógio
+   * do worker (que confere a cada 5 minutos) perceber que a hora chegou.
+   *
+   * Duas escritas, na ordem certa: primeiro `agendar()`, que faz a peça
+   * aparecer no calendário como agendada (com todos os campos do TikTok já
+   * resolvidos por camposDeAgendamentoTiktok — sem isso, o consentimento de
+   * música nunca teria sido registrado). Só DEPOIS a tarefa de publicar entra
+   * na fila — mesma transação do BotaoPublicarAgora, que marca
+   * `publicacao.status = 'publicando'` na hora, e é esse campo que muda o selo
+   * da peça para "Publicando…" imediatamente, sem esperar o worker terminar.
+   */
+  async function enviarAgora() {
+    if (!agendamentoPendente) return;
+    const peca = agendamentoPendente.peca;
+    if (peca.tiktokPreparacaoStatus === 'carregando') {
+      setErro('Aguarde a validação da conta TikTok para concluir o envio.');
+      return;
+    }
+    setSalvando(true);
+    setErro('');
+    try {
+      const agora = new Date();
+      const horaAgora = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
+      const ok = await agendar(peca, agendamentoPendente.dia, horaAgora);
+      if (!ok) return;
+
+      const agoraIso = agora.toISOString();
+      const pecaRef = doc(db, COLECOES.pecas, peca.id);
+      const tarefaRef = doc(collection(db, COLECOES.tarefas));
+      await runTransaction(db, async (transacao) => {
+        const atual = await transacao.get(pecaRef);
+        const dados = atual.data() || {};
+        const publicacaoAtual = (dados.publicacao || {}) as Record<string, unknown>;
+        if (publicacaoAtual.status === 'publicando') {
+          throw new Error('Esta peça já está sendo publicada. Aguarde o resultado.');
+        }
+        transacao.set(tarefaRef, {
+          consultorId: peca.consultorId,
+          campanhaId: peca.campanhaId,
+          pecaId: peca.id,
+          tipo: 'publicar',
+          status: 'pendente',
+          tentativas: 0,
+          criadoEm: agoraIso,
+          criadoEmServidor: serverTimestamp(),
+        });
+        transacao.update(pecaRef, {
+          publicacao: { ...publicacaoAtual, status: 'publicando', tarefaId: tarefaRef.id, erro: null, tentadoEm: agoraIso },
+          atualizadoEm: agoraIso,
+        });
+      });
+      setAgendamentoConfirmado(`${nomePeca(peca.tipo)} enviada agora — acompanhe o status na peça.`);
+      onMudou?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   const fim = somarDias(inicio, semanas * 7 - 1);
   const rotuloSemana = inicio.getMonth() === fim.getMonth()
     ? `${inicio.getDate()} a ${fim.getDate()} de ${inicio.toLocaleDateString('pt-BR', { month: 'long' })}`
@@ -1706,6 +1768,16 @@ export function EtapaAgenda({
                           className="w-full rounded bg-blue-600 px-1 py-1 text-[10px] font-bold text-white hover:bg-blue-700 disabled:opacity-60"
                         >
                           {salvando ? 'Salvando...' : pendenteNesteDia.tiktokPreparacaoStatus === 'carregando' ? 'Verificando TikTok...' : 'Confirmar agendamento'}
+                        </button>
+                        {/* Não espera o horário escolhido nem o relógio do worker (a cada
+                            5 min): agenda para agora e já dispara a publicação — mesmo
+                            caminho do "Publicar agora" que já existe nas peças da lista. */}
+                        <button
+                          onClick={() => void enviarAgora()}
+                          disabled={salvando || pendenteNesteDia.tiktokPreparacaoStatus === 'carregando'}
+                          className="w-full rounded border border-blue-600 bg-white px-1 py-1 text-[10px] font-bold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                        >
+                          {salvando ? 'Enviando...' : 'Enviar agora'}
                         </button>
                         <button
                           onClick={() => { setAgendamentoPendente(null); setSelecionada(null); }}
