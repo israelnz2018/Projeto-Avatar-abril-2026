@@ -1424,8 +1424,10 @@ function PecasProduzidas({
               peca={p}
               criativo={criativo}
               campo="legendaInstagram"
-              titulo="Legenda do Instagram"
-              ajuda="Pronta para colar — é a mesma legenda do Reel, é o mesmo post. As páginas e o ritmo deste vídeo saem do carrossel do feed, aqui em cima."
+              // Mesmo motivo do Reel, logo abaixo: o carrossel em vídeo também
+              // cruza para Facebook, YouTube Shorts e TikTok.
+              titulo="Legenda da publicação"
+              ajuda="Pronta para colar — é a mesma legenda do Reel, é o mesmo post, e vai junto para todas as redes desta peça. As páginas e o ritmo deste vídeo saem do carrossel do feed, aqui em cima."
             />
           )}
           {p.tipo === 'linkedin-texto' && (
@@ -1446,8 +1448,12 @@ function PecasProduzidas({
               criativo={criativo}
               video={video}
               campo="legendaInstagram"
-              titulo="Legenda do Instagram"
-              ajuda="Pronta para colar. É a mesma legenda do carrossel em vídeo — é o mesmo post."
+              // O campo continua `legendaInstagram` no banco — renomear quebraria
+              // as peças já gravadas —, mas o RÓTULO não pode mais dizer
+              // "Instagram": o mesmo texto vai junto para Facebook, YouTube
+              // Shorts e TikTok. Ver deveCruzarPara* no worker.
+              titulo="Legenda da publicação"
+              ajuda="Pronta para colar. É a mesma legenda do carrossel em vídeo — é o mesmo post, e vai junto para todas as redes desta peça."
             />
           )}
         </section>
