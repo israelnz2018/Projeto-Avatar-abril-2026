@@ -3253,6 +3253,23 @@ async function startServer() {
     return res.type("text/plain").send(conteudo);
   });
 
+  // GET /google<algo>.html — verificação de domínio do Google Search Console,
+  // exigida para publicar o OAuth consent screen do YouTube ("The website of
+  // your homepage URL is not registered to you").
+  //
+  // Diferente do TikTok: aqui não precisa de variável de ambiente nenhuma. O
+  // Google exige que o CONTEÚDO do arquivo seja sempre
+  // "google-site-verification: <o próprio nome do arquivo>" — então o nome na
+  // URL já contém tudo que a resposta precisa, e a rota funciona pronta antes
+  // mesmo de o Israel baixar o arquivo do Search Console.
+  //
+  // PRECISA DE ROTA PRÓPRIA pelo mesmo motivo do TikTok acima: sem isto,
+  // `/googleXXXX.html` cairia no `app.get('*')` e devolveria o index.html.
+  app.get(/^\/google[A-Za-z0-9]+\.html$/, (req: any, res) => {
+    const arquivo = req.path.slice(1); // tira a barra inicial
+    return res.type("text/html").send(`google-site-verification: ${arquivo}`);
+  });
+
   /**
    * O app do TikTok é UM SÓ, compartilhado — client key e secret não mudam
    * por consultor, exatamente como já é com o YouTube. O que precisa ser POR
