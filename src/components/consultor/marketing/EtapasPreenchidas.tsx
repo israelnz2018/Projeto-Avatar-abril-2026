@@ -1708,6 +1708,7 @@ export function EtapaAgenda({
                           {!jaPublicada(p) && !p.pausada && (
                             <BotaoPublicarAgora peca={p} onMudou={onMudou} miudo />
                           )}
+                          {jaPublicada(p) && <BotaoReenviarCruzamentos peca={p} onMudou={onMudou} miudo />}
                           {!jaPublicada(p) && (
                             <button
                               onClick={() => escrever(p.id, { pausada: !p.pausada })}
@@ -2420,11 +2421,13 @@ function AcoesDePublicacao({ peca, onMudou }: { peca: Peca; onMudou?: () => void
   if (pub?.status === 'publicando') return null;
 
   // Peça que já saiu só oferece a reprise — publicar de novo por engano seria
-  // post repetido no perfil.
+  // post repetido no perfil. "Reenviar o que faltou" é diferente: não toca na
+  // rede principal, só tenta de novo o Facebook/YouTube/TikTok que não saiu.
   if (jaPublicada(peca)) {
     return (
       <div className="flex flex-wrap items-center gap-2">
         <BotaoRepublicar peca={peca} onMudou={onMudou} />
+        <BotaoReenviarCruzamentos peca={peca} onMudou={onMudou} />
       </div>
     );
   }
@@ -2712,6 +2715,87 @@ function BotaoPublicarAgora({
         Cancelar
       </button>
       {erro && <p className="text-xs text-red-700 w-full">{erro}</p>}
+    </div>
+  );
+}
+
+/**
+ * Só aparece em peça JÁ PUBLICADA (a rede principal foi ao ar) que tem algum
+ * cruzamento faltando: Facebook/YouTube que deveriam ter acontecido sozinhos e
+ * não aconteceram, ou TikTok que o consultor ligou e não saiu.
+ *
+ * O Israel pediu isto depois de ver um Reel que publicou no Instagram e no
+ * Facebook, mas falhou no YouTube (token vencido) e no TikTok (conta pública)
+ * — os dois já corrigidos: "crie um botão para enviar novamente para todo
+ * criativo que por qualquer razão não foi para as mídias sociais".
+ *
+ * NÃO é o mesmo botão do "Publicar agora"/"Tentar de novo": aquele reenvia a
+ * REDE PRINCIPAL inteira, e só aparece quando ela ainda não saiu. Usar o
+ * mesmo botão aqui duplicaria o post do Instagram. Este cria uma tarefa
+ * PRÓPRIA ('retentar-cruzamentos'), que o worker resolve chamando só o que
+ * ainda falta — ver reenviarCruzamentosQueFalharam em publicar.mjs.
+ */
+function precisaReenviarCruzamento(p: Peca): boolean {
+  const pub = p.publicacao;
+  if (!pub) return false;
+  const destinos = destinosAutomaticos(p.tipo).map((d) => d.nome);
+  const faltouFacebook = destinos.includes('Facebook') && pub.facebook?.status !== 'publicada';
+  const faltouYoutube = destinos.includes('YouTube Shorts') && pub.youtube?.status !== 'publicada';
+  const faltouTiktok = p.publicarNoTiktok === true && aceitoNoTiktok(p.tipo)
+    && pub.tiktok?.status !== 'publicada' && pub.tiktok?.status !== 'processando';
+  return faltouFacebook || faltouYoutube || faltouTiktok;
+}
+
+function BotaoReenviarCruzamentos({
+  peca, onMudou, miudo = false,
+}: {
+  peca: Peca; onMudou?: () => void; miudo?: boolean;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  if (!precisaReenviarCruzamento(peca)) return null;
+
+  async function reenviar() {
+    setEnviando(true);
+    setErro('');
+    try {
+      const agora = new Date().toISOString();
+      await addDoc(collection(db, COLECOES.tarefas), {
+        consultorId: peca.consultorId,
+        campanhaId: peca.campanhaId,
+        pecaId: peca.id,
+        tipo: 'retentar-cruzamentos',
+        status: 'pendente',
+        tentativas: 0,
+        criadoEm: agora,
+        criadoEmServidor: serverTimestamp(),
+      });
+      onMudou?.();
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  const classe = miudo
+    ? 'w-full px-1 py-0.5 rounded bg-amber-600 text-white text-[10px] font-bold hover:bg-amber-700 disabled:opacity-50'
+    : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 disabled:opacity-50';
+
+  return (
+    <div className={miudo ? '' : 'flex flex-col gap-1'}>
+      <button onClick={() => void reenviar()} disabled={enviando} className={classe}>
+        {miudo
+          ? (enviando ? '…' : 'Reenviar o que faltou')
+          : (
+            <>
+              {enviando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              Reenviar o que faltou
+            </>
+          )}
+      </button>
+      {erro && <p className="text-xs text-red-700">{erro}</p>}
     </div>
   );
 }
