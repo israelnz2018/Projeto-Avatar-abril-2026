@@ -1,17 +1,18 @@
 /**
  * Laboratório — aba de TESTES entre "Minhas peças" e "Publicação".
  *
- * Experimento de B-roll em 3 passos; este arquivo tem o passo 1: imagens que
- * ilustram a fala do Reel. Só LÊ o criativo e grava em marketing_laboratorio —
- * nada aqui mexe nas peças, na publicação ou no worker. Se o teste não der
- * certo, apagar este arquivo, a aba em MarketingConsultor e a rota
- * /api/marketing-consultor/laboratorio desfaz tudo.
+ * Experimento de B-roll em 3 passos. Passo 1: imagens que ilustram a fala do
+ * Reel. Passo 2: a imagem aprovada vira vídeo curto com movimento (tarefa
+ * 'laboratorio-broll' do worker, em worker/laboratorio.mjs). Só LÊ o criativo e
+ * grava em marketing_laboratorio — nada aqui mexe nas peças nem na publicação.
+ * Se o teste não der certo, apagar este arquivo, a aba em MarketingConsultor, a
+ * rota /api/marketing-consultor/laboratorio e worker/laboratorio.mjs desfaz tudo.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { Check, FlaskConical, Loader2, RotateCcw, Sparkles } from 'lucide-react';
+import { addDoc, collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { Check, Clapperboard, FlaskConical, Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
-import { Criativo } from '../../../types/marketing';
+import { COLECOES, Criativo } from '../../../types/marketing';
 import { useArquivoUrl } from './EtapasPreenchidas';
 
 const COLECAO_LAB = 'marketing_laboratorio';
@@ -27,7 +28,19 @@ interface MomentoLab {
   imagem?: string;
   geradas?: number;
   criadoEm: string;
+  broll?: string;
+  brollMovimento?: Movimento;
+  brollStatus?: 'gerando' | 'pronto' | 'erro';
+  brollErro?: string | null;
 }
+
+type Movimento = 'aproximar' | 'afastar' | 'subir' | 'descer';
+const MOVIMENTOS: { id: Movimento; nome: string }[] = [
+  { id: 'aproximar', nome: 'Aproximar' },
+  { id: 'afastar', nome: 'Afastar' },
+  { id: 'subir', nome: 'Deslizar para cima' },
+  { id: 'descer', nome: 'Deslizar para baixo' },
+];
 
 async function chamarLab(corpo: Record<string, unknown>) {
   const token = await auth.currentUser?.getIdToken();
@@ -60,6 +73,7 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
   }, [criativoId]);
 
   const lista = Object.entries(momentos).sort(([, a], [, b]) => a.linha - b.linha);
+  const consultorId = opcoes.find((c) => c.id === criativoId)?.consultorId || '';
 
   async function sugerir() {
     setSugerindo(true);
@@ -75,8 +89,8 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
         <FlaskConical className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
         <p className="text-sm text-purple-900">
           <strong>Área de testes.</strong> Nada aqui muda as suas peças nem a publicação.
-          Passo 1 de 3: imagens que ilustram a fala do Reel. Depois elas viram movimento (B-roll) e
-          entram no vídeo.
+          Passo 1: imagens que ilustram a fala do Reel. Passo 2: cada imagem aprovada vira um vídeo
+          curto com movimento (B-roll). Passo 3, a seguir: os B-rolls entram no Reel.
         </p>
       </div>
 
@@ -117,7 +131,10 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {lista.map(([id, m]) => (
-          <CartaoMomento key={id} criativoId={criativoId} momentoId={id} momento={m} />
+          <CartaoMomento
+            key={id} criativoId={criativoId} consultorId={consultorId} momentoId={id} momento={m}
+            movimentoPadrao={MOVIMENTOS[lista.findIndex(([k]) => k === id) % MOVIMENTOS.length].id}
+          />
         ))}
       </div>
     </div>
@@ -129,10 +146,13 @@ function tempo(s: number) {
   return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 }
 
-function CartaoMomento({ criativoId, momentoId, momento }: {
-  criativoId: string; momentoId: string; momento: MomentoLab;
+function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoPadrao }: {
+  criativoId: string; consultorId: string; momentoId: string; momento: MomentoLab; movimentoPadrao: Movimento;
 }) {
   const { url, carregando } = useArquivoUrl(momento.imagem);
+  const { url: urlBroll } = useArquivoUrl(momento.broll);
+  const [movimento, setMovimento] = useState<Movimento>(momento.brollMovimento || movimentoPadrao);
+  const fazendoBroll = momento.brollStatus === 'gerando';
   const [pedido, setPedido] = useState(momento.prompt);
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState('');
@@ -148,6 +168,32 @@ function CartaoMomento({ criativoId, momentoId, momento }: {
     finally { setGerando(false); }
   }
 
+  // Mesma fila do worker que gera as peças; a tarefa não leva campanhaId nem
+  // pecaId, então um erro aqui nunca marca peça ou campanha.
+  async function gerarBroll() {
+    setErro('');
+    try {
+      await updateDoc(doc(db, COLECAO_LAB, criativoId), {
+        [`momentos.${momentoId}.brollStatus`]: 'gerando',
+        [`momentos.${momentoId}.brollErro`]: null,
+      });
+      const agora = new Date().toISOString();
+      await addDoc(collection(db, COLECOES.tarefas), {
+        consultorId,
+        tipo: 'laboratorio-broll',
+        criativoId,
+        momentoId,
+        movimento,
+        status: 'pendente',
+        tentativas: 0,
+        criadoEm: agora,
+        criadoEmServidor: serverTimestamp(),
+      });
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    }
+  }
+
   async function alternarAprovacao() {
     await updateDoc(doc(db, COLECAO_LAB, criativoId), {
       [`momentos.${momentoId}.status`]: aprovada ? 'pronta' : 'aprovada',
@@ -157,7 +203,13 @@ function CartaoMomento({ criativoId, momentoId, momento }: {
   return (
     <div className={`rounded-xl border bg-white overflow-hidden ${aprovada ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200'}`}>
       <div className="relative aspect-[9/16] bg-gray-100 grid place-items-center">
-        {url && <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+        {url && !urlBroll && <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+        {urlBroll && (
+          <video
+            key={urlBroll} src={urlBroll} autoPlay loop muted playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
         {!url && (gerando || carregando) && <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />}
         {!url && !gerando && !carregando && (
           <button
@@ -209,6 +261,32 @@ function CartaoMomento({ criativoId, momentoId, momento }: {
           />
           <p className="text-[11px] text-gray-500">Em inglês, que é como o gerador entende melhor. Mude e clique em Refazer.</p>
         </details>
+        {aprovada && (
+          <div className="pt-2 border-t border-gray-100 space-y-1.5">
+            <p className="text-xs font-semibold text-gray-700">B-roll (vídeo de 5 s)</p>
+            <div className="flex gap-1.5">
+              <select
+                value={movimento}
+                onChange={(e) => setMovimento(e.target.value as Movimento)}
+                disabled={fazendoBroll}
+                className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white"
+              >
+                {MOVIMENTOS.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select>
+              <button
+                onClick={gerarBroll}
+                disabled={fazendoBroll}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-60"
+              >
+                {fazendoBroll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clapperboard className="w-3.5 h-3.5" />}
+                {fazendoBroll ? 'Gerando…' : momento.broll ? 'Refazer B-roll' : 'Gerar B-roll'}
+              </button>
+            </div>
+            {momento.brollStatus === 'erro' && (
+              <p className="text-xs text-red-600">Não saiu: {momento.brollErro}</p>
+            )}
+          </div>
+        )}
         {erro && <p className="text-xs text-red-600">{erro}</p>}
       </div>
     </div>

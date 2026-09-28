@@ -5985,6 +5985,9 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
           [`momentos.${momentoId}.prompt`]: pedido,
           [`momentos.${momentoId}.status`]: "pronta",
           [`momentos.${momentoId}.geradas`]: admin.firestore.FieldValue.increment(1),
+          // Imagem nova: o B-roll feito da anterior não vale mais.
+          [`momentos.${momentoId}.broll`]: admin.firestore.FieldValue.delete(),
+          [`momentos.${momentoId}.brollStatus`]: admin.firestore.FieldValue.delete(),
           atualizadoEm: new Date().toISOString(),
         });
         console.log(`[laboratorio] ${criativoId}/${momentoId} custo=${corpo?.inference_status?.cost ?? "?"}`);
