@@ -63,18 +63,21 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
   );
   const [criativoId, setCriativoId] = useState('');
   const [momentos, setMomentos] = useState<Record<string, MomentoLab>>({});
+  const [montagem, setMontagem] = useState<Montagem | null>(null);
   const [sugerindo, setSugerindo] = useState(false);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
-    if (!criativoId) { setMomentos({}); return; }
+    if (!criativoId) { setMomentos({}); setMontagem(null); return; }
     return onSnapshot(doc(db, COLECAO_LAB, criativoId), (snap) => {
       setMomentos((snap.data()?.momentos as Record<string, MomentoLab>) || {});
-    }, () => setMomentos({}));
+      setMontagem((snap.data()?.montagem as Montagem) || null);
+    }, () => { setMomentos({}); setMontagem(null); });
   }, [criativoId]);
 
   const lista = Object.entries(momentos).sort(([, a], [, b]) => a.linha - b.linha);
   const consultorId = opcoes.find((c) => c.id === criativoId)?.consultorId || '';
+  const brollsAprovados = lista.filter(([, m]) => m.brollAprovado && m.broll).length;
 
   async function sugerir() {
     setSugerindo(true);
@@ -91,7 +94,7 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
         <p className="text-sm text-purple-900">
           <strong>Área de testes.</strong> Nada aqui muda as suas peças nem a publicação.
           Passo 1: imagens que ilustram a fala do Reel. Passo 2: na imagem aprovada, escolha o movimento e
-          gere o B-roll, que aparece ao lado para você revisar. Passo 3, a seguir: os B-rolls entram no Reel.
+          gere o B-roll, que aparece ao lado para você revisar. Passo 3: os B-rolls aprovados entram no Reel, no momento de cada frase.
         </p>
       </div>
 
@@ -138,6 +141,92 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
           />
         ))}
       </div>
+
+      {lista.length > 0 && (
+        <PainelMontagem
+          criativoId={criativoId}
+          consultorId={consultorId}
+          brollsAprovados={brollsAprovados}
+          montagem={montagem}
+        />
+      )}
+    </div>
+  );
+}
+
+interface Montagem {
+  status: 'gerando' | 'pronto' | 'erro';
+  video?: string;
+  brolls?: { frase: string; inicio: number; duracao: number }[];
+  erro?: string | null;
+}
+
+/**
+ * Passo 3: o Reel de teste. Cada B-roll aprovado entra no segundo em que a frase
+ * dele é falada — o worker converte o tempo da aula para o tempo do Reel,
+ * contando o início do corte e a velocidade.
+ */
+function PainelMontagem({ criativoId, consultorId, brollsAprovados, montagem }: {
+  criativoId: string; consultorId: string; brollsAprovados: number; montagem: Montagem | null;
+}) {
+  const { url } = useArquivoUrl(montagem?.status === 'pronto' ? montagem.video : undefined);
+  const [erro, setErro] = useState('');
+  const gerando = montagem?.status === 'gerando';
+
+  async function montar() {
+    setErro('');
+    try {
+      await updateDoc(doc(db, COLECAO_LAB, criativoId), { 'montagem.status': 'gerando', 'montagem.erro': null });
+      const agora = new Date().toISOString();
+      await addDoc(collection(db, COLECOES.tarefas), {
+        consultorId,
+        tipo: 'laboratorio-montar',
+        criativoId,
+        status: 'pendente',
+        tentativas: 0,
+        criadoEm: agora,
+        criadoEmServidor: serverTimestamp(),
+      });
+    } catch (e: any) {
+      setErro(e?.message || String(e));
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-gray-900">3 · Reel com B-roll</p>
+          <p className="text-xs text-gray-600">
+            Cada B-roll aprovado entra no segundo em que a frase dele é falada, por 2,5 a 4 s, cobrindo o slide e o
+            rosto. A sua voz continua, e o título e a legenda ficam por cima.
+          </p>
+        </div>
+        <button
+          onClick={montar}
+          disabled={gerando || !brollsAprovados}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+        >
+          {gerando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clapperboard className="w-4 h-4" />}
+          {gerando ? 'Montando… (1 a 2 min)' : montagem?.video ? 'Montar de novo' : `Montar Reel (${brollsAprovados} B-roll)`}
+        </button>
+      </div>
+      {!brollsAprovados && <p className="text-xs text-gray-500">Aprove pelo menos um B-roll para montar.</p>}
+      {montagem?.status === 'erro' && <p className="text-sm text-red-600">Não saiu: {montagem.erro}</p>}
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      {url && (
+        <div className="flex flex-wrap gap-4 items-start">
+          <video key={url} src={url} controls playsInline className="w-64 rounded-lg border border-gray-200 bg-black" />
+          <ul className="text-xs text-gray-700 space-y-1.5">
+            {(montagem?.brolls || []).map((b, i) => (
+              <li key={i}>
+                <strong>{b.inicio.toFixed(1)}s – {(b.inicio + b.duracao).toFixed(1)}s</strong> · “{b.frase}”
+              </li>
+            ))}
+            <li className="text-gray-500 pt-1">Este vídeo é só um teste: o Reel de "Minhas peças" continua o mesmo.</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
