@@ -17,6 +17,13 @@ import { useArquivoUrl } from './EtapasPreenchidas';
 
 const COLECAO_LAB = 'marketing_laboratorio';
 
+// Pedido sem resposta há mais de 5 min: o servidor não pegou (ou caiu no meio).
+// Sem isto a tela fica girando para sempre e o botão nunca volta.
+const TRAVADO_MS = 5 * 60 * 1000;
+function parado(pedidoEm?: string) {
+  return !pedidoEm || Date.now() - new Date(pedidoEm).getTime() > TRAVADO_MS;
+}
+
 interface MomentoLab {
   linha: number;
   inicio: number;
@@ -33,6 +40,7 @@ interface MomentoLab {
   brollStatus?: 'gerando' | 'pronto' | 'erro';
   brollErro?: string | null;
   brollAprovado?: boolean;
+  brollPedidoEm?: string;
 }
 
 type Movimento = 'aproximar' | 'afastar' | 'subir' | 'descer';
@@ -159,6 +167,7 @@ interface Montagem {
   video?: string;
   brolls?: { frase: string; inicio: number; duracao: number }[];
   erro?: string | null;
+  pedidoEm?: string;
 }
 
 /**
@@ -171,12 +180,13 @@ function PainelMontagem({ criativoId, consultorId, brollsAprovados, montagem }: 
 }) {
   const { url } = useArquivoUrl(montagem?.status === 'pronto' ? montagem.video : undefined);
   const [erro, setErro] = useState('');
-  const gerando = montagem?.status === 'gerando';
+  const travado = montagem?.status === 'gerando' && parado(montagem.pedidoEm);
+  const gerando = montagem?.status === 'gerando' && !travado;
 
   async function montar() {
     setErro('');
     try {
-      await updateDoc(doc(db, COLECAO_LAB, criativoId), { 'montagem.status': 'gerando', 'montagem.erro': null });
+      await updateDoc(doc(db, COLECAO_LAB, criativoId), { 'montagem.status': 'gerando', 'montagem.erro': null, 'montagem.pedidoEm': new Date().toISOString() });
       const agora = new Date().toISOString();
       await addDoc(collection(db, COLECOES.tarefas), {
         consultorId,
@@ -212,6 +222,7 @@ function PainelMontagem({ criativoId, consultorId, brollsAprovados, montagem }: 
         </button>
       </div>
       {!brollsAprovados && <p className="text-xs text-gray-500">Aprove pelo menos um B-roll para montar.</p>}
+      {travado && <p className="text-sm text-amber-700">O pedido anterior não respondeu. Clique de novo para montar.</p>}
       {montagem?.status === 'erro' && <p className="text-sm text-red-600">Não saiu: {montagem.erro}</p>}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {url && (
@@ -242,7 +253,8 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
   const { url, carregando } = useArquivoUrl(momento.imagem);
   const { url: urlBroll } = useArquivoUrl(momento.broll);
   const [movimento, setMovimento] = useState<Movimento>(momento.brollMovimento || movimentoPadrao);
-  const fazendoBroll = momento.brollStatus === 'gerando';
+  const brollTravado = momento.brollStatus === 'gerando' && parado(momento.brollPedidoEm);
+  const fazendoBroll = momento.brollStatus === 'gerando' && !brollTravado;
   const brollAprovado = Boolean(momento.brollAprovado);
   const [pedido, setPedido] = useState(momento.prompt);
   const [gerando, setGerando] = useState(false);
@@ -266,6 +278,7 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
     try {
       await updateDoc(doc(db, COLECAO_LAB, criativoId), {
         [`momentos.${momentoId}.brollStatus`]: 'gerando',
+        [`momentos.${momentoId}.brollPedidoEm`]: new Date().toISOString(),
         [`momentos.${momentoId}.brollErro`]: null,
         [`momentos.${momentoId}.brollAprovado`]: false,
       });
@@ -381,6 +394,9 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
             <div className="p-2">
               <SeletorMovimento valor={movimento} onMudar={setMovimento} desligado={fazendoBroll || brollAprovado} />
             </div>
+          )}
+          {brollTravado && (
+            <p className="px-2 pb-2 text-xs text-amber-700">O pedido anterior não respondeu. Clique de novo.</p>
           )}
           {momento.brollStatus === 'erro' && (
             <p className="px-2 pb-2 text-xs text-red-600">Não saiu: {momento.brollErro}</p>
