@@ -5281,8 +5281,8 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       const lib = await bunnyLibraryDoConsultor(dono || consultorId);
       if (!lib) return res.status(503).json({ error: "Biblioteca de vídeo do consultor não configurada." });
 
-      // 720p: aqui o vídeo é o produto final, e não só a fonte do áudio como na
-      // transcrição. O recorte por range mantém o download pequeno mesmo assim.
+      // A MAIOR resolução disponível (1080p quando houver): aqui o vídeo é o produto
+      // final, e o rosto e o slide são ampliados. O recorte por range mantém o download pequeno.
       const base = `https://video.bunnycdn.com/library/${lib.libraryId}/videos/${bunnyVideoId}`;
       const playResp = await fetch(`${base}/play`, { headers: { AccessKey: lib.apiKey, Accept: "application/json" } });
       if (!playResp.ok) return res.status(502).json({ error: "O servidor de vídeo não respondeu." });
@@ -5291,7 +5291,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       if (fonteVideo.endsWith("/play_")) {
         const resolucoes = String(play?.video?.availableResolutions || "")
           .split(",").map((v: string) => Number.parseInt(v, 10)).filter((v: number) => Number.isFinite(v));
-        const alvo = resolucoes.includes(720) ? 720 : Math.max(...resolucoes);
+        const alvo = resolucoes.length ? Math.max(...resolucoes) : NaN;
         if (!Number.isFinite(alvo)) return res.status(502).json({ error: "O servidor de vídeo não informou nenhuma resolução." });
         fonteVideo = `${fonteVideo}${alvo}p.mp4`;
       }
@@ -5460,7 +5460,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       if (fonteVideo.endsWith("/play_")) {
         const resolucoes = String(play?.video?.availableResolutions || "")
           .split(",").map((v: string) => Number.parseInt(v, 10)).filter((v: number) => Number.isFinite(v));
-        const alvo = resolucoes.includes(720) ? 720 : Math.max(...resolucoes);
+        const alvo = resolucoes.length ? Math.max(...resolucoes) : NaN;
         if (!Number.isFinite(alvo)) return res.status(502).json({ error: "O servidor de vídeo não informou nenhuma resolução." });
         fonteVideo = `${fonteVideo}${alvo}p.mp4`;
       }
