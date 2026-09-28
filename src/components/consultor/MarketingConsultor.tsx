@@ -18,7 +18,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Settings2, Share2, Video, Sparkles, CalendarClock,
-  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, ImageOff, Pencil,
+  Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, ImageOff, Pencil, FlaskConical,
 } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { useConsultor } from '../../contexts/ConsultorContext';
@@ -33,8 +33,9 @@ import { EscolherVideoDoCurso } from './marketing/EscolherVideoDoCurso';
 import { PainelCriativos, useCriativos } from './marketing/Criativos';
 import { PainelPesquisa, usePautas } from './marketing/PesquisaDePautas';
 import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
+import { EtapaLaboratorio } from './marketing/Laboratorio';
 
-type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'agenda';
+type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'laboratorio' | 'agenda';
 
 interface Etapa {
   id: EtapaId;
@@ -44,6 +45,8 @@ interface Etapa {
   oQueFaz: string;
   icon: typeof Settings2;
   pronta: boolean;
+  /** Aba de testes: fora da sequência, sem número e sem "concluída". */
+  experimental?: boolean;
 }
 
 const ETAPAS: Etapa[] = [
@@ -64,6 +67,10 @@ const ETAPAS: Etapa[] = [
     // O nome antigo era "Criativos aprovados" e mentia: o que a etapa 3 aprova é o
     // TEXTO. O design nasce aqui, e é aqui que ele é aprovado.
     oQueFaz: 'O texto que você aprovou vira Reel, carrossel e PDF. Veja, refaça o que não gostou e aprove.',
+  },
+  {
+    id: 'laboratorio', numero: 0, nome: 'Laboratório', icon: FlaskConical, pronta: false, experimental: true,
+    oQueFaz: 'Testes: imagens que ilustram a fala do Reel. Nada aqui muda as suas peças.',
   },
   {
     id: 'agenda', numero: 5, nome: 'Publicação', icon: CalendarClock, pronta: false,
@@ -137,9 +144,10 @@ export default function MarketingConsultor() {
     videos: dados.videos.length > 0,
     campanhas: dados.pecas.some((p) => p.status === 'aprovado' || p.status === 'publicado'),
     agenda: dados.pecas.some((p) => p.status === 'publicado'),
+    laboratorio: false,
   };
   // Primeira etapa ainda não concluída — é onde o consultor deve estar.
-  const proximaPendente = ETAPAS.find((e) => !concluidas[e.id]);
+  const proximaPendente = ETAPAS.find((e) => !e.experimental && !concluidas[e.id]);
 
   function estadoDaEtapa(e: Etapa): 'concluida' | 'atual' | 'pendente' {
     if (concluidas[e.id]) return 'concluida';
@@ -182,7 +190,9 @@ export default function MarketingConsultor() {
                       : 'bg-gray-200 text-gray-500'
                 }`}
               >
-                {estado === 'concluida' ? <CheckCircle2 className="w-3.5 h-3.5" /> : e.numero}
+                {e.experimental
+                  ? <FlaskConical className="w-3.5 h-3.5" />
+                  : estado === 'concluida' ? <CheckCircle2 className="w-3.5 h-3.5" /> : e.numero}
               </span>
               {e.nome}
             </button>
@@ -194,7 +204,7 @@ export default function MarketingConsultor() {
       <div className="flex items-start gap-2.5 mb-6 p-3 rounded-lg bg-gray-50 border border-gray-200">
         <Circle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5 fill-blue-600" />
         <p className="text-sm text-gray-700">
-          <strong className="text-gray-900">Etapa {etapa.numero} — {etapa.nome}.</strong>{' '}
+          <strong className="text-gray-900">{etapa.experimental ? etapa.nome : `Etapa ${etapa.numero} — ${etapa.nome}`}.</strong>{' '}
           {etapa.oQueFaz}
         </p>
       </div>
@@ -279,6 +289,8 @@ export default function MarketingConsultor() {
                   />
                 </div>
               )}
+
+              {etapaAtiva === 'laboratorio' && <EtapaLaboratorio criativos={criativos.criativos} />}
 
               {etapaAtiva === 'agenda' && (
                 <EtapaAgenda

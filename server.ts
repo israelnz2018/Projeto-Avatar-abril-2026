@@ -5803,6 +5803,205 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     }
   });
 
+  // POST /api/marketing-consultor/laboratorio — ABA DE TESTES (Laboratório).
+  //
+  // Passo 1 do experimento de B-roll: imagens que ilustram a fala do Reel.
+  // Isolado de propósito: grava só em marketing_laboratorio e em
+  // marketing/{consultorId}/laboratorio/, e só LÊ o criativo. Se o teste não
+  // der certo, apagar esta rota, a aba e a coleção não mexe em mais nada.
+  //   acao "sugerir": o Gemini escolhe os momentos da fala e escreve o pedido de cada imagem.
+  //   acao "gerar":   gera (ou refaz) a imagem de um momento, no mesmo gerador da biblioteca.
+  app.post("/api/marketing-consultor/laboratorio", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+    const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+    const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+    const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+    if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+    const consultorId = String(caller.consultorId || "israel");
+
+    const acao = String(req.body?.acao || "");
+    const criativoId = String(req.body?.criativoId || "").trim();
+    if (!criativoId) return res.status(400).json({ error: "criativoId obrigatório." });
+
+    try {
+      const criativoSnap = await adminFirestore().collection("marketing_criativos").doc(criativoId).get();
+      if (!criativoSnap.exists) return res.status(404).json({ error: "Criativo não encontrado." });
+      const criativo = criativoSnap.data() as any;
+      if (!isAdmin && String(criativo.consultorId || "") !== consultorId) {
+        return res.status(403).json({ error: "Criativo não pertence a este consultor." });
+      }
+      const dono = String(criativo.consultorId || consultorId);
+      const labRef = adminFirestore().collection("marketing_laboratorio").doc(criativoId);
+
+      if (acao === "sugerir") {
+        // A fala do Reel como a tela mostra: sem as linhas apagadas e com as correções.
+        const apagadas = new Set<number>(Array.isArray(criativo.linhasApagadas) ? criativo.linhasApagadas : []);
+        const linhas = (criativo.linhas || [])
+          .map((l: any, i: number) => ({
+            i, inicio: Number(l.inicio) || 0, fim: Number(l.fim) || 0,
+            texto: String(criativo.edicoes?.[String(i)] ?? l.texto ?? "").trim(),
+          }))
+          .filter((l: any) => !apagadas.has(l.i) && l.texto);
+        if (linhas.length < 3) return res.status(400).json({ error: "Este criativo não tem fala suficiente para ilustrar." });
+        const porLinha = new Map<number, any>(linhas.map((l: any) => [l.i, l]));
+
+        const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+        const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+        const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+        const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+        if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+        const prompt = `Você é editor de vídeo de um Reel vertical sobre melhoria de processos (Lean, Seis Sigma).\n`
+          + `O consultor fala para a câmera. Em alguns momentos, uma IMAGEM em tela cheia (B-roll) entra por 2 a 4\n`
+          + `segundos para mostrar aquilo que ele está dizendo.\n\n`
+          + `FALA DO REEL, linha a linha (o número entre colchetes identifica a linha):\n"""\n`
+          + linhas.map((l: any) => `[${l.i}] ${l.texto}`).join("\n")
+          + `\n"""\n\n`
+          + `Escolha de 3 a 5 momentos em que uma imagem AJUDA a entender: onde a fala descreve uma situação,\n`
+          + `um lugar, um problema concreto ou um resultado. Não escolha a primeira linha (o rosto segura o gancho)\n`
+          + `nem linhas vizinhas entre si. Fala abstrata, do tipo "é importante" ou "vamos ver", não pede imagem.\n\n`
+          + `Para cada momento devolva:\n`
+          + `- linha: o número da linha\n`
+          + `- frase: o pedaço exato da fala que a imagem ilustra\n`
+          + `- porque: em português, uma frase curta dizendo o que a imagem mostra e por quê\n`
+          + `- prompt: o pedido para o gerador de imagens, EM INGLÊS, detalhado: foto documental realista, vertical,\n`
+          + `  do ambiente de trabalho real ligado à fala (fábrica, escritório, hospital, armazém, obra, loja),\n`
+          + `  com o objeto ou a situação física em primeiro plano. Termine com: "no text, no letters, no logos".\n`
+          + `  NUNCA peça tela, monitor, painel, quadro branco, cartaz, documento ou placa: o gerador escreve letras\n`
+          + `  falsas neles. Mostre a situação física (peças acumuladas, máquina parada, estoque bagunçado,\n`
+          + `  mãos trabalhando, fila, retrabalho na bancada).\n`
+          + `  O gerador IGNORA negação ("sem rosto" não funciona). Pessoa só com enquadramento que já esconde\n`
+          + `  o rosto: "seen from behind", "close-up of hands", "cropped at the shoulders", "silhouette".\n`
+          + `  Nada de ilustração, desenho, ícone ou gráfico.\n\n`
+          + `Devolva APENAS JSON.`;
+        const schema = {
+          type: Type.OBJECT,
+          properties: {
+            momentos: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  linha: { type: Type.INTEGER },
+                  frase: { type: Type.STRING },
+                  porque: { type: Type.STRING },
+                  prompt: { type: Type.STRING },
+                },
+                required: ["linha", "frase", "porque", "prompt"],
+              },
+            },
+          },
+          required: ["momentos"],
+        };
+
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        let sugeridos: any[] = [];
+        for (let tentativa = 0; tentativa < 3 && !sugeridos.length; tentativa++) {
+          try {
+            const gerado = await ai.models.generateContent({
+              model: geminiModel,
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              config: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.7, maxOutputTokens: 16384 },
+            });
+            const limpo = String(gerado.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
+            sugeridos = (JSON.parse(limpo)?.momentos || [])
+              .filter((m: any) => porLinha.has(Number(m?.linha)) && String(m?.prompt || "").trim())
+              .slice(0, 5);
+          } catch {
+            if (tentativa < 2) await new Promise((r) => setTimeout(r, 1500 * (tentativa + 1)));
+          }
+        }
+        if (!sugeridos.length) return res.status(502).json({ error: "A IA não conseguiu sugerir momentos. Tente de novo." });
+
+        // Pedir sugestões de novo não joga fora imagem já aprovada.
+        const atual = ((await labRef.get()).data() as any) || {};
+        const momentos: Record<string, any> = Object.fromEntries(
+          Object.entries(atual.momentos || {}).filter(([, m]: any) => m?.status === "aprovada"),
+        );
+        const agora = new Date().toISOString();
+        sugeridos.forEach((m: any, n: number) => {
+          const linha = porLinha.get(Number(m.linha));
+          momentos[`m${Date.now().toString(36)}${n}`] = {
+            linha: linha.i,
+            inicio: linha.inicio,
+            fim: linha.fim,
+            frase: String(m.frase || linha.texto).trim().slice(0, 300),
+            porque: String(m.porque || "").trim().slice(0, 300),
+            prompt: String(m.prompt).trim().slice(0, 1200),
+            status: "sugerida",
+            criadoEm: agora,
+          };
+        });
+        await labRef.set({
+          id: criativoId, criativoId, consultorId: dono,
+          titulo: String(criativo.titulo || "").replace(/\*/g, "").trim(),
+          momentos, atualizadoEm: agora, criadoEm: atual.criadoEm || agora,
+        });
+        return res.json({ ok: true, quantos: sugeridos.length });
+      }
+
+      if (acao === "gerar") {
+        const momentoId = String(req.body?.momentoId || "");
+        if (!/^m[a-z0-9]+$/.test(momentoId)) return res.status(400).json({ error: "Momento inválido." });
+        const lab = (await labRef.get()).data() as any;
+        const momento = lab?.momentos?.[momentoId];
+        if (!momento) return res.status(404).json({ error: "Momento não encontrado." });
+        const pedido = String(req.body?.prompt || momento.prompt || "").replace(/\s+/g, " ").trim().slice(0, 1200);
+        if (!pedido) return res.status(400).json({ error: "O pedido da imagem está vazio." });
+
+        const deepinfraKey = process.env.DEEPINFRA_API_KEY;
+        if (!deepinfraKey) return res.status(503).json({ error: "Gerador de imagens não configurado no servidor." });
+        // 1088×1920 é o Reel em tamanho cheio (múltiplo de 16, que o gerador exige).
+        const resposta = await fetch("https://api.deepinfra.com/v1/inference/black-forest-labs/FLUX-1-dev", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${deepinfraKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: pedido, width: 1088, height: 1920, num_inference_steps: 30 }),
+        });
+        if (!resposta.ok) {
+          if (resposta.status === 402) return res.status(402).json({ error: "O gerador de imagens está sem saldo. Adicione saldo para gerar." });
+          const detalheErro = await resposta.text().catch(() => "");
+          return res.status(502).json({ error: `O gerador de imagens recusou o pedido (HTTP ${resposta.status}). ${detalheErro.slice(0, 160)}` });
+        }
+        const corpo = await resposta.json() as any;
+        const base64 = corpo?.images?.[0];
+        if (!base64) return res.status(502).json({ error: "O gerador respondeu sem imagem." });
+
+        const caminho = `marketing/${dono}/laboratorio/${criativoId}/${momentoId}-${Date.now()}.png`;
+        await admin.storage().bucket(BUCKET_MARKETING).file(caminho).save(
+          Buffer.from(String(base64).replace(/^data:image\/\w+;base64,/, ""), "base64"),
+          { contentType: "image/png", metadata: { cacheControl: "private, max-age=86400" } },
+        );
+        await labRef.update({
+          [`momentos.${momentoId}.imagem`]: caminho,
+          [`momentos.${momentoId}.prompt`]: pedido,
+          [`momentos.${momentoId}.status`]: "pronta",
+          [`momentos.${momentoId}.geradas`]: admin.firestore.FieldValue.increment(1),
+          atualizadoEm: new Date().toISOString(),
+        });
+        console.log(`[laboratorio] ${criativoId}/${momentoId} custo=${corpo?.inference_status?.cost ?? "?"}`);
+        return res.json({ ok: true, imagem: caminho });
+      }
+
+      return res.status(400).json({ error: "Ação desconhecida." });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/laboratorio] erro:", error);
+      const errorMessage = String(error?.message || "Erro no laboratório.")
+        .replace(/\bgemini\b/gi, "serviço de IA")
+        .replace(/deepinfra/gi, "gerador de imagens")
+        .slice(0, 500);
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // POST /api/consultor/convidar — convida/promove alguém a CONSULTOR de um tenant.
   // Se o e-mail já for usuário (aluno pago/grátis), PROMOVE pra consultor (não duplica).
   // Senha padrão LBW2026 + troca obrigatória no 1º login (senhaProvisoria). Admin-only, sem n8n.
