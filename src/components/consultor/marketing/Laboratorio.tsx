@@ -32,6 +32,7 @@ interface MomentoLab {
   brollMovimento?: Movimento;
   brollStatus?: 'gerando' | 'pronto' | 'erro';
   brollErro?: string | null;
+  brollAprovado?: boolean;
 }
 
 type Movimento = 'aproximar' | 'afastar' | 'subir' | 'descer';
@@ -89,8 +90,8 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
         <FlaskConical className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
         <p className="text-sm text-purple-900">
           <strong>Área de testes.</strong> Nada aqui muda as suas peças nem a publicação.
-          Passo 1: imagens que ilustram a fala do Reel. Passo 2: cada imagem aprovada vira um vídeo
-          curto com movimento (B-roll). Passo 3, a seguir: os B-rolls entram no Reel.
+          Passo 1: imagens que ilustram a fala do Reel. Passo 2: na imagem aprovada, escolha o movimento e
+          gere o B-roll, que aparece ao lado para você revisar. Passo 3, a seguir: os B-rolls entram no Reel.
         </p>
       </div>
 
@@ -129,7 +130,7 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
         <p className="text-sm text-gray-500">Nenhum criativo de vídeo aprovado ainda.</p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {lista.map(([id, m]) => (
           <CartaoMomento
             key={id} criativoId={criativoId} consultorId={consultorId} momentoId={id} momento={m}
@@ -153,6 +154,7 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
   const { url: urlBroll } = useArquivoUrl(momento.broll);
   const [movimento, setMovimento] = useState<Movimento>(momento.brollMovimento || movimentoPadrao);
   const fazendoBroll = momento.brollStatus === 'gerando';
+  const brollAprovado = Boolean(momento.brollAprovado);
   const [pedido, setPedido] = useState(momento.prompt);
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState('');
@@ -176,6 +178,7 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
       await updateDoc(doc(db, COLECAO_LAB, criativoId), {
         [`momentos.${momentoId}.brollStatus`]: 'gerando',
         [`momentos.${momentoId}.brollErro`]: null,
+        [`momentos.${momentoId}.brollAprovado`]: false,
       });
       const agora = new Date().toISOString();
       await addDoc(collection(db, COLECOES.tarefas), {
@@ -200,52 +203,102 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
     });
   }
 
+  async function alternarAprovacaoBroll() {
+    await updateDoc(doc(db, COLECAO_LAB, criativoId), {
+      [`momentos.${momentoId}.brollAprovado`]: !brollAprovado,
+    });
+  }
+
+  // Lado a lado: a imagem (passo 1) à esquerda, o B-roll feito dela (passo 2) à
+  // direita. Cada um tem o seu Refazer + Aprovar, no mesmo canto.
   return (
-    <div className={`rounded-xl border bg-white overflow-hidden ${aprovada ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200'}`}>
-      <div className="relative aspect-[9/16] bg-gray-100 grid place-items-center">
-        {url && !urlBroll && <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />}
-        {urlBroll && (
-          <video
-            key={urlBroll} src={urlBroll} autoPlay loop muted playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-        {!url && (gerando || carregando) && <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />}
-        {!url && !gerando && !carregando && (
-          <button
-            onClick={gerar}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-          >
-            <Sparkles className="w-4 h-4" /> Gerar imagem
-          </button>
-        )}
-        {url && gerando && (
-          <div className="absolute inset-0 bg-white/60 grid place-items-center">
-            <Loader2 className="w-6 h-6 text-gray-600 animate-spin" />
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="grid grid-cols-2 gap-px bg-gray-200">
+        {/* IMAGEM */}
+        <div className="bg-white">
+          <p className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">1 · Imagem</p>
+          <div className={`relative aspect-[9/16] bg-gray-100 grid place-items-center ${aprovada ? 'ring-2 ring-inset ring-green-500' : ''}`}>
+            {url && <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+            {!url && (gerando || carregando) && <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />}
+            {!url && !gerando && !carregando && (
+              <button
+                onClick={gerar}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700"
+              >
+                <Sparkles className="w-4 h-4" /> Gerar imagem
+              </button>
+            )}
+            {url && gerando && (
+              <div className="absolute inset-0 bg-white/60 grid place-items-center">
+                <Loader2 className="w-6 h-6 text-gray-600 animate-spin" />
+              </div>
+            )}
+            {url && (
+              <BotoesRevisao
+                aprovado={aprovada}
+                ocupado={gerando}
+                onRefazer={gerar}
+                onAprovar={alternarAprovacao}
+                dicaRefazer="Gerar outra imagem com o pedido abaixo"
+              />
+            )}
           </div>
-        )}
-        {url && (
-          <div className="absolute top-2 right-2 flex gap-1.5">
-            <button
-              onClick={gerar}
-              disabled={gerando || aprovada}
-              title="Gerar outra imagem com o pedido abaixo"
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/95 text-gray-800 text-xs font-semibold shadow hover:bg-white disabled:opacity-50"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Refazer
-            </button>
-            <button
-              onClick={alternarAprovacao}
-              disabled={gerando}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow ${
-                aprovada ? 'bg-green-600 text-white' : 'bg-white/95 text-gray-800 hover:bg-white'
-              }`}
-            >
-              <Check className="w-3.5 h-3.5" /> {aprovada ? 'Aprovada' : 'Aprovar'}
-            </button>
+        </div>
+
+        {/* B-ROLL */}
+        <div className="bg-white">
+          <p className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">2 · B-roll</p>
+          <div className={`relative aspect-[9/16] bg-gray-50 grid place-items-center ${brollAprovado ? 'ring-2 ring-inset ring-green-500' : ''}`}>
+            {urlBroll && (
+              <video
+                key={urlBroll} src={urlBroll} autoPlay loop muted playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )}
+            {fazendoBroll && (
+              <div className="absolute inset-0 bg-white/60 grid place-items-center">
+                <Loader2 className="w-6 h-6 text-gray-600 animate-spin" />
+              </div>
+            )}
+            {!urlBroll && !fazendoBroll && (
+              <div className="px-3 text-center space-y-2">
+                {aprovada ? (
+                  <>
+                    <p className="text-xs text-gray-600">Escolha o movimento</p>
+                    <SeletorMovimento valor={movimento} onMudar={setMovimento} />
+                    <button
+                      onClick={gerarBroll}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700"
+                    >
+                      <Clapperboard className="w-3.5 h-3.5" /> Gerar B-roll
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500">Aprove a imagem para fazer o B-roll.</p>
+                )}
+              </div>
+            )}
+            {urlBroll && (
+              <BotoesRevisao
+                aprovado={brollAprovado}
+                ocupado={fazendoBroll}
+                onRefazer={gerarBroll}
+                onAprovar={alternarAprovacaoBroll}
+                dicaRefazer="Gerar de novo com o movimento escolhido abaixo"
+              />
+            )}
           </div>
-        )}
+          {urlBroll && (
+            <div className="p-2">
+              <SeletorMovimento valor={movimento} onMudar={setMovimento} desligado={fazendoBroll || brollAprovado} />
+            </div>
+          )}
+          {momento.brollStatus === 'erro' && (
+            <p className="px-2 pb-2 text-xs text-red-600">Não saiu: {momento.brollErro}</p>
+          )}
+        </div>
       </div>
+
       <div className="p-3 space-y-2">
         <p className="text-xs text-gray-500">{tempo(momento.inicio)} no vídeo da aula</p>
         <p className="text-sm text-gray-900 font-medium">“{momento.frase}”</p>
@@ -261,34 +314,49 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
           />
           <p className="text-[11px] text-gray-500">Em inglês, que é como o gerador entende melhor. Mude e clique em Refazer.</p>
         </details>
-        {aprovada && (
-          <div className="pt-2 border-t border-gray-100 space-y-1.5">
-            <p className="text-xs font-semibold text-gray-700">B-roll (vídeo de 5 s)</p>
-            <div className="flex gap-1.5">
-              <select
-                value={movimento}
-                onChange={(e) => setMovimento(e.target.value as Movimento)}
-                disabled={fazendoBroll}
-                className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white"
-              >
-                {MOVIMENTOS.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-              </select>
-              <button
-                onClick={gerarBroll}
-                disabled={fazendoBroll}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-60"
-              >
-                {fazendoBroll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clapperboard className="w-3.5 h-3.5" />}
-                {fazendoBroll ? 'Gerando…' : momento.broll ? 'Refazer B-roll' : 'Gerar B-roll'}
-              </button>
-            </div>
-            {momento.brollStatus === 'erro' && (
-              <p className="text-xs text-red-600">Não saiu: {momento.brollErro}</p>
-            )}
-          </div>
-        )}
         {erro && <p className="text-xs text-red-600">{erro}</p>}
       </div>
     </div>
+  );
+}
+
+function BotoesRevisao({ aprovado, ocupado, onRefazer, onAprovar, dicaRefazer }: {
+  aprovado: boolean; ocupado: boolean; onRefazer: () => void; onAprovar: () => void; dicaRefazer: string;
+}) {
+  return (
+    <div className="absolute top-2 right-2 flex gap-1">
+      <button
+        onClick={onRefazer}
+        disabled={ocupado || aprovado}
+        title={dicaRefazer}
+        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/95 text-gray-800 text-[11px] font-semibold shadow hover:bg-white disabled:opacity-50"
+      >
+        <RotateCcw className="w-3 h-3" /> Refazer
+      </button>
+      <button
+        onClick={onAprovar}
+        disabled={ocupado}
+        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold shadow ${
+          aprovado ? 'bg-green-600 text-white' : 'bg-white/95 text-gray-800 hover:bg-white'
+        }`}
+      >
+        <Check className="w-3 h-3" /> {aprovado ? 'Aprovado' : 'Aprovar'}
+      </button>
+    </div>
+  );
+}
+
+function SeletorMovimento({ valor, onMudar, desligado = false }: {
+  valor: Movimento; onMudar: (m: Movimento) => void; desligado?: boolean;
+}) {
+  return (
+    <select
+      value={valor}
+      onChange={(e) => onMudar(e.target.value as Movimento)}
+      disabled={desligado}
+      className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white disabled:opacity-60"
+    >
+      {MOVIMENTOS.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+    </select>
   );
 }
