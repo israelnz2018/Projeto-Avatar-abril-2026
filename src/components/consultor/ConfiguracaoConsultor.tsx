@@ -4,7 +4,7 @@
  */
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp, Megaphone, User } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users2, Palette, Settings, ClipboardCheck, Award, FolderUp, Megaphone, User, CalendarClock } from 'lucide-react';
 import { useUserAccess } from '../../hooks/useUserAccess';
 
 const SuperRelatorio = lazy(() => import('./SuperRelatorio'));
@@ -19,6 +19,7 @@ const Certificados = lazy(() => import('../CertificadosView'));
 const MateriaisApoio = lazy(() => import('./MateriaisApoio'));
 const MarketingConsultor = lazy(() => import('./MarketingConsultor'));
 const MeuPerfil = lazy(() => import('../UserProfile'));
+const AgendamentoConsultor = lazy(() => import('./AgendamentoConsultor'));
 
 const ABAS = [
   // O MESMO "Meu Perfil" da caixinha ao lado da foto, agora também como aba fixa do
@@ -36,6 +37,8 @@ const ABAS = [
   { id: 'relatorio', nome: 'Relatórios', icon: LayoutDashboard, Comp: SuperRelatorio },
   // Fase 1: admin-only (o próprio componente faz a checagem). Ver MARKETING-PARA-NOVOS-CONSULTORES.md
   { id: 'marketing', nome: 'Marketing para Consultores', icon: Megaphone, Comp: MarketingConsultor },
+  // Cal.diy hospedado no nosso Railway, num quadro. Ver INSTALAR-AGENDAMENTO-RAILWAY.md
+  { id: 'agendamento', nome: 'Agendamento(beta)', icon: CalendarClock, Comp: AgendamentoConsultor },
 ];
 
 export default function ConfiguracaoConsultor() {

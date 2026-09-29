@@ -28,7 +28,8 @@ import {
   Rocket,
   FolderOpen,
   Gamepad2,
-  UserCircle
+  UserCircle,
+  CalendarClock,
 } from 'lucide-react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -257,6 +258,9 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
         ...(podeVerMarketingConsultor
           ? [{ name: 'Marketing para Consultores', path: '/configuracao?aba=marketing', icon: Megaphone }]
           : []),
+        // Agendamento vale para TODO consultor (cada um com a propria agenda),
+        // ao contrario do Marketing, que na fase 1 e so do Israel.
+        { name: 'Agendamento(beta)', path: '/configuracao?aba=agendamento', icon: CalendarClock },
         { name: 'Comunidade LBW - Apenas Consultores', path: '/comunidade-adm', icon: Shield },
       ],
     }] : []),
