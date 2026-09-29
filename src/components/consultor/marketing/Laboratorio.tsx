@@ -1,16 +1,20 @@
 /**
  * Laboratório — aba de TESTES entre "Minhas peças" e "Publicação".
  *
- * Experimento de B-roll em 3 passos. Passo 1: imagens que ilustram a fala do
- * Reel. Passo 2: a imagem aprovada vira vídeo curto com movimento (tarefa
- * 'laboratorio-broll' do worker, em worker/laboratorio.mjs). Só LÊ o criativo e
- * grava em marketing_laboratorio — nada aqui mexe nas peças nem na publicação.
+ * Experimento de B-roll, AUTOMÁTICO de ponta a ponta: um clique em Preparar
+ * acha os momentos da fala, reaproveita a biblioteca (marketing_brolls, busca
+ * por similaridade de conceito) e gera só o que faltar; aprovar a imagem dispara
+ * o B-roll; aprovar o último B-roll dispara a montagem do Reel. Ao consultor
+ * cabe aprovar, reprovar ou refazer — nunca operar a esteira.
+ *
+ * Só LÊ o criativo e grava em marketing_laboratorio — nada aqui mexe nas peças
+ * nem na publicação.
  * Se o teste não der certo, apagar este arquivo, a aba em MarketingConsultor, a
  * rota /api/marketing-consultor/laboratorio e worker/laboratorio.mjs desfaz tudo.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Check, Clapperboard, FlaskConical, Loader2, RotateCcw, Sparkles } from 'lucide-react';
+import { addDoc, collection, doc, getDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { Check, Clapperboard, FlaskConical, Library, Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { auth, db } from '../../../lib/firebase';
 import { COLECOES, Criativo } from '../../../types/marketing';
 import { useArquivoUrl } from './EtapasPreenchidas';
@@ -33,6 +37,12 @@ interface MomentoLab {
   prompt: string;
   status: 'sugerida' | 'pronta' | 'aprovada';
   imagem?: string;
+  /** O que a IA entendeu que o trecho significa. É por aqui que a busca acha. */
+  conceitos?: string[];
+  /** Veio pronta da biblioteca: o id do item, a nota e os conceitos que bateram. */
+  daBiblioteca?: string;
+  confianca?: number;
+  conceitoQueBateu?: string;
   geradas?: number;
   criadoEm: string;
   broll?: string;
@@ -73,6 +83,7 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
   const [momentos, setMomentos] = useState<Record<string, MomentoLab>>({});
   const [montagem, setMontagem] = useState<Montagem | null>(null);
   const [sugerindo, setSugerindo] = useState(false);
+  const [aviso, setAviso] = useState('');
   const [erro, setErro] = useState('');
 
   useEffect(() => {
@@ -87,11 +98,38 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
   const consultorId = opcoes.find((c) => c.id === criativoId)?.consultorId || '';
   const brollsAprovados = lista.filter(([, m]) => m.brollAprovado && m.broll).length;
 
-  async function sugerir() {
+  /**
+   * Prepara TUDO de uma vez: acha os momentos, pega da biblioteca o que já
+   * existe e manda gerar só o que faltou. O consultor não clica em cartão
+   * nenhum — ele chega e encontra as imagens prontas para aprovar ou reprovar.
+   */
+  async function prepararTudo() {
     setSugerindo(true);
     setErro('');
-    try { await chamarLab({ acao: 'sugerir', criativoId }); }
-    catch (e: any) { setErro(e.message); }
+    setAviso('');
+    try {
+      const r = await chamarLab({ acao: 'sugerir', criativoId });
+      const daBiblioteca = Number(r?.daBiblioteca || 0);
+      const paraGerar = Number(r?.gerar || 0);
+      setAviso(
+        paraGerar
+          ? `${daBiblioteca} da biblioteca, gerando ${paraGerar} nova${paraGerar > 1 ? 's' : ''}…`
+          : `${daBiblioteca} da biblioteca. Nada precisou ser gerado.`,
+      );
+
+      // O que a biblioteca não cobriu é gerado agora, em sequência: o gerador
+      // cobra por imagem e responde em segundos, então não vale paralelizar e
+      // arriscar estourar limite por uma economia de poucos segundos.
+      if (paraGerar) {
+        const snap = await getDoc(doc(db, COLECAO_LAB, criativoId));
+        const atuais = (snap.data()?.momentos || {}) as Record<string, MomentoLab>;
+        const semImagem = Object.entries(atuais).filter(([, m]) => !m.imagem);
+        for (const [momentoId, m] of semImagem) {
+          await chamarLab({ acao: 'gerar', criativoId, momentoId, prompt: m.prompt });
+        }
+        setAviso(`Pronto: ${daBiblioteca} da biblioteca, ${semImagem.length} gerada${semImagem.length > 1 ? 's' : ''}.`);
+      }
+    } catch (e: any) { setErro(e.message); }
     finally { setSugerindo(false); }
   }
 
@@ -101,8 +139,8 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
         <FlaskConical className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
         <p className="text-sm text-purple-900">
           <strong>Área de testes.</strong> Nada aqui muda as suas peças nem a publicação.
-          Passo 1: imagens que ilustram a fala do Reel. Passo 2: na imagem aprovada, escolha o movimento e
-          gere o B-roll, que aparece ao lado para você revisar. Passo 3: os B-rolls aprovados entram no Reel, no momento de cada frase.
+          Escolha o criativo e clique em <strong>Preparar</strong>: o sistema acha os momentos da fala, usa as
+          imagens que já existem na biblioteca e só gera as que faltarem. Você aprova ou reprova cada uma.
         </p>
       </div>
 
@@ -122,18 +160,19 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
         </label>
         {criativoId && (
           <button
-            onClick={sugerir}
+            onClick={prepararTudo}
             disabled={sugerindo}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
           >
             {sugerindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {lista.length ? 'Sugerir de novo' : 'Sugerir imagens'}
+            {sugerindo ? 'Preparando…' : lista.length ? 'Preparar de novo' : 'Preparar imagens'}
           </button>
         )}
       </div>
+      {aviso && <p className="text-xs font-semibold text-blue-700">{aviso}</p>}
       {lista.length > 0 && (
         <p className="text-xs text-gray-500">
-          "Sugerir de novo" troca as sugestões, mas mantém as imagens que você já aprovou.
+          "Preparar de novo" troca as sugestões, mas mantém as imagens que você já aprovou.
         </p>
       )}
       {erro && <p className="text-sm text-red-600">{erro}</p>}
@@ -155,6 +194,7 @@ export function EtapaLaboratorio({ criativos }: { criativos: Criativo[] }) {
           criativoId={criativoId}
           consultorId={consultorId}
           brollsAprovados={brollsAprovados}
+          totalBrolls={lista.filter(([, m]) => m.broll).length}
           montagem={montagem}
         />
       )}
@@ -175,13 +215,26 @@ interface Montagem {
  * dele é falada — o worker converte o tempo da aula para o tempo do Reel,
  * contando o início do corte e a velocidade.
  */
-function PainelMontagem({ criativoId, consultorId, brollsAprovados, montagem }: {
-  criativoId: string; consultorId: string; brollsAprovados: number; montagem: Montagem | null;
+function PainelMontagem({ criativoId, consultorId, brollsAprovados, totalBrolls, montagem }: {
+  criativoId: string; consultorId: string; brollsAprovados: number; totalBrolls: number; montagem: Montagem | null;
 }) {
   const { url } = useArquivoUrl(montagem?.status === 'pronto' ? montagem.video : undefined);
   const [erro, setErro] = useState('');
   const travado = montagem?.status === 'gerando' && parado(montagem.pedidoEm);
   const gerando = montagem?.status === 'gerando' && !travado;
+
+  // MONTA SOZINHO quando o último B-roll é aprovado.
+  //
+  // Só dispara na transição para "todos aprovados" e quando ainda não há vídeo
+  // nenhum: sem isso, aprovar e reprovar em sequência mandaria montar a cada
+  // clique, e refazer a montagem à mão continuaria sendo decisão do consultor.
+  const todosAprovados = totalBrolls > 0 && brollsAprovados === totalBrolls;
+  const jaDisparou = React.useRef(false);
+  useEffect(() => {
+    if (!todosAprovados || montagem?.video || gerando || jaDisparou.current) return;
+    jaDisparou.current = true;
+    montar();
+  }, [todosAprovados, montagem?.video, gerando]);
 
   async function montar() {
     setErro('');
@@ -208,7 +261,7 @@ function PainelMontagem({ criativoId, consultorId, brollsAprovados, montagem }: 
         <div>
           <p className="text-sm font-bold text-gray-900">3 · Reel com B-roll</p>
           <p className="text-xs text-gray-600">
-            Cada B-roll aprovado entra no segundo em que a frase dele é falada, por 2,5 a 4 s, em tela cheia.
+Monta sozinho quando você aprova o último B-roll. Cada um entra no segundo em que a frase é falada, por 2,5 a 4 s, em tela cheia.
             A sua voz continua, e a legenda fica por cima.
           </p>
         </div>
@@ -299,10 +352,19 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
     }
   }
 
+  /**
+   * Aprovar a imagem já dispara o B-roll, com o movimento sugerido.
+   *
+   * O consultor não precisa escolher movimento nem apertar um segundo botão: o
+   * caminho normal é aprovar e seguir. Se ele quiser outro movimento, troca no
+   * seletor embaixo do vídeo e clica em Refazer.
+   */
   async function alternarAprovacao() {
+    const vaiAprovar = !aprovada;
     await updateDoc(doc(db, COLECAO_LAB, criativoId), {
-      [`momentos.${momentoId}.status`]: aprovada ? 'pronta' : 'aprovada',
+      [`momentos.${momentoId}.status`]: vaiAprovar ? 'aprovada' : 'pronta',
     });
+    if (vaiAprovar && !momento.broll && !fazendoBroll) await gerarBroll();
   }
 
   async function alternarAprovacaoBroll() {
@@ -318,7 +380,26 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
       <div className="grid grid-cols-2 gap-px bg-gray-200">
         {/* IMAGEM */}
         <div className="bg-white">
-          <p className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">1 · Imagem</p>
+          {/* DE ONDE VEIO ESTA IMAGEM.
+              Fica visível sempre, e não escondido num detalhe: é assim que se
+              confere que o sistema reaproveitou a biblioteca em vez de gerar
+              de novo algo que já existia. */}
+          <p className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500 flex items-center gap-1.5">
+            <span>1 · Imagem</span>
+            {momento.daBiblioteca ? (
+              <span
+                title={`Achou pelo conceito: ${momento.conceitoQueBateu || '—'} (semelhança ${momento.confianca ?? '—'})`}
+                className="normal-case tracking-normal font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-800"
+              >
+                <Library className="w-3 h-3 inline -mt-0.5 mr-0.5" />
+                da biblioteca
+              </span>
+            ) : momento.imagem ? (
+              <span className="normal-case tracking-normal font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                gerada agora
+              </span>
+            ) : null}
+          </p>
           <div className={`relative aspect-[9/16] bg-gray-100 grid place-items-center ${aprovada ? 'ring-2 ring-inset ring-green-500' : ''}`}>
             {url && <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />}
             {!url && (gerando || carregando) && <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />}
@@ -366,7 +447,7 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
               <div className="px-3 text-center space-y-2">
                 {aprovada ? (
                   <>
-                    <p className="text-xs text-gray-600">Escolha o movimento</p>
+                    <p className="text-xs text-gray-600">O B-roll não saiu. Tente de novo:</p>
                     <SeletorMovimento valor={movimento} onMudar={setMovimento} />
                     <button
                       onClick={gerarBroll}
@@ -376,7 +457,7 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
                     </button>
                   </>
                 ) : (
-                  <p className="text-xs text-gray-500">Aprove a imagem para fazer o B-roll.</p>
+                  <p className="text-xs text-gray-500">Aprove a imagem e o B-roll é feito sozinho.</p>
                 )}
               </div>
             )}
@@ -408,6 +489,14 @@ function CartaoMomento({ criativoId, consultorId, momentoId, momento, movimentoP
         <p className="text-xs text-gray-500">{tempo(momento.inicio)} no vídeo da aula</p>
         <p className="text-sm text-gray-900 font-medium">“{momento.frase}”</p>
         <p className="text-xs text-gray-600">{momento.porque}</p>
+        {momento.conceitos?.length ? (
+          <p className="text-[11px] text-gray-500">
+            <span className="font-semibold">Conceitos:</span> {momento.conceitos.join(' · ')}
+            {momento.daBiblioteca && (
+              <span className="text-green-700"> → achou {momento.daBiblioteca}</span>
+            )}
+          </p>
+        ) : null}
         <details>
           <summary className="text-xs font-semibold text-blue-700 cursor-pointer">Pedido da imagem</summary>
           <textarea

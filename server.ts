@@ -5803,6 +5803,71 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     }
   });
 
+  /**
+   * A biblioteca de B-rolls, com os vetores já calculados na carga.
+   *
+   * Cache em memória: são ~70 fichas com um vetor de 3072 números cada, e reler
+   * isso do Firestore a cada momento sugerido seria caro à toa. A biblioteca muda
+   * só quando alguém carrega imagem nova, então 10 minutos de validade é folgado.
+   */
+  let cacheBrolls: { em: number; itens: any[] } | null = null;
+  async function lerBibliotecaBrolls() {
+    if (cacheBrolls && Date.now() - cacheBrolls.em < 10 * 60 * 1000) return cacheBrolls.itens;
+    const snap = await adminFirestore().collection("marketing_brolls").get();
+    const itens = snap.docs.map((d) => d.data()).filter((b: any) => Array.isArray(b.vetor) && b.vetor.length);
+    cacheBrolls = { em: Date.now(), itens };
+    return itens;
+  }
+
+  /** Cosseno entre dois vetores. Quanto mais perto de 1, mais parecido o significado. */
+  function semelhanca(a: number[], b: number[]): number {
+    let produto = 0, normaA = 0, normaB = 0;
+    for (let i = 0; i < a.length && i < b.length; i++) {
+      produto += a[i] * b[i];
+      normaA += a[i] * a[i];
+      normaB += b[i] * b[i];
+    }
+    return produto / (Math.sqrt(normaA) * Math.sqrt(normaB) || 1);
+  }
+
+  /**
+   * Abaixo disto a imagem da biblioteca não representa o trecho, e vale mais
+   * gerar uma nova. Medido: no teste com 5 falas reais, o acerto certo ficou
+   * entre 0,68 e 0,84, e o primeiro errado nunca passou de 0,65.
+   */
+  const CONFIANCA_MINIMA = 0.68;
+
+  /**
+   * A imagem da biblioteca que melhor representa estes conceitos, ou null.
+   *
+   * RETRIEVAL_QUERY aqui e RETRIEVAL_DOCUMENT na carga: é o par que o Gemini
+   * calcula de propósito para ficarem próximos. Trocar um dos dois derruba a
+   * qualidade da comparação sem dar erro nenhum — o sintoma seria só "ele
+   * escolheu uma imagem estranha".
+   */
+  async function procurarNaBiblioteca(textoDaFala: string, biblioteca: any[], ai: any) {
+    try {
+      const r = await ai.models.embedContent({
+        model: "gemini-embedding-001",
+        contents: textoDaFala,
+        config: { taskType: "RETRIEVAL_QUERY" },
+      });
+      const vetor = r.embeddings?.[0]?.values;
+      if (!Array.isArray(vetor)) return null;
+
+      let melhor: any = null;
+      for (const item of biblioteca) {
+        const nota = semelhanca(vetor, item.vetor);
+        if (!melhor || nota > melhor.nota) melhor = { ...item, nota };
+      }
+      if (!melhor || melhor.nota < CONFIANCA_MINIMA) return null;
+      return { id: melhor.id, arquivo: melhor.arquivo, conceitos: melhor.conceitos || [], nota: Number(melhor.nota.toFixed(3)) };
+    } catch {
+      // Busca falhou: segue para o plano B (gerar), em vez de derrubar a sugestão.
+      return null;
+    }
+  }
+
   // POST /api/marketing-consultor/laboratorio — ABA DE TESTES (Laboratório).
   //
   // Passo 1 do experimento de B-roll: imagens que ilustram a fala do Reel.
@@ -5873,9 +5938,14 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
           + `- linha: o número da linha\n`
           + `- frase: o pedaço exato da fala que a imagem ilustra\n`
           + `- porque: em português, uma frase curta dizendo o que a imagem mostra e por quê\n`
-          + `- prompt: o pedido para o gerador de imagens, EM INGLÊS, detalhado: foto documental realista, vertical,\n`
-          + `  do ambiente de trabalho real ligado à fala (fábrica, escritório, hospital, armazém, obra, loja),\n`
-          + `  com o objeto ou a situação física em primeiro plano. Termine com: "no text, no letters, no logos".\n`
+          + `- conceitos: 3 a 6 palavras ou expressões em PORTUGUÊS que resumem a IDEIA daquele trecho\n`
+          + `  (ex.: "espera", "retrabalho", "custo", "crescimento", "causa raiz", "padronização").\n`
+          + `  É por aqui que o sistema procura uma imagem que já existe na biblioteca, então descreva a\n`
+          + `  IDEIA, não a fotografia.\n`
+          + `- prompt: PLANO B, usado só se a biblioteca não tiver nada parecido. O pedido para o gerador de\n`
+          + `  imagens, EM INGLÊS, detalhado: foto documental realista, vertical, do ambiente de trabalho real\n`
+          + `  ligado à fala (fábrica, escritório, hospital, armazém, obra, loja), com o objeto ou a situação\n`
+          + `  física em primeiro plano. Termine com: "no text, no letters, no logos".\n`
           + `  NUNCA peça tela, monitor, painel, quadro branco, cartaz, documento ou placa: o gerador escreve letras\n`
           + `  falsas neles. Mostre a situação física (peças acumuladas, máquina parada, estoque bagunçado,\n`
           + `  mãos trabalhando, fila, retrabalho na bancada).\n`
@@ -5894,9 +5964,10 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
                   linha: { type: Type.INTEGER },
                   frase: { type: Type.STRING },
                   porque: { type: Type.STRING },
+                  conceitos: { type: Type.ARRAY, items: { type: Type.STRING } },
                   prompt: { type: Type.STRING },
                 },
-                required: ["linha", "frase", "porque", "prompt"],
+                required: ["linha", "frase", "porque", "conceitos", "prompt"],
               },
             },
           },
@@ -5922,6 +5993,27 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
         }
         if (!sugeridos.length) return res.status(502).json({ error: "A IA não conseguiu sugerir momentos. Tente de novo." });
 
+        // BUSCA NA BIBLIOTECA, ANTES DE GERAR QUALQUER COISA.
+        //
+        // Quem decide "usa o que existe ou gera novo" é este código, não a IA: ela
+        // só disse o que o trecho significa. A comparação é matemática (cosseno
+        // entre vetores), então a mesma fala sempre dá o mesmo resultado, e o
+        // motivo da escolha vai para a tela junto com a imagem.
+        const biblioteca = await lerBibliotecaBrolls();
+        for (const m of sugeridos) {
+          const conceitos = (Array.isArray(m.conceitos) ? m.conceitos : []).map((c: any) => String(c).trim()).filter(Boolean);
+          m.conceitos = conceitos.slice(0, 8);
+          const achado = conceitos.length && biblioteca.length
+            ? await procurarNaBiblioteca(conceitos.join(", "), biblioteca, ai)
+            : null;
+          if (achado) {
+            m.daBiblioteca = achado.id;
+            m.imagem = achado.arquivo;
+            m.confianca = achado.nota;
+            m.conceitoQueBateu = achado.conceitos.slice(0, 3).join(", ");
+          }
+        }
+
         // Pedir sugestões de novo não joga fora imagem já aprovada.
         const atual = ((await labRef.get()).data() as any) || {};
         const momentos: Record<string, any> = Object.fromEntries(
@@ -5936,8 +6028,16 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
             fim: linha.fim,
             frase: String(m.frase || linha.texto).trim().slice(0, 300),
             porque: String(m.porque || "").trim().slice(0, 300),
+            conceitos: m.conceitos || [],
             prompt: String(m.prompt).trim().slice(0, 1200),
-            status: "sugerida",
+            // Veio da biblioteca: já nasce com imagem, e a tela diz de onde veio.
+            ...(m.daBiblioteca ? {
+              imagem: m.imagem,
+              daBiblioteca: m.daBiblioteca,
+              confianca: m.confianca,
+              conceitoQueBateu: m.conceitoQueBateu,
+              status: "pronta",
+            } : { status: "sugerida" }),
             criadoEm: agora,
           };
         });
@@ -5946,7 +6046,8 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
           titulo: String(criativo.titulo || "").replace(/\*/g, "").trim(),
           momentos, atualizadoEm: agora, criadoEm: atual.criadoEm || agora,
         });
-        return res.json({ ok: true, quantos: sugeridos.length });
+        const daBiblioteca = sugeridos.filter((m: any) => m.daBiblioteca).length;
+        return res.json({ ok: true, quantos: sugeridos.length, daBiblioteca, gerar: sugeridos.length - daBiblioteca });
       }
 
       if (acao === "gerar") {
