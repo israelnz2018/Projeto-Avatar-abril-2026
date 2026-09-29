@@ -208,8 +208,8 @@ function PainelMontagem({ criativoId, consultorId, brollsAprovados, montagem }: 
         <div>
           <p className="text-sm font-bold text-gray-900">3 · Reel com B-roll</p>
           <p className="text-xs text-gray-600">
-            Cada B-roll aprovado entra no segundo em que a frase dele é falada, por 2,5 a 4 s, cobrindo o slide e o
-            rosto. A sua voz continua, e o título e a legenda ficam por cima.
+            Cada B-roll aprovado entra no segundo em que a frase dele é falada, por 2,5 a 4 s, em tela cheia.
+            A sua voz continua, e a legenda fica por cima.
           </p>
         </div>
         <button
