@@ -15,11 +15,44 @@ import { CalendarClock, ExternalLink, AlertTriangle, RefreshCw } from 'lucide-re
 
 const URL_AGENDAMENTO = String(import.meta.env.VITE_AGENDAMENTO_URL || '').trim();
 
+/**
+ * As telas do sistema de agendamento que o consultor realmente usa.
+ *
+ * O menu de lá tem bem mais coisa (equipes, apps, admin); estes atalhos levam
+ * direto ao que interessa, para ninguém se perder.
+ */
+type TelaId = 'eventos' | 'reservas' | 'horarios' | 'calendarios';
+const TELAS: Record<TelaId, { nome: string; caminho: string; dica: string }> = {
+  eventos: {
+    nome: 'Meus eventos',
+    caminho: '/event-types',
+    dica: 'Cada evento é um tipo de encontro que as pessoas podem marcar com você. '
+      + 'Para uma turma (várias pessoas no mesmo horário): abra o evento → aba Avançado → ligue "Oferecer vagas" e diga quantas.',
+  },
+  reservas: {
+    nome: 'Agendamentos',
+    caminho: '/bookings/upcoming',
+    dica: 'Quem já marcou com você, e o que está por vir.',
+  },
+  horarios: {
+    nome: 'Meus horários',
+    caminho: '/availability',
+    dica: 'Os dias e horas em que você aceita ser agendado.',
+  },
+  calendarios: {
+    nome: 'Calendários',
+    caminho: '/settings/my-account/calendars',
+    dica: 'Conecte o Google Agenda aqui. Se a tela do Google não abrir, use "Abrir fora" — '
+      + 'o Google recusa fazer login dentro de um quadro.',
+  },
+};
+
 export default function AgendamentoConsultor() {
   // Recarregar o quadro sem recarregar a plataforma inteira: trocar a chave do
   // iframe faz o navegador montar de novo, e é o que resolve a maioria dos
   // "travou depois de conectar o Google Agenda".
   const [tentativa, setTentativa] = useState(0);
+  const [tela, setTela] = useState<TelaId>('eventos');
 
   if (!URL_AGENDAMENTO) {
     return (
@@ -43,37 +76,56 @@ export default function AgendamentoConsultor() {
     );
   }
 
+  const url = `${URL_AGENDAMENTO.replace(/\/$/, '')}${TELAS[tela].caminho}`;
+
   return (
     <div className="p-6">
       <Cabecalho />
 
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      {/* ATALHOS PARA AS TELAS QUE IMPORTAM.
+          O menu do próprio sistema tem muita coisa que não usamos; estes botões
+          levam direto ao que o consultor precisa, sem ele se perder lá dentro. */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {(Object.keys(TELAS) as TelaId[]).map((id) => (
+          <button
+            key={id}
+            onClick={() => setTela(id)}
+            className={`px-3 py-1.5 rounded-lg border text-sm font-semibold transition-colors ${
+              tela === id
+                ? 'border-blue-600 bg-blue-50 text-blue-800'
+                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {TELAS[id].nome}
+          </button>
+        ))}
+        <span className="flex-1" />
         <button
           onClick={() => setTentativa((n) => n + 1)}
+          title="Recarregar"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Recarregar
         </button>
         <a
-          href={URL_AGENDAMENTO}
+          href={url}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
         >
-          <ExternalLink className="w-3.5 h-3.5" /> Abrir em uma aba nova
+          <ExternalLink className="w-3.5 h-3.5" /> Abrir fora
         </a>
-        <p className="text-xs text-gray-500">
-          Conectar o Google Agenda costuma exigir a aba nova: o Google recusa abrir dentro de um quadro.
-        </p>
       </div>
+
+      <p className="text-xs text-gray-500 mb-3">{TELAS[tela].dica}</p>
 
       <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
         <iframe
-          key={tentativa}
-          src={URL_AGENDAMENTO}
+          key={`${tela}-${tentativa}`}
+          src={url}
           title="Agendamento"
           className="w-full"
-          style={{ height: 'calc(100vh - 260px)', minHeight: 520 }}
+          style={{ height: 'calc(100vh - 300px)', minHeight: 520 }}
           allow="camera; microphone; clipboard-write"
         />
       </div>
@@ -90,7 +142,7 @@ function Cabecalho() {
         <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold align-middle">beta</span>
       </h1>
       <p className="text-sm text-gray-600 mt-1">
-        Sua agenda de sessões e reuniões. Cada consultor tem a própria conta e os próprios horários.
+Sua agenda de sessões e reuniões. Cada consultor tem a própria conta e os próprios horários.
       </p>
     </header>
   );
