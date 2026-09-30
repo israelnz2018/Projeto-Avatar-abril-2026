@@ -70,6 +70,7 @@ const LandingGratisCapabilidade = lazy(() => import('./components/LandingGratisC
 const LandingTermosGratuitos = lazy(() => import('./components/LandingTermosGratuitos'));
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingConsultores = lazy(() => import('./components/LandingConsultoresNova'));
+const LandingFormacaoConsultores = lazy(() => import('./components/LandingFormacaoConsultores'));
 const SejaConsultor = lazy(() => import('./components/SejaConsultor'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
@@ -625,7 +626,7 @@ export default function App() {
     const host = window.location.hostname;
     const path = window.location.pathname;
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
-    const rotasPublicas = ['/formacao', '/plataformalbw', '/gratis', '/capabilidade', '/estatisticaaplicada', '/yellowbelt', '/termos-gratuitos', '/vitrine', '/kit90dias', '/consultores', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    const rotasPublicas = ['/formacao', '/plataformalbw', '/gratis', '/capabilidade', '/estatisticaaplicada', '/yellowbelt', '/termos-gratuitos', '/vitrine', '/kit90dias', '/consultores', '/consultoresLBW', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
     return isSitePublico || rotasPublicas.some(r => path.startsWith(r));
   })();
 
@@ -650,7 +651,7 @@ export default function App() {
     // As landings de venda/captação e a verificação de certificado têm prioridade
     // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
     const ROTAS_INSTITUCIONAIS = ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
-    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/plataformalbw') || path.startsWith('/gratis') || path.startsWith('/capabilidade') || path.startsWith('/estatisticaaplicada') || path.startsWith('/yellowbelt') || path.startsWith('/termos-gratuitos') || path.startsWith('/kit90dias') || path.startsWith('/consultores') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
+    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/plataformalbw') || path.startsWith('/gratis') || path.startsWith('/capabilidade') || path.startsWith('/estatisticaaplicada') || path.startsWith('/yellowbelt') || path.startsWith('/termos-gratuitos') || path.startsWith('/kit90dias') || path.startsWith('/consultores') || path.startsWith('/consultoresLBW') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
     if (isSitePublico && !rotaReservada) {
       return (
         <Router>
@@ -740,6 +741,17 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-emerald-900 border-t-emerald-500 rounded-full animate-spin" /></div>}>
         <LandingComecar />
+      </Suspense>
+    );
+  }
+  // Landing da FORMACAO de consultores (/consultoresLBW) — bypass do login.
+  //
+  // ANTES da checagem de /consultores: o caminho comeca igual, entao a ordem
+  // importa. Se inverter, /consultoresLBW cai na landing da plataforma.
+  if (typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/consultoreslbw')) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
+        <LandingFormacaoConsultores />
       </Suspense>
     );
   }

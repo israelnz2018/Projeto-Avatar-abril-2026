@@ -6677,6 +6677,82 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
   // POST /api/leads-consultor — formulário público da landing /consultores.
   // As primeiras vagas são aprovadas manualmente pelo administrador antes que o
   // consultor receba a plataforma.
+  // POST /api/leads-formacao — inscrição na apresentação da Formação (/consultoresLBW).
+  //
+  // Outra oferta e outro público do /api/leads-consultor: aqui é quem AINDA VAI
+  // se tornar consultor, então não existe reprovação por perfil — todo mundo é
+  // bem-vindo na apresentação. A qualificação acontece depois, antes da conversa
+  // individual.
+  app.post("/api/leads-formacao", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const nome = String(req.body?.nome || "").trim().slice(0, 120);
+    const email = String(req.body?.email || "").trim().toLowerCase().slice(0, 180);
+    const whatsapp = String(req.body?.whatsapp || "").trim().slice(0, 40);
+    const momento = String(req.body?.momento || "").trim().slice(0, 40);
+    const origem = String(req.body?.origem || "landing-formacao-consultores").trim().slice(0, 60);
+
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const whatsappValido = /^\+\d{1,4}\s+/.test(whatsapp) && (() => {
+      const digitos = whatsapp.replace(/\D/g, "").length;
+      return digitos >= 8 && digitos <= 15;
+    })();
+    const momentoValido = ["clt_quer_comecar", "ja_consultor", "area_processos", "outra_area"].includes(momento);
+
+    if (!nome || !emailValido || !whatsappValido || !momentoValido) {
+      return res.status(400).json({ error: "Preencha todos os campos." });
+    }
+
+    // De qual endereço veio — e, quando for o subdomínio de um consultor, quem
+    // trouxe. Mesma regra do /api/leads-consultor: a landing responde em
+    // qualquer subdomínio, e quem indica pode receber comissão depois.
+    const hostOrigem = String(req.headers.host || "").split(":")[0].toLowerCase().slice(0, 120);
+    const RESERVADOS = new Set(["www", "app", "educacaopelotrabalho"]);
+    const rotulo = hostOrigem.endsWith(".educacaopelotrabalho.com")
+      ? hostOrigem.slice(0, -".educacaopelotrabalho.com".length)
+      : "";
+    const consultorOrigem = rotulo && !RESERVADOS.has(rotulo) && !rotulo.includes(".") ? rotulo : "";
+
+    try {
+      await adminFirestore().collection("leads_formacao").add({
+        nome, email, whatsapp, momento, origem, hostOrigem,
+        ...(consultorOrigem ? { consultorOrigem } : {}),
+        status: "inscrito",
+        criadoEm: new Date().toISOString(),
+      });
+
+      // Confirmação por e-mail. Não derruba a inscrição se falhar: o lead já
+      // está salvo, e é melhor a pessoa seguir para o agendamento do que ver um
+      // erro por causa do e-mail.
+      if (process.env.RESEND_API_KEY) {
+        const primeiroNome = nome.split(" ")[0];
+        const html = `
+          <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#101a33">
+            <h2 style="color:#14295d">Sua vaga está reservada, ${primeiroNome}.</h2>
+            <p style="font-size:15px;line-height:1.6">
+              Você vai receber o link da apresentação ao vivo no seu WhatsApp e neste e-mail,
+              junto com o lembrete no dia.
+            </p>
+            <p style="font-size:15px;line-height:1.6">
+              São 40 minutos: eu mostro o programa, a plataforma por dentro e respondo suas
+              dúvidas ao vivo. Quem participa recebe a <strong>condição de fundador</strong>.
+            </p>
+            <p style="font-size:15px;line-height:1.6">Até lá,<br><strong>Israel Souza</strong><br>LBW &mdash; Educação pelo Trabalho</p>
+          </div>`;
+        await resendSend({
+          to: email,
+          subject: "Sua vaga na apresentação da Formação de Consultores LBW",
+          html,
+        }).catch((e) => console.error("[leads-formacao] e-mail falhou:", e?.message || e));
+      }
+
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[POST /api/leads-formacao] erro:", err);
+      return res.status(500).json({ error: "Erro ao salvar. Tente novamente." });
+    }
+  });
+
   app.post("/api/leads-consultor", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     const nome = String(req.body?.nome || "").trim().slice(0, 120);
