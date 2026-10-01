@@ -11,6 +11,7 @@
  * "só entra quem já atua".
  */
 import React, { useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 
 const PAISES = [
   ['brasil', '🇧🇷 Brasil', '+55'],
@@ -39,8 +40,10 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
 
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
   const whatsappCompleto = `${ddi.trim()} ${whatsapp.trim()}`.trim();
-  const whatsappValido = /^\+\d{1,4}$/.test(ddi.trim())
-    && whatsappCompleto.replace(/\D/g, '').length >= 10;
+  const whatsappDigits = whatsappCompleto.replace(/\D/g, '').length;
+  const whatsappValido = !whatsapp.trim() || (
+    /^\+\d{1,4}$/.test(ddi.trim()) && whatsappDigits >= 10 && whatsappDigits <= 15
+  );
   const completo = Boolean(nome.trim() && emailValido && whatsappValido && momento);
 
   async function enviar(event: React.FormEvent) {
@@ -55,19 +58,15 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
         body: JSON.stringify({
           nome: nome.trim(),
           email: email.trim(),
-          whatsapp: whatsappCompleto,
+          whatsapp: whatsapp.trim() ? whatsappCompleto : '',
           momento,
           origem,
         }),
       });
       if (!resposta.ok) throw new Error('Não consegui registrar sua inscrição.');
       setEnviado(true);
-      // O agendamento é o próximo passo real: leva para lá assim que registra.
-      if (urlAgendamento) {
-        const separador = urlAgendamento.includes('?') ? '&' : '?';
-        const parametros = `name=${encodeURIComponent(nome.trim())}&email=${encodeURIComponent(email.trim())}`;
-        window.location.href = `${urlAgendamento}${separador}${parametros}`;
-      }
+      const pixel = (window as typeof window & { fbq?: (...args: unknown[]) => void }).fbq;
+      if (typeof pixel === 'function') pixel('track', 'Lead', { content_name: 'formacao-consultores-lbw' });
     } catch (e: any) {
       setErro(e?.message || 'Não consegui enviar agora. Tente de novo.');
     } finally {
@@ -75,11 +74,15 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
     }
   }
 
-  if (enviado && !urlAgendamento) {
+  if (enviado) {
     return (
-      <div className="formacao-form-ok">
-        <strong>Inscrição registrada.</strong>
-        <p>Você vai receber a confirmação por e-mail e no WhatsApp, com o link da apresentação.</p>
+      <div className="formacao-form-ok" role="status">
+        <CheckCircle2 size={30} aria-hidden="true" />
+        <strong>{urlAgendamento ? 'Contato registrado. Escolha sua sessão.' : 'Recebemos seu interesse.'}</strong>
+        <p>{urlAgendamento
+          ? 'Seu lugar na apresentação será confirmado após você escolher um horário no calendário.'
+          : 'Ainda não há uma data aberta para agendamento. A LBW usará o contato informado para avisar sobre a próxima apresentação.'}</p>
+        {urlAgendamento && <a className="formacao-agenda-link" href={urlAgendamento} rel="noopener noreferrer">Escolher data e horário →</a>}
       </div>
     );
   }
@@ -88,19 +91,19 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
     <form className="formacao-form" onSubmit={enviar}>
       <div>
         <label htmlFor="ff-nome">Nome completo</label>
-        <input id="ff-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" autoComplete="name" />
+        <input id="ff-nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" autoComplete="name" required />
       </div>
 
       <div>
         <label htmlFor="ff-email">
           E-mail{emailValido && <span className="field-ok">✓</span>}
         </label>
-        <input id="ff-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" autoComplete="email" />
+        <input id="ff-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" autoComplete="email" required />
       </div>
 
       <div>
         <label htmlFor="ff-whats">
-          WhatsApp{whatsappValido && <span className="field-ok">✓</span>}
+          WhatsApp <span className="formacao-optional">(opcional)</span>
         </label>
         <div className="formacao-whats">
           <select
@@ -117,11 +120,12 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
           <input aria-label="DDI" className="formacao-ddi" value={ddi} onChange={(e) => setDdi(e.target.value)} placeholder="+55" />
           <input id="ff-whats" inputMode="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="Número com DDD" autoComplete="tel" />
         </div>
+        {!whatsappValido && <p className="formacao-form-erro">Confira o DDI e o número informado.</p>}
       </div>
 
       <div>
         <label htmlFor="ff-momento">Onde você está hoje?</label>
-        <select id="ff-momento" value={momento} onChange={(e) => setMomento(e.target.value)}>
+        <select id="ff-momento" value={momento} onChange={(e) => setMomento(e.target.value)} required>
           <option value="">Selecione…</option>
           <option value="clt_quer_comecar">Trabalho numa empresa e quero começar a atuar como consultor</option>
           <option value="ja_consultor">Já atuo como consultor e quero estruturar melhor</option>
@@ -133,10 +137,10 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
       {erro && <p className="formacao-form-erro">{erro}</p>}
 
       <button className="cta" type="submit" disabled={!completo || enviando}>
-        {enviando ? 'Reservando…' : 'Reservar minha vaga na apresentação →'}
+        {enviando ? 'Enviando…' : urlAgendamento ? 'Continuar para escolher a sessão →' : 'Quero receber a próxima data →'}
       </button>
       <p className="formacao-form-micro">
-        Apresentação ao vivo e gratuita, de 40 minutos. Quem participa recebe a condição de fundador.
+        Usaremos seus dados para falar sobre a apresentação. Leia a <a href="/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.
       </p>
     </form>
   );

@@ -6693,10 +6693,10 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     const origem = String(req.body?.origem || "landing-formacao-consultores").trim().slice(0, 60);
 
     const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const whatsappValido = /^\+\d{1,4}\s+/.test(whatsapp) && (() => {
+    const whatsappValido = !whatsapp || (/^\+\d{1,4}\s+/.test(whatsapp) && (() => {
       const digitos = whatsapp.replace(/\D/g, "").length;
       return digitos >= 8 && digitos <= 15;
-    })();
+    })());
     const momentoValido = ["clt_quer_comecar", "ja_consultor", "area_processos", "outra_area"].includes(momento);
 
     if (!nome || !emailValido || !whatsappValido || !momentoValido) {
@@ -6717,7 +6717,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       await adminFirestore().collection("leads_formacao").add({
         nome, email, whatsapp, momento, origem, hostOrigem,
         ...(consultorOrigem ? { consultorOrigem } : {}),
-        status: "inscrito",
+        status: "interessado",
         criadoEm: new Date().toISOString(),
       });
 
@@ -6728,10 +6728,10 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
         const primeiroNome = nome.split(" ")[0];
         const html = `
           <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#101a33">
-            <h2 style="color:#14295d">Sua vaga está reservada, ${primeiroNome}.</h2>
+            <h2 style="color:#14295d">Recebemos seu interesse, ${primeiroNome}.</h2>
             <p style="font-size:15px;line-height:1.6">
-              Você vai receber o link da apresentação ao vivo no seu WhatsApp e neste e-mail,
-              junto com o lembrete no dia.
+              Quando houver uma próxima apresentação disponível, a LBW entrará em contato
+              com as informações para participar.
             </p>
             <p style="font-size:15px;line-height:1.6">
               São 40 minutos: eu mostro o programa, a plataforma por dentro e respondo suas
@@ -10696,6 +10696,26 @@ Máximo 150 palavras. Seja direto.`;
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    // Esta rota é uma SPA. Metadados próprios permitem que o link da formação
+    // apareça com a oferta correta ao ser compartilhado em redes sociais.
+    app.get(/^\/consultoreslbw\/?$/i, async (_req, res, next) => {
+      try {
+        let html = await fs.readFile(path.join(distPath, 'index.html'), 'utf8');
+        const title = 'Formação de Consultores LBW | Cursos, encontros e plataforma';
+        const description = 'Para profissionais com experiência em processos: cursos da LBW, dez encontros em grupo e uma plataforma com sua marca. Conheça o programa na apresentação gratuita.';
+        const image = 'https://app.educacaopelotrabalho.com/israel-foto.png';
+        html = html
+          .replace(/<title>[\s\S]*?<\/title>/i, `<title>${title}</title>`)
+          .replace(/<meta name="description"[^>]*>/i, `<meta name="description" content="${description}" />`)
+          .replace(/<meta property="og:title"[^>]*>/i, `<meta property="og:title" content="${title}" />`)
+          .replace(/<meta property="og:description"[^>]*>/i, `<meta property="og:description" content="${description}" />`)
+          .replace(/<meta property="og:image"[^>]*>/i, `<meta property="og:image" content="${image}" />`)
+          .replace(/<meta name="twitter:title"[^>]*>/i, `<meta name="twitter:title" content="${title}" />`)
+          .replace(/<meta name="twitter:description"[^>]*>/i, `<meta name="twitter:description" content="${description}" />`)
+          .replace(/<meta name="twitter:image"[^>]*>/i, `<meta name="twitter:image" content="${image}" />`);
+        res.type('html').send(html);
+      } catch (error) { next(error); }
+    });
     // A landing Yellow Belt precisa de uma prÃ©via prÃ³pria quando o link Ã©
     // compartilhado no WhatsApp/LinkedIn. Como o app Ã© uma SPA, os crawlers
     // receberiam por padrÃ£o a foto do consultor definida no index.html.

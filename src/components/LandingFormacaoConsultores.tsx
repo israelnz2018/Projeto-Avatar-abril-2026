@@ -1,480 +1,107 @@
-/**
- * LandingFormacaoConsultores — /consultoresLBW
- *
- * A oferta aqui é a FORMAÇÃO: cursos + 10 encontros ao vivo com o Israel +
- * certificados + a plataforma. O público é o profissional que tem experiência
- * em processos mas ainda não atua (ou está começando) como consultor.
- *
- * Não confundir com /consultores (LandingConsultoresNova), que vende a
- * PLATAFORMA para quem já é consultor e já tem curso gravado. São duas ofertas
- * e dois públicos; misturar as duas numa página só confunde quem chega pelo
- * anúncio.
- *
- * O preço aparece na página de propósito: filtra curioso e evita a sensação de
- * armadilha de descobrir o valor só no fim. O desconto de fundador é real e sai
- * na apresentação ao vivo, com prazo — é o que dá motivo para comparecer, que é
- * o gargalo deste tipo de funil.
- */
-import React from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-import {
-  Award, ArrowRight, BarChart3, Bot, Building2, CalendarDays, CheckCircle2,
-  ChevronDown, FolderKanban, GraduationCap, MessageCircle, Play, ShieldCheck,
-  Sparkles, Users, Wrench,
-} from 'lucide-react';
-import RodapeConsultores from './RodapeConsultores';
-import { CSS_CONSULTORES_NOVA } from './consultores/estilosLandingNova';
-import { CSS_FORMACAO_EXTRA } from './consultores/estilosFormacao';
+import React, { useEffect, useState } from 'react';
+import { ArrowDown, ArrowRight, Award, BookOpen, CalendarDays, Check, ChevronDown, Clock3, GraduationCap, Layers3, MessageCircle, MonitorPlay, Play, Scissors, Users, Wrench } from 'lucide-react';
 import FormularioFormacao from './consultores/FormularioFormacao';
+import { CSS_FORMACAO_EXTRA } from './consultores/estilosFormacao';
 
-const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=true';
-
-/** O agendamento da apresentação. Vazio = o formulário só registra o contato. */
+const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=false';
 const URL_APRESENTACAO = String(import.meta.env.VITE_APRESENTACAO_URL || '').trim();
-
-const PRECO_FUNDADOR = 'R$ 2.997';
-const PRECO_CHEIO = 'R$ 4.997';
-const PARCELA_FUNDADOR = '12x de R$ 299';
-
-function irParaFormulario() {
-  document.getElementById('formacao-inscricao')?.scrollIntoView({ behavior: 'smooth' });
-}
-
-/* ---------------------------------------------------------------- */
-
-const paraQuem = [
-  ['Trabalha com processos e quer sair do CLT', 'Você já conduz melhorias dentro da empresa. Falta estruturar isso como um serviço que se vende.', Building2],
-  ['Já fez cursos, mas não sabe como começar', 'Conhecimento técnico você tem. O que falta é o caminho para transformar em entrega e em cliente.', GraduationCap],
-  ['Já atua, mas de forma desorganizada', 'Cada projeto é do zero, em planilhas soltas. Falta um método e uma estrutura que se repita.', FolderKanban],
-] as const;
-
-const oQueRecebe = [
-  ['Todos os cursos da LBW', 'White, Yellow e Green Belt, estatística aplicada, ferramentas da qualidade e gestão de projetos. A base técnica completa.', GraduationCap],
-  ['10 encontros ao vivo comigo', 'Uma sessão por semana, cada uma sobre um tema independente. Você entra na próxima e vai completando o ciclo.', Users],
-  ['A plataforma com a sua marca', 'O mesmo ambiente que você está vendo, para você atender seus clientes: cursos, projetos, ferramentas e relatórios.', Sparkles],
-  ['10 certificados', 'Um para cada formação concluída, para comprovar sua qualificação com clientes e empresas.', Award],
-  ['Ferramentas e templates prontos', 'Matriz GUT, SIPOC, FMEA, 5W2H, espinha de peixe, cronograma. Você não monta nada do zero.', Wrench],
-  ['Produção de conteúdo automática', 'A plataforma transforma suas aulas em cortes para Reels e carrosséis, para você divulgar seu trabalho.', Bot],
-] as const;
-
-const encontros = [
-  'Como definir seu nicho e sua primeira oferta',
-  'Precificação: quanto cobrar por projeto e por hora',
-  'Como encontrar e abordar as primeiras empresas',
-  'Conduzindo o diagnóstico inicial do cliente',
-  'Estruturando um projeto de melhoria do começo ao fim',
-  'Apresentando resultados que a diretoria entende',
-  'Montando e vendendo treinamentos internos',
-  'Usando dados para sustentar suas recomendações',
-  'Escalando: de consultor solo a operação',
-  'Construindo autoridade e gerando demanda',
+const TEM_AGENDA = /^https:\/\//i.test(URL_APRESENTACAO);
+const entregas = [
+  { icon: GraduationCap, title: 'Cursos para desenvolver sua base técnica', text: 'Acesso aos cursos da LBW: melhoria de processos, estatística aplicada, ferramentas da qualidade e gestão de projetos.', tag: 'Formação' },
+  { icon: Users, title: '10 encontros em grupo com Israel', text: 'Encontros online sobre oferta, diagnóstico, precificação e atuação com empresas. Espaço para trabalhar dúvidas do seu contexto.', tag: 'Acompanhamento' },
+  { icon: Layers3, title: 'Uma plataforma com a sua marca', text: 'Organize cursos, alunos, empresas e projetos em um ambiente que leva a identidade da sua consultoria.', tag: 'Sua operação' },
+  { icon: Award, title: '10 certificados de formação', text: 'Certificados das formações concluídas, conforme os requisitos de cada curso. Você acompanha seu progresso na plataforma.', tag: 'Aprendizado' },
+  { icon: Wrench, title: 'Ferramentas para aplicar com seus clientes', text: 'Templates de projetos, SIPOC, FMEA, 5W2H e análises estatísticas para apoiar o diagnóstico e a condução das melhorias.', tag: 'Aplicação' },
+  { icon: Scissors, title: 'Criação de cortes para divulgação', text: 'Use seus vídeos como ponto de partida para produzir cortes e preparar conteúdo para as redes sociais.', tag: 'Conteúdo' },
+  { icon: CalendarDays, title: 'Agendamento para seus atendimentos', text: 'Organize os horários disponíveis e compartilhe seu link para que interessados agendem uma conversa.', tag: 'Atendimento' },
+  { icon: BookOpen, title: 'Estrutura para oferecer treinamentos', text: 'Prepare a experiência dos seus alunos e organize sua oferta de cursos para pessoas e empresas.', tag: 'Seus serviços' },
 ];
-
-const passos = [
-  ['01', 'Participe da apresentação', 'São 40 minutos ao vivo. Você conhece o programa, vê a plataforma por dentro e tira suas dúvidas.'],
-  ['02', 'Entre com a condição de fundador', 'Quem participa ao vivo recebe o valor especial, válido por 48 horas.'],
-  ['03', 'Comece no próximo encontro', 'Não há turma para esperar. Você entra na sessão da semana seguinte.'],
-  ['04', 'Configure sua plataforma', 'Sua marca, seus cursos, seus certificados. Acompanhado por mim.'],
-  ['05', 'Feche seu primeiro cliente', 'Com método, material e estrutura prontos para apresentar.'],
-];
-
+const encontros = ['Definir sua área de atuação e a primeira oferta', 'Precificar projetos e horas de trabalho', 'Encontrar e abordar empresas', 'Conduzir o diagnóstico inicial', 'Estruturar um projeto de melhoria', 'Apresentar resultados para a diretoria', 'Montar e oferecer treinamentos', 'Sustentar recomendações com dados', 'Organizar a operação da consultoria', 'Produzir conteúdo e gerar interesse'];
 const faqs = [
-  ['Preciso já ser consultor para participar?',
-    'Não. O programa foi feito para quem tem experiência em processos, qualidade ou melhoria contínua e quer começar a atuar como consultor. Se você já atua, o programa ajuda a organizar e ampliar a sua entrega.'],
-  ['Quanto custa?',
-    `O valor é ${PRECO_CHEIO}, que pode ser parcelado. Quem participa da apresentação ao vivo recebe a condição de fundador: ${PRECO_FUNDADOR}, ou ${PARCELA_FUNDADOR}. Essa condição é limitada às primeiras vagas e vale por 48 horas depois da apresentação.`],
-  ['Vocês entregam clientes para mim?',
-    'Não. A prospecção é sua. O que o programa entrega é a formação, o método, o material e a estrutura para você conduzir o trabalho — e três dos dez encontros tratam justamente de como encontrar e abordar empresas.'],
-  ['Quanto tempo por semana eu preciso ter?',
-    'Os encontros ao vivo são de cerca de uma hora por semana. Os cursos você faz no seu ritmo. A configuração inicial da plataforma leva algumas horas, uma vez só.'],
-  ['Os encontros têm data de início? E se eu perder um?',
-    'Não há turma com data de início. Cada encontro trata de um tema independente e o ciclo se repete, então você entra na próxima sessão e vai completando os dez no seu ritmo. Se perder um, ele volta no próximo ciclo.'],
-  ['Preciso ter curso gravado ou material pronto?',
-    'Não. Você recebe todos os cursos da LBW para usar com seus clientes. Se quiser cadastrar material próprio depois, a plataforma permite.'],
-  ['Preciso saber de tecnologia?',
-    'Não. A configuração é feita dentro da própria plataforma, apontando e clicando, e é acompanhada por mim.'],
+  ['Preciso já trabalhar como consultor?', 'Não. O programa é voltado a profissionais com experiência em processos, qualidade, operações ou melhoria contínua que querem estruturar sua atuação como consultores. Quem já atende clientes também pode participar.'],
+  ['Preciso sair do meu emprego para participar?', 'Não. Você pode estudar e preparar sua atuação enquanto continua trabalhando. Avalie o tempo disponível para os cursos, os encontros e a aplicação prática.'],
+  ['Preciso ter um curso gravado?', 'Não é necessário ter um curso próprio para conhecer o programa. Você terá acesso aos cursos da LBW e poderá cadastrar seu próprio conteúdo. Na apresentação, veja como funciona a oferta de cursos aos seus clientes e quais condições se aplicam.'],
+  ['Como funcionam os dez encontros?', 'São encontros online em grupo, com Israel, sobre temas independentes. A entrada é contínua e os temas se repetem em ciclos. Antes de contratar, confira o calendário e as condições de participação para completar os dez encontros.'],
+  ['Vocês entregam clientes ou garantem uma renda?', 'A prospecção e a venda dos seus serviços são de sua responsabilidade. O programa oferece formação, acompanhamento e ferramentas. A contratação de clientes depende da sua atuação e do mercado; não há garantia de faturamento.'],
+  ['Qual é o investimento?', 'A condição de fundador divulgada é de R$ 2.997 à vista ou 12 parcelas de R$ 299, totalizando R$ 3.588 no parcelamento. O valor regular informado é R$ 4.997. A condição de fundador é apresentada no encontro ao vivo, conforme disponibilidade, e tem validade de 48 horas após a apresentação.'],
+  ['Por quanto tempo terei acesso?', 'Confira na apresentação e nas condições de contratação o período de acesso aos cursos e à plataforma, os limites de uso e as regras de renovação antes de decidir.'],
+  ['A apresentação é gratuita? Preciso comprar para participar?', 'A apresentação é gratuita e sem compromisso de compra. Em 40 minutos você conhece o programa, vê a plataforma e entende as condições. Depois, pode ficar para tirar dúvidas. A formação e o acesso à estrutura fazem parte do programa pago.'],
 ];
-
-const templatesPlataforma = [
-  ['Ideias de projetos', '/landing-tools/ideias-projetos.png'],
-  ['Matriz GUT', '/landing-tools/matriz-gut.png'],
-  ['Contrato do projeto', '/landing-tools/contrato-projeto.png'],
-  ['Cronograma', '/landing-tools/cronograma-projeto.png'],
-  ['Ganhos do projeto', '/landing-tools/ganhos-projeto.png'],
-  ['SIPOC', '/landing-tools/sipoc-mapa-processo.png'],
-  ['Brainstorming', '/landing-tools/brainstorming.png'],
-  ['Espinha de peixe', '/landing-tools/espinha-de-peixe.png'],
-  ['FMEA', '/landing-tools/fmea.png'],
-  ['Plano de ação 5W2H', '/landing-tools/plano-acao-5w2h.png'],
-];
-
-const recursosSoftware = [
-  ['Estatística aplicada e ferramentas da qualidade', '/landing-courses/estatistica-aplicada-ferramentas-qualidade.png'],
-  ['MSA, análise do sistema de medição', '/landing-courses/msa-analise-sistema-medicao.png'],
-  ['Capabilidade de processo', '/landing-courses/capabilidade-processo-avancado.png'],
-  ['CEP, controle estatístico de processo', '/landing-courses/cep-controle-estatistico-processo.png'],
-  ['Análise inferencial e testes de hipóteses', '/landing-courses/analise-inferencial-testes-hipoteses.png'],
-  ['Análise preditiva, regressões e correlações', '/landing-courses/analise-preditiva-regressoes-correlacoes.png'],
-];
-
-/* ---------------------------------------------------------------- */
-
-function Reveal({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.div
-      className={className}
-      initial={reduced ? false : { opacity: 0, y: 24 }}
-      whileInView={reduced ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-70px' }}
-      transition={reduced ? undefined : { duration: 0.65, delay, ease: [0.2, 0.7, 0.2, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+function Convite({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
+  return <a className={`fl-button ${className}`} href="#formacao-inscricao">{children || 'Quero participar da apresentação'}<ArrowRight size={18} aria-hidden="true" /></a>;
 }
-
-function PillarIcon({ icon: Icon, color = 'blue' }: { icon: React.ElementType; color?: 'blue' | 'cyan' | 'green' }) {
-  return <span className={`consultores-icon consultores-icon-${color}`}><Icon size={22} strokeWidth={2.1} /></span>;
-}
-
-function Vitrine() {
-  return (
-    <section className="consultores-section platform-showcase-section">
-      <div className="consultores-container section-heading-centered">
-        <span className="section-kicker">O que você vai usar com seus clientes</span>
-        <h2>Templates e análises prontas, desde o primeiro projeto.</h2>
-        <p>Você não precisa montar material do zero. Os modelos e as análises já vêm prontos dentro da plataforma.</p>
-      </div>
-      <div className="consultores-container platform-showcase">
-        <Reveal className="showcase-block">
-          <div className="showcase-head">
-            <h3>Templates de gerenciamento de projetos</h3>
-            <p>Para conduzir o projeto do cliente, da ideia inicial ao encerramento.</p>
-          </div>
-          <div className="showcase-marquee">
-            <div className="showcase-track">
-              {[...templatesPlataforma, ...templatesPlataforma].map(([title, image], index) => (
-                <article className="showcase-card" key={`${title}-${index}`}>
-                  <div className="showcase-card-image"><img src={image} alt={index < templatesPlataforma.length ? title : ''} loading="lazy" /></div>
-                  <h4>{title}</h4>
-                </article>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-        <Reveal className="showcase-block" delay={0.1}>
-          <div className="showcase-head">
-            <h3>Recursos de análise do software LBW</h3>
-            <p>Capabilidade, CEP, MSA e estatística para sustentar suas recomendações com dados.</p>
-          </div>
-          <div className="showcase-marquee showcase-marquee-reverse">
-            <div className="showcase-track">
-              {[...recursosSoftware, ...recursosSoftware].map(([title, image], index) => (
-                <article className="showcase-card" key={`${title}-${index}`}>
-                  <div className="showcase-card-image"><img src={image} alt={index < recursosSoftware.length ? title : ''} loading="lazy" /></div>
-                  <h4>{title}</h4>
-                </article>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ---------------------------------------------------------------- */
-
 export default function LandingFormacaoConsultores() {
+  const [videoAberto, setVideoAberto] = useState(false);
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = 'Formação de Consultores LBW | Cursos, acompanhamento e plataforma';
+    return () => { document.title = previousTitle; };
+  }, []);
   return (
-    <div className="consultores-lp consultores-lp-nova formacao-lp">
-      <style>{CSS_CONSULTORES_NOVA}</style>
+    <div className="formation-landing">
       <style>{CSS_FORMACAO_EXTRA}</style>
-
-      <nav className="consultores-nav" aria-label="Navegação principal">
-        <div className="consultores-container consultores-nav-inner">
-          <a href="#inicio" className="consultores-brand">
-            <span className="brand-mark">LBW</span><span>Educação pelo Trabalho</span>
-          </a>
-          <div className="consultores-nav-links">
-            <a href="#programa">O programa</a>
-            <a href="#encontros">Encontros</a>
-            <a href="#investimento">Investimento</a>
+      <a className="fl-skip" href="#conteudo-formacao">Pular para o conteúdo</a>
+      <header className="fl-header"><nav className="fl-container fl-nav" aria-label="Navegação do programa">
+        <a href="#inicio" className="fl-brand" aria-label="LBW, início"><span className="fl-brand-mark">LBW</span><span>Educação<br /><b>pelo Trabalho</b></span></a>
+        <div className="fl-nav-links"><a href="#programa">O programa</a><a href="#encontros">Encontros</a><a href="#investimento">Investimento</a></div>
+        <Convite className="fl-button-small">Apresentação gratuita</Convite>
+      </nav></header>
+      <main id="conteudo-formacao">
+        <section id="inicio" className="fl-hero"><div className="fl-container fl-hero-grid">
+          <div className="fl-hero-copy">
+            <span className="fl-eyebrow"><span /> Programa de Consultores LBW</span>
+            <h1>Sua experiência em processos.<br /><em>Uma nova etapa como consultor.</em></h1>
+            <p className="fl-lead">Estruture sua atuação com os cursos da LBW, dez encontros em grupo com Israel e uma plataforma com a sua marca para oferecer treinamentos e atender clientes.</p>
+            <div className="fl-hero-actions"><Convite /><a className="fl-secondary-link" href="#programa">Conhecer o programa <ArrowDown size={16} aria-hidden="true" /></a></div>
+            <p className="fl-hero-note"><Clock3 size={16} aria-hidden="true" /> Apresentação de 40 min <span aria-hidden="true">·</span> Ao vivo e gratuita</p>
+            <p className="fl-hero-context">Para profissionais com experiência em processos, qualidade, operações ou melhoria contínua.</p>
           </div>
-          <button className="consultores-button consultores-button-small" onClick={irParaFormulario}>
-            Reservar vaga <ArrowRight size={16} />
-          </button>
-        </div>
-      </nav>
-
-      <main>
-        {/* HERO */}
-        <section id="inicio" className="consultores-hero">
-          <div className="hero-orb hero-orb-one" />
-          <div className="hero-orb hero-orb-two" />
-          <div className="consultores-container hero-grid">
-            <div className="hero-copy">
-              <div className="eyebrow"><span className="eyebrow-dot" /> Formação de Consultores LBW</div>
-              <h1>Transforme sua experiência em processos em uma consultoria que se sustenta.</h1>
-              <p className="hero-lead">
-                Formação completa, dez encontros ao vivo comigo e a plataforma pronta para você
-                atender seus primeiros clientes. Para quem tem a experiência técnica e quer o
-                caminho para atuar como consultor.
-              </p>
-              <div className="hero-actions">
-                <button className="consultores-button" onClick={irParaFormulario}>
-                  Reservar vaga na apresentação <ArrowRight size={18} />
-                </button>
-                <a className="consultores-button-ghost" href="#video">
-                  <Play size={17} fill="currentColor" /> Ver a plataforma
-                </a>
-              </div>
-              <div className="hero-proof">
-                <span><CheckCircle2 size={16} /> Apresentação ao vivo e gratuita</span>
-                <span><CheckCircle2 size={16} /> 40 minutos</span>
-              </div>
-            </div>
-
-            <div id="video" className="hero-video-shell">
-              <div className="video-window-bar"><span /><span /><span /><b>Visão do aluno</b></div>
-              <div className="hero-video-intro">Veja a plataforma que vai ser sua, do jeito que seu cliente vai ver.</div>
-              <div className="hero-video">
-                <iframe
-                  title="Conheça a plataforma"
-                  src={VIDEO_ALUNO}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-              <div className="video-caption">
-                <span className="video-live-dot" /> A plataforma por dentro <span>Experiência real da LBW</span>
-              </div>
-            </div>
+          <div id="video" className="fl-demo"><div className="fl-demo-heading"><span className="fl-overline">Veja a plataforma por dentro</span><h2>A experiência que você pode oferecer aos seus alunos.</h2></div>
+            <div className="fl-video">{videoAberto
+              ? <iframe title="Demonstração da plataforma LBW pela visão do aluno" src={VIDEO_ALUNO} allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowFullScreen />
+              : <button type="button" className="fl-video-poster" onClick={() => setVideoAberto(true)} aria-label="Assistir à demonstração da plataforma, 14 minutos"><img src="/tour-projetos.png" alt="Tela dos projetos de melhoria na plataforma LBW" width="1180" height="600" /><span><Play size={21} fill="currentColor" aria-hidden="true" /> Assistir demonstração</span></button>}</div>
+            <p className="fl-video-caption"><MonitorPlay size={16} aria-hidden="true" /> Demonstração completa <span>14 min</span></p>
+            <div className="fl-demo-tags"><span><Check size={14} /> Sua marca</span><span><Check size={14} /> Cursos e projetos</span><span><Check size={14} /> Alunos e empresas</span></div>
           </div>
-          <div className="hero-scroll-hint">Role para conhecer o programa <span>↓</span></div>
-        </section>
+        </div></section>
+        <div className="fl-facts"><div className="fl-container fl-facts-grid"><div><strong>Cursos LBW</strong><span>Base técnica para sua atuação</span></div><div><strong>10 encontros</strong><span>Online, em grupo, com Israel</span></div><div><strong>10 certificados</strong><span>Conforme a conclusão dos cursos</span></div><div><strong>Sua plataforma</strong><span>Com a identidade da sua consultoria</span></div></div></div>
 
-        {/* PARA QUEM É */}
-        <section className="consultores-section consultores-light-section">
-          <div className="consultores-container section-heading-centered">
-            <span className="section-kicker">Para quem é</span>
-            <h2>Você tem o conhecimento. Falta a estrutura.</h2>
-            <p>A maior parte de quem trabalha com melhoria de processos já sabe fazer. O que trava é transformar isso em um serviço, com método, material e clientes.</p>
-          </div>
-          <div className="consultores-container benefits-grid benefits-grid-student">
-            {paraQuem.map(([title, text, Icon], index) => (
-              <Reveal key={title} delay={index * 0.06}>
-                <div className="benefit-card">
-                  <PillarIcon icon={Icon} color={index % 2 ? 'cyan' : 'blue'} />
-                  <h3>{title}</h3>
-                  <p>{text}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
+        <section className="fl-section fl-audience"><div className="fl-container">
+          <div className="fl-section-heading"><span className="fl-overline">O seu próximo passo</span><h2>Você já conhece os processos.<br />Agora quer organizar sua própria oferta.</h2><p>O programa conecta sua experiência à preparação para prestar serviços e oferecer treinamentos.</p></div>
+          <div className="fl-three-grid">
+            <article className="fl-audience-card"><span className="fl-number">01</span><h3>Quer começar como consultor</h3><p>Você trabalha com processos e quer definir uma área de atuação, preparar sua oferta e aprender a apresentá-la.</p></article>
+            <article className="fl-audience-card"><span className="fl-number">02</span><h3>Quer ensinar o que sabe</h3><p>Você tem experiência prática e precisa de apoio e estrutura para oferecer treinamentos a pessoas e empresas.</p></article>
+            <article className="fl-audience-card"><span className="fl-number">03</span><h3>Já atende e quer se organizar</h3><p>Você busca reunir cursos, projetos e clientes em um sistema que possa usar em diferentes trabalhos.</p></article>
+          </div><p className="fl-audience-note">Você pode se preparar enquanto continua no seu emprego. Não precisa chegar com uma consultoria montada.</p>
+        </div></section>
 
-        {/* O QUE RECEBE */}
-        <section id="programa" className="consultores-section consultores-dark-section">
-          <div className="consultores-container section-heading-centered section-heading-white">
-            <span className="section-kicker">O que está incluso</span>
-            <h2>Tudo que você precisa para começar a atuar.</h2>
-            <p>Formação técnica, acompanhamento ao vivo e a estrutura para entregar. Não é um curso gravado: é o sistema completo.</p>
-          </div>
-          <div className="consultores-container consultant-benefits-grid">
-            {oQueRecebe.map(([title, text, Icon], index) => (
-              <Reveal key={title} delay={index * 0.05}>
-                <div className="consultant-benefit formacao-incluso">
-                  <PillarIcon icon={Icon} color={index % 3 === 0 ? 'blue' : index % 3 === 1 ? 'green' : 'cyan'} />
-                  <h3>{title}</h3>
-                  <p>{text}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
+        <section id="programa" className="fl-section fl-program"><div className="fl-container">
+          <div className="fl-section-heading"><span className="fl-overline">O que está incluído</span><h2>Formação, acompanhamento<br />e estrutura para trabalhar.</h2><p>Conheça o papel de cada parte do programa na sua atuação.</p></div>
+          <div className="fl-deliverables">{entregas.map(({ icon: Icon, title, text, tag }) => <article className="fl-deliverable" key={title}><div className="fl-card-top"><span className="fl-icon"><Icon size={22} aria-hidden="true" /></span><span>{tag}</span></div><h3>{title}</h3><p>{text}</p></article>)}</div>
+          <div className="fl-program-bottom"><p>Na apresentação, você vê como essas entregas funcionam juntas.</p><Convite /></div>
+        </div></section>
 
-        {/* OS 10 ENCONTROS */}
-        <section id="encontros" className="consultores-section consultores-light-section">
-          <div className="consultores-container two-column-section">
-            <Reveal className="section-copy">
-              <span className="section-kicker">Os dez encontros</span>
-              <h2>Uma sessão por semana, ao vivo, comigo.</h2>
-              <p>
-                Cada encontro trata de um tema independente, então <strong>não há turma para esperar</strong>:
-                você entra na próxima sessão e vai completando o ciclo no seu ritmo.
-              </p>
-              <p>
-                São os assuntos que ninguém ensina em curso técnico — como precificar, como abordar
-                empresas, como apresentar resultado para a diretoria.
-              </p>
-              <div className="formacao-destaque">
-                <CalendarDays size={18} />
-                <span>Toda semana, no mesmo dia e horário. Se perder um, ele volta no próximo ciclo.</span>
-              </div>
-            </Reveal>
-            <Reveal className="formacao-encontros" delay={0.1}>
-              {encontros.map((tema, index) => (
-                <div className="formacao-encontro" key={tema}>
-                  <span>{String(index + 1).padStart(2, '0')}</span>
-                  <p>{tema}</p>
-                </div>
-              ))}
-            </Reveal>
-          </div>
-        </section>
+        <section id="encontros" className="fl-section"><div className="fl-container fl-meetings-grid">
+          <div className="fl-section-heading fl-left"><span className="fl-overline">Acompanhamento com Israel</span><h2>Dez encontros para trabalhar as decisões da sua consultoria.</h2><p>Os temas são independentes e se repetem em ciclos. Você entra no próximo encontro disponível e avança na preparação da sua atuação.</p><div className="fl-meeting-note"><CalendarDays size={22} aria-hidden="true" /><div><strong>Entrada contínua</strong><p>Confira o calendário e as condições de participação na apresentação.</p></div></div><p className="fl-small-note">Os encontros fazem parte do programa pago. A apresentação gratuita é uma sessão separada.</p></div>
+          <ol className="fl-meeting-list">{encontros.map((tema, i) => <li key={tema}><span>{String(i + 1).padStart(2, '0')}</span>{tema}</li>)}</ol>
+        </div></section>
 
-        <Vitrine />
+        <section className="fl-section fl-tools"><div className="fl-container"><div className="fl-section-heading"><span className="fl-overline">Da aprendizagem à aplicação</span><h2>Ferramentas que entram no trabalho.</h2><p>Organize o processo, investigue causas e planeje ações com recursos da plataforma.</p></div><div className="fl-three-grid">{[['Mapeie o processo', 'SIPOC', '/landing-tools/sipoc-mapa-processo.png'], ['Analise os riscos', 'FMEA', '/landing-tools/fmea.png'], ['Organize a execução', 'Plano de ação 5W2H', '/landing-tools/plano-acao-5w2h.png']].map(([title, label, src]) => <figure className="fl-tool" key={label}><div><img src={src} alt={`Exemplo da ferramenta ${label} na LBW`} loading="lazy" width="600" height="450" /></div><figcaption><span>{label}</span><strong>{title}</strong></figcaption></figure>)}</div></div></section>
 
-        {/* COMO FUNCIONA */}
-        <section className="consultores-section workflow-section">
-          <div className="consultores-container section-heading-centered section-heading-white">
-            <span className="section-kicker">Como funciona</span>
-            <h2>Do primeiro contato ao primeiro cliente.</h2>
-          </div>
-          <div className="consultores-container workflow-grid">
-            {passos.map(([number, title, text], index) => (
-              <Reveal key={number} delay={index * 0.05}>
-                <div className="workflow-step">
-                  <span>{number}</span>
-                  <h3>{title}</h3>
-                  <p>{text}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
+        <section className="fl-section fl-path"><div className="fl-container"><div className="fl-section-heading"><span className="fl-overline">Como começar</span><h2>Entenda a proposta antes de decidir.</h2></div><ol className="fl-path-grid"><li><span>01</span><h3>Conheça o programa</h3><p>Participe da apresentação gratuita, veja a demonstração e entenda as condições.</p></li><li><span>02</span><h3>Avalie seu momento</h3><p>Confira o investimento, o período de acesso e o tempo que pode dedicar. Traga suas dúvidas.</p></li><li><span>03</span><h3>Prepare sua atuação</h3><p>Ao entrar, acesse os cursos, participe dos encontros e configure sua estrutura de trabalho.</p></li></ol></div></section>
 
-        {/* AUTORIDADE */}
-        <section className="consultores-section authority-section">
-          <div className="consultores-container authority-grid">
-            <Reveal className="authority-photo"><img src="/israel-foto.png" alt="Israel Souza" /></Reveal>
-            <Reveal className="authority-copy" delay={0.1}>
-              <span className="section-kicker">Quem conduz</span>
-              <h2>Quem vai te acompanhar nos dez encontros.</h2>
-              <p>
-                Experiência em 5 multinacionais e 2 países, trabalhando com processos, projetos,
-                treinamentos e desenvolvimento de pessoas. Os encontros são comigo, ao vivo, e é ali
-                que você traz o seu caso concreto.
-              </p>
-              <div className="authority-numbers">
-                <div><strong>5</strong><span>multinacionais</span></div>
-                <div><strong>2</strong><span>países</span></div>
-                <div><strong>20+</strong><span>anos de experiência</span></div>
-                <div><strong>1.500+</strong><span>profissionais treinados</span></div>
-              </div>
-            </Reveal>
-          </div>
-        </section>
+        <section className="fl-section fl-authority"><div className="fl-container fl-authority-grid"><img className="fl-portrait" src="/israel-foto.png" alt="Israel Souza, fundador da Learning by Working" loading="lazy" width="330" height="400" /><div><span className="fl-overline">Quem acompanha você</span><h2>Israel Souza</h2><p className="fl-author-role">Fundador da Learning by Working</p><p>Experiência com processos, projetos, treinamentos e desenvolvimento de pessoas em cinco multinacionais e dois países.</p><p>Nos encontros em grupo, você pode trazer dúvidas da sua preparação e discutir a aplicação das ferramentas no seu contexto.</p><div className="fl-author-facts"><span><strong>20+</strong> anos de experiência</span><span><strong>1.500+</strong> profissionais treinados</span></div></div></div></section>
 
-        {/* INVESTIMENTO */}
-        <section id="investimento" className="consultores-section formacao-preco-section">
-          <div className="consultores-container section-heading-centered">
-            <span className="section-kicker">Investimento</span>
-            <h2>Um projeto de consultoria paga a formação inteira.</h2>
-            <p>Um consultor independente cobra entre R$ 2.000 e R$ 10.000 por projeto numa pequena ou média empresa. O primeiro cliente cobre o investimento.</p>
-          </div>
+        <section id="investimento" className="fl-section fl-investment"><div className="fl-container fl-price-grid">
+          <div className="fl-section-heading fl-left"><span className="fl-overline">Investimento no programa</span><h2>Veja o que está incluído.<br />Converse antes de investir.</h2><p>A apresentação é gratuita. A formação, os encontros e o acesso à estrutura fazem parte do programa pago.</p><div className="fl-price-info"><MessageCircle size={22} aria-hidden="true" /><div><h3>Tem uma dúvida sobre o seu caso?</h3><p>Traga para a apresentação. Se precisar de uma avaliação individual, converse com Israel sobre o próximo passo.</p></div></div><div className="fl-responsibility"><strong>Sobre a conquista de clientes</strong><p>A prospecção é sua. A LBW oferece formação, acompanhamento e ferramentas; a venda dos seus serviços depende da sua atuação.</p></div></div>
+          <div className="fl-price-card"><span className="fl-price-badge">Condição de fundador</span><p className="fl-regular-price">Valor regular informado: R$ 4.997</p><div className="fl-price"><strong>R$ 2.997</strong><span>à vista</span></div><p className="fl-installments">ou <strong>12x de R$ 299</strong><span>Total parcelado: R$ 3.588</span></p><ul>{['Cursos da LBW e 10 certificados de formação', '10 encontros online em grupo com Israel', 'Plataforma com a sua marca', 'Templates e ferramentas de análise', 'Criação de cortes e agendamento'].map(t => <li key={t}><Check size={18} aria-hidden="true" />{t}</li>)}</ul><Convite>Conhecer o programa ao vivo</Convite><p className="fl-price-terms">Condição apresentada ao vivo, conforme disponibilidade, válida por 48 horas após a apresentação. Confira período de acesso, limites de uso e renovação antes de contratar.</p></div>
+        </div></section>
 
-          <Reveal className="consultores-container formacao-preco-grid">
-            <div className="formacao-preco-card">
-              <div className="formacao-preco-selo">Condição de fundador</div>
-              <p className="formacao-preco-de">De {PRECO_CHEIO} por</p>
-              <div className="formacao-preco-valor">
-                <strong>{PRECO_FUNDADOR}</strong>
-                <span>ou {PARCELA_FUNDADOR}</span>
-              </div>
-              <ul className="formacao-preco-lista">
-                <li><CheckCircle2 size={17} /> Todos os cursos da LBW</li>
-                <li><CheckCircle2 size={17} /> Os 10 encontros ao vivo comigo</li>
-                <li><CheckCircle2 size={17} /> A plataforma com a sua marca</li>
-                <li><CheckCircle2 size={17} /> 10 certificados</li>
-                <li><CheckCircle2 size={17} /> Templates e ferramentas prontos</li>
-                <li><CheckCircle2 size={17} /> Produção de conteúdo automática</li>
-              </ul>
-              <button className="consultores-button formacao-preco-cta" onClick={irParaFormulario}>
-                Quero a condição de fundador <ArrowRight size={18} />
-              </button>
-              <p className="formacao-preco-micro">
-                A condição de fundador é liberada na apresentação ao vivo, para as primeiras vagas.
-              </p>
-            </div>
+        <section className="fl-section fl-faq"><div className="fl-container fl-faq-grid"><div className="fl-section-heading fl-left"><span className="fl-overline">Antes de participar</span><h2>As informações para decidir seu próximo passo.</h2><p>A apresentação é o espaço para conhecer os detalhes e avaliar se o programa faz sentido para você.</p></div><div className="fl-faq-list">{faqs.map(([q, a]) => <details key={q}><summary>{q}<ChevronDown size={18} aria-hidden="true" /></summary><p>{a}</p></details>)}</div></div></section>
 
-            <div className="formacao-preco-lado">
-              <Reveal>
-                <div className="formacao-lado-card">
-                  <ShieldCheck size={22} />
-                  <h3>Por que existe a apresentação</h3>
-                  <p>
-                    Antes de investir, você precisa ver a plataforma funcionando e entender o método.
-                    São 40 minutos ao vivo, sem compromisso, e é ali que tiro suas dúvidas diretamente.
-                  </p>
-                </div>
-              </Reveal>
-              <Reveal delay={0.08}>
-                <div className="formacao-lado-card">
-                  <MessageCircle size={22} />
-                  <h3>Prefere conversar antes?</h3>
-                  <p>
-                    Se o seu caso for específico e você quiser avaliar comigo individualmente, dá para
-                    marcar uma conversa depois da apresentação. A condição de fundador continua valendo.
-                  </p>
-                </div>
-              </Reveal>
-              <Reveal delay={0.16}>
-                <div className="formacao-lado-card formacao-lado-destaque">
-                  <BarChart3 size={22} />
-                  <h3>A conta que importa</h3>
-                  <p>
-                    Um único projeto de melhoria numa empresa média paga a formação. A partir do
-                    segundo, é margem.
-                  </p>
-                </div>
-              </Reveal>
-            </div>
-          </Reveal>
-        </section>
-
-        {/* FAQ */}
-        <section className="consultores-section faq-section">
-          <div className="consultores-container section-heading-centered">
-            <span className="section-kicker">Perguntas frequentes</span>
-            <h2>As dúvidas que todo mundo tem.</h2>
-          </div>
-          <div className="consultores-container faq-list">
-            {faqs.map(([question, answer]) => (
-              <details key={question}>
-                <summary>{question}<ChevronDown size={18} /></summary>
-                <p>{answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        {/* INSCRIÇÃO */}
-        <section id="formacao-inscricao" className="consultores-form-section">
-          <div className="consultores-container form-layout">
-            <Reveal className="form-intro">
-              <span className="section-kicker">Próximo passo</span>
-              <h2>Reserve sua vaga na apresentação ao vivo.</h2>
-              <p>
-                São 40 minutos: você conhece o programa, vê a plataforma por dentro e tira suas
-                dúvidas comigo. Quem participa recebe a condição de fundador.
-              </p>
-              <div className="form-after">
-                <span><CalendarDays size={18} /> Ao vivo, toda semana</span>
-                <span><ShieldCheck size={18} /> Gratuita e sem compromisso</span>
-                <span><Users size={18} /> Vagas limitadas por sessão</span>
-              </div>
-            </Reveal>
-            <Reveal className="consultores-form-card" delay={0.12}>
-              <FormularioFormacao origem="landing-formacao-consultores" urlAgendamento={URL_APRESENTACAO} />
-            </Reveal>
-          </div>
-        </section>
+        <section id="formacao-inscricao" className="fl-section fl-registration"><div className="fl-container fl-registration-grid"><div className="fl-section-heading fl-left"><span className="fl-overline">Apresentação gratuita</span><h2>{TEM_AGENDA ? 'Escolha a sessão e conheça o programa.' : 'Quer conhecer o programa com Israel?'}</h2><p>{TEM_AGENDA ? 'Deixe seus dados e siga para o calendário. Sua participação será confirmada quando concluir a escolha da sessão.' : 'Deixe seu contato para receber informações sobre a próxima apresentação ao vivo.'}</p><ul className="fl-session-list"><li><Clock3 size={19} /> 40 minutos de apresentação</li><li><MonitorPlay size={19} /> Demonstração da plataforma e do programa</li><li><MessageCircle size={19} /> Perguntas ao final, para quem quiser ficar</li></ul><p className="fl-registration-note">{TEM_AGENDA ? 'Apresentação gratuita e sem compromisso de compra.' : 'A próxima data será informada no contato. Este cadastro registra seu interesse; a participação depende da confirmação da sessão.'}</p></div><div className="fl-form-card"><span className="fl-overline">Seu próximo passo</span><h3>{TEM_AGENDA ? 'Continuar para o agendamento' : 'Receber informações da apresentação'}</h3><FormularioFormacao origem="landing-formacao-consultores" urlAgendamento={TEM_AGENDA ? URL_APRESENTACAO : ''} /></div></div></section>
       </main>
-
-      <RodapeConsultores />
+      <footer className="fl-footer"><div className="fl-container fl-footer-top"><a href="#inicio" className="fl-brand"><span className="fl-brand-mark">LBW</span><span>Educação<br /><b>pelo Trabalho</b></span></a><p>Formação e tecnologia para aplicar melhoria de processos.</p><a href="mailto:contact@learningbyworking.com">Fale com a LBW <ArrowRight size={15} /></a></div><div className="fl-container fl-footer-bottom"><span>Learning by Working · Auckland, Nova Zelândia<br />NZBN: 9429047241657 · © {new Date().getFullYear()}</span><div><a href="/quem-somos">Quem somos</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div></div></footer>
     </div>
   );
 }
