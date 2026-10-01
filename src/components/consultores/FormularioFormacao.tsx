@@ -75,14 +75,49 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
   }
 
   if (enviado) {
+    if (!urlAgendamento) {
+      return (
+        <div className="formacao-form-ok" role="status">
+          <CheckCircle2 size={30} aria-hidden="true" />
+          <strong>Recebemos seu interesse.</strong>
+          <p>Ainda não há uma data aberta para agendamento. A LBW usará o contato informado para avisar sobre a próxima apresentação.</p>
+        </div>
+      );
+    }
+    // O calendário ENTRA NA PÁGINA, não manda o visitante embora: é o pedido —
+    // escolher a data vendo os horários livres sem sair da landing.
+    //
+    // O Cal.diy esconde o próprio cabeçalho só numa ROTA própria, .../embed
+    // (confirmado no código: apps/web/app/(booking-page-wrapper)/[user]/[type]/
+    // embed/page.tsx — é essa rota, e não um parâmetro numa página comum, que
+    // devolve a tela com isEmbed=true). urlAgendamento chega como o link
+    // público do evento (".../israel/apresentacao"); aqui só entra o "/embed".
+    const [base, queryExistente] = urlAgendamento.split('?');
+    const urlEmbed = `${base.replace(/\/$/, '')}/embed`;
+    const parametros = new URLSearchParams(queryExistente || '');
+    parametros.set('embed', 'true');
+    parametros.set('layout', 'month_view');
+    if (nome.trim()) parametros.set('name', nome.trim());
+    if (email.trim()) parametros.set('email', email.trim());
+    const urlEmbutida = `${urlEmbed}?${parametros.toString()}`;
     return (
-      <div className="formacao-form-ok" role="status">
-        <CheckCircle2 size={30} aria-hidden="true" />
-        <strong>{urlAgendamento ? 'Contato registrado. Escolha sua sessão.' : 'Recebemos seu interesse.'}</strong>
-        <p>{urlAgendamento
-          ? 'Seu lugar na apresentação será confirmado após você escolher um horário no calendário.'
-          : 'Ainda não há uma data aberta para agendamento. A LBW usará o contato informado para avisar sobre a próxima apresentação.'}</p>
-        {urlAgendamento && <a className="formacao-agenda-link" href={urlAgendamento} rel="noopener noreferrer">Escolher data e horário →</a>}
+      <div className="formacao-form-ok formacao-form-ok-agenda" role="status">
+        <strong>Escolha o dia e o horário da sua sessão.</strong>
+        <p>Seu lugar na apresentação é confirmado ao escolher um horário abaixo.</p>
+        <div className="formacao-agenda-embed">
+          <iframe
+            key={urlEmbutida}
+            src={urlEmbutida}
+            title="Escolher data e horário da apresentação"
+            loading="lazy"
+          />
+        </div>
+        {/* Reserva: navegador com cookies/terceiros bloqueados não mostra o
+            quadro acima. O link sempre funciona, então fica sempre visível,
+            não só quando o quadro falha — não dá para detectar isso de fora. */}
+        <a className="formacao-agenda-fallback" href={urlAgendamento} target="_blank" rel="noopener noreferrer">
+          O calendário não carregou? Abra em uma nova aba →
+        </a>
       </div>
     );
   }
