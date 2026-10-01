@@ -6741,7 +6741,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
           </div>`;
         await resendSend({
           to: email,
-          subject: "Sua vaga na apresentação da Formação de Consultores LBW",
+          subject: "Recebemos seu interesse na Formação de Consultores LBW",
           html,
         }).catch((e) => console.error("[leads-formacao] e-mail falhou:", e?.message || e));
       }
