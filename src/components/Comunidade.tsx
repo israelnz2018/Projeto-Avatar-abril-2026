@@ -55,6 +55,10 @@ function corDoNome(nome: string): string {
   for (let i = 0; i < nome.length; i++) h = nome.charCodeAt(i) + ((h << 5) - h);
   return cores[Math.abs(h) % cores.length];
 }
+// ESCONDIDO DE PROPÓSITO (não apagar): mostrar "3 meses" ou "12 d" num post
+// antigo entrega para quem acabou de entrar que a comunidade está parada.
+// Guardado aqui pronto para o dia em que o ritmo de posts justificar reativar —
+// é só voltar a chamar tempoRelativo(post.createdAt) nos dois pontos abaixo.
 function tempoRelativo(ts: any): string {
   if (!ts) return 'agora';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -65,6 +69,8 @@ function tempoRelativo(ts: any): string {
   if (diff < 604800) return `${Math.floor(diff / 86400)} d`;
   return d.toLocaleDateString('pt-BR');
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- mantido para reativar depois, ver comentário acima
+void tempoRelativo;
 
 // ===== Avatar =====
 /**
@@ -417,7 +423,6 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, emailDoConsultor, fotoDo
                   <Shield size={9} /> Admin
                 </span>
               )}
-              <span className="text-[11px] text-gray-400">· {tempoRelativo(post.createdAt)}</span>
             </div>
             {/* Tags: tipo + ferramenta */}
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -634,7 +639,6 @@ function PostCard({ post, meUid, meIsAdmin, mePhotoUrl, emailDoConsultor, fotoDo
                       <Shield size={8} /> Admin
                     </span>
                   )}
-                  <span className="text-[10px] text-gray-400">· {tempoRelativo(r.createdAt)}</span>
                   {(r.autor?.uid === meUid || meIsAdmin) && editReplyId !== r.id && !r.bloqueado && (
                     <div className="ml-auto flex items-center gap-1.5">
                       {/* Editar: admin sempre; autor só se for a última resposta (ninguém respondeu depois) */}
