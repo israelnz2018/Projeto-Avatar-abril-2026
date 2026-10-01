@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ArrowDown, ArrowRight, Award, BookOpen, CalendarDays, Check, ChevronDown, Clock3, GraduationCap, Layers3, MessageCircle, MonitorPlay, Play, Scissors, Users, Wrench } from 'lucide-react';
 import FormularioFormacao from './consultores/FormularioFormacao';
 import { CSS_FORMACAO_EXTRA } from './consultores/estilosFormacao';
+import { CSS_CONSULTORES_NOVA } from './consultores/estilosLandingNova';
+import { ShowcaseSection } from './LandingConsultoresNova';
 
 const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=false';
 const URL_APRESENTACAO = String(import.meta.env.VITE_APRESENTACAO_URL || '').trim();
@@ -65,6 +67,7 @@ export default function LandingFormacaoConsultores() {
           </div>
         </div></section>
         <div className="fl-facts"><div className="fl-container fl-facts-grid"><div><strong>Cursos LBW</strong><span>Base técnica para sua atuação</span></div><div><strong>10 encontros</strong><span>Online, em grupo, com Israel</span></div><div><strong>10 certificados</strong><span>Conforme a conclusão dos cursos</span></div><div><strong>Sua plataforma</strong><span>Com a identidade da sua consultoria</span></div></div></div>
+        <div className="consultores-lp-nova"><style>{CSS_CONSULTORES_NOVA}</style><ShowcaseSection /></div>
 
         <section className="fl-section fl-audience"><div className="fl-container">
           <div className="fl-section-heading"><span className="fl-overline">O seu próximo passo</span><h2>Você já conhece os processos.<br />Agora quer organizar sua própria oferta.</h2><p>O programa conecta sua experiência à preparação para prestar serviços e oferecer treinamentos.</p></div>
