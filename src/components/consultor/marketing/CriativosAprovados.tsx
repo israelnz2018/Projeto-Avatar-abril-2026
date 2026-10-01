@@ -818,6 +818,27 @@ function Producao({
     }
   }
 
+  /**
+   * "Refazer pelo Instagram": o carrossel do LinkedIn vira uma cópia exata do
+   * carrossel do feed — mesmas imagens, mesmo texto de cada página — sem passar
+   * pela IA. O que NÃO muda é o Artigo do LinkedIn (criativo.textos.artigoLinkedin),
+   * que é o texto da publicação, independente das páginas.
+   *
+   * Usa o MESMO caminho de sempre (enfileirar → regerar-peca no worker): o
+   * roteiro do Instagram vira o roteiro do LinkedIn, e o worker desenha as
+   * páginas de novo a partir dele — é assim que a tela já resolve imagem por
+   * página, então copiar o roteiro já copia a imagem escolhida em cada uma.
+   */
+  async function copiarDoInstagram(pecaLinkedin: Peca) {
+    const paginas = semVazios(slides);
+    if (paginas.length < 2 || paginas.length > 8) {
+      setErro(`O carrossel do Instagram precisa ter de 2 a 8 páginas para copiar. Tem ${paginas.length}.`);
+      return;
+    }
+    setSlidesPdf(paginas);
+    await refazerTexto(pecaLinkedin, paginas);
+  }
+
   async function pedirIaTextoLinkedin(texto: string, fonte: string, instrucoes: string) {
     try {
       const user = auth.currentUser;
@@ -946,6 +967,7 @@ function Producao({
         retranscrevendo={retranscrevendo}
         aoRetranscrever={retranscrever}
         aoRefazerTexto={refazerTexto}
+        aoCopiarDoInstagram={copiarDoInstagram}
         aoPedirIaTextoLinkedin={pedirIaTextoLinkedin}
         aoAprovar={onMudou}
         aoAlterarSlide={alterarSlide}
@@ -1158,7 +1180,7 @@ function PecasProduzidas({
   velocidade, aoMudarVelocidade,
   segundosPorSlide, aoMudarSegundos,
   aoRefazerReel, aoTentarNovamente, avisoReel, precisaRetranscrever, retranscrevendo, aoRetranscrever,
-  aoRefazerTexto, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
+  aoRefazerTexto, aoCopiarDoInstagram, aoPedirIaTextoLinkedin, aoAprovar, aoAlterarSlide, aoAlterarSlidePdf,
   aoExcluirSlide, aoExcluirSlidePdf, aoDesfazerSlides, aoDesfazerSlidesPdf,
   naoSeiSeBate, melhoria, aoMudarMelhoria, melhoriaPdf, aoMudarMelhoriaPdf,
   aoPedirIa, aoPedirIaPdf, aoUsarTextoNovo,
@@ -1197,6 +1219,8 @@ function PecasProduzidas({
   retranscrevendo?: boolean;
   aoRetranscrever: () => void;
   aoRefazerTexto: (peca: Peca, slides?: SlideRoteiro[], textoLinkedin?: string, fonteLinkedin?: string) => void;
+  /** "Refazer pelo Instagram": copia as páginas do feed para o carrossel do LinkedIn. */
+  aoCopiarDoInstagram: (pecaLinkedin: Peca) => void;
   aoPedirIaTextoLinkedin: (texto: string, fonte: string, instrucoes: string) => Promise<string>;
   aoAprovar: () => void;
   aoAlterarSlide: (i: number, campo: keyof SlideRoteiro, valor: string | false | undefined) => void;
@@ -1357,18 +1381,23 @@ function PecasProduzidas({
             // uma passagem, então qualquer um deles refaz as de texto — o aviso diz
             // isso, para o clique não surpreender.
             acao={(
-              <BotaoRefazer
-                ocupado={ocupado}
-                aoClicar={p.tipo === 'reel'
-                  ? aoRefazerReel
-                  : () => {
-                    const editado = textoLinkedinEditado[p.id];
-                    aoRefazerTexto(p, undefined, editado?.texto, editado?.fonte);
-                  }}
-                aviso={p.tipo === 'reel'
-                  ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
-                  : 'Refaz somente esta peça. As outras continuam como estão.'}
-              />
+              <>
+                {p.tipo === 'linkedin-pdf' && pecas.some((outra) => outra.tipo === 'carrossel-feed') && (
+                  <BotaoCopiarDoInstagram ocupado={ocupado} aoClicar={() => aoCopiarDoInstagram(p)} />
+                )}
+                <BotaoRefazer
+                  ocupado={ocupado}
+                  aoClicar={p.tipo === 'reel'
+                    ? aoRefazerReel
+                    : () => {
+                      const editado = textoLinkedinEditado[p.id];
+                      aoRefazerTexto(p, undefined, editado?.texto, editado?.fonte);
+                    }}
+                  aviso={p.tipo === 'reel'
+                    ? 'Corta o vídeo de novo com esta velocidade. Não usa IA.'
+                    : 'Refaz somente esta peça. As outras continuam como estão.'}
+                />
+              </>
             )}
             aprovacao={<BotaoAprovar peca={p} onMudou={aoAprovar} />}
           />
@@ -2672,6 +2701,34 @@ function BotaoRefazer({
         ? <Loader2 className="w-3 h-3 animate-spin" />
         : <RefreshCw className="w-3 h-3" />}
       Refazer
+    </button>
+  );
+}
+
+/**
+ * "Refazer pelo Instagram" — só no carrossel do LinkedIn.
+ *
+ * Copia as páginas do carrossel do feed (imagem e texto de cada uma) para o
+ * LinkedIn. O Artigo do LinkedIn — o texto que acompanha a publicação — não é
+ * tocado: é outro campo, guardado em criativo.textos.artigoLinkedin.
+ */
+function BotaoCopiarDoInstagram({
+  ocupado, aoClicar,
+}: {
+  ocupado?: boolean;
+  aoClicar: () => void;
+}) {
+  return (
+    <button
+      onClick={aoClicar}
+      disabled={ocupado}
+      title="Copia as páginas do carrossel do feed (imagem e texto) para este carrossel. O Artigo do LinkedIn, embaixo, não muda."
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50 disabled:opacity-50"
+    >
+      {ocupado
+        ? <Loader2 className="w-3 h-3 animate-spin" />
+        : <Copy className="w-3 h-3" />}
+      Refazer pelo Instagram
     </button>
   );
 }
