@@ -11,7 +11,7 @@
  * "só entra quem já atua".
  */
 import React, { useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, MessageCircle } from 'lucide-react';
 
 const PAISES = [
   ['brasil', '🇧🇷 Brasil', '+55'],
@@ -19,6 +19,20 @@ const PAISES = [
   ['eua', '🇺🇸 EUA', '+1'],
   ['outro', '🌎 Outro', ''],
 ] as const;
+
+// Só dígitos, com código do país (ex.: 55119XXXXXXXX). wa.me não precisa de
+// conta de API nem aprovação da Meta: é um link comum que abre o WhatsApp do
+// visitante com uma mensagem pronta para ELE te mandar — diferente de um envio
+// automático partindo de nós, que aí sim exigiria a API paga.
+const WHATSAPP_ISRAEL = String(import.meta.env.VITE_WHATSAPP_ISRAEL || '').replace(/\D/g, '');
+
+function linkWhatsapp(nome: string) {
+  const primeiroNome = nome.trim().split(/\s+/)[0] || '';
+  const mensagem = primeiroNome
+    ? `Olá Israel! Sou ${primeiroNome} e acabei de reservar minha vaga na apresentação da Formação de Consultores LBW.`
+    : 'Olá Israel! Acabei de reservar minha vaga na apresentação da Formação de Consultores LBW.';
+  return `https://wa.me/${WHATSAPP_ISRAEL}?text=${encodeURIComponent(mensagem)}`;
+}
 
 interface Props {
   /** De onde veio a inscrição. Aparece na tela de aprovação do admin. */
@@ -81,6 +95,11 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
           <CheckCircle2 size={30} aria-hidden="true" />
           <strong>Recebemos seu interesse.</strong>
           <p>Ainda não há uma data aberta para agendamento. A LBW usará o contato informado para avisar sobre a próxima apresentação.</p>
+          {Boolean(WHATSAPP_ISRAEL) && (
+            <a className="formacao-whatsapp-cta" href={linkWhatsapp(nome)} target="_blank" rel="noopener noreferrer">
+              <MessageCircle size={18} aria-hidden="true" /> Falar com Israel no WhatsApp
+            </a>
+          )}
         </div>
       );
     }
@@ -118,6 +137,11 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
         <a className="formacao-agenda-fallback" href={urlAgendamento} target="_blank" rel="noopener noreferrer">
           O calendário não carregou? Abra em uma nova aba →
         </a>
+        {Boolean(WHATSAPP_ISRAEL) && (
+          <a className="formacao-whatsapp-cta" href={linkWhatsapp(nome)} target="_blank" rel="noopener noreferrer">
+            <MessageCircle size={18} aria-hidden="true" /> Prefere falar antes? Chame no WhatsApp
+          </a>
+        )}
       </div>
     );
   }
