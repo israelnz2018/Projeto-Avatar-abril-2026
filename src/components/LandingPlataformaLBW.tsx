@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import RodapeInstitucional from './RodapeInstitucional';
 import { PLANOS_LBW } from '../services/planosLBW';
 
+// O mesmo vídeo de demonstração usado na página de consultores: a pessoa vê
+// como o aluno percorre a plataforma antes de comparar os planos.
+const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=true';
+
 // Escada de 3 degraus, cada um contendo o anterior:
 //   1) só cursos  ->  2) cursos + Software LBW  ->  3) tudo + projetos guiados Belt
 // Preço e link vêm de planosLBW: o popup de curso bloqueado mostra a mesma
@@ -215,6 +219,11 @@ const CSS = `
 .plbw .proof:nth-child(2) .proof-copy{color:#cddbf5}
 .plbw .proof:nth-child(3) .proof-copy{color:#c5e9f2}
 .plbw .head{text-align:center;max-width:780px;margin:0 auto 42px}.plbw .head small{font-weight:700;color:#74a2ff;letter-spacing:.18em;font-size:13px}.plbw .head h2{font-size:clamp(30px,4.2vw,46px);letter-spacing:-.03em;margin:14px 0;font-weight:700;text-wrap:balance}.plbw .head p{color:var(--muted);line-height:1.65;font-size:17px;text-wrap:pretty}
+.plbw .platform-video{max-width:900px;margin:0 auto 58px;padding:18px;border:1px solid rgba(96,165,250,.34);border-radius:22px;background:linear-gradient(145deg,rgba(17,36,78,.9),rgba(8,15,34,.94));box-shadow:0 28px 70px -42px rgba(33,100,243,.9)}
+.plbw .platform-video-intro{text-align:center;color:#b9c9e8;font-size:16px;line-height:1.5;margin:0 auto 16px}
+.plbw .platform-video-frame{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:14px;background:#020617;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.plbw .platform-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.plbw .platform-video-caption{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:15px 0 0;color:#d6e2fb;font-size:13px;font-weight:600}.plbw .platform-video-caption span{color:#7fa6f7;font-weight:500}
 .plbw .platform-content-head{max-width:980px;margin-bottom:70px}.plbw .platform-content-head h2{font-size:clamp(38px,5.4vw,62px);line-height:1.04;background:linear-gradient(100deg,#fff 12%,#a8c5ff 58%,#26c9e4);-webkit-background-clip:text;background-clip:text;color:transparent}.plbw .showcase-block+.showcase-block{margin-top:86px;padding-top:76px;border-top:1px solid var(--line)}.plbw .showcase-head{margin-bottom:34px}.plbw .showcase-head h3{font-size:clamp(28px,3.8vw,42px);letter-spacing:-.03em;font-weight:700;text-wrap:balance;margin:0 0 14px}.plbw .showcase-head p{color:var(--muted);line-height:1.65;font-size:17px;text-wrap:pretty}
 .plbw .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:stretch}.plbw .plan{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:22px;padding:28px;background:linear-gradient(160deg,rgba(17,31,66,.95),rgba(8,14,31,.96));box-shadow:0 24px 70px -42px #000}.plbw .plan.featured{border-color:#4381ff;box-shadow:0 0 0 1px rgba(67,129,255,.22),0 30px 80px -35px rgba(33,100,243,.6)}.plbw .recommended{position:absolute;top:-13px;right:20px;background:linear-gradient(120deg,#2866f4,#10b8dc);padding:7px 13px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em}.plbw .plan-tag{font-size:11px;color:#84adff;font-weight:700;letter-spacing:.12em;min-height:28px}.plbw .plan h3{font-size:26px;line-height:1.15;margin:8px 0 13px;letter-spacing:-.02em}.plbw .summary{color:#c7d1e8;line-height:1.55}.plbw .ideal{margin:19px 0;padding:13px 14px;border-radius:11px;background:rgba(72,117,218,.09);color:#aebde0;font-size:13px;line-height:1.5}.plbw .items{list-style:none;padding:0;margin:0 0 18px;display:flex;flex-direction:column;gap:12px}.plbw .items li{position:relative;padding:0 0 0 25px;color:#e7ecf8;font-size:14px;line-height:1.45}.plbw .items li:before{content:'✓';position:absolute;left:0;color:#22d3a1;font-weight:800}.plbw .exclude{color:#93a2c3;font-size:12.5px;line-height:1.5;border-top:1px solid var(--line);padding-top:15px;margin-top:auto}.plbw .exclude-vazio{margin-top:auto}.plbw .price{text-align:center;font-size:27px;font-weight:700;margin:8px 0 3px}.plbw .price-note{text-align:center;color:#aab6d2;font-size:13px;margin-bottom:14px}.plbw .soon{text-align:center;color:#bfd1fa;font-size:14px;font-weight:700;margin:22px 0 16px}.plbw .plan .btn{width:100%;text-align:center}
 .plbw .price-de{text-align:center;color:#8fa0c4;font-size:13px;margin:22px 0 0}.plbw .price-de s{color:#7b8bb0}.plbw .price-de+.price{margin-top:2px}
@@ -468,6 +477,18 @@ export default function LandingPlataformaLBW({ hero }: { hero?: React.ReactNode 
 
       <main>
         <section className="section" id="planos"><div className="wrap">
+          <div className="platform-video">
+            <p className="platform-video-intro">Veja como seus clientes vão conhecer e usar a plataforma.</p>
+            <div className="platform-video-frame">
+              <iframe
+                title="Conheça a plataforma como o aluno vê"
+                src={VIDEO_ALUNO}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            <p className="platform-video-caption">Conheça a plataforma como o aluno vê <span>Experiência real da LBW</span></p>
+          </div>
           <div className="head"><h2>Três produtos claros. Uma única plataforma.</h2><p>Você não precisa contratar tudo para começar. Escolha o nível de acesso que resolve sua necessidade agora e evolua quando fizer sentido.</p></div>
           <div className="plans">{PLANOS.map((plano) => <article className={`plan${plano.destaque ? ' featured' : ''}`} key={plano.id}>
             {plano.destaque && <span className="recommended">MAIS COMPLETO</span>}<div className="plan-tag">{plano.tag}</div><h3>{plano.nome}</h3><p className="summary">{plano.resumo}</p><p className="ideal"><strong>Ideal para:</strong> {plano.ideal}</p>
