@@ -1382,8 +1382,11 @@ function PecasProduzidas({
             // isso, para o clique não surpreender.
             acao={(
               <>
-                {p.tipo === 'linkedin-pdf' && pecas.some((outra) => outra.tipo === 'carrossel-feed') && (
+                {p.tipo === 'linkedin-pdf' && (
                   <BotaoCopiarDoInstagram ocupado={ocupado} aoClicar={() => aoCopiarDoInstagram(p)} />
+                )}
+                {p.tipo === 'reel' && (
+                  <BotaoCorrigirLegenda ocupado={ocupado} retranscrevendo={Boolean(retranscrevendo)} aoClicar={aoRetranscrever} />
                 )}
                 <BotaoRefazer
                   ocupado={ocupado}
@@ -2729,6 +2732,28 @@ function BotaoCopiarDoInstagram({
         ? <Loader2 className="w-3 h-3 animate-spin" />
         : <Copy className="w-3 h-3" />}
       Refazer pelo Instagram
+    </button>
+  );
+}
+
+function BotaoCorrigirLegenda({
+  ocupado, retranscrevendo, aoClicar,
+}: {
+  ocupado?: boolean;
+  retranscrevendo: boolean;
+  aoClicar: () => void;
+}) {
+  return (
+    <button
+      onClick={aoClicar}
+      disabled={ocupado || retranscrevendo}
+      title="Reprocessa a transcrição do vídeo para corrigir as palavras da legenda sincronizada. Depois, clique em Refazer."
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-300 text-amber-800 text-xs font-semibold hover:bg-amber-50 disabled:opacity-50"
+    >
+      {retranscrevendo
+        ? <Loader2 className="w-3 h-3 animate-spin" />
+        : <RefreshCw className="w-3 h-3" />}
+      {retranscrevendo ? 'Corrigindo legenda' : 'Corrigir legenda'}
     </button>
   );
 }
