@@ -10,8 +10,8 @@
  *
  * Ver INSTALAR-AGENDAMENTO-RAILWAY.md, na raiz do projeto "Empresa de Gestão LBW".
  */
-import React, { useState } from 'react';
-import { CalendarClock, ExternalLink, AlertTriangle, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CalendarClock, ExternalLink, AlertTriangle, RefreshCw, Clock3 } from 'lucide-react';
 
 const URL_AGENDAMENTO = String(import.meta.env.VITE_AGENDAMENTO_URL || '').trim();
 
@@ -82,6 +82,8 @@ export default function AgendamentoConsultor() {
     <div className="p-6">
       <Cabecalho />
 
+      <RelogioFusos />
+
       {/* ATALHOS PARA AS TELAS QUE IMPORTAM.
           O menu do próprio sistema tem muita coisa que não usamos; estes botões
           levam direto ao que o consultor precisa, sem ele se perder lá dentro. */}
@@ -130,6 +132,115 @@ export default function AgendamentoConsultor() {
         />
       </div>
     </div>
+  );
+}
+
+type ZonaHorario = {
+  id: 'auckland' | 'saoPaulo';
+  nome: string;
+  cidade: string;
+  fuso: string;
+  timeZone: string;
+  cor: string;
+};
+
+const ZONAS_HORARIO: ZonaHorario[] = [
+  {
+    id: 'auckland',
+    nome: 'Nova Zelândia',
+    cidade: 'Auckland',
+    fuso: 'Pacific/Auckland',
+    timeZone: 'Pacific/Auckland',
+    cor: 'border-blue-200 bg-blue-50',
+  },
+  {
+    id: 'saoPaulo',
+    nome: 'Brasil',
+    cidade: 'São Paulo',
+    fuso: 'America/Sao_Paulo',
+    timeZone: 'America/Sao_Paulo',
+    cor: 'border-emerald-200 bg-emerald-50',
+  },
+];
+
+function RelogioFusos() {
+  const [agora, setAgora] = useState(() => new Date());
+  const [mostrarAmbos, setMostrarAmbos] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setAgora(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const formatarHora = (zona: string) => new Intl.DateTimeFormat('pt-BR', {
+    timeZone: zona,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(agora);
+
+  const formatarData = (zona: string) => new Intl.DateTimeFormat('pt-BR', {
+    timeZone: zona,
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  }).format(agora);
+
+  const formatarOffset = (zona: string) => {
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: zona,
+      timeZoneName: 'shortOffset',
+      hour: '2-digit',
+    }).formatToParts(agora);
+    return partes.find((parte) => parte.type === 'timeZoneName')?.value || '';
+  };
+
+  return (
+    <section className="mb-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm" aria-label="Horários de referência">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Clock3 className="h-5 w-5 text-blue-600" />
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">Horários de referência</h2>
+            <p className="text-xs text-gray-500">Os horários acompanham automaticamente o horário de verão.</p>
+          </div>
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-gray-700">
+          <span>Mostrar os dois horários</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={mostrarAmbos}
+            aria-label="Mostrar os horários da Nova Zelândia e do Brasil"
+            onClick={() => setMostrarAmbos((valor) => !valor)}
+            className={`relative h-6 w-11 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              mostrarAmbos ? 'bg-blue-600' : 'bg-gray-300'
+            }`}
+          >
+            <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+              mostrarAmbos ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </label>
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {ZONAS_HORARIO.filter((zona) => mostrarAmbos || zona.id === 'auckland').map((zona) => (
+          <div key={zona.id} className={`rounded-lg border px-4 py-3 ${zona.cor}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">{zona.nome}</p>
+                <p className="text-sm font-medium text-gray-700">{zona.cidade}</p>
+              </div>
+              <span className="rounded bg-white/70 px-2 py-1 text-xs font-semibold text-gray-600">{formatarOffset(zona.fuso)}</span>
+            </div>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{formatarHora(zona.timeZone)}</p>
+            <p className="text-xs capitalize text-gray-500">{formatarData(zona.timeZone)}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
