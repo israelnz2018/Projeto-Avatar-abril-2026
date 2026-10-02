@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowDown, ArrowRight, Award, BookOpen, CalendarDays, Check, ChevronDown, Clock3, GraduationCap, Layers3, MessageCircle, MonitorPlay, Play, Scissors, Users, Wrench } from 'lucide-react';
-import FormularioFormacao from './consultores/FormularioFormacao';
 import { CSS_FORMACAO_EXTRA } from './consultores/estilosFormacao';
 import { CSS_CONSULTORES_NOVA } from './consultores/estilosLandingNova';
 import { ShowcaseSection } from './LandingConsultoresNova';
 
 const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=false';
-const URL_APRESENTACAO = String(import.meta.env.VITE_APRESENTACAO_URL || '').trim();
-const TEM_AGENDA = /^https:\/\//i.test(URL_APRESENTACAO);
+const URL_APRESENTACAO_PADRAO = 'https://cal-agendamento-production.up.railway.app/israel';
+const URL_APRESENTACAO = String(import.meta.env.VITE_APRESENTACAO_URL || URL_APRESENTACAO_PADRAO).trim();
 const entregas = [
   { icon: GraduationCap, title: 'Cursos para desenvolver sua base técnica', text: 'Acesso aos cursos da LBW: melhoria de processos, estatística aplicada, ferramentas da qualidade e gestão de projetos.', tag: 'Formação' },
   { icon: Users, title: '10 encontros em grupo com Israel', text: 'Encontros online sobre oferta, diagnóstico, precificação e atuação com empresas. Espaço para trabalhar dúvidas do seu contexto.', tag: 'Acompanhamento' },
@@ -32,6 +31,13 @@ const faqs = [
 function Convite({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
   return <a className={`fl-button ${className}`} href="#formacao-inscricao">{children || 'Quero participar da apresentação'}<ArrowRight size={18} aria-hidden="true" /></a>;
 }
+function registrarCliqueAgendamento() {
+  const pixel = (window as typeof window & { fbq?: (...args: unknown[]) => void }).fbq;
+  if (typeof pixel === 'function') {
+    pixel('track', 'Lead', { content_name: 'agendamento-apresentacao-consultores-lbw' });
+  }
+}
+
 export default function LandingFormacaoConsultores() {
   const [videoAberto, setVideoAberto] = useState(false);
   useEffect(() => {
@@ -102,7 +108,7 @@ export default function LandingFormacaoConsultores() {
 
         <section className="fl-section fl-faq"><div className="fl-container fl-faq-grid"><div className="fl-section-heading fl-left"><span className="fl-overline">Antes de participar</span><h2>As informações para decidir seu próximo passo.</h2><p>A apresentação é o espaço para conhecer os detalhes e avaliar se o programa faz sentido para você.</p></div><div className="fl-faq-list">{faqs.map(([q, a]) => <details key={q}><summary>{q}<ChevronDown size={18} aria-hidden="true" /></summary><p>{a}</p></details>)}</div></div></section>
 
-        <section id="formacao-inscricao" className="fl-section fl-registration"><div className="fl-container fl-registration-grid"><div className="fl-section-heading fl-left"><span className="fl-overline">Apresentação gratuita</span><h2>{TEM_AGENDA ? 'Escolha a sessão e conheça o programa.' : 'Quer conhecer o programa com Israel?'}</h2><p>{TEM_AGENDA ? 'Deixe seus dados e siga para o calendário. Sua participação será confirmada quando concluir a escolha da sessão.' : 'Deixe seu contato para receber informações sobre a próxima apresentação ao vivo.'}</p><ul className="fl-session-list"><li><Clock3 size={19} /> 40 minutos de apresentação</li><li><MonitorPlay size={19} /> Demonstração da plataforma e do programa</li><li><MessageCircle size={19} /> Perguntas ao final, para quem quiser ficar</li></ul><p className="fl-registration-note">{TEM_AGENDA ? 'Apresentação gratuita e sem compromisso de compra.' : 'A próxima data será informada no contato. Este cadastro registra seu interesse; a participação depende da confirmação da sessão.'}</p></div><div className="fl-form-card"><span className="fl-overline">Seu próximo passo</span><h3>{TEM_AGENDA ? 'Continuar para o agendamento' : 'Receber informações da apresentação'}</h3><FormularioFormacao origem="landing-formacao-consultores" urlAgendamento={TEM_AGENDA ? URL_APRESENTACAO : ''} /></div></div></section>
+        <section id="formacao-inscricao" className="fl-section fl-registration"><div className="fl-container fl-registration-grid"><div className="fl-section-heading fl-left"><span className="fl-overline">Apresentação gratuita</span><h2>Escolha a sessão e conheça o programa.</h2><p>Escolha um horário no calendário. O Cal vai pedir seus dados para confirmar a participação e enviar o convite da reunião.</p><ul className="fl-session-list"><li><Clock3 size={19} /> 40 minutos de apresentação</li><li><MonitorPlay size={19} /> Demonstração da plataforma e do programa</li><li><MessageCircle size={19} /> Perguntas ao final, para quem quiser ficar</li></ul><p className="fl-registration-note">Apresentação gratuita e sem compromisso de compra.</p></div><div className="fl-form-card"><span className="fl-overline">Seu próximo passo</span><h3>Agende sua apresentação</h3><p className="fl-registration-note">Veja os horários disponíveis e reserve o que funciona melhor para você.</p><a className="fl-button" href={URL_APRESENTACAO} onClick={registrarCliqueAgendamento}><span>Escolher data e horário</span><ArrowRight size={18} aria-hidden="true" /></a><p className="fl-form-micro">Você poderá informar seu WhatsApp durante o agendamento.</p></div></div></section>
       </main>
       <footer className="fl-footer"><div className="fl-container fl-footer-top"><a href="#inicio" className="fl-brand"><span className="fl-brand-mark">LBW</span><span>Educação<br /><b>pelo Trabalho</b></span></a><p>Formação e tecnologia para aplicar melhoria de processos.</p><a href="mailto:contact@learningbyworking.com">Fale com a LBW <ArrowRight size={15} /></a></div><div className="fl-container fl-footer-bottom"><span>Learning by Working · Auckland, Nova Zelândia<br />NZBN: 9429047241657 · © {new Date().getFullYear()}</span><div><a href="/quem-somos">Quem somos</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div></div></footer>
     </div>
