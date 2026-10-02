@@ -520,13 +520,13 @@ function Producao({
    * mas depois, e só para quem quiser.
    */
   /** Põe o Reel falado na fila. Não passa pela IA: o texto é a própria fala. */
-  async function pedirReel(quaoRapido = velocidade) {
+  async function pedirReel(quaoRapido = velocidade): Promise<boolean> {
     // Sem isto o pedido saía em silêncio: nenhum aviso, nenhum giro, nenhuma
     // tarefa na fila — parecia que o clique não tinha feito nada.
     setPrecisaRetranscrever(false);
     if (!podeCortar) {
       setAvisoReel('Este vídeo veio de link externo, então o Reel falado não sai daqui. Envie o arquivo pela etapa 3 para ter o Reel.');
-      return;
+      return false;
     }
     const user = auth.currentUser;
     const token = user ? await user.getIdToken() : '';
@@ -543,7 +543,9 @@ function Producao({
       // O servidor sabe que o conserto é retranscrever. Guardar isso deixa a tela
       // oferecer o conserto em vez de só dizer o que está errado.
       if (corpo.precisaRetranscrever) setPrecisaRetranscrever(true);
+      return false;
     }
+    return true;
   }
 
   /**
@@ -553,9 +555,61 @@ function Producao({
    * esse tempo: sem ele não há legenda karaokê, e sem legenda o Reel não sai. Os
    * criativos já existentes não se mexem — eles guardam as próprias falas.
    */
+  /** Acompanha o documento até a transcrição desta solicitação terminar. */
+  async function esperarTranscricao(videoId: string, iniciadaAntes?: string) {
+    return new Promise<void>((resolve, reject) => {
+      const videoRef = doc(db, COLECOES.videos, videoId);
+      let viuFila = false;
+      let encerrado = false;
+      let parar: (() => void) | undefined;
+      let limite: ReturnType<typeof setTimeout>;
+      const terminar = (erro?: Error) => {
+        if (encerrado) return;
+        encerrado = true;
+        if (parar) parar();
+        clearTimeout(limite);
+        if (erro) reject(erro);
+        else resolve();
+      };
+      limite = setTimeout(() => {
+        terminar(new Error('A transcrição demorou mais do que o esperado. Você pode tentar de novo.'));
+      }, 15 * 60 * 1000);
+
+      parar = onSnapshot(videoRef, (snap) => {
+        if (!snap.exists()) return;
+        const dados = snap.data() as Partial<VideoFonte>;
+        const estado = dados.transcricaoStatus;
+        const éDestaSolicitação = viuFila || Boolean(
+          dados.transcricaoIniciadaEm && dados.transcricaoIniciadaEm !== iniciadaAntes,
+        );
+
+        if (estado === 'na-fila' || estado === 'processando') {
+          viuFila = true;
+          setAvisoReel(estado === 'na-fila'
+            ? 'Transcrição enviada. Aguardando o processamento…'
+            : 'Transcrição em processamento. Aguardando a conclusão…');
+          return;
+        }
+        if (!éDestaSolicitação) return;
+        if (estado === 'erro') {
+          terminar(new Error(dados.transcricaoErro || 'Não foi possível concluir a transcrição.'));
+          return;
+        }
+        if (estado === 'pronta') {
+          if (!dados.temPalavras) {
+            terminar(new Error('A transcrição terminou, mas não encontrou palavras no vídeo.'));
+          } else {
+            terminar();
+          }
+        }
+      }, (erro) => terminar(new Error(`Não foi possível acompanhar a transcrição: ${erro.message}`)));
+    });
+  }
+
   async function retranscrever() {
     setRetranscrevendo(true);
     setErro('');
+    const iniciadaAntes = video?.transcricaoIniciadaEm;
     try {
       const user = auth.currentUser;
       const token = user ? await user.getIdToken() : '';
@@ -566,11 +620,16 @@ function Producao({
       });
       const corpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
-      setAvisoReel('A transcrição foi para a fila. Quando terminar, peça o Reel de novo.');
+      setAvisoReel('Transcrição enviada. Vou aguardar a conclusão e refazer o Reel automaticamente.');
       setPrecisaRetranscrever(false);
       onMudou();
+      await esperarTranscricao(criativo.videoId, iniciadaAntes);
+      setAvisoReel('Transcrição concluída. Refazendo o Reel agora…');
+      const reelEnviado = await refazerReel();
+      if (reelEnviado) setAvisoReel('Legenda corrigida. O novo Reel foi enviado para a fila de renderização.');
     } catch (e: any) {
       setErro(e?.message || String(e));
+      setPrecisaRetranscrever(true);
     } finally {
       setRetranscrevendo(false);
     }
@@ -671,13 +730,14 @@ function Producao({
    * Não passa pela IA nem toca nas peças de texto: é o mesmo corte, renderizado
    * outra vez. Custa um minuto e nada de API.
    */
-  async function refazerReel() {
+  async function refazerReel(): Promise<boolean> {
     setRefazendoReel(true);
     setAvisoReel('');
     setErro('');
     try {
-      await pedirReel();
+      const enviado = await pedirReel();
       onMudou();
+      return enviado;
     } finally {
       setRefazendoReel(false);
     }
