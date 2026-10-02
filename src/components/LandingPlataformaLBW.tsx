@@ -220,7 +220,7 @@ const CSS = `
 .plbw .proof:nth-child(3) .proof-copy{color:#c5e9f2}
 .plbw .head{text-align:center;max-width:780px;margin:0 auto 42px}.plbw .head small{font-weight:700;color:#74a2ff;letter-spacing:.18em;font-size:13px}.plbw .head h2{font-size:clamp(30px,4.2vw,46px);letter-spacing:-.03em;margin:14px 0;font-weight:700;text-wrap:balance}.plbw .head p{color:var(--muted);line-height:1.65;font-size:17px;text-wrap:pretty}
 .plbw .platform-video{max-width:900px;margin:0 auto 58px;padding:18px;border:1px solid rgba(96,165,250,.34);border-radius:22px;background:linear-gradient(145deg,rgba(17,36,78,.9),rgba(8,15,34,.94));box-shadow:0 28px 70px -42px rgba(33,100,243,.9)}
-.plbw .platform-video-intro{text-align:center;color:#b9c9e8;font-size:16px;line-height:1.5;margin:0 auto 16px}
+.plbw .platform-video-title{text-align:center;color:#b9c9e8;font-family:var(--fd);font-size:clamp(19px,2.4vw,27px);line-height:1.25;margin:0 auto 18px;font-weight:700}
 .plbw .platform-video-frame{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:14px;background:#020617;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
 .plbw .platform-video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .plbw .platform-video-caption{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:15px 0 0;color:#d6e2fb;font-size:13px;font-weight:600}.plbw .platform-video-caption span{color:#7fa6f7;font-weight:500}
@@ -478,7 +478,7 @@ export default function LandingPlataformaLBW({ hero }: { hero?: React.ReactNode 
       <main>
         <section className="section" id="planos"><div className="wrap">
           <div className="platform-video">
-            <p className="platform-video-intro">Veja como seus clientes vão conhecer e usar a plataforma.</p>
+            <h3 className="platform-video-title">Veja como você vai fazer seus projetos de melhoria</h3>
             <div className="platform-video-frame">
               <iframe
                 title="Conheça a plataforma como o aluno vê"
@@ -487,7 +487,7 @@ export default function LandingPlataformaLBW({ hero }: { hero?: React.ReactNode 
                 allowFullScreen
               />
             </div>
-            <p className="platform-video-caption">Conheça a plataforma como o aluno vê <span>Experiência real da LBW</span></p>
+            <p className="platform-video-caption">Experiência real da LBW</p>
           </div>
           <div className="head"><h2>Três produtos claros. Uma única plataforma.</h2><p>Você não precisa contratar tudo para começar. Escolha o nível de acesso que resolve sua necessidade agora e evolua quando fizer sentido.</p></div>
           <div className="plans">{PLANOS.map((plano) => <article className={`plan${plano.destaque ? ' featured' : ''}`} key={plano.id}>
