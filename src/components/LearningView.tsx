@@ -754,10 +754,11 @@ export default function LearningView() {
           viewMode === 'grid' ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
         )}>
           {filteredItems.map((item, i) => {
-            const youtubeId = getYoutubeId(item.sourceUrl);
-            const thumbnailUrl = youtubeId
-              ? youtubeThumb(youtubeId, 'hqdefault')
-              : item.bunnyThumbnailUrl || '';
+            // Vídeos migrados guardam o link antigo do YouTube, mas são exibidos
+            // pelo Bunny. A capa precisa seguir a mesma origem do vídeo.
+            const youtubeId = item.bunnyVideoId ? null : getYoutubeId(item.sourceUrl);
+            const thumbnailUrl = item.bunnyThumbnailUrl
+              || (youtubeId ? youtubeThumb(youtubeId, 'hqdefault') : '');
             const isSelected = selectedVideo?.id === item.id;
             const videoLocked = isVideoLocked(item);
             const isWatched = !!watchedUrls[item.sourceUrl];

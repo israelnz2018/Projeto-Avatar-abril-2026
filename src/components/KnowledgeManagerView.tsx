@@ -404,8 +404,8 @@ function SortableVideoRow({
     zIndex: isDragging ? 1 : 'auto' as any,
   };
   const youtubeMatch = String(item.sourceUrl || '').match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-  const youtubeId = youtubeMatch && youtubeMatch[2].length === 11 ? youtubeMatch[2] : null;
-  const thumbnailUrl = youtubeId ? youtubeThumb(youtubeId, 'hqdefault') : item.bunnyThumbnailUrl || '';
+  const youtubeId = !item.bunnyVideoId && youtubeMatch && youtubeMatch[2].length === 11 ? youtubeMatch[2] : null;
+  const thumbnailUrl = item.bunnyThumbnailUrl || (youtubeId ? youtubeThumb(youtubeId, 'hqdefault') : '');
   const legacyErrorStage: 'transcricao' | 'indice' | undefined = item.transcricaoErro
     ? (item.rawTranscript && !(item.summary?.length || 0) ? 'indice' : 'transcricao')
     : undefined;
