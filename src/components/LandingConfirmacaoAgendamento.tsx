@@ -1,8 +1,6 @@
 import { CalendarCheck, CheckCircle2, Mail } from 'lucide-react';
 import { useEffect } from 'react';
 
-const LINK_GRUPO_WHATSAPP = '';
-
 export default function LandingConfirmacaoAgendamento() {
   useEffect(() => {
     document.title = 'Agendamento confirmado | Learning by Working';
@@ -27,15 +25,6 @@ export default function LandingConfirmacaoAgendamento() {
             <span style={{ color: 'rgba(255,255,255,.82)', lineHeight: 1.55 }}>Na apresentação, você vai conhecer o programa e poderá tirar suas dúvidas.</span>
           </div>
         </div>
-        {LINK_GRUPO_WHATSAPP ? (
-          <a href={LINK_GRUPO_WHATSAPP} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 10, minHeight: 50, padding: '0 22px', borderRadius: 12, background: '#20b86a', color: '#062a19', fontWeight: 800, textDecoration: 'none' }}>
-            Entrar no grupo de WhatsApp
-          </a>
-        ) : (
-          <button type="button" disabled aria-disabled="true" style={{ minHeight: 50, padding: '0 22px', border: '1px solid rgba(255,255,255,.2)', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.65)', font: 'inherit', fontWeight: 750, cursor: 'not-allowed' }}>
-            Link do grupo de WhatsApp em breve
-          </button>
-        )}
         <p style={{ margin: '22px 0 0', color: 'rgba(255,255,255,.5)', fontSize: 13 }}>Você pode fechar esta página depois de conferir o e-mail.</p>
       </section>
     </main>
