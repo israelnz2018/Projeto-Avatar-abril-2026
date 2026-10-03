@@ -453,6 +453,8 @@ export interface Campanha {
    */
   capaStatus?: 'processando' | 'pronta' | 'erro';
   capaErro?: string | null;
+  /** Hora em que a campanha entrou no estado processando. */
+  processandoDesde?: string;
   /**
    * Motivo da última falha, quando `status` = 'erro'. O worker grava aqui — em
    * `firestore.mjs` e `index.mjs` — desde sempre; só faltava entrar no tipo.

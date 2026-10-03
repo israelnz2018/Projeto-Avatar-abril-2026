@@ -43,6 +43,18 @@ const LAYOUTS: { id: SlideRoteiro['type']; nome: string; exige: (keyof SlideRote
   { id: 'cta', nome: 'Chamada — a palavra a comentar', exige: ['palavra'] },
 ];
 
+// Um worker normal conclui a primeira produção em poucos minutos. Depois disso,
+// um status "processando" sem atualização é antigo e não pode esconder o botão.
+const LIMITE_PROCESSANDO_MS = 5 * 60 * 1000;
+
+function campanhaAindaProcessando(campanha?: Campanha) {
+  if (campanha?.status !== 'processando') return false;
+  const desde = campanha.processandoDesde || campanha.atualizadoEm || campanha.criadoEm;
+  if (!desde) return false;
+  const instante = Date.parse(desde);
+  return Number.isFinite(instante) && Date.now() - instante < LIMITE_PROCESSANDO_MS;
+}
+
 // A lista de 12 pessoas escrita à mão saiu daqui. A tela e o renderizador passaram
 // a ler a mesma biblioteca (marketing_imagens), onde as imagens geradas e as fotos
 // enviadas entram ao lado delas — ver BibliotecaImagens.tsx.
@@ -359,9 +371,13 @@ function Producao({
   // travar o carrossel, e o Refazer da capa travar o Reel. O Reel, a capa e as
   // peças de texto são produções separadas, e cada uma mostra o próprio estado.
   const campanhaDoReel = campanhas.find((c) => c.id === campanhaReel);
-  const reelNoServidor = campanhaDoReel?.status === 'processando';
-  const textoNoServidor = campanhas.some((c) => c.id === campanhaId && c.status === 'processando');
+  const reelNoServidor = campanhaAindaProcessando(campanhaDoReel);
+  const textoNoServidor = campanhaAindaProcessando(campanhas.find((c) => c.id === campanhaId));
   const servidorTrabalhando = reelNoServidor || textoNoServidor;
+  const processoAntigo = !servidorTrabalhando && (
+    (campanhaDoReel?.status === 'processando' && !reelNoServidor)
+    || (campanhas.some((c) => c.id === campanhaId && c.status === 'processando') && !textoNoServidor)
+  );
   const [refazendoReel, setRefazendoReel] = useState(false);
 
   /** Pede as páginas à IA e devolve o que veio. Não produz nada. */
@@ -373,6 +389,7 @@ function Producao({
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ criativoId: criativo.id, melhoria: instrução.trim() || undefined }),
+        signal: AbortSignal.timeout(90_000),
       });
       const corpo = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(corpo.error || `HTTP ${r.status}`);
@@ -440,7 +457,10 @@ function Producao({
     setErro('');
     try {
       const agora = new Date().toISOString();
-      await setDoc(doc(db, COLECOES.campanhas, campanhaId), {
+      const campanhaRef = doc(db, COLECOES.campanhas, campanhaId);
+      const tarefaRef = doc(collection(db, COLECOES.tarefas));
+      await runTransaction(db, async (transacao) => {
+        transacao.set(campanhaRef, {
         id: campanhaId,
         consultorId: criativo.consultorId,
         videoId: criativo.videoId,
@@ -448,6 +468,7 @@ function Producao({
         titulo: criativo.titulo,
         objetivo: 'autoridade',
         status: 'processando',
+        processandoDesde: agora,
         corteInicio: formatar(inicioNoVideo(criativo)),
         corteFim: formatar(fimNoVideo(criativo)),
         segundosPorSlide,
@@ -455,11 +476,11 @@ function Producao({
         roteiro: paginas,
         roteiroGeradoEm: agora,
         criadoEm: agora,
-      }, { merge: true });
+        }, { merge: true });
 
-      // O que está na tela é o que vai. Se o consultor editou o texto, é o texto
-      // dele que vira imagem — a IA não é consultada de novo.
-      await addDoc(collection(db, COLECOES.tarefas), {
+        // Campanha e tarefa entram juntas. Assim não sobra um "processando" eterno
+        // se o Firestore recusar a tarefa depois de gravar a campanha.
+        transacao.set(tarefaRef, {
         consultorId: criativo.consultorId,
         campanhaId,
         criativoId: criativo.id,
@@ -469,6 +490,7 @@ function Producao({
         render: montarRender(paginas),
         criadoEm: agora,
         criadoEmServidor: serverTimestamp(),
+      });
       });
       onMudou();
     } catch (e: any) {
@@ -534,6 +556,7 @@ function Producao({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ criativoId: criativo.id, velocidade: quaoRapido, usarTituloCriativo: true }),
+      signal: AbortSignal.timeout(45_000),
     });
     if (!r.ok) {
       const corpo = await r.json().catch(() => ({}));
@@ -647,7 +670,10 @@ function Producao({
     setErro('');
     setAvisoReel('');
     try {
-      const reel = pedirReel();
+      const reel = pedirReel().catch((e: any) => {
+        setAvisoReel(e?.message || 'Não foi possível enviar o Reel para geração.');
+        return false;
+      });
       const novos = await pedirRoteiro();
       if (novos.length) {
         setSlides(novos);
@@ -656,6 +682,8 @@ function Producao({
       }
       await reel;
       onMudou();
+    } catch (e: any) {
+      setErro(e?.message || 'Não foi possível iniciar a geração. Tente novamente.');
     } finally {
       setGerando(false);
     }
@@ -936,7 +964,7 @@ function Producao({
   // tela trocava de modo no instante em que a IA terminava de escrever: o botão
   // sumia e no lugar aparecia "nenhuma peça ainda", com o worker ainda produzindo.
   // Para quem clicou, parecia que o clique não tinha feito nada.
-  if (!daCampanha.length && !servidorTrabalhando && !gerando && !enfileirando) {
+  if (!daCampanha.length && (!servidorTrabalhando || processoAntigo) && !gerando && !enfileirando) {
     return (
       <section className="p-5 rounded-lg border border-gray-200 bg-white">
         <p className="text-sm text-gray-700 mb-1 font-semibold">Deste trecho saem cinco peças:</p>
@@ -954,11 +982,12 @@ function Producao({
         >
           {gerando || enfileirando
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Criando tudo…</>
-            : <><Sparkles className="w-5 h-5" /> Criar tudo</>}
+            : <><Sparkles className="w-5 h-5" /> {processoAntigo ? 'Tentar gerar novamente' : 'Criar tudo'}</>}
         </button>
         <p className="text-xs text-gray-500 mt-2">
-          Leva cerca de um minuto. Pode fechar a tela — o trabalho continua no servidor.
+          A geração só começa quando você apertar este botão. Ela pode levar alguns minutos.
         </p>
+        {processoAntigo && <p className="text-sm text-amber-800 mt-2">A tentativa anterior ficou sem atualização. Você pode iniciar uma nova geração agora.</p>}
         {!podeCortar && (
           <p className="text-xs text-amber-800 mt-2">
             Este vídeo veio de link externo, então o Reel falado não sai — só as três

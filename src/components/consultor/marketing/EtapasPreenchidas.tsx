@@ -2977,7 +2977,13 @@ export function useDadosMarketing(consultorId: string) {
   const trabalhando = videos.some(
     (v) => v.transcricaoStatus === 'na-fila' || v.transcricaoStatus === 'processando',
   // A capa do Reel tem o próprio estado, separado do Reel — e também conta.
-  ) || campanhas.some((c) => c.status === 'processando' || c.capaStatus === 'processando')
+  ) || campanhas.some((c) => {
+    if (c.status !== 'processando' && c.capaStatus !== 'processando') return false;
+    const desde = c.processandoDesde || c.atualizadoEm || c.criadoEm;
+    const instante = desde ? Date.parse(desde) : NaN;
+    // Não deixar uma gravação antiga manter a tela em atualização infinita.
+    return Number.isFinite(instante) && Date.now() - instante < 5 * 60 * 1000;
+  })
   // Uma revisão individual trabalha na peça, não na campanha. Mesmo que a
   // campanha tenha um erro antigo, a tela precisa continuar atualizando até a
   // peça sair de "gerando".
