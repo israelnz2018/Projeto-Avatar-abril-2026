@@ -1,4 +1,11 @@
-const builderUrl = 'https://typebot.educacaopelotrabalho.com';
+const builderUrl = String(import.meta.env.VITE_TYPEBOT_BUILDER_URL || '').trim();
+const editorDisponivel = (() => {
+  try {
+    return new URL(builderUrl).protocol === 'https:';
+  } catch {
+    return false;
+  }
+})();
 
 export default function AdminDiagnostico() {
   return (
@@ -13,7 +20,11 @@ export default function AdminDiagnostico() {
         <h2 className="text-lg font-bold text-slate-900">Editor do diagnóstico</h2>
         <p className="mt-2 text-sm text-slate-600">Monte e publique o fluxo no editor. Depois, confira como ele aparece na página pública.</p>
         <div className="mt-5 flex flex-wrap gap-3">
-          <a href={builderUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white no-underline hover:bg-blue-800">Abrir editor do Typebot</a>
+          {editorDisponivel ? (
+            <a href={builderUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white no-underline hover:bg-blue-800">Abrir editor do Typebot</a>
+          ) : (
+            <span className="rounded-lg bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-600">Editor em configuração</span>
+          )}
           <a href="https://educacaopelotrabalho.com/diagnostico" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800 no-underline hover:bg-slate-50">Ver página pública</a>
         </div>
       </div>
