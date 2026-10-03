@@ -7,7 +7,7 @@ import { ShowcaseSection } from './LandingConsultoresNova';
 const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=false';
 // Link direto do evento público de 45 minutos. O endereço /israel abre o
 // perfil geral e pode listar outros tipos de reunião.
-const URL_APRESENTACAO_PADRAO = 'https://cal-agendamento-production.up.railway.app/israel/45';
+const URL_APRESENTACAO_PADRAO = 'https://cal-agendamento-production.up.railway.app/israel/45/embed';
 const URL_APRESENTACAO = String(import.meta.env.VITE_APRESENTACAO_URL || URL_APRESENTACAO_PADRAO).trim();
 const entregas = [
   { icon: GraduationCap, title: 'Cursos para desenvolver sua base técnica', text: 'Acesso aos cursos da LBW: melhoria de processos, estatística aplicada, ferramentas da qualidade e gestão de projetos.', tag: 'Formação' },
