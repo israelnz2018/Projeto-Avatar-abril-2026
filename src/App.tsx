@@ -71,6 +71,8 @@ const LandingTermosGratuitos = lazy(() => import('./components/LandingTermosGrat
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingConsultores = lazy(() => import('./components/LandingConsultoresNova'));
 const LandingFormacaoConsultores = lazy(() => import('./components/LandingFormacaoConsultores'));
+const LandingDiagnostico = lazy(() => import('./components/LandingDiagnostico'));
+const AdminDiagnostico = lazy(() => import('./components/AdminDiagnostico'));
 const LandingConfirmacaoAgendamento = lazy(() => import('./components/LandingConfirmacaoAgendamento'));
 const SejaConsultor = lazy(() => import('./components/SejaConsultor'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
@@ -101,6 +103,13 @@ function AreaGate({ area, children }: { area: 'consultor' | 'coordenador'; child
   if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
   const permitido = area === 'consultor' ? (isAdmin || isConsultor) : (isAdmin || isCoordenador);
   if (!permitido) return <div className="p-8 text-red-600 font-bold">Esta tela não pertence à sua área de acesso.</div>;
+  return <>{children}</>;
+}
+
+function AdminGate({ children }: { children: React.ReactNode }) {
+  const { isAdmin, loading } = useUserAccess();
+  if (loading) return <div className="p-8 text-gray-500">Carregando…</div>;
+  if (!isAdmin) return <Navigate to="/education" replace />;
   return <>{children}</>;
 }
 
@@ -230,6 +239,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
       { name: 'Ferramentas', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
+      { name: 'Fluxos de diagnóstico', path: '/admin-diagnostico', icon: ClipboardList },
   ];
 
   const canSeeConsultorArea = (siteConsultor || ehAdminHub) && (isAdmin || isConsultor);
@@ -627,7 +637,7 @@ export default function App() {
     const host = window.location.hostname;
     const path = window.location.pathname;
     const isSitePublico = host === 'educacaopelotrabalho.com' || host === 'www.educacaopelotrabalho.com';
-    const rotasPublicas = ['/formacao', '/plataformalbw', '/gratis', '/capabilidade', '/estatisticaaplicada', '/yellowbelt', '/termos-gratuitos', '/vitrine', '/kit90dias', '/consultores', '/consultoresLBW', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
+    const rotasPublicas = ['/diagnostico', '/formacao', '/plataformalbw', '/gratis', '/capabilidade', '/estatisticaaplicada', '/yellowbelt', '/termos-gratuitos', '/vitrine', '/kit90dias', '/consultores', '/consultoresLBW', '/verificar/', '/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
     return isSitePublico || rotasPublicas.some(r => path.startsWith(r));
   })();
 
@@ -652,7 +662,7 @@ export default function App() {
     // As landings de venda/captação e a verificação de certificado têm prioridade
     // (são tratadas nos blocos abaixo). O site público só mostra a Jornada no resto.
     const ROTAS_INSTITUCIONAIS = ['/quem-somos', '/contato', '/pacotes-corporativos', '/termos', '/privacidade'];
-    const rotaReservada = path.startsWith('/formacao') || path.startsWith('/plataformalbw') || path.startsWith('/gratis') || path.startsWith('/capabilidade') || path.startsWith('/estatisticaaplicada') || path.startsWith('/yellowbelt') || path.startsWith('/termos-gratuitos') || path.startsWith('/kit90dias') || path.startsWith('/consultores') || path.startsWith('/consultoresLBW') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
+    const rotaReservada = path.startsWith('/diagnostico') || path.startsWith('/formacao') || path.startsWith('/plataformalbw') || path.startsWith('/gratis') || path.startsWith('/capabilidade') || path.startsWith('/estatisticaaplicada') || path.startsWith('/yellowbelt') || path.startsWith('/termos-gratuitos') || path.startsWith('/kit90dias') || path.startsWith('/consultores') || path.startsWith('/consultoresLBW') || path.startsWith('/trilhagratis') || path.startsWith('/verificar/') || ROTAS_INSTITUCIONAIS.some(r => path.startsWith(r));
     if (isSitePublico && !rotaReservada) {
       return (
         <Router>
@@ -682,6 +692,13 @@ export default function App() {
   }
 
   // Rotas PÚBLICAS de landing — bypass do login (landings de venda/captação).
+  if (typeof window !== 'undefined' && /^\/diagnostico\/?$/i.test(window.location.pathname)) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#081a32] text-white">Carregando diagnóstico…</div>}>
+        <LandingDiagnostico />
+      </Suspense>
+    );
+  }
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/gratis/capabilidade')) {
     window.location.replace('/capabilidade/gratis');
     return null;
@@ -842,6 +859,7 @@ export default function App() {
               <Route path="/opinioes" element={<OpinioesAdminView />} />
               <Route path="/config" element={<AreaGate area="consultor"><ProjectToolsConfig /></AreaGate>} />
               <Route path="/api-settings" element={<ApiSettingsView />} />
+              <Route path="/admin-diagnostico" element={<AdminGate><AdminDiagnostico /></AdminGate>} />
               <Route path="/admin-consultores" element={<AdminConsultores />} />
               <Route path="/solicitacoes-consultores" element={<SolicitacoesConsultores />} />
               <Route path="/repasses" element={<RepassesView />} />
