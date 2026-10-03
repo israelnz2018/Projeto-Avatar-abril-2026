@@ -3,6 +3,7 @@ import { ArrowDown, ArrowRight, Award, BookOpen, CalendarDays, Check, ChevronDow
 import { CSS_FORMACAO_EXTRA } from './consultores/estilosFormacao';
 import { CSS_CONSULTORES_NOVA } from './consultores/estilosLandingNova';
 import { ShowcaseSection } from './LandingConsultoresNova';
+import RodapeInstitucional from './RodapeInstitucional';
 
 const VIDEO_ALUNO = 'https://iframe.mediadelivery.net/embed/718588/dbd34562-3136-4144-8f61-eb910dc7a9a1?preload=false';
 // Link direto do evento público de 45 minutos. O endereço /israel abre o
@@ -110,7 +111,7 @@ export default function LandingFormacaoConsultores() {
 
         <section id="formacao-inscricao" className="fl-section fl-registration"><div className="fl-container fl-registration-grid"><div className="fl-section-heading fl-left"><span className="fl-overline">Apresentação gratuita</span><h2>Escolha a sessão e conheça o programa.</h2><p>Escolha um horário no calendário. O Cal vai pedir seus dados para confirmar a participação e enviar o convite da reunião.</p><ul className="fl-session-list"><li><Clock3 size={19} /> 40 minutos de apresentação</li><li><MonitorPlay size={19} /> Demonstração da plataforma e do programa</li><li><MessageCircle size={19} /> Perguntas ao final, para quem quiser ficar</li></ul><p className="fl-registration-note">Apresentação gratuita e sem compromisso de compra.</p></div><div className="fl-form-card"><span className="fl-overline">Seu próximo passo</span><h3>Agende sua apresentação</h3><p className="fl-registration-note">O calendário está logo abaixo. Escolha o horário, preencha seus dados e confirme a reunião sem sair desta página.</p></div></div><div className="fl-container fl-calendar-wrap"><div className="fl-calendar-heading"><span className="fl-overline">Calendário de horários</span><h3>Escolha a data e o horário da apresentação</h3><p>Depois de confirmar, o convite da reunião será enviado para o seu e-mail.</p></div><div className="fl-calendar-embed"><iframe title="Calendário para agendar a apresentação da Formação de Consultores LBW" src={URL_APRESENTACAO} loading="lazy" allow="fullscreen" /></div><a className="fl-calendar-fallback" href={URL_APRESENTACAO} target="_blank" rel="noopener noreferrer" onClick={registrarCliqueAgendamento}>Se o calendário não carregar, abrir o agendamento em uma nova aba</a></div></section>
       </main>
-      <footer className="fl-footer"><div className="fl-container fl-footer-top"><a href="#inicio" className="fl-brand"><span className="fl-brand-mark">LBW</span><span>Educação<br /><b>pelo Trabalho</b></span></a><p>Formação e tecnologia para aplicar melhoria de processos.</p><a href="mailto:contact@learningbyworking.com">Fale com a LBW <ArrowRight size={15} /></a></div><div className="fl-container fl-footer-bottom"><span>Learning by Working · Auckland, Nova Zelândia<br />NZBN: 9429047241657 · © {new Date().getFullYear()}</span><div><a href="/quem-somos">Quem somos</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a></div></div></footer>
+      <RodapeInstitucional />
     </div>
   );
 }
