@@ -71,6 +71,7 @@ const LandingTermosGratuitos = lazy(() => import('./components/LandingTermosGrat
 const LandingComecar = lazy(() => import('./components/LandingComecar'));
 const LandingConsultores = lazy(() => import('./components/LandingConsultoresNova'));
 const LandingFormacaoConsultores = lazy(() => import('./components/LandingFormacaoConsultores'));
+const LandingConfirmacaoAgendamento = lazy(() => import('./components/LandingConfirmacaoAgendamento'));
 const SejaConsultor = lazy(() => import('./components/SejaConsultor'));
 const LandingInstitucional = lazy(() => import('./components/LandingInstitucional'));
 const CoordenadorEquipe = lazy(() => import('./components/dashboard/CoordenadorEquipe'));
@@ -749,6 +750,13 @@ export default function App() {
   // ANTES da checagem de /consultores: o caminho comeca igual, entao a ordem
   // importa. Se inverter, /consultoresLBW cai na landing da plataforma.
   if (typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/consultoreslbw')) {
+    if (window.location.pathname.toLowerCase().startsWith('/consultoreslbw/confirmacao')) {
+      return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
+          <LandingConfirmacaoAgendamento />
+        </Suspense>
+      );
+    }
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ background: '#070A18' }}><div className="w-10 h-10 border-4 border-blue-900 border-t-blue-500 rounded-full animate-spin" /></div>}>
         <LandingFormacaoConsultores />
