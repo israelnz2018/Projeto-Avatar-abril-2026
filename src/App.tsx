@@ -517,6 +517,18 @@ import { ConsultorProvider, useConsultor } from './contexts/ConsultorContext';
 import { isSiteConsultor, CONSULTOR_PADRAO } from './services/consultorService';
 import { setSlideBrand, setSlideColors } from './services/slideTemplate';
 
+const ROTAS_PUBLICAS_SEM_ALERTA_INATIVIDADE = new Set([
+  '/consultores',
+  '/consultoreslbw',
+  '/plataformalbw',
+]);
+
+function ehLandingSemAvisoDeInatividade() {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.replace(/\/+$/, '').toLowerCase() || '/';
+  return ROTAS_PUBLICAS_SEM_ALERTA_INATIVIDADE.has(path);
+}
+
 const ProfileView = () => {
   const navigate = useNavigate();
   return <UserProfile onClose={() => navigate('/')} />;
@@ -559,7 +571,9 @@ export default function App() {
         localStorage.removeItem('usuarioEmail');
         localStorage.removeItem('usuarioNome');
         setUser(null);
-        alert("⏱ Sessão expirada por inatividade.");
+        if (!ehLandingSemAvisoDeInatividade()) {
+          alert("⏱ Sessão expirada por inatividade.");
+        }
       });
     }, 60 * 60 * 1000); // 1 hora
   }, [user]);
