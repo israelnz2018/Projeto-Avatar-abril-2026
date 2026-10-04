@@ -4455,6 +4455,101 @@ async function startServer() {
     }
   });
 
+  // Pesquisa manual do acervo de vídeos. Só envia título, curso e série ao Gemini com Google Search.
+  app.post("/api/marketing-consultor/pesquisar-acervo", async (req: any, res: any) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    const header = req.headers.authorization || "";
+    const idToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: "Autenticação obrigatória." });
+    let callerUid: string;
+    try { callerUid = (await adminAuth().verifyIdToken(idToken)).uid; }
+    catch { return res.status(401).json({ error: "Token inválido." }); }
+
+    try {
+      const callerSnap = await adminFirestore().collection("users").doc(callerUid).get();
+      const caller = callerSnap.exists ? (callerSnap.data() as any) : {};
+      const adminEmails = ["israelnz2018@hotmail.com", "israel@learningbyworking.com"];
+      const isAdmin = adminEmails.includes(String(caller.email || "").toLowerCase());
+      if (caller.tipoUsuario !== "consultor" && !isAdmin) return res.status(403).json({ error: "Só consultor ou admin." });
+      const consultorId = String(caller.consultorId || "israel");
+      const videosSnap = await adminFirestore().collection("marketing_videos").where("consultorId", "==", consultorId).get();
+      const videos = videosSnap.docs.map((doc: any) => {
+        const data = doc.data() || {};
+        return {
+          videoId: doc.id,
+          titulo: String(data.titulo || "").trim().slice(0, 240),
+          curso: String(data.curso || "").trim().slice(0, 120),
+          serie: String(data.serie || "").trim().slice(0, 120),
+        };
+      }).filter((video: any) => video.titulo);
+      if (!videos.length) return res.status(422).json({ error: "Não encontrei vídeos com título no seu acervo." });
+
+      const settingsSnap = await adminFirestore().collection("app_config").doc("api_settings").get();
+      const settings = settingsSnap.exists ? settingsSnap.data() as any : {};
+      const geminiKey = process.env.GEMINI_API_KEY || settings?.gemini?.apiKey;
+      const geminiModel = settings?.gemini?.model || "gemini-2.5-flash";
+      if (!geminiKey) return res.status(503).json({ error: "Serviço de IA não configurado no servidor." });
+
+      const hoje = new Date().toISOString().slice(0, 10);
+      const prompt = [
+        "Data de hoje: " + hoje + ". Pesquise sinais recentes, priorizando os últimos 90 dias, sobre temas e perguntas com interesse em melhoria contínua, Lean, Six Sigma, qualidade, processos, operações e consultoria.",
+        "Pesquise e compare três mercados: Brasil em português brasileiro, público de língua inglesa e público de língua espanhola. Use Google Search e dê preferência a páginas, notícias, vídeos ou discussões atuais que sustentem os sinais.",
+        "A seguir há o acervo existente. Analise todos os itens, mas o ranking deve conter somente IDs presentes nesta lista. Não invente IDs.",
+        "Não invente volume de busca, crescimento percentual, visualizações ou tendências. A pontuação é uma avaliação qualitativa de aderência e potencial, não uma previsão de audiência. Se não houver evidência suficiente para um mercado, diga isso claramente. Escolha até 10 vídeos mais promissores e dê um motivo curto e um ângulo concreto para testar em cada um. Evite repetir o mesmo tema. Responda em português brasileiro.",
+        "Devolva somente JSON válido, sem markdown, com o formato: " + JSON.stringify({ mercados: [{ idioma: "Português brasileiro", resumo: "..." }, { idioma: "Inglês", resumo: "..." }, { idioma: "Espanhol", resumo: "..." }], ranking: [{ videoId: "ID_EXISTENTE", pontuacao: 0, mercados: ["Brasil"], motivo: "...", gancho: "..." }] }),
+        "Acervo: " + JSON.stringify(videos),
+      ].join(String.fromCharCode(10));
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const gerado = await ai.models.generateContent({
+        model: geminiModel,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { tools: [{ googleSearch: {} }], temperature: 0.3, maxOutputTokens: 12000 },
+      });
+      if (gerado.candidates?.[0]?.finishReason === "MAX_TOKENS") throw new Error("A resposta da pesquisa foi cortada. Tente novamente.");
+      const bruto = String(gerado.text || "").trim();
+      const inicio = bruto.indexOf("{");
+      const fim = bruto.lastIndexOf("}");
+      if (inicio < 0 || fim <= inicio) throw new Error("A pesquisa retornou um formato inválido. Tente novamente.");
+      const resposta = JSON.parse(bruto.slice(inicio, fim + 1));
+      const porId = new Map(videos.map((video: any) => [video.videoId, video]));
+      const idsVistos = new Set<string>();
+      const ranking = (Array.isArray(resposta.ranking) ? resposta.ranking : []).map((item: any) => {
+        const videoId = String(item?.videoId || "");
+        const video: any = porId.get(videoId);
+        if (!video || idsVistos.has(videoId)) return null;
+        idsVistos.add(videoId);
+        const pontuacao = Math.max(0, Math.min(100, Math.round(Number(item?.pontuacao) || 0)));
+        return {
+          videoId,
+          titulo: video.titulo,
+          pontuacao,
+          mercados: Array.isArray(item?.mercados) ? item.mercados.map((x: any) => String(x).slice(0, 40)).slice(0, 3) : [],
+          motivo: String(item?.motivo || "").slice(0, 600),
+          gancho: String(item?.gancho || "").slice(0, 400),
+        };
+      }).filter(Boolean).slice(0, 10);
+      if (!ranking.length) return res.status(422).json({ error: "A pesquisa não conseguiu relacionar sinais atuais aos títulos do acervo. Tente novamente." });
+
+      const pedacos = gerado.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const vistos = new Set<string>();
+      const fontes = pedacos.map((p: any) => ({ titulo: String(p?.web?.title || "").trim(), url: String(p?.web?.uri || "").trim() }))
+        .filter((f: any) => {
+          if (!/^https?:\/\//i.test(f.url) || vistos.has(f.url)) return false;
+          vistos.add(f.url);
+          return true;
+        }).slice(0, 12);
+      if (!fontes.length) return res.status(422).json({ error: "A busca não retornou fontes verificáveis. Tente novamente." });
+      const mercados = ["Português brasileiro", "Inglês", "Espanhol"].map((idioma: string) => {
+        const item = (Array.isArray(resposta.mercados) ? resposta.mercados : []).find((m: any) => String(m?.idioma || "").toLowerCase() === idioma.toLowerCase());
+        return { idioma, resumo: String(item?.resumo || "A pesquisa não encontrou evidência suficiente para resumir este mercado.").slice(0, 700) };
+      });
+      return res.json({ totalVideos: videos.length, pesquisadoEm: new Date().toISOString(), mercados, ranking, fontes });
+    } catch (error: any) {
+      console.error("[/api/marketing-consultor/pesquisar-acervo] erro:", error);
+      return res.status(500).json({ error: String(error?.message || "Erro ao pesquisar o acervo.").replace(/\bgemini\b/gi, "serviço de IA").slice(0, 400) });
+    }
+  });
+
   // POST /api/marketing-consultor/pauta-vira-criativo — a pauta aprovada entra
   // na MESMA esteira dos criativos que nascem de vídeo, e não numa paralela.
   //

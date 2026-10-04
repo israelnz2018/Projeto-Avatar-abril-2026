@@ -32,6 +32,7 @@ import { FormularioVideo } from './marketing/AcoesMarketing';
 import { EscolherVideoDoCurso } from './marketing/EscolherVideoDoCurso';
 import { PainelCriativos, useCriativos } from './marketing/Criativos';
 import { PainelPesquisa, usePautas } from './marketing/PesquisaDePautas';
+import { PainelPesquisaAcervo } from './marketing/PesquisaAcervo';
 import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
 import { EtapaLaboratorio } from './marketing/Laboratorio';
 
@@ -273,6 +274,7 @@ export default function MarketingConsultor() {
                     carregando={pautas.carregando}
                     onMudou={() => { pautas.recarregar(); dados.recarregar(); }}
                   />
+                  <PainelPesquisaAcervo />
                 </div>
               )}
 
