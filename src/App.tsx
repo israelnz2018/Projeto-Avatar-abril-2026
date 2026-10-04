@@ -239,7 +239,7 @@ function Layout({ children, user, onLogout }: { children: React.ReactNode, user:
       { name: 'Opiniões dos Clientes', path: '/opinioes', icon: MessageSquare },
       { name: 'Ferramentas', path: '/config', icon: Settings },
       { name: 'APIs & Consumo', path: '/api-settings', icon: Key },
-      { name: 'Fluxos de diagnóstico', path: '/admin-diagnostico', icon: ClipboardList },
+      { name: 'Chatbox', path: '/admin-diagnostico', icon: MessageSquare },
   ];
 
   const canSeeConsultorArea = (siteConsultor || ehAdminHub) && (isAdmin || isConsultor);
