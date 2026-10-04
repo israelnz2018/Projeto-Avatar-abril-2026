@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
-  Settings2, Share2, Video, Sparkles, CalendarClock,
+  Settings2, Share2, Video, Search, Sparkles, CalendarClock,
   Plus, Trash2, Save, AlertTriangle, CheckCircle2, Circle, ImageOff, Pencil, FlaskConical,
 } from 'lucide-react';
 import { db } from '../../lib/firebase';
@@ -36,7 +36,7 @@ import { PainelPesquisaAcervo } from './marketing/PesquisaAcervo';
 import { EtapaCriativosAprovados } from './marketing/CriativosAprovados';
 import { EtapaLaboratorio } from './marketing/Laboratorio';
 
-type EtapaId = 'config' | 'redes' | 'videos' | 'campanhas' | 'laboratorio' | 'agenda';
+type EtapaId = 'config' | 'redes' | 'videos' | 'pesquisa' | 'campanhas' | 'laboratorio' | 'agenda';
 
 interface Etapa {
   id: EtapaId;
@@ -48,6 +48,8 @@ interface Etapa {
   pronta: boolean;
   /** Aba de testes: fora da sequência, sem número e sem "concluída". */
   experimental?: boolean;
+  /** Atalho independente da sequência numerada. */
+  independente?: boolean;
 }
 
 const ETAPAS: Etapa[] = [
@@ -62,6 +64,10 @@ const ETAPAS: Etapa[] = [
   {
     id: 'videos', numero: 3, nome: 'Meus vídeos', icon: Video, pronta: false,
     oQueFaz: 'Envie as suas aulas longas e escolha, dentro de cada uma, os trechos que viram peça.',
+  },
+  {
+    id: 'pesquisa', numero: 0, nome: 'Pesquisa', icon: Search, pronta: false, independente: true,
+    oQueFaz: 'Pesquise temas para novas pautas e veja quais vídeos do seu acervo têm maior potencial.',
   },
   {
     id: 'campanhas', numero: 4, nome: 'Minhas peças', icon: Sparkles, pronta: false,
@@ -146,9 +152,10 @@ export default function MarketingConsultor() {
     campanhas: dados.pecas.some((p) => p.status === 'aprovado' || p.status === 'publicado'),
     agenda: dados.pecas.some((p) => p.status === 'publicado'),
     laboratorio: false,
+    pesquisa: false,
   };
   // Primeira etapa ainda não concluída — é onde o consultor deve estar.
-  const proximaPendente = ETAPAS.find((e) => !e.experimental && !concluidas[e.id]);
+  const proximaPendente = ETAPAS.find((e) => !e.experimental && !e.independente && !concluidas[e.id]);
 
   function estadoDaEtapa(e: Etapa): 'concluida' | 'atual' | 'pendente' {
     if (concluidas[e.id]) return 'concluida';
@@ -191,9 +198,11 @@ export default function MarketingConsultor() {
                       : 'bg-gray-200 text-gray-500'
                 }`}
               >
-                {e.experimental
-                  ? <FlaskConical className="w-3.5 h-3.5" />
-                  : estado === 'concluida' ? <CheckCircle2 className="w-3.5 h-3.5" /> : e.numero}
+                {e.independente
+                  ? <Search className="w-3.5 h-3.5" />
+                  : e.experimental
+                    ? <FlaskConical className="w-3.5 h-3.5" />
+                    : estado === 'concluida' ? <CheckCircle2 className="w-3.5 h-3.5" /> : e.numero}
               </span>
               {e.nome}
             </button>
@@ -205,7 +214,7 @@ export default function MarketingConsultor() {
       <div className="flex items-start gap-2.5 mb-6 p-3 rounded-lg bg-gray-50 border border-gray-200">
         <Circle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5 fill-blue-600" />
         <p className="text-sm text-gray-700">
-          <strong className="text-gray-900">{etapa.experimental ? etapa.nome : `Etapa ${etapa.numero} — ${etapa.nome}`}.</strong>{' '}
+          <strong className="text-gray-900">{etapa.experimental || etapa.independente ? etapa.nome : `Etapa ${etapa.numero} — ${etapa.nome}`}.</strong>{' '}
           {etapa.oQueFaz}
         </p>
       </div>
@@ -264,9 +273,11 @@ export default function MarketingConsultor() {
                     carregando={criativos.carregando}
                     onMudou={criativos.recarregar}
                   />
-                  {/* A segunda porta de entrada: assunto que não está em aula
-                      nenhuma sua. Fica embaixo, e não em cima, porque o caminho
-                      principal continua sendo o vídeo. */}
+                </div>
+              )}
+
+              {etapaAtiva === 'pesquisa' && (
+                <div className="space-y-6">
                   <PainelPesquisa
                     consultorId={consultorId}
                     config={dados.config}
