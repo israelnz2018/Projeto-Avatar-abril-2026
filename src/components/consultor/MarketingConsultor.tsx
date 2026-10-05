@@ -285,7 +285,7 @@ export default function MarketingConsultor() {
                     carregando={pautas.carregando}
                     onMudou={() => { pautas.recarregar(); dados.recarregar(); }}
                   />
-                  <PainelPesquisaAcervo />
+                  <PainelPesquisaAcervo consultorId={consultorId} onMudou={dados.recarregar} />
                 </div>
               )}
 
