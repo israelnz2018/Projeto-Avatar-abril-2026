@@ -123,6 +123,12 @@ export default function FormularioFormacao({ origem, urlAgendamento = '' }: Prop
       <div className="formacao-form-ok formacao-form-ok-agenda" role="status">
         <strong>Escolha o dia e o horário da sua sessão.</strong>
         <p>Seu lugar na apresentação é confirmado ao escolher um horário abaixo.</p>
+        {/* ALTURA: o quadro tem 820px (960 no celular) de propósito. O passo 2 do
+            Cal — nome, e-mail, telefone, notas e o botão Confirmar — é alto. Com
+            520px, como estava, o botão e a MENSAGEM DE ERRO ficavam fora da área
+            visível: a pessoa clicava Confirmar, a validação reprovava um campo
+            que ela não conseguia ver, e parecia que o sistema tinha travado.
+            Diminuir esta altura traz o problema de volta. */}
         <div className="formacao-agenda-embed">
           <iframe
             key={urlEmbutida}
