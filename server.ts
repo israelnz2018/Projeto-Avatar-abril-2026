@@ -6686,6 +6686,303 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
   // se tornar consultor, então não existe reprovação por perfil — todo mundo é
   // bem-vindo na apresentação. A qualificação acontece depois, antes da conversa
   // individual.
+  // ===============================================================
+  // E-MAILS DE QUEM AGENDOU UMA REUNIÃO (Cal → Resend)
+  // ---------------------------------------------------------------
+  // O Cal avisa aqui por webhook a cada agendamento, cancelamento ou
+  // remarcação. Guardamos em `agendamentos` e um motor manda os e-mails nos
+  // momentos definidos em MOMENTOS_DO_AGENDAMENTO.
+  //
+  // Por que guardar em vez de só reagir ao webhook: "1 hora antes" não é um
+  // evento do Cal, é uma condição de tempo. Alguém precisa olhar o relógio e
+  // comparar com a hora da reunião — é o que o motor faz.
+  //
+  // Cada envio fica marcado em `enviados` no próprio documento, então o motor
+  // pode rodar quantas vezes quiser sem mandar nada duas vezes.
+  // ===============================================================
+
+  /** Cada e-mail da régua: quando sai, em relação ao horário da reunião. */
+  type MomentoAgendamento = {
+    /** Identificador curto, usado para marcar o que já foi enviado. */
+    chave: string;
+    /**
+     * QUANDO o e-mail sai.
+     *
+     * - "ao-agendar": assim que a pessoa marca, sem esperar o relógio.
+     * - um número: minutos em relação ao INÍCIO da reunião — negativo é antes
+     *   (−60 = uma hora antes), positivo é depois (+60 = uma hora depois).
+     */
+    quando: "ao-agendar" | number;
+    assunto: string;
+    /** O corpo do e-mail. Recebe os dados já tratados. */
+    corpo: (d: DadosDoEmail) => string;
+  };
+
+  type DadosDoEmail = {
+    primeiroNome: string;
+    nome: string;
+    titulo: string;
+    quando: string;
+    linkVideo: string;
+  };
+
+  /**
+   * A RÉGUA DE E-MAILS. É aqui que se mexe para mudar periodicidade e texto.
+   *
+   * Começa enxuta de propósito — confirmação, lembrete de 1 dia e de 1 hora.
+   * Acrescentar um e-mail novo é acrescentar um item nesta lista; o motor
+   * cuida do resto sozinho.
+   */
+  const MOMENTOS_DO_AGENDAMENTO: MomentoAgendamento[] = [
+    {
+      chave: "confirmacao",
+      quando: "ao-agendar",
+      assunto: "Sua reunião está confirmada",
+      corpo: (d) => `
+        <p>Olá ${d.primeiroNome},</p>
+        <p>Sua participação em <strong>${d.titulo}</strong> está confirmada.</p>
+        <p><strong>Quando:</strong> ${d.quando}</p>
+        ${d.linkVideo ? `<p><strong>Link da reunião:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
+        <p>Nos vemos lá.</p>`,
+    },
+    {
+      chave: "um-dia-antes",
+      quando: -24 * 60,
+      assunto: "Sua reunião é amanhã",
+      corpo: (d) => `
+        <p>Olá ${d.primeiroNome},</p>
+        <p>Passando para lembrar da sua reunião <strong>${d.titulo}</strong>, amanhã.</p>
+        <p><strong>Quando:</strong> ${d.quando}</p>
+        ${d.linkVideo ? `<p><strong>Link da reunião:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}`,
+    },
+    {
+      chave: "uma-hora-antes",
+      quando: -60,
+      assunto: "Sua reunião começa em 1 hora",
+      corpo: (d) => `
+        <p>Olá ${d.primeiroNome},</p>
+        <p>Sua reunião <strong>${d.titulo}</strong> começa em uma hora.</p>
+        ${d.linkVideo ? `<p>Entre por aqui: <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
+        <p>Até já.</p>`,
+    },
+  ];
+
+  /** A data e hora da reunião escrita para quem vai ler, no fuso do convidado. */
+  function quandoEscrito(inicioISO: string, fuso: string): string {
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: fuso || "America/Sao_Paulo",
+        dateStyle: "full",
+        timeStyle: "short",
+      }).format(new Date(inicioISO));
+    } catch {
+      return new Date(inicioISO).toLocaleString("pt-BR");
+    }
+  }
+
+  function moldarEmail(html: string): string {
+    return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#101a33;font-size:15px;line-height:1.6">
+      ${html}
+      <p style="margin-top:28px;color:#6b7a90;font-size:13px">Learning by Working &mdash; Educação pelo Trabalho</p>
+    </div>`;
+  }
+
+  // POST /api/agenda/webhook — o Cal avisa aqui a cada agendamento.
+  //
+  // Sem autenticação por token porque o Cal.diy auto-hospedado não assina o
+  // corpo de forma verificável aqui; em troca, só aceitamos o que tem a forma
+  // exata de um agendamento e gravamos pelo `uid` do Cal (chave do documento),
+  // então um pedido repetido atualiza em vez de duplicar.
+  app.post("/api/agenda/webhook", async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const gatilho = String(req.body?.triggerEvent || "").toUpperCase();
+    const p = req.body?.payload || {};
+    const uid = String(p.uid || "").trim().slice(0, 200);
+    if (!uid) return res.status(400).json({ error: "Agendamento sem identificador." });
+
+    const convidado = Array.isArray(p.attendees) ? p.attendees[0] : null;
+    const email = String(convidado?.email || "").trim().toLowerCase().slice(0, 180);
+    const nome = String(convidado?.name || "").trim().slice(0, 160);
+    const inicio = String(p.startTime || "").trim();
+
+    const ref = adminFirestore().collection("agendamentos").doc(uid);
+    const agora = new Date().toISOString();
+
+    try {
+      if (gatilho === "BOOKING_CANCELLED") {
+        // Cancelou: para a régua sem apagar o histórico.
+        await ref.set({ status: "cancelado", canceladoEm: agora, atualizadoEm: agora }, { merge: true });
+        return res.json({ ok: true, status: "cancelado" });
+      }
+
+      if (!email || !inicio) return res.status(400).json({ error: "Agendamento sem e-mail ou sem horário." });
+
+      // Remarcou: o horário mudou, então os lembretes de tempo precisam sair de
+      // novo. Os que já saíram para o horário ANTIGO não valem mais.
+      const anterior = await ref.get();
+      const remarcou = gatilho === "BOOKING_RESCHEDULED"
+        || (anterior.exists && String(anterior.data()?.inicio || "") !== inicio);
+      const enviadosAntes = anterior.exists ? (anterior.data()?.enviados || {}) : {};
+      const enviados = remarcou
+        ? Object.fromEntries(Object.entries(enviadosAntes).filter(([k]) => k === "confirmacao"))
+        : enviadosAntes;
+
+      await ref.set({
+        uid,
+        email,
+        nome,
+        titulo: String(p.title || p.eventTitle || "Reunião").trim().slice(0, 200),
+        inicio,
+        fim: String(p.endTime || "").trim(),
+        fuso: String(convidado?.timeZone || "America/Sao_Paulo").trim().slice(0, 60),
+        linkVideo: String(p.metadata?.videoCallUrl || "").trim().slice(0, 500),
+        status: "confirmado",
+        enviados,
+        criadoEm: anterior.exists ? (anterior.data()?.criadoEm || agora) : agora,
+        atualizadoEm: agora,
+      }, { merge: true });
+
+      // A confirmação sai na hora, sem esperar o motor.
+      void processarEmailsDeAgendamento().catch(() => {});
+      return res.json({ ok: true, status: "registrado" });
+    } catch (err: any) {
+      console.error("[/api/agenda/webhook] erro:", err);
+      return res.status(500).json({ error: "Erro ao registrar o agendamento." });
+    }
+  });
+
+  /**
+   * O MOTOR: olha os agendamentos e manda o que está na hora de mandar.
+   *
+   * Só reuniões confirmadas e futuras (ou das últimas 24h, para não perder um
+   * e-mail de pós-reunião se o servidor ficou fora do ar). Cada envio é
+   * marcado antes de sair, então uma falha de rede não vira e-mail duplicado
+   * na rodada seguinte.
+   */
+  async function processarEmailsDeAgendamento(): Promise<{ enviados: number; falhas: number }> {
+    if (!isAdminReady() || !process.env.RESEND_API_KEY) return { enviados: 0, falhas: 0 };
+
+    const agora = Date.now();
+    const limiteAtras = new Date(agora - 24 * 60 * 60 * 1000).toISOString();
+
+    // UM filtro só, e o status conferido no código abaixo: dois `where` em
+    // campos diferentes exigiriam um índice composto no Firestore, que é um
+    // passo manual no console. Aqui o volume é de dezenas de documentos.
+    const snap = await adminFirestore().collection("agendamentos")
+      .where("inicio", ">=", limiteAtras)
+      .get();
+
+    let enviados = 0;
+    let falhas = 0;
+
+    for (const doc of snap.docs) {
+      const a = doc.data() as any;
+      if (a.status !== "confirmado") continue; // cancelado não recebe a régua
+      const inicioMs = new Date(a.inicio).getTime();
+      if (!Number.isFinite(inicioMs)) continue;
+
+      const jaEnviados = a.enviados || {};
+      const dados: DadosDoEmail = {
+        primeiroNome: String(a.nome || "").trim().split(/\s+/)[0] || "tudo bem",
+        nome: String(a.nome || ""),
+        titulo: String(a.titulo || "Reunião"),
+        quando: quandoEscrito(a.inicio, a.fuso),
+        linkVideo: String(a.linkVideo || ""),
+      };
+
+      for (const momento of MOMENTOS_DO_AGENDAMENTO) {
+        if (jaEnviados[momento.chave]) continue;
+
+        // "ao-agendar" sai já; os demais esperam o relógio chegar no ponto
+        // combinado em relação ao início da reunião.
+        if (momento.quando !== "ao-agendar") {
+          const horaDeEnviar = inicioMs + momento.quando * 60 * 1000;
+          if (agora < horaDeEnviar) continue; // ainda não é hora
+        }
+
+        // Lembrete muito atrasado não sai: receber "começa em 1 hora" depois da
+        // reunião é pior que não receber nada. A confirmação não tem esse
+        // limite — ela vale a qualquer momento depois do agendamento.
+        const atrasoDemais = momento.quando !== "ao-agendar"
+          && momento.quando < 0 && agora > inicioMs;
+        if (atrasoDemais) {
+          await doc.ref.set({ enviados: { ...jaEnviados, [momento.chave]: "pulado-atrasado" } }, { merge: true });
+          jaEnviados[momento.chave] = "pulado-atrasado";
+          continue;
+        }
+
+        // Marca ANTES de enviar: se o envio falhar no meio, não repete na
+        // próxima rodada. O log diz o que falhou.
+        await doc.ref.set({ enviados: { ...jaEnviados, [momento.chave]: new Date().toISOString() } }, { merge: true });
+        jaEnviados[momento.chave] = new Date().toISOString();
+
+        const r = await resendSend({
+          to: a.email,
+          subject: momento.assunto,
+          html: moldarEmail(momento.corpo(dados)),
+        }).catch((e) => ({ ok: false, status: 0, body: String(e?.message || e) }));
+
+        if (r.ok) {
+          enviados++;
+        } else {
+          falhas++;
+          console.error(`[emails-agenda] ${a.email} ${momento.chave} falhou:`, r.body);
+        }
+      }
+    }
+
+    if (enviados || falhas) console.log(`[emails-agenda] enviados=${enviados} falhas=${falhas}`);
+    return { enviados, falhas };
+  }
+
+  // O relógio do motor. A cada 5 minutos, porque o lembrete de "1 hora antes"
+  // precisa de precisão melhor que a do motor diário das sequências.
+  setInterval(() => {
+    processarEmailsDeAgendamento().catch((e) =>
+      console.error("[emails-agenda] erro no ciclo:", e?.message || e));
+  }, 5 * 60 * 1000);
+
+  // GET /api/agenda/status — quantos agendamentos e o que já saiu (admin).
+  app.get("/api/agenda/status", requireAdmin, async (_req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    try {
+      const snap = await adminFirestore().collection("agendamentos")
+        .orderBy("inicio", "desc").limit(50).get();
+      const linhas = snap.docs.map((d) => {
+        const a = d.data() as any;
+        return {
+          uid: a.uid,
+          nome: a.nome,
+          email: a.email,
+          titulo: a.titulo,
+          inicio: a.inicio,
+          status: a.status,
+          enviados: Object.keys(a.enviados || {}),
+        };
+      });
+      return res.json({
+        total: linhas.length,
+        resend: Boolean(process.env.RESEND_API_KEY),
+        momentos: MOMENTOS_DO_AGENDAMENTO.map((m) => ({ chave: m.chave, quando: m.quando, assunto: m.assunto })),
+        agendamentos: linhas,
+      });
+    } catch (err: any) {
+      console.error("[/api/agenda/status] erro:", err);
+      return res.status(500).json({ error: "Erro ao ler os agendamentos." });
+    }
+  });
+
+  // POST /api/agenda/rodar-agora — dispara o motor na hora, para testar (admin).
+  app.post("/api/agenda/rodar-agora", requireAdmin, async (_req: any, res) => {
+    try {
+      const r = await processarEmailsDeAgendamento();
+      return res.json({ ok: true, ...r });
+    } catch (err: any) {
+      return res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
   app.post("/api/leads-formacao", async (req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
 
