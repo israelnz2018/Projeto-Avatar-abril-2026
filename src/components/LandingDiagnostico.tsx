@@ -37,8 +37,7 @@ export default function LandingDiagnostico() {
     <div className="min-h-screen bg-[#081a32] text-white">
       <header className="border-b border-white/10">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
-          <a href="/" className="text-xl font-black tracking-tight text-white no-underline" aria-label="LBW Educação pelo Trabalho, início">LBW <span className="text-sm font-normal text-blue-200">Educação pelo Trabalho</span></a>
-          <a href="/plataformalbw" className="text-sm font-semibold text-blue-100 hover:text-white">Ver os planos</a>
+          <a href="/" className="text-xl font-black tracking-tight text-white no-underline" aria-label="LBW Educação pelo Trabalho, início">LBW <span className="text-sm font-normal text-blue-200">Educação pelo Trabalho</span></a>
         </div>
       </header>
 

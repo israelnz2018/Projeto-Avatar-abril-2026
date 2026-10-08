@@ -1,3 +1,4 @@
+import GaleriaMidias from './admin/GaleriaMidias';
 const builderBase = String(import.meta.env.VITE_TYPEBOT_BUILDER_URL || '').trim();
 const workspacePath = '/w/cmut8futp00003srjrb10x770/typebots';
 const editorUrl = (() => {
@@ -23,6 +24,8 @@ export default function AdminDiagnostico() {
           <a href="https://educacaopelotrabalho.com/diagnostico" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 no-underline hover:bg-slate-50">Ver diagnóstico público</a>
         </div>
       </div>
+      <GaleriaMidias />
+
       {editorUrl ? (
         <iframe
           title="Editor Chatbox Typebot"
