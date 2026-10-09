@@ -7020,13 +7020,20 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
 
   let poolDoCal: any = null;
 
-  /** Abre a conexão uma vez e reaproveita. Sem a variável, não faz nada. */
-  function conexaoDoCal() {
+  /**
+   * Abre a conexão uma vez e reaproveita. Sem a variável, não faz nada.
+   *
+   * O import é dinâmico e a função é async porque este servidor roda como
+   * módulo ES, onde `require` não existe — era o que fazia a sincronização
+   * falhar com "require is not defined". Carregar só aqui também evita puxar
+   * o driver de Postgres quando a integração com o Cal nem está configurada.
+   */
+  async function conexaoDoCal() {
     const url = process.env.CAL_DATABASE_URL;
     if (!url) return null;
     if (!poolDoCal) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { Pool } = require("pg");
+      const { default: pg } = await import("pg");
+      const { Pool } = pg;
       poolDoCal = new Pool({
         connectionString: url,
         max: 2,                       // leitura periódica não precisa de mais
@@ -7047,7 +7054,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
    * entra duas vezes e rodar de novo atualiza em vez de duplicar.
    */
   async function sincronizarAgendamentosDoCal(): Promise<{ novos: number; atualizados: number }> {
-    const pool = conexaoDoCal();
+    const pool = await conexaoDoCal();
     if (!pool || !isAdminReady()) return { novos: 0, atualizados: 0 };
 
     // Janela: do mês passado para frente. Reunião antiga não serve para a régua

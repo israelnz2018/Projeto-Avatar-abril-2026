@@ -24,19 +24,22 @@ export default function AdminDiagnostico() {
           <a href="https://educacaopelotrabalho.com/diagnostico" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 no-underline hover:bg-slate-50">Ver diagnóstico público</a>
         </div>
       </div>
-      <BaseDeContatos />
-
       {editorUrl ? (
         <iframe
           title="Editor Chatbox Typebot"
           src={editorUrl}
-          className="block h-[calc(100vh-180px)] min-h-[720px] w-full rounded-xl border border-slate-200 bg-white"
+          className="block h-[calc(100vh-260px)] min-h-[620px] w-full rounded-xl border border-slate-200 bg-white"
           allow="clipboard-read; clipboard-write"
           referrerPolicy="strict-origin-when-cross-origin"
         />
       ) : (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-slate-600">Editor em configuração.</div>
       )}
+
+      {/* A base de contatos fica DEPOIS do editor de proposito: esta tela e
+          usada para montar e publicar os fluxos, e e isso que precisa estar
+          a mao. A base e consulta — quem vem aqui buscar contato sabe rolar. */}
+      <BaseDeContatos />
     </div>
   );
 }
