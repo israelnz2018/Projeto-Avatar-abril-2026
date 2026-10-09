@@ -6956,6 +6956,106 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       console.error("[emails-agenda] erro no ciclo:", e?.message || e));
   }, 5 * 60 * 1000);
 
+  // ===============================================================
+  // O DESPACHANTE DO CAL — faz os webhooks de agendamento saírem
+  // ---------------------------------------------------------------
+  // POR QUE EXISTE: o Cal não dispara o webhook na hora da reserva. Ele
+  // ENFILEIRA numa tabela de tarefas e espera alguém chamar /api/tasks/cron
+  // para esvaziar a fila. Numa instalação oficial quem chama é um cron do
+  // provedor; na nossa não havia ninguém, então a fila nunca saía e as
+  // reservas nunca chegavam aqui — mesmo com o webhook cadastrado e ativo.
+  //
+  // Em vez de subir um serviço só para isso, a batida vem daqui: o servidor
+  // já está de pé, e é uma chamada HTTP de nada. A cada minuto, porque uma
+  // reserva deve aparecer na plataforma quase na hora em que foi feita.
+  //
+  // Protegido por CRON_API_KEY, que é a senha que o próprio Cal exige nesse
+  // endereço. Sem ela ele responde 401 e a fila continua parada.
+  // ===============================================================
+  async function despacharTarefasDoCal(): Promise<void> {
+    const base = String(process.env.CAL_BASE_URL || "").replace(/\/$/, "");
+    const chave = process.env.CAL_CRON_API_KEY;
+    if (!base || !chave) return;
+
+    try {
+      const r = await fetch(`${base}/api/tasks/cron`, {
+        headers: { Authorization: `Bearer ${chave}` },
+        signal: AbortSignal.timeout(30_000),
+      });
+      // 401 quer dizer que as senhas dos dois lados não batem — vale avisar,
+      // senão o sintoma volta a ser "a reserva não aparece" sem explicação.
+      if (r.status === 401) {
+        console.error("[cal-tasker] 401: CRON_API_KEY do Cal e CAL_CRON_API_KEY daqui não coincidem.");
+      } else if (!r.ok) {
+        console.error(`[cal-tasker] resposta ${r.status}`);
+      }
+    } catch (err: any) {
+      // Rede falha de vez em quando; a próxima batida tenta de novo. Não vale
+      // derrubar nada por isso.
+      console.error("[cal-tasker] erro:", err?.message || err);
+    }
+  }
+
+  setInterval(() => { void despacharTarefasDoCal(); }, 60 * 1000);
+
+  // POST /api/agenda/importar — traz para cá as reservas que o Cal já tinha.
+  //
+  // O webhook só vale do momento em que foi ligado para frente. As reuniões
+  // marcadas antes disso existem no Cal e não aqui, então esta rota recebe a
+  // lista e grava pelo mesmo caminho do webhook: mesma chave (o uid do Cal),
+  // então importar duas vezes atualiza em vez de duplicar.
+  app.post("/api/agenda/importar", requireAdmin, async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const reservas = Array.isArray(req.body?.reservas) ? req.body.reservas : [];
+    if (!reservas.length) return res.status(400).json({ error: "Nada para importar." });
+
+    const agora = new Date().toISOString();
+    let gravados = 0;
+    let pulados = 0;
+
+    try {
+      for (const r of reservas.slice(0, 500)) {
+        const uid = String(r?.uid || "").trim().slice(0, 200);
+        const email = String(r?.email || "").trim().toLowerCase().slice(0, 180);
+        const inicio = String(r?.inicio || "").trim();
+        if (!uid || !email || !inicio) { pulados++; continue; }
+
+        const ref = adminFirestore().collection("agendamentos").doc(uid);
+        const anterior = await ref.get();
+
+        await ref.set({
+          uid,
+          email,
+          nome: String(r?.nome || "").trim().slice(0, 160),
+          telefone: String(r?.telefone || "").trim().slice(0, 40),
+          titulo: String(r?.titulo || "Reunião").trim().slice(0, 200),
+          inicio,
+          fim: String(r?.fim || "").trim(),
+          fuso: String(r?.fuso || "America/Sao_Paulo").trim().slice(0, 60),
+          status: String(r?.status || "confirmado"),
+          // IMPORTANTE: reunião antiga não recebe a régua de e-mails. Marcar
+          // tudo como já enviado evita disparar "sua reunião é amanhã" para
+          // quem se reuniu semana passada.
+          enviados: anterior.exists
+            ? (anterior.data()?.enviados || {})
+            : Object.fromEntries(MOMENTOS_DO_AGENDAMENTO.map((m) => [m.chave, "importado"])),
+          importado: true,
+          criadoEm: anterior.exists ? (anterior.data()?.criadoEm || agora) : (String(r?.criadoEm || "") || agora),
+          atualizadoEm: agora,
+        }, { merge: true });
+        gravados++;
+      }
+
+      return res.json({ ok: true, gravados, pulados });
+    } catch (err: any) {
+      console.error("[/api/agenda/importar] erro:", err?.message || err);
+      return res.status(500).json({ error: "Erro ao importar." });
+    }
+  });
+
+
+
   // GET /api/agenda/status — quantos agendamentos e o que já saiu (admin).
   // ===============================================================
   // BASE DE CONTATOS — quem agendou, com e-mail e telefone
