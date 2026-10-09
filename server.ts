@@ -6806,6 +6806,18 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     const nome = String(convidado?.name || "").trim().slice(0, 160);
     const inicio = String(p.startTime || "").trim();
 
+    // TELEFONE: o Cal guarda em lugares diferentes conforme a origem da reserva.
+    // Quando o campo "Phone number" das perguntas da reserva e preenchido, vem
+    // em responses.attendeePhoneNumber; quando a reuniao e POR telefone, vem no
+    // proprio participante. Pega o primeiro que existir — e a base de contato
+    // que vai alimentar WhatsApp e e-mail depois.
+    const telefone = String(
+      p.responses?.attendeePhoneNumber?.value
+      || p.responses?.attendeePhoneNumber
+      || convidado?.phoneNumber
+      || ""
+    ).trim().slice(0, 40);
+
     const ref = adminFirestore().collection("agendamentos").doc(uid);
     const agora = new Date().toISOString();
 
@@ -6835,6 +6847,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
         titulo: String(p.title || p.eventTitle || "Reunião").trim().slice(0, 200),
         inicio,
         fim: String(p.endTime || "").trim(),
+        telefone,
         fuso: String(convidado?.timeZone || "America/Sao_Paulo").trim().slice(0, 60),
         linkVideo: String(p.metadata?.videoCallUrl || "").trim().slice(0, 500),
         status: "confirmado",
@@ -6944,6 +6957,74 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
   }, 5 * 60 * 1000);
 
   // GET /api/agenda/status — quantos agendamentos e o que já saiu (admin).
+  // ===============================================================
+  // BASE DE CONTATOS — quem agendou, com e-mail e telefone
+  // ---------------------------------------------------------------
+  // POR QUE EXISTE: a tela de Submissions do Typebot mostra a CONVERSA (até
+  // onde cada pessoa foi), e o Cal mostra a RESERVA (nome, e-mail, telefone).
+  // São dois sistemas, e o contato que a pessoa digita na tela de agendamento
+  // é digitado DENTRO do Cal — o bot não enxerga, então aquelas colunas ficam
+  // vazias no relatório dele.
+  //
+  // Esta rota entrega o lado do Cal, que chega aqui pelo webhook. É a base que
+  // vai alimentar WhatsApp e e-mail depois, então precisa sair fácil: tem
+  // `formato=csv` para abrir direto no Excel.
+  // ===============================================================
+  app.get("/api/agenda/contatos", requireAdmin, async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    try {
+      // Sem filtro de data: a base inteira é o que interessa para contato, e
+      // o volume aqui é de dezenas, não de milhares.
+      const snap = await adminFirestore().collection("agendamentos")
+        .orderBy("inicio", "desc").limit(500).get();
+
+      const linhas = snap.docs.map((d) => {
+        const a = d.data() as any;
+        return {
+          uid: String(a.uid || d.id),
+          nome: String(a.nome || ""),
+          email: String(a.email || ""),
+          telefone: String(a.telefone || ""),
+          titulo: String(a.titulo || ""),
+          inicio: String(a.inicio || ""),
+          status: String(a.status || ""),
+          fuso: String(a.fuso || ""),
+          linkVideo: String(a.linkVideo || ""),
+          criadoEm: String(a.criadoEm || ""),
+          // quais e-mails da régua já saíram para esta pessoa
+          enviados: Object.keys(a.enviados || {}),
+        };
+      });
+
+      if (String(req.query?.formato || "").toLowerCase() === "csv") {
+        // Ponto-e-vírgula: o Excel em português usa isso como separador, e com
+        // vírgula ele joga a linha inteira numa coluna só.
+        const campos = ["nome", "email", "telefone", "titulo", "inicio", "status", "criadoEm"];
+        const escapar = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+        const csv = [
+          campos.join(";"),
+          ...linhas.map((l: any) => campos.map((c) => escapar(l[c])).join(";")),
+        ].join("\r\n");
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="contatos-agendamento.csv"`);
+        // BOM: sem ele o Excel abre os acentos errados.
+        return res.send("﻿" + csv);
+      }
+
+      return res.json({
+        total: linhas.length,
+        comEmail: linhas.filter((l) => l.email).length,
+        comTelefone: linhas.filter((l) => l.telefone).length,
+        contatos: linhas,
+      });
+    } catch (err: any) {
+      console.error("[/api/agenda/contatos] erro:", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível ler a base." });
+    }
+  });
+
   app.get("/api/agenda/status", requireAdmin, async (_req: any, res) => {
     if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
     try {
