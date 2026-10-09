@@ -37,7 +37,7 @@ export default function LandingDiagnostico() {
     <div className="min-h-screen bg-[#081a32] text-white">
       <header className="border-b border-white/10">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
-          <a href="/" className="text-xl font-black tracking-tight text-white no-underline" aria-label="LBW Educação pelo Trabalho, início">LBW <span className="text-sm font-normal text-blue-200">Educação pelo Trabalho</span></a>
+          <a href="/" className="text-xl font-black tracking-tight text-white no-underline" aria-label="LBW Educação pelo Trabalho, início">LBW <span className="text-sm font-normal text-blue-200">Educação pelo Trabalho</span></a>
         </div>
       </header>
 
@@ -48,12 +48,36 @@ export default function LandingDiagnostico() {
           <p className="mt-4 text-base leading-relaxed text-blue-100">Responda algumas perguntas sobre seus temas de interesse e seu momento profissional. Ao final, você vê qual plano da Plataforma LBW atende o que você precisa.</p>
         </div>
 
-        <section className="mt-8 overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl" aria-label="Perguntas do diagnóstico">
+        {/* AVISO DO TELEFONE — a causa número 1 de agendamento que não conclui.
+            O campo de telefone na tela de agendamento é obrigatório e já vem
+            preenchido com o +55. Quem digita o +55 de novo acaba com
+            "+55 (55) 119…", que é inválido, e o Cal recusa. A recusa acontece
+            dentro do navegador: nenhum pedido é enviado, nenhuma reunião é
+            criada e nenhuma confirmação aparece. Para quem está na tela,
+            parece que o botão travou.
+            Por isso o aviso vem ANTES, em vez de depender só da mensagem de
+            erro do Cal, que é pequena e fica logo abaixo do campo. */}
+        <p className="mt-6 flex items-start gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm leading-relaxed text-emerald-50">
+          <span aria-hidden="true">💬</span>
+          <span>
+            Na hora de escolher o horário, o telefone é obrigatório e o campo já começa com{' '}
+            <strong className="font-bold">+55</strong> — digite apenas o DDD e o número,
+            assim: <strong className="font-bold">11 98888-7777</strong>. Com um número
+            inválido, o botão de confirmar não conclui o agendamento.
+          </span>
+        </p>
+
+        <section className="mt-4 overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl" aria-label="Perguntas do diagnóstico">
           {urlValida ? (
             <iframe
               title="Diagnóstico da Plataforma LBW"
               src={botUrl}
-              className="block h-[720px] min-h-[75vh] w-full border-0"
+              /* ALTURA: 1000px, antes 720. O passo de agendamento abre nome,
+                 e-mail, telefone, observações e o botão Confirmar. A 720px a
+                 mensagem "Invalid phone number" caía fora da área visível, e a
+                 pessoa clicava em Confirmar sem nunca ver o motivo de nada
+                 acontecer. Diminuir esta altura traz o problema de volta. */
+              className="block h-[1000px] min-h-[85vh] w-full border-0"
               allow="clipboard-write"
             />
           ) : (
