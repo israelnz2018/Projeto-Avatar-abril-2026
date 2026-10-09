@@ -68,6 +68,21 @@ export default function BaseDeContatos() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
+  /** Puxa do Cal na hora, sem esperar o ciclo de 5 minutos. */
+  async function sincronizar() {
+    setCarregando(true);
+    setErro('');
+    try {
+      const r = await fetch('/api/agenda/sincronizar', { method: 'POST', headers: await comToken() });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Não consegui sincronizar.');
+      await carregar();
+    } catch (e: any) {
+      setErro(e?.message || 'Erro ao sincronizar.');
+      setCarregando(false);
+    }
+  }
+
   async function baixarCsv() {
     try {
       const r = await fetch('/api/agenda/contatos?formato=csv', { headers: await comToken() });
@@ -109,10 +124,12 @@ export default function BaseDeContatos() {
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => void carregar()}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            onClick={() => void sincronizar()}
+            disabled={carregando}
+            title="Busca no Cal quem agendou desde a última vez"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
           >
-            <RefreshCw className={`h-4 w-4 ${carregando ? 'animate-spin' : ''}`} /> Atualizar
+            <RefreshCw className={`h-4 w-4 ${carregando ? 'animate-spin' : ''}`} /> Buscar no Cal
           </button>
           <button
             onClick={() => void baixarCsv()}
@@ -140,12 +157,10 @@ export default function BaseDeContatos() {
         <div className="mt-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div className="text-sm text-amber-900">
-            <p className="font-bold">Nenhum agendamento chegou aqui ainda.</p>
+            <p className="font-bold">Nenhum agendamento aqui ainda.</p>
             <p className="mt-1">
-              As reuniões existem no Cal, mas ele só avisa a plataforma se o webhook estiver ligado.
-              No Cal: <strong>Settings → Developer → Webhooks → New</strong>, endereço{' '}
-              <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">/api/agenda/webhook</code>,
-              com os eventos de reserva criada, cancelada e reagendada.
+              Se já existem reuniões marcadas no Cal, clique em <strong>Buscar no Cal</strong> acima.
+              A busca também acontece sozinha a cada 5 minutos.
             </p>
           </div>
         </div>

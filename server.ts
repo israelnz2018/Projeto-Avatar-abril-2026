@@ -6998,6 +6998,167 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
 
   setInterval(() => { void despacharTarefasDoCal(); }, 60 * 1000);
 
+  // ===============================================================
+  // SINCRONIZAÇÃO COM O CAL — traz quem agendou, inclusive os assentos
+  // ---------------------------------------------------------------
+  // POR QUE LER O BANCO EM VEZ DE ESPERAR O WEBHOOK
+  //
+  // O webhook do Cal cobre reserva criada, cancelada e remarcada. Mas quando o
+  // evento usa ASSENTOS (várias pessoas no mesmo horário), a segunda pessoa em
+  // diante NÃO cria uma reserva nova — ela entra na que já existe. E o Cal não
+  // dispara webhook nenhum nesse caminho: conferido no código dele, a pasta
+  // handleSeats/create não tem uma única chamada de webhook. Só o cancelamento
+  // de assento avisa.
+  //
+  // Como as sessões da LBW são em grupo, a maioria dos participantes entra
+  // exatamente por aí — e ficaria invisível para a plataforma. Por isso aqui a
+  // gente vai buscar, em vez de esperar.
+  //
+  // A conexão é interna do Railway (postgres-yvzu.railway.internal), não passa
+  // pela internet. É SOMENTE LEITURA: nada aqui escreve no banco do Cal.
+  // ===============================================================
+
+  let poolDoCal: any = null;
+
+  /** Abre a conexão uma vez e reaproveita. Sem a variável, não faz nada. */
+  function conexaoDoCal() {
+    const url = process.env.CAL_DATABASE_URL;
+    if (!url) return null;
+    if (!poolDoCal) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { Pool } = require("pg");
+      poolDoCal = new Pool({
+        connectionString: url,
+        max: 2,                       // leitura periódica não precisa de mais
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+      });
+      poolDoCal.on("error", (e: any) => console.error("[cal-sync] conexão:", e?.message || e));
+    }
+    return poolDoCal;
+  }
+
+  /**
+   * Lê os participantes do Cal e grava os que ainda não estão aqui.
+   *
+   * Cada PARTICIPANTE vira uma linha, não cada reserva: numa sessão em grupo,
+   * uma reserva só tem várias pessoas, e é a pessoa que interessa para a base
+   * de contato. A chave é "uid da reserva + e-mail", então a mesma pessoa não
+   * entra duas vezes e rodar de novo atualiza em vez de duplicar.
+   */
+  async function sincronizarAgendamentosDoCal(): Promise<{ novos: number; atualizados: number }> {
+    const pool = conexaoDoCal();
+    if (!pool || !isAdminReady()) return { novos: 0, atualizados: 0 };
+
+    // Janela: do mês passado para frente. Reunião antiga não serve para a régua
+    // de e-mails e só faria peso na leitura.
+    const desde = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    let linhas: any[] = [];
+    try {
+      const r = await pool.query(
+        `select b.uid, b.title, b.status, b."startTime", b."endTime", b."createdAt",
+                b.responses, b.metadata,
+                a.name as nome, a.email, a."phoneNumber" as telefone, a."timeZone" as fuso
+           from "Booking" b
+           join "Attendee" a on a."bookingId" = b.id
+          where b."startTime" >= $1
+          order by b."startTime" desc
+          limit 1000`,
+        [desde],
+      );
+      linhas = r.rows || [];
+    } catch (err: any) {
+      console.error("[cal-sync] erro ao ler o Cal:", err?.message || err);
+      return { novos: 0, atualizados: 0 };
+    }
+
+    let novos = 0;
+    let atualizados = 0;
+
+    for (const l of linhas) {
+      const email = String(l.email || "").trim().toLowerCase().slice(0, 180);
+      const inicio = l.startTime ? new Date(l.startTime).toISOString() : "";
+      if (!email || !inicio) continue;
+
+      // A chave junta reserva e pessoa: numa sessão em grupo, o mesmo uid se
+      // repete para cada participante, e só o e-mail os distingue.
+      const chave = `${String(l.uid || "").slice(0, 120)}__${email}`.replace(/[^\w@.\-]/g, "_");
+      const ref = adminFirestore().collection("agendamentos").doc(chave);
+      const anterior = await ref.get();
+
+      const cancelado = String(l.status || "").toLowerCase() === "cancelled";
+      const agora = new Date().toISOString();
+
+      // O telefone vem em lugares diferentes conforme como a reserva nasceu.
+      const telefone = String(
+        l.telefone
+        || l.responses?.attendeePhoneNumber?.value
+        || l.responses?.attendeePhoneNumber
+        || "",
+      ).trim().slice(0, 40);
+
+      // Reunião que já passou não entra na régua: marcar tudo como enviado
+      // evita mandar "sua reunião é amanhã" para quem já se reuniu.
+      const jaPassou = new Date(inicio).getTime() < Date.now();
+      const enviadosIniciais = jaPassou
+        ? Object.fromEntries(MOMENTOS_DO_AGENDAMENTO.map((m) => [m.chave, "importado"]))
+        : {};
+
+      await ref.set({
+        uid: chave,
+        uidReserva: String(l.uid || ""),
+        email,
+        nome: String(l.nome || "").trim().slice(0, 160),
+        telefone,
+        titulo: String(l.title || "Reunião").trim().slice(0, 200),
+        inicio,
+        fim: l.endTime ? new Date(l.endTime).toISOString() : "",
+        fuso: String(l.fuso || "America/Sao_Paulo").slice(0, 60),
+        linkVideo: String(l.metadata?.videoCallUrl || "").slice(0, 500),
+        status: cancelado ? "cancelado" : "confirmado",
+        origem: "cal-sync",
+        enviados: anterior.exists ? (anterior.data()?.enviados || {}) : enviadosIniciais,
+        criadoEm: anterior.exists
+          ? (anterior.data()?.criadoEm || agora)
+          : (l.createdAt ? new Date(l.createdAt).toISOString() : agora),
+        atualizadoEm: agora,
+      }, { merge: true });
+
+      if (anterior.exists) atualizados++; else novos++;
+    }
+
+    if (novos) console.log(`[cal-sync] ${novos} participante(s) novo(s), ${atualizados} atualizado(s)`);
+    return { novos, atualizados };
+  }
+
+  // A cada 5 minutos, junto do motor de e-mails. Uma reunião marcada aparece
+  // na plataforma em poucos minutos, que é suficiente — e é leitura barata.
+  setInterval(() => {
+    sincronizarAgendamentosDoCal().catch((e) =>
+      console.error("[cal-sync] erro no ciclo:", e?.message || e));
+  }, 5 * 60 * 1000);
+
+  // Primeira passada logo depois de subir, para a base não ficar esperando o
+  // primeiro ciclo. O atraso é só para não competir com a inicialização.
+  setTimeout(() => { void sincronizarAgendamentosDoCal().catch(() => {}); }, 20_000);
+
+  // POST /api/agenda/sincronizar — puxa agora, sem esperar o relógio.
+  app.post("/api/agenda/sincronizar", requireAdmin, async (_req: any, res) => {
+    if (!process.env.CAL_DATABASE_URL) {
+      return res.status(503).json({ error: "Falta CAL_DATABASE_URL na plataforma." });
+    }
+    try {
+      const r = await sincronizarAgendamentosDoCal();
+      return res.json({ ok: true, ...r });
+    } catch (err: any) {
+      console.error("[/api/agenda/sincronizar]", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível sincronizar." });
+    }
+  });
+
+
+
   // POST /api/agenda/importar — traz para cá as reservas que o Cal já tinha.
   //
   // O webhook só vale do momento em que foi ligado para frente. As reuniões
