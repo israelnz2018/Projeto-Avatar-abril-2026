@@ -6737,33 +6737,84 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     {
       chave: "confirmacao",
       quando: "ao-agendar",
-      assunto: "Sua reunião está confirmada",
+      assunto: "Sua vaga está reservada",
       corpo: (d) => `
         <p>Olá ${d.primeiroNome},</p>
-        <p>Sua participação em <strong>${d.titulo}</strong> está confirmada.</p>
-        <p><strong>Quando:</strong> ${d.quando}</p>
-        ${d.linkVideo ? `<p><strong>Link da reunião:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
-        <p>Nos vemos lá.</p>`,
+        <p>Sua conversa comigo está marcada para <strong>${d.quando}</strong>.</p>
+        <p>São 45 minutos para entender onde você está hoje e o que faria diferença na sua
+        carreira em melhoria contínua. Vou mostrar como a plataforma funciona por dentro — e
+        se não fizer sentido para o seu momento, eu te digo com franqueza.</p>
+        ${d.linkVideo ? `<p><strong>Entrar na reunião:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
+        <p>Guarde no seu calendário agora, para não esbarrar em outro compromisso.</p>
+        <p>Até lá,<br>Israel</p>`,
     },
     {
       chave: "um-dia-antes",
       quando: -24 * 60,
-      assunto: "Sua reunião é amanhã",
+      assunto: "Amanhã nós conversamos",
       corpo: (d) => `
         <p>Olá ${d.primeiroNome},</p>
-        <p>Passando para lembrar da sua reunião <strong>${d.titulo}</strong>, amanhã.</p>
-        <p><strong>Quando:</strong> ${d.quando}</p>
-        ${d.linkVideo ? `<p><strong>Link da reunião:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}`,
+        <p>Amanhã, <strong>${d.quando}</strong>, é a nossa conversa.</p>
+        <p>Para aproveitarmos melhor: pense em <strong>uma situação concreta</strong> do seu
+        trabalho — um processo que te incomoda, uma meta que não sai do lugar, uma decisão
+        sem dados. É em cima de algo real que a conversa rende.</p>
+        ${d.linkVideo ? `<p><strong>Link:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
+        <p>Se precisar remarcar, é só responder este e-mail.</p>
+        <p>Israel</p>`,
     },
     {
-      chave: "uma-hora-antes",
-      quando: -60,
-      assunto: "Sua reunião começa em 1 hora",
+      // Pela manhã do dia: o lembrete de minutos antes só alcança quem já está
+      // no computador; este entra no planejamento do dia.
+      chave: "no-dia-de-manha",
+      quando: -8 * 60,
+      assunto: "Hoje nós conversamos",
       corpo: (d) => `
         <p>Olá ${d.primeiroNome},</p>
-        <p>Sua reunião <strong>${d.titulo}</strong> começa em uma hora.</p>
-        ${d.linkVideo ? `<p>Entre por aqui: <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
-        <p>Até já.</p>`,
+        <p>Nossa conversa é <strong>hoje</strong>: ${d.quando}.</p>
+        ${d.linkVideo ? `<p><strong>Link:</strong> <a href="${d.linkVideo}">${d.linkVideo}</a></p>` : ""}
+        <p>Separe 45 minutos sem interrupção — vale mais que uma hora dividida com outra coisa.</p>
+        <p>Até mais tarde,<br>Israel</p>`,
+    },
+    {
+      // 10 minutos, não 1 hora: é o lembrete que mais aumenta presença, porque
+      // chega quando a pessoa ainda pode agir.
+      chave: "dez-minutos-antes",
+      quando: -10,
+      assunto: "Estou entrando na sala",
+      corpo: (d) => `
+        <p>${d.primeiroNome}, estou entrando na sala agora.</p>
+        ${d.linkVideo ? `<p><a href="${d.linkVideo}"><strong>${d.linkVideo}</strong></a></p>` : ""}
+        <p>Te espero.</p>`,
+    },
+    {
+      // Depois da conversa é onde a venda acontece. Sai no mesmo dia, enquanto
+      // o assunto está fresco.
+      chave: "depois-da-reuniao",
+      quando: 2 * 60,
+      assunto: "O que conversamos",
+      corpo: (d) => `
+        <p>Olá ${d.primeiroNome},</p>
+        <p>Obrigado pela conversa de hoje.</p>
+        <p>Como combinamos, aqui está o acesso aos planos da plataforma:
+        <a href="https://app.educacaopelotrabalho.com/plataformalbw">ver os planos</a></p>
+        <p>Se ficou alguma dúvida — sobre conteúdo, certificação, prazo ou valor — é só
+        responder este e-mail. Respondo pessoalmente.</p>
+        <p>Israel</p>`,
+    },
+    {
+      // Quem agendou e não apareceu demonstrou interesse real. O texto serve
+      // para os dois casos porque hoje não sabemos quem faltou: ele oferece
+      // remarcar sem afirmar que a pessoa faltou.
+      chave: "dia-seguinte",
+      quando: 24 * 60,
+      assunto: "Ficou alguma coisa pendente?",
+      corpo: (d) => `
+        <p>Olá ${d.primeiroNome},</p>
+        <p>Se não deu para nos falarmos, acontece — agenda cheia é o normal. É só escolher
+        outro horário que eu reservo de novo.</p>
+        <p>E se você quiser ver por conta própria antes, os planos estão aqui:
+        <a href="https://app.educacaopelotrabalho.com/plataformalbw">ver os planos</a></p>
+        <p>Sem pressa,<br>Israel</p>`,
     },
   ];
 
@@ -6786,6 +6837,202 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
       <p style="margin-top:28px;color:#6b7a90;font-size:13px">Learning by Working &mdash; Educação pelo Trabalho</p>
     </div>`;
   }
+
+
+  // ===============================================================
+  // A RÉGUA EDITÁVEL — os e-mails de quem agendou, no controle do consultor
+  // ---------------------------------------------------------------
+  // MOMENTOS_DO_AGENDAMENTO, acima, é o PADRÃO: o que vale enquanto ninguém
+  // mexeu. Quando o consultor edita na aba Mensagens, a régua dele é gravada
+  // em `agenda_mensagens` e passa a valer no lugar do padrão.
+  //
+  // Por que não gravar o padrão no banco de uma vez: assim o padrão pode
+  // melhorar com o tempo (texto, horário, um e-mail novo) e quem nunca mexeu
+  // recebe a melhoria. Quem editou fica com o que escreveu, sem surpresa.
+  // ===============================================================
+
+  /** Como o consultor guarda a régua dele. Mesmo formato do padrão, em dados. */
+  type MensagemSalva = {
+    chave: string;
+    /** "ao-agendar", ou minutos em relação ao início (negativo = antes). */
+    quando: "ao-agendar" | number;
+    assunto: string;
+    /** O corpo em HTML simples, com {nome}, {titulo}, {quando}, {link}. */
+    corpo: string;
+    ativo: boolean;
+  };
+
+  /**
+   * Troca as marcas do texto pelos valores da reunião.
+   *
+   * São marcas em chaves porque o consultor escreve este texto na mão, numa
+   * caixa de texto — tem de ser algo que ele consiga digitar e lembrar.
+   */
+  function preencherMarcas(texto: string, d: DadosDoEmail): string {
+    return String(texto || "")
+      .replace(/\{nome\}/g, d.primeiroNome)
+      .replace(/\{nome_completo\}/g, d.nome)
+      .replace(/\{titulo\}/g, d.titulo)
+      .replace(/\{quando\}/g, d.quando)
+      .replace(/\{link\}/g, d.linkVideo || "")
+      .replace(/\{link_planos\}/g, "https://app.educacaopelotrabalho.com/plataformalbw")
+      .replace(/\{link_agendamento\}/g, String(process.env.VITE_APRESENTACAO_URL || ""));
+  }
+
+  /**
+   * A régua que vale agora: a do consultor, se existir; senão a padrão.
+   *
+   * Desativados ficam de fora, e a ordem é por quando o e-mail sai — o motor
+   * percorre na ordem em que as coisas acontecem.
+   */
+  async function reguaEmVigor(): Promise<MomentoAgendamento[]> {
+    if (!isAdminReady()) return MOMENTOS_DO_AGENDAMENTO;
+    try {
+      const doc = await adminFirestore().collection("agenda_mensagens").doc("padrao").get();
+      const salvas: MensagemSalva[] = doc.exists ? (doc.data()?.mensagens || []) : [];
+      if (!salvas.length) return MOMENTOS_DO_AGENDAMENTO;
+
+      const momentos: MomentoAgendamento[] = salvas
+        .filter((m) => m.ativo !== false && m.assunto && m.corpo)
+        .map((m) => ({
+          chave: String(m.chave),
+          quando: m.quando === "ao-agendar" ? ("ao-agendar" as const) : Number(m.quando),
+          assunto: String(m.assunto),
+          corpo: (d: DadosDoEmail) => preencherMarcas(m.corpo, d),
+        }));
+
+      // Em ordem de saída: "ao-agendar" primeiro, depois do mais cedo (mais
+      // negativo, antes da reunião) para o mais tarde.
+      const emMinutos = (q: MomentoAgendamento["quando"]) => (q === "ao-agendar" ? -Infinity : q);
+      return momentos.sort((a, b) => emMinutos(a.quando) - emMinutos(b.quando));
+    } catch (err: any) {
+      // Se a leitura falhar, o padrão continua valendo: melhor mandar o
+      // e-mail certo do padrão do que não mandar nada.
+      console.error("[agenda-mensagens] leitura:", err?.message || err);
+      return MOMENTOS_DO_AGENDAMENTO;
+    }
+  }
+
+  // GET /api/agenda/mensagens — a régua atual, para a tela mostrar.
+  app.get("/api/agenda/mensagens", requireAdmin, async (_req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    try {
+      const doc = await adminFirestore().collection("agenda_mensagens").doc("padrao").get();
+      const salvas = doc.exists ? (doc.data()?.mensagens || []) : [];
+
+      // Nunca editou: devolve o padrão como ponto de partida, já editável.
+      const mensagens: MensagemSalva[] = salvas.length ? salvas : MOMENTOS_DO_AGENDAMENTO.map((m) => ({
+        chave: m.chave,
+        quando: m.quando,
+        assunto: m.assunto,
+        corpo: m.corpo({
+          primeiroNome: "{nome}", nome: "{nome_completo}", titulo: "{titulo}",
+          quando: "{quando}", linkVideo: "{link}",
+        }).replace(/\n\s+/g, "\n").trim(),
+        ativo: true,
+      }));
+
+      return res.json({
+        mensagens,
+        personalizada: salvas.length > 0,
+        resend: Boolean(process.env.RESEND_API_KEY),
+      });
+    } catch (err: any) {
+      console.error("[GET /api/agenda/mensagens]", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível ler as mensagens." });
+    }
+  });
+
+  // PUT /api/agenda/mensagens — grava a régua que o consultor montou.
+  app.put("/api/agenda/mensagens", requireAdmin, async (req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+
+    const entrada = Array.isArray(req.body?.mensagens) ? req.body.mensagens : null;
+    if (!entrada) return res.status(400).json({ error: "Formato inválido." });
+    if (entrada.length > 20) return res.status(400).json({ error: "No máximo 20 mensagens." });
+
+    const vistas = new Set<string>();
+    const mensagens: MensagemSalva[] = [];
+
+    for (const m of entrada) {
+      const assunto = String(m?.assunto || "").trim().slice(0, 200);
+      const corpo = String(m?.corpo || "").trim().slice(0, 8000);
+      if (!assunto || !corpo) return res.status(400).json({ error: "Toda mensagem precisa de assunto e texto." });
+
+      // A chave identifica o envio no histórico de cada agendamento. Se duas
+      // tiverem a mesma, a segunda nunca sairia — o motor a veria como já
+      // enviada.
+      let chave = String(m?.chave || "").trim().slice(0, 60).replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+      if (!chave || vistas.has(chave)) chave = `msg-${vistas.size + 1}-${Date.now().toString(36)}`;
+      vistas.add(chave);
+
+      const quando = m?.quando === "ao-agendar" ? "ao-agendar" : Number(m?.quando);
+      if (quando !== "ao-agendar" && !Number.isFinite(quando)) {
+        return res.status(400).json({ error: "Horário inválido em uma das mensagens." });
+      }
+
+      mensagens.push({ chave, quando, assunto, corpo, ativo: m?.ativo !== false });
+    }
+
+    try {
+      await adminFirestore().collection("agenda_mensagens").doc("padrao").set({
+        mensagens,
+        atualizadoEm: new Date().toISOString(),
+        atualizadoPor: req.adminEmail || "",
+      });
+      return res.json({ ok: true, total: mensagens.length });
+    } catch (err: any) {
+      console.error("[PUT /api/agenda/mensagens]", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível salvar." });
+    }
+  });
+
+  // DELETE /api/agenda/mensagens — volta ao padrão recomendado.
+  app.delete("/api/agenda/mensagens", requireAdmin, async (_req: any, res) => {
+    if (!isAdminReady()) return res.status(503).json({ error: "Firebase Admin não configurado." });
+    try {
+      await adminFirestore().collection("agenda_mensagens").doc("padrao").delete();
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[DELETE /api/agenda/mensagens]", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível restaurar." });
+    }
+  });
+
+  // POST /api/agenda/mensagens/testar — manda uma das mensagens para você.
+  //
+  // Vale mais que qualquer prévia na tela: mostra como o e-mail chega de
+  // verdade na caixa de entrada, com o molde e o assunto reais.
+  app.post("/api/agenda/mensagens/testar", requireAdmin, async (req: any, res) => {
+    if (!process.env.RESEND_API_KEY) return res.status(503).json({ error: "Resend não configurado." });
+
+    const assunto = String(req.body?.assunto || "").trim().slice(0, 200);
+    const corpo = String(req.body?.corpo || "").trim().slice(0, 8000);
+    const para = String(req.body?.para || req.adminEmail || "").trim().toLowerCase();
+    if (!assunto || !corpo || !para) return res.status(400).json({ error: "Faltam assunto, texto ou destinatário." });
+
+    // Valores de exemplo, para o teste parecer com o e-mail de verdade.
+    const exemplo: DadosDoEmail = {
+      primeiroNome: "Maria",
+      nome: "Maria Silva",
+      titulo: "Reunião de Formação em Melhoria Contínua",
+      quando: quandoEscrito(new Date(Date.now() + 86400000).toISOString(), "America/Sao_Paulo"),
+      linkVideo: "https://meet.google.com/exemplo-teste",
+    };
+
+    try {
+      const r = await resendSend({
+        to: para,
+        subject: `[teste] ${assunto}`,
+        html: moldarEmail(preencherMarcas(corpo, exemplo)),
+      });
+      if (!r.ok) return res.status(502).json({ error: `O envio falhou: ${String(r.body || "").slice(0, 160)}` });
+      return res.json({ ok: true, enviadoPara: para });
+    } catch (err: any) {
+      console.error("[POST /api/agenda/mensagens/testar]", err?.message || err);
+      return res.status(500).json({ error: "Não foi possível enviar o teste." });
+    }
+  });
 
   // POST /api/agenda/webhook — o Cal avisa aqui a cada agendamento.
   //
@@ -6877,7 +7124,10 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     if (!isAdminReady() || !process.env.RESEND_API_KEY) return { enviados: 0, falhas: 0 };
 
     const agora = Date.now();
-    const limiteAtras = new Date(agora - 24 * 60 * 60 * 1000).toISOString();
+    // 3 dias para trás, não 1: os e-mails de depois da reunião saem em +2h e
+    // +24h, e com a janela de 24h a reunião já teria saído da busca na hora de
+    // mandar o de +24h. A folga cobre também um servidor que ficou fora do ar.
+    const limiteAtras = new Date(agora - 3 * 24 * 60 * 60 * 1000).toISOString();
 
     // UM filtro só, e o status conferido no código abaixo: dois `where` em
     // campos diferentes exigiriam um índice composto no Firestore, que é um
@@ -6885,6 +7135,10 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
     const snap = await adminFirestore().collection("agendamentos")
       .where("inicio", ">=", limiteAtras)
       .get();
+
+    // Uma leitura por ciclo, não uma por agendamento: a régua é a mesma para
+    // todos, e um ciclo pode ter dezenas de documentos.
+    const regua = await reguaEmVigor();
 
     let enviados = 0;
     let falhas = 0;
@@ -6904,7 +7158,7 @@ marcadores, tÃ­tulo separado ou explicaÃ§Ã£o. Devolva somente o texto fina
         linkVideo: String(a.linkVideo || ""),
       };
 
-      for (const momento of MOMENTOS_DO_AGENDAMENTO) {
+      for (const momento of regua) {
         if (jaEnviados[momento.chave]) continue;
 
         // "ao-agendar" sai já; os demais esperam o relógio chegar no ponto

@@ -10,8 +10,12 @@
  *
  * Ver INSTALAR-AGENDAMENTO-RAILWAY.md, na raiz do projeto "Empresa de Gestão LBW".
  */
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { CalendarClock, ExternalLink, AlertTriangle, RefreshCw, Clock3 } from 'lucide-react';
+
+// Carregada só quando a aba Mensagens é aberta: quem vem aqui ver a agenda não
+// precisa baixar o editor de e-mails junto.
+const MensagensAgendamento = lazy(() => import('./MensagensAgendamento'));
 
 const URL_AGENDAMENTO = String(import.meta.env.VITE_AGENDAMENTO_URL || '').trim();
 
@@ -21,7 +25,12 @@ const URL_AGENDAMENTO = String(import.meta.env.VITE_AGENDAMENTO_URL || '').trim(
  * O menu de lá tem bem mais coisa (equipes, apps, admin); estes atalhos levam
  * direto ao que interessa, para ninguém se perder.
  */
-type TelaId = 'eventos' | 'reservas' | 'horarios' | 'calendarios';
+/**
+ * 'mensagens' é a única aba NOSSA: as outras mostram o sistema de agendamento
+ * dentro de um quadro, esta é uma tela da plataforma. Por isso ela tem
+ * `caminho` vazio e é desviada antes de montar o quadro.
+ */
+type TelaId = 'eventos' | 'reservas' | 'mensagens' | 'horarios' | 'calendarios';
 const TELAS: Record<TelaId, { nome: string; caminho: string; dica: string }> = {
   eventos: {
     nome: 'Meus eventos',
@@ -33,6 +42,12 @@ const TELAS: Record<TelaId, { nome: string; caminho: string; dica: string }> = {
     nome: 'Agendamentos',
     caminho: '/bookings/upcoming',
     dica: 'Quem já marcou com você, e o que está por vir.',
+  },
+  mensagens: {
+    nome: 'Mensagens',
+    caminho: '',
+    dica: 'Os e-mails que saem sozinhos para quem marcou com você — da confirmação ao '
+      + 'acompanhamento depois da reunião. Você edita o texto e a hora de cada um.',
   },
   horarios: {
     nome: 'Meus horários',
@@ -76,6 +91,9 @@ export default function AgendamentoConsultor() {
     );
   }
 
+  // A aba Mensagens é uma tela da plataforma; as outras mostram o sistema de
+  // agendamento num quadro. É o `caminho` vazio que as distingue.
+  const ehDoCal = Boolean(TELAS[tela].caminho);
   const url = `${URL_AGENDAMENTO.replace(/\/$/, '')}${TELAS[tela].caminho}`;
 
   return (
@@ -102,34 +120,46 @@ export default function AgendamentoConsultor() {
           </button>
         ))}
         <span className="flex-1" />
-        <button
-          onClick={() => setTentativa((n) => n + 1)}
-          title="Recarregar"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          <RefreshCw className="w-3.5 h-3.5" /> Recarregar
-        </button>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          <ExternalLink className="w-3.5 h-3.5" /> Abrir fora
-        </a>
+        {/* Recarregar e "Abrir fora" só fazem sentido para as abas que mostram
+            o sistema de agendamento num quadro. A de Mensagens é nossa. */}
+        {ehDoCal && (
+          <>
+            <button
+              onClick={() => setTentativa((n) => n + 1)}
+              title="Recarregar"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Recarregar
+            </button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> Abrir fora
+            </a>
+          </>
+        )}
       </div>
 
       <p className="text-xs text-gray-500 mb-3">{TELAS[tela].dica}</p>
 
       <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-        <iframe
-          key={`${tela}-${tentativa}`}
-          src={url}
-          title="Agendamento"
-          className="w-full"
-          style={{ height: 'calc(100vh - 300px)', minHeight: 520 }}
-          allow="camera; microphone; clipboard-write"
-        />
+        {ehDoCal ? (
+          <iframe
+            key={`${tela}-${tentativa}`}
+            src={url}
+            title="Agendamento"
+            className="w-full"
+            style={{ height: 'calc(100vh - 300px)', minHeight: 520 }}
+            allow="camera; microphone; clipboard-write"
+          />
+        ) : (
+          <Suspense fallback={<div className="p-10 text-center text-sm text-gray-500">Carregando…</div>}>
+            <MensagensAgendamento />
+          </Suspense>
+        )}
       </div>
     </div>
   );
