@@ -43,9 +43,13 @@ export const PLANOS_LBW: PlanoLBW[] = [
     id: 'plataforma',
     nome: 'Plataforma Profissional',
     resumo: 'Tudo acima e os projetos guiados Yellow, Green e Black Belt',
-    parcela: '12x de R$ 103,11',
-    vista: 997,
-    precoDe: 1497,
+    // PREÇO CHEIO, sem parcela e sem riscado: o desconto deste degrau não vive
+    // mais na página. Quem quer condição melhor fala com o Israel pelo botão
+    // logo abaixo do de compra, e recebe um link de checkout com cupom.
+    // Mostrar "12x de" aqui competiria com o valor à vista e tiraria a força
+    // do número cheio, que é justamente o que faz a conversa valer a pena.
+    parcela: 'R$ 1.497',
+    vista: 1497,
     // Ver nota no degrau 'cursos': o <title> da Hotmart confirma que este link
     // é de fato o produto "Plataforma Profissional em Gestão de Projetos de
     // Melhoria" — o outro link é que estava aqui por engano.

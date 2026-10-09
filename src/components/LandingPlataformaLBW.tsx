@@ -21,6 +21,9 @@ type Plano = {
   preco?: string; detalhePreco?: string; destaque?: boolean;
   // Preço cheio riscado + selo da condição promocional.
   precoDe?: string; promo?: string;
+  // Segundo botão, abaixo do de compra: leva ao chat em vez do checkout. Só o
+  // degrau que tem desconto por conversa usa isto.
+  ctaConversa?: string;
 };
 
 const PLANOS: Plano[] = [
@@ -47,10 +50,12 @@ const PLANOS: Plano[] = [
     resumo: 'A experiência completa da LBW para aprender, analisar dados e conduzir projetos reais de melhoria.',
     ideal: 'Para quem quer se desenvolver como especialista ou líder de melhoria contínua.',
     itens: ['Tudo da Formação Profissional', 'Todo o Software LBW', 'Projetos guiados Yellow Belt', 'Projetos guiados Green Belt', 'Projetos guiados Black Belt', 'Método completo de gestão de projetos de melhoria'],
-    precoDe: P_PLATAFORMA.precoDe ? `R$ ${P_PLATAFORMA.precoDe.toLocaleString('pt-BR')}` : undefined,
-    preco: P_PLATAFORMA.parcela, detalhePreco: valorVista(P_PLATAFORMA.vista), href: P_PLATAFORMA.checkout,
-    promo: 'Condição promocional por tempo limitado',
+    // Sem `precoDe`, sem `detalhePreco` e sem `promo`: o valor cheio aparece
+    // sozinho. O desconto não está mais na página — quem quer condição melhor
+    // usa o botão de conversar, logo abaixo do de compra.
+    preco: P_PLATAFORMA.parcela, href: P_PLATAFORMA.checkout,
     cta: 'Quero a Plataforma Profissional completa', destaque: true,
+    ctaConversa: 'Fale com o Israel e consiga um desconto',
   },
 ];
 
@@ -198,6 +203,12 @@ const CSS = `
 .plbw .brand{font-size:12px;letter-spacing:.24em;font-weight:700;color:#8fb3ff;margin-bottom:18px}.plbw .pill{display:inline-flex;padding:9px 16px;border:1px solid rgba(96,165,250,.34);border-radius:999px;background:rgba(37,99,235,.1);color:#b9d1ff;font-size:12px;font-weight:600;letter-spacing:.08em}
 .plbw h1{font-size:clamp(38px,6vw,66px);line-height:1.03;letter-spacing:-.03em;max-width:930px;margin:22px auto 18px;font-weight:700;text-wrap:balance}.plbw .gradient{background:linear-gradient(100deg,#fff 10%,#92b7ff 55%,#13c4df);-webkit-background-clip:text;background-clip:text;color:transparent}.plbw .hero-lead{max-width:790px;margin:0 auto;color:var(--muted);font-size:clamp(17px,2.2vw,20px);line-height:1.6;text-wrap:pretty}.plbw .hero-actions{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:30px}
 .plbw .btn{display:inline-flex;align-items:center;justify-content:center;min-height:54px;padding:0 27px;border-radius:12px;font-weight:700;color:#fff;border:1px solid transparent;transition:.2s ease;cursor:pointer}.plbw .btn:hover{transform:translateY(-2px)}.plbw .btn-primary{background:linear-gradient(120deg,#2866f4,#0aaacb);box-shadow:0 18px 42px -18px rgba(37,99,235,.9)}.plbw .btn-secondary{border-color:var(--line);background:rgba(255,255,255,.045)}
+/* Botão de conversar, logo abaixo do de compra. Verde porque não é o mesmo
+   tipo de ação — um leva ao pagamento, o outro a uma conversa — e porque
+   precisa ser notado sem roubar o lugar do botão principal. Fica um degrau
+   mais baixo: contorno em vez de preenchimento, e fonte um pouco menor. */
+.plbw .btn-conversa{width:100%;margin-top:10px;min-height:48px;font-size:14px;border-color:rgba(34,211,161,.45);background:rgba(34,211,161,.08);color:#9df0d2}
+.plbw .btn-conversa:hover{background:rgba(34,211,161,.16);border-color:rgba(34,211,161,.7);color:#c7f7e6}
 /* Três cards retos lado a lado, como no design. A versão anterior tinha degraus
    (translateY), uma linha diagonal atrás e setas ↗ entre os cards — nada disso
    existe no layout aprovado. O número fica num selo que sobra pra fora do topo. */
@@ -510,6 +521,13 @@ export default function LandingPlataformaLBW({ hero }: { hero?: React.ReactNode 
               className={`btn ${plano.destaque ? 'btn-primary' : 'btn-secondary'}${plano.href.includes('pay.hotmart.com') ? ' hotmart-fb hotmart__button-checkout' : ''}`}
               href={plano.href}
             >{plano.cta}</a>
+            {/* Caminho da conversa, logo abaixo do de compra. Sem as classes
+                do widget da Hotmart de propósito: este link vai para o chat,
+                não para um checkout, e o widget tentaria abrir um popup de
+                compra que não existe. */}
+            {plano.ctaConversa && (
+              <a className="btn btn-conversa" href="/diagnostico">{plano.ctaConversa}</a>
+            )}
           </article>)}</div>
         </div></section>
 
