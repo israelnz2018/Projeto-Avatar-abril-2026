@@ -35,7 +35,12 @@ export interface ObjetivoProjeto {
 export interface EstruturaBrief {
   problemas: string[];
   ganhos: string[];
-  objetivo: ObjetivoProjeto;
+  /**
+   * Um projeto pode ter mais de um objetivo (tempo E custo, por exemplo). O
+   * PRIMEIRO é o principal: é dele que sai o título, porque título precisa de
+   * um foco só.
+   */
+  objetivos: ObjetivoProjeto[];
   /**
    * Depois que a pessoa mexe no título, ele deixa de se refazer sozinho — senão
    * cada letra digitada no objetivo apagaria o que ela escreveu.
@@ -92,6 +97,33 @@ export function tituloAutomatico(o: ObjetivoProjeto, processo: string): string {
   return '';
 }
 
+/** O objetivo que dá o título: o primeiro que tenha o "o quê" preenchido. */
+export function objetivoPrincipal(objetivos: ObjetivoProjeto[]): ObjetivoProjeto {
+  return objetivos.find((o) => o.indicador.trim()) || objetivos[0] || { ...OBJETIVO_VAZIO };
+}
+
+/** As frases de todos os objetivos preenchidos, na ordem. */
+export function frasesDosObjetivos(objetivos: ObjetivoProjeto[]): string[] {
+  return objetivos.map(fraseDoObjetivo).filter(Boolean);
+}
+
+/**
+ * Garante o formato atual de uma `estrutura` lida do banco. Durante um dia a
+ * estrutura guardou UM objetivo em `objetivo`; aqui ele vira o primeiro item
+ * de `objetivos`, sem perder o que foi preenchido.
+ */
+export function normalizarEstrutura(e: any): EstruturaBrief {
+  const objetivos: ObjetivoProjeto[] = Array.isArray(e?.objetivos) && e.objetivos.length
+    ? e.objetivos.map((o: any) => ({ ...OBJETIVO_VAZIO, ...o }))
+    : e?.objetivo ? [{ ...OBJETIVO_VAZIO, ...e.objetivo }] : [{ ...OBJETIVO_VAZIO }];
+  return {
+    problemas: Array.isArray(e?.problemas) && e.problemas.length ? e.problemas : [''],
+    ganhos: Array.isArray(e?.ganhos) && e.ganhos.length ? e.ganhos : [''],
+    objetivos,
+    tituloEditado: Boolean(e?.tituloEditado),
+  };
+}
+
 function primeiraMaiuscula(s: string) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
@@ -113,7 +145,7 @@ export function estruturaDeAnswers(answers: Record<string, any> = {}): Estrutura
   return {
     problemas: problemas.length ? problemas : [''],
     ganhos: separarLista(answers.q8).length ? separarLista(answers.q8) : [''],
-    objetivo: { ...OBJETIVO_VAZIO },
+    objetivos: [{ ...OBJETIVO_VAZIO }],
     tituloEditado: Boolean(String(answers.q6 || '').trim()),
   };
 }
@@ -123,9 +155,10 @@ export function estruturaDeAnswers(answers: Record<string, any> = {}): Estrutura
  *
  * - q2 recebe TODOS os problemas e q4 é esvaziado: o Contrato junta q2 com q4,
  *   e com os dois preenchidos o mesmo problema apareceria duas vezes.
- * - q7 só é reescrito quando o objetivo estruturado tem conteúdo. Projeto
+ * - q7 só é reescrito quando algum objetivo estruturado tem conteúdo. Projeto
  *   antigo, com objetivo em texto livre, continua com o texto dele até a
- *   pessoa começar a preencher as partes.
+ *   pessoa começar a preencher as partes. Com um objetivo, q7 é a frase; com
+ *   vários, é a lista com marcadores.
  * - q6 segue o título automático enquanto a pessoa não o editar.
  */
 export function answersDaEstrutura(answers: Record<string, any>, e: EstruturaBrief): Record<string, any> {
@@ -134,12 +167,12 @@ export function answersDaEstrutura(answers: Record<string, any>, e: EstruturaBri
   novo.q4 = '';
   novo.q8 = juntarLista(e.ganhos);
 
-  const objetivo = fraseDoObjetivo(e.objetivo);
-  const temObjetivoEstruturado = Boolean(
-    e.objetivo.indicador.trim() || e.objetivo.atual.trim() || e.objetivo.meta.trim(),
+  const frases = frasesDosObjetivos(e.objetivos);
+  const temObjetivoEstruturado = e.objetivos.some(
+    (o) => o.indicador.trim() || o.atual.trim() || o.meta.trim(),
   );
-  if (temObjetivoEstruturado) novo.q7 = objetivo;
+  if (temObjetivoEstruturado) novo.q7 = frases.length > 1 ? juntarLista(frases) : (frases[0] || '');
 
-  if (!e.tituloEditado) novo.q6 = tituloAutomatico(e.objetivo, String(answers.q1 || ''));
+  if (!e.tituloEditado) novo.q6 = tituloAutomatico(objetivoPrincipal(e.objetivos), String(answers.q1 || ''));
   return novo;
 }

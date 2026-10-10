@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, FileText, Image as ImageIcon, X, Trash2, BookOpen, Info, Plus, RotateCcw, Sparkles } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import {
-  EstruturaBrief, ObjetivoProjeto, VerboObjetivo,
-  estruturaDeAnswers, answersDaEstrutura, fraseDoObjetivo, tituloAutomatico,
+  EstruturaBrief, ObjetivoProjeto, VerboObjetivo, OBJETIVO_VAZIO,
+  estruturaDeAnswers, normalizarEstrutura, answersDaEstrutura, fraseDoObjetivo,
+  frasesDosObjetivos, objetivoPrincipal, tituloAutomatico,
 } from './briefModelo';
 
 /**
@@ -28,7 +29,7 @@ type Exemplo = {
   q3: string;
   problemas: string[];
   ganhos: string[];
-  objetivo: ObjetivoProjeto;
+  objetivos: ObjetivoProjeto[];
 };
 
 // Exemplos prontos (read-only) pro modal "Ver exemplo" — não tocam nos dados do aluno.
@@ -42,7 +43,10 @@ const BRIEF_EXEMPLOS: Exemplo[] = [
       'O preço é refeito várias vezes entre comercial e precificação',
       'Não existe um modelo padrão de proposta',
     ],
-    objetivo: { verbo: 'Reduzir', indicador: 'o tempo de emissão de propostas comerciais', atual: '5 dias', meta: '1 dia útil', prazo: 'até março' },
+    objetivos: [
+      { verbo: 'Reduzir', indicador: 'o tempo de emissão de propostas comerciais', atual: '5 dias', meta: '1 dia útil', prazo: 'até março' },
+      { verbo: 'Aumentar', indicador: 'a taxa de conversão das propostas', atual: '20%', meta: '35%', prazo: '' },
+    ],
     ganhos: [
       'Clientes desistem antes de receber a proposta',
       'A equipe perde horas refazendo preço',
@@ -59,7 +63,9 @@ const BRIEF_EXEMPLOS: Exemplo[] = [
       'Falha de preenchimento no molde',
       'Separação e retrabalho manual no fim da linha',
     ],
-    objetivo: { verbo: 'Reduzir', indicador: 'o índice de refugo na injeção plástica', atual: '8%', meta: '2%', prazo: 'em 3 meses' },
+    objetivos: [
+      { verbo: 'Reduzir', indicador: 'o índice de refugo na injeção plástica', atual: '8%', meta: '2%', prazo: 'em 3 meses' },
+    ],
     ganhos: [
       'Desperdício de matéria-prima',
       'Risco de peça defeituosa chegar ao cliente',
@@ -91,7 +97,7 @@ export default function ProjectBrief({
 }: ProjectBriefProps) {
   const [answers, setAnswers] = useState<Record<string, any>>(initialData?.answers || RESPOSTAS_VAZIAS);
   const [estrutura, setEstrutura] = useState<EstruturaBrief>(
-    initialData?.estrutura || estruturaDeAnswers(initialData?.answers),
+    initialData?.estrutura ? normalizarEstrutura(initialData.estrutura) : estruturaDeAnswers(initialData?.answers),
   );
   const [images, setImages] = useState<string[]>(initialData?.images || []);
 
@@ -103,7 +109,7 @@ export default function ProjectBrief({
     if (initialData) {
       const a = initialData.answers || RESPOSTAS_VAZIAS;
       setAnswers(a);
-      setEstrutura(initialData.estrutura || estruturaDeAnswers(a));
+      setEstrutura(initialData.estrutura ? normalizarEstrutura(initialData.estrutura) : estruturaDeAnswers(a));
       setImages(initialData.images || []);
     } else {
       setAnswers(RESPOSTAS_VAZIAS);
@@ -121,8 +127,17 @@ export default function ProjectBrief({
   };
 
   const alterarResposta = (q: string, valor: string) => gravar(estrutura, { ...answers, [q]: valor });
-  const alterarObjetivo = (campo: keyof ObjetivoProjeto, valor: string) =>
-    gravar({ ...estrutura, objetivo: { ...estrutura.objetivo, [campo]: valor } });
+  const alterarObjetivo = (i: number, campo: keyof ObjetivoProjeto, valor: string) =>
+    gravar({
+      ...estrutura,
+      objetivos: estrutura.objetivos.map((o, k) => (k === i ? { ...o, [campo]: valor } : o)),
+    });
+  const adicionarObjetivo = () =>
+    gravar({ ...estrutura, objetivos: [...estrutura.objetivos, { ...OBJETIVO_VAZIO }] });
+  const removerObjetivo = (i: number) => {
+    const resto = estrutura.objetivos.filter((_, k) => k !== i);
+    gravar({ ...estrutura, objetivos: resto.length ? resto : [{ ...OBJETIVO_VAZIO }] });
+  };
 
   const alterarTitulo = (valor: string) =>
     gravar({ ...estrutura, tituloEditado: true }, { ...answers, q6: valor });
@@ -157,11 +172,11 @@ export default function ProjectBrief({
   // As 3 essenciais — é com elas que dá para começar o projeto na frente da turma.
   const temProcesso = Boolean(String(answers.q1 || '').trim());
   const temProblema = estrutura.problemas.some((p) => p.trim());
-  const objetivoFrase = fraseDoObjetivo(estrutura.objetivo);
-  const essenciais = [temProcesso, temProblema, Boolean(objetivoFrase)].filter(Boolean).length;
+  const frasesObjetivo = frasesDosObjetivos(estrutura.objetivos);
+  const essenciais = [temProcesso, temProblema, frasesObjetivo.length > 0].filter(Boolean).length;
 
-  const temObjetivoEstruturado = Boolean(
-    estrutura.objetivo.indicador.trim() || estrutura.objetivo.atual.trim() || estrutura.objetivo.meta.trim(),
+  const temObjetivoEstruturado = estrutura.objetivos.some(
+    (o) => o.indicador.trim() || o.atual.trim() || o.meta.trim(),
   );
   const objetivoAntigo = !temObjetivoEstruturado ? String(answers.q7 || '').trim() : '';
 
@@ -253,57 +268,88 @@ export default function ProjectBrief({
                 Objetivo que já estava escrito: <strong>{objetivoAntigo}</strong>. Preencha as partes abaixo para atualizá-lo.
               </p>
             )}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_1fr]">
-              <Campo rotulo="Você quer">
-                <select
-                  value={estrutura.objetivo.verbo}
-                  onChange={(e) => alterarObjetivo('verbo', e.target.value as VerboObjetivo)}
-                  className={CAMPO}
-                >
-                  <option value="Reduzir">Reduzir</option>
-                  <option value="Aumentar">Aumentar</option>
-                </select>
-              </Campo>
-              <Campo rotulo="O quê">
-                <input
-                  value={estrutura.objetivo.indicador}
-                  onChange={(e) => alterarObjetivo('indicador', e.target.value)}
-                  placeholder="Ex.: o tempo de emissão de propostas"
-                  className={CAMPO}
-                />
-              </Campo>
+            <div className="space-y-4">
+              {estrutura.objetivos.map((o, i) => {
+                const frase = fraseDoObjetivo(o);
+                const varios = estrutura.objetivos.length > 1;
+                return (
+                  <div key={i} className={cn(varios && 'rounded-[6px] border border-[#e2e8f0] bg-white p-4')}>
+                    {varios && (
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[#555]">
+                          Objetivo {i + 1}
+                          {i === 0 && <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-blue-700">principal — dá o título</span>}
+                        </span>
+                        <button
+                          onClick={() => removerObjetivo(i)}
+                          title="Apagar este objetivo"
+                          className="cursor-pointer rounded border-none bg-transparent p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[140px_1fr]">
+                      <Campo rotulo="Você quer">
+                        <select
+                          value={o.verbo}
+                          onChange={(e) => alterarObjetivo(i, 'verbo', e.target.value as VerboObjetivo)}
+                          className={CAMPO}
+                        >
+                          <option value="Reduzir">Reduzir</option>
+                          <option value="Aumentar">Aumentar</option>
+                        </select>
+                      </Campo>
+                      <Campo rotulo="O quê">
+                        <input
+                          value={o.indicador}
+                          onChange={(e) => alterarObjetivo(i, 'indicador', e.target.value)}
+                          placeholder={i === 0 ? 'Ex.: o tempo de emissão de propostas' : 'Ex.: o custo de retrabalho'}
+                          className={CAMPO}
+                        />
+                      </Campo>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <Campo rotulo="Hoje está em (opcional)">
+                        <input
+                          value={o.atual}
+                          onChange={(e) => alterarObjetivo(i, 'atual', e.target.value)}
+                          placeholder="Ex.: 5 dias"
+                          className={CAMPO}
+                        />
+                      </Campo>
+                      <Campo rotulo="Quer chegar a (opcional)">
+                        <input
+                          value={o.meta}
+                          onChange={(e) => alterarObjetivo(i, 'meta', e.target.value)}
+                          placeholder="Ex.: 1 dia útil"
+                          className={CAMPO}
+                        />
+                      </Campo>
+                      <Campo rotulo="Prazo (opcional)">
+                        <input
+                          value={o.prazo}
+                          onChange={(e) => alterarObjetivo(i, 'prazo', e.target.value)}
+                          placeholder="Ex.: até março"
+                          className={CAMPO}
+                        />
+                      </Campo>
+                    </div>
+                    {frase && (
+                      <p className="mb-0 mt-3 rounded-[4px] bg-blue-50 px-3 py-2 text-[13px] font-semibold text-blue-900">
+                        {frase}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Campo rotulo="Hoje está em (opcional)">
-                <input
-                  value={estrutura.objetivo.atual}
-                  onChange={(e) => alterarObjetivo('atual', e.target.value)}
-                  placeholder="Ex.: 5 dias"
-                  className={CAMPO}
-                />
-              </Campo>
-              <Campo rotulo="Quer chegar a (opcional)">
-                <input
-                  value={estrutura.objetivo.meta}
-                  onChange={(e) => alterarObjetivo('meta', e.target.value)}
-                  placeholder="Ex.: 1 dia útil"
-                  className={CAMPO}
-                />
-              </Campo>
-              <Campo rotulo="Prazo (opcional)">
-                <input
-                  value={estrutura.objetivo.prazo}
-                  onChange={(e) => alterarObjetivo('prazo', e.target.value)}
-                  placeholder="Ex.: até março"
-                  className={CAMPO}
-                />
-              </Campo>
-            </div>
-            {objetivoFrase && (
-              <p className="mt-3 rounded-[4px] bg-blue-50 px-3 py-2 text-[13px] font-semibold text-blue-900">
-                {objetivoFrase}
-              </p>
-            )}
+            <button
+              onClick={adicionarObjetivo}
+              className="mt-3 flex cursor-pointer items-center gap-1.5 rounded border border-dashed border-blue-300 bg-white px-3 py-1.5 text-[12px] font-bold text-blue-700 hover:bg-blue-50"
+            >
+              <Plus size={13} /> Adicionar outro objetivo
+            </button>
           </Pergunta>
 
           {/* 4 — GANHOS E PERDAS (lista) */}
@@ -409,7 +455,7 @@ export default function ProjectBrief({
             <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-blue-700">
               <Sparkles size={14} /> Conclusão — o título do seu projeto
             </p>
-            {titulo || objetivoFrase ? (
+            {titulo || frasesObjetivo.length ? (
               <>
                 <input
                   value={titulo}
@@ -417,16 +463,24 @@ export default function ProjectBrief({
                   placeholder="O título aparece aqui"
                   className="mt-3 w-full rounded-[4px] border border-blue-200 bg-white px-4 py-3 text-[17px] font-bold text-[#1E2D6E] focus:border-blue-500 focus:outline-none"
                 />
-                {objetivoFrase && (
+                {frasesObjetivo.length === 1 && (
                   <p className="mt-2 text-[13px] text-[#555]">
-                    <strong className="text-[#333]">Objetivo:</strong> {objetivoFrase}
+                    <strong className="text-[#333]">Objetivo:</strong> {frasesObjetivo[0]}
                   </p>
+                )}
+                {frasesObjetivo.length > 1 && (
+                  <div className="mt-2 text-[13px] text-[#555]">
+                    <strong className="text-[#333]">Objetivos:</strong>
+                    <ul className="mb-0 mt-1 list-disc space-y-0.5 pl-5">
+                      {frasesObjetivo.map((f) => <li key={f}>{f}</li>)}
+                    </ul>
+                  </div>
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[#777]">
                   {estrutura.tituloEditado ? (
                     <button
                       onClick={refazerTitulo}
-                      disabled={!tituloAutomatico(estrutura.objetivo, String(answers.q1 || ''))}
+                      disabled={!tituloAutomatico(objetivoPrincipal(estrutura.objetivos), String(answers.q1 || ''))}
                       className="flex cursor-pointer items-center gap-1.5 rounded border border-blue-200 bg-white px-2.5 py-1 font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <RotateCcw size={12} /> Gerar o título de novo
@@ -576,7 +630,8 @@ function ModalExemplo({
   exemploIdx, setExemploIdx, fechar,
 }: { exemploIdx: number; setExemploIdx: (i: number) => void; fechar: () => void }) {
   const ex = BRIEF_EXEMPLOS[exemploIdx];
-  const titulo = tituloAutomatico(ex.objetivo, ex.q1);
+  const titulo = tituloAutomatico(objetivoPrincipal(ex.objetivos), ex.q1);
+  const frases = frasesDosObjetivos(ex.objetivos);
   const Linha = ({ rotulo, children }: { rotulo: string; children: React.ReactNode }) => (
     <div className="space-y-1.5">
       <p className="m-0 text-[12px] font-bold text-[#666]">{rotulo}</p>
@@ -623,7 +678,11 @@ function ModalExemplo({
           <Linha rotulo="2. O que dá errado nesse processo hoje?">
             <ul className="m-0 list-disc space-y-1 pl-5">{ex.problemas.map((p) => <li key={p}>{p}</li>)}</ul>
           </Linha>
-          <Linha rotulo="3. Objetivo do projeto">{fraseDoObjetivo(ex.objetivo)}</Linha>
+          <Linha rotulo="3. Objetivo do projeto">
+            {frases.length > 1
+              ? <ul className="m-0 list-disc space-y-1 pl-5">{frases.map((f) => <li key={f}>{f}</li>)}</ul>
+              : frases[0]}
+          </Linha>
           <Linha rotulo="4. O que se ganha resolvendo — ou o que se perde se nada mudar?">
             <ul className="m-0 list-disc space-y-1 pl-5">{ex.ganhos.map((g) => <li key={g}>{g}</li>)}</ul>
           </Linha>

@@ -213,17 +213,19 @@ Responda APENAS com um objeto JSON puro (sem markdown, sem explicação).`;
 - Justificativa: ${selectedProject.justification || ''}
 ${projectInfo?.name ? `\nContexto do projeto: ${projectInfo.name}${projectInfo.description ? ' — ' + projectInfo.description : ''}` : ''}
 
-Preencha, coerente com o projeto acima:
+Preencha, coerente com o projeto acima. Em "objetivos", use 1 ou 2 itens; o primeiro é o principal.
 {
   "processo": "Nome do processo que será melhorado (curto)",
   "problemas": ["2 a 4 coisas concretas que dão errado hoje, uma por item, frase curta"],
-  "objetivo": {
-    "verbo": "Reduzir ou Aumentar",
-    "indicador": "o que será medido, escrito para vir depois do verbo — ex.: 'o tempo de emissão de propostas'",
-    "atual": "valor de hoje com unidade — ex.: '5 dias', '8%'",
-    "meta": "valor que se quer atingir com unidade — ex.: '1 dia útil', '2%'",
-    "prazo": "opcional — ex.: 'em 3 meses'"
-  },
+  "objetivos": [
+    {
+      "verbo": "Reduzir ou Aumentar",
+      "indicador": "o que será medido, escrito para vir depois do verbo — ex.: 'o tempo de emissão de propostas'",
+      "atual": "valor de hoje com unidade — ex.: '5 dias', '8%'",
+      "meta": "valor que se quer atingir com unidade — ex.: '1 dia útil', '2%'",
+      "prazo": "opcional — ex.: 'em 3 meses'"
+    }
+  ],
   "ganhos": ["2 a 3 itens: o que se ganha resolvendo ou o que se perde se nada mudar"],
   "participantes": "Áreas, pessoas ou fornecedores envolvidos"
 }`;
@@ -236,17 +238,21 @@ Preencha, coerente com o projeto acima:
   });
 
   const lista = (v: any) => (Array.isArray(v) ? v : [v]).map((s) => String(s || '').trim()).filter(Boolean);
-  const o = r?.objetivo || {};
+  // Aceita a lista pedida e também um objetivo solto, caso a IA responda assim.
+  const brutos: any[] = Array.isArray(r?.objetivos) ? r.objetivos : r?.objetivo ? [r.objetivo] : [];
+  const objetivos = brutos
+    .map((o: any) => ({
+      verbo: (String(o?.verbo || '').toLowerCase().startsWith('aument') ? 'Aumentar' : 'Reduzir') as 'Aumentar' | 'Reduzir',
+      indicador: String(o?.indicador || '').trim(),
+      atual: String(o?.atual || '').trim(),
+      meta: String(o?.meta || '').trim(),
+      prazo: String(o?.prazo || '').trim(),
+    }))
+    .filter((o) => o.indicador);
   const estrutura: EstruturaBrief = {
     problemas: lista(r?.problemas).length ? lista(r?.problemas) : [''],
     ganhos: lista(r?.ganhos).length ? lista(r?.ganhos) : [''],
-    objetivo: {
-      verbo: String(o.verbo || '').toLowerCase().startsWith('aument') ? 'Aumentar' : 'Reduzir',
-      indicador: String(o.indicador || '').trim(),
-      atual: String(o.atual || '').trim(),
-      meta: String(o.meta || '').trim(),
-      prazo: String(o.prazo || '').trim(),
-    },
+    objetivos: objetivos.length ? objetivos : [{ verbo: 'Reduzir', indicador: '', atual: '', meta: '', prazo: '' }],
     tituloEditado: false,
   };
   const base = { q1: String(r?.processo || '').trim(), q3: String(r?.participantes || '').trim() };
