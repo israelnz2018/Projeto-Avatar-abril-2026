@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Trash2, AlertCircle, ChevronDown, ChevronRight,
   Sparkles, X, ListTodo, Info, BookOpen, BarChart3, CheckCircle2, CalendarDays, Wand2,
@@ -48,7 +48,7 @@ interface Duracao {
 }
 
 interface DetailedTimelineProps {
-  onSave: (data: any) => void;
+  onSave: (data: any, options?: { silent?: boolean }) => void;
   initialData?: any;
   macroTimeline?: any;
   onGenerateAI?: () => void;
@@ -275,6 +275,20 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
 
   const temAtividades = phases.some((p) => p.activities.length > 0);
 
+  // Edição do aluno se salva sozinha, um instante depois de ele parar de
+  // digitar (silent = marca como "não salvo" até ele apertar o Salvar de
+  // cima). Antes nada era gravado até o clique, e sair da tela perdia tudo.
+  // Abrir/fechar fase não conta como edição.
+  const editado = useRef(false);
+  useEffect(() => {
+    if (!editado.current) return;
+    const t = setTimeout(() => {
+      editado.current = false;
+      onSave({ phases, duracao }, { silent: true });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [phases]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Só existe com a ferramenta vazia. Para recomeçar, o aluno usa o "Excluir"
   // da ferramenta, que a esvazia e traz este botão de volta.
   const sugerirAtividades = () => {
@@ -315,6 +329,7 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
   };
 
   const updateActivity = (phaseId: string, activityId: string, updates: Partial<Activity>) => {
+    editado.current = true;
     setPhases((prev) => prev.map((phase) => phase.id !== phaseId ? phase : {
       ...phase,
       activities: phase.activities.map((act) => {
@@ -328,6 +343,7 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
   };
 
   const addActivity = (phaseId: string) => {
+    editado.current = true;
     const fase = phases.find((p) => p.id === phaseId);
     const ultima = fase?.activities[fase.activities.length - 1];
     const nova: Activity = {
@@ -340,10 +356,12 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
     setPhases((prev) => prev.map((p) => (p.id === phaseId ? { ...p, activities: [...p.activities, nova] } : p)));
   };
 
-  const removerActivity = (phaseId: string, activityId: string) =>
+  const removerActivity = (phaseId: string, activityId: string) => {
+    editado.current = true;
     setPhases((prev) => prev.map((p) => (p.id === phaseId
       ? { ...p, activities: p.activities.filter((a) => a.id !== activityId) }
       : p)));
+  };
 
   const togglePhase = (id: string) =>
     setPhases((prev) => prev.map((p) => (p.id === id ? { ...p, isOpen: !p.isOpen } : p)));
@@ -468,23 +486,12 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
             </div>
           )}
 
-          <div className="flex items-center justify-between rounded-[8px] border border-[#ccc] bg-white p-5 shadow-sm">
-            <div>
-              <h2 className="m-0 text-xl font-bold text-gray-800">Execução do Projeto</h2>
-              <p className="m-0 text-sm text-gray-500">
-                {resumo.total
-                  ? `${resumo.concluidas} de ${resumo.total} atividades concluídas${resumo.fimPrevisto ? ` · término previsto em ${dataBR(resumo.fimPrevisto)}` : ''}`
-                  : 'Escolha a duração e clique em Sugerir Atividades.'}
-              </p>
-            </div>
-            <button
-              data-save-trigger
-              onClick={() => salvar()}
-              className="rounded-[4px] bg-[#10b981] px-6 py-2 text-sm font-bold text-white hover:bg-green-600"
-            >
-              Salvar Progresso
-            </button>
-          </div>
+          {/* O "Salvar" do topo da ferramenta não salva sozinho: ele procura na
+              página o botão com data-save-trigger e clica nele. O cartão
+              "Execução do Projeto" com "Salvar Progresso" saiu, então este
+              gatilho invisível fica no lugar — sem ele o Salvar de cima não
+              faria nada nesta ferramenta. */}
+          <button type="button" data-save-trigger onClick={() => salvar()} className="hidden" aria-hidden="true" tabIndex={-1} />
 
           <div className="space-y-4">
             {phases.map((phase) => {

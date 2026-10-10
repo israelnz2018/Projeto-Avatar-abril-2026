@@ -6,6 +6,30 @@ import { resolveToolLink } from '@/src/services/toolLinks';
 import { esqueletoDoSipoc, sipocParaProcessMap, sipocParaBpmn } from '@/src/services/sipocParaProcesso';
 import { variaveisDaOrigem, variaveisYDaOrigem } from '@/src/services/variaveisDoProjeto';
 import { generateBriefData } from '@/src/services/claudeAiService';
+import { getUserData } from '@/src/services/userService';
+import { auth } from '@/src/lib/firebase';
+
+/**
+ * Nome do aluno DONO do projeto — o líder no cabeçalho do Contrato.
+ *
+ * É o dono (`ownerUid`), não quem está logado: o consultor também abre o
+ * projeto do aluno e pode gerar o contrato por ele. Mesma ordem de busca do
+ * resto da plataforma: o `nome` do perfil, o nome da conta (só se o dono for
+ * quem está logado) e, por último, o começo do e-mail.
+ */
+async function nomeDoDonoDoProjeto(project: any): Promise<string> {
+  const uid = project?.ownerUid || auth.currentUser?.uid || '';
+  let perfil: any = null;
+  try { perfil = uid ? await getUserData(uid) : null; } catch { perfil = null; }
+  const ehQuemEstaLogado = uid && uid === auth.currentUser?.uid;
+  const email = String(project?.ownerEmail || perfil?.email || (ehQuemEstaLogado ? auth.currentUser?.email : '') || '');
+  return String(
+    perfil?.nome
+    || (ehQuemEstaLogado ? auth.currentUser?.displayName : '')
+    || email.split('@')[0]
+    || '',
+  ).trim();
+}
 import { generateFullWordReport, generateFullPPTReport, generateProjectCharterExcel } from '@/src/services/reportService';
 import { exportIshikawaSlide } from '@/src/services/ishikawaSlideExporter';
 import { exportCharterSlide } from '@/src/services/charterSlideExporter';
@@ -2093,6 +2117,15 @@ export default function ToolWrapper({
           ? targetContext : allProjectData
       );
       let normalized = normalizeInitialData(toolId, generatedData);
+
+      // Contrato do Projeto: data e líder não são trabalho da IA. O modelo
+      // pedia "DD/MM/AAAA" e ela inventava uma data qualquer; o líder vinha em
+      // branco. A data é a de hoje e o líder é o aluno dono do projeto.
+      if (toolId === 'charter') {
+        normalized.date = new Date().toLocaleDateString('pt-BR');
+        const lider = await nomeDoDonoDoProjeto(project);
+        if (lider) normalized.leader = lider.toUpperCase();
+      }
 
       if (toolId === 'brainstormingImprove') {
         const causasConfirmadas = Array.isArray(targetContext?.validatedCauses)
