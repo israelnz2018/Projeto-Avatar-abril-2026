@@ -275,11 +275,9 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
 
   const temAtividades = phases.some((p) => p.activities.length > 0);
 
+  // Só existe com a ferramenta vazia. Para recomeçar, o aluno usa o "Excluir"
+  // da ferramenta, que a esvazia e traz este botão de volta.
   const sugerirAtividades = () => {
-    if (temAtividades && !window.confirm(
-      'Isto substitui as atividades atuais pelas sugeridas, com datas novas. Continuar?',
-    )) return;
-
     const base = phases.map((fase) => ({
       ...fase,
       isOpen: fase.id === 'define',
@@ -297,17 +295,7 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
     toast.success(`Atividades sugeridas para ${duracao.meses} meses.`);
   };
 
-  /**
-   * Mudou a duração ou o início com atividades já na tela: redistribui as
-   * datas, mas mantém o texto, o responsável e o status que o aluno já pôs.
-   */
-  const mudarDuracao = (nova: Duracao) => {
-    setDuracao(nova);
-    if (!temAtividades) { salvar(phases, nova); return; }
-    const redistribuidas = distribuirDatas(phases, nova);
-    setPhases(redistribuidas);
-    salvar(redistribuidas, nova);
-  };
+  const mudarDuracao = (nova: Duracao) => setDuracao(nova);
 
   const updateActivity = (phaseId: string, activityId: string, updates: Partial<Activity>) => {
     setPhases((prev) => prev.map((phase) => phase.id !== phaseId ? phase : {
@@ -414,10 +402,9 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
               AZUL  = traz da ferramenta anterior ("Sincronizar com …").
               Sugerir cria, então é verde. A duração fica DENTRO do cartão,
               antes do botão, como a data de início no "Gerar Cronograma".
-              Vazia: cartão grande. Preenchida: barra fina, para ajustar a
-              duração sem o cartão ocupar a tela — como o "Sincronizar"
-              compacto. */}
-          {!temAtividades ? (
+              Como nos outros cartões verdes, ele só aparece com a ferramenta
+              vazia; para refazer, o aluno usa o "Excluir" da ferramenta. */}
+          {!temAtividades && (
             <div className="group relative mb-2 overflow-hidden rounded-2xl border border-emerald-100 bg-[#f0fdf4] p-8 shadow-sm">
               <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-100/50 blur-3xl transition-colors group-hover:bg-emerald-200/50" />
               <div className="relative z-10 flex flex-col items-center justify-between gap-8 md:flex-row">
@@ -442,21 +429,6 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
                   <span>Sugerir Atividades</span>
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-emerald-100 bg-[#f0fdf4] px-5 py-4">
-              <div className="flex flex-wrap items-end gap-4">
-                <SeletorDuracao duracao={duracao} aoMudar={mudarDuracao} />
-                <p className="m-0 max-w-xs pb-2 text-[11px] text-emerald-900/80">
-                  Mudar a duração ou o início refaz as datas e mantém o que você já escreveu.
-                </p>
-              </div>
-              <button
-                onClick={sugerirAtividades}
-                className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border-none bg-emerald-600 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-700 active:scale-95"
-              >
-                <Sparkles size={14} /> Sugerir de novo
-              </button>
             </div>
           )}
 
