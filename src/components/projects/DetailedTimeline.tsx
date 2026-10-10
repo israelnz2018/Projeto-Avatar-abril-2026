@@ -297,6 +297,23 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
 
   const mudarDuracao = (nova: Duracao) => setDuracao(nova);
 
+  /**
+   * Recalcula as datas pela duração e o início escolhidos, mantendo o texto,
+   * o responsável, o status e as notas de cada atividade. Só roda no clique —
+   * mudar a duração sozinho não mexe em nada, porque isto apaga as datas que
+   * o aluno tenha ajustado à mão.
+   */
+  const refazerDatas = () => {
+    if (!window.confirm(
+      `Recalcular as datas para ${duracao.meses} meses a partir de ${dataBR(duracao.inicio)}? `
+      + 'As datas que você ajustou à mão serão substituídas. Texto, responsável e status continuam.',
+    )) return;
+    const redistribuidas = distribuirDatas(phases, duracao);
+    setPhases(redistribuidas);
+    salvar(redistribuidas, duracao);
+    toast.success('Datas recalculadas.');
+  };
+
   const updateActivity = (phaseId: string, activityId: string, updates: Partial<Activity>) => {
     setPhases((prev) => prev.map((phase) => phase.id !== phaseId ? phase : {
       ...phase,
@@ -429,6 +446,25 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
                   <span>Sugerir Atividades</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Depois de gerar: barra fina para recalcular as datas. Não sugere
+              atividades de novo — para recomeçar do zero, existe o "Excluir". */}
+          {temAtividades && (
+            <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-emerald-100 bg-[#f0fdf4] px-5 py-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <SeletorDuracao duracao={duracao} aoMudar={mudarDuracao} />
+                <p className="m-0 max-w-xs pb-2 text-[11px] text-emerald-900/80">
+                  Mudou o prazo? Escolha a nova duração e recalcule. Texto, responsável e status continuam.
+                </p>
+              </div>
+              <button
+                onClick={refazerDatas}
+                className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border-none bg-emerald-600 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-700 active:scale-95"
+              >
+                <CalendarDays size={14} /> Refazer as datas
+              </button>
             </div>
           )}
 
