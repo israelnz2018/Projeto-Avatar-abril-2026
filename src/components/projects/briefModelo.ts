@@ -36,9 +36,8 @@ export interface EstruturaBrief {
   problemas: string[];
   ganhos: string[];
   /**
-   * Um projeto pode ter mais de um objetivo (tempo E custo, por exemplo). O
-   * PRIMEIRO é o principal: é dele que sai o título, porque título precisa de
-   * um foco só.
+   * Um projeto pode ter mais de um objetivo (tempo E custo, por exemplo). Todos
+   * entram no título automático, sem os números.
    */
   objetivos: ObjetivoProjeto[];
   /**
@@ -88,18 +87,38 @@ export function fraseDoObjetivo(o: ObjetivoProjeto): string {
  * Título de projeto diz o que será melhorado; a meta "de 5 para 1" é do
  * objetivo e muda ao longo do projeto — se morasse no título, o título ficaria
  * errado na primeira revisão da meta.
+ *
+ * Com mais de um objetivo, TODOS entram, e os de mesmo verbo se juntam para
+ * não repetir a palavra:
+ *   "Reduzir o tempo de emissão e o custo de retrabalho"
+ *   "Reduzir o tempo de emissão das notas e aumentar a taxa de acerto"
+ * A ordem dos grupos segue a ordem em que os verbos aparecem.
  */
-export function tituloAutomatico(o: ObjetivoProjeto, processo: string): string {
-  const indicador = o.indicador.trim();
-  if (indicador) return primeiraMaiuscula(`${o.verbo} ${indicador}`);
+export function tituloAutomatico(objetivos: ObjetivoProjeto[], processo: string): string {
+  const grupos: Array<{ verbo: string; itens: string[] }> = [];
+  for (const o of objetivos) {
+    const indicador = o.indicador.trim();
+    if (!indicador) continue;
+    const grupo = grupos.find((g) => g.verbo === o.verbo);
+    if (grupo) grupo.itens.push(indicador);
+    else grupos.push({ verbo: o.verbo, itens: [indicador] });
+  }
+  if (grupos.length) {
+    const partes = grupos.map((g, i) => {
+      const verbo = i === 0 ? g.verbo : g.verbo.toLowerCase();
+      return `${verbo} ${juntarComE(g.itens)}`;
+    });
+    return primeiraMaiuscula(juntarComE(partes));
+  }
   const p = processo.trim();
   if (p) return `Melhorar ${primeiraMinuscula(p)}`;
   return '';
 }
 
-/** O objetivo que dá o título: o primeiro que tenha o "o quê" preenchido. */
-export function objetivoPrincipal(objetivos: ObjetivoProjeto[]): ObjetivoProjeto {
-  return objetivos.find((o) => o.indicador.trim()) || objetivos[0] || { ...OBJETIVO_VAZIO };
+/** "a" · "a e b" · "a, b e c" */
+function juntarComE(itens: string[]): string {
+  if (itens.length <= 1) return itens[0] || '';
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
 }
 
 /** As frases de todos os objetivos preenchidos, na ordem. */
@@ -173,6 +192,6 @@ export function answersDaEstrutura(answers: Record<string, any>, e: EstruturaBri
   );
   if (temObjetivoEstruturado) novo.q7 = frases.length > 1 ? juntarLista(frases) : (frases[0] || '');
 
-  if (!e.tituloEditado) novo.q6 = tituloAutomatico(objetivoPrincipal(e.objetivos), String(answers.q1 || ''));
+  if (!e.tituloEditado) novo.q6 = tituloAutomatico(e.objetivos, String(answers.q1 || ''));
   return novo;
 }

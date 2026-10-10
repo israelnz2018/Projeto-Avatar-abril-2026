@@ -4,7 +4,7 @@ import { cn } from '@/src/lib/utils';
 import {
   EstruturaBrief, ObjetivoProjeto, VerboObjetivo, OBJETIVO_VAZIO,
   estruturaDeAnswers, normalizarEstrutura, answersDaEstrutura, fraseDoObjetivo,
-  frasesDosObjetivos, objetivoPrincipal, tituloAutomatico,
+  frasesDosObjetivos, tituloAutomatico,
 } from './briefModelo';
 
 /**
@@ -278,7 +278,6 @@ export default function ProjectBrief({
                       <div className="mb-3 flex items-center justify-between">
                         <span className="text-[11px] font-black uppercase tracking-wider text-[#555]">
                           Objetivo {i + 1}
-                          {i === 0 && <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-blue-700">principal — dá o título</span>}
                         </span>
                         <button
                           onClick={() => removerObjetivo(i)}
@@ -457,11 +456,21 @@ export default function ProjectBrief({
             </p>
             {titulo || frasesObjetivo.length ? (
               <>
-                <input
+                {/* Caixa que cresce com o texto: com vários objetivos o título
+                    passa de uma linha, e um campo de linha única o cortaria. */}
+                <textarea
+                  ref={(el) => {
+                    if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
+                  }}
                   value={titulo}
-                  onChange={(e) => alterarTitulo(e.target.value)}
+                  onChange={(e) => {
+                    alterarTitulo(e.target.value.replace(/\n/g, ' '));
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                  rows={1}
                   placeholder="O título aparece aqui"
-                  className="mt-3 w-full rounded-[4px] border border-blue-200 bg-white px-4 py-3 text-[17px] font-bold text-[#1E2D6E] focus:border-blue-500 focus:outline-none"
+                  className="mt-3 w-full resize-none overflow-hidden rounded-[4px] border border-blue-200 bg-white px-4 py-3 text-[17px] font-bold leading-snug text-[#1E2D6E] focus:border-blue-500 focus:outline-none"
                 />
                 {frasesObjetivo.length === 1 && (
                   <p className="mt-2 text-[13px] text-[#555]">
@@ -480,7 +489,7 @@ export default function ProjectBrief({
                   {estrutura.tituloEditado ? (
                     <button
                       onClick={refazerTitulo}
-                      disabled={!tituloAutomatico(objetivoPrincipal(estrutura.objetivos), String(answers.q1 || ''))}
+                      disabled={!tituloAutomatico(estrutura.objetivos, String(answers.q1 || ''))}
                       className="flex cursor-pointer items-center gap-1.5 rounded border border-blue-200 bg-white px-2.5 py-1 font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <RotateCcw size={12} /> Gerar o título de novo
@@ -630,7 +639,7 @@ function ModalExemplo({
   exemploIdx, setExemploIdx, fechar,
 }: { exemploIdx: number; setExemploIdx: (i: number) => void; fechar: () => void }) {
   const ex = BRIEF_EXEMPLOS[exemploIdx];
-  const titulo = tituloAutomatico(objetivoPrincipal(ex.objetivos), ex.q1);
+  const titulo = tituloAutomatico(ex.objetivos, ex.q1);
   const frases = frasesDosObjetivos(ex.objetivos);
   const Linha = ({ rotulo, children }: { rotulo: string; children: React.ReactNode }) => (
     <div className="space-y-1.5">

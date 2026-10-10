@@ -79,9 +79,13 @@ export async function exportBriefSlide(
     x: TX + 0.20, y: TY + 0.05, w: TW - 0.40, h: 0.16,
     fontFace: 'Calibri', fontSize: 7, bold: true, color: '8AA0E5', charSpacing: 1.5, valign: 'middle',
   });
+  // Com vários objetivos o título fica longo. O `shrinkText` do PowerPoint só
+  // age quando o arquivo é editado, não ao abrir — então a fonte já sai do
+  // tamanho certo para caber no banner.
+  const tamanhoTitulo = projectTitle.length > 140 ? 10 : projectTitle.length > 95 ? 11.5 : 13;
   slide.addText(projectTitle || '(sem título)', {
     x: TX + 0.20, y: TY + 0.19, w: TW - 0.40, h: BANNER_H - 0.24,
-    fontFace: 'Calibri', fontSize: 13, bold: true, color: 'FFFFFF',
+    fontFace: 'Calibri', fontSize: tamanhoTitulo, bold: true, color: 'FFFFFF',
     valign: 'middle', shrinkText: true,
   });
 
