@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Trash2, AlertCircle, ChevronDown, ChevronRight,
-  Sparkles, X, ListTodo, Info, BookOpen, BarChart3, CheckCircle2, CalendarDays,
+  Sparkles, X, ListTodo, Info, BookOpen, BarChart3, CheckCircle2, CalendarDays, Wand2,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { toast } from 'sonner';
@@ -409,44 +409,56 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
 
       {aba === 'atividades' && (
         <div className="space-y-6">
-          {/* DURAÇÃO + SUGERIR — a duração vem ANTES do botão, porque é dela
-              que saem as datas de cada atividade. */}
-          <div className="rounded-[8px] border border-blue-100 bg-blue-50/60 p-5">
-            <div className="flex flex-wrap items-end gap-4">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-blue-900">
-                  Quantos meses vai durar o projeto?
-                </span>
-                <select
-                  value={duracao.meses}
-                  onChange={(e) => mudarDuracao({ ...duracao, meses: Number(e.target.value) })}
-                  className="rounded-[6px] border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+          {/* SUGERIR ATIVIDADES — no padrão dos cartões da plataforma:
+              VERDE = cria conteúdo ("Gerar …", AIPromptCard do ToolWrapper);
+              AZUL  = traz da ferramenta anterior ("Sincronizar com …").
+              Sugerir cria, então é verde. A duração fica DENTRO do cartão,
+              antes do botão, como a data de início no "Gerar Cronograma".
+              Vazia: cartão grande. Preenchida: barra fina, para ajustar a
+              duração sem o cartão ocupar a tela — como o "Sincronizar"
+              compacto. */}
+          {!temAtividades ? (
+            <div className="group relative mb-2 overflow-hidden rounded-2xl border border-emerald-100 bg-[#f0fdf4] p-8 shadow-sm">
+              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-100/50 blur-3xl transition-colors group-hover:bg-emerald-200/50" />
+              <div className="relative z-10 flex flex-col items-center justify-between gap-8 md:flex-row">
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center gap-3 text-xs font-black uppercase tracking-[0.2em] text-emerald-700">
+                    <Wand2 size={20} className="text-emerald-500" />
+                    <p className="mb-2 text-xs font-black uppercase tracking-widest text-emerald-700">Sugerir Atividades</p>
+                  </div>
+                  <p className="text-sm leading-relaxed text-gray-600">
+                    Escolha quanto tempo o projeto vai durar. As atividades de cada fase do DMAIC vêm com as datas
+                    já distribuídas — depois é só ajustar.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-4">
+                    <SeletorDuracao duracao={duracao} aoMudar={mudarDuracao} />
+                  </div>
+                </div>
+                <button
+                  onClick={sugerirAtividades}
+                  className="flex h-16 w-full min-w-[240px] cursor-pointer items-center justify-center gap-3 rounded-xl border-none bg-emerald-600 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-emerald-700 hover:shadow-emerald-200 active:scale-95 md:w-auto"
                 >
-                  {OPCOES_MESES.map((m) => <option key={m} value={m}>{m} meses</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-blue-900">Começa em</span>
-                <input
-                  type="date"
-                  value={duracao.inicio}
-                  onChange={(e) => e.target.value && mudarDuracao({ ...duracao, inicio: e.target.value })}
-                  className="rounded-[6px] border border-blue-200 bg-white px-3 py-2 text-sm text-gray-800"
-                />
-              </label>
+                  <Sparkles size={20} />
+                  <span>Sugerir Atividades</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-emerald-100 bg-[#f0fdf4] px-5 py-4">
+              <div className="flex flex-wrap items-end gap-4">
+                <SeletorDuracao duracao={duracao} aoMudar={mudarDuracao} />
+                <p className="m-0 max-w-xs pb-2 text-[11px] text-emerald-900/80">
+                  Mudar a duração ou o início refaz as datas e mantém o que você já escreveu.
+                </p>
+              </div>
               <button
                 onClick={sugerirAtividades}
-                className="flex cursor-pointer items-center gap-2 rounded-[6px] border-none bg-blue-600 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-700"
+                className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border-none bg-emerald-600 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-700 active:scale-95"
               >
-                <Sparkles size={15} /> Sugerir Atividades
+                <Sparkles size={14} /> Sugerir de novo
               </button>
             </div>
-            <p className="mb-0 mt-3 text-[12px] text-blue-900/80">
-              {temAtividades
-                ? 'Mudar a duração ou o início refaz as datas e mantém o que você já escreveu.'
-                : 'As atividades vêm com as datas distribuídas pelas fases do DMAIC. Depois é só ajustar.'}
-            </p>
-          </div>
+          )}
 
           <div className="flex items-center justify-between rounded-[8px] border border-[#ccc] bg-white p-5 shadow-sm">
             <div>
@@ -796,5 +808,34 @@ export default function DetailedTimeline({ onSave, initialData }: DetailedTimeli
         </div>
       )}
     </div>
+  );
+}
+
+/** Duração e início, no estilo dos campos dos cartões verdes de "Gerar". */
+function SeletorDuracao({ duracao, aoMudar }: { duracao: Duracao; aoMudar: (d: Duracao) => void }) {
+  const rotulo = "mb-1 block text-[10px] font-black uppercase tracking-widest text-emerald-600";
+  const campo = "rounded-xl border border-emerald-200 bg-white p-3 text-sm font-bold text-emerald-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500";
+  return (
+    <>
+      <label className="block">
+        <span className={rotulo}>Quantos meses vai durar o projeto?</span>
+        <select
+          value={duracao.meses}
+          onChange={(e) => aoMudar({ ...duracao, meses: Number(e.target.value) })}
+          className={campo}
+        >
+          {OPCOES_MESES.map((m) => <option key={m} value={m}>{m} meses</option>)}
+        </select>
+      </label>
+      <label className="block">
+        <span className={rotulo}>Começa em</span>
+        <input
+          type="date"
+          value={duracao.inicio}
+          onChange={(e) => e.target.value && aoMudar({ ...duracao, inicio: e.target.value })}
+          className={campo}
+        />
+      </label>
+    </>
   );
 }
