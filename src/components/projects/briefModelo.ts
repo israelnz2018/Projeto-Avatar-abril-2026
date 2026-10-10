@@ -59,17 +59,20 @@ export function separarLista(texto: string | undefined): string[] {
 }
 
 /**
- * A frase do objetivo, com os números: "Reduzir o tempo de emissão de propostas
- * de 5 dias para 1 dia útil até março". Vazia enquanto não houver o mínimo
- * (o que medir e onde chegar) — meio objetivo é pior que nenhum.
+ * A frase do objetivo: "Reduzir o tempo de emissão de propostas de 5 dias para
+ * 1 dia útil até março".
+ *
+ * Só o "o quê" é obrigatório. Hoje, meta e prazo são opcionais: ao vivo, muita
+ * gente sabe o que quer melhorar mas não tem o número na cabeça — e o projeto
+ * pode começar assim; medir é justamente a fase seguinte. Cada parte que vier
+ * preenchida entra na frase.
  */
 export function fraseDoObjetivo(o: ObjetivoProjeto): string {
   const indicador = o.indicador.trim();
-  const meta = o.meta.trim();
-  if (!indicador || !meta) return '';
+  if (!indicador) return '';
   const partes = [`${o.verbo} ${indicador}`];
   if (o.atual.trim()) partes.push(`de ${o.atual.trim()}`);
-  partes.push(`para ${meta}`);
+  if (o.meta.trim()) partes.push(`para ${o.meta.trim()}`);
   if (o.prazo.trim()) partes.push(o.prazo.trim());
   return partes.join(' ');
 }

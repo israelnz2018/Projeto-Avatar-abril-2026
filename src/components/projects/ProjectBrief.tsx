@@ -246,7 +246,7 @@ export default function ProjectBrief({
             numero={3}
             titulo="Objetivo do projeto"
             nivel="essencial"
-            dica="O que você vai medir, como está hoje e onde quer chegar. É isso que transforma um problema em projeto."
+            dica="O que você quer reduzir ou aumentar. Se já souber os números de hoje e da meta, melhor — se não, eles vêm na fase de medição."
           >
             {objetivoAntigo && (
               <p className="mb-3 rounded-[4px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
@@ -274,7 +274,7 @@ export default function ProjectBrief({
               </Campo>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Campo rotulo="Hoje está em">
+              <Campo rotulo="Hoje está em (opcional)">
                 <input
                   value={estrutura.objetivo.atual}
                   onChange={(e) => alterarObjetivo('atual', e.target.value)}
@@ -282,7 +282,7 @@ export default function ProjectBrief({
                   className={CAMPO}
                 />
               </Campo>
-              <Campo rotulo="Quer chegar a">
+              <Campo rotulo="Quer chegar a (opcional)">
                 <input
                   value={estrutura.objetivo.meta}
                   onChange={(e) => alterarObjetivo('meta', e.target.value)}
