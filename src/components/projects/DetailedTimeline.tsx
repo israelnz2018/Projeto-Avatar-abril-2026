@@ -1,26 +1,36 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  CheckCircle2, Circle, Plus, Trash2, AlertCircle, Clock, 
-  TrendingUp, TrendingDown, ChevronDown, ChevronRight, 
-  Sparkles, X, Check, LayoutDashboard, ListTodo, 
-  History, AlertTriangle, Target, Calendar, Info, Settings,
-  Loader2, BookOpen
+import {
+  Plus, Trash2, AlertCircle, ChevronDown, ChevronRight,
+  Sparkles, X, ListTodo, Info, BookOpen, BarChart3, CheckCircle2, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+
+/**
+ * Atividades Detalhadas — as tarefas de cada fase do DMAIC, com datas.
+ *
+ * É um projeto de MELHORIA, não um projeto PMI. Por isso:
+ *  - O caminho é um só: escolher quantos meses o projeto vai durar e apertar
+ *    "Sugerir Atividades". As datas de cada atividade saem dessa duração.
+ *  - Não há predecessora nem peso por atividade.
+ *  - O acompanhamento fala português simples — quanto já foi feito, o que
+ *    está atrasado e com quem — em vez de SPI, EV e PV.
+ *
+ * Dados antigos com `weight` e `predecessorId` continuam abrindo; esses campos
+ * só deixaram de aparecer e de contar.
+ */
 
 interface Activity {
   id: string;
   text: string;
   status: 'Not Started' | 'In Progress' | 'Completed';
-  plannedStart?: string;
-  plannedFinish?: string;
+  plannedStart?: string;   // yyyy-mm-dd
+  plannedFinish?: string;  // yyyy-mm-dd
   actualFinish?: string;
-  weight: number; // 1 to 10
   owner?: string;
   notes?: string;
-  predecessorId?: string; // ID of another activity
+  weight?: number;         // legado — não é mais usado
+  predecessorId?: string;  // legado — não é mais usado
 }
 
 interface PhaseActivities {
@@ -28,7 +38,13 @@ interface PhaseActivities {
   name: string;
   activities: Activity[];
   isOpen: boolean;
-  weight: number; // Percentage of total project value
+  /** Fatia da duração do projeto que esta fase recebe (soma 100). */
+  weight: number;
+}
+
+interface Duracao {
+  meses: number;
+  inicio: string; // yyyy-mm-dd
 }
 
 interface DetailedTimelineProps {
@@ -39,6 +55,8 @@ interface DetailedTimelineProps {
   isGeneratingAI?: boolean;
   onClearAIData?: () => void;
 }
+
+const OPCOES_MESES = [2, 3, 4, 5, 6, 8, 10, 12];
 
 const SUGGESTED_ACTIVITIES: Record<string, string[]> = {
   define: [
@@ -170,679 +188,516 @@ const DETALHADO_EXEMPLOS = [
   },
 ];
 
-export default function DetailedTimeline({ onSave, initialData, macroTimeline, onGenerateAI, isGeneratingAI, onClearAIData }: DetailedTimelineProps) {
-  const [activeTab, setActiveTab] = useState<'activities' | 'dashboard' | 'analysis'>('activities');
+// ── Datas ──────────────────────────────────────────────────────────────────
+// Tudo em data LOCAL (yyyy-mm-dd). toISOString() converteria para UTC e, no
+// Brasil à noite, a data sairia um dia adiantada.
+
+function paraISO(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function deISO(s: string): Date {
+  const [a, m, d] = s.split('-').map(Number);
+  return new Date(a, (m || 1) - 1, d || 1);
+}
+function somarDias(d: Date, dias: number): Date {
+  const n = new Date(d);
+  n.setDate(n.getDate() + dias);
+  return n;
+}
+export function hojeISO(): string {
+  return paraISO(new Date());
+}
+function dataBR(s?: string): string {
+  if (!s) return '—';
+  const [a, m, d] = s.split('-');
+  return a && m && d ? `${d}/${m}/${a}` : s;
+}
+
+/**
+ * Distribui as datas pela duração escolhida.
+ *
+ * Cada fase do DMAIC recebe uma fatia proporcional ao seu `weight` (Definir
+ * 15%, Medir 20%, Analisar 20%, Melhorar 30%, Controlar 15%), as fases vêm uma
+ * depois da outra, e dentro de cada fase as atividades dividem o tempo em
+ * partes iguais, em sequência. É uma sugestão de partida — o aluno ajusta.
+ */
+export function distribuirDatas(fases: PhaseActivities[], duracao: Duracao): PhaseActivities[] {
+  const inicio = deISO(duracao.inicio);
+  const fimProjeto = new Date(inicio);
+  fimProjeto.setMonth(fimProjeto.getMonth() + duracao.meses);
+  const totalDias = Math.max(fases.length, Math.round((fimProjeto.getTime() - inicio.getTime()) / 86_400_000));
+  const totalPeso = fases.reduce((s, f) => s + (f.weight || 1), 0) || 1;
+
+  let cursor = 0;
+  return fases.map((fase, i) => {
+    const ultima = i === fases.length - 1;
+    const dias = ultima
+      ? totalDias - cursor
+      : Math.max(1, Math.round((totalDias * (fase.weight || 1)) / totalPeso));
+    const inicioFase = cursor;
+    cursor += dias;
+
+    const n = fase.activities.length;
+    return {
+      ...fase,
+      activities: fase.activities.map((a, k) => {
+        const de = inicioFase + Math.floor((k * dias) / n);
+        const ate = Math.max(de, inicioFase + Math.floor(((k + 1) * dias) / n) - 1);
+        return { ...a, plannedStart: paraISO(somarDias(inicio, de)), plannedFinish: paraISO(somarDias(inicio, ate)) };
+      }),
+    };
+  });
+}
+
+/** Atrasada = o prazo já passou e ela não foi concluída. */
+function estaAtrasada(a: Activity, hoje: string): boolean {
+  return a.status !== 'Completed' && Boolean(a.plannedFinish) && (a.plannedFinish as string) < hoje;
+}
+
+export default function DetailedTimeline({ onSave, initialData }: DetailedTimelineProps) {
+  const [aba, setAba] = useState<'atividades' | 'acompanhamento'>('atividades');
   const [phases, setPhases] = useState<PhaseActivities[]>(initialData?.phases || DEFAULT_STRUCTURE);
-  const isToolEmpty = phases.every(p => p.activities.length === 0);
-  const [editingActivity, setEditingActivity] = useState<{ phaseId: string, activityId: string } | null>(null);
+  const [duracao, setDuracao] = useState<Duracao>(initialData?.duracao || { meses: 6, inicio: hojeISO() });
+  const [notasAbertas, setNotasAbertas] = useState<string | null>(null);
 
   // Modal "Ver exemplo" (read-only) — não altera os dados do aluno.
   const [showExemplo, setShowExemplo] = useState(false);
-  const [exemploIdx, setExemploIdx] = useState(0); // 0 = escritório, 1 = manufatura
-
-  // Auto-resize textareas when phases or editing state change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const textareas = document.querySelectorAll('textarea');
-      textareas.forEach(ta => {
-        ta.style.height = 'auto';
-        ta.style.height = ta.scrollHeight + 'px';
-      });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [phases, editingActivity, activeTab]);
-
-  const allActivities = useMemo(() => {
-    return phases.flatMap(p => p.activities.map(a => ({ id: a.id, text: a.text, phaseName: p.name })));
-  }, [phases]);
+  const [exemploIdx, setExemploIdx] = useState(0);
 
   useEffect(() => {
-    if (initialData?.phases) {
-      setPhases(initialData.phases);
-    }
+    if (initialData?.phases) setPhases(initialData.phases);
+    if (initialData?.duracao) setDuracao(initialData.duracao);
   }, [initialData]);
 
-  const applySuggestions = () => {
-    const newPhases = phases.map(phase => {
-      const macroPhase = macroTimeline?.phases?.find((p: any) => p.id === phase.id);
-      return {
-        ...phase,
-        activities: (SUGGESTED_ACTIVITIES[phase.id] || []).map(text => ({
-          id: crypto.randomUUID(),
-          text,
-          status: 'Not Started' as const,
-          plannedStart: macroPhase?.startDate || '',
-          plannedFinish: macroPhase?.endDate || '',
-          weight: 5,
-          owner: '',
-          notes: ''
-        }))
-      };
-    });
-    setPhases(newPhases);
-    toast.success("Atividades sugeridas aplicadas com sucesso!");
+  const salvar = (novasFases: PhaseActivities[] = phases, novaDuracao: Duracao = duracao) =>
+    onSave({ phases: novasFases, duracao: novaDuracao });
+
+  const temAtividades = phases.some((p) => p.activities.length > 0);
+
+  const sugerirAtividades = () => {
+    if (temAtividades && !window.confirm(
+      'Isto substitui as atividades atuais pelas sugeridas, com datas novas. Continuar?',
+    )) return;
+
+    const base = phases.map((fase) => ({
+      ...fase,
+      isOpen: fase.id === 'define',
+      activities: (SUGGESTED_ACTIVITIES[fase.id] || []).map((text) => ({
+        id: crypto.randomUUID(),
+        text,
+        status: 'Not Started' as const,
+        owner: '',
+        notes: '',
+      })),
+    }));
+    const comDatas = distribuirDatas(base, duracao);
+    setPhases(comDatas);
+    salvar(comDatas, duracao);
+    toast.success(`Atividades sugeridas para ${duracao.meses} meses.`);
+  };
+
+  /**
+   * Mudou a duração ou o início com atividades já na tela: redistribui as
+   * datas, mas mantém o texto, o responsável e o status que o aluno já pôs.
+   */
+  const mudarDuracao = (nova: Duracao) => {
+    setDuracao(nova);
+    if (!temAtividades) { salvar(phases, nova); return; }
+    const redistribuidas = distribuirDatas(phases, nova);
+    setPhases(redistribuidas);
+    salvar(redistribuidas, nova);
   };
 
   const updateActivity = (phaseId: string, activityId: string, updates: Partial<Activity>) => {
-    setPhases(prev => prev.map(phase => {
-      if (phase.id === phaseId) {
-        return {
-          ...phase,
-          activities: phase.activities.map(act => {
-            if (act.id === activityId) {
-              const newAct = { ...act, ...updates };
-              // Auto-set actualFinish when completed
-              if (updates.status === 'Completed' && act.status !== 'Completed') {
-                newAct.actualFinish = new Date().toISOString().split('T')[0];
-              } else if (updates.status && updates.status !== 'Completed') {
-                newAct.actualFinish = undefined;
-              }
-              return newAct;
-            }
-            return act;
-          })
-        };
-      }
-      return phase;
+    setPhases((prev) => prev.map((phase) => phase.id !== phaseId ? phase : {
+      ...phase,
+      activities: phase.activities.map((act) => {
+        if (act.id !== activityId) return act;
+        const novo = { ...act, ...updates };
+        if (updates.status === 'Completed' && act.status !== 'Completed') novo.actualFinish = hojeISO();
+        else if (updates.status && updates.status !== 'Completed') novo.actualFinish = undefined;
+        return novo;
+      }),
     }));
   };
 
   const addActivity = (phaseId: string) => {
-    const macroPhase = macroTimeline?.phases?.find((p: any) => p.id === phaseId);
-    const newActivity: Activity = {
+    const fase = phases.find((p) => p.id === phaseId);
+    const ultima = fase?.activities[fase.activities.length - 1];
+    const nova: Activity = {
       id: crypto.randomUUID(),
       text: 'Nova atividade',
       status: 'Not Started',
-      plannedStart: macroPhase?.startDate || '',
-      plannedFinish: macroPhase?.endDate || '',
-      weight: 5
+      plannedStart: ultima?.plannedFinish || '',
+      plannedFinish: ultima?.plannedFinish || '',
     };
-    setPhases(prev => prev.map(phase => 
-      phase.id === phaseId ? { ...phase, activities: [...phase.activities, newActivity] } : phase
-    ));
-    setEditingActivity({ phaseId, activityId: newActivity.id });
+    setPhases((prev) => prev.map((p) => (p.id === phaseId ? { ...p, activities: [...p.activities, nova] } : p)));
   };
 
-  const togglePhase = (id: string) => {
-    setPhases(prev => prev.map(p => p.id === id ? { ...p, isOpen: !p.isOpen } : p));
-  };
+  const removerActivity = (phaseId: string, activityId: string) =>
+    setPhases((prev) => prev.map((p) => (p.id === phaseId
+      ? { ...p, activities: p.activities.filter((a) => a.id !== activityId) }
+      : p)));
 
-  // PMI Calculations
-  const metrics = useMemo(() => {
-    const today = new Date().getTime();
-    let totalPV = 0;
-    let totalEV = 0;
-    
-    const phaseMetrics = phases.map(phase => {
-      const macroPhase = macroTimeline?.phases?.find((p: any) => p.id === phase.id);
-      
-      if (!macroPhase || !macroPhase.startDate || !macroPhase.endDate) {
-        return { id: phase.id, pv: 0, ev: 0, spi: 1, status: 'Not Started', progress: 0, timeProgress: 0 };
-      }
+  const togglePhase = (id: string) =>
+    setPhases((prev) => prev.map((p) => (p.id === id ? { ...p, isOpen: !p.isOpen } : p)));
 
-      const start = new Date(macroPhase.startDate).getTime();
-      const end = new Date(macroPhase.endDate).getTime();
-      const duration = end - start;
-      
-      // PV Calculation (Time-based)
-      let pvFactor = 0;
-      if (today > end) pvFactor = 1;
-      else if (today > start) pvFactor = (today - start) / duration;
-      const pv = pvFactor * phase.weight;
+  // ── Acompanhamento, em português simples ──
+  const resumo = useMemo(() => {
+    const hoje = hojeISO();
+    const todas = phases.flatMap((p) => p.activities.map((a) => ({ ...a, fase: p.name })));
+    const total = todas.length;
+    const concluidas = todas.filter((a) => a.status === 'Completed').length;
+    const atrasadas = todas.filter((a) => estaAtrasada(a, hoje));
+    const deveriamEstarProntas = todas.filter((a) => a.plannedFinish && a.plannedFinish < hoje).length;
 
-      // EV Calculation (Weighted Activity-based)
-      const totalWeight = phase.activities.reduce((sum, a) => sum + a.weight, 0);
-      const earnedWeight = phase.activities.reduce((sum, a) => {
-        const progress = a.status === 'Completed' ? 1 : a.status === 'In Progress' ? 0.5 : 0;
-        return sum + (a.weight * progress);
-      }, 0);
-      
-      const evFactor = totalWeight > 0 ? (earnedWeight / totalWeight) : 0;
-      const ev = evFactor * phase.weight;
-
-      const spi = pv > 0 ? ev / pv : (ev > 0 ? 1.2 : 1);
-      
-      let status = 'On Schedule';
-      const isCompleted = phase.activities.length > 0 && phase.activities.every(a => a.status === 'Completed');
-      
-      if (today < start && earnedWeight === 0) status = 'Not Started';
-      else if (isCompleted) status = 'Completed';
-      else if (spi < 0.85 || (today > end && !isCompleted)) status = 'Delayed';
-      else if (spi < 0.95) status = 'At Risk';
-      else status = 'In Progress';
-
-      totalPV += pv;
-      totalEV += ev;
-
-      return { 
-        id: phase.id, 
-        name: phase.name, 
-        pv, 
-        ev, 
-        spi, 
-        status, 
-        progress: Math.round(evFactor * 100), 
-        timeProgress: Math.round(pvFactor * 100) 
-      };
+    const fases = phases.map((p) => {
+      const n = p.activities.length;
+      const feitas = p.activities.filter((a) => a.status === 'Completed').length;
+      const atrasadasFase = p.activities.filter((a) => estaAtrasada(a, hoje)).length;
+      const comecou = p.activities.some((a) => a.status !== 'Not Started');
+      const situacao = n === 0 ? 'Sem atividades'
+        : feitas === n ? 'Concluída'
+        : atrasadasFase > 0 ? 'Com atraso'
+        : comecou ? 'Em andamento'
+        : 'Não começou';
+      return { id: p.id, nome: p.name, n, feitas, atrasadas: atrasadasFase, pct: n ? Math.round((feitas / n) * 100) : 0, situacao };
     });
 
-    const totalSPI = totalPV > 0 ? totalEV / totalPV : (totalEV > 0 ? 1.2 : 1);
-    let projectStatus = 'On Schedule';
-    if (totalSPI < 0.85) projectStatus = 'Delayed';
-    else if (totalSPI < 0.95) projectStatus = 'At Risk';
-
+    const datas = todas.map((a) => a.plannedFinish).filter(Boolean).sort() as string[];
     return {
-      phases: phaseMetrics,
-      totalPV: Math.round(totalPV),
-      totalEV: Math.round(totalEV),
-      totalSPI: Number(totalSPI.toFixed(2)),
-      projectStatus
+      total,
+      concluidas,
+      pct: total ? Math.round((concluidas / total) * 100) : 0,
+      esperado: total ? Math.round((deveriamEstarProntas / total) * 100) : 0,
+      atrasadas,
+      fases,
+      fimPrevisto: datas[datas.length - 1],
     };
-  }, [phases, macroTimeline]);
+  }, [phases]);
+
+  const progressoFase = (id: string) => resumo.fases.find((f) => f.id === id);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto relative animate-in fade-in duration-500">
-      {/* Bloco de IA — aparece quando a ferramenta está vazia */}
-      {isToolEmpty && onGenerateAI && (
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <span className="text-xs font-black text-blue-700 uppercase tracking-widest">
-                  Gerar Cronograma Detalhado com IA
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                A IA vai detalhar as atividades de cada fase do cronograma macro para garantir o controle do projeto.
-              </p>
-              <p className="text-xs text-blue-500 font-bold mt-2 italic">
-                * A IA sugerirá atividades padrão baseadas nas fases do DMAIC e datas do cronograma macro.
-              </p>
-            </div>
-            <button
-              onClick={() => onGenerateAI?.()}
-              disabled={isGeneratingAI}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-none shrink-0",
-                isGeneratingAI
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer shadow-lg shadow-blue-100"
-              )}
-            >
-              {isGeneratingAI
-                ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                : <><Sparkles size={16} /> Gerar com IA</>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Indicador de IA */}
-      {!isToolEmpty && onGenerateAI && initialData?.isGenerated && (
-        <div className="flex items-center justify-between mb-4 px-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-xs font-bold text-green-600">Gerado com IA</span>
-          </div>
+    <div className="relative mx-auto max-w-5xl space-y-6 animate-in fade-in duration-500">
+      {/* Abas e ações */}
+      <div className="flex flex-col items-center justify-between gap-4 border-b border-slate-100 pb-4 md:flex-row">
+        <div className="flex w-fit rounded-lg bg-gray-100 p-1">
           <button
-            onClick={() => {
-              if (window.confirm('Deseja limpar os dados gerados pela IA?')) {
-                onClearAIData?.();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border-none bg-transparent cursor-pointer"
-          >
-            <Trash2 size={13} />
-            Limpar dados da IA
-          </button>
-        </div>
-      )}
-
-      {/* Navigation Tabs and Quick Actions */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-100 pb-4">
-        <div className="flex bg-gray-100 p-1 rounded-lg w-fit transition-all">
-          <button 
-            onClick={() => setActiveTab('activities')}
-            className={cn("px-6 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2", activeTab === 'activities' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700")}
+            onClick={() => setAba('atividades')}
+            className={cn('flex items-center gap-2 rounded-md px-6 py-2 text-sm font-bold transition-all',
+              aba === 'atividades' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
           >
             <ListTodo size={16} /> Atividades
           </button>
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={cn("px-6 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2", activeTab === 'dashboard' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700")}
+          <button
+            onClick={() => setAba('acompanhamento')}
+            className={cn('flex items-center gap-2 rounded-md px-6 py-2 text-sm font-bold transition-all',
+              aba === 'acompanhamento' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
           >
-            <LayoutDashboard size={16} /> Dashboard PMI
-          </button>
-          <button 
-            onClick={() => setActiveTab('analysis')}
-            className={cn("px-6 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2", activeTab === 'analysis' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700")}
-          >
-            <History size={16} /> Análise de Desvios
+            <BarChart3 size={16} /> Acompanhamento
           </button>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowExemplo(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E2D6E] hover:bg-[#0033CC] text-white text-[11px] font-black uppercase tracking-widest transition cursor-pointer border-0"
-          >
-            <BookOpen size={14} /> Ver exemplo
-          </button>
-          <button
-            onClick={applySuggestions}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-tight hover:bg-blue-100 transition-all border-none cursor-pointer"
-          >
-            <Sparkles size={14} />
-            Sugerir Atividades
-          </button>
-        </div>
+        <button
+          onClick={() => setShowExemplo(true)}
+          className="flex cursor-pointer items-center gap-2 rounded-lg border-0 bg-[#1E2D6E] px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white transition hover:bg-[#0033CC]"
+        >
+          <BookOpen size={14} /> Ver exemplo
+        </button>
       </div>
 
-      {activeTab === 'activities' && (
+      {aba === 'atividades' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 border border-[#ccc] rounded-[8px] shadow-sm flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">Execução do Projeto</h2>
-              <p className="text-sm text-gray-500">Gerencie as tarefas e acompanhe o progresso real.</p>
+          {/* DURAÇÃO + SUGERIR — a duração vem ANTES do botão, porque é dela
+              que saem as datas de cada atividade. */}
+          <div className="rounded-[8px] border border-blue-100 bg-blue-50/60 p-5">
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-blue-900">
+                  Quantos meses vai durar o projeto?
+                </span>
+                <select
+                  value={duracao.meses}
+                  onChange={(e) => mudarDuracao({ ...duracao, meses: Number(e.target.value) })}
+                  className="rounded-[6px] border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+                >
+                  {OPCOES_MESES.map((m) => <option key={m} value={m}>{m} meses</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-blue-900">Começa em</span>
+                <input
+                  type="date"
+                  value={duracao.inicio}
+                  onChange={(e) => e.target.value && mudarDuracao({ ...duracao, inicio: e.target.value })}
+                  className="rounded-[6px] border border-blue-200 bg-white px-3 py-2 text-sm text-gray-800"
+                />
+              </label>
+              <button
+                onClick={sugerirAtividades}
+                className="flex cursor-pointer items-center gap-2 rounded-[6px] border-none bg-blue-600 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <Sparkles size={15} /> Sugerir Atividades
+              </button>
             </div>
-            <button onClick={() => onSave({ phases })} className="px-6 py-2 bg-[#10b981] text-white rounded-[4px] font-bold text-sm hover:bg-green-600">
+            <p className="mb-0 mt-3 text-[12px] text-blue-900/80">
+              {temAtividades
+                ? 'Mudar a duração ou o início refaz as datas e mantém o que você já escreveu.'
+                : 'As atividades vêm com as datas distribuídas pelas fases do DMAIC. Depois é só ajustar.'}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between rounded-[8px] border border-[#ccc] bg-white p-5 shadow-sm">
+            <div>
+              <h2 className="m-0 text-xl font-bold text-gray-800">Execução do Projeto</h2>
+              <p className="m-0 text-sm text-gray-500">
+                {resumo.total
+                  ? `${resumo.concluidas} de ${resumo.total} atividades concluídas${resumo.fimPrevisto ? ` · término previsto em ${dataBR(resumo.fimPrevisto)}` : ''}`
+                  : 'Escolha a duração e clique em Sugerir Atividades.'}
+              </p>
+            </div>
+            <button
+              data-save-trigger
+              onClick={() => salvar()}
+              className="rounded-[4px] bg-[#10b981] px-6 py-2 text-sm font-bold text-white hover:bg-green-600"
+            >
               Salvar Progresso
             </button>
           </div>
 
           <div className="space-y-4">
-            {phases.map((phase) => (
-              <div key={phase.id} className="bg-white border border-[#eee] rounded-[8px] shadow-sm overflow-hidden">
-                <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50" onClick={() => togglePhase(phase.id)}>
-                  <div className="flex items-center gap-3">
-                    {phase.isOpen ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
-                    <h3 className="font-bold text-gray-800">{phase.name}</h3>
-                    <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold">Peso: {phase.weight}%</span>
+            {phases.map((phase) => {
+              const pf = progressoFase(phase.id);
+              return (
+                <div key={phase.id} className="overflow-hidden rounded-[8px] border border-[#eee] bg-white shadow-sm">
+                  <div className="flex cursor-pointer items-center justify-between p-4 hover:bg-gray-50" onClick={() => togglePhase(phase.id)}>
+                    <div className="flex items-center gap-3">
+                      {phase.isOpen ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
+                      <h3 className="m-0 font-bold text-gray-800">{phase.name}</h3>
+                      {pf && pf.atrasadas > 0 && (
+                        <span className="rounded bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                          {pf.atrasadas} atrasada{pf.atrasadas > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold uppercase text-gray-400">Concluído</div>
+                        <div className="text-sm font-bold text-gray-700">{pf?.pct ?? 0}%</div>
+                      </div>
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
+                        <div className="h-full bg-blue-500" style={{ width: `${pf?.pct ?? 0}%` }} />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-[10px] font-bold text-gray-400 uppercase">Progresso</div>
-                      <div className="text-sm font-bold text-gray-700">{metrics.phases.find(p => p.id === phase.id)?.progress}%</div>
-                    </div>
-                    <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500" style={{ width: `${metrics.phases.find(p => p.id === phase.id)?.progress}%` }} />
-                    </div>
-                  </div>
-                </div>
 
-                {phase.isOpen && (
-                  <div className="p-4 bg-gray-50/30 border-t border-[#eee] space-y-3">
-                    <div className="grid grid-cols-[100px_1fr_90px_90px_50px_120px_100px_40px] gap-2 px-4 mb-2 text-[9px] font-bold text-gray-400 uppercase">
-                      <span>Status</span>
-                      <span>Atividade</span>
-                      <span>Início</span>
-                      <span>Fim</span>
-                      <span>Peso</span>
-                      <span>Predecessora</span>
-                      <span>Responsável</span>
-                      <span></span>
-                    </div>
-                    {phase.activities.map((activity) => {
-                      const predecessor = allActivities.find(a => a.id === activity.predecessorId);
-                      const isPredecessorDone = !activity.predecessorId || 
-                        phases.flatMap(p => p.activities).find(a => a.id === activity.predecessorId)?.status === 'Completed';
-
-                      return (
-                        <div key={activity.id} className="grid grid-cols-[100px_1fr_90px_90px_50px_120px_100px_40px] gap-2 items-center bg-white p-2 rounded border border-gray-100 group hover:border-blue-200 transition-all">
-                          <select 
-                            value={activity.status}
-                            onChange={(e) => updateActivity(phase.id, activity.id, { status: e.target.value as any })}
-                            className={cn(
-                              "text-[9px] font-bold rounded px-1.5 py-1 border-none focus:ring-0",
-                              activity.status === 'Completed' ? "bg-green-100 text-green-700" :
-                              activity.status === 'In Progress' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
-                            )}
+                  {phase.isOpen && (
+                    <div className="space-y-2 border-t border-[#eee] bg-gray-50/30 p-4">
+                      {phase.activities.length > 0 && (
+                        <div className="mb-1 grid grid-cols-[110px_1fr_118px_118px_130px_44px] gap-2 px-2 text-[9px] font-bold uppercase text-gray-400">
+                          <span>Status</span><span>Atividade</span><span>Início</span><span>Fim</span><span>Responsável</span><span />
+                        </div>
+                      )}
+                      {phase.activities.map((a) => {
+                        const atrasada = estaAtrasada(a, hojeISO());
+                        return (
+                          <div
+                            key={a.id}
+                            className={cn('group grid grid-cols-[110px_1fr_118px_118px_130px_44px] items-center gap-2 rounded border bg-white p-2 transition-all hover:border-blue-200',
+                              atrasada ? 'border-red-200' : 'border-gray-100')}
                           >
-                            <option value="Not Started">Não Iniciada</option>
-                            <option value="In Progress">Em Andamento</option>
-                            <option value="Completed">Concluída</option>
-                          </select>
-                          
-                          <div className="flex flex-col min-w-0">
-                            <textarea 
-                              value={activity.text}
-                              onChange={(e) => updateActivity(phase.id, activity.id, { text: e.target.value })}
-                              className="text-[11px] bg-transparent border-none focus:ring-0 text-gray-700 font-medium resize-none leading-tight py-0 w-full h-full whitespace-normal break-words"
-                              rows={1}
-                              onInput={(e) => {
-                                const target = e.target as HTMLTextAreaElement;
-                                const tr = target.closest('tr');
-                                if (tr && tr.style.height && tr.style.height !== 'auto') {
-                                  target.style.height = '100%';
-                                } else {
-                                  target.style.height = 'auto';
-                                  target.style.height = `${target.scrollHeight}px`;
-                                }
-                              }}
-                              style={{ height: 'auto', minHeight: '1.2em' }}
-                            />
-                            {activity.status === 'Completed' && activity.actualFinish && (
-                              <span className="text-[8px] text-green-600">Concluído em: {activity.actualFinish}</span>
-                            )}
-                            {!isPredecessorDone && (
-                              <span className="text-[8px] text-orange-600 flex items-center gap-1">
-                                <AlertCircle size={8} /> Aguardando predecessora
-                              </span>
-                            )}
-                          </div>
-
-                          <input 
-                            type="date"
-                            value={activity.plannedStart}
-                            onChange={(e) => updateActivity(phase.id, activity.id, { plannedStart: e.target.value })}
-                            className="text-[10px] border-gray-100 rounded p-1 focus:border-blue-300 outline-none bg-gray-50/50"
-                          />
-
-                          <input 
-                            type="date"
-                            value={activity.plannedFinish}
-                            onChange={(e) => updateActivity(phase.id, activity.id, { plannedFinish: e.target.value })}
-                            className="text-[10px] border-gray-100 rounded p-1 focus:border-blue-300 outline-none bg-gray-50/50"
-                          />
-
-                          <input 
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={activity.weight}
-                            onChange={(e) => updateActivity(phase.id, activity.id, { weight: parseInt(e.target.value) || 1 })}
-                            className="text-[10px] border-gray-100 rounded p-1 text-center focus:border-blue-300 outline-none bg-gray-50/50"
-                            title="Peso (1-10)"
-                          />
-
-                          <select
-                            value={activity.predecessorId || ''}
-                            onChange={(e) => updateActivity(phase.id, activity.id, { predecessorId: e.target.value || undefined })}
-                            className="text-[9px] border-gray-100 rounded p-1 focus:border-blue-300 outline-none bg-gray-50/50 truncate max-w-[120px]"
-                          >
-                            <option value="">Nenhuma</option>
-                            {allActivities
-                              .filter(a => a.id !== activity.id)
-                              .map(a => (
-                                <option key={a.id} value={a.id}>
-                                  [{a.phaseName}] {a.text.substring(0, 20)}...
-                                </option>
-                              ))
-                            }
-                          </select>
-
-                          <input 
-                            placeholder="Responsável"
-                            value={activity.owner}
-                            onChange={(e) => updateActivity(phase.id, activity.id, { owner: e.target.value })}
-                            className="text-[10px] border-gray-100 rounded p-1 focus:border-blue-300 outline-none bg-gray-50/50"
-                          />
-
-                          <div className="flex items-center gap-0.5">
-                            <button 
-                              onClick={() => setEditingActivity(editingActivity?.activityId === activity.id ? null : { phaseId: phase.id, activityId: activity.id })}
-                              className={cn("p-1 rounded hover:bg-gray-100 transition-colors", editingActivity?.activityId === activity.id ? "text-blue-600" : "text-gray-400")}
-                              title="Notas"
+                            <select
+                              value={a.status}
+                              onChange={(e) => updateActivity(phase.id, a.id, { status: e.target.value as Activity['status'] })}
+                              className={cn('rounded border-none px-1.5 py-1 text-[10px] font-bold focus:ring-0',
+                                a.status === 'Completed' ? 'bg-green-100 text-green-700'
+                                  : a.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700')}
                             >
-                              <Info size={12} />
-                            </button>
-                            <button onClick={() => setPhases(prev => prev.map(p => p.id === phase.id ? { ...p, activities: p.activities.filter(a => a.id !== activity.id) } : p))} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                              <option value="Not Started">Não Iniciada</option>
+                              <option value="In Progress">Em Andamento</option>
+                              <option value="Completed">Concluída</option>
+                            </select>
 
-                          {editingActivity?.activityId === activity.id && (
-                            <div className="col-span-full mt-2 p-2 bg-blue-50 rounded-lg border border-blue-100 animate-in slide-in-from-top-2">
-                              <label className="text-[9px] font-bold text-blue-700 uppercase mb-1 block">Notas / Comentários</label>
-                              <textarea 
-                                value={activity.notes || ''}
-                                onChange={(e) => updateActivity(phase.id, activity.id, { notes: e.target.value })}
-                                placeholder="Adicione observações sobre esta atividade..."
-                                className="w-full text-[10px] p-2 border border-blue-200 rounded bg-white focus:ring-1 focus:ring-blue-400 outline-none min-h-[50px] whitespace-normal break-words"
+                            <div className="flex min-w-0 flex-col">
+                              <input
+                                value={a.text}
+                                onChange={(e) => updateActivity(phase.id, a.id, { text: e.target.value })}
+                                className="w-full border-none bg-transparent py-0 text-[12px] font-medium text-gray-700 focus:ring-0"
                               />
+                              {a.status === 'Completed' && a.actualFinish && (
+                                <span className="text-[9px] text-green-600">Concluída em {dataBR(a.actualFinish)}</span>
+                              )}
+                              {atrasada && (
+                                <span className="flex items-center gap-1 text-[9px] font-bold text-red-600">
+                                  <AlertCircle size={9} /> Atrasada — o prazo era {dataBR(a.plannedFinish)}
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <button onClick={() => addActivity(phase.id)} className="w-full py-2 border border-dashed border-blue-200 text-blue-600 text-xs font-bold rounded hover:bg-blue-50 flex items-center justify-center gap-2">
-                      <Plus size={14} /> Adicionar Atividade
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+
+                            <input
+                              type="date"
+                              value={a.plannedStart || ''}
+                              onChange={(e) => updateActivity(phase.id, a.id, { plannedStart: e.target.value })}
+                              className="rounded border-gray-100 bg-gray-50/50 p-1 text-[11px] outline-none focus:border-blue-300"
+                            />
+                            <input
+                              type="date"
+                              value={a.plannedFinish || ''}
+                              onChange={(e) => updateActivity(phase.id, a.id, { plannedFinish: e.target.value })}
+                              className="rounded border-gray-100 bg-gray-50/50 p-1 text-[11px] outline-none focus:border-blue-300"
+                            />
+                            <input
+                              placeholder="Responsável"
+                              value={a.owner || ''}
+                              onChange={(e) => updateActivity(phase.id, a.id, { owner: e.target.value })}
+                              className="rounded border-gray-100 bg-gray-50/50 p-1 text-[11px] outline-none focus:border-blue-300"
+                            />
+
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={() => setNotasAbertas(notasAbertas === a.id ? null : a.id)}
+                                className={cn('rounded p-1 transition-colors hover:bg-gray-100', notasAbertas === a.id || a.notes ? 'text-blue-600' : 'text-gray-400')}
+                                title="Notas"
+                              >
+                                <Info size={13} />
+                              </button>
+                              <button
+                                onClick={() => removerActivity(phase.id, a.id)}
+                                className="p-1 text-gray-300 opacity-0 transition-all hover:text-red-500 group-hover:opacity-100"
+                                title="Apagar"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+
+                            {notasAbertas === a.id && (
+                              <div className="col-span-full mt-1 rounded-lg border border-blue-100 bg-blue-50 p-2">
+                                <textarea
+                                  value={a.notes || ''}
+                                  onChange={(e) => updateActivity(phase.id, a.id, { notes: e.target.value })}
+                                  placeholder="Observações sobre esta atividade…"
+                                  className="min-h-[50px] w-full rounded border border-blue-200 bg-white p-2 text-[11px] outline-none focus:ring-1 focus:ring-blue-400"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <button
+                        onClick={() => addActivity(phase.id)}
+                        className="flex w-full items-center justify-center gap-2 rounded border border-dashed border-blue-200 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50"
+                      >
+                        <Plus size={14} /> Adicionar Atividade
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {activeTab === 'dashboard' && (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          {/* Project Health Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400 uppercase">SPI Global</span>
-                <Target size={16} className="text-blue-500" />
-              </div>
-              <div className="text-3xl font-black text-gray-800">{metrics.totalSPI}</div>
-              <div className={cn("text-[10px] font-bold px-2 py-0.5 rounded w-fit", metrics.totalSPI >= 1 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
-                {metrics.totalSPI >= 1 ? "NO PRAZO" : "ATRASADO"}
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400 uppercase">Earned Value (EV)</span>
-                <TrendingUp size={16} className="text-green-500" />
-              </div>
-              <div className="text-3xl font-black text-gray-800">{metrics.totalEV}%</div>
-              <p className="text-[10px] text-gray-500">Trabalho Real Concluído</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400 uppercase">Planned Value (PV)</span>
-                <Calendar size={16} className="text-orange-500" />
-              </div>
-              <div className="text-3xl font-black text-gray-800">{metrics.totalPV}%</div>
-              <p className="text-[10px] text-gray-500">Trabalho Planejado até Hoje</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400 uppercase">Status Geral</span>
-                <AlertCircle size={16} className={cn(metrics.projectStatus === 'Delayed' ? "text-red-500" : "text-green-500")} />
-              </div>
-              <div className={cn("text-xl font-bold", metrics.projectStatus === 'Delayed' ? "text-red-600" : "text-green-600")}>
-                {metrics.projectStatus === 'Delayed' ? "Atraso Crítico" : "Saudável"}
-              </div>
-              <p className="text-[10px] text-gray-500">Baseado na Baseline Macro</p>
-            </div>
-          </div>
-
-          {/* Phase Performance Table */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 bg-gray-50">
-              <h3 className="font-bold text-gray-800">Performance por Fase (Schedule Control)</h3>
-            </div>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50/50">
-                  <th className="p-4 whitespace-normal break-words">Fase</th>
-                  <th className="p-4 whitespace-normal break-words">Status PMI</th>
-                  <th className="p-4 whitespace-normal break-words">SPI</th>
-                  <th className="p-4 whitespace-normal break-words">EV (Real)</th>
-                  <th className="p-4 whitespace-normal break-words">PV (Plano)</th>
-                  <th className="p-4 whitespace-normal break-words">Progresso</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {metrics.phases.map(p => (
-                  <tr key={p.id} className="text-sm hover:bg-gray-50 transition-colors">
-                    <td className="p-4 font-bold text-gray-700 whitespace-normal break-words align-top">{p.name}</td>
-                    <td className="p-4 whitespace-normal break-words align-top">
-                      <span className={cn(
-                        "px-2 py-1 rounded-full text-[10px] font-bold",
-                        p.status === 'Delayed' ? "bg-red-100 text-red-700" : 
-                        p.status === 'At Risk' ? "bg-orange-100 text-orange-700" :
-                        p.status === 'Completed' ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
-                      )}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="p-4 font-mono font-bold whitespace-normal break-words align-top">{p.spi.toFixed(2)}</td>
-                    <td className="p-4 text-green-600 font-bold whitespace-normal break-words align-top">{p.ev}%</td>
-                    <td className="p-4 text-orange-600 font-bold whitespace-normal break-words align-top">{p.pv}%</td>
-                    <td className="p-4 whitespace-normal break-words align-top">
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500" style={{ width: `${p.progress}%` }} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'analysis' && (
+      {aba === 'acompanhamento' && (
         <div className="space-y-6 animate-in fade-in duration-500">
-          <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm space-y-8">
-            <div className="flex items-center gap-4 text-red-600">
-              <AlertTriangle size={32} />
-              <div>
-                <h3 className="text-xl font-bold">Análise de Variância e Recuperação</h3>
-                <p className="text-sm text-gray-500">Identifique gargalos e implemente estratégias de recuperação do cronograma.</p>
-              </div>
+          {resumo.total === 0 ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+              Ainda não há atividades. Vá em <strong>Atividades</strong>, escolha a duração e clique em Sugerir Atividades.
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="space-y-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Já foi feito</span>
+                  <div className="text-3xl font-black text-gray-800">{resumo.pct}%</div>
+                  <p className="m-0 text-[12px] text-gray-500">{resumo.concluidas} de {resumo.total} atividades concluídas</p>
+                </div>
+                <div className="space-y-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Pelo cronograma, hoje deveria estar em</span>
+                  <div className="text-3xl font-black text-gray-800">{resumo.esperado}%</div>
+                  <p className={cn('m-0 text-[12px] font-bold', resumo.pct >= resumo.esperado ? 'text-green-600' : 'text-red-600')}>
+                    {resumo.pct >= resumo.esperado ? 'Em dia' : `${resumo.esperado - resumo.pct} pontos atrás do planejado`}
+                  </p>
+                </div>
+                <div className="space-y-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <span className="text-xs font-bold uppercase text-gray-400">Atrasadas</span>
+                  <div className={cn('text-3xl font-black', resumo.atrasadas.length ? 'text-red-600' : 'text-green-600')}>
+                    {resumo.atrasadas.length}
+                  </div>
+                  <p className="m-0 text-[12px] text-gray-500">
+                    {resumo.fimPrevisto ? `Término previsto: ${dataBR(resumo.fimPrevisto)}` : 'Sem datas definidas'}
+                  </p>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <h4 className="font-bold text-gray-700 border-b pb-2 flex items-center gap-2">
-                  <AlertCircle size={18} className="text-red-500" /> Fases com Desvio Crítico
-                </h4>
-                {metrics.phases.filter(p => p.status === 'Delayed' || p.status === 'At Risk').length > 0 ? (
-                  <div className="space-y-4">
-                    {metrics.phases.filter(p => p.status === 'Delayed' || p.status === 'At Risk').map(p => (
-                      <div key={p.id} className="p-4 bg-red-50 border border-red-100 rounded-lg space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-red-900">{p.name}</span>
-                          <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">SPI: {p.spi.toFixed(2)}</span>
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <h3 className="m-0 font-bold text-gray-800">Como está cada fase</h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {resumo.fases.map((f) => (
+                    <div key={f.id} className="grid grid-cols-[120px_1fr_130px] items-center gap-4 px-4 py-3 text-sm">
+                      <span className="font-bold text-gray-700">{f.nome}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                          <div className={cn('h-full', f.atrasadas ? 'bg-red-500' : 'bg-blue-500')} style={{ width: `${f.pct}%` }} />
                         </div>
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-bold text-red-700">
-                            <span>Atraso de Execução</span>
-                            <span>{p.pv - p.ev}% do total</span>
-                          </div>
-                          <div className="w-full h-1.5 bg-red-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-red-500" style={{ width: `${Math.min(100, (p.pv - p.ev) * 2)}%` }} />
-                          </div>
-                        </div>
-                        <p className="text-[11px] text-red-800 leading-relaxed italic">
-                          "O desvio nesta fase impacta diretamente o início da próxima fase devido à dependência sequencial do DMAIC."
-                        </p>
+                        <span className="w-24 text-right text-[12px] text-gray-500">{f.feitas} de {f.n}</span>
                       </div>
-                    ))}
-                  </div>
+                      <span className={cn('w-fit rounded-full px-2.5 py-1 text-[11px] font-bold',
+                        f.situacao === 'Com atraso' ? 'bg-red-100 text-red-700'
+                          : f.situacao === 'Concluída' ? 'bg-green-100 text-green-700'
+                          : f.situacao === 'Em andamento' ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-600')}
+                      >
+                        {f.situacao}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <CalendarDays size={16} className="text-red-500" />
+                  <h3 className="m-0 font-bold text-gray-800">O que está atrasado</h3>
+                </div>
+                {resumo.atrasadas.length === 0 ? (
+                  <p className="m-0 flex items-center gap-2 px-4 py-5 text-sm font-semibold text-green-700">
+                    <CheckCircle2 size={16} /> Nenhuma atividade atrasada.
+                  </p>
                 ) : (
-                  <div className="p-8 bg-green-50 border border-green-100 rounded-lg text-center space-y-3">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
-                      <Check size={24} />
-                    </div>
-                    <p className="text-sm font-bold text-green-700">Excelente! Nenhuma fase apresenta atraso crítico no momento.</p>
-                  </div>
+                  <>
+                    <table className="w-full border-collapse text-left text-sm">
+                      <thead>
+                        <tr className="bg-gray-50/50 text-[10px] font-bold uppercase text-gray-400">
+                          <th className="p-3">Atividade</th>
+                          <th className="p-3">Fase</th>
+                          <th className="p-3">Prazo era</th>
+                          <th className="p-3">Responsável</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {resumo.atrasadas.map((a) => (
+                          <tr key={a.id}>
+                            <td className="p-3 text-gray-800">{a.text}</td>
+                            <td className="p-3 text-gray-600">{a.fase}</td>
+                            <td className="p-3 font-mono text-red-600">{dataBR(a.plannedFinish)}</td>
+                            <td className="p-3 text-gray-600">{a.owner || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="m-0 border-t border-gray-100 bg-amber-50 px-4 py-3 text-[12px] text-amber-900">
+                      Para cada atrasada: converse com o responsável, entenda o que travou e combine uma nova data.
+                      Se uma fase inteira atrasou, avalie se a próxima pode começar em paralelo.
+                    </p>
+                  </>
                 )}
-
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                  <h5 className="text-xs font-bold text-gray-700 uppercase">Impacto no Prazo Final</h5>
-                  <div className="flex items-center gap-3">
-                    <div className={cn("text-2xl font-black", metrics.totalSPI < 1 ? "text-red-600" : "text-green-600")}>
-                      {metrics.totalSPI < 1 ? `+${Math.round((1 - metrics.totalSPI) * 30)} dias` : "No Prazo"}
-                    </div>
-                    <p className="text-[10px] text-gray-500 leading-tight">
-                      Estimativa de atraso na entrega final baseada na performance atual (SPI).
-                    </p>
-                  </div>
-                </div>
               </div>
-
-              <div className="space-y-6">
-                <h4 className="font-bold text-gray-700 border-b pb-2 flex items-center gap-2">
-                  <Sparkles size={18} className="text-blue-500" /> Estratégias de Recuperação (PMI)
-                </h4>
-                <div className="space-y-4">
-                  <div className="p-4 bg-white border border-blue-100 rounded-lg shadow-sm space-y-2 hover:border-blue-300 transition-colors">
-                    <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
-                      <TrendingUp size={16} /> Crashing (Compressão)
-                    </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      Adicione recursos extras (horas extras, novos membros) especificamente nas atividades de <strong>maior peso</strong> que ainda não foram iniciadas nas fases em atraso.
-                    </p>
-                    <div className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded w-fit">Custo: Alto | Risco: Baixo</div>
-                  </div>
-
-                  <div className="p-4 bg-white border border-blue-100 rounded-lg shadow-sm space-y-2 hover:border-blue-300 transition-colors">
-                    <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
-                      <History size={16} /> Fast Tracking (Paralelismo)
-                    </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      Inicie atividades da fase <strong>{phases[Math.min(phases.length - 1, metrics.phases.findIndex(p => p.status === 'Delayed' || p.status === 'At Risk') + 1)]?.name}</strong> antes mesmo de concluir totalmente a fase atual.
-                    </p>
-                    <div className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded w-fit">Custo: Baixo | Risco: Alto</div>
-                  </div>
-
-                  <div className="p-4 bg-orange-50 border border-orange-100 rounded-lg space-y-2">
-                    <div className="flex items-center gap-2 text-orange-700 font-bold text-sm">
-                      <Settings size={16} /> Revisão de Escopo
-                    </div>
-                    <p className="text-xs text-orange-800 leading-relaxed">
-                      Se o atraso persistir, considere reduzir o escopo de atividades não críticas (peso baixo) para garantir a data de entrega final.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Glossário de Indicadores */}
-            <div className="mt-12 pt-8 border-t border-gray-100">
-              <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <Info size={16} className="text-blue-500" /> Entendendo os Indicadores (PMI)
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="font-bold text-[10px] text-blue-600 uppercase mb-1">PV (Planned Value)</div>
-                  <p className="text-[10px] text-gray-600 leading-tight">
-                    <strong>Valor Planejado:</strong> Quanto do projeto deveria estar pronto hoje, baseado no tempo decorrido da baseline macro.
-                  </p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="font-bold text-[10px] text-green-600 uppercase mb-1">EV (Earned Value)</div>
-                  <p className="text-[10px] text-gray-600 leading-tight">
-                    <strong>Valor Agregado:</strong> Quanto do projeto realmente foi entregue até agora, considerando o peso de cada atividade concluída.
-                  </p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="font-bold text-[10px] text-purple-600 uppercase mb-1">SPI (Schedule Performance Index)</div>
-                  <p className="text-[10px] text-gray-600 leading-tight">
-                    <strong>Índice de Performance:</strong> Eficiência do cronograma. 
-                    <br/>• {'>'} 1.0: Adiantado
-                    <br/>• 1.0: No Prazo
-                    <br/>• {'<'} 1.0: Atrasado
-                  </p>
-                </div>
-                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="font-bold text-[10px] text-orange-600 uppercase mb-1">SV (Schedule Variance)</div>
-                  <p className="text-[10px] text-gray-600 leading-tight">
-                    <strong>Variação de Cronograma:</strong> A diferença absoluta entre o que foi feito (EV) e o que era planejado (PV).
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
 

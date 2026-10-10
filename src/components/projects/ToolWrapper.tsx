@@ -587,6 +587,17 @@ interface MigratePromptCardProps {
  */
 const TOOLS_QUE_SINCRONIZAM_LISTA = ['directObservation', 'dataNature', 'fiveWhys'];
 
+/**
+ * Ferramentas que só se preenchem pelo botão de dentro delas — nem "trazer da
+ * ferramenta anterior", nem o cartão genérico de IA.
+ *
+ * Atividades Detalhadas: a migração não tem regra para ela e, com a ferramenta
+ * vazia, gravava um objeto vazio por cima (era o erro ao "exportar da
+ * ferramenta anterior"). O jeito certo de preenchê-la é o "Sugerir Atividades",
+ * que distribui as datas pela duração escolhida.
+ */
+const SO_BOTAO_PROPRIO = ['detailedTimeline'];
+
 const semAcento = (texto: string) =>
   texto.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLocaleLowerCase('pt-BR');
 
@@ -2306,6 +2317,10 @@ export default function ToolWrapper({
       return bruto?.toolData || bruto || {};
     };
 
+    // Atividades Detalhadas tem o próprio "Sugerir Atividades", com a duração
+    // do projeto escolhida antes. É o único caminho que ela deve oferecer.
+    if (SO_BOTAO_PROPRIO.includes(toolId)) return true;
+
     if (toolId === 'measureIshikawa') {
       const ideias = conteudo('brainstorming').ideas;
       return Array.isArray(ideias)
@@ -2689,7 +2704,7 @@ export default function ToolWrapper({
           tocar no que ja foi preenchido, entao nao ha risco em deixa-lo visivel.
           Nas demais ele ainda substitui, e por isso continua so com a ferramenta
           vazia — ate cada uma ganhar a sua propria logica de acrescentar. */}
-      {(TOOLS_QUE_SINCRONIZAM_LISTA.includes(toolId) || isToolEmpty()) && toolLink?.mode === 'migrate' && showAIPrompt && linkHasContent && (
+      {(TOOLS_QUE_SINCRONIZAM_LISTA.includes(toolId) || isToolEmpty()) && toolLink?.mode === 'migrate' && showAIPrompt && linkHasContent && !SO_BOTAO_PROPRIO.includes(toolId) && (
         <MigratePromptCard
           toolId={toolId}
           toolName={toolName}
