@@ -410,11 +410,27 @@ export const generateFullWordReport = async (
 
         // Format data based on tool type or generic structure
         if (tool.id === 'brief' && toolData.answers) {
-          Object.entries(toolData.answers).forEach(([key, value]: [string, any]) => {
+          // Com rótulo e na ordem das perguntas, só o que foi respondido. Antes
+          // saía "Q1: …", "Q2: …" na ordem em que estavam guardados, com vazios.
+          const ROTULOS_BRIEF: Array<[string, string]> = [
+            ['q6', 'Título do projeto'],
+            ['q1', 'Processo'],
+            ['q2', 'O que dá errado'],
+            ['q4', 'O que está dando errado'],
+            ['q7', 'Objetivo do projeto'],
+            ['q8', 'Ganhos e perdas'],
+            ['q3', 'Quem participa'],
+            ['q5', 'Riscos'],
+            ['q10', 'Próximos passos'],
+            ['q12', 'Que tipo de ajuda precisa'],
+          ];
+          ROTULOS_BRIEF.forEach(([key, rotulo]) => {
+            const value = String(toolData.answers[key] || '').trim();
+            if (!value) return;
             children.push(new Paragraph({
               children: [
-                new TextRun({ text: `${key.toUpperCase()}: `, bold: true }),
-                new TextRun({ text: String(value) }),
+                new TextRun({ text: `${rotulo}: `, bold: true }),
+                new TextRun({ text: value }),
               ],
             }));
           });

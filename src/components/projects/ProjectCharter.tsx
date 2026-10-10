@@ -95,17 +95,17 @@ export default function ProjectCharter({
   const [data, setData] = useState(() => {
     const d = initialData?.toolData || initialData;
     const defaultData = {
-      title: briefData?.answers?.q1 || '',
+      title: briefData?.answers?.q6 || briefData?.answers?.q1 || '',
       date: new Date().toLocaleDateString('pt-BR'),
       rev: '00',
       area: '',
       leader: '',
       champion: '',
-      problemDefinition: briefData?.answers?.q2 ? `${briefData.answers.q2}\n${briefData.answers.q4 || ''}` : '',
+      problemDefinition: [briefData?.answers?.q2, briefData?.answers?.q4].filter((t: any) => String(t || '').trim()).join('\n'),
       problemHistory: briefData?.answers?.q5 || '',
       goalDefinition: briefData?.answers?.q7 || '',
       kpi: '',
-      scope: briefData?.answers?.q6 || '',
+      scope: '',
       businessContributions: briefData?.answers?.q8 || '',
       images: briefData?.images || [] as string[],
       stakeholders: (briefData?.stakeholders || [
@@ -148,17 +148,17 @@ export default function ProjectCharter({
     } else {
       // Se initialData for null, resetar para os valores padrão baseados no briefData
       setData({
-        title: briefData?.answers?.q1 || '',
+        title: briefData?.answers?.q6 || briefData?.answers?.q1 || '',
         date: new Date().toLocaleDateString('pt-BR'),
         rev: '00',
         area: '',
         leader: '',
         champion: '',
-        problemDefinition: briefData?.answers?.q2 ? `${briefData.answers.q2}\n${briefData.answers.q4 || ''}` : '',
+        problemDefinition: [briefData?.answers?.q2, briefData?.answers?.q4].filter((t: any) => String(t || '').trim()).join('\n'),
         problemHistory: briefData?.answers?.q5 || '',
         goalDefinition: briefData?.answers?.q7 || '',
         kpi: '',
-        scope: briefData?.answers?.q6 || '',
+        scope: '',
         businessContributions: briefData?.answers?.q8 || '',
         images: briefData?.images || [] as string[],
         stakeholders: (briefData?.stakeholders || [

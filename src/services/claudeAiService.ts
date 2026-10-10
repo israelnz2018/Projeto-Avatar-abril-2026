@@ -9,6 +9,7 @@
 import { listaDeTextos } from '../lib/textoDeValor';
 import { callAIJSON } from './aiRouter';
 import { AI_PROMPTS } from './aiPrompts';
+import { answersDaEstrutura, type EstruturaBrief } from '../components/projects/briefModelo';
 import { normalizeDataNatureData } from './dataNatureRules';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,15 +191,19 @@ Dados de todas as ferramentas disponíveis: ${enxugarParaPrompt(allProjectData |
  * mandamos SÓ o projeto escolhido + nome do projeto, e pedimos uma saída curta
  * (maxTokens baixo). Resultado: bem mais rápido, sem perder qualidade pro Brief.
  *
- * Retorna { answers: { q1..q12 } } no formato que o ProjectBrief consome.
+ * Pede as 5 perguntas da ferramenta (processo, problemas em lista, objetivo em
+ * partes, ganhos/perdas em lista, quem participa) e devolve no MESMO formato que
+ * a tela grava: `answers` em texto e `estrutura` para editar. O título e a
+ * frase do objetivo são montados aqui pelas mesmas regras da tela
+ * (briefModelo.ts), e não pela IA — assim o título nunca sai com número.
  */
 export const generateBriefData = async (
   selectedProject: { title?: string; problem?: string; y_indicator?: string; financial_impact?: string; justification?: string },
   projectInfo?: { name?: string; description?: string }
-): Promise<{ answers: Record<string, string> }> => {
+): Promise<{ answers: Record<string, string>; estrutura: EstruturaBrief }> => {
   const systemPrompt = `Você é um consultor sênior de melhoria contínua. Estruture o problema de um projeto preenchendo um formulário curto e objetivo.
 Responda em português do Brasil, tom prático e direto. Sem jargão técnico.
-Responda APENAS com um objeto JSON puro (sem markdown, sem explicação) com a chave "answers".`;
+Responda APENAS com um objeto JSON puro (sem markdown, sem explicação).`;
 
   const userPrompt = `Projeto selecionado:
 - Título: ${selectedProject.title || ''}
@@ -208,30 +213,44 @@ Responda APENAS com um objeto JSON puro (sem markdown, sem explicação) com a c
 - Justificativa: ${selectedProject.justification || ''}
 ${projectInfo?.name ? `\nContexto do projeto: ${projectInfo.name}${projectInfo.description ? ' — ' + projectInfo.description : ''}` : ''}
 
-Preencha cada campo abaixo em 1-2 frases curtas, coerentes com o projeto acima:
+Preencha, coerente com o projeto acima:
 {
-  "answers": {
-    "q6": "Título do projeto (curto)",
-    "q1": "Nome do processo que será melhorado",
-    "q2": "Principal problema hoje (1-2 frases)",
-    "q3": "Principais envolvidos (áreas ou fornecedores)",
-    "q4": "O que está dando errado na prática (atraso, retrabalho, erro...)",
-    "q5": "Algum risco? (financeiro, cliente, compliance...)",
-    "q7": "Existe meta clara? (tempo, qualidade, custo, volume...)",
-    "q8": "O que melhora se der certo (menos custo, mais rapidez...)",
-    "q10": "Próximos passos já em mente",
-    "q12": "Que tipo de ajuda é necessária"
-  }
+  "processo": "Nome do processo que será melhorado (curto)",
+  "problemas": ["2 a 4 coisas concretas que dão errado hoje, uma por item, frase curta"],
+  "objetivo": {
+    "verbo": "Reduzir ou Aumentar",
+    "indicador": "o que será medido, escrito para vir depois do verbo — ex.: 'o tempo de emissão de propostas'",
+    "atual": "valor de hoje com unidade — ex.: '5 dias', '8%'",
+    "meta": "valor que se quer atingir com unidade — ex.: '1 dia útil', '2%'",
+    "prazo": "opcional — ex.: 'em 3 meses'"
+  },
+  "ganhos": ["2 a 3 itens: o que se ganha resolvendo ou o que se perde se nada mudar"],
+  "participantes": "Áreas, pessoas ou fornecedores envolvidos"
 }`;
 
-  const result = await callAIJSON<{ answers?: Record<string, string> }>({
+  const r = await callAIJSON<any>({
     location: 'fill-tool',
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
     maxTokens: 1200,
   });
 
-  return { answers: result.answers || (result as any) };
+  const lista = (v: any) => (Array.isArray(v) ? v : [v]).map((s) => String(s || '').trim()).filter(Boolean);
+  const o = r?.objetivo || {};
+  const estrutura: EstruturaBrief = {
+    problemas: lista(r?.problemas).length ? lista(r?.problemas) : [''],
+    ganhos: lista(r?.ganhos).length ? lista(r?.ganhos) : [''],
+    objetivo: {
+      verbo: String(o.verbo || '').toLowerCase().startsWith('aument') ? 'Aumentar' : 'Reduzir',
+      indicador: String(o.indicador || '').trim(),
+      atual: String(o.atual || '').trim(),
+      meta: String(o.meta || '').trim(),
+      prazo: String(o.prazo || '').trim(),
+    },
+    tituloEditado: false,
+  };
+  const base = { q1: String(r?.processo || '').trim(), q3: String(r?.participantes || '').trim() };
+  return { answers: answersDaEstrutura(base, estrutura), estrutura };
 };
 
 /**

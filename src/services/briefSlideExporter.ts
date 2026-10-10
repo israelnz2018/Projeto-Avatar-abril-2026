@@ -10,20 +10,22 @@ function unwrapToolData(input: any): any {
 }
 
 // ATENÇÃO: não existem q9 nem q11 no schema.
+// Rótulos das 5 perguntas atuais (ver briefModelo.ts). q4, q5 e q12 só existem
+// em projeto salvo antes delas; card vazio é descartado logo abaixo.
 const QUESTION_LABELS: Record<string, string> = {
-  q1: 'Nome do processo',
-  q2: 'Principal problema',
-  q3: 'Principais envolvidos',
+  q1: 'Processo',
+  q2: 'O que dá errado',
   q4: 'O que está dando errado',
-  q5: 'Existe algum risco',
-  q7: 'Existe meta clara',
-  q8: 'O que vai melhorar',
+  q7: 'Objetivo do projeto',
+  q8: 'Ganhos e perdas',
+  q3: 'Quem participa',
+  q5: 'Riscos',
   q10: 'Próximos passos',
   q12: 'Que tipo de ajuda precisa',
 };
 
-// Ordem dos cards (q6 é o headline, tratado à parte).
-const CARD_ORDER = ['q1', 'q2', 'q3', 'q4', 'q5', 'q7', 'q8', 'q10', 'q12'];
+// Ordem dos cards = ordem das perguntas (q6 é o headline, tratado à parte).
+const CARD_ORDER = ['q1', 'q2', 'q4', 'q7', 'q8', 'q3', 'q5', 'q10', 'q12'];
 
 export async function exportBriefSlide(
   project: Project,
